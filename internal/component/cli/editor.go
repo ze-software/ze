@@ -177,11 +177,11 @@ func (e *Editor) HasPendingEdit() bool {
 	return e.hasPendingEdit
 }
 
-// PendingEditTime returns the modification time of the .edit file.
+// pendingEditTime returns the modification time of the .edit file.
 // Returns zero time if no edit file exists. For blob storage, mod time is
 // unavailable so this returns zero time even when the edit exists; callers
 // handle zero time gracefully in the prompt.
-func (e *Editor) PendingEditTime() time.Time {
+func (e *Editor) pendingEditTime() time.Time {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	if !e.store.Exists(editPath) {
@@ -195,9 +195,9 @@ func (e *Editor) PendingEditTime() time.Time {
 	return info.ModTime()
 }
 
-// PendingEditDiff returns the diff between original and pending edit content.
+// pendingEditDiff returns the diff between original and pending edit content.
 // Returns empty string if no edit file exists.
-func (e *Editor) PendingEditDiff() string {
+func (e *Editor) pendingEditDiff() string {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	data, err := e.store.ReadFile(editPath)
@@ -222,7 +222,7 @@ const (
 // PromptPendingEdit prompts user about existing uncommitted changes.
 // Reads from stdin, writes to stdout.
 func (e *Editor) PromptPendingEdit() PendingEditAction {
-	modTime := e.PendingEditTime()
+	modTime := e.pendingEditTime()
 	timeStr := modTime.Format("2006-01-02 15:04")
 
 	// Route prompt output through a RenderWriter: if stdout is broken there is no
@@ -253,7 +253,7 @@ func (e *Editor) PromptPendingEdit() PendingEditAction {
 		case "d":
 			return PendingEditDiscard
 		case "v":
-			diff := e.PendingEditDiff()
+			diff := e.pendingEditDiff()
 			if diff == "" {
 				rw.Line("\nNo differences found.")
 			} else {
@@ -331,14 +331,14 @@ func (e *Editor) SetPreCommitValidate(fn func(candidate string) error) {
 	e.preCommitValidate = fn
 }
 
-// HasArchiveNotifier returns true if an archive notifier is configured.
-func (e *Editor) HasArchiveNotifier() bool {
+// hasArchiveNotifier returns true if an archive notifier is configured.
+func (e *Editor) hasArchiveNotifier() bool {
 	return e.onArchive != nil
 }
 
-// NotifyArchive calls the archive notifier if one is configured.
+// notifyArchive calls the archive notifier if one is configured.
 // Returns nil if no notifier is set or if archival succeeds.
-func (e *Editor) NotifyArchive(content []byte) []error {
+func (e *Editor) notifyArchive(content []byte) []error {
 	if e.onArchive == nil {
 		return nil
 	}
@@ -419,8 +419,8 @@ func (e *Editor) ContentAtPath(path []string) string {
 	return config.SerializeSubtree(subtree, schemaNode)
 }
 
-// ActiveContentAtPath returns config text showing only active nodes (inactive pruned).
-func (e *Editor) ActiveContentAtPath(path []string) string {
+// activeContentAtPath returns config text showing only active nodes (inactive pruned).
+func (e *Editor) activeContentAtPath(path []string) string {
 	if !e.treeValid || e.tree == nil || e.schema == nil {
 		return e.workingContent
 	}
@@ -437,9 +437,9 @@ func (e *Editor) ActiveContentAtPath(path []string) string {
 	return config.SerializeSubtree(subtree, schemaNode)
 }
 
-// InactiveContentAtPath returns config text showing only inactive nodes.
+// inactiveContentAtPath returns config text showing only inactive nodes.
 // Active nodes are pruned; inactive nodes are shown with their full subtree.
-func (e *Editor) InactiveContentAtPath(path []string) string {
+func (e *Editor) inactiveContentAtPath(path []string) string {
 	if !e.treeValid || e.tree == nil || e.schema == nil {
 		return ""
 	}
@@ -673,10 +673,10 @@ func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path
 	return false, nil, 0 // Unknown node type
 }
 
-// AutoSelectListEntry checks if the path ends at a list node with exactly one entry.
+// autoSelectListEntry checks if the path ends at a list node with exactly one entry.
 // If so, it returns the expanded path with the single entry's key appended.
 // Otherwise returns the original path unchanged.
-func (e *Editor) AutoSelectListEntry(path []string) []string {
+func (e *Editor) autoSelectListEntry(path []string) []string {
 	if e.schema == nil || e.tree == nil || len(path) == 0 {
 		return path
 	}
@@ -745,8 +745,8 @@ func (e *Editor) HasSession() bool {
 	return e.session != nil
 }
 
-// HasPendingSessionChanges returns true if this session has pending changes in the draft.
-func (e *Editor) HasPendingSessionChanges() bool {
+// hasPendingSessionChanges returns true if this session has pending changes in the draft.
+func (e *Editor) hasPendingSessionChanges() bool {
 	if e.session == nil || e.meta == nil {
 		return false
 	}
@@ -764,10 +764,10 @@ func (e *Editor) SessionID() string {
 	return e.session.ID
 }
 
-// BlameView returns a blame-annotated view of the configuration.
+// blameView returns a blame-annotated view of the configuration.
 // When no metadata exists, uses an empty MetaTree to produce a consistent
 // hierarchical tree format with empty blame gutters.
-func (e *Editor) BlameView() string {
+func (e *Editor) blameView() string {
 	meta := e.meta
 	if meta == nil {
 		meta = config.NewMetaTree()
@@ -775,9 +775,9 @@ func (e *Editor) BlameView() string {
 	return config.SerializeBlame(e.tree, meta, e.schema)
 }
 
-// SetView returns the flat set-format view of the configuration.
+// setView returns the flat set-format view of the configuration.
 // Always emits bare set commands without metadata (AC-15: exportable format).
-func (e *Editor) SetView() string {
+func (e *Editor) setView() string {
 	return config.SerializeSet(e.tree, e.schema)
 }
 
@@ -923,7 +923,7 @@ func (e *Editor) listChangeFiles() []string {
 		return nil
 	}
 
-	prefix := ChangePrefix(e.originalPath)
+	prefix := changePrefix(e.originalPath)
 
 	var result []string
 	for _, f := range files {
@@ -1112,8 +1112,8 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 	return backups, nil
 }
 
-// ReadBackupContent reads the content of a backup by its path.
-func (e *Editor) ReadBackupContent(path string) ([]byte, error) {
+// readBackupContent reads the content of a backup by its path.
+func (e *Editor) readBackupContent(path string) ([]byte, error) {
 	return e.store.ReadFile(path)
 }
 
@@ -1122,9 +1122,9 @@ func (e *Editor) HasDraft() bool {
 	return e.store.Exists(DraftPath(e.originalPath))
 }
 
-// LivePath returns the path to the .live.conf file.
+// livePath returns the path to the .live.conf file.
 // This file holds the trial config during a "commit confirmed" window.
-func (e *Editor) LivePath() string {
+func (e *Editor) livePath() string {
 	dir := filepath.Dir(e.originalPath)
 	base := filepath.Base(e.originalPath)
 	ext := filepath.Ext(base)
@@ -1132,11 +1132,11 @@ func (e *Editor) LivePath() string {
 	return filepath.Join(dir, name+".live"+ext)
 }
 
-// SaveLive writes the current working content to the .live.conf file.
+// saveLive writes the current working content to the .live.conf file.
 // Used by "commit confirmed" to create the trial config.
-func (e *Editor) SaveLive() error {
+func (e *Editor) saveLive() error {
 	content := e.WorkingContent()
-	if err := e.store.WriteFile(e.LivePath(), []byte(content), 0o600); err != nil {
+	if err := e.store.WriteFile(e.livePath(), []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write live config: %w", err)
 	}
 	return nil
@@ -1145,13 +1145,13 @@ func (e *Editor) SaveLive() error {
 // HasPendingLive returns true if a .live.conf file exists.
 // This indicates an unconfirmed "commit confirmed" from a previous session.
 func (e *Editor) HasPendingLive() bool {
-	return e.store.Exists(e.LivePath())
+	return e.store.Exists(e.livePath())
 }
 
-// DeleteLive removes the .live.conf file if it exists.
+// deleteLive removes the .live.conf file if it exists.
 // Errors are ignored because the file may not exist.
-func (e *Editor) DeleteLive() {
-	_ = e.store.Remove(e.LivePath()) // Ignore error if doesn't exist
+func (e *Editor) deleteLive() {
+	_ = e.store.Remove(e.livePath()) // Ignore error if doesn't exist
 }
 
 // Rollback restores the configuration from a backup file.

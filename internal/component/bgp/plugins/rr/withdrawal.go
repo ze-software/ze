@@ -31,7 +31,7 @@ type withdrawalInfo struct {
 // Uses NLRIIterator for zero-allocation NLRI walking on IPv4/IPv6 unicast.
 // Falls back to NLRIs() (allocating) for non-unicast families.
 // Caller must hold rr.withdrawalMu.
-func (rr *RouteReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptypes.RawMessage) {
+func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptypes.RawMessage) {
 	if msg.WireUpdate == nil {
 		return
 	}
@@ -98,7 +98,7 @@ func isUnicast(f family.Family) bool {
 
 // walkUnicastNLRIs walks NLRIs via iterator and updates the withdrawal map.
 // Converts raw prefix bytes to netip.Prefix for route key -- zero allocation per NLRI.
-func (rr *RouteReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlri.NLRIIterator, action string) {
+func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlri.NLRIIterator, action string) {
 	isV6 := strings.HasPrefix(famName, "ipv6/")
 	for {
 		prefix, _, ok := iter.Next()
@@ -147,7 +147,7 @@ func prefixBytesToKey(prefix []byte, isV6 bool) string {
 
 // walkNLRIsAllocating updates the withdrawal map using parsed NLRI objects.
 // Used for non-unicast families where raw prefix bytes need family-specific decoding.
-func (rr *RouteReflector) walkNLRIsAllocating(sourcePeer string, fam family.Family, nlris []nlri.NLRI, err error, action string) {
+func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Family, nlris []nlri.NLRI, err error, action string) {
 	if err != nil || len(nlris) == 0 {
 		return
 	}
@@ -193,7 +193,7 @@ type familyOperation struct {
 // Caller must hold rr.withdrawalMu. The incoming map is keyed by family.Family;
 // withdrawalInfo.Family still carries the registered name text because it is
 // re-emitted verbatim as a dispatched command argument.
-func (rr *RouteReflector) updateWithdrawalMapText(sourcePeer string, ops map[family.Family][]familyOperation) {
+func (rr *routeReflector) updateWithdrawalMapText(sourcePeer string, ops map[family.Family][]familyOperation) {
 	for fam, familyOps := range ops {
 		famName := fam.String()
 		for _, op := range familyOps {

@@ -47,8 +47,8 @@ func TestRegistryRegisterAPI(t *testing.T) {
 
 	r := NewRegistry()
 
-	id1 := r.RegisterAPI("rr-plugin")
-	id2 := r.RegisterAPI("rib")
+	id1 := r.registerAPI("rr-plugin")
+	id2 := r.registerAPI("rib")
 
 	if id1 == InvalidSourceID {
 		t.Error("RegisterAPI returned InvalidSourceID")
@@ -67,13 +67,13 @@ func TestRegistryRegisterAPI(t *testing.T) {
 	}
 
 	// Re-registering same API should return same ID
-	id1Again := r.RegisterAPI("rr-plugin")
+	id1Again := r.registerAPI("rr-plugin")
 	if id1Again != id1 {
 		t.Errorf("Re-registering API got different ID: %d vs %d", id1Again, id1)
 	}
 
 	// Empty name should return InvalidSourceID
-	emptyID := r.RegisterAPI("")
+	emptyID := r.registerAPI("")
 	if emptyID != InvalidSourceID {
 		t.Errorf("RegisterAPI(\"\") = %d, want InvalidSourceID", emptyID)
 	}
@@ -85,7 +85,7 @@ func TestRegistryConfigID(t *testing.T) {
 
 	r := NewRegistry()
 
-	configID := r.ConfigID()
+	configID := r.configID()
 	if configID != SourceIDConfig {
 		t.Errorf("ConfigID() = %d, want %d", configID, SourceIDConfig)
 	}
@@ -147,7 +147,7 @@ func TestRegistryGetByPeerIP(t *testing.T) {
 	ip := netip.MustParseAddr("10.0.0.1")
 	expectedID := r.RegisterPeer(ip, 65001)
 
-	gotID, ok := r.GetByPeerIP(ip)
+	gotID, ok := r.getByPeerIP(ip)
 	if !ok {
 		t.Fatal("GetByPeerIP returned false for registered peer")
 	}
@@ -156,7 +156,7 @@ func TestRegistryGetByPeerIP(t *testing.T) {
 	}
 
 	// Lookup unknown IP
-	_, ok = r.GetByPeerIP(netip.MustParseAddr("192.168.1.1"))
+	_, ok = r.getByPeerIP(netip.MustParseAddr("192.168.1.1"))
 	if ok {
 		t.Error("GetByPeerIP returned true for unknown IP")
 	}
@@ -168,9 +168,9 @@ func TestRegistryGetByAPIName(t *testing.T) {
 
 	r := NewRegistry()
 
-	expectedID := r.RegisterAPI("rr-plugin")
+	expectedID := r.registerAPI("rr-plugin")
 
-	gotID, ok := r.GetByAPIName("rr-plugin")
+	gotID, ok := r.getByAPIName("rr-plugin")
 	if !ok {
 		t.Fatal("GetByAPIName returned false for registered API")
 	}
@@ -179,7 +179,7 @@ func TestRegistryGetByAPIName(t *testing.T) {
 	}
 
 	// Lookup unknown name
-	_, ok = r.GetByAPIName("unknown")
+	_, ok = r.getByAPIName("unknown")
 	if ok {
 		t.Error("GetByAPIName returned true for unknown name")
 	}
@@ -308,7 +308,7 @@ func TestRegistryString(t *testing.T) {
 
 	ip := netip.MustParseAddr("10.0.0.1")
 	peerID := r.RegisterPeer(ip, 65001)
-	apiID := r.RegisterAPI("rr-plugin")
+	apiID := r.registerAPI("rr-plugin")
 
 	peerStr := r.String(peerID)
 	if peerStr != "peer:10.0.0.1" {

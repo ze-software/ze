@@ -30,7 +30,7 @@ func runPasswd(args []string) int {
 	}
 
 	var passphrase []byte
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		var err error
 		passphrase, _, err = ResolvePassphrase(nil)
 		if err != nil {

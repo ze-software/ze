@@ -256,7 +256,7 @@ func recordKey(rec *nlriRecord) withdrawalKey {
 // applyNLRIRecords updates the withdrawal map from pre-extracted NLRI records.
 // Called AFTER forwarding, off the forward critical path.
 // Caller must hold rs.withdrawalMu.
-func (rs *RouteServer) applyNLRIRecords(sourcePeer string, records []nlriRecord) {
+func (rs *routeServer) applyNLRIRecords(sourcePeer string, records []nlriRecord) {
 	for i := range records {
 		rec := &records[i]
 		switch rec.action {

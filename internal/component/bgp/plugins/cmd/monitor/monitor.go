@@ -41,7 +41,7 @@ func init() {
 		},
 	)
 	// Register the compact one-liner formatter for monitor event display.
-	pluginserver.RegisterMonitorEventFormatter(FormatMonitorLine)
+	pluginserver.RegisterMonitorEventFormatter(formatMonitorLine)
 	// Register "monitor event" streaming handler at engine level (verb-first: <action> <module>).
 	pluginserver.RegisterStreamingHandler("monitor event", pluginserver.StreamEventMonitor)
 

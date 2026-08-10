@@ -13,7 +13,7 @@ func init() {
 		Dependencies: []string{"bgp"},
 		YANG:         ffyang.ZeFilterFamilyYANG,
 		FilterTypes:  []string{"family-filter"},
-		RunEngine:    RunFilterFamily,
+		RunEngine:    runFilterFamily,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})
 }

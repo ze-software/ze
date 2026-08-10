@@ -48,12 +48,12 @@ func TestBMPInitiationRoundTrip(t *testing.T) {
 	// VALIDATES: AC-7, AC-9 -- Initiation encode then decode
 	init := &Initiation{
 		TLVs: []TLV{
-			MakeStringTLV(InitTLVSysName, "router1"),
-			MakeStringTLV(InitTLVSysDescr, "ze test"),
+			makeStringTLV(InitTLVSysName, "router1"),
+			makeStringTLV(InitTLVSysDescr, "ze test"),
 		},
 	}
 	buf := make([]byte, 512)
-	n := WriteInitiation(buf, 0, init)
+	n := writeInitiation(buf, 0, init)
 
 	msg, err := DecodeMsg(buf[:n])
 	if err != nil {
@@ -78,11 +78,11 @@ func TestBMPTerminationRoundTrip(t *testing.T) {
 	// VALIDATES: AC-9 -- Termination encode then decode
 	term := &Termination{
 		TLVs: []TLV{
-			MakeStringTLV(TermTLVString, "goodbye"),
+			makeStringTLV(TermTLVString, "goodbye"),
 		},
 	}
 	buf := make([]byte, 512)
-	n := WriteTermination(buf, 0, term)
+	n := writeTermination(buf, 0, term)
 
 	msg, err := DecodeMsg(buf[:n])
 	if err != nil {
@@ -123,7 +123,7 @@ func TestBMPPeerUpRoundTrip(t *testing.T) {
 	pu.LocalAddress[15] = 1
 
 	buf := make([]byte, 1024)
-	n := WritePeerUp(buf, 0, pu)
+	n := writePeerUp(buf, 0, pu)
 
 	msg, err := DecodeMsg(buf[:n])
 	if err != nil {
@@ -171,7 +171,7 @@ func TestBMPPeerDownRoundTrip(t *testing.T) {
 				Data:   tt.data,
 			}
 			buf := make([]byte, 512)
-			n := WritePeerDown(buf, 0, pd)
+			n := writePeerDown(buf, 0, pd)
 
 			msg, err := DecodeMsg(buf[:n])
 			if err != nil {
@@ -199,7 +199,7 @@ func TestBMPRouteMonitoringRoundTrip(t *testing.T) {
 		BGPUpdate: bgpUpdate,
 	}
 	buf := make([]byte, 512)
-	n := WriteRouteMonitoring(buf, 0, rm)
+	n := writeRouteMonitoring(buf, 0, rm)
 
 	msg, err := DecodeMsg(buf[:n])
 	if err != nil {
@@ -224,7 +224,7 @@ func TestBMPStatisticsReportRoundTrip(t *testing.T) {
 	val2 := make([]byte, 8)
 	binary.BigEndian.PutUint64(val2, 1000)
 
-	sr := &StatisticsReport{
+	sr := &statisticsReport{
 		Peer: testPeerHeader(),
 		Stats: []StatEntry{
 			{Type: StatPrefixesRejected, Value: val1},
@@ -232,13 +232,13 @@ func TestBMPStatisticsReportRoundTrip(t *testing.T) {
 		},
 	}
 	buf := make([]byte, 512)
-	n := WriteStatisticsReport(buf, 0, sr)
+	n := writeStatisticsReport(buf, 0, sr)
 
 	msg, err := DecodeMsg(buf[:n])
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
-	decoded, ok := msg.(*StatisticsReport)
+	decoded, ok := msg.(*statisticsReport)
 	if !ok {
 		t.Fatalf("expected *StatisticsReport, got %T", msg)
 	}
@@ -259,20 +259,20 @@ func TestBMPStatisticsReportRoundTrip(t *testing.T) {
 func TestBMPRouteMirroringRoundTrip(t *testing.T) {
 	// VALIDATES: AC-9 -- Route Mirroring encode then decode
 	bgpPDU := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
-	rm := &RouteMirroring{
+	rm := &routeMirroring{
 		Peer: testPeerHeader(),
 		TLVs: []TLV{
 			{Type: MirrorTLVBGPMsg, Length: uint16(len(bgpPDU)), Value: bgpPDU},
 		},
 	}
 	buf := make([]byte, 512)
-	n := WriteRouteMirroring(buf, 0, rm)
+	n := writeRouteMirroring(buf, 0, rm)
 
 	msg, err := DecodeMsg(buf[:n])
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
-	decoded, ok := msg.(*RouteMirroring)
+	decoded, ok := msg.(*routeMirroring)
 	if !ok {
 		t.Fatalf("expected *RouteMirroring, got %T", msg)
 	}

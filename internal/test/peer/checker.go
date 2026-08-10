@@ -42,9 +42,9 @@ type Checker struct {
 	mu              sync.Mutex
 }
 
-// NewChecker creates a new checker from expected messages.
+// newChecker creates a new checker from expected messages.
 // Returns error if any expected rule is invalid.
-func NewChecker(expected []string) (*Checker, error) {
+func newChecker(expected []string) (*Checker, error) {
 	c := &Checker{}
 	sequences, connIDs, err := c.groupMessages(expected)
 	if err != nil {
@@ -453,7 +453,7 @@ func (c *Checker) Expected(msg *Message) bool {
 
 	// If no expectations, accept KEEPALIVE or EOR.
 	if len(c.sequences) == 0 && len(c.messages) == 0 {
-		return msg.IsKeepalive() || msg.IsEOR()
+		return msg.isKeepalive() || msg.IsEOR()
 	}
 
 	stream := msg.Stream()
@@ -463,7 +463,7 @@ func (c *Checker) Expected(msg *Message) bool {
 	}
 
 	// No match - accept KEEPALIVE anyway (normal BGP operation).
-	if msg.IsKeepalive() {
+	if msg.isKeepalive() {
 		return true
 	}
 
@@ -487,7 +487,7 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 
 	// If no expectations, accept KEEPALIVE or EOR silently.
 	if len(c.sequences) == 0 && len(c.messages) == 0 {
-		if msg.IsKeepalive() || msg.IsEOR() {
+		if msg.isKeepalive() || msg.IsEOR() {
 			return false, true
 		}
 		return false, false
@@ -523,7 +523,7 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 	// here reds the second shape, and accepting it in silence with no record is
 	// what left the first shape diffing an End-of-RIB rule against a withdraw,
 	// blaming two frames neither of which was the one out of order.
-	if msg.IsKeepalive() || msg.IsEOR() {
+	if msg.isKeepalive() || msg.IsEOR() {
 		if c.expectedLater(stream) {
 			c.noteMisordered(stream)
 		}
@@ -607,7 +607,7 @@ func (c *Checker) noteMisordered(stream string) {
 	c.misorderPending = note
 }
 
-// TakeMisorderNote returns the note for the most recent marker that arrived out
+// takeMisorderNote returns the note for the most recent marker that arrived out
 // of order, and clears it. It returns an empty string when the last silent
 // accept matched no remaining expectation.
 //
@@ -615,7 +615,7 @@ func (c *Checker) noteMisordered(stream string) {
 // moment the frame landed. That is the only report a fixture gets when the run
 // ends in a TIMEOUT rather than a mismatch, which is the shape a starved host
 // produces.
-func (c *Checker) TakeMisorderNote() string {
+func (c *Checker) takeMisorderNote() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	note := c.misorderPending
@@ -623,9 +623,9 @@ func (c *Checker) TakeMisorderNote() string {
 	return note
 }
 
-// MisorderNotes returns every out-of-order marker note recorded so far, ready to
+// misorderNotes returns every out-of-order marker note recorded so far, ready to
 // append to a mismatch report. It returns an empty string when there are none.
-func (c *Checker) MisorderNotes() string {
+func (c *Checker) misorderNotes() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if len(c.misorder) == 0 {
@@ -638,8 +638,8 @@ func (c *Checker) MisorderNotes() string {
 	return b.String()
 }
 
-// LastMismatch returns the expected and received values from the last mismatch.
-func (c *Checker) LastMismatch() (expected, received string) {
+// lastMismatch returns the expected and received values from the last mismatch.
+func (c *Checker) lastMismatch() (expected, received string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.lastExpected, c.lastReceived
@@ -659,10 +659,10 @@ func (c *Checker) updateMessagesIfRequired() {
 	}
 }
 
-// SequenceEnded returns true if the last matched message ended a connection.
+// sequenceEnded returns true if the last matched message ended a connection.
 // This indicates the connection should close and a new connection is expected.
 // Calling this method clears the flag.
-func (c *Checker) SequenceEnded() bool {
+func (c *Checker) sequenceEnded() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	ended := c.connectionJustEnded
@@ -677,10 +677,10 @@ func (c *Checker) Completed() bool {
 	return len(c.messages) == 0 && len(c.sequences) == 0
 }
 
-// NextNotificationAction checks if the next expected item is a notification: action.
+// nextNotificationAction checks if the next expected item is a notification: action.
 // If so, it returns (true, text) and removes the action from the queue.
 // If not, it returns (false, "").
-func (c *Checker) NextNotificationAction() (bool, string) {
+func (c *Checker) nextNotificationAction() (bool, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -701,10 +701,10 @@ func (c *Checker) NextNotificationAction() (bool, string) {
 	return true, text
 }
 
-// NextSendAction checks if the next expected item is a send: action.
+// nextSendAction checks if the next expected item is a send: action.
 // If so, it returns (true, hexData) and removes the action from the queue.
 // If not, it returns (false, "").
-func (c *Checker) NextSendAction() (bool, string) {
+func (c *Checker) nextSendAction() (bool, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -725,10 +725,10 @@ func (c *Checker) NextSendAction() (bool, string) {
 	return true, hexData
 }
 
-// NextRewriteAction checks if the next expected item is a rewrite: action.
+// nextRewriteAction checks if the next expected item is a rewrite: action.
 // If so, it returns (true, source, dest) and removes the action from the queue.
 // If not, it returns (false, "", "").
-func (c *Checker) NextRewriteAction() (bool, string, string) {
+func (c *Checker) nextRewriteAction() (bool, string, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -752,10 +752,10 @@ func (c *Checker) NextRewriteAction() (bool, string, string) {
 	return true, parts[0], parts[1]
 }
 
-// NextCloseAction checks if the next expected item is a close action.
+// nextCloseAction checks if the next expected item is a close action.
 // If so, it returns true and removes the action from the queue.
 // Close action means: close TCP without sending NOTIFICATION (triggers GR activation).
-func (c *Checker) NextCloseAction() bool {
+func (c *Checker) nextCloseAction() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -773,10 +773,10 @@ func (c *Checker) NextCloseAction() bool {
 	return true
 }
 
-// NextSighupAction checks if the next expected item is a sighup action.
+// nextSighupAction checks if the next expected item is a sighup action.
 // If so, it returns true, removes the action from the queue, and sets
 // expectClose so the next EOF is treated as expected (daemon restarts peer).
-func (c *Checker) NextSighupAction() bool {
+func (c *Checker) nextSighupAction() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -795,10 +795,10 @@ func (c *Checker) NextSighupAction() bool {
 	return true
 }
 
-// NextSigtermAction checks if the next expected item is a sigterm action.
+// nextSigtermAction checks if the next expected item is a sigterm action.
 // If so, it returns true, removes the action from the queue, and sets
 // expectClose so the next EOF is treated as expected (daemon shuts down).
-func (c *Checker) NextSigtermAction() bool {
+func (c *Checker) nextSigtermAction() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -831,9 +831,9 @@ func matchRule(check, received string) bool {
 	return strings.EqualFold(check, received)
 }
 
-// ExpectingClose returns true if the connection is expected to close
+// expectingClose returns true if the connection is expected to close
 // (e.g., after a SIGHUP triggered a daemon reload). Clears the flag.
-func (c *Checker) ExpectingClose() bool {
+func (c *Checker) expectingClose() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	v := c.expectClose

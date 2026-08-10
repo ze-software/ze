@@ -13,7 +13,7 @@ import (
 // VALIDATES: Empty input doesn't crash parser.
 // PREVENTS: Nil panic on empty input.
 func TestParseEmptyFile(t *testing.T) {
-	tc, err := ParseETFile("")
+	tc, err := parseETFile("")
 	require.NoError(t, err)
 	assert.Empty(t, tc.Options)
 	assert.Empty(t, tc.Inputs)
@@ -32,7 +32,7 @@ option=file:path=test.conf
 # Comment between lines
 input=type:text=hello`
 
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	require.NoError(t, err)
 	assert.Len(t, tc.Options, 1)
 	assert.Len(t, tc.Inputs, 1)
@@ -77,7 +77,7 @@ func TestParseOption(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Options, 1)
 			opt := tc.Options[0]
@@ -94,7 +94,7 @@ func TestParseOption(t *testing.T) {
 // VALIDATES: Text input converted to correct action.
 // PREVENTS: User typing lost.
 func TestParseInputType(t *testing.T) {
-	tc, err := ParseETFile("input=type:text=edit bgp")
+	tc, err := parseETFile("input=type:text=edit bgp")
 	require.NoError(t, err)
 	require.Len(t, tc.Inputs, 1)
 
@@ -123,7 +123,7 @@ func TestParseInputKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Inputs, 1)
 			assert.Equal(t, "key", tc.Inputs[0].Action)
@@ -157,7 +157,7 @@ func TestParseInputShorthand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Inputs, 1)
 			assert.Equal(t, "key", tc.Inputs[0].Action)
@@ -171,7 +171,7 @@ func TestParseInputShorthand(t *testing.T) {
 // VALIDATES: input=ctrl:key=c parses correctly.
 // PREVENTS: Ctrl combinations not recognized.
 func TestParseInputCtrl(t *testing.T) {
-	tc, err := ParseETFile("input=ctrl:key=c")
+	tc, err := parseETFile("input=ctrl:key=c")
 	require.NoError(t, err)
 	require.Len(t, tc.Inputs, 1)
 
@@ -207,7 +207,7 @@ func TestParseExpectContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -266,7 +266,7 @@ func TestParseExpectCompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -308,7 +308,7 @@ func TestParseExpectContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -323,7 +323,7 @@ func TestParseExpectContent(t *testing.T) {
 // VALIDATES: expect=errors: parsed correctly.
 // PREVENTS: Error count assertions not working.
 func TestParseExpectErrors(t *testing.T) {
-	tc, err := ParseETFile("expect=errors:count=0")
+	tc, err := parseETFile("expect=errors:count=0")
 	require.NoError(t, err)
 	require.Len(t, tc.Expects, 1)
 
@@ -348,7 +348,7 @@ func TestParseExpectDirty(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -391,7 +391,7 @@ func TestParseExpectGhost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -422,7 +422,7 @@ bgp {
 }
 EOF_CONF`
 
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	require.NoError(t, err)
 	require.Len(t, tc.Tmpfs, 1)
 
@@ -446,7 +446,7 @@ tmpfs=merge.conf:terminator=EOF_MERGE
 bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } } }
 EOF_MERGE`
 
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	require.NoError(t, err)
 	require.Len(t, tc.Tmpfs, 2)
 
@@ -467,7 +467,7 @@ func TestParseTmpfsWithMode(t *testing.T) {
 echo "hello"
 EOF_SH`
 
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	require.NoError(t, err)
 	require.Len(t, tc.Tmpfs, 1)
 
@@ -509,7 +509,7 @@ func TestParseWait(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Waits, 1)
 			w := tc.Waits[0]
@@ -568,7 +568,7 @@ expect=error:none
 input=type:text=set
 expect=completion:contains=local,router-id,peer`
 
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	require.NoError(t, err)
 
 	// Verify all parts parsed
@@ -587,7 +587,7 @@ expect=completion:contains=local,router-id,peer`
 // VALIDATES: Unknown action types produce clear error.
 // PREVENTS: Silent failure on typos.
 func TestParseInvalidLine(t *testing.T) {
-	_, err := ParseETFile("unknown=foo:bar=baz")
+	_, err := parseETFile("unknown=foo:bar=baz")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown")
 }
@@ -601,7 +601,7 @@ func TestParseMissingTerminator(t *testing.T) {
 bgp { session { asn { local 65000; } } }
 # Missing EOF_CONF terminator`
 
-	_, err := ParseETFile(content)
+	_, err := parseETFile(content)
 	require.Error(t, err)
 	assert.Contains(t, strings.ToLower(err.Error()), "terminator")
 }
@@ -617,7 +617,7 @@ input=type:text=hello
 
 expect=dirty:false`
 
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	require.NoError(t, err)
 	assert.Len(t, tc.Options, 1)
 	assert.Len(t, tc.Inputs, 1)
@@ -651,7 +651,7 @@ func TestParseExpectStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -693,7 +693,7 @@ func TestParseExpectError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -724,7 +724,7 @@ func TestParseExpectTemplate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -751,7 +751,7 @@ func TestParseExpectTimer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
@@ -778,7 +778,7 @@ func TestParseExpectDropdown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := ParseETFile(tt.line)
+			tc, err := parseETFile(tt.line)
 			require.NoError(t, err)
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]

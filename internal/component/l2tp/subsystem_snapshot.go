@@ -374,7 +374,7 @@ func (s *Subsystem) RecordDisconnect(sessionID uint16, actor, reason string, cau
 	if obs == nil {
 		return
 	}
-	obs.RecordEvent(ObserverEvent{
+	obs.recordEvent(ObserverEvent{
 		Timestamp: time.Now(),
 		Type:      ObserverEventDisconnectRequested,
 		SessionID: sessionID,

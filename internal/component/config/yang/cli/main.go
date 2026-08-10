@@ -98,23 +98,23 @@ func cmdCompletion(args []string) int {
 		return 1
 	}
 
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	groups := CollectCollisions(root, *minPrefix)
+	groups := collectCollisions(root, *minPrefix)
 
 	if *jsonOutput {
-		if err := FormatCollisionsJSON(os.Stdout, groups); err != nil {
+		if err := formatCollisionsJSON(os.Stdout, groups); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
 		return 0
 	}
 
-	if err := FormatCollisionsText(os.Stdout, groups); err != nil {
+	if err := formatCollisionsText(os.Stdout, groups); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -158,21 +158,21 @@ func cmdTree(args []string) int {
 		filter = SourceConfig
 	}
 
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
 	if *jsonOutput {
-		if err := FormatTreeJSON(os.Stdout, root, filter); err != nil {
+		if err := formatTreeJSON(os.Stdout, root, filter); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
 		return 0
 	}
 
-	if err := FormatTreeText(os.Stdout, root, filter); err != nil {
+	if err := formatTreeText(os.Stdout, root, filter); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -200,7 +200,7 @@ func cmdDoc(args []string) int {
 	}
 
 	if *list {
-		if err := FormatDocList(os.Stdout); err != nil {
+		if err := formatDocList(os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -213,7 +213,7 @@ func cmdDoc(args []string) int {
 	}
 
 	cliCommand := textbuf.Join(fs.Args(), " ")
-	if err := FormatDocCommand(os.Stdout, cliCommand); err != nil {
+	if err := formatDocCommand(os.Stdout, cliCommand); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}

@@ -18,14 +18,14 @@ var errProxyLCPMissing = errors.New("ppp: proxy LCP requires all three CONFREQ A
 // fails to parse as an LCP option list.
 var errProxyLCPInvalid = errors.New("ppp: proxy LCP option stream malformed")
 
-// ProxyLCPResult is the outcome of a successful short-circuit. It
+// proxyLCPResult is the outcome of a successful short-circuit. It
 // carries the parameters the caller needs to skip the FSM straight
 // to Opened: the negotiated MRU (so pppN MTU can be set), the
 // negotiated authentication protocol (so the auth phase knows what
 // the LAC already arranged), and the proxied magic numbers (so Echo
 // loopback detection still works for the LNS<->peer link, even
 // though LCP itself was never run on this end).
-type ProxyLCPResult struct {
+type proxyLCPResult struct {
 	// MRU negotiated between LAC and peer. Zero if neither side
 	// proposed an MRU (the PPP default of 1500 then applies).
 	MRU uint16
@@ -65,28 +65,28 @@ type ProxyLCPResult struct {
 // caller (per-session goroutine in Phase 10) is responsible for
 // invoking the FSM with synthetic events (e.g., set state to Opened,
 // emit TLU action) on success.
-func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (ProxyLCPResult, error) {
+func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, error) {
 	if len(initialRecv) == 0 || len(lastSent) == 0 || len(lastRecv) == 0 {
-		return ProxyLCPResult{}, errProxyLCPMissing
+		return proxyLCPResult{}, errProxyLCPMissing
 	}
 
 	sentOpts, err := ParseLCPOptions(lastSent)
 	if err != nil {
-		return ProxyLCPResult{}, errProxyLCPInvalid
+		return proxyLCPResult{}, errProxyLCPInvalid
 	}
 	recvOpts, err := ParseLCPOptions(lastRecv)
 	if err != nil {
-		return ProxyLCPResult{}, errProxyLCPInvalid
+		return proxyLCPResult{}, errProxyLCPInvalid
 	}
 	// We do not parse initialRecv beyond requiring it to be valid LCP
 	// options; it is informational only (RFC 2661 §18 includes it so
 	// the LNS can audit how negotiation evolved). Still validate it
 	// to catch corrupt AVPs.
 	if _, err := ParseLCPOptions(initialRecv); err != nil {
-		return ProxyLCPResult{}, errProxyLCPInvalid
+		return proxyLCPResult{}, errProxyLCPInvalid
 	}
 
-	var out ProxyLCPResult
+	var out proxyLCPResult
 
 	// MRU: the negotiated MRU is what the peer asked the LAC to use
 	// (Last-Received). RFC 1661 §6.1: a peer's MRU option in its own

@@ -312,7 +312,7 @@ func (d *Dashboard) handlePeerDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writePeerDetail(w, ps, d.state.Active.IsPinned(idx), d.state.SortedFamilies())
+	writePeerDetail(w, ps, d.state.Active.isPinned(idx), d.state.sortedFamilies())
 }
 
 // handlePeerPin toggles the pin state for a peer.
@@ -325,7 +325,7 @@ func (d *Dashboard) handlePeerPin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.state.mu.Lock()
-	if d.state.Active.IsPinned(idx) {
+	if d.state.Active.isPinned(idx) {
 		d.state.Active.Unpin(idx)
 	} else {
 		d.state.Active.Pin(idx, time.Now())
@@ -407,7 +407,7 @@ func (d *Dashboard) handleActiveSetMaxVisible(w http.ResponseWriter, r *http.Req
 	}
 
 	d.state.mu.Lock()
-	d.state.Active.SetMaxVisible(n)
+	d.state.Active.setMaxVisible(n)
 	d.state.mu.Unlock()
 
 	// Return updated active set info (same as polling fallback).

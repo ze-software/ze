@@ -20,7 +20,7 @@ func TestImplementedMatchesParseEVPN(t *testing.T) {
 		// dispatch happened, because EVPNGeneric never errors.
 		parsed, _, err := ParseEVPN([]byte{byte(rt), 0x00}, false)
 
-		_, generic := parsed.(*EVPNGeneric)
+		_, generic := parsed.(*eVPNGeneric)
 		dispatched := err != nil || !generic
 
 		if dispatched != routeType.Implemented() {

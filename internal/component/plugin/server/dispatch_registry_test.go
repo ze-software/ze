@@ -131,7 +131,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"ok": true}}, nil
 	}, "parity test")
 
-	s := &Server{subscriptions: NewSubscriptionManager(), dispatcher: d}
+	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 
@@ -173,7 +173,7 @@ func TestOpUpdateRouteInjectsInternalIdentity(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "peer")
 
-	s := &Server{subscriptions: NewSubscriptionManager(), dispatcher: d}
+	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 

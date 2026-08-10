@@ -106,7 +106,7 @@ func (m MPReachWire) Prefixes() []netip.Prefix {
 	case 1: // IPv4
 		return ParseIPv4Prefixes(nlriBytes)
 	case 2: // IPv6
-		return ParseIPv6Prefixes(nlriBytes)
+		return parseIPv6Prefixes(nlriBytes)
 	default:
 		return nil
 	}
@@ -229,7 +229,7 @@ func (m MPUnreachWire) Prefixes() []netip.Prefix {
 	case 1: // IPv4
 		return ParseIPv4Prefixes(withdrawnBytes)
 	case 2: // IPv6
-		return ParseIPv6Prefixes(withdrawnBytes)
+		return parseIPv6Prefixes(withdrawnBytes)
 	default:
 		return nil
 	}

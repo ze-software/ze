@@ -92,7 +92,7 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 	// header (SCCCN, HELLO, session-scoped messages, and any StopCCN we may
 	// emit below on an auth failure).
 	t.remoteTID = sccrp.AssignedTunnelID
-	t.engine.SetPeerTunnelID(sccrp.AssignedTunnelID)
+	t.engine.setPeerTunnelID(sccrp.AssignedTunnelID)
 	t.peerHostName = sccrp.HostName
 	t.peerFraming = sccrp.FramingCapabilities
 	t.peerBearer = sccrp.BearerCapabilities
@@ -244,7 +244,7 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 			if attrType != AVPMessageType {
 				return sccrpInfo{}, errors.New("l2tp: first SCCRP AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return sccrpInfo{}, fmt.Errorf("l2tp: read SCCRP message type: %w", rerr)
 			}
@@ -261,17 +261,17 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 				info.ProtocolVersion = binary.BigEndian.Uint16(value[:2])
 			}
 		case AVPFramingCapabilities:
-			if v, rerr := ReadAVPUint32(value); rerr == nil {
+			if v, rerr := readAVPUint32(value); rerr == nil {
 				info.FramingCapabilities = v
 			}
 		case AVPBearerCapabilities:
-			if v, rerr := ReadAVPUint32(value); rerr == nil {
+			if v, rerr := readAVPUint32(value); rerr == nil {
 				info.BearerCapabilities = v
 			}
 		case AVPHostName:
 			info.HostName = string(value)
 		case AVPAssignedTunnelID:
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return sccrpInfo{}, fmt.Errorf("l2tp: read SCCRP assigned tunnel id: %w", rerr)
 			}
@@ -280,7 +280,7 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 			}
 			info.AssignedTunnelID = v
 		case AVPReceiveWindowSize:
-			if v, rerr := ReadAVPUint16(value); rerr == nil {
+			if v, rerr := readAVPUint16(value); rerr == nil {
 				info.RecvWindow = v
 			}
 		case AVPChallenge:

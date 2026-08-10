@@ -101,9 +101,9 @@ func parseASNName(txt string) (string, bool) {
 	return label, true
 }
 
-// NewASNNameDecoratorFromResolver creates an ASN name decorator using a DNS resolver.
+// newASNNameDecoratorFromResolver creates an ASN name decorator using a DNS resolver.
 // The resolver parameter must have a ResolveTXT method.
-func NewASNNameDecoratorFromResolver(resolver interface {
+func newASNNameDecoratorFromResolver(resolver interface {
 	ResolveTXT(string) ([]string, error)
 }) Decorator {
 	return newASNNameDecorator(resolver.ResolveTXT)

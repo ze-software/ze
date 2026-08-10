@@ -78,8 +78,8 @@ type AdjacencyTable struct {
 	peers map[string]*Adjacency
 }
 
-// NewAdjacencyTable creates an empty adjacency table.
-func NewAdjacencyTable() *AdjacencyTable {
+// newAdjacencyTable creates an empty adjacency table.
+func newAdjacencyTable() *AdjacencyTable {
 	return &AdjacencyTable{
 		peers: make(map[string]*Adjacency),
 	}

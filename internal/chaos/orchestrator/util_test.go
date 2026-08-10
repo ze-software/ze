@@ -13,7 +13,7 @@ import (
 )
 
 func TestAllocatePort(t *testing.T) {
-	port, err := AllocatePort(context.Background(), "127.0.0.1")
+	port, err := allocatePort(context.Background(), "127.0.0.1")
 	require.NoError(t, err)
 	assert.Greater(t, port, 0)
 	assert.LessOrEqual(t, port, 65535)
@@ -22,7 +22,7 @@ func TestAllocatePort(t *testing.T) {
 func TestAllocatePortUnique(t *testing.T) {
 	ports := make(map[int]bool)
 	for range 5 {
-		port, err := AllocatePort(context.Background(), "127.0.0.1")
+		port, err := allocatePort(context.Background(), "127.0.0.1")
 		require.NoError(t, err)
 		assert.False(t, ports[port], "duplicate port %d", port)
 		ports[port] = true
@@ -36,25 +36,25 @@ func TestCheckPortFree(t *testing.T) {
 
 	addr := ln.Addr().String()
 
-	err = CheckPortFree(addr)
+	err = checkPortFree(addr)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already in use")
 }
 
 func TestCheckPortFreeAvailable(t *testing.T) {
-	port, err := AllocatePort(context.Background(), "127.0.0.1")
+	port, err := allocatePort(context.Background(), "127.0.0.1")
 	require.NoError(t, err)
 
-	err = CheckPortFree(net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	err = checkPortFree(net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 	assert.NoError(t, err)
 }
 
 func TestWaitForZeTimeout(t *testing.T) {
-	port, err := AllocatePort(context.Background(), "127.0.0.1")
+	port, err := allocatePort(context.Background(), "127.0.0.1")
 	require.NoError(t, err)
 
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
-	err = WaitForZe(context.Background(), addr, false)
+	err = waitForZe(context.Background(), addr, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "did not start")
 }
@@ -76,6 +76,6 @@ func TestWaitForZeSuccess(t *testing.T) {
 		}
 	}()
 
-	err = WaitForZe(context.Background(), ln.Addr().String(), false)
+	err = waitForZe(context.Background(), ln.Addr().String(), false)
 	assert.NoError(t, err)
 }

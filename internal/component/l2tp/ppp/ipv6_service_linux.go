@@ -14,8 +14,8 @@ import (
 // startIPv6Service creates and starts the RA sender and DHCPv6 server
 // goroutines for a PPP session. Returns the service (with stop
 // function set) or an error.
-func startIPv6Service(cfg IPv6ServiceConfig, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool), logger *slog.Logger) (*IPv6Service, error) {
-	svc := NewIPv6Service(cfg)
+func startIPv6Service(cfg iPv6ServiceConfig, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool), logger *slog.Logger) (*IPv6Service, error) {
+	svc := newIPv6Service(cfg)
 
 	raStop, err := startRASender(cfg.Ifname, logger)
 	if err != nil {

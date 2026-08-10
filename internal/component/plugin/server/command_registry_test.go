@@ -498,7 +498,7 @@ func TestDeprecatedCommandWarning(t *testing.T) {
 	})
 	assert.True(t, results[0].OK)
 
-	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
+	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
 	// Lookup by new name works directly
 	cmd := registry.Lookup("show fixture state")
@@ -524,7 +524,7 @@ func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 	registry.Register(proc, []CommandDef{
 		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
+	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
 	registry.Freeze()
 
@@ -549,16 +549,16 @@ func TestDeprecatedPrefixLookup(t *testing.T) {
 	registry.Register(proc, []CommandDef{
 		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
+	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
 	// Prefix lookup with trailing args
-	cmd, matchLen := registry.LookupDeprecatedPrefix("show fixture old extra-arg")
+	cmd, matchLen := registry.lookupDeprecatedPrefix("show fixture old extra-arg")
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "show fixture state", cmd.Name)
 	assert.Equal(t, len("show fixture old"), matchLen)
 
 	// Non-matching prefix returns nil
-	cmd, matchLen = registry.LookupDeprecatedPrefix("unknown prefix")
+	cmd, matchLen = registry.lookupDeprecatedPrefix("unknown prefix")
 	assert.Nil(t, cmd)
 	assert.Equal(t, 0, matchLen)
 }
@@ -574,7 +574,7 @@ func TestDeprecatedUnregisterAll(t *testing.T) {
 	registry.Register(proc, []CommandDef{
 		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
+	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
 	registry.Freeze()
 
@@ -696,7 +696,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 		registry := NewCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
-		err := registry.RegisterDeprecated(proc, "Frob fixture", "show fixture state")
+		err := registry.registerDeprecated(proc, "Frob fixture", "show fixture state")
 		assert.ErrorContains(t, err, "Frob fixture")
 		assert.Nil(t, registry.Lookup("Frob fixture"), "rejected alias must not be registered")
 	})
@@ -705,7 +705,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 		registry := NewCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
-		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "frob fixture", "show fixture state"), "unknown verb")
+		assert.ErrorContains(t, registry.registerDeprecated(proc, "frob fixture", "show fixture state"), "unknown verb")
 	})
 
 	t.Run("alias conflicts with builtin", func(t *testing.T) {
@@ -713,7 +713,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 		proc := newProc()
 		registry.AddBuiltin("show builtin thing")
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
-		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show builtin thing", "show fixture state"), "builtin")
+		assert.ErrorContains(t, registry.registerDeprecated(proc, "show builtin thing", "show fixture state"), "builtin")
 	})
 
 	t.Run("alias conflicts with registered command", func(t *testing.T) {
@@ -723,21 +723,21 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 			{Name: "show fixture state"},
 			{Name: "show fixture other"},
 		})
-		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture other", "show fixture state"), "conflicts with command")
+		assert.ErrorContains(t, registry.registerDeprecated(proc, "show fixture other", "show fixture state"), "conflicts with command")
 	})
 
 	t.Run("alias conflicts with existing alias", func(t *testing.T) {
 		registry := NewCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
-		assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
-		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"), "already registered")
+		assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
+		assert.ErrorContains(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"), "already registered")
 	})
 
 	t.Run("alias to unregistered canonical", func(t *testing.T) {
 		registry := NewCommandRegistry()
 		proc := newProc()
-		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture missing"), "unregistered command")
+		assert.ErrorContains(t, registry.registerDeprecated(proc, "show fixture old", "show fixture missing"), "unregistered command")
 	})
 }
 

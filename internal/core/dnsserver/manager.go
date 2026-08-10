@@ -135,7 +135,7 @@ func endpointSig(enabled bool, endpoints []Endpoint) string {
 // a previously-good endpoint set after an intervening failed Apply) has to
 // actually retry the bind, not silently no-op with zero listeners up.
 func (m *Manager) Apply(enabled bool, endpoints []Endpoint) error {
-	return m.ApplyListeners(enabled, Listeners{Plain: endpoints})
+	return m.applyListeners(enabled, Listeners{Plain: endpoints})
 }
 
 func (m *Manager) appliedSig() string {

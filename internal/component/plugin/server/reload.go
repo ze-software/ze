@@ -73,8 +73,8 @@ func (l *txLock) drainSIGHUP() bool {
 	return had
 }
 
-// TxLocked reports whether a config transaction is in progress.
-func (s *Server) TxLocked() bool {
+// txLocked reports whether a config transaction is in progress.
+func (s *Server) txLocked() bool {
 	s.txLock.mu.Lock()
 	defer s.txLock.mu.Unlock()
 	return s.txLock.locked
@@ -114,13 +114,13 @@ func (s *Server) SetFullReloadFunc(fn FullReloadFunc) {
 	s.fullReload = fn
 }
 
-// HasFullReloadFunc reports whether a hub-level reload hook has been set.
-func (s *Server) HasFullReloadFunc() bool {
+// hasFullReloadFunc reports whether a hub-level reload hook has been set.
+func (s *Server) hasFullReloadFunc() bool {
 	return s.fullReload != nil
 }
 
-// ReloadFull runs the hub-level reload hook.
-func (s *Server) ReloadFull(ctx context.Context) error {
+// reloadFull runs the hub-level reload hook.
+func (s *Server) reloadFull(ctx context.Context) error {
 	if s.fullReload == nil {
 		return errNoConfigLoaderConfigured
 	}

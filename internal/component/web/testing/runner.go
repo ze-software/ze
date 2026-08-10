@@ -40,8 +40,8 @@ type Browser struct {
 	daemonStarted bool
 }
 
-// NewBrowser creates a browser instance targeting the given base URL.
-func NewBrowser(baseURL string) *Browser {
+// newBrowser creates a browser instance targeting the given base URL.
+func newBrowser(baseURL string) *Browser {
 	return &Browser{baseURL: baseURL}
 }
 
@@ -111,8 +111,8 @@ const (
 	waitLoadPoll     = 40 * time.Millisecond
 )
 
-// WaitMs waits for a duration in milliseconds.
-func (b *Browser) WaitMs(ms string) error {
+// waitMs waits for a duration in milliseconds.
+func (b *Browser) waitMs(ms string) error {
 	var tb textbuf.Buffer
 	d, err := time.ParseDuration(tb.Str(ms).Str("ms").Slice())
 	if err != nil {
@@ -158,7 +158,7 @@ func (b *Browser) WaitUntil(path, want string) error {
 		if err := b.Open(path); err != nil {
 			return err
 		}
-		html, err := b.GetHTML()
+		html, err := b.getHTML()
 		if err != nil {
 			return fmt.Errorf("html: %w", err)
 		}
@@ -169,19 +169,19 @@ func (b *Browser) WaitUntil(path, want string) error {
 	})
 }
 
-// SetViewport resizes the browser viewport (agent-browser set viewport <w> <h>)
+// setViewport resizes the browser viewport (agent-browser set viewport <w> <h>)
 // so mobile-layout assertions run at the requested size. Applied before the
 // first navigation.
-func (b *Browser) SetViewport(width, height int) error {
+func (b *Browser) setViewport(width, height int) error {
 	var tb textbuf.Buffer
 	w := tb.Int(int64(width)).String()
 	h := tb.Reset().Int(int64(height)).String()
 	return b.runAgentEnsureDaemon("set", "viewport", w, h)
 }
 
-// SetLocale sets the browser Accept-Language header (agent-browser set headers
+// setLocale sets the browser Accept-Language header (agent-browser set headers
 // <json>) so the UI renders under the given locale for the rest of the session.
-func (b *Browser) SetLocale(lang string) error {
+func (b *Browser) setLocale(lang string) error {
 	var tb textbuf.Buffer
 	hdr := tb.Str(`{"Accept-Language":"`).Str(lang).Str(`"}`).String()
 	return b.runAgentEnsureDaemon("set", "headers", hdr)
@@ -195,10 +195,10 @@ func (b *Browser) Login(user, password string) error {
 	if err := b.Open("/"); err != nil {
 		return err
 	}
-	if err := b.FillID("username", user); err != nil {
+	if err := b.fillID("username", user); err != nil {
 		return err
 	}
-	if err := b.FillID("password", password); err != nil {
+	if err := b.fillID("password", password); err != nil {
 		return err
 	}
 	if err := b.Press("Enter"); err != nil {
@@ -212,8 +212,8 @@ func (b *Browser) Snapshot() (string, error) {
 	return b.runAgentOutput("snapshot", "-i")
 }
 
-// FullSnapshot returns the full accessibility snapshot, including static text.
-func (b *Browser) FullSnapshot() (string, error) {
+// fullSnapshot returns the full accessibility snapshot, including static text.
+func (b *Browser) fullSnapshot() (string, error) {
 	return b.runAgentOutput("snapshot")
 }
 
@@ -225,8 +225,8 @@ func (b *Browser) Press(key string) error {
 	return b.WaitLoad()
 }
 
-// PressOn finds an element by visible text, focuses it, and presses a key.
-func (b *Browser) PressOn(text, key string) error {
+// pressOn finds an element by visible text, focuses it, and presses a key.
+func (b *Browser) pressOn(text, key string) error {
 	snap, err := b.Snapshot()
 	if err != nil {
 		return fmt.Errorf("snapshot before press: %w", err)
@@ -247,8 +247,8 @@ func (b *Browser) PressOn(text, key string) error {
 	return b.WaitLoad()
 }
 
-// PressOnID focuses an element by HTML id and presses a key.
-func (b *Browser) PressOnID(id, key string) error {
+// pressOnID focuses an element by HTML id and presses a key.
+func (b *Browser) pressOnID(id, key string) error {
 	var tb textbuf.Buffer
 	sel := tb.Byte('#').Str(id).String()
 	if err := b.runAgent("focus", sel); err != nil {
@@ -285,8 +285,8 @@ func (b *Browser) Click(text string) error {
 	return b.WaitLoad()
 }
 
-// ClickID clicks an element by its HTML id attribute using a CSS selector.
-func (b *Browser) ClickID(id string) error {
+// clickID clicks an element by its HTML id attribute using a CSS selector.
+func (b *Browser) clickID(id string) error {
 	var tb textbuf.Buffer
 	sel := tb.Byte('#').Str(id).String()
 	// agent-browser reports a missing element as a non-zero exit, so a control
@@ -313,8 +313,8 @@ func (b *Browser) Fill(text, value string) error {
 	return b.runAgent("fill", ref, value)
 }
 
-// FillID fills an input by its HTML id attribute using a CSS selector.
-func (b *Browser) FillID(id, value string) error {
+// fillID fills an input by its HTML id attribute using a CSS selector.
+func (b *Browser) fillID(id, value string) error {
 	var tb textbuf.Buffer
 	sel := tb.Byte('#').Str(id).String()
 	return b.runAgent("fill", sel, value)
@@ -335,8 +335,8 @@ func (b *Browser) Hover(text string) error {
 	return b.runAgent("hover", ref)
 }
 
-// HoverID hovers an element by its HTML id attribute using a CSS selector.
-func (b *Browser) HoverID(id string) error {
+// hoverID hovers an element by its HTML id attribute using a CSS selector.
+func (b *Browser) hoverID(id string) error {
 	var tb textbuf.Buffer
 	sel := tb.Byte('#').Str(id).String()
 	return b.runAgent("hover", sel)
@@ -347,13 +347,13 @@ func (b *Browser) Screenshot(path string) error {
 	return b.runAgent("screenshot", path)
 }
 
-// GetText returns the full page text.
-func (b *Browser) GetText() (string, error) {
+// getText returns the full page text.
+func (b *Browser) getText() (string, error) {
 	return b.runAgentOutput("get", "text", "body")
 }
 
-// GetHTML returns the full page HTML.
-func (b *Browser) GetHTML() (string, error) {
+// getHTML returns the full page HTML.
+func (b *Browser) getHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "body")
 }
 
@@ -541,7 +541,7 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	if session != "" {
 		browser = NewBrowserWithSession(baseURL, session)
 	} else {
-		browser = NewBrowser(baseURL)
+		browser = newBrowser(baseURL)
 	}
 	// Free this test's browser session when it finishes. Sessions are keyed per
 	// test (unique nick), so without a per-test close they accumulate in the
@@ -567,12 +567,12 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	// Apply session-level options before the first navigation: a mobile
 	// viewport and/or an Accept-Language locale carry through every open.
 	if tc.Viewport.Width > 0 && tc.Viewport.Height > 0 {
-		if err := browser.SetViewport(tc.Viewport.Width, tc.Viewport.Height); err != nil {
+		if err := browser.setViewport(tc.Viewport.Width, tc.Viewport.Height); err != nil {
 			return &WBTestResult{Error: tb.Str("set viewport: ").Err(err).String()}
 		}
 	}
 	if tc.Locale != "" {
-		if err := browser.SetLocale(tc.Locale); err != nil {
+		if err := browser.setLocale(tc.Locale); err != nil {
 			return &WBTestResult{Error: tb.Reset().Str("set locale: ").Err(err).String()}
 		}
 	}
@@ -650,22 +650,22 @@ func executeAction(b *Browser, a *WBAction) error {
 		return b.Open(a.Values["path"])
 	case "click":
 		if id, ok := a.Values["id"]; ok {
-			return b.ClickID(id)
+			return b.clickID(id)
 		}
 		return b.Click(a.Values["text"])
 	case "fill":
 		if id, ok := a.Values["id"]; ok {
-			return b.FillID(id, a.Values["value"])
+			return b.fillID(id, a.Values["value"])
 		}
 		return b.Fill(a.Values["text"], a.Values["value"])
 	case "hover":
 		if id, ok := a.Values["id"]; ok {
-			return b.HoverID(id)
+			return b.hoverID(id)
 		}
 		return b.Hover(a.Values["text"])
 	case "wait":
 		if ms, ok := a.Values["ms"]; ok {
-			return b.WaitMs(ms)
+			return b.waitMs(ms)
 		}
 		return b.WaitLoad()
 	case "wait-until":
@@ -676,10 +676,10 @@ func executeAction(b *Browser, a *WBAction) error {
 			return errPressActionRequiresKeyParameter
 		}
 		if id, ok := a.Values["id"]; ok {
-			return b.PressOnID(id, key)
+			return b.pressOnID(id, key)
 		}
 		if text, ok := a.Values["text"]; ok {
-			return b.PressOn(text, key)
+			return b.pressOn(text, key)
 		}
 		return b.Press(key)
 	case "screenshot":

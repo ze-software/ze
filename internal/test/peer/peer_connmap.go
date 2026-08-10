@@ -111,7 +111,7 @@ func awaitEOR(conn net.Conn) error {
 		if msg.IsEOR() {
 			return nil
 		}
-		if msg.IsKeepalive() {
+		if msg.isKeepalive() {
 			continue
 		}
 		return fmt.Errorf(

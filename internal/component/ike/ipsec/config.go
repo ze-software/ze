@@ -171,7 +171,7 @@ func parseESPGroup(name string, t *config.Tree) (ESPGroup, error) {
 	}
 
 	if v, ok := t.Get("pfs"); ok {
-		pfs, valid := ParsePFSMode(v)
+		pfs, valid := parsePFSMode(v)
 		if !valid {
 			return g, fmt.Errorf("ipsec esp-group %q pfs: unsupported value %q", name, v)
 		}
@@ -237,14 +237,14 @@ func parseESPProposal(groupName, numStr string, t *config.Tree) (ESPProposal, er
 		return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash %q is not allowed beside the AEAD encryption algorithm %q; remove the hash",
 			groupName, num, hashStr, encStr)
 	case hasHash:
-		h, valid := ParseHashAlgo(hashStr)
+		h, valid := parseHashAlgo(hashStr)
 		if !valid {
 			return p, fmt.Errorf("ipsec esp-group %q proposal %d: unsupported hash algorithm %q",
 				groupName, num, hashStr)
 		}
 		if !HashImplemented(h) {
 			return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash algorithm %q is not implemented by this build (implemented: %s)",
-				groupName, num, hashStr, strings.Join(SupportedHashNames(), ", "))
+				groupName, num, hashStr, strings.Join(supportedHashNames(), ", "))
 		}
 		p.Hash = h
 	case !enc.IsAEAD():
@@ -274,7 +274,7 @@ func parseIKEGroup(name string, t *config.Tree) (IKEGroup, error) {
 	}
 
 	if v, ok := t.Get("key-exchange"); ok {
-		ke, valid := ParseKeyExchange(v)
+		ke, valid := parseKeyExchange(v)
 		if !valid {
 			return g, fmt.Errorf("ipsec ike-group %q key-exchange: unsupported value %q", name, v)
 		}
@@ -293,7 +293,7 @@ func parseIKEGroup(name string, t *config.Tree) (IKEGroup, error) {
 	}
 
 	if v, ok := t.Get("close-action"); ok {
-		ca, valid := ParseCloseAction(v)
+		ca, valid := parseCloseAction(v)
 		if !valid {
 			return g, fmt.Errorf("ipsec ike-group %q close-action: unsupported value %q", name, v)
 		}
@@ -340,7 +340,7 @@ func parseDPD(groupName string, t *config.Tree) (DPDConfig, error) {
 	}
 
 	if v, ok := t.Get("action"); ok {
-		a, valid := ParseDPDAction(v)
+		a, valid := parseDPDAction(v)
 		if !valid {
 			return dpd, fmt.Errorf("ipsec ike-group %q dead-peer-detection action: unsupported value %q",
 				groupName, v)
@@ -406,14 +406,14 @@ func parseIKEProposal(groupName, numStr string, t *config.Tree) (IKEProposal, er
 	if !ok {
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: hash is required", groupName, num)
 	}
-	h, valid := ParseHashAlgo(hashStr)
+	h, valid := parseHashAlgo(hashStr)
 	if !valid {
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: unsupported hash algorithm %q",
 			groupName, num, hashStr)
 	}
 	if !HashImplemented(h) {
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: hash algorithm %q is not implemented by this build (implemented: %s)",
-			groupName, num, hashStr, strings.Join(SupportedHashNames(), ", "))
+			groupName, num, hashStr, strings.Join(supportedHashNames(), ", "))
 	}
 	p.Hash = h
 
@@ -451,7 +451,7 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	}
 
 	if v, ok := t.Get("mode"); ok {
-		mode, valid := ParseChildMode(v)
+		mode, valid := parseChildMode(v)
 		if !valid {
 			return peer, fmt.Errorf("ipsec peer %q mode: unsupported value %q (valid: tunnel, transport)", name, v)
 		}
@@ -475,7 +475,7 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	}
 
 	if v, ok := t.Get("connection-type"); ok {
-		ct, valid := ParseConnectionType(v)
+		ct, valid := parseConnectionType(v)
 		if !valid {
 			return peer, fmt.Errorf("ipsec peer %q connection-type: unsupported value %q", name, v)
 		}

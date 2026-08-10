@@ -48,7 +48,7 @@ func runReplaceCert(args []string) int {
 	}
 
 	var passphrase []byte
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		var resolveErr error
 		passphrase, _, resolveErr = ResolvePassphrase(nil)
 		if resolveErr != nil {
@@ -59,8 +59,8 @@ func runReplaceCert(args []string) int {
 	}
 
 	var tb textbuf.Buffer
-	certPath := tb.Str(TLSDir(dir, name)).Str("/cert.pem").String()
-	keyPath := tb.Reset().Str(TLSDir(dir, name)).Str("/key.pem").String()
+	certPath := tb.Str(tLSDir(dir, name)).Str("/cert.pem").String()
+	keyPath := tb.Reset().Str(tLSDir(dir, name)).Str("/key.pem").String()
 
 	if *certFile != "" && *keyFile != "" {
 		certData, readErr := cliio.ReadFile(*certFile) // "-" reads stdin

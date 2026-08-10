@@ -12,8 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// NextHopGraph represents an internal forwarding topology as routers and forwarding links.
-type NextHopGraph struct {
+// nextHopGraph represents an internal forwarding topology as routers and forwarding links.
+type nextHopGraph struct {
 	Nodes []NextHopNode
 	Edges []NextHopEdge
 }
@@ -35,7 +35,7 @@ type NextHopEdge struct {
 // buildNextHopGraph constructs a forwarding topology from routes.
 // Each route needs "peer-address" and "next-hop" fields.
 // A router is egress when peer-address == next-hop (learned externally, next-hop-self).
-func buildNextHopGraph(routes []any) *NextHopGraph {
+func buildNextHopGraph(routes []any) *nextHopGraph {
 	type edgeKey struct{ from, to string }
 
 	nodeSet := make(map[string]bool)
@@ -130,7 +130,7 @@ func buildNextHopGraph(routes []any) *NextHopGraph {
 		return edges[i].To < edges[j].To
 	})
 
-	return &NextHopGraph{Nodes: nodes, Edges: edges}
+	return &nextHopGraph{Nodes: nodes, Edges: edges}
 }
 
 // extractString extracts a string value from a route map.
@@ -147,7 +147,7 @@ func extractString(route map[string]any, key string) string {
 }
 
 // renderNextHopGraphText returns a deterministic text representation for testing.
-func renderNextHopGraphText(g *NextHopGraph) string {
+func renderNextHopGraphText(g *nextHopGraph) string {
 	var sb textbuf.Buffer
 	sb.WriteString("mode nexthop\n")
 	for _, n := range g.Nodes {

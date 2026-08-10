@@ -463,7 +463,7 @@ func (s *Server) rollbackStartupProcess(proc *process.Process) {
 		s.dispatcher.Pending().CancelAll(proc)
 	}
 	if s.subscriptions != nil {
-		s.subscriptions.ClearProcess(proc)
+		s.subscriptions.clearProcess(proc)
 	}
 	if proc.IsCacheConsumer() && s.reactor != nil {
 		s.reactor.UnregisterCacheConsumer(proc.Name())
@@ -690,7 +690,7 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 		}
 		for canonicalName, oldNames := range reg.CommandDeprecatedNames {
 			for _, oldName := range oldNames {
-				if err := s.dispatcher.Registry().RegisterDeprecated(proc, oldName, canonicalName); err != nil {
+				if err := s.dispatcher.Registry().registerDeprecated(proc, oldName, canonicalName); err != nil {
 					logger().Warn("deprecated alias rejected", "plugin", proc.Name(), "old", oldName, "new", canonicalName, "error", err)
 					continue
 				}

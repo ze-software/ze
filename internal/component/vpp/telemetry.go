@@ -17,9 +17,9 @@ import (
 // metricsRegPtr stores the metrics registry, set via SetVPPMetricsRegistry.
 var metricsRegPtr atomic.Pointer[metrics.Registry]
 
-// SetVPPMetricsRegistry sets the package-level metrics registry for VPP telemetry.
+// setVPPMetricsRegistry sets the package-level metrics registry for VPP telemetry.
 // Called via ConfigureMetrics callback before RunEngine.
-func SetVPPMetricsRegistry(reg metrics.Registry) {
+func setVPPMetricsRegistry(reg metrics.Registry) {
 	if reg != nil {
 		metricsRegPtr.Store(&reg)
 	}

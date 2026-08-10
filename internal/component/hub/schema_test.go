@@ -81,7 +81,7 @@ func TestHubRoutesConfigByHandler(t *testing.T) {
 // VALIDATES: Config store maintains live and edit states.
 // PREVENTS: Config state corruption.
 func TestHubConfigStore(t *testing.T) {
-	store := NewConfigStore()
+	store := newConfigStore()
 
 	// Set edit config
 	editCfg := map[string]any{
@@ -90,7 +90,7 @@ func TestHubConfigStore(t *testing.T) {
 			"local":     map[string]any{"as": "65000"},
 		},
 	}
-	store.SetEdit(editCfg)
+	store.setEdit(editCfg)
 
 	// Query edit
 	result, err := store.Query(ConfigEdit, "bgp")
@@ -115,7 +115,7 @@ func TestHubConfigStore(t *testing.T) {
 // VALIDATES: Query returns subtree for path.
 // PREVENTS: Full config returned instead of subtree.
 func TestHubQueryConfigPath(t *testing.T) {
-	store := NewConfigStore()
+	store := newConfigStore()
 
 	// Note: Use simple keys without dots. List key bracket notation
 	// (e.g., peer[address=192.0.2.1]) is a future enhancement.
@@ -130,7 +130,7 @@ func TestHubQueryConfigPath(t *testing.T) {
 			},
 		},
 	}
-	store.SetEdit(cfg)
+	store.setEdit(cfg)
 	store.Apply()
 
 	// Query specific path
@@ -153,7 +153,7 @@ func TestHubQueryConfigPath(t *testing.T) {
 // VALIDATES: Config block converts to valid JSON.
 // PREVENTS: JSON encoding errors.
 func TestHubDeliversJSON(t *testing.T) {
-	store := NewConfigStore()
+	store := newConfigStore()
 
 	cfg := map[string]any{
 		"bgp": map[string]any{
@@ -161,7 +161,7 @@ func TestHubDeliversJSON(t *testing.T) {
 			"local":     map[string]any{"as": 65000},
 		},
 	}
-	store.SetEdit(cfg)
+	store.setEdit(cfg)
 	store.Apply()
 
 	result, err := store.Query(ConfigLive, "bgp")
@@ -179,7 +179,7 @@ func TestHubDeliversJSON(t *testing.T) {
 // VALIDATES: GR plugin gets only graceful-restart subtree.
 // PREVENTS: Sub-root handler receiving full tree.
 func TestHubSubRootHandler(t *testing.T) {
-	store := NewConfigStore()
+	store := newConfigStore()
 
 	// Note: Use simple keys without dots. List key bracket notation
 	// (e.g., peer[address=192.0.2.1]) is a future enhancement.
@@ -199,7 +199,7 @@ func TestHubSubRootHandler(t *testing.T) {
 			},
 		},
 	}
-	store.SetEdit(cfg)
+	store.setEdit(cfg)
 	store.Apply()
 
 	// Query sub-root path
@@ -221,7 +221,7 @@ func TestHubSubRootHandler(t *testing.T) {
 // VALIDATES: Empty config doesn't panic.
 // PREVENTS: Nil pointer on empty config.
 func TestHubConfigStoreEmpty(t *testing.T) {
-	store := NewConfigStore()
+	store := newConfigStore()
 
 	// Query on empty store
 	_, err := store.Query(ConfigLive, "bgp")

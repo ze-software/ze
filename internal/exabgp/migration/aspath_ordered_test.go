@@ -17,7 +17,7 @@ import (
 func TestExaBGPNamedVPLSPreservesASPathDuplicates(t *testing.T) {
 	// Schema-level: the vpls container's as-path child must be Ordered. l2vpn lives
 	// under the neighbor list, not at the top level.
-	schema := ExaBGPSchema()
+	schema := exaBGPSchema()
 	require.NotNil(t, schema)
 	neighbor, ok := schema.Get("neighbor").(*config.ListNode)
 	require.True(t, ok, "neighbor should be a list")

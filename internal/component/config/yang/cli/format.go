@@ -13,8 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// FormatCollisionsText writes collision groups as human-readable text.
-func FormatCollisionsText(w io.Writer, groups []CollisionGroup) error {
+// formatCollisionsText writes collision groups as human-readable text.
+func formatCollisionsText(w io.Writer, groups []collisionGroup) error {
 	if len(groups) == 0 {
 		_, err := fmt.Fprintln(w, "No prefix collisions found.") //nolint:errcheck // output
 		return err
@@ -61,8 +61,8 @@ func disambigPrefix(name string, siblings []SiblingInfo) string {
 	return name[:end]
 }
 
-// FormatCollisionsJSON writes collision groups as JSON.
-func FormatCollisionsJSON(w io.Writer, groups []CollisionGroup) error {
+// formatCollisionsJSON writes collision groups as JSON.
+func formatCollisionsJSON(w io.Writer, groups []collisionGroup) error {
 	type siblingJSON struct {
 		Name        string `json:"name"`
 		Source      string `json:"source"`
@@ -128,9 +128,9 @@ func formatConstraints(node *AnalysisNode) string {
 	return textbuf.Join(parts, " ")
 }
 
-// FormatTreeText writes the unified tree as indented text.
-func FormatTreeText(w io.Writer, root *AnalysisNode, filter string) error {
-	for _, name := range root.SortedChildren() {
+// formatTreeText writes the unified tree as indented text.
+func formatTreeText(w io.Writer, root *AnalysisNode, filter string) error {
+	for _, name := range root.sortedChildren() {
 		if err := formatTreeNodeText(w, root.Children[name], 0, filter); err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 		return err
 	}
 
-	for _, name := range node.SortedChildren() {
+	for _, name := range node.sortedChildren() {
 		if err := formatTreeNodeText(w, node.Children[name], depth+1, filter); err != nil {
 			return err
 		}
@@ -182,8 +182,8 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 	return nil
 }
 
-// FormatTreeJSON writes the unified tree as JSON.
-func FormatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
+// formatTreeJSON writes the unified tree as JSON.
+func formatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
 	type nodeJSON struct {
 		Name        string      `json:"name"`
 		Source      string      `json:"source"`
@@ -209,7 +209,7 @@ func FormatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
 			Kind:        node.NodeKind,
 			Description: node.Description,
 		}
-		for _, name := range node.SortedChildren() {
+		for _, name := range node.sortedChildren() {
 			child := convert(node.Children[name], f)
 			if child != nil {
 				jn.Children = append(jn.Children, child)
@@ -219,7 +219,7 @@ func FormatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
 	}
 
 	var nodes []*nodeJSON
-	for _, name := range root.SortedChildren() {
+	for _, name := range root.sortedChildren() {
 		n := convert(root.Children[name], filter)
 		if n != nil {
 			nodes = append(nodes, n)

@@ -27,8 +27,8 @@ func resetCookieSecret(t *testing.T) {
 func withCookieThreshold(t *testing.T, n uint32) {
 	t.Helper()
 	old := CookieThreshold()
-	SetCookieThreshold(n)
-	t.Cleanup(func() { SetCookieThreshold(old) })
+	setCookieThreshold(n)
+	t.Cleanup(func() { setCookieThreshold(old) })
 }
 
 // admitWithoutCookieChallenge raises the half-open tolerance past anything a unit test

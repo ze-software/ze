@@ -302,7 +302,7 @@ func (f *Flooder) reconcileCSNPEntry(cid CircuitID, level Level, e packet.LSPEnt
 		// Neighbor newer: request via the pending-request set (authoritative) and
 		// also set SSN on the held stale entry (AC-7).
 		f.recordPending(cid, level, e.LSPID, pendingReq{seq: e.SequenceNumber, lifetime: e.RemainingLifetime, checksum: e.Checksum})
-		f.db.SetSSN(level, e.LSPID, cid)
+		f.db.setSSN(level, e.LSPID, cid)
 	case cmp < 0:
 		// We are newer: send our copy (AC-8).
 		f.db.SetSRM(level, e.LSPID, cid)
@@ -358,7 +358,7 @@ func (f *Flooder) buildPSNP(cid CircuitID, level Level, srcID types.SourceID) []
 		}
 		held := f.db.Lookup(level, id)
 		if held == nil {
-			f.db.ClearSSN(level, id, cid)
+			f.db.clearSSN(level, id, cid)
 			continue
 		}
 		entries = append(entries, packet.LSPEntry{
@@ -367,7 +367,7 @@ func (f *Flooder) buildPSNP(cid CircuitID, level Level, srcID types.SourceID) []
 			SequenceNumber:    held.Sequence(),
 			Checksum:          held.Checksum(),
 		})
-		f.db.ClearSSN(level, id, cid)
+		f.db.clearSSN(level, id, cid)
 	}
 
 	// REQUEST list: pending-request entries (LSPs we do not yet hold). These stay
@@ -491,7 +491,7 @@ func compareSNPEntry(e packet.LSPEntry, held *Entry) int {
 // which builds the records directly from the typed entry metadata under a single
 // read lock -- no Snapshot-then-ParseLSPID string round-trip on the CSNP cadence.
 func (f *Flooder) lspEntries(level Level) []packet.LSPEntry {
-	return f.db.LSPEntries(level)
+	return f.db.lSPEntries(level)
 }
 
 // decodeLSPEntries flattens the TLV 9 (LSP Entries) records carried in an SNP's

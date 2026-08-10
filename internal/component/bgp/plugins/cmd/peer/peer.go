@@ -42,7 +42,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
 	)
 }
@@ -434,9 +434,9 @@ func parseUint(s string) (uint64, error) {
 	return strconv.ParseUint(s, 10, 64)
 }
 
-// HandleBgpPeerRemove handles "delete bgp peer <ip>" command.
+// handleBgpPeerRemove handles "delete bgp peer <ip>" command.
 // Removes a peer dynamically at runtime.
-func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

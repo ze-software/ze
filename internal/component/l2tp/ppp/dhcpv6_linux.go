@@ -1,6 +1,6 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- DHCPv6-PD UDP listener (Linux)
 // Related: dhcpv6.go -- DHCPv6 codec (cross-platform)
-// Related: ipv6_service.go -- IPv6Service.HandleDHCPv6 state machine
+// Related: ipv6_service.go -- IPv6Service.handleDHCPv6 state machine
 
 //go:build linux
 
@@ -19,7 +19,7 @@ import (
 // startDHCPv6Server opens a UDP socket on port 547 bound to ifname,
 // joins the DHCPv6 multicast group (ff02::1:2), and starts a
 // goroutine that reads DHCPv6 messages and delegates to
-// svc.HandleDHCPv6. Returns a cancel function.
+// svc.handleDHCPv6. Returns a cancel function.
 func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool), logger *slog.Logger) (func(), error) {
 	lc := net.ListenConfig{
 		Control: func(_, _ string, c syscall.RawConn) error {
@@ -95,13 +95,13 @@ func dhcpv6ServerLoop(ctx context.Context, conn net.PacketConn, svc *IPv6Service
 			continue
 		}
 
-		msg, parseErr := ParseDHCPv6(buf[:n])
+		msg, parseErr := parseDHCPv6(buf[:n])
 		if parseErr != nil {
 			logger.Debug("ppp: DHCPv6 parse error", "error", parseErr)
 			continue
 		}
 
-		resp, handleErr := svc.HandleDHCPv6(msg, serverID, allocPrefix)
+		resp, handleErr := svc.handleDHCPv6(msg, serverID, allocPrefix)
 		if handleErr != nil {
 			logger.Warn("ppp: DHCPv6 handle error", "error", handleErr)
 			continue

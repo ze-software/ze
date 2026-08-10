@@ -65,9 +65,9 @@ func Median(vals []int) int {
 	return (sorted[n/2-1] + sorted[n/2]) / 2
 }
 
-// Stddev returns the population standard deviation of a slice of ints, truncated to int.
+// stddev returns the population standard deviation of a slice of ints, truncated to int.
 // Returns 0 for slices with fewer than 2 elements.
-func Stddev(vals []int) int {
+func stddev(vals []int) int {
 	if len(vals) <= 1 {
 		return 0
 	}
@@ -186,7 +186,7 @@ func RemoveOutliers(results []IterationResult) []IterationResult {
 	}
 
 	med := Median(vals)
-	sd := Stddev(vals)
+	sd := stddev(vals)
 
 	threshold := 2 * sd
 
@@ -294,7 +294,7 @@ func Aggregate(results []IterationResult) AggregatedResult {
 
 	medianConv := Median(convergence)
 	medianTP := Median(tpAvg)
-	convSD := Stddev(convergence)
+	convSD := stddev(convergence)
 	tpSD := 0
 	if medianConv > 0 {
 		tpSD = medianTP * convSD / medianConv
@@ -310,12 +310,12 @@ func Aggregate(results []IterationResult) AggregatedResult {
 		LatencyP50Ms:        Median(latP50),
 		LatencyP90Ms:        Median(latP90),
 		LatencyP99Ms:        Median(latP99),
-		LatencyP99StddevMs:  Stddev(latP99),
+		LatencyP99StddevMs:  stddev(latP99),
 		LatencyMaxMs:        Median(latMax),
 		RoutesReceived:      Median(routes),
 		SessionSenderMs:     Median(sessSender),
 		SessionReceiverMs:   Median(sessReceiver),
 		WithdrawalMs:        Median(withdrawal),
-		WithdrawalStddevMs:  Stddev(withdrawal),
+		WithdrawalStddevMs:  stddev(withdrawal),
 	}
 }

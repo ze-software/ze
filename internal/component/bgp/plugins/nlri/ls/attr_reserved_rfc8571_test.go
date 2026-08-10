@@ -31,7 +31,7 @@ func TestRFC8571ReservedIgnoredUnidirectionalDelay(t *testing.T) {
 	// set, followed by the 24-bit Delay 0x0001F4 = 500 microseconds.
 	tlv, err := decodeUnidirectionalDelay([]byte{0xFF, 0x00, 0x01, 0xF4})
 	require.NoError(t, err)
-	d, ok := tlv.(*LsUnidirectionalDelay)
+	d, ok := tlv.(*lsUnidirectionalDelay)
 	require.True(t, ok)
 	assert.True(t, d.Anomalous)           // bit 0 is the A flag and decodes to true.
 	assert.Equal(t, uint32(500), d.Delay) // reserved bits 1-7 do not leak into the value.
@@ -43,7 +43,7 @@ func TestRFC8571ReservedIgnoredMinMaxDelay(t *testing.T) {
 	// 0x0001F4 = 500, reserved byte 0xFF (byte 4), MaxDelay 0x0003E8 = 1000.
 	tlv, err := decodeMinMaxDelay([]byte{0xFF, 0x00, 0x01, 0xF4, 0xFF, 0x00, 0x03, 0xE8})
 	require.NoError(t, err)
-	d, ok := tlv.(*LsMinMaxDelay)
+	d, ok := tlv.(*lsMinMaxDelay)
 	require.True(t, ok)
 	assert.True(t, d.Anomalous)               // bit 0 is the A flag.
 	assert.Equal(t, uint32(500), d.MinDelay)  // reserved bits 1-7 of byte 0 ignored.
@@ -55,7 +55,7 @@ func TestRFC8571ReservedIgnoredDelayVariation(t *testing.T) {
 	// TLV 1116 value bytes: reserved byte 0xFF (byte 0), Variation 0x0001F4 = 500.
 	tlv, err := decodeDelayVariation([]byte{0xFF, 0x00, 0x01, 0xF4})
 	require.NoError(t, err)
-	d, ok := tlv.(*LsDelayVariation)
+	d, ok := tlv.(*lsDelayVariation)
 	require.True(t, ok)
 	assert.Equal(t, uint32(500), d.Variation) // reserved byte 0 (0xFF) ignored.
 }

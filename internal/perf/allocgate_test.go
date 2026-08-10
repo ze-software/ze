@@ -108,7 +108,7 @@ func TestAllocGateMissingFailsClosed(t *testing.T) {
 // TestParseAllocsPerOp verifies the parser strips the -N suffix and reads the
 // allocs/op column, ignoring non-benchmark lines.
 func TestParseAllocsPerOp(t *testing.T) {
-	got := ParseAllocsPerOp(sampleBenchOutput)
+	got := parseAllocsPerOp(sampleBenchOutput)
 	want := map[string]int{
 		"BenchmarkForwardDirect":                   5,
 		"BenchmarkBufMuxGetReturn":                 0,

@@ -674,7 +674,7 @@ func TestMonitorDeletedRemovesFromNameMap(t *testing.T) {
 	if !waitForEvents(bus, 1, time.Second) {
 		t.Fatal("no event received")
 	}
-	if _, ok := b.names.LookupIndex("xe0"); ok {
+	if _, ok := b.names.lookupIndex("xe0"); ok {
 		t.Error("name map should not contain xe0 after delete")
 	}
 }
@@ -1764,7 +1764,7 @@ func TestPopulateNameMap(t *testing.T) {
 	if b.names.Len() != 3 {
 		t.Errorf("map size: got %d, want 3", b.names.Len())
 	}
-	idx, ok := b.names.LookupIndex("TenGigabitEthernet3/0/0")
+	idx, ok := b.names.lookupIndex("TenGigabitEthernet3/0/0")
 	if !ok || idx != 1 {
 		t.Errorf("LookupIndex(Ten3/0/0): got %d,%v want 1,true", idx, ok)
 	}
@@ -2014,7 +2014,7 @@ func TestCreateTunnelGRE(t *testing.T) {
 	if got := req.Tunnel.Dst.ToIP().String(); got != "192.0.2.2" {
 		t.Errorf("Dst: got %s, want 192.0.2.2", got)
 	}
-	if idx, ok := b.names.LookupIndex("gre0"); !ok || idx != 7 {
+	if idx, ok := b.names.lookupIndex("gre0"); !ok || idx != 7 {
 		t.Errorf("name map: got (%d,%v), want (7,true)", idx, ok)
 	}
 }
@@ -2069,7 +2069,7 @@ func TestCreateTunnelIPIP(t *testing.T) {
 	if got := req.Tunnel.Dst.ToIP().String(); got != "203.0.113.2" {
 		t.Errorf("Dst: got %s, want 203.0.113.2", got)
 	}
-	if idx, ok := b.names.LookupIndex("ipip0"); !ok || idx != 3 {
+	if idx, ok := b.names.lookupIndex("ipip0"); !ok || idx != 3 {
 		t.Errorf("name map: got (%d,%v), want (3,true)", idx, ok)
 	}
 }
@@ -2100,7 +2100,7 @@ func TestDeleteTunnelGRE(t *testing.T) {
 	if last.IsAdd {
 		t.Error("delete: IsAdd got true, want false")
 	}
-	if _, ok := b.names.LookupIndex("gre0"); ok {
+	if _, ok := b.names.lookupIndex("gre0"); ok {
 		t.Error("name map still has gre0 after delete")
 	}
 }
@@ -2141,7 +2141,7 @@ func TestCreateTunnelVxlanVPP(t *testing.T) {
 	if got := req.DstAddress.ToIP().String(); got != "10.0.0.2" {
 		t.Errorf("DstAddress: got %s, want 10.0.0.2", got)
 	}
-	if idx, ok := b.names.LookupIndex("vx0"); !ok || idx != 11 {
+	if idx, ok := b.names.lookupIndex("vx0"); !ok || idx != 11 {
 		t.Errorf("name map: got (%d,%v), want (11,true)", idx, ok)
 	}
 }
@@ -2204,7 +2204,7 @@ func TestDeleteTunnelVxlan(t *testing.T) {
 	if last.IsAdd {
 		t.Error("delete: IsAdd got true, want false")
 	}
-	if _, ok := b.names.LookupIndex("vx0"); ok {
+	if _, ok := b.names.lookupIndex("vx0"); ok {
 		t.Error("name map still has vx0 after delete")
 	}
 }
@@ -2254,7 +2254,7 @@ func TestConfigureWireguardCreatesInterface(t *testing.T) {
 	if len(create.Interface.PrivateKey) != 32 || create.Interface.PrivateKey[0] != 0x11 {
 		t.Errorf("PrivateKey not carried into create request")
 	}
-	if idx, ok := b.names.LookupIndex("wg0"); !ok || idx != 11 {
+	if idx, ok := b.names.lookupIndex("wg0"); !ok || idx != 11 {
 		t.Errorf("name map: got (%d,%v), want (11,true)", idx, ok)
 	}
 }
@@ -2398,7 +2398,7 @@ func TestDeleteWireguardInterface(t *testing.T) {
 	if del == nil {
 		t.Fatal("no WireguardInterfaceDelete issued")
 	}
-	if _, ok := b.names.LookupIndex("wg0"); ok {
+	if _, ok := b.names.lookupIndex("wg0"); ok {
 		t.Error("name map still has wg0 after delete")
 	}
 }

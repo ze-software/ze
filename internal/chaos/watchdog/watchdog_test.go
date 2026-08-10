@@ -139,10 +139,10 @@ func TestWatchdogPropertyTransition(t *testing.T) {
 	base := time.Now()
 
 	// Initially passing.
-	w.SetPropertyResult("route-consistency", true, "", base)
+	w.setPropertyResult("route-consistency", true, "", base)
 
 	// Transition to fail.
-	w.SetPropertyResult("route-consistency", false, "peer 2 received unknown route", base.Add(time.Second))
+	w.setPropertyResult("route-consistency", false, "peer 2 received unknown route", base.Add(time.Second))
 
 	problems := w.Problems()
 	require.Len(t, problems, 1)

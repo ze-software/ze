@@ -81,7 +81,7 @@ func relayFixtureAS(t *testing.T, srcAS, dstAS uint32) (*reactorAPIAdapter, *Rec
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	r := &Reactor{
 		attrModHandlers: attrModHandlersWithDefaults(),
 		recentUpdates:   cache,

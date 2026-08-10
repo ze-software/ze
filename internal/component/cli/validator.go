@@ -56,9 +56,9 @@ type ConfigValidator struct {
 	yangValidator *yang.Validator
 }
 
-// NewConfigValidator creates a new config validator.
+// newConfigValidator creates a new config validator.
 // Returns error if YANG schema cannot be loaded.
-func NewConfigValidator() (*ConfigValidator, error) {
+func newConfigValidator() (*ConfigValidator, error) {
 	schema, err := config.YANGSchema()
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)
@@ -641,8 +641,8 @@ func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) ([]ConfigValidatio
 	return v.ValidateWithYANG(tree)
 }
 
-// ValidateSyntax validates only syntax using YANG-derived schema.
-func (v *ConfigValidator) ValidateSyntax(content string) []ConfigValidationError {
+// validateSyntax validates only syntax using YANG-derived schema.
+func (v *ConfigValidator) validateSyntax(content string) []ConfigValidationError {
 	parser := config.NewParser(v.schema)
 	_, err := parser.Parse(content)
 	if err != nil {

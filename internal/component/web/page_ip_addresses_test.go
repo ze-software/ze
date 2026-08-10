@@ -27,7 +27,7 @@ func TestAddressTableData_Build(t *testing.T) {
 		},
 	}
 
-	data := BuildAddressTableData(infos, "", "")
+	data := buildAddressTableData(infos, "", "")
 	assert.Equal(t, "IP Addresses", data.Title)
 	require.Len(t, data.Rows, 3)
 	assert.Equal(t, "192.168.1.1/24", data.Rows[0].Cells[0])
@@ -47,7 +47,7 @@ func TestAddressTableData_Protocol(t *testing.T) {
 		},
 	}
 
-	data := BuildAddressTableData(infos, "", "")
+	data := buildAddressTableData(infos, "", "")
 	require.Len(t, data.Rows, 2)
 	assert.Equal(t, "IPv4", data.Rows[0].Cells[3]) // family column
 	assert.Equal(t, "IPv6", data.Rows[1].Cells[3])
@@ -60,7 +60,7 @@ func TestAddressTableData_FilterByInterface(t *testing.T) {
 		{Name: "eth1", Addresses: []iface.AddrInfo{{Address: "10.0.0.1", PrefixLength: 8, Family: "ipv4"}}},
 	}
 
-	data := BuildAddressTableData(infos, "eth0", "")
+	data := buildAddressTableData(infos, "eth0", "")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "eth0", data.Rows[0].Cells[2]) // interface column
 }
@@ -77,18 +77,18 @@ func TestAddressTableData_FilterByProtocol(t *testing.T) {
 		},
 	}
 
-	data := BuildAddressTableData(infos, "", "IPv4")
+	data := buildAddressTableData(infos, "", "IPv4")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "IPv4", data.Rows[0].Cells[3])
 
-	data = BuildAddressTableData(infos, "", "IPv6")
+	data = buildAddressTableData(infos, "", "IPv6")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "IPv6", data.Rows[0].Cells[3])
 }
 
 // TestAddressTableData_Empty verifies empty state.
 func TestAddressTableData_Empty(t *testing.T) {
-	data := BuildAddressTableData(nil, "", "")
+	data := buildAddressTableData(nil, "", "")
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "No IP addresses")
 }

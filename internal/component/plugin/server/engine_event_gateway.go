@@ -28,10 +28,10 @@ type ConfigEventGateway struct {
 	server *Server
 }
 
-// NewConfigEventGateway creates a new adapter wrapping the given Server.
+// newConfigEventGateway creates a new adapter wrapping the given Server.
 // The Server must outlive the gateway; the gateway holds a reference but
 // does not manage Server lifecycle.
-func NewConfigEventGateway(s *Server) *ConfigEventGateway {
+func newConfigEventGateway(s *Server) *ConfigEventGateway {
 	return &ConfigEventGateway{server: s}
 }
 

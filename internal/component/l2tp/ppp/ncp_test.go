@@ -20,7 +20,7 @@ func TestNCPFSMShared(t *testing.T) {
 	cases := []struct {
 		name    string
 		state   LCPState
-		event   LCPEvent
+		event   lCPEvent
 		wantNew LCPState
 		wantAct []LCPAction
 	}{
@@ -59,7 +59,7 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 	defer closeConn(pair.peerEnd)
 
 	ops, _, _ := newFakeOps()
-	d := NewDriver(DriverConfig{
+	d := newDriver(driverConfig{
 		Logger:  discardLogger(),
 		Backend: &fakeBackend{},
 		Ops:     ops,
@@ -719,7 +719,7 @@ func TestIPv6CPInterfaceIDsDiffer(t *testing.T) {
 	if cr.Code != LCPConfigureRequest {
 		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
 	}
-	zeOpts, err := ParseIPv6CPOptions(cr.Data)
+	zeOpts, err := parseIPv6CPOptions(cr.Data)
 	if err != nil || !zeOpts.HasInterfaceID {
 		t.Fatalf("ze's initial CR missing Interface-Identifier: %v", err)
 	}
@@ -766,7 +766,7 @@ func TestIPv6CPNaksCollidingInterfaceID(t *testing.T) {
 	if cr.Code != LCPConfigureRequest {
 		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
 	}
-	zeOpts, err := ParseIPv6CPOptions(cr.Data)
+	zeOpts, err := parseIPv6CPOptions(cr.Data)
 	if err != nil || !zeOpts.HasInterfaceID {
 		t.Fatalf("ze's initial CR missing Interface-Identifier: %v", err)
 	}
@@ -814,7 +814,7 @@ func TestIPv6CPAcksDifferentNonZeroInterfaceID(t *testing.T) {
 	if ack.Code != LCPConfigureAck {
 		t.Fatalf("response code = %d, want Configure-Ack for a valid non-zero identifier", ack.Code)
 	}
-	ackOpts, err := ParseIPv6CPOptions(ack.Data)
+	ackOpts, err := parseIPv6CPOptions(ack.Data)
 	if err != nil || !ackOpts.HasInterfaceID {
 		t.Fatalf("Ack missing Interface-Identifier: %v", err)
 	}
@@ -881,7 +881,7 @@ func TestIPv6CPResendsCRWithNakSuggestedID(t *testing.T) {
 		ipv6cpInterfaceIDOption(suggested))
 
 	cr2 := readIPv6CPUntil(t, td, LCPConfigureRequest)
-	opts, err := ParseIPv6CPOptions(cr2.Data)
+	opts, err := parseIPv6CPOptions(cr2.Data)
 	if err != nil || !opts.HasInterfaceID {
 		t.Fatalf("resent CR missing Interface-Identifier: %v", err)
 	}
@@ -912,7 +912,7 @@ func TestIPv6CPNakInvalidSuggestionNotAdopted(t *testing.T) {
 	if cr1.Code != LCPConfigureRequest {
 		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr1.Code)
 	}
-	orig, err := ParseIPv6CPOptions(cr1.Data)
+	orig, err := parseIPv6CPOptions(cr1.Data)
 	if err != nil || !orig.HasInterfaceID {
 		t.Fatalf("ze's initial CR missing Interface-Identifier: %v", err)
 	}
@@ -922,7 +922,7 @@ func TestIPv6CPNakInvalidSuggestionNotAdopted(t *testing.T) {
 		ipv6cpInterfaceIDOption(zero))
 
 	cr2 := readIPv6CPUntil(t, td, LCPConfigureRequest)
-	opts, err := ParseIPv6CPOptions(cr2.Data)
+	opts, err := parseIPv6CPOptions(cr2.Data)
 	if err != nil || !opts.HasInterfaceID {
 		t.Fatalf("resent CR missing Interface-Identifier: %v", err)
 	}
@@ -1002,7 +1002,7 @@ func TestIPv6CPUnknownOptionRejectNotFatal(t *testing.T) {
 	// ze continues negotiating: the resent Configure-Request still carries the
 	// Interface-Identifier (that option was not rejected).
 	resent := readIPv6CPUntil(t, td, LCPConfigureRequest)
-	opts, err := ParseIPv6CPOptions(resent.Data)
+	opts, err := parseIPv6CPOptions(resent.Data)
 	if err != nil || !opts.HasInterfaceID {
 		t.Fatalf("resent CR missing Interface-Identifier after a non-fatal reject: %v", err)
 	}

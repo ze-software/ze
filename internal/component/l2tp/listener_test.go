@@ -22,7 +22,7 @@ func ephemeralBind(t *testing.T) netip.AddrPort {
 // VALIDATES: AC-2 (partial) -- listener binds and closes cleanly; port
 // is an ephemeral value chosen by the kernel.
 func TestListener_BindAndClose(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 	addr := ln.Addr()
 	assert.NotEqual(t, uint16(0), addr.Port(), "bound port should be non-zero")
@@ -31,7 +31,7 @@ func TestListener_BindAndClose(t *testing.T) {
 
 // TestListener_DoubleStart rejects the second Start.
 func TestListener_DoubleStart(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 	defer ln.Stop() //nolint:errcheck // test cleanup
 	err := ln.Start(context.Background())
@@ -40,7 +40,7 @@ func TestListener_DoubleStart(t *testing.T) {
 
 // TestListener_StopIdempotent calls Stop twice.
 func TestListener_StopIdempotent(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 	require.NoError(t, ln.Stop())
 	require.NoError(t, ln.Stop())
@@ -52,7 +52,7 @@ func TestListener_StopIdempotent(t *testing.T) {
 //
 // VALIDATES: AC-2 -- external client can reach the bound port.
 func TestListener_SendReceive(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 	defer ln.Stop() //nolint:errcheck // test cleanup
 
@@ -91,7 +91,7 @@ func TestListener_SendReceive(t *testing.T) {
 
 // TestListener_SendBeforeStart returns errListenerNotStarted.
 func TestListener_SendBeforeStart(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	peer := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 1)
 	err := ln.Send(peer, []byte{0x00})
 	require.Error(t, err)

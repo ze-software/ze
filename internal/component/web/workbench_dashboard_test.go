@@ -51,7 +51,7 @@ func TestBuildDashboardData(t *testing.T) {
 	iface2.Set("type", "bridge")
 	tree.AddListEntry("iface", "br0", iface2)
 
-	data := BuildDashboardData(tree, schema)
+	data := buildDashboardData(tree, schema)
 
 	// System panel.
 	assert.Equal(t, "router-lab-1", data.System.Hostname)
@@ -75,7 +75,7 @@ func TestBuildDashboardData_EmptyState(t *testing.T) {
 	require.NoError(t, err)
 
 	tree := config.NewTree()
-	data := BuildDashboardData(tree, schema)
+	data := buildDashboardData(tree, schema)
 
 	// System panel should still work (runtime data).
 	assert.Greater(t, data.System.CPUCount, 0)
@@ -101,7 +101,7 @@ func TestBuildDashboardData_NilTree(t *testing.T) {
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 
-	data := BuildDashboardData(nil, schema)
+	data := buildDashboardData(nil, schema)
 	assert.True(t, data.BGP.Empty)
 	assert.True(t, data.Interfaces.Empty)
 	assert.NotEmpty(t, data.System.Hostname, "falls back to os.Hostname()")
@@ -112,7 +112,7 @@ func TestRenderDashboard(t *testing.T) {
 	r, err := NewRenderer()
 	require.NoError(t, err)
 
-	data := DashboardData{
+	data := dashboardData{
 		System: DashboardSystemPanel{
 			Hostname: "test-router",
 			Uptime:   "3d 12h",
@@ -177,7 +177,7 @@ func TestRenderDashboard_EmptyState(t *testing.T) {
 	r, err := NewRenderer()
 	require.NoError(t, err)
 
-	data := DashboardData{
+	data := dashboardData{
 		System: DashboardSystemPanel{
 			Version:  "ze dev",
 			CPUCount: 1,

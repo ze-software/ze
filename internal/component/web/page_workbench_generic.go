@@ -16,18 +16,18 @@ import (
 func renderSystemPageContent(renderer *Renderer, path []string, viewTree *config.Tree) (template.HTML, bool) {
 	if len(path) == 0 || (len(path) == 1 && path[0] == "") {
 		// /show/system/ defaults to identity.
-		return HandleSystemIdentityPage(renderer, viewTree), true
+		return handleSystemIdentityPage(renderer, viewTree), true
 	}
 
 	switch path[0] {
 	case "identity":
-		return HandleSystemIdentityPage(renderer, viewTree), true
+		return handleSystemIdentityPage(renderer, viewTree), true
 	case "resources":
-		return HandleResourcesPage(), true
+		return handleResourcesPage(), true
 	case "hardware":
-		return HandleHostHardwarePage(), true
+		return handleHostHardwarePage(), true
 	case "sysctl":
-		return HandleSysctlProfilesPage(renderer, viewTree), true
+		return handleSysctlProfilesPage(renderer, viewTree), true
 	}
 
 	return "", false
@@ -38,19 +38,19 @@ func renderSystemPageContent(renderer *Renderer, path []string, viewTree *config
 func renderServicePageContent(renderer *Renderer, segment string, viewTree *config.Tree) (template.HTML, bool) {
 	switch segment {
 	case segSSH:
-		return HandleSSHPage(renderer, viewTree), true
+		return handleSSHPage(renderer, viewTree), true
 	case segWeb:
-		return HandleWebServicePage(renderer, viewTree), true
+		return handleWebServicePage(renderer, viewTree), true
 	case segTelemetry:
-		return HandleTelemetryPage(renderer, viewTree), true
+		return handleTelemetryPage(renderer, viewTree), true
 	case segTACACS:
-		return HandleTACACSPage(renderer, viewTree), true
+		return handleTACACSPage(renderer, viewTree), true
 	case segMCP:
-		return HandleMCPPage(renderer, viewTree), true
+		return handleMCPPage(renderer, viewTree), true
 	case segLG:
-		return HandleLookingGlassPage(renderer, viewTree), true
+		return handleLookingGlassPage(renderer, viewTree), true
 	case segAPI:
-		return HandleAPIPage(renderer, viewTree), true
+		return handleAPIPage(renderer, viewTree), true
 	}
 	return "", false
 }

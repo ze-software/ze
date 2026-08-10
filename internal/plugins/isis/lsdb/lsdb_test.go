@@ -197,7 +197,7 @@ func TestISISSRMSSNFlagOps(t *testing.T) {
 
 	// SRM and SSN are independent per circuit.
 	d.SetSRM(Level1, id, cA)
-	d.SetSSN(Level1, id, cB)
+	d.setSSN(Level1, id, cB)
 	if !d.SRM(Level1, id, cA) {
 		t.Error("SRM(cA) false after SetSRM(cA)")
 	}

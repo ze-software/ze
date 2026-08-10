@@ -26,15 +26,15 @@ func init() {
 
 func logger() *slog.Logger { return loggerPtr.Load() }
 
-// SetAIGPLogger sets the package-level logger.
-func SetAIGPLogger(l *slog.Logger) {
+// setAIGPLogger sets the package-level logger.
+func setAIGPLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
 	}
 }
 
-// RunAIGPPlugin is the in-process entry point. Stub: runs the SDK event loop with no handlers.
-func RunAIGPPlugin(conn net.Conn) int {
+// runAIGPPlugin is the in-process entry point. Stub: runs the SDK event loop with no handlers.
+func runAIGPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-aigp", conn)
 	defer func() { _ = p.Close() }()
 

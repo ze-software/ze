@@ -16,7 +16,7 @@ func newReactorForSnapshot(t *testing.T) *L2TPReactor {
 	t.Helper()
 	return &L2TPReactor{
 		logger: slog.Default(),
-		params: ReactorParams{
+		params: reactorParams{
 			Clock: func() time.Time { return time.Unix(1000, 0).UTC() },
 			Defaults: TunnelDefaults{
 				RecvWindow: 4,

@@ -70,29 +70,29 @@ func (c *Component) Start(bus ze.EventBus) {
 		return
 	}
 
-	if c.config.HasUpdates() {
+	if c.config.hasUpdates() {
 		w := mrtfmt.NewWriter(c.config.UpdatesPath,
 			mrtfmt.WithInterval(c.config.UpdatesInterval))
 		c.updates = newAsyncWriter(w, c.logger)
 	}
-	if c.config.HasAll() {
+	if c.config.hasAll() {
 		w := mrtfmt.NewWriter(c.config.AllPath,
 			mrtfmt.WithInterval(c.config.AllInterval))
 		c.allMsgs = newAsyncWriter(w, c.logger)
 	}
-	if c.config.HasRoutes() {
+	if c.config.hasRoutes() {
 		c.routes = mrtfmt.NewWriter(c.config.RoutesPath)
 	}
 
-	if c.config.HasRoutes() {
+	if c.config.hasRoutes() {
 		c.wg.Add(1)
 		go c.ribDumpLoop()
 	}
 
 	c.logger.Info("mrt: started",
-		"updates", c.config.HasUpdates(),
-		"all", c.config.HasAll(),
-		"routes", c.config.HasRoutes())
+		"updates", c.config.hasUpdates(),
+		"all", c.config.hasAll(),
+		"routes", c.config.hasRoutes())
 }
 
 // OnBGPMessage implements reactor.MessageObserver.

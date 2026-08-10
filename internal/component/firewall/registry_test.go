@@ -156,15 +156,15 @@ func TestFlushAllTablesClearsRegistryAndReconciles(t *testing.T) {
 // VALIDATES: flush-on-shutdown defaults to enabled (fail-safe) and the setter
 // round-trips, so the engine's clean-shutdown branch honors the parsed option.
 func TestFlushOnShutdownToggle(t *testing.T) {
-	prev := FlushOnShutdownEnabled()
-	t.Cleanup(func() { SetFlushOnShutdown(prev) })
+	prev := flushOnShutdownEnabled()
+	t.Cleanup(func() { setFlushOnShutdown(prev) })
 
-	SetFlushOnShutdown(true)
-	if !FlushOnShutdownEnabled() {
+	setFlushOnShutdown(true)
+	if !flushOnShutdownEnabled() {
 		t.Fatal("FlushOnShutdownEnabled() = false after SetFlushOnShutdown(true)")
 	}
-	SetFlushOnShutdown(false)
-	if FlushOnShutdownEnabled() {
+	setFlushOnShutdown(false)
+	if flushOnShutdownEnabled() {
 		t.Fatal("FlushOnShutdownEnabled() = true after SetFlushOnShutdown(false)")
 	}
 }

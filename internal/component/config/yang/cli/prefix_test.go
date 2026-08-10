@@ -16,7 +16,7 @@ func TestPrefixCollisions(t *testing.T) {
 		{Name: "receive-hold-time", Source: SourceConfig},
 	}
 
-	groups := FindCollisions(siblings, 1)
+	groups := findCollisions(siblings, 1)
 
 	assert.Len(t, groups, 1, "should find 1 collision group (l-prefix)")
 	assert.Equal(t, "l", groups[0].Prefix)
@@ -32,7 +32,7 @@ func TestPrefixCollisionsNone(t *testing.T) {
 		{Name: "description", Source: SourceConfig},
 	}
 
-	groups := FindCollisions(siblings, 1)
+	groups := findCollisions(siblings, 1)
 
 	assert.Empty(t, groups, "no collisions when all first chars unique")
 }
@@ -48,17 +48,17 @@ func TestPrefixCollisionsMinPrefix(t *testing.T) {
 	}
 
 	// With min-prefix 1: "l" group has 4 members
-	groups1 := FindCollisions(siblings, 1)
+	groups1 := findCollisions(siblings, 1)
 	assert.Len(t, groups1, 1)
 
 	// With min-prefix 3: only report if 3+ chars needed to disambiguate
 	// "li" vs "lo" disambiguates at 2 chars, so min-prefix=3 should still report
 	// because "link-local" vs "listen" needs 4 chars, "local" vs "log-level" needs 3
-	groups3 := FindCollisions(siblings, 3)
+	groups3 := findCollisions(siblings, 3)
 	assert.Len(t, groups3, 1, "link-local vs listen needs 4 chars, above threshold 3")
 
 	// With min-prefix 10: nothing needs 10+ chars
-	groups10 := FindCollisions(siblings, 10)
+	groups10 := findCollisions(siblings, 10)
 	assert.Empty(t, groups10, "no collision needs 10+ chars to disambiguate")
 }
 
@@ -72,7 +72,7 @@ func TestPrefixCollisionDepth(t *testing.T) {
 		{Name: "resume", Source: SourceCommand},
 	}
 
-	groups := FindCollisions(siblings, 1)
+	groups := findCollisions(siblings, 1)
 
 	assert.Len(t, groups, 1)
 	g := groups[0]
@@ -92,21 +92,21 @@ func TestPrefixCollisionMinPrefixBoundary(t *testing.T) {
 	}
 
 	// add vs adj: need 3 chars to disambiguate (add vs adj)
-	groups2 := FindCollisions(siblings, 2)
+	groups2 := findCollisions(siblings, 2)
 	assert.Len(t, groups2, 1, "needs 3 chars, threshold 2 should include")
 
-	groups3 := FindCollisions(siblings, 3)
+	groups3 := findCollisions(siblings, 3)
 	assert.Len(t, groups3, 1, "needs 3 chars, threshold 3 should include")
 
-	groups4 := FindCollisions(siblings, 4)
+	groups4 := findCollisions(siblings, 4)
 	assert.Empty(t, groups4, "needs 3 chars, threshold 4 should exclude")
 }
 
 // PREVENTS: Crash on empty input.
 func TestPrefixCollisionsEmpty(t *testing.T) {
-	assert.Empty(t, FindCollisions(nil, 1), "nil input")
-	assert.Empty(t, FindCollisions([]SiblingInfo{}, 1), "empty input")
-	assert.Empty(t, FindCollisions([]SiblingInfo{{Name: "solo"}}, 1), "single sibling")
+	assert.Empty(t, findCollisions(nil, 1), "nil input")
+	assert.Empty(t, findCollisions([]SiblingInfo{}, 1), "empty input")
+	assert.Empty(t, findCollisions([]SiblingInfo{{Name: "solo"}}, 1), "single sibling")
 }
 
 // PREVENTS: Crash or incorrect results when a sibling has empty name.
@@ -116,7 +116,7 @@ func TestPrefixCollisionsEmptyName(t *testing.T) {
 		{Name: "add", Source: SourceConfig},
 		{Name: "adj", Source: SourceConfig},
 	}
-	groups := FindCollisions(siblings, 1)
+	groups := findCollisions(siblings, 1)
 	assert.Len(t, groups, 1, "empty-name sibling should be skipped, add/adj collide")
 	assert.Len(t, groups[0].Siblings, 2, "only add and adj, not the empty one")
 }
@@ -128,7 +128,7 @@ func TestPrefixCollisionSubstringName(t *testing.T) {
 		{Name: "ab", Source: SourceConfig},
 		{Name: "abc", Source: SourceConfig},
 	}
-	groups := FindCollisions(siblings, 1)
+	groups := findCollisions(siblings, 1)
 	assert.Len(t, groups, 1)
 	// "a" is LCP 1 with "ab" -> depth 2, but "a" is only 1 char -> disambig = min(2, 1) = 1
 	// "ab" is LCP 2 with "abc" -> depth 3, but "ab" is only 2 chars -> disambig = min(3, 2) = 2

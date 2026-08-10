@@ -79,7 +79,7 @@ func TestDhcpTopicToEventType(t *testing.T) {
 func TestNewDHCPClientValidation(t *testing.T) {
 	t.Parallel()
 
-	// VALIDATES: NewDHCPClient rejects invalid arguments before allocating.
+	// VALIDATES: newDHCPClient rejects invalid arguments before allocating.
 	// PREVENTS: nil-pointer panics from missing eventBus, nonsensical configs
 	// with both v4/v6 disabled, and invalid Linux interface names.
 
@@ -180,7 +180,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			client, err := NewDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6, DHCPConfig{})
+			client, err := newDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6, dHCPConfig{})
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -200,7 +200,7 @@ func TestV4RequestModifiersHostname(t *testing.T) {
 	// PREVENTS: hostname silently dropped from DHCP packets.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", "default", bus, true, false, DHCPConfig{
+	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{
 		Hostname: "ze-router",
 		ClientID: "ze:01",
 	})
@@ -217,7 +217,7 @@ func TestV4RequestModifiersEmpty(t *testing.T) {
 	// PREVENTS: nil/empty modifier accidentally injected.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", "default", bus, true, false, DHCPConfig{})
+	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{})
 	require.NoError(t, err)
 
 	mods := client.v4RequestModifiers()
@@ -232,7 +232,7 @@ func TestSleepOrStopWithClosedChannel(t *testing.T) {
 	// PREVENTS: goroutine hangs when Stop() races with retry backoff.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", "default", bus, true, false, DHCPConfig{})
+	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{})
 	require.NoError(t, err)
 
 	// Close the stop channel directly to simulate a stopped client.

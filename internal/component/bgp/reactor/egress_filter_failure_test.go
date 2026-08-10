@@ -109,7 +109,7 @@ func TestReactorForwardRSFilterPanicIsNotPolicy(t *testing.T) {
 				ReceivedAt:   time.Now(),
 			}
 
-			cache := NewRecentUpdateCache(100)
+			cache := newRecentUpdateCache(100)
 			cache.Add(update)
 			cache.Activate(120, 1)
 

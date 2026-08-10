@@ -18,7 +18,7 @@ import (
 // VALIDATES: Semicolons are auto-inserted at newlines; still required on single-line input.
 // PREVENTS: Invalid config saved without warning.
 func TestValidateSyntaxMissingSemicolon(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -76,7 +76,7 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			errs := v.ValidateSyntax(tt.content)
+			errs := v.validateSyntax(tt.content)
 			if tt.wantErr {
 				assert.NotEmpty(t, errs, "expected syntax error")
 			} else {
@@ -91,7 +91,7 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 // VALIDATES: Parser detects unclosed braces.
 // PREVENTS: Malformed config structure.
 func TestValidateSyntaxUnclosedBrace(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -172,7 +172,7 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			errs := v.ValidateSyntax(tt.content)
+			errs := v.validateSyntax(tt.content)
 			if tt.wantErr {
 				assert.NotEmpty(t, errs, "expected syntax error")
 			} else {
@@ -188,7 +188,7 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 // NOTE: iBGP validation (remote as == local as) is deferred until
 // route-reflector-client is added to schema.
 func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -263,7 +263,7 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 // VALIDATES: Duplicate peer addresses detected.
 // PREVENTS: Configuration with conflicting peers.
 func TestValidateSemanticDuplicatePeer(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -323,7 +323,7 @@ func TestValidateSemanticDuplicatePeer(t *testing.T) {
 // VALIDATES: Invalid router-id detected.
 // PREVENTS: Invalid IPv4 as router-id.
 func TestValidateSemanticRouterID(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -366,7 +366,7 @@ func TestValidateSemanticRouterID(t *testing.T) {
 // PREVENTS: Invalid receive-hold-time values 1 or 2.
 // BOUNDARY: 0 (valid), 1 (invalid), 2 (invalid), 3 (valid), 65535 (valid).
 func TestValidateSemanticHoldTime(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -423,7 +423,7 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 // VALIDATES: All validation levels run together.
 // PREVENTS: Missing validation in commit path.
 func TestValidateAll(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	// Valid config
@@ -500,7 +500,7 @@ func TestValidateRunsPluginConfigVerifier(t *testing.T) {
 		},
 	}))
 
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 	result := v.Validate(`bgp { router-id 1.2.3.4; }`)
 	require.NotEmpty(t, result.Errors)
@@ -512,7 +512,7 @@ func TestValidateRunsPluginConfigVerifier(t *testing.T) {
 // VALIDATES: Errors include clear messages.
 // PREVENTS: Unclear error messages for users.
 func TestValidationErrorFormat(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	content := `bgp {
@@ -545,7 +545,7 @@ func TestValidationErrorFormat(t *testing.T) {
 // VALIDATES: Peer address must be valid IP.
 // PREVENTS: Invalid peer addresses in config.
 func TestValidatePeerAddress(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -608,7 +608,7 @@ func TestValidatePeerAddress(t *testing.T) {
 // VALIDATES: Unknown keywords rejected by parser.
 // PREVENTS: Typos in config silently ignored.
 func TestValidateUnknownKeyword(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	content := `bgp {
@@ -625,7 +625,7 @@ func TestValidateUnknownKeyword(t *testing.T) {
 // VALIDATES: Missing remote as in peer block causes error.
 // PREVENTS: Peers configured without required ASN.
 func TestValidateMissingPeerAS(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -705,7 +705,7 @@ func TestValidateMissingPeerAS(t *testing.T) {
 // VALIDATES: Group-level remote as satisfies mandatory field requirement for group peers.
 // PREVENTS: False positives when remote as comes from group defaults.
 func TestValidatePeerASInheritance(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -869,7 +869,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
 // VALIDATES: ASN values within valid range.
 // BOUNDARY: 1 (valid min), 4294967295 (valid max), 0 (invalid), overflow (invalid).
 func TestValidateASNBoundary(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -913,7 +913,7 @@ func TestValidateASNBoundary(t *testing.T) {
 // VALIDATES: Validate detects set/set-meta format and uses SetParser.
 // PREVENTS: Session-mode commits failing because validator only uses hierarchical parser.
 func TestValidateSetFormat(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -961,7 +961,7 @@ func TestValidateSetFormat(t *testing.T) {
 // VALIDATES: AC-10 -- editor validation error with field name.
 // PREVENTS: Missing required fields not caught by editor validation.
 func TestValidatePeer_MissingRequiredField(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	// Peer missing connection/remote/ip -- should warn.
@@ -997,7 +997,7 @@ func TestValidatePeer_MissingRequiredField(t *testing.T) {
 // VALIDATES: bgp-level inheritance in generic ze:required loop.
 // PREVENTS: False warning when session/asn/local is set at bgp level.
 func TestValidatePeer_RequiredFieldInheritedFromBGP(t *testing.T) {
-	v, err := NewConfigValidator()
+	v, err := newConfigValidator()
 	require.NoError(t, err)
 
 	// session/asn/local set at bgp level, peer has remote ip + remote as.

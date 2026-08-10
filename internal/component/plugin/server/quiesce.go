@@ -102,10 +102,10 @@ func quiesceAll(ctx context.Context, quiescers []Quiescer, perTimeout time.Durat
 	}
 }
 
-// RegisterQuiescer registers a named subsystem drain, invoked by `request
+// registerQuiescer registers a named subsystem drain, invoked by `request
 // quiesce`. Called at wiring time (e.g. when the reactor is attached to the
 // server), not from init(), because the drain closes over a live reference.
-func (s *Server) RegisterQuiescer(name string, fn QuiesceFunc) {
+func (s *Server) registerQuiescer(name string, fn QuiesceFunc) {
 	s.quiescers.Register(name, fn)
 }
 
@@ -127,8 +127,8 @@ func registerReactorQuiescer(s *Server, reactor plugin.ReactorLifecycle) {
 	// and the per-peer initial-sync opQueue (routes sent during establishment go
 	// direct to the session, bypassing the forward pool). `request quiesce` runs
 	// both concurrently so a "routes on the wire" barrier covers both.
-	s.RegisterQuiescer("bgp-forward-pool", reactor.FlushForwardPool)
-	s.RegisterQuiescer("bgp-peer-sync", reactor.DrainPeerSync)
+	s.registerQuiescer("bgp-forward-pool", reactor.FlushForwardPool)
+	s.registerQuiescer("bgp-peer-sync", reactor.DrainPeerSync)
 }
 
 // handleQuiesce implements `request quiesce` (ze-system:quiesce): drain every

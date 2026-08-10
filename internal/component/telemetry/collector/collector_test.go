@@ -95,7 +95,7 @@ func TestManagerDisableCollector(t *testing.T) {
 	m.Register(enabled)
 	m.Register(disabled)
 
-	m.SetOverrides(map[string]CollectorOverride{
+	m.setOverrides(map[string]CollectorOverride{
 		"disabled": {Enabled: false},
 	})
 	m.Start()
@@ -126,7 +126,7 @@ func TestManagerPerCollectorInterval(t *testing.T) {
 	m.Register(fast)
 	m.Register(slow)
 
-	m.SetOverrides(map[string]CollectorOverride{
+	m.setOverrides(map[string]CollectorOverride{
 		"slow": {Enabled: true, Interval: 3 * time.Second},
 	})
 	m.Start() // initial forced collection: fast == 1, slow == 1.

@@ -31,7 +31,7 @@ func buildHelloDatagram(lsrID [4]byte, transport netip.Addr) []byte {
 		TransportAddr: transport,
 	})
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      lsrID,
@@ -87,7 +87,7 @@ func TestDiscoverOnInterfaceSpawnsReaderAndDrains(t *testing.T) {
 	}
 	t.Cleanup(func() { listenDiscovery = origListen })
 
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	lsrID := [4]byte{1, 1, 1, 1}
 	cfg := ldpConfig{
 		HelloInterval: 50 * time.Millisecond,
@@ -137,7 +137,7 @@ func TestDiscoverOnInterfaceSpawnsReaderAndDrains(t *testing.T) {
 // other N-1 Hellos and flapping adjacencies on a shared segment.
 func TestDiscoveryDrainsBurst(t *testing.T) {
 	const n = 5
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	recvConn, recvAddr := newLoopbackUDP(t)
 	localLSRID := [4]byte{1, 1, 1, 1}
 
@@ -175,7 +175,7 @@ func TestDiscoveryDrainsBurst(t *testing.T) {
 // Hello was consumed only if it landed inside the 1s read window that opened once
 // per 5s, otherwise its hold timer flapped.
 func TestDiscoverySingleHelloPrompt(t *testing.T) {
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	recvConn, recvAddr := newLoopbackUDP(t)
 	localLSRID := [4]byte{1, 1, 1, 1}
 
@@ -208,7 +208,7 @@ func TestDiscoverySingleHelloPrompt(t *testing.T) {
 // closes done; no goroutine or socket leak (asserted -race clean by CI).
 // PREVENTS: a reader that outlives its interface's ctx and leaks across config reloads.
 func TestDiscoveryReaderExitsOnCancel(t *testing.T) {
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	recvConn, _ := newLoopbackUDP(t)
 	localLSRID := [4]byte{1, 1, 1, 1}
 
@@ -235,7 +235,7 @@ func TestDiscoveryReaderExitsOnCancel(t *testing.T) {
 // ctx WITHOUT closing the socket.
 // PREVENTS: a reader wedged forever in a blocked ReadFromUDP when a close is lost.
 func TestDiscoveryReaderExitsOnCancelDeadlineBackstop(t *testing.T) {
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	recvConn, _ := newLoopbackUDP(t)
 	t.Cleanup(func() { _ = recvConn.Close() })
 	localLSRID := [4]byte{1, 1, 1, 1}
@@ -259,7 +259,7 @@ func TestDiscoveryReaderExitsOnCancelDeadlineBackstop(t *testing.T) {
 // PREVENTS: a regression where reads gate sends (or vice versa), starving Hello
 // egress or the drain.
 func TestDiscoverySendUnaffectedByReads(t *testing.T) {
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	nodeConn, nodeAddr := newLoopbackUDP(t) // our discovery socket
 	peerConn, peerAddr := newLoopbackUDP(t) // neighbor: floods us and receives our Hellos
 	localLSRID := [4]byte{1, 1, 1, 1}

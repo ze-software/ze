@@ -160,9 +160,9 @@ func (c *ChildSA) Clear() {
 	}
 }
 
-// GenerateESPSPI generates a random 32-bit SPI for ESP.
+// generateESPSPI generates a random 32-bit SPI for ESP.
 // RFC 4303: SPI value 0 is reserved.
-func GenerateESPSPI() (uint32, error) {
+func generateESPSPI() (uint32, error) {
 	var buf [4]byte
 	for {
 		if _, err := rand.Read(buf[:]); err != nil {
@@ -232,7 +232,7 @@ func createFirstChildSA(
 	if sa.ChildInboundSPI != 0 {
 		inSPI = sa.ChildInboundSPI
 	} else {
-		inSPI, err = GenerateESPSPI()
+		inSPI, err = generateESPSPI()
 		if err != nil {
 			keys.Clear()
 			return nil, fmt.Errorf("child-sa: generate inbound SPI: %w", err)
@@ -241,7 +241,7 @@ func createFirstChildSA(
 	if sa.ChildOutboundSPI != 0 {
 		outSPI = sa.ChildOutboundSPI
 	} else {
-		outSPI, err = GenerateESPSPI()
+		outSPI, err = generateESPSPI()
 		if err != nil {
 			keys.Clear()
 			return nil, fmt.Errorf("child-sa: generate outbound SPI: %w", err)

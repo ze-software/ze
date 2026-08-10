@@ -364,28 +364,28 @@ func TestDecoratorRegistryResolveField(t *testing.T) {
 		DecoratorName: "asn-name",
 	}
 
-	reg.ResolveField(&field)
+	reg.resolveField(&field)
 	if field.Decoration != "Test Org" {
 		t.Errorf("Decoration = %q, want %q", field.Decoration, "Test Org")
 	}
 
 	// No decorator name -- should not change.
 	field2 := FieldMeta{Leaf: "port", Value: "179"}
-	reg.ResolveField(&field2)
+	reg.resolveField(&field2)
 	if field2.Decoration != "" {
 		t.Errorf("field without decorator should have empty Decoration, got %q", field2.Decoration)
 	}
 
 	// Empty value -- should not call decorator.
 	field3 := FieldMeta{Leaf: "as", DecoratorName: "asn-name"}
-	reg.ResolveField(&field3)
+	reg.resolveField(&field3)
 	if field3.Decoration != "" {
 		t.Errorf("field with empty value should have empty Decoration, got %q", field3.Decoration)
 	}
 
 	// Unknown decorator name -- should not change. (Finding #15)
 	field4 := FieldMeta{Leaf: "as", Value: "64500", DecoratorName: "nonexistent"}
-	reg.ResolveField(&field4)
+	reg.resolveField(&field4)
 	if field4.Decoration != "" {
 		t.Errorf("unknown decorator should have empty Decoration, got %q", field4.Decoration)
 	}
@@ -395,7 +395,7 @@ func TestDecoratorRegistryResolveField(t *testing.T) {
 		return "", errors.New("lookup failed")
 	}))
 	field5 := FieldMeta{Leaf: "as", Value: "64500", DecoratorName: "failing"}
-	reg.ResolveField(&field5)
+	reg.resolveField(&field5)
 	if field5.Decoration != "" {
 		t.Errorf("failing decorator should have empty Decoration, got %q", field5.Decoration)
 	}

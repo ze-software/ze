@@ -86,7 +86,7 @@ func TestConfigDownloadRouteGatedByEditAuthz(t *testing.T) {
 	editRec := httptest.NewRecorder()
 	editGate.ServeHTTP(editRec, newReq())
 	require.Equal(t, http.StatusOK, editRec.Code, "edit-authorized user must get the download")
-	raw, readErr := mgr.CommittedConfig()
+	raw, readErr := mgr.committedConfig()
 	require.NoError(t, readErr)
 	assert.Equal(t, string(raw), editRec.Body.String(),
 		"download must be the byte-exact raw committed config (unmasked round-trip)")
@@ -115,7 +115,7 @@ func TestConfigUploadValidApplies(t *testing.T) {
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.True(t, hookCalled, "reload hook must fire on a valid upload")
 
-	committed, readErr := mgr.CommittedConfig()
+	committed, readErr := mgr.committedConfig()
 	require.NoError(t, readErr)
 	assert.Contains(t, string(committed), "9.9.9.9")
 
@@ -145,7 +145,7 @@ func TestConfigUploadValidatesRejects(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "unknown leaf foo")
 	assert.False(t, hookCalled, "invalid upload must not fire the reload hook")
 
-	committed, readErr := mgr.CommittedConfig()
+	committed, readErr := mgr.committedConfig()
 	require.NoError(t, readErr)
 	assert.Contains(t, string(committed), "1.2.3.4", "committed config must be unchanged")
 	assert.NotContains(t, string(committed), "garbage")
@@ -170,7 +170,7 @@ func TestConfigUploadHookFailureRestores(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Contains(t, rec.Body.String(), "applying config")
 
-	committed, readErr := mgr.CommittedConfig()
+	committed, readErr := mgr.committedConfig()
 	require.NoError(t, readErr)
 	assert.Contains(t, string(committed), "1.2.3.4", "prior config must be restored after hook failure")
 	assert.NotContains(t, string(committed), "9.9.9.9", "rejected config must not remain committed")
@@ -193,7 +193,7 @@ func TestConfigUploadRBACDeny(t *testing.T) {
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 	assert.False(t, hookCalled, "denied upload must not fire the reload hook")
-	committed, readErr := mgr.CommittedConfig()
+	committed, readErr := mgr.committedConfig()
 	require.NoError(t, readErr)
 	assert.Contains(t, string(committed), "1.2.3.4")
 }

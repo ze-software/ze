@@ -700,7 +700,7 @@ func TestParseTunnelIp6gretap(t *testing.T) {
 	}`)
 	require.Len(t, cfg.Tunnel, 1)
 	assert.Equal(t, TunnelKindIP6GRETap, cfg.Tunnel[0].Spec.Kind)
-	assert.True(t, cfg.Tunnel[0].Spec.Kind.IsBridgeable())
+	assert.True(t, cfg.Tunnel[0].Spec.Kind.isBridgeable())
 }
 
 // TestParseTunnelNoPMTUDiscovery verifies the no-pmtu-discovery empty leaf.
@@ -3442,7 +3442,7 @@ func TestParseUnit_InvalidName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateUnitName(tt.unitKey)
+			err := validateUnitName(tt.unitKey)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})

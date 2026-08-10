@@ -459,7 +459,7 @@ func messageWithSABody(t *testing.T, saBody []byte) []byte {
 	msg := Message{
 		Header: Header{MajorVersion: 2, ExchangeType: ExchangeIKESAInit, Flags: FlagInitiator},
 		Payloads: []PayloadEntry{
-			{Payload: &PayloadRaw{PayloadType: PayloadTypeSA, Data: saBody}},
+			{Payload: &payloadRaw{PayloadType: PayloadTypeSA, Data: saBody}},
 			{Payload: &PayloadNonce{NonceData: make([]byte, 32)}},
 		},
 	}

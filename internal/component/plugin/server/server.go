@@ -197,7 +197,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		reactor:           reactor,
 		dispatcher:        NewDispatcher(),
 		rpcDispatcher:     ipc.NewRPCDispatcher(),
-		subscriptions:     NewSubscriptionManager(),
+		subscriptions:     newSubscriptionManager(),
 		engineSubscribers: newEngineEventSubscribers(),
 		monitors:          NewMonitorManager(),
 		registry:          plugin.NewPluginRegistry(),
@@ -657,10 +657,10 @@ func (s *Server) GetDecodeFamilies() []string {
 	return s.registry.GetDecodeFamilies()
 }
 
-// GetSchemaDeclarations returns all schema declarations from registered plugins.
+// getSchemaDeclarations returns all schema declarations from registered plugins.
 // Used for two-phase config parsing to extend the schema before parsing peer config.
 // Should be called after Stage 1 (Registration) completes for all plugins.
-func (s *Server) GetSchemaDeclarations() []plugin.SchemaDeclaration {
+func (s *Server) getSchemaDeclarations() []plugin.SchemaDeclaration {
 	pm := s.procManager.Load()
 	if pm == nil {
 		return nil

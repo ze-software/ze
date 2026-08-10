@@ -17,9 +17,9 @@ var ErrSchemaLoad = errors.New("failed to load ExaBGP schema")
 //go:embed exabgp.yang
 var exabgpYANG string
 
-// ExaBGPSchema returns a schema for parsing ExaBGP configuration files.
+// exaBGPSchema returns a schema for parsing ExaBGP configuration files.
 // Uses YANG-defined schema from exabgp.yang.
-func ExaBGPSchema() *config.Schema {
+func exaBGPSchema() *config.Schema {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil
@@ -50,7 +50,7 @@ func ParseExaBGPConfig(input string) (*config.Tree, error) {
 	// multi-line flex entries (vpls, mup routes).
 	input = strings.ReplaceAll(input, "\\\n", " ")
 
-	schema := ExaBGPSchema()
+	schema := exaBGPSchema()
 	if schema == nil {
 		return nil, ErrSchemaLoad
 	}

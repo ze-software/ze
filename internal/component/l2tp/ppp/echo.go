@@ -12,13 +12,13 @@ import (
 // shorter than the 4-byte Magic-Number field.
 var errLCPEchoTooShort = errors.New("ppp: LCP Echo packet shorter than 4-byte Magic-Number")
 
-// ParseLCPEchoMagic extracts the Magic-Number from an Echo-Request,
+// parseLCPEchoMagic extracts the Magic-Number from an Echo-Request,
 // Echo-Reply, or Discard-Request payload. RFC 1661 §5.8 specifies a
 // 4-byte Magic-Number aiding loopback detection.
 //
 // The remaining payload (after the 4-byte Magic-Number) is opaque
 // per RFC 1661 -- "Data" field, ignored on receive.
-func ParseLCPEchoMagic(data []byte) (magic uint32, err error) {
+func parseLCPEchoMagic(data []byte) (magic uint32, err error) {
 	if len(data) < 4 {
 		return 0, errLCPEchoTooShort
 	}
@@ -69,14 +69,14 @@ func BuildLCPEchoReply(buf []byte, off int, requestID uint8, magic uint32, reque
 	return WriteLCPEcho(buf, off, LCPEchoReply, requestID, magic, extra)
 }
 
-// IsLCPLoopback reports whether a received Echo-Reply's payload
+// isLCPLoopback reports whether a received Echo-Reply's payload
 // contains ze's own Magic-Number, indicating a looped link. RFC 1661
 // §6.4 documents this as a permitted loopback detection mechanism.
 //
 // This is a defensive check; ze does not currently take action on a
 // loopback detection beyond logging (deferred to operations).
-func IsLCPLoopback(payload []byte, localMagic uint32) bool {
-	m, err := ParseLCPEchoMagic(payload)
+func isLCPLoopback(payload []byte, localMagic uint32) bool {
+	m, err := parseLCPEchoMagic(payload)
 	if err != nil {
 		return false
 	}

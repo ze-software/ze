@@ -120,12 +120,12 @@ func ParseNET(s string) (NET, error) {
 	if err != nil {
 		return NET{}, err
 	}
-	return NETFromBytes(raw[:n])
+	return nETFromBytes(raw[:n])
 }
 
-// NETFromBytes copies an 8..20 octet NET from b, validating the bound before
+// nETFromBytes copies an 8..20 octet NET from b, validating the bound before
 // indexing so an attacker-controlled length cannot cause an out-of-range slice.
-func NETFromBytes(b []byte) (NET, error) {
+func nETFromBytes(b []byte) (NET, error) {
 	if len(b) < MinNETLen || len(b) > MaxNETLen {
 		return NET{}, ErrWrongLength
 	}

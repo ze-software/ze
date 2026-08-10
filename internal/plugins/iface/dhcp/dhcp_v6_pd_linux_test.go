@@ -47,7 +47,7 @@ func (b *recordingBus) Subscribe(_, _ string, _ func(any)) func() { return func(
 // event with the delegated prefix, its length, and the valid lifetime.
 func TestDHCPv6PDLeaseFlow(t *testing.T) {
 	bus := &recordingBus{}
-	c, err := NewDHCPClient("eth0", "", bus, false, true, DHCPConfig{})
+	c, err := newDHCPClient("eth0", "", bus, false, true, dHCPConfig{})
 	if err != nil {
 		t.Fatalf("NewDHCPClient: %v", err)
 	}

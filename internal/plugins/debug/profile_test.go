@@ -29,17 +29,17 @@ func setupDebugStore(t *testing.T) string {
 func TestProfileToggleModule(t *testing.T) {
 	storePath := setupDebugStore(t)
 
-	p := NewProfile()
+	p := newProfile()
 	if p.HasModule("bgp.reactor") {
 		t.Fatal("new profile should not have bgp.reactor")
 	}
 
-	p.ToggleModule("bgp.reactor")
+	p.toggleModule("bgp.reactor")
 	if !p.HasModule("bgp.reactor") {
 		t.Fatal("after toggle on, should have bgp.reactor")
 	}
 
-	p.ToggleModule("bgp.reactor")
+	p.toggleModule("bgp.reactor")
 	if p.HasModule("bgp.reactor") {
 		t.Fatal("after toggle off, should not have bgp.reactor")
 	}
@@ -48,16 +48,16 @@ func TestProfileToggleModule(t *testing.T) {
 }
 
 func TestProfileToggleFlag(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
 
-	p.ToggleFlag("bgp.reactor", "update")
+	p.toggleFlag("bgp.reactor", "update")
 	flags := p.Flags("bgp.reactor")
 	if len(flags) != 1 || flags[0].Name != "update" {
 		t.Fatalf("expected [update], got %v", flags)
 	}
 
-	p.ToggleFlag("bgp.reactor", "update")
+	p.toggleFlag("bgp.reactor", "update")
 	flags = p.Flags("bgp.reactor")
 	if len(flags) != 0 {
 		t.Fatalf("expected [], got %v", flags)
@@ -65,10 +65,10 @@ func TestProfileToggleFlag(t *testing.T) {
 }
 
 func TestProfileDirectionAsScope(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleFlag("bgp.reactor", "update")
-	p.ToggleScope("bgp.reactor", "direction", "receive")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleFlag("bgp.reactor", "update")
+	p.toggleScope("bgp.reactor", "direction", "receive")
 
 	flags := p.Flags("bgp.reactor")
 	if len(flags) != 1 || flags[0].Name != "update" {
@@ -80,7 +80,7 @@ func TestProfileDirectionAsScope(t *testing.T) {
 		t.Fatalf("expected direction=receive scope, got %v", scopes)
 	}
 
-	p.ToggleScope("bgp.reactor", "direction", "receive")
+	p.toggleScope("bgp.reactor", "direction", "receive")
 	scopes = p.Scopes("bgp.reactor")
 	if len(scopes) != 0 {
 		t.Fatalf("expected 0 scopes after toggle off, got %d", len(scopes))
@@ -88,16 +88,16 @@ func TestProfileDirectionAsScope(t *testing.T) {
 }
 
 func TestProfileToggleScope(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleScope("bgp.reactor", "neighbor", "192.0.2.1")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleScope("bgp.reactor", "neighbor", "192.0.2.1")
 
 	scopes := p.Scopes("bgp.reactor")
 	if len(scopes) != 1 {
 		t.Fatalf("expected 1 scope, got %d", len(scopes))
 	}
 
-	p.ToggleScope("bgp.reactor", "neighbor", "192.0.2.1")
+	p.toggleScope("bgp.reactor", "neighbor", "192.0.2.1")
 	scopes = p.Scopes("bgp.reactor")
 	if len(scopes) != 0 {
 		t.Fatalf("expected 0 scopes after toggle off, got %d", len(scopes))
@@ -107,17 +107,17 @@ func TestProfileToggleScope(t *testing.T) {
 func TestProfileLoadSave(t *testing.T) {
 	storePath := setupDebugStore(t)
 
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleFlag("bgp.reactor", "update")
-	p.ToggleScope("bgp.reactor", "neighbor", "192.0.2.1")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleFlag("bgp.reactor", "update")
+	p.toggleScope("bgp.reactor", "neighbor", "192.0.2.1")
 	p.Timeout = 30
 
-	if err := SaveProfile(storePath, "default", p); err != nil {
+	if err := saveProfile(storePath, "default", p); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 
-	loaded, err := LoadProfile(storePath, "default")
+	loaded, err := loadProfile(storePath, "default")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -144,20 +144,20 @@ func TestProfileLoadSave(t *testing.T) {
 func TestProfileSaveNamed(t *testing.T) {
 	storePath := setupDebugStore(t)
 
-	p1 := NewProfile()
-	p1.ToggleModule("bgp.reactor")
+	p1 := newProfile()
+	p1.toggleModule("bgp.reactor")
 
-	p2 := NewProfile()
-	p2.ToggleModule("plugin.manager")
+	p2 := newProfile()
+	p2.toggleModule("plugin.manager")
 
-	if err := SaveProfile(storePath, "bgp-deep", p1); err != nil {
+	if err := saveProfile(storePath, "bgp-deep", p1); err != nil {
 		t.Fatalf("save p1: %v", err)
 	}
-	if err := SaveProfile(storePath, "plugin-debug", p2); err != nil {
+	if err := saveProfile(storePath, "plugin-debug", p2); err != nil {
 		t.Fatalf("save p2: %v", err)
 	}
 
-	names, err := ListProfiles(storePath)
+	names, err := listProfiles(storePath)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestProfileSaveNamed(t *testing.T) {
 func TestProfileLoadNotFound(t *testing.T) {
 	storePath := setupDebugStore(t)
 
-	_, err := LoadProfile(storePath, "nonexistent")
+	_, err := loadProfile(storePath, "nonexistent")
 	if err == nil {
 		t.Fatal("expected error loading nonexistent profile")
 	}
@@ -177,7 +177,7 @@ func TestProfileLoadNotFound(t *testing.T) {
 
 func TestProfileNameValidation(t *testing.T) {
 	storePath := setupDebugStore(t)
-	p := NewProfile()
+	p := newProfile()
 
 	tests := []struct {
 		name    string
@@ -192,7 +192,7 @@ func TestProfileNameValidation(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := SaveProfile(storePath, tt.name, p)
+		err := saveProfile(storePath, tt.name, p)
 		if (err != nil) != tt.wantErr {
 			t.Errorf("SaveProfile(%q) err=%v, wantErr=%v", tt.name, err, tt.wantErr)
 		}
@@ -202,26 +202,26 @@ func TestProfileNameValidation(t *testing.T) {
 func TestProfileDelete(t *testing.T) {
 	storePath := setupDebugStore(t)
 
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	if err := SaveProfile(storePath, "temp", p); err != nil {
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	if err := saveProfile(storePath, "temp", p); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 
-	if err := DeleteProfile(storePath, "temp"); err != nil {
+	if err := deleteProfile(storePath, "temp"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 
-	_, err := LoadProfile(storePath, "temp")
+	_, err := loadProfile(storePath, "temp")
 	if err == nil {
 		t.Fatal("expected error after delete")
 	}
 }
 
 func TestProfileModules(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleModule("plugin.manager")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleModule("plugin.manager")
 
 	mods := p.ModuleNames()
 	if len(mods) != 2 {
@@ -230,8 +230,8 @@ func TestProfileModules(t *testing.T) {
 }
 
 func TestProfileSetLevel(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
 	p.SetLevel("bgp.reactor", "info")
 
 	entry := p.Module("bgp.reactor")

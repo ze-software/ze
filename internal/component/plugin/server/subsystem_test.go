@@ -304,7 +304,7 @@ func TestSubsystemManager(t *testing.T) {
 	assert.Equal(t, "session", h.Name())
 
 	// All commands
-	allCmds := manager.AllCommands()
+	allCmds := manager.allCommands()
 	assert.Contains(t, allCmds, "cache list")
 	assert.Contains(t, allCmds, "plugin session ping")
 }
@@ -335,7 +335,7 @@ func TestDispatcherSubsystemIntegration(t *testing.T) {
 	manager.mu.Lock()
 	manager.handlers["session"] = sessionHandler
 	manager.mu.Unlock()
-	d.SetSubsystems(manager)
+	d.setSubsystems(manager)
 
 	// Dispatch command to subsystem
 	resp, err := d.Dispatch(nil, "plugin session ping")

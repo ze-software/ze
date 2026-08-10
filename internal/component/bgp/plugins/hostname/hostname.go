@@ -66,11 +66,11 @@ func (c *fqdnConfig) encodeValue() string {
 	return hex.EncodeToString(data)
 }
 
-// RunHostnamePlugin runs the hostname plugin using the SDK RPC protocol.
+// runHostnamePlugin runs the hostname plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 // It receives per-peer hostname/domain config during Stage 2 and registers
 // per-peer FQDN capabilities (code 73) during Stage 3.
-func RunHostnamePlugin(conn net.Conn) int {
+func runHostnamePlugin(conn net.Conn) int {
 	Logger.Debug("hostname plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-hostname", conn)

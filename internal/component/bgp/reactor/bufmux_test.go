@@ -107,7 +107,7 @@ func TestBufMux_AllocatesFromLowest(t *testing.T) {
 func TestBufMux_GrowAtMaximum(t *testing.T) {
 	// When at maximum capacity, Get() returns zero handle.
 	mux := newBufMux(64, 2)
-	mux.SetMaxBlocks(1) // Only allow 1 block (2 buffers total)
+	mux.setMaxBlocks(1) // Only allow 1 block (2 buffers total)
 	h0 := mux.Get()
 	h1 := mux.Get()
 
@@ -319,7 +319,7 @@ func TestProbedPool_ProbeFiresEveryGet(t *testing.T) {
 	pp := newProbedPool(64, 4)
 
 	var probeCount int
-	pp.SetProbe(func() { probeCount++ })
+	pp.setProbe(func() { probeCount++ })
 
 	// Probe fires on every Get.
 	for range 5 {
@@ -331,7 +331,7 @@ func TestProbedPool_ProbeFiresEveryGet(t *testing.T) {
 	}
 
 	// No probe when nil.
-	pp.SetProbe(nil)
+	pp.setProbe(nil)
 	h := pp.Get()
 	pp.Return(h)
 	if probeCount != 5 {
@@ -483,7 +483,7 @@ func TestMixedBufMux_Mixed(t *testing.T) {
 func TestMixedBufMux_Return(t *testing.T) {
 	// Return releases buffer, subsequent Get succeeds.
 	m := newMixedBufMux()
-	m.SetByteBudget(4096 * 16) // one block's worth of 4K slices
+	m.setByteBudget(4096 * 16) // one block's worth of 4K slices
 	// Exhaust the pool.
 	handles := make([]BufHandle, 16)
 	for i := range handles {
@@ -512,7 +512,7 @@ func TestMixedBufMux_Return(t *testing.T) {
 func TestMixedBufMux_Exhausted(t *testing.T) {
 	// Get returns nil when byte budget is reached.
 	m := newMixedBufMux()
-	m.SetByteBudget(4096 * 16) // exactly one 64K block (16 x 4K slices)
+	m.setByteBudget(4096 * 16) // exactly one 64K block (16 x 4K slices)
 	for range 16 {
 		h := m.Get4K()
 		if h.Buf == nil {
@@ -581,7 +581,7 @@ func TestMixedBufMux_CollapseTombstoneReuse(t *testing.T) {
 	// Collapse nils blocks, tombstones their slots. Next growth reuses the slots.
 	// Verifies block IDs remain stable through the cycle.
 	m := newMixedBufMux()
-	m.SetByteBudget(overflowChunkBlocks * overflowBlockSize) // exactly 1 chunk
+	m.setByteBudget(overflowChunkBlocks * overflowBlockSize) // exactly 1 chunk
 
 	// Allocate and return a 4K slice to create an active then free block.
 	h := m.Get4K()
@@ -729,7 +729,7 @@ func TestMixedBufMux_NonSequentialSliceReturn(t *testing.T) {
 func TestMixedBufMux_BlockReuseCrossMode(t *testing.T) {
 	// Key spec property: a block used as 64K, returned, then reused as 4K subdivided.
 	m := newMixedBufMux()
-	m.SetByteBudget(overflowBlockSize) // 1 block max
+	m.setByteBudget(overflowBlockSize) // 1 block max
 
 	// Use as 64K whole.
 	h64 := m.Get64K()
@@ -766,7 +766,7 @@ func TestMixedBufMux_BlockReuseCrossMode(t *testing.T) {
 func TestMixedBufMux_ConcurrentMixed(t *testing.T) {
 	// Concurrent Get4K, Get64K, and Return from multiple goroutines.
 	m := newMixedBufMux()
-	m.SetByteBudget(64 * overflowBlockSize) // 64 blocks = 4MB
+	m.setByteBudget(64 * overflowBlockSize) // 64 blocks = 4MB
 
 	const goroutines = 8
 	const opsPerGoroutine = 200
@@ -808,10 +808,10 @@ func TestMixedBufMux_GrowthAndCollapseCycle(t *testing.T) {
 	// Verify: pool grows under pressure, UsedRatio climbs, collapse returns memory,
 	// ratio drops, regrowth reuses tombstoned slots.
 	m := newMixedBufMux()
-	m.SetByteBudget(4 * overflowChunkBlocks * overflowBlockSize) // 4 chunks = 64 blocks
+	m.setByteBudget(4 * overflowChunkBlocks * overflowBlockSize) // 4 chunks = 64 blocks
 
 	// Phase 1: empty pool, ratio = 0.
-	r := m.UsedRatio()
+	r := m.usedRatio()
 	if r != 0.0 {
 		t.Fatalf("empty pool ratio = %f, want 0.0", r)
 	}
@@ -825,7 +825,7 @@ func TestMixedBufMux_GrowthAndCollapseCycle(t *testing.T) {
 		}
 	}
 	// 1 chunk = 16 live blocks, max = 64 -> ratio = 0.25.
-	r = m.UsedRatio()
+	r = m.usedRatio()
 	if r < 0.2 || r > 0.3 {
 		t.Fatalf("after 1 chunk: ratio = %f, want ~0.25", r)
 	}
@@ -840,7 +840,7 @@ func TestMixedBufMux_GrowthAndCollapseCycle(t *testing.T) {
 		}
 	}
 	// 2 chunks = 32 live blocks, max = 64 -> ratio = 0.5.
-	r2 := m.UsedRatio()
+	r2 := m.usedRatio()
 	if r2 <= r {
 		t.Fatalf("ratio should increase after second chunk growth: was %f, now %f", r, r2)
 	}
@@ -853,7 +853,7 @@ func TestMixedBufMux_GrowthAndCollapseCycle(t *testing.T) {
 		m.Return(h)
 	}
 	// All blocks are free, but still live (memory held). Ratio unchanged.
-	rAfterReturn := m.UsedRatio()
+	rAfterReturn := m.usedRatio()
 	if rAfterReturn != r2 {
 		t.Fatalf("return doesn't change ratio (memory still held): was %f, now %f", r2, rAfterReturn)
 	}
@@ -863,7 +863,7 @@ func TestMixedBufMux_GrowthAndCollapseCycle(t *testing.T) {
 
 	// Phase 5: collapse. Should nil free blocks, drop liveBlocks, ratio drops.
 	m.tryCollapse()
-	rAfterCollapse := m.UsedRatio()
+	rAfterCollapse := m.usedRatio()
 	if rAfterCollapse >= rAfterReturn {
 		t.Fatalf("collapse should reduce ratio: was %f, now %f", rAfterReturn, rAfterCollapse)
 	}

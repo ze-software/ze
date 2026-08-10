@@ -17,10 +17,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// InterfaceTypes returns the list of interface types available for creation.
+// interfaceTypes returns the list of interface types available for creation.
 // Derived from the iface package's SupportedTypes, excluding loopback
 // (singleton, not user-created).
-func InterfaceTypes() []string {
+func interfaceTypes() []string {
 	all := iface.SupportedTypes()
 	result := make([]string, 0, len(all))
 	for _, t := range all {
@@ -371,9 +371,9 @@ func interfaceDisplayType(info iface.InterfaceInfo) string {
 	return normalizeInterfaceInfo(info).Type
 }
 
-// BuildInterfaceDetailData constructs a WorkbenchDetailData for a single
+// buildInterfaceDetailData constructs a WorkbenchDetailData for a single
 // interface, showing config, status, and traffic counter tabs.
-func BuildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
+func buildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
 	configHTML := buildDetailConfigHTML(info)
 	statusHTML := buildDetailStatusHTML(info)
 	countersHTML := buildDetailCountersHTML(info)
@@ -506,10 +506,10 @@ func writeKV(b *textbuf.Buffer, key, value string) {
 	b.Str(`</td></tr>`)
 }
 
-// HandleInterfacesPage renders the interface list table within the workbench.
+// handleInterfacesPage renders the interface list table within the workbench.
 // It is called by the workbench handler when the path starts with "iface/".
 // Returns the rendered HTML content for embedding in the workbench shell.
-func HandleInterfacesPage(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree) template.HTML {
+func handleInterfacesPage(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree) template.HTML {
 	filterType := r.URL.Query().Get("type")
 
 	// Detail sub-path: /show/iface/detail/<name>
@@ -524,7 +524,7 @@ func HandleInterfacesPage(renderer *Renderer, r *http.Request, path []string, vi
 
 	// Traffic sub-path: /show/iface/traffic/
 	if len(path) >= 1 && path[0] == "traffic" {
-		return BuildTrafficPageContent(renderer)
+		return buildTrafficPageContent(renderer)
 	}
 
 	infos, err := iface.ListInterfaces()
@@ -547,7 +547,7 @@ func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *con
 		return template.HTML(`<div class="wb-detail-panel"><p>Interface not found.</p></div>`) //nolint:gosec // static HTML
 	}
 
-	detailData := BuildInterfaceDetailData(info)
+	detailData := buildInterfaceDetailData(info)
 	return renderer.RenderFragment("workbench_detail", detailData)
 }
 

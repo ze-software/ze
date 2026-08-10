@@ -120,9 +120,9 @@ func (e *JSONEncoder) StateDown(peer *plugin.PeerInfo, reason string) string {
 	return e.marshal(payload)
 }
 
-// StateConnected returns JSON for a peer "connected" event.
+// stateConnected returns JSON for a peer "connected" event.
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"connected"}.
-func (e *JSONEncoder) StateConnected(peer *plugin.PeerInfo) string {
+func (e *JSONEncoder) stateConnected(peer *plugin.PeerInfo) string {
 	payload := map[string]any{
 		"message": map[string]any{
 			"type": "state",

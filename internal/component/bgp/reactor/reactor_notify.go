@@ -128,11 +128,11 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 	// RFC 8654: update ExtMsg flag and per-peer pool buffer size.
 	if nc := peer.negotiated.Load(); nc != nil {
 		if r.fwdWeights != nil {
-			r.fwdWeights.UpdateFamilyCount(peer.peerAddrLabel(), len(nc.Families()))
-			r.fwdWeights.UpdateExtMsg(peer.peerAddrLabel(), nc.ExtendedMessage)
+			r.fwdWeights.updateFamilyCount(peer.peerAddrLabel(), len(nc.Families()))
+			r.fwdWeights.updateExtMsg(peer.peerAddrLabel(), nc.ExtendedMessage)
 		}
 		if r.fwdPool != nil && nc.ExtendedMessage {
-			r.fwdPool.RegisterOutgoingPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, message.ExtMsgLen)
+			r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, message.ExtMsgLen)
 		}
 	}
 
@@ -302,7 +302,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				// EOR sent is counted at BuildEOR call sites via IncrEORSent()
 				// because wireUpdate is nil for sent messages.
 			case msgtype.TypeKEEPALIVE:
-				peer.IncrKeepalivesSent()
+				peer.incrKeepalivesSent()
 			}
 		}
 	} else {

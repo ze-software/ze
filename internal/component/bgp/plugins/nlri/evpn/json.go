@@ -133,7 +133,7 @@ func (e *EVPNType5) AppendJSON(buf []byte) []byte {
 
 // AppendJSON for EVPNGeneric (unparsed / unknown route type).
 // Keys: code, parsed, raw.
-func (e *EVPNGeneric) AppendJSON(buf []byte) []byte {
+func (e *eVPNGeneric) AppendJSON(buf []byte) []byte {
 	buf = append(buf, `[{"code":`...)
 	buf = strconv.AppendUint(buf, uint64(e.RouteType()), 10)
 	buf = append(buf, `,"parsed":false,"raw":"`...)

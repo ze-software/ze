@@ -24,7 +24,7 @@ func testRoute(prefix string) *Route {
 //
 // PREVENTS: Routes being sent immediately during transaction mode.
 func TestOutgoingRIB_Transaction_BeginCommit(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	// Initially not in transaction
 	if rib.InTransaction() {
@@ -73,7 +73,7 @@ func TestOutgoingRIB_Transaction_BeginCommit(t *testing.T) {
 //
 // PREVENTS: Routes being sent after rollback.
 func TestOutgoingRIB_Transaction_Rollback(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	if err := rib.BeginTransaction("rollback-test"); err != nil {
 		t.Fatalf("BeginTransaction failed: %v", err)
@@ -101,7 +101,7 @@ func TestOutgoingRIB_Transaction_Rollback(t *testing.T) {
 
 	// Pending should be empty (routes were discarded, not transferred)
 	fam := family.IPv4Unicast
-	if routes := rib.GetPending(fam); len(routes) != 0 {
+	if routes := rib.getPending(fam); len(routes) != 0 {
 		t.Errorf("GetPending returned %d routes, want 0 after rollback", len(routes))
 	}
 }
@@ -112,7 +112,7 @@ func TestOutgoingRIB_Transaction_Rollback(t *testing.T) {
 //
 // PREVENTS: Undefined behavior from nested transactions.
 func TestOutgoingRIB_Transaction_NestedError(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	if err := rib.BeginTransaction("first"); err != nil {
 		t.Fatalf("BeginTransaction failed: %v", err)
@@ -134,7 +134,7 @@ func TestOutgoingRIB_Transaction_NestedError(t *testing.T) {
 //
 // PREVENTS: Accidental commits outside transaction context.
 func TestOutgoingRIB_Transaction_CommitWithoutBegin(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	_, err := rib.CommitTransaction()
 	if err == nil {
@@ -151,7 +151,7 @@ func TestOutgoingRIB_Transaction_CommitWithoutBegin(t *testing.T) {
 //
 // PREVENTS: Accidental rollbacks outside transaction context.
 func TestOutgoingRIB_Transaction_RollbackWithoutBegin(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	_, err := rib.RollbackTransaction()
 	if err == nil {
@@ -168,14 +168,14 @@ func TestOutgoingRIB_Transaction_RollbackWithoutBegin(t *testing.T) {
 //
 // PREVENTS: Committing wrong transaction accidentally.
 func TestOutgoingRIB_Transaction_LabelMismatch(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	if err := rib.BeginTransaction("batch1"); err != nil {
 		t.Fatalf("BeginTransaction failed: %v", err)
 	}
 
 	// Try to commit with wrong label
-	_, err := rib.CommitTransactionWithLabel("batch2")
+	_, err := rib.commitTransactionWithLabel("batch2")
 	if err == nil {
 		t.Error("expected error for label mismatch")
 	}
@@ -189,7 +189,7 @@ func TestOutgoingRIB_Transaction_LabelMismatch(t *testing.T) {
 	}
 
 	// Correct label should work
-	_, err = rib.CommitTransactionWithLabel("batch1")
+	_, err = rib.commitTransactionWithLabel("batch1")
 	if err != nil {
 		t.Errorf("CommitTransactionWithLabel with correct label failed: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestOutgoingRIB_Transaction_LabelMismatch(t *testing.T) {
 //
 // PREVENTS: Missing withdrawal accounting in commit stats.
 func TestOutgoingRIB_Transaction_WithdrawalsIncluded(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	if err := rib.BeginTransaction("withdraw-test"); err != nil {
 		t.Fatalf("BeginTransaction failed: %v", err)
@@ -233,7 +233,7 @@ func TestOutgoingRIB_Transaction_WithdrawalsIncluded(t *testing.T) {
 //
 // PREVENTS: Errors on legitimate empty transactions.
 func TestOutgoingRIB_Transaction_EmptyCommit(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	if err := rib.BeginTransaction("empty"); err != nil {
 		t.Fatalf("BeginTransaction failed: %v", err)
@@ -259,7 +259,7 @@ func TestOutgoingRIB_Transaction_EmptyCommit(t *testing.T) {
 //
 // PREVENTS: Inability to inspect transaction contents before commit.
 func TestOutgoingRIB_Transaction_GetPendingRoutes(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	if err := rib.BeginTransaction("inspect"); err != nil {
 		t.Fatalf("BeginTransaction failed: %v", err)
@@ -269,7 +269,7 @@ func TestOutgoingRIB_Transaction_GetPendingRoutes(t *testing.T) {
 	rib.QueueAnnounce(testRoute("10.1.0.0/24"))
 
 	fam := family.IPv4Unicast
-	routes := rib.GetTransactionPending(fam)
+	routes := rib.getTransactionPending(fam)
 
 	if len(routes) != 2 {
 		t.Errorf("GetTransactionPending returned %d routes, want 2", len(routes))
@@ -287,7 +287,7 @@ func TestOutgoingRIB_Transaction_GetPendingRoutes(t *testing.T) {
 //
 // PREVENTS: Fast-path exact delete skipping suffixed entries (regression).
 func TestOutgoingRIB_QueueWithdraw_RemovesBothExactAndSuffixed(t *testing.T) {
-	r := NewOutgoingRIB()
+	r := newOutgoingRIB()
 
 	fam := family.IPv4Unicast
 	prefix := "10.0.0.0/24"
@@ -305,7 +305,7 @@ func TestOutgoingRIB_QueueWithdraw_RemovesBothExactAndSuffixed(t *testing.T) {
 	withAS := testRouteWithASPath(prefix, "1.2.3.4", nil, asPath)
 	r.QueueAnnounce(withAS)
 
-	pending := r.GetPending(fam)
+	pending := r.getPending(fam)
 	if len(pending) != 2 {
 		t.Fatalf("pending before withdraw = %d, want 2", len(pending))
 	}
@@ -314,7 +314,7 @@ func TestOutgoingRIB_QueueWithdraw_RemovesBothExactAndSuffixed(t *testing.T) {
 	n := nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)
 	r.QueueWithdraw(n)
 
-	pending = r.GetPending(fam)
+	pending = r.getPending(fam)
 	if len(pending) != 0 {
 		t.Errorf("pending after withdraw = %d, want 0", len(pending))
 	}
@@ -325,7 +325,7 @@ func TestOutgoingRIB_QueueWithdraw_RemovesBothExactAndSuffixed(t *testing.T) {
 //
 // PREVENTS: Loop reversal optimization losing suffix-matched deletes.
 func TestOutgoingRIB_FlushWithdrawals_RemovesSuffixedSentEntries(t *testing.T) {
-	r := NewOutgoingRIB()
+	r := newOutgoingRIB()
 
 	fam := family.IPv4Unicast
 	prefix := "10.0.0.0/24"
@@ -338,12 +338,12 @@ func TestOutgoingRIB_FlushWithdrawals_RemovesSuffixedSentEntries(t *testing.T) {
 	}
 	withAS := testRouteWithASPath(prefix, "1.2.3.4", nil, asPath)
 	r.QueueAnnounce(withAS)
-	flushed := r.FlushPending(fam)
+	flushed := r.flushPending(fam)
 	if len(flushed) != 1 {
 		t.Fatalf("FlushPending = %d, want 1", len(flushed))
 	}
 
-	sentBefore := r.GetSentRoutes()
+	sentBefore := r.getSentRoutes()
 	if len(sentBefore) != 1 {
 		t.Fatalf("sent before withdrawal = %d, want 1", len(sentBefore))
 	}
@@ -351,9 +351,9 @@ func TestOutgoingRIB_FlushWithdrawals_RemovesSuffixedSentEntries(t *testing.T) {
 	// Queue a withdrawal for the same NLRI, then flush.
 	n := nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)
 	r.QueueWithdraw(n)
-	r.FlushWithdrawals(fam)
+	r.flushWithdrawals(fam)
 
-	sentAfter := r.GetSentRoutes()
+	sentAfter := r.getSentRoutes()
 	if len(sentAfter) != 0 {
 		t.Errorf("sent after FlushWithdrawals = %d, want 0", len(sentAfter))
 	}
@@ -364,7 +364,7 @@ func TestOutgoingRIB_FlushWithdrawals_RemovesSuffixedSentEntries(t *testing.T) {
 //
 // PREVENTS: Fast-path early return skipping suffixed entries (regression).
 func TestOutgoingRIB_RemoveFromSent_RemovesBothExactAndSuffixed(t *testing.T) {
-	r := NewOutgoingRIB()
+	r := newOutgoingRIB()
 
 	fam := family.IPv4Unicast
 	prefix := "10.0.0.0/24"
@@ -372,7 +372,7 @@ func TestOutgoingRIB_RemoveFromSent_RemovesBothExactAndSuffixed(t *testing.T) {
 	// Populate sent cache with a plain route and a route with AS-PATH.
 	plain := testRoute(prefix)
 	r.QueueAnnounce(plain)
-	r.FlushPending(fam)
+	r.flushPending(fam)
 
 	asPath := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
@@ -381,18 +381,18 @@ func TestOutgoingRIB_RemoveFromSent_RemovesBothExactAndSuffixed(t *testing.T) {
 	}
 	withAS := testRouteWithASPath(prefix, "1.2.3.4", nil, asPath)
 	r.QueueAnnounce(withAS)
-	r.FlushPending(fam)
+	r.flushPending(fam)
 
-	sentBefore := r.GetSentRoutes()
+	sentBefore := r.getSentRoutes()
 	if len(sentBefore) != 2 {
 		t.Fatalf("sent before RemoveFromSent = %d, want 2", len(sentBefore))
 	}
 
 	// RemoveFromSent must remove both entries.
 	n := nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)
-	r.RemoveFromSent(n)
+	r.removeFromSent(n)
 
-	sentAfter := r.GetSentRoutes()
+	sentAfter := r.getSentRoutes()
 	if len(sentAfter) != 0 {
 		t.Errorf("sent after RemoveFromSent = %d, want 0", len(sentAfter))
 	}

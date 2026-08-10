@@ -465,16 +465,16 @@ func parseParenthesizedValue(args []string) (string, int, error) {
 // ErrMissingNLRI is returned when nlri keyword or prefixes are missing.
 var ErrMissingNLRI = errors.New("missing nlri")
 
-// BatchAttributes holds parsed attributes for batch announcements.
-type BatchAttributes struct {
+// batchAttributes holds parsed attributes for batch announcements.
+type batchAttributes struct {
 	NextHop bgptypes.RouteNextHop
 	Attrs   *attribute.Builder
 }
 
 // parseAttributesNLRI parses: <attrs>... nlri <prefix>...
 // Returns the parsed attributes and list of prefixes.
-func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error) {
-	attrs := BatchAttributes{
+func parseAttributesNLRI(args []string) (batchAttributes, []netip.Prefix, error) {
+	attrs := batchAttributes{
 		Attrs: attribute.NewBuilder(),
 	}
 	var prefixes []netip.Prefix
@@ -545,8 +545,8 @@ func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error)
 
 // parseUpdateCommand parses: <attrs>... <afi> <safi> [nlri] <prefix>...
 // Returns attributes, AFI, SAFI, and list of prefixes.
-func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip.Prefix, error) {
-	attrs := BatchAttributes{Attrs: attribute.NewBuilder()}
+func parseUpdateCommand(args []string) (batchAttributes, string, string, []netip.Prefix, error) {
+	attrs := batchAttributes{Attrs: attribute.NewBuilder()}
 	var prefixes []netip.Prefix
 	var afi, safi string
 

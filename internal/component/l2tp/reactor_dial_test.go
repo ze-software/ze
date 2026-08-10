@@ -60,7 +60,7 @@ func TestReactor_DialCreatesInitiatorTunnel(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, localTID, info.AssignedTunnelID)
 
-	tun := r.TunnelByLocalID(localTID)
+	tun := r.tunnelByLocalID(localTID)
 	require.NotNil(t, tun)
 	r.tunnelsMu.Lock()
 	state := tun.state
@@ -98,7 +98,7 @@ func TestReactor_DialLoopbackHandshake(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 909, shdr.TunnelID)
 
-	tun := r.TunnelByLocalID(localTID)
+	tun := r.tunnelByLocalID(localTID)
 	require.NotNil(t, tun)
 	r.tunnelsMu.Lock()
 	state := tun.state
@@ -124,7 +124,7 @@ func TestReactor_InitiatorTieBreaker(t *testing.T) {
 	require.NoError(t, err)
 	_ = readDatagram(t, client) // drain ze's SCCRQ
 
-	tun := r.TunnelByLocalID(localTID)
+	tun := r.tunnelByLocalID(localTID)
 	require.NotNil(t, tun)
 	r.tunnelsMu.Lock()
 	zeTB := append([]byte(nil), tun.tieBreaker...)
@@ -142,32 +142,32 @@ func TestReactor_InitiatorTieBreaker(t *testing.T) {
 		// Peer's tie breaker is higher -> peer's SCCRQ is discarded; ze keeps
 		// its initiator tunnel.
 		waitForLog(t, logs, "new SCCRQ discarded by tie breaker")
-		require.NotNil(t, r.TunnelByLocalID(localTID), "ze's initiator tunnel survives")
+		require.NotNil(t, r.tunnelByLocalID(localTID), "ze's initiator tunnel survives")
 	} else {
 		// Peer's tie breaker is lower -> ze's initiator tunnel is discarded and
 		// a new answering tunnel is created for the peer's SCCRQ.
 		waitForLog(t, logs, "tunnel discarded")
-		require.Nil(t, r.TunnelByLocalID(localTID), "ze's initiator tunnel loses and is discarded")
+		require.Nil(t, r.tunnelByLocalID(localTID), "ze's initiator tunnel loses and is discarded")
 	}
 	// Never two tunnels to the same peer after a tie-broken crossed open.
 	require.LessOrEqual(t, r.TunnelCount(), 1)
 }
 
-// syncCallResult bundles PlaceOutgoingCallSync's two returns for delivery
+// syncCallResult bundles placeOutgoingCallSync's two returns for delivery
 // over a channel from the goroutine that makes the blocking call.
 type syncCallResult struct {
 	outcome callOutcome
 	err     error
 }
 
-// TestReactor_PlaceOutgoingCallSync_TieBreakerLoss -- AC-4 + AC-8 edge case.
+// TestReactor_placeOutgoingCallSync_TieBreakerLoss -- AC-4 + AC-8 edge case.
 //
 // VALIDATES: a dialed tunnel whose pending outgoing call loses the
-// simultaneous-open tie-breaker is discarded, and PlaceOutgoingCallSync
+// simultaneous-open tie-breaker is discarded, and placeOutgoingCallSync
 // surfaces that as a FAILURE outcome (not a silent drop, not a timeout). This
 // is the edge case the session-state digest flagged: without resolvePendingCall
 // in discardTunnelLocked the RPC would hang until timeout.
-func TestReactor_PlaceOutgoingCallSync_TieBreakerLoss(t *testing.T) {
+func TestReactor_placeOutgoingCallSync_TieBreakerLoss(t *testing.T) {
 	ln, r, _, stop := buildLogReactor(t)
 	defer stop()
 
@@ -176,7 +176,7 @@ func TestReactor_PlaceOutgoingCallSync_TieBreakerLoss(t *testing.T) {
 
 	resCh := make(chan syncCallResult, 1)
 	go func() {
-		o, err := r.PlaceOutgoingCallSync(DialTarget{Remote: clientAddrPort(t, client)},
+		o, err := r.placeOutgoingCallSync(DialTarget{Remote: clientAddrPort(t, client)},
 			callParams{calledNumber: "5551234"}, 3*time.Second)
 		resCh <- syncCallResult{o, err}
 	}()
@@ -195,34 +195,34 @@ func TestReactor_PlaceOutgoingCallSync_TieBreakerLoss(t *testing.T) {
 		require.NotErrorIs(t, rr.err, ErrCallTimeout, "must be a discard failure, not a timeout")
 		require.Zero(t, rr.outcome.localSID, "call never placed on a session")
 	case <-time.After(5 * time.Second):
-		t.Fatal("PlaceOutgoingCallSync hung after tie-breaker loss (edge case regressed)")
+		t.Fatal("placeOutgoingCallSync hung after tie-breaker loss (edge case regressed)")
 	}
 }
 
-// TestReactor_PlaceOutgoingCallSync_Timeout -- AC-4 timeout path.
+// TestReactor_placeOutgoingCallSync_Timeout -- AC-4 timeout path.
 //
 // VALIDATES: a dial whose peer never answers returns ErrCallTimeout rather
 // than blocking forever.
-func TestReactor_PlaceOutgoingCallSync_Timeout(t *testing.T) {
+func TestReactor_placeOutgoingCallSync_Timeout(t *testing.T) {
 	ln, r, _, stop := buildLogReactor(t)
 	defer stop()
 
 	client := newClient(t, ln)
 	defer client.Close()
 
-	o, err := r.PlaceOutgoingCallSync(DialTarget{Remote: clientAddrPort(t, client)},
+	o, err := r.placeOutgoingCallSync(DialTarget{Remote: clientAddrPort(t, client)},
 		callParams{calledNumber: "555"}, 150*time.Millisecond)
 	require.ErrorIs(t, err, ErrCallTimeout)
 	require.Zero(t, o.localSID)
 	_ = readDatagram(t, client) // ze did send the SCCRQ before we gave up
 }
 
-// TestReactor_PlaceOutgoingCallSync_AuthReject -- AC-4 auth-failure surfacing.
+// TestReactor_placeOutgoingCallSync_AuthReject -- AC-4 auth-failure surfacing.
 //
 // VALIDATES: dialing a remote with a shared secret and receiving an SCCRP
 // with no Challenge Response tears the tunnel down (StopCCN RC=4) and
-// PlaceOutgoingCallSync reports the authentication failure with the result code.
-func TestReactor_PlaceOutgoingCallSync_AuthReject(t *testing.T) {
+// placeOutgoingCallSync reports the authentication failure with the result code.
+func TestReactor_placeOutgoingCallSync_AuthReject(t *testing.T) {
 	ln, r, _, stop := buildLogReactor(t)
 	defer stop()
 
@@ -231,7 +231,7 @@ func TestReactor_PlaceOutgoingCallSync_AuthReject(t *testing.T) {
 
 	resCh := make(chan syncCallResult, 1)
 	go func() {
-		o, err := r.PlaceOutgoingCallSync(
+		o, err := r.placeOutgoingCallSync(
 			DialTarget{Remote: clientAddrPort(t, client), SharedSecret: "s3cr3t"},
 			callParams{calledNumber: "555"}, 3*time.Second)
 		resCh <- syncCallResult{o, err}
@@ -249,7 +249,7 @@ func TestReactor_PlaceOutgoingCallSync_AuthReject(t *testing.T) {
 		require.ErrorIs(t, rr.outcome.err, errCallTunnelAuthFailed)
 		require.EqualValues(t, resultNotAuthorized, rr.outcome.resultCode)
 	case <-time.After(5 * time.Second):
-		t.Fatal("PlaceOutgoingCallSync hung after auth reject")
+		t.Fatal("placeOutgoingCallSync hung after auth reject")
 	}
 }
 
@@ -308,7 +308,7 @@ func TestReactor_PlaceOutgoingCall_AutoOCRQ(t *testing.T) {
 	require.Equal(t, "5551234", info.calledNumber)
 
 	// A wait-reply session (lnsMode true) exists on the tunnel.
-	tun := r.TunnelByLocalID(localTID)
+	tun := r.tunnelByLocalID(localTID)
 	require.NotNil(t, tun)
 	r.tunnelsMu.Lock()
 	require.Equal(t, 1, len(tun.sessions))
@@ -324,7 +324,7 @@ func TestReactor_PlaceOutgoingCall_AutoOCRQ(t *testing.T) {
 
 // TestReactor_PlaceIncomingCall_AutoICRQ -- AC-3 orchestration seam.
 //
-// VALIDATES: PlaceIncomingCall dials, and on establishment the reactor
+// VALIDATES: placeIncomingCall dials, and on establishment the reactor
 // auto-originates the incoming call (ICRQ) with a wait-reply session.
 func TestReactor_PlaceIncomingCall_AutoICRQ(t *testing.T) {
 	ln, r, logs, stop := buildLogReactor(t)
@@ -336,7 +336,7 @@ func TestReactor_PlaceIncomingCall_AutoICRQ(t *testing.T) {
 	client := newClient(t, ln)
 	defer client.Close()
 
-	localTID, err := r.PlaceIncomingCall(DialTarget{Remote: clientAddrPort(t, client)},
+	localTID, err := r.placeIncomingCall(DialTarget{Remote: clientAddrPort(t, client)},
 		callParams{callSerial: 42, bearerType: 1, framingType: 1, txConnectSpeed: 1_000_000, calledNumber: "5559000"})
 	require.NoError(t, err)
 
@@ -351,7 +351,7 @@ func TestReactor_PlaceIncomingCall_AutoICRQ(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 42, info.callSerialNumber)
 
-	tun := r.TunnelByLocalID(localTID)
+	tun := r.tunnelByLocalID(localTID)
 	require.NotNil(t, tun)
 	r.tunnelsMu.Lock()
 	require.Equal(t, 1, len(tun.sessions))

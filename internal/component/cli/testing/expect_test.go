@@ -17,14 +17,14 @@ func TestExpectContextRoot(t *testing.T) {
 	exp := Expectation{Type: "context", Values: map[string]string{"root": ""}}
 
 	// Empty context should pass
-	err := CheckExpectation(exp, &MockState{contextPath: nil})
+	err := checkExpectation(exp, &MockState{contextPath: nil})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{contextPath: []string{}})
+	err = checkExpectation(exp, &MockState{contextPath: []string{}})
 	assert.NoError(t, err)
 
 	// Non-empty context should fail
-	err = CheckExpectation(exp, &MockState{contextPath: []string{"bgp"}})
+	err = checkExpectation(exp, &MockState{contextPath: []string{"bgp"}})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context")
 }
@@ -37,15 +37,15 @@ func TestExpectContextPath(t *testing.T) {
 	exp := Expectation{Type: "context", Values: map[string]string{"path": "bgp/peer/peer1"}}
 
 	// Matching path should pass
-	err := CheckExpectation(exp, &MockState{contextPath: []string{"bgp", "peer", "peer1"}})
+	err := checkExpectation(exp, &MockState{contextPath: []string{"bgp", "peer", "peer1"}})
 	assert.NoError(t, err)
 
 	// Wrong path should fail
-	err = CheckExpectation(exp, &MockState{contextPath: []string{"bgp"}})
+	err = checkExpectation(exp, &MockState{contextPath: []string{"bgp"}})
 	assert.Error(t, err)
 
 	// Root should fail
-	err = CheckExpectation(exp, &MockState{contextPath: nil})
+	err = checkExpectation(exp, &MockState{contextPath: nil})
 	assert.Error(t, err)
 }
 
@@ -58,17 +58,17 @@ func TestExpectDirty(t *testing.T) {
 	expFalse := Expectation{Type: "dirty", Values: map[string]string{"false": ""}}
 
 	// Dirty true
-	err := CheckExpectation(expTrue, &MockState{dirty: true})
+	err := checkExpectation(expTrue, &MockState{dirty: true})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expTrue, &MockState{dirty: false})
+	err = checkExpectation(expTrue, &MockState{dirty: false})
 	assert.Error(t, err)
 
 	// Dirty false
-	err = CheckExpectation(expFalse, &MockState{dirty: false})
+	err = checkExpectation(expFalse, &MockState{dirty: false})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expFalse, &MockState{dirty: true})
+	err = checkExpectation(expFalse, &MockState{dirty: true})
 	assert.Error(t, err)
 }
 
@@ -79,10 +79,10 @@ func TestExpectDirty(t *testing.T) {
 func TestExpectErrorNone(t *testing.T) {
 	exp := Expectation{Type: "error", Values: map[string]string{"none": ""}}
 
-	err := CheckExpectation(exp, &MockState{err: nil})
+	err := checkExpectation(exp, &MockState{err: nil})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{err: assert.AnError})
+	err = checkExpectation(exp, &MockState{err: assert.AnError})
 	assert.Error(t, err)
 }
 
@@ -93,11 +93,11 @@ func TestExpectErrorNone(t *testing.T) {
 func TestExpectErrorContains(t *testing.T) {
 	exp := Expectation{Type: "error", Values: map[string]string{"contains": "not found"}}
 
-	err := CheckExpectation(exp, &MockState{err: assert.AnError})
+	err := checkExpectation(exp, &MockState{err: assert.AnError})
 	assert.Error(t, err) // AnError doesn't contain "not found"
 
 	mockErr := &mockError{msg: "block not found"}
-	err = CheckExpectation(exp, &MockState{err: mockErr})
+	err = checkExpectation(exp, &MockState{err: mockErr})
 	assert.NoError(t, err)
 }
 
@@ -115,7 +115,7 @@ func TestExpectCompletionContains(t *testing.T) {
 		{Text: "show"},
 	}
 
-	err := CheckExpectation(exp, &MockState{completions: comps})
+	err := checkExpectation(exp, &MockState{completions: comps})
 	assert.NoError(t, err)
 
 	// Missing one
@@ -123,7 +123,7 @@ func TestExpectCompletionContains(t *testing.T) {
 		{Text: "set"},
 		{Text: "delete"},
 	}
-	err = CheckExpectation(exp, &MockState{completions: comps})
+	err = checkExpectation(exp, &MockState{completions: comps})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "edit")
 }
@@ -136,11 +136,11 @@ func TestExpectCompletionCount(t *testing.T) {
 	exp := Expectation{Type: "completion", Values: map[string]string{"count": "3"}}
 
 	comps := []cli.Completion{{Text: "a"}, {Text: "b"}, {Text: "c"}}
-	err := CheckExpectation(exp, &MockState{completions: comps})
+	err := checkExpectation(exp, &MockState{completions: comps})
 	assert.NoError(t, err)
 
 	comps = []cli.Completion{{Text: "a"}, {Text: "b"}}
-	err = CheckExpectation(exp, &MockState{completions: comps})
+	err = checkExpectation(exp, &MockState{completions: comps})
 	assert.Error(t, err)
 }
 
@@ -151,13 +151,13 @@ func TestExpectCompletionCount(t *testing.T) {
 func TestExpectCompletionEmpty(t *testing.T) {
 	exp := Expectation{Type: "completion", Values: map[string]string{"empty": ""}}
 
-	err := CheckExpectation(exp, &MockState{completions: nil})
+	err := checkExpectation(exp, &MockState{completions: nil})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{completions: []cli.Completion{}})
+	err = checkExpectation(exp, &MockState{completions: []cli.Completion{}})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{completions: []cli.Completion{{Text: "x"}}})
+	err = checkExpectation(exp, &MockState{completions: []cli.Completion{{Text: "x"}}})
 	assert.Error(t, err)
 }
 
@@ -168,10 +168,10 @@ func TestExpectCompletionEmpty(t *testing.T) {
 func TestExpectGhostText(t *testing.T) {
 	exp := Expectation{Type: "ghost", Values: map[string]string{"text": "-as"}}
 
-	err := CheckExpectation(exp, &MockState{ghostText: "-as"})
+	err := checkExpectation(exp, &MockState{ghostText: "-as"})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{ghostText: "-id"})
+	err = checkExpectation(exp, &MockState{ghostText: "-id"})
 	assert.Error(t, err)
 }
 
@@ -182,10 +182,10 @@ func TestExpectGhostText(t *testing.T) {
 func TestExpectGhostEmpty(t *testing.T) {
 	exp := Expectation{Type: "ghost", Values: map[string]string{"empty": ""}}
 
-	err := CheckExpectation(exp, &MockState{ghostText: ""})
+	err := checkExpectation(exp, &MockState{ghostText: ""})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{ghostText: "-as"})
+	err = checkExpectation(exp, &MockState{ghostText: "-as"})
 	assert.Error(t, err)
 }
 
@@ -196,16 +196,16 @@ func TestExpectGhostEmpty(t *testing.T) {
 func TestExpectErrorsCount(t *testing.T) {
 	exp := Expectation{Type: "errors", Values: map[string]string{"count": "0"}}
 
-	err := CheckExpectation(exp, &MockState{validationErrors: nil})
+	err := checkExpectation(exp, &MockState{validationErrors: nil})
 	assert.NoError(t, err)
 
 	errs := []cli.ConfigValidationError{{Message: "err1"}}
-	err = CheckExpectation(exp, &MockState{validationErrors: errs})
+	err = checkExpectation(exp, &MockState{validationErrors: errs})
 	assert.Error(t, err)
 
 	exp = Expectation{Type: "errors", Values: map[string]string{"count": "2"}}
 	errs = []cli.ConfigValidationError{{Message: "err1"}, {Message: "err2"}}
-	err = CheckExpectation(exp, &MockState{validationErrors: errs})
+	err = checkExpectation(exp, &MockState{validationErrors: errs})
 	assert.NoError(t, err)
 }
 
@@ -217,11 +217,11 @@ func TestExpectContentContains(t *testing.T) {
 	exp := Expectation{Type: "content", Values: map[string]string{"contains": "as 65001"}}
 
 	content := "bgp {\n  peer peer1 {\n    remote {\n      ip 1.1.1.1\n      as 65001\n    }\n  }\n}"
-	err := CheckExpectation(exp, &MockState{workingContent: content})
+	err := checkExpectation(exp, &MockState{workingContent: content})
 	assert.NoError(t, err)
 
 	content = "bgp {\n  peer peer1 {\n    remote {\n      ip 1.1.1.1\n      as 65002\n    }\n  }\n}"
-	err = CheckExpectation(exp, &MockState{workingContent: content})
+	err = checkExpectation(exp, &MockState{workingContent: content})
 	assert.Error(t, err)
 }
 
@@ -232,10 +232,10 @@ func TestExpectContentContains(t *testing.T) {
 func TestExpectContentNotContains(t *testing.T) {
 	exp := Expectation{Type: "content", Values: map[string]string{"not-contains": "error"}}
 
-	err := CheckExpectation(exp, &MockState{workingContent: "bgp { session { asn { local 65000; } } }"})
+	err := checkExpectation(exp, &MockState{workingContent: "bgp { session { asn { local 65000; } } }"})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{workingContent: "error: something wrong"})
+	err = checkExpectation(exp, &MockState{workingContent: "error: something wrong"})
 	assert.Error(t, err)
 }
 
@@ -246,10 +246,10 @@ func TestExpectContentNotContains(t *testing.T) {
 func TestExpectStatusContains(t *testing.T) {
 	exp := Expectation{Type: "status", Values: map[string]string{"contains": "committed"}}
 
-	err := CheckExpectation(exp, &MockState{statusMessage: "Configuration committed"})
+	err := checkExpectation(exp, &MockState{statusMessage: "Configuration committed"})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{statusMessage: "Changes discarded"})
+	err = checkExpectation(exp, &MockState{statusMessage: "Changes discarded"})
 	assert.Error(t, err)
 }
 
@@ -260,10 +260,10 @@ func TestExpectStatusContains(t *testing.T) {
 func TestExpectStatusEmpty(t *testing.T) {
 	exp := Expectation{Type: "status", Values: map[string]string{"empty": ""}}
 
-	err := CheckExpectation(exp, &MockState{statusMessage: ""})
+	err := checkExpectation(exp, &MockState{statusMessage: ""})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(exp, &MockState{statusMessage: "some message"})
+	err = checkExpectation(exp, &MockState{statusMessage: "some message"})
 	assert.Error(t, err)
 }
 
@@ -275,13 +275,13 @@ func TestExpectTemplate(t *testing.T) {
 	expTrue := Expectation{Type: "template", Values: map[string]string{"true": ""}}
 	expFalse := Expectation{Type: "template", Values: map[string]string{"false": ""}}
 
-	err := CheckExpectation(expTrue, &MockState{isTemplate: true})
+	err := checkExpectation(expTrue, &MockState{isTemplate: true})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expTrue, &MockState{isTemplate: false})
+	err = checkExpectation(expTrue, &MockState{isTemplate: false})
 	assert.Error(t, err)
 
-	err = CheckExpectation(expFalse, &MockState{isTemplate: false})
+	err = checkExpectation(expFalse, &MockState{isTemplate: false})
 	assert.NoError(t, err)
 }
 
@@ -293,13 +293,13 @@ func TestExpectDropdown(t *testing.T) {
 	expVisible := Expectation{Type: "dropdown", Values: map[string]string{"visible": ""}}
 	expHidden := Expectation{Type: "dropdown", Values: map[string]string{"hidden": ""}}
 
-	err := CheckExpectation(expVisible, &MockState{showDropdown: true})
+	err := checkExpectation(expVisible, &MockState{showDropdown: true})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expVisible, &MockState{showDropdown: false})
+	err = checkExpectation(expVisible, &MockState{showDropdown: false})
 	assert.Error(t, err)
 
-	err = CheckExpectation(expHidden, &MockState{showDropdown: false})
+	err = checkExpectation(expHidden, &MockState{showDropdown: false})
 	assert.NoError(t, err)
 }
 
@@ -307,16 +307,16 @@ func TestExpectMode(t *testing.T) {
 	expEdit := Expectation{Type: "mode", Values: map[string]string{"is": "config"}}
 	expCommand := Expectation{Type: "mode", Values: map[string]string{"is": "operational"}}
 
-	err := CheckExpectation(expEdit, &MockState{mode: cli.ModeConfig})
+	err := checkExpectation(expEdit, &MockState{mode: cli.ModeConfig})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expEdit, &MockState{mode: cli.ModeOperational})
+	err = checkExpectation(expEdit, &MockState{mode: cli.ModeOperational})
 	assert.Error(t, err)
 
-	err = CheckExpectation(expCommand, &MockState{mode: cli.ModeOperational})
+	err = checkExpectation(expCommand, &MockState{mode: cli.ModeOperational})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expCommand, &MockState{mode: cli.ModeConfig})
+	err = checkExpectation(expCommand, &MockState{mode: cli.ModeConfig})
 	assert.Error(t, err)
 }
 
@@ -327,7 +327,7 @@ func TestExpectMode(t *testing.T) {
 func TestExpectUnknownType(t *testing.T) {
 	exp := Expectation{Type: "unknown", Values: map[string]string{"foo": "bar"}}
 
-	err := CheckExpectation(exp, &MockState{})
+	err := checkExpectation(exp, &MockState{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown")
 }

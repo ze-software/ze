@@ -199,9 +199,9 @@ func TestPeerMSCHAPv2ResponsePacketStructure(t *testing.T) {
 	copy(ntResponse[:], td[29:53])
 
 	// Verify using the server's challenge.
-	if !VerifyNTResponse(server.authChallenge, peerChallenge, StripDomain(name), password, ntResponse) {
+	if !verifyNTResponse(server.authChallenge, peerChallenge, stripDomain(name), password, ntResponse) {
 		t.Fatalf("NT-Response verification FAILED\n  authChallenge: %x\n  peerChallenge: %x\n  ntResponse:    %x\n  userName:      %q\n  password:      %q",
-			server.authChallenge, peerChallenge, ntResponse, StripDomain(name), password)
+			server.authChallenge, peerChallenge, ntResponse, stripDomain(name), password)
 	}
 
 	t.Log("NT-Response verified against server challenge")

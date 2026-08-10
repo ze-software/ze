@@ -352,7 +352,7 @@ func NewModel(ed *Editor) (Model, error) {
 	comp := NewCompleter()
 	comp.SetTree(ed.Tree())
 
-	val, err := NewConfigValidator()
+	val, err := newConfigValidator()
 	if err != nil {
 		return Model{}, fmt.Errorf("failed to create validator: %w", err)
 	}
@@ -794,7 +794,7 @@ func (m Model) hasPendingChanges() bool {
 		return false
 	}
 	if m.editor.HasSession() {
-		return m.editor.HasPendingSessionChanges()
+		return m.editor.hasPendingSessionChanges()
 	}
 	return m.editor.Dirty()
 }
@@ -806,7 +806,7 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	changed, notification := m.editor.CheckDraftChanged()
+	changed, notification := m.editor.checkDraftChanged()
 	if changed {
 		m.statusMessage = notification
 		m.showConfigContent()
@@ -820,7 +820,7 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 // In session mode, write-through already persists to .draft, so no snapshot needed.
 func (m *Model) autoSaveOnQuit() {
 	if m.hasEditor() && !m.editor.HasSession() && m.editor.Dirty() {
-		_ = m.editor.SaveEditState() // Best effort — quitting anyway
+		_ = m.editor.saveEditState() // Best effort — quitting anyway
 	}
 }
 

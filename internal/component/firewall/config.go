@@ -74,7 +74,7 @@ func parseTable(name string, m map[string]any) (Table, error) {
 	}
 
 	familyStr, _ := m["family"].(string)
-	family, ok := ParseTableFamily(familyStr)
+	family, ok := parseTableFamily(familyStr)
 	if !ok {
 		return Table{}, fmt.Errorf("invalid family %q", familyStr)
 	}
@@ -144,20 +144,20 @@ func parseChain(name string, m map[string]any) (Chain, error) {
 	if hasType || hasHook {
 		chain.IsBase = true
 
-		ct, ok := ParseChainType(typeStr)
+		ct, ok := parseChainType(typeStr)
 		if !ok {
 			return Chain{}, fmt.Errorf("invalid chain type %q", typeStr)
 		}
 		chain.Type = ct
 
-		hook, ok := ParseChainHook(hookStr)
+		hook, ok := parseChainHook(hookStr)
 		if !ok {
 			return Chain{}, fmt.Errorf("invalid chain hook %q", hookStr)
 		}
 		chain.Hook = hook
 
 		if hasPolicy {
-			pol, ok := ParsePolicy(policyStr)
+			pol, ok := parsePolicy(policyStr)
 			if !ok {
 				return Chain{}, fmt.Errorf("invalid policy %q", policyStr)
 			}
@@ -1256,7 +1256,7 @@ func parseFlowtable(name string, m map[string]any) (Flowtable, error) {
 	ft := Flowtable{Name: name}
 
 	hookStr, _ := m["hook"].(string)
-	hook, ok := ParseChainHook(hookStr)
+	hook, ok := parseChainHook(hookStr)
 	if !ok {
 		return Flowtable{}, fmt.Errorf("invalid hook %q", hookStr)
 	}

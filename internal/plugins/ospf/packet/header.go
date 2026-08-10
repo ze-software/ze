@@ -68,8 +68,8 @@ var (
 // AuthField is the raw 8-octet authentication field carried in the common header.
 type AuthField [AuthFieldLen]byte
 
-// AuthFieldFromBytes copies the 8-octet authentication field from b.
-func AuthFieldFromBytes(b []byte) (AuthField, error) {
+// authFieldFromBytes copies the 8-octet authentication field from b.
+func authFieldFromBytes(b []byte) (AuthField, error) {
 	if len(b) != AuthFieldLen {
 		return AuthField{}, ErrLength
 	}
@@ -155,7 +155,7 @@ func DecodeHeader(buf []byte) (Header, int, error) {
 	if err != nil {
 		return Header{}, 0, err
 	}
-	auth, err := AuthFieldFromBytes(buf[offAuth : offAuth+AuthFieldLen])
+	auth, err := authFieldFromBytes(buf[offAuth : offAuth+AuthFieldLen])
 	if err != nil {
 		return Header{}, 0, err
 	}

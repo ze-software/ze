@@ -97,7 +97,7 @@ func TestBuildOpenIPv6(t *testing.T) {
 func TestBuildKeepalive(t *testing.T) {
 	t.Parallel()
 
-	data := BuildKeepalive()
+	data := buildKeepalive()
 
 	if len(data) != 19 {
 		t.Fatalf("KEEPALIVE length: got %d, want 19", len(data))
@@ -122,7 +122,7 @@ func TestReadMessageSlab(t *testing.T) {
 	t.Parallel()
 
 	// Build a valid KEEPALIVE (19 bytes) as test data.
-	ka := BuildKeepalive()
+	ka := buildKeepalive()
 
 	tests := []struct {
 		name     string
@@ -205,10 +205,10 @@ func TestReadMessageSlabInvalidLength(t *testing.T) {
 func TestReadMessageBufShortHdr(t *testing.T) {
 	t.Parallel()
 
-	r := newBytesReader(BuildKeepalive())
+	r := newBytesReader(buildKeepalive())
 	shortHdr := make([]byte, 5) // too small
 
-	_, _, err := ReadMessageBuf(r, shortHdr)
+	_, _, err := readMessageBuf(r, shortHdr)
 	if err == nil {
 		t.Fatal("expected error for short header buffer")
 	}

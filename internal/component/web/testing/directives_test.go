@@ -72,8 +72,8 @@ func TestParseViewportRejectsNonNumeric(t *testing.T) {
 // browser it also starts the daemon, so it must carry --ignore-https-errors.
 func TestSetViewportEmitsCommand(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	b := NewBrowser("https://127.0.0.1:1234")
-	if err := b.SetViewport(390, 844); err != nil {
+	b := newBrowser("https://127.0.0.1:1234")
+	if err := b.setViewport(390, 844); err != nil {
 		t.Fatalf("SetViewport: %v", err)
 	}
 	cmds := readAgentLog(t, logPath)
@@ -88,8 +88,8 @@ func TestSetViewportEmitsCommand(t *testing.T) {
 // carry --ignore-https-errors.
 func TestSetLocaleEmitsAcceptLanguageHeader(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	b := NewBrowser("https://127.0.0.1:1234")
-	if err := b.SetLocale("fr"); err != nil {
+	b := newBrowser("https://127.0.0.1:1234")
+	if err := b.setLocale("fr"); err != nil {
 		t.Fatalf("SetLocale: %v", err)
 	}
 	cmds := readAgentLog(t, logPath)
@@ -102,7 +102,7 @@ func TestSetLocaleEmitsAcceptLanguageHeader(t *testing.T) {
 // and password fields and submits.
 func TestLoginActionDrivesLoginForm(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	b := NewBrowser("https://127.0.0.1:1234")
+	b := newBrowser("https://127.0.0.1:1234")
 	if err := b.Login("noc", "secret"); err != nil {
 		t.Fatalf("Login: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestParseWaitUntilDirective(t *testing.T) {
 // re-reads the same loaded page forever.
 func TestWaitUntilRefetchesUntilTheServerReportsTheState(t *testing.T) {
 	logPath := installFlippingAgentBrowser(t, 3)
-	b := NewBrowser("https://127.0.0.1:1234")
+	b := newBrowser("https://127.0.0.1:1234")
 
 	if err := b.WaitUntil("/config/diff", "ready"); err != nil {
 		t.Fatalf("WaitUntil: %v", err)
@@ -176,7 +176,7 @@ func TestWaitUntilRefetchesUntilTheServerReportsTheState(t *testing.T) {
 // passing.
 func TestWaitUntilRejectsMissingParameters(t *testing.T) {
 	installFlippingAgentBrowser(t, 1)
-	b := NewBrowser("https://127.0.0.1:1234")
+	b := newBrowser("https://127.0.0.1:1234")
 
 	if err := b.WaitUntil("", "ready"); err == nil {
 		t.Error("WaitUntil with no path returned nil, want an error")

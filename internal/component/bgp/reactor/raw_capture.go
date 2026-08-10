@@ -41,8 +41,8 @@ type BGPRawCaptureRing struct {
 	count int
 }
 
-// NewBGPRawCaptureRing allocates a raw capture ring.
-func NewBGPRawCaptureRing(c clock.Clock) *BGPRawCaptureRing {
+// newBGPRawCaptureRing allocates a raw capture ring.
+func newBGPRawCaptureRing(c clock.Clock) *BGPRawCaptureRing {
 	return &BGPRawCaptureRing{clock: c, slots: make([]bgpRawSlot, bgpRawSlotCount)}
 }
 

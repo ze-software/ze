@@ -782,13 +782,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopSmartManager()
 	applyConsole(&sc)
 	applyConntrack(&sc, apiServer)
-	SetIdentityStore(store)
+	setIdentityStore(store)
 	startUpdateChecker(&sc)
 	defer stopBackend()
 	startArchiveScheduler(loadResult.Tree, configPath, store, apiServer)
 	defer stopArchiveScheduler()
 
-	lm := NewListenerMigrator(nil)
+	lm := newListenerMigrator(nil)
 	reloadAfterCommit := func() error {
 		startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer startupCancel()

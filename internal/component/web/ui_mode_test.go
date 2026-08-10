@@ -99,7 +99,7 @@ func TestParseUIMode_KnownTokens(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			assert.Equal(t, tc.want, ParseUIMode(tc.input))
+			assert.Equal(t, tc.want, parseUIMode(tc.input))
 		})
 	}
 }

@@ -12,11 +12,11 @@ import (
 // VALIDATES: AC-1 -- text output includes collision info.
 // PREVENTS: Collision report missing key information.
 func TestTreeFormatText(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = FormatTreeText(&buf, root, "")
+	err = formatTreeText(&buf, root, "")
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -29,11 +29,11 @@ func TestTreeFormatText(t *testing.T) {
 // VALIDATES: AC-6 -- JSON tree output has correct structure.
 // PREVENTS: JSON output failing to parse.
 func TestTreeFormatJSON(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = FormatTreeJSON(&buf, root, "")
+	err = formatTreeJSON(&buf, root, "")
 	require.NoError(t, err)
 
 	// Verify valid JSON.
@@ -46,11 +46,11 @@ func TestTreeFormatJSON(t *testing.T) {
 // VALIDATES: AC-5 -- --commands filter shows only command nodes.
 // PREVENTS: Config nodes leaking into command-only view.
 func TestTreeFormatTextFilterCommands(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = FormatTreeText(&buf, root, FilterCommands)
+	err = formatTreeText(&buf, root, FilterCommands)
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -60,13 +60,13 @@ func TestTreeFormatTextFilterCommands(t *testing.T) {
 // VALIDATES: AC-2 -- JSON collision output has correct structure.
 // PREVENTS: JSON collision output failing to parse.
 func TestCollisionsFormatJSON(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
-	groups := CollectCollisions(root, 1)
+	groups := collectCollisions(root, 1)
 
 	var buf bytes.Buffer
-	err = FormatCollisionsJSON(&buf, groups)
+	err = formatCollisionsJSON(&buf, groups)
 	require.NoError(t, err)
 
 	var result struct {
@@ -85,11 +85,11 @@ func TestCollisionsFormatJSON(t *testing.T) {
 
 // PREVENTS: Config nodes leaking into config-only view or vice versa.
 func TestTreeFormatTextFilterConfig(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = FormatTreeText(&buf, root, SourceConfig)
+	err = formatTreeText(&buf, root, SourceConfig)
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -102,7 +102,7 @@ func TestTreeFormatTextFilterConfig(t *testing.T) {
 // PREVENTS: JSON collision output broken when no collisions found.
 func TestCollisionsFormatJSONEmpty(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatCollisionsJSON(&buf, nil)
+	err := formatCollisionsJSON(&buf, nil)
 	require.NoError(t, err)
 
 	var result struct {
@@ -121,7 +121,7 @@ func TestCollisionsFormatJSONEmpty(t *testing.T) {
 // PREVENTS: Text collision output broken when no collisions found.
 func TestCollisionsFormatTextEmpty(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatCollisionsText(&buf, nil)
+	err := formatCollisionsText(&buf, nil)
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "No prefix collisions found")
 }

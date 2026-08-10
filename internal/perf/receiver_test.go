@@ -108,7 +108,7 @@ func TestPrefixExtractionInline(t *testing.T) {
 
 	body := buildUpdateBody(attrs, inlineNLRI)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 1 {
 		t.Fatalf("expected 1 prefix, got %d", len(prefixes))
@@ -130,7 +130,7 @@ func TestPrefixExtractionMP(t *testing.T) {
 
 	body := buildUpdateBody(mpReach, nil)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 1 {
 		t.Fatalf("expected 1 prefix, got %d", len(prefixes))
@@ -162,7 +162,7 @@ func TestPrefixExtractionBothInlineAndMP(t *testing.T) {
 
 	body := buildUpdateBody(attrs, inlineNLRI)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 2 {
 		t.Fatalf("expected 2 prefixes, got %d", len(prefixes))
@@ -199,7 +199,7 @@ func TestPrefixExtractionIPv6MP(t *testing.T) {
 
 	body := buildUpdateBody(mpReach, nil)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 1 {
 		t.Fatalf("expected 1 prefix, got %d", len(prefixes))
@@ -228,7 +228,7 @@ func TestPrefixExtractionMultipleInline(t *testing.T) {
 
 	body := buildUpdateBody(attrs, inlineNLRI)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 2 {
 		t.Fatalf("expected 2 prefixes, got %d", len(prefixes))
@@ -256,7 +256,7 @@ func TestPrefixExtractionEmptyUpdate(t *testing.T) {
 
 	body := buildUpdateBody(attrs, nil)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 0 {
 		t.Errorf("expected 0 prefixes, got %d", len(prefixes))
@@ -279,7 +279,7 @@ func TestPrefixExtractionShortBody(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prefixes := ExtractPrefixes(tt.body)
+			prefixes := extractPrefixes(tt.body)
 			if len(prefixes) != 0 {
 				t.Errorf("expected 0 prefixes, got %d", len(prefixes))
 			}
@@ -313,7 +313,7 @@ func TestPrefixExtractionSkipsWithdrawn(t *testing.T) {
 	off += len(attrs)
 	copy(body[off:], inlineNLRI)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 1 {
 		t.Fatalf("expected 1 prefix, got %d", len(prefixes))
@@ -399,8 +399,8 @@ func TestCountPrefixesMatchesExtract(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			extracted := len(ExtractPrefixes(tt.body))
-			counted := CountPrefixes(tt.body)
+			extracted := len(extractPrefixes(tt.body))
+			counted := countPrefixes(tt.body)
 			if counted != extracted {
 				t.Errorf("CountPrefixes=%d, len(ExtractPrefixes)=%d", counted, extracted)
 			}
@@ -433,7 +433,7 @@ func TestPrefixExtractionExtendedLengthAttr(t *testing.T) {
 
 	body := buildUpdateBody(attr, nil)
 
-	prefixes := ExtractPrefixes(body)
+	prefixes := extractPrefixes(body)
 
 	if len(prefixes) != 1 {
 		t.Fatalf("expected 1 prefix, got %d", len(prefixes))

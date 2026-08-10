@@ -299,7 +299,7 @@ func makeTestDriver(backend IfaceBackend, ops pppOps) *Driver {
 // a test can capture what the session goroutine logs and observe a gated code
 // path whose only externally visible side effect is a log line.
 func makeTestDriverWithLogger(backend IfaceBackend, ops pppOps, logger *slog.Logger) *Driver {
-	d := NewDriver(DriverConfig{
+	d := newDriver(driverConfig{
 		Logger:  logger,
 		Backend: backend,
 		Ops:     ops,

@@ -29,8 +29,8 @@ type ResultCodeValue struct {
 	MessagePresent bool
 }
 
-// ReadResultCode parses the Result Code AVP body.
-func ReadResultCode(value []byte) (ResultCodeValue, error) {
+// readResultCode parses the Result Code AVP body.
+func readResultCode(value []byte) (ResultCodeValue, error) {
 	if len(value) < 2 {
 		return ResultCodeValue{}, ErrInvalidAVPLen
 	}
@@ -50,10 +50,10 @@ func ReadResultCode(value []byte) (ResultCodeValue, error) {
 	return rc, nil
 }
 
-// WriteAVPResultCode writes a Result Code AVP into buf at off. If rc.ErrorPresent
+// writeAVPResultCode writes a Result Code AVP into buf at off. If rc.ErrorPresent
 // is false, only the 2-byte Result field is written. If rc.MessagePresent is true,
 // the advisory message is appended after Error. Returns bytes written.
-func WriteAVPResultCode(buf []byte, off int, mandatory bool, rc ResultCodeValue) int {
+func writeAVPResultCode(buf []byte, off int, mandatory bool, rc ResultCodeValue) int {
 	valueOff := off + AVPHeaderLen
 	binary.BigEndian.PutUint16(buf[valueOff:], rc.Result)
 	valueLen := 2
@@ -88,8 +88,8 @@ type Q931CauseValue struct {
 	AdvisoryPresent bool
 }
 
-// ReadQ931Cause parses the Q.931 Cause Code AVP body.
-func ReadQ931Cause(value []byte) (Q931CauseValue, error) {
+// readQ931Cause parses the Q.931 Cause Code AVP body.
+func readQ931Cause(value []byte) (Q931CauseValue, error) {
 	if len(value) < 3 {
 		return Q931CauseValue{}, ErrInvalidAVPLen
 	}
@@ -104,8 +104,8 @@ func ReadQ931Cause(value []byte) (Q931CauseValue, error) {
 	return v, nil
 }
 
-// WriteAVPQ931Cause writes a Q.931 Cause Code AVP. Returns bytes written.
-func WriteAVPQ931Cause(buf []byte, off int, mandatory bool, v Q931CauseValue) int {
+// writeAVPQ931Cause writes a Q.931 Cause Code AVP. Returns bytes written.
+func writeAVPQ931Cause(buf []byte, off int, mandatory bool, v Q931CauseValue) int {
 	valueOff := off + AVPHeaderLen
 	binary.BigEndian.PutUint16(buf[valueOff:], v.Cause)
 	buf[valueOff+2] = v.Msg
@@ -134,8 +134,8 @@ type CallErrorsValue struct {
 	AlignmentErrors  uint32
 }
 
-// ReadCallErrors parses the Call Errors AVP body. RFC 2661 Section 5.8.1.
-func ReadCallErrors(value []byte) (CallErrorsValue, error) {
+// readCallErrors parses the Call Errors AVP body. RFC 2661 Section 5.8.1.
+func readCallErrors(value []byte) (CallErrorsValue, error) {
 	if len(value) != 26 {
 		return CallErrorsValue{}, ErrInvalidAVPLen
 	}
@@ -150,8 +150,8 @@ func ReadCallErrors(value []byte) (CallErrorsValue, error) {
 	}, nil
 }
 
-// WriteAVPCallErrors writes a Call Errors AVP (26-byte fixed layout).
-func WriteAVPCallErrors(buf []byte, off int, mandatory bool, v CallErrorsValue) int {
+// writeAVPCallErrors writes a Call Errors AVP (26-byte fixed layout).
+func writeAVPCallErrors(buf []byte, off int, mandatory bool, v CallErrorsValue) int {
 	valueOff := off + AVPHeaderLen
 	// Reserved uint16 at value[0:2] MUST be zero.
 	binary.BigEndian.PutUint16(buf[valueOff:], 0)
@@ -177,8 +177,8 @@ type ACCMValue struct {
 	RecvACCM uint32
 }
 
-// ReadACCM parses the ACCM AVP body.
-func ReadACCM(value []byte) (ACCMValue, error) {
+// readACCM parses the ACCM AVP body.
+func readACCM(value []byte) (ACCMValue, error) {
 	if len(value) != 10 {
 		return ACCMValue{}, ErrInvalidAVPLen
 	}
@@ -188,8 +188,8 @@ func ReadACCM(value []byte) (ACCMValue, error) {
 	}, nil
 }
 
-// WriteAVPACCM writes an ACCM AVP (10-byte fixed layout).
-func WriteAVPACCM(buf []byte, off int, mandatory bool, v ACCMValue) int {
+// writeAVPACCM writes an ACCM AVP (10-byte fixed layout).
+func writeAVPACCM(buf []byte, off int, mandatory bool, v ACCMValue) int {
 	valueOff := off + AVPHeaderLen
 	binary.BigEndian.PutUint16(buf[valueOff:], 0)
 	binary.BigEndian.PutUint32(buf[valueOff+2:], v.SendACCM)
@@ -209,16 +209,16 @@ type ProxyAuthenIDValue struct {
 	ChapID uint8
 }
 
-// ReadProxyAuthenID parses the Proxy Authen ID AVP body.
-func ReadProxyAuthenID(value []byte) (ProxyAuthenIDValue, error) {
+// readProxyAuthenID parses the Proxy Authen ID AVP body.
+func readProxyAuthenID(value []byte) (ProxyAuthenIDValue, error) {
 	if len(value) != 2 {
 		return ProxyAuthenIDValue{}, ErrInvalidAVPLen
 	}
 	return ProxyAuthenIDValue{ChapID: value[1]}, nil
 }
 
-// WriteAVPProxyAuthenID writes the Proxy Authen ID AVP.
-func WriteAVPProxyAuthenID(buf []byte, off int, mandatory bool, v ProxyAuthenIDValue) int {
+// writeAVPProxyAuthenID writes the Proxy Authen ID AVP.
+func writeAVPProxyAuthenID(buf []byte, off int, mandatory bool, v ProxyAuthenIDValue) int {
 	valueOff := off + AVPHeaderLen
 	buf[valueOff] = 0 // reserved
 	buf[valueOff+1] = v.ChapID

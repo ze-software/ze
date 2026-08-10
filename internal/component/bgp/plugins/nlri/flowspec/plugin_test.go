@@ -119,7 +119,7 @@ func TestIsValidFlowSpecFamily(t *testing.T) {
 // PREVENTS: Missing family declarations.
 func TestFlowSpecFamilies(t *testing.T) {
 	t.Parallel()
-	families := FlowSpecFamilies()
+	families := flowSpecFamilies()
 	assert.Len(t, families, 4)
 	assert.Contains(t, families, "ipv4/flow")
 	assert.Contains(t, families, "ipv6/flow")

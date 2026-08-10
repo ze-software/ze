@@ -32,7 +32,7 @@ func TestRemoveEstablishedCascadesRoutes(t *testing.T) {
 		{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix2, Time: t2},
 	}
 
-	result := RemoveWithDependents(events, 0)
+	result := removeWithDependents(events, 0)
 	assert.Empty(t, result, "removing Established should cascade to all route events")
 }
 
@@ -49,7 +49,7 @@ func TestRemoveEstablishedPreservesOtherPeers(t *testing.T) {
 		{Type: peer.EventRouteSent, PeerIndex: 1, Prefix: prefix2, Time: t1},
 	}
 
-	result := RemoveWithDependents(events, 0)
+	result := removeWithDependents(events, 0)
 	assert.Len(t, result, 2, "peer 1's events should be preserved")
 	assert.Equal(t, peer.EventEstablished, result[0].Type)
 	assert.Equal(t, 1, result[0].PeerIndex)
@@ -69,7 +69,7 @@ func TestRemoveMiddleRouteNoCascade(t *testing.T) {
 		{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix2, Time: t2},
 	}
 
-	result := RemoveWithDependents(events, 1)
+	result := removeWithDependents(events, 1)
 	assert.Len(t, result, 2, "only the removed route should be gone")
 	assert.Equal(t, peer.EventEstablished, result[0].Type)
 	assert.Equal(t, prefix2, result[1].Prefix)
@@ -92,7 +92,7 @@ func TestRemoveDisconnectCascadesReconnect(t *testing.T) {
 	// Remove the Disconnected event: peer stays established, so the
 	// Reconnecting is informational and kept, and re-Established is fine.
 	// But the key point: the events should still be valid.
-	result := RemoveWithDependents(events, 2)
+	result := removeWithDependents(events, 2)
 
 	// Peer is still established after removing disconnect, so Reconnecting
 	// is kept (informational), and the second Established is valid.
@@ -115,7 +115,7 @@ func TestRemoveEstablishedCascadesDisconnect(t *testing.T) {
 		{Type: peer.EventDisconnected, PeerIndex: 0, Time: t2},
 	}
 
-	result := RemoveWithDependents(events, 0)
+	result := removeWithDependents(events, 0)
 	assert.Empty(t, result, "all events should be cascaded away")
 }
 
@@ -133,7 +133,7 @@ func TestRemoveBeforeRemovalPointUnchanged(t *testing.T) {
 	}
 
 	// Remove event at index 2 (Established for peer 1).
-	result := RemoveWithDependents(events, 2)
+	result := removeWithDependents(events, 2)
 	assert.Len(t, result, 2, "events before removal point preserved, peer 1 route cascaded")
 	assert.Equal(t, peer.EventEstablished, result[0].Type)
 	assert.Equal(t, 0, result[0].PeerIndex)
@@ -150,8 +150,8 @@ func TestRemoveOutOfBounds(t *testing.T) {
 		{Type: peer.EventEstablished, PeerIndex: 0, Time: t0},
 	}
 
-	assert.Len(t, RemoveWithDependents(events, -1), 1)
-	assert.Len(t, RemoveWithDependents(events, 5), 1)
+	assert.Len(t, removeWithDependents(events, -1), 1)
+	assert.Len(t, removeWithDependents(events, 5), 1)
 }
 
 // TestRemoveMultiLevelCascade verifies cascade across a full session lifecycle:
@@ -176,7 +176,7 @@ func TestRemoveMultiLevelCascade(t *testing.T) {
 	// Remove the initial Established at index 0.
 	// Cascade removes: RouteSent(1, needs established), Disconnected(2, needs established).
 	// Survives: Reconnecting(3, informational), Established(4), RouteSent(5, needs 4).
-	result := RemoveWithDependents(events, 0)
+	result := removeWithDependents(events, 0)
 	assert.Len(t, result, 3, "cascade removes first session, new session survives")
 	assert.Equal(t, peer.EventReconnecting, result[0].Type)
 	assert.Equal(t, peer.EventEstablished, result[1].Type)
@@ -199,7 +199,7 @@ func TestRemoveReEstablishedPreservesLaterRoutes(t *testing.T) {
 	}
 
 	// Remove re-establishment at index 3. Route at index 4 depends on it.
-	result := RemoveWithDependents(events, 3)
+	result := removeWithDependents(events, 3)
 	assert.Len(t, result, 3, "first session preserved, second session's route removed")
 	assert.Equal(t, peer.EventEstablished, result[0].Type)
 	assert.Equal(t, peer.EventRouteSent, result[1].Type)

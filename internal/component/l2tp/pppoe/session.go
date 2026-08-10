@@ -60,7 +60,7 @@ type SessionTable struct {
 	ifName      string
 }
 
-func NewSessionTable(ifName string, maxSessions int) *SessionTable {
+func newSessionTable(ifName string, maxSessions int) *SessionTable {
 	if maxSessions <= 0 || maxSessions > maxSID {
 		maxSessions = maxSID
 	}
@@ -109,8 +109,8 @@ func (st *SessionTable) AllocSID() (uint16, error) {
 	return 0, ErrSIDExhausted
 }
 
-// FreeSID returns a session ID to the free pool.
-func (st *SessionTable) FreeSID(sid uint16) {
+// freeSID returns a session ID to the free pool.
+func (st *SessionTable) freeSID(sid uint16) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
@@ -183,8 +183,8 @@ func (st *SessionTable) Lookup(sid uint16) *Session {
 	return st.sessions[sid]
 }
 
-// LookupByMAC returns the session for the given subscriber MAC, or nil.
-func (st *SessionTable) LookupByMAC(mac net.HardwareAddr) *Session {
+// lookupByMAC returns the session for the given subscriber MAC, or nil.
+func (st *SessionTable) lookupByMAC(mac net.HardwareAddr) *Session {
 	if len(mac) != 6 {
 		return nil
 	}

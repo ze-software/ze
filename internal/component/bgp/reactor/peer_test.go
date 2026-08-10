@@ -849,10 +849,10 @@ func TestPeerEncodingContextNilInitially(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	require.Nil(t, peer.RecvContext(), "recvCtx should be nil initially")
-	require.Nil(t, peer.SendContext(), "sendCtx should be nil initially")
-	require.Equal(t, bgpctx.ContextID(0), peer.RecvContextID(), "recvCtxID should be 0 initially")
-	require.Equal(t, bgpctx.ContextID(0), peer.SendContextID(), "sendCtxID should be 0 initially")
+	require.Nil(t, peer.recvContext(), "recvCtx should be nil initially")
+	require.Nil(t, peer.sendContext(), "sendCtx should be nil initially")
+	require.Equal(t, bgpctx.ContextID(0), peer.recvContextID(), "recvCtxID should be 0 initially")
+	require.Equal(t, bgpctx.ContextID(0), peer.sendContextID(), "sendCtxID should be 0 initially")
 }
 
 // TestPeerSetEncodingContexts verifies context setting.
@@ -881,10 +881,10 @@ func TestPeerSetEncodingContexts(t *testing.T) {
 	// Set contexts
 	peer.setEncodingContexts(neg)
 
-	require.NotNil(t, peer.RecvContext(), "recvCtx should be set")
-	require.NotNil(t, peer.SendContext(), "sendCtx should be set")
-	require.True(t, peer.RecvContext().ASN4(), "recvCtx should have ASN4=true")
-	require.True(t, peer.SendContext().ASN4(), "sendCtx should have ASN4=true")
+	require.NotNil(t, peer.recvContext(), "recvCtx should be set")
+	require.NotNil(t, peer.sendContext(), "sendCtx should be set")
+	require.True(t, peer.recvContext().ASN4(), "recvCtx should have ASN4=true")
+	require.True(t, peer.sendContext().ASN4(), "sendCtx should have ASN4=true")
 }
 
 // TestPeerClearEncodingContexts verifies context clearing on teardown.
@@ -911,15 +911,15 @@ func TestPeerClearEncodingContexts(t *testing.T) {
 	neg := capability.Negotiate(local, remote, 65000, 65001)
 	peer.setEncodingContexts(neg)
 
-	require.NotNil(t, peer.RecvContext(), "recvCtx should be set before clear")
+	require.NotNil(t, peer.recvContext(), "recvCtx should be set before clear")
 
 	// Clear contexts
 	peer.clearEncodingContexts()
 
-	require.Nil(t, peer.RecvContext(), "recvCtx should be nil after clear")
-	require.Nil(t, peer.SendContext(), "sendCtx should be nil after clear")
-	require.Equal(t, bgpctx.ContextID(0), peer.RecvContextID(), "recvCtxID should be 0 after clear")
-	require.Equal(t, bgpctx.ContextID(0), peer.SendContextID(), "sendCtxID should be 0 after clear")
+	require.Nil(t, peer.recvContext(), "recvCtx should be nil after clear")
+	require.Nil(t, peer.sendContext(), "sendCtx should be nil after clear")
+	require.Equal(t, bgpctx.ContextID(0), peer.recvContextID(), "recvCtxID should be 0 after clear")
+	require.Equal(t, bgpctx.ContextID(0), peer.sendContextID(), "sendCtxID should be 0 after clear")
 }
 
 // TestPeerEncodingContextAddPath verifies ADD-PATH context asymmetry.
@@ -955,8 +955,8 @@ func TestPeerEncodingContextAddPath(t *testing.T) {
 	ipv4 := bgpctx.Family{AFI: 1, SAFI: 1}
 
 	// We can send but not receive
-	require.False(t, peer.RecvContext().AddPathFor(ipv4), "recv should NOT have AddPath (we can't receive)")
-	require.True(t, peer.SendContext().AddPathFor(ipv4), "send should have AddPath (we can send)")
+	require.False(t, peer.recvContext().AddPathFor(ipv4), "recv should NOT have AddPath (we can't receive)")
+	require.True(t, peer.sendContext().AddPathFor(ipv4), "send should have AddPath (we can send)")
 }
 
 // TestToStaticRouteUnicastParams_CopiesReflectorAttrs verifies RFC 4456 fields.
@@ -1229,18 +1229,18 @@ func TestPeerPauseReadingDelegates(t *testing.T) {
 		peer.mu.Unlock()
 
 		// PauseReading should delegate to session.Pause().
-		peer.PauseReading()
+		peer.pauseReading()
 		require.True(t, session.IsPaused(), "session should be paused after PauseReading()")
 
 		// ResumeReading should delegate to session.Resume().
-		peer.ResumeReading()
+		peer.resumeReading()
 		require.False(t, session.IsPaused(), "session should not be paused after ResumeReading()")
 
 		// IsReadPaused should reflect session state.
-		require.False(t, peer.IsReadPaused())
-		peer.PauseReading()
-		require.True(t, peer.IsReadPaused())
-		peer.ResumeReading()
+		require.False(t, peer.isReadPaused())
+		peer.pauseReading()
+		require.True(t, peer.isReadPaused())
+		peer.resumeReading()
 	})
 
 	t.Run("with nil session", func(t *testing.T) {
@@ -1248,9 +1248,9 @@ func TestPeerPauseReadingDelegates(t *testing.T) {
 		// session is nil by default.
 
 		// Should not panic.
-		peer.PauseReading()
-		peer.ResumeReading()
-		require.False(t, peer.IsReadPaused())
+		peer.pauseReading()
+		peer.resumeReading()
+		require.False(t, peer.isReadPaused())
 	})
 }
 

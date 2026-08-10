@@ -21,7 +21,7 @@ type BuildManifest struct {
 	ImageSHA256 string `json:"image-sha256"`
 }
 
-func WriteManifest(path string, m *BuildManifest) error {
+func writeManifest(path string, m *BuildManifest) error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -30,15 +30,15 @@ func WriteManifest(path string, m *BuildManifest) error {
 	return os.WriteFile(path, data, 0o644) //nolint:gosec // informational file
 }
 
-func ImageTimestamp() string {
+func imageTimestamp() string {
 	return time.Now().Format("20060102-150405")
 }
 
-func ImageFileName(ts string) string {
+func imageFileName(ts string) string {
 	return fmt.Sprintf("ze-%s.img", ts)
 }
 
-func WriteImageChecksum(imagePath, checksumPath string) (string, error) {
+func writeImageChecksum(imagePath, checksumPath string) (string, error) {
 	f, err := os.Open(imagePath) //nolint:gosec // user-provided path
 	if err != nil {
 		return "", fmt.Errorf("open image: %w", err)
@@ -59,7 +59,7 @@ func WriteImageChecksum(imagePath, checksumPath string) (string, error) {
 	return sum, nil
 }
 
-func ConfigHash(seedConfig string) string {
+func configHash(seedConfig string) string {
 	h := sha256.Sum256([]byte(seedConfig))
 	return fmt.Sprintf("sha256:%x", h)
 }

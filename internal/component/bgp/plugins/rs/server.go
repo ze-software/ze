@@ -145,11 +145,11 @@ type withdrawalKey struct {
 	addPath  bool
 }
 
-// RouteServer implements a BGP Route Server API plugin.
+// routeServer implements a BGP Route Server API plugin.
 // It forwards all UPDATEs to all peers except the source (forward-all model).
 // UPDATEs are dispatched to per-source-peer workers for parallel processing
 // while preserving FIFO ordering within each source peer.
-type RouteServer struct {
+type routeServer struct {
 	plugin  *sdk.Plugin
 	peers   map[string]*PeerState
 	mu      sync.RWMutex
@@ -225,7 +225,7 @@ func RunRouteServer(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rs", conn)
 	defer func() { _ = p.Close() }()
 
-	rs := &RouteServer{
+	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[withdrawalKey]struct{}),
@@ -330,7 +330,7 @@ func RunRouteServer(conn net.Conn) int {
 				continue
 			}
 			if size := parseWorkerQueueSize(section.Data); size > 0 {
-				rs.workers.SetChanSize(size)
+				rs.workers.setChanSize(size)
 				logger().Info("worker-queue-size from config", "size", size)
 			}
 		}
@@ -400,7 +400,7 @@ func RunRouteServer(conn net.Conn) int {
 // ("cache N release") path; since ForwardCached / ReleaseCached bypass the
 // tokenise step, the call is cheap enough to issue synchronously from the
 // per-source worker without a separate sender goroutine.
-func (rs *RouteServer) releaseCache(msgID uint64) {
+func (rs *routeServer) releaseCache(msgID uint64) {
 	if msgID == 0 {
 		return
 	}
@@ -423,7 +423,7 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 }
 
 // dispatchCommand calls DispatchCommandArgs via the SDK or the test hook.
-func (rs *RouteServer) dispatchCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+func (rs *routeServer) dispatchCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
 	if rs.dispatchCommandHook != nil {
 		return rs.dispatchCommandHook(command, args, "")
 	}
@@ -431,7 +431,7 @@ func (rs *RouteServer) dispatchCommand(ctx context.Context, command string, args
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
-func (rs *RouteServer) updateRoute(peerSelector, command string) {
+func (rs *routeServer) updateRoute(peerSelector, command string) {
 	if rs.updateRouteHook != nil {
 		rs.updateRouteHook(peerSelector, command)
 	}
@@ -450,7 +450,7 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 }
 
 // updateRouteSel sends a route update using a typed selector via DirectBridge.
-func (rs *RouteServer) updateRouteSel(sel *selector.Selector, command string) {
+func (rs *routeServer) updateRouteSel(sel *selector.Selector, command string) {
 	if rs.updateRouteHook != nil {
 		rs.updateRouteHook(sel.String(), command)
 	}
@@ -471,7 +471,7 @@ func (rs *RouteServer) updateRouteSel(sel *selector.Selector, command string) {
 // peerAction dispatches a peer lifecycle or route-refresh action (pause, resume,
 // refresh) via dispatch-command. These commands live under the "request peer
 // <sel>" YANG path, not the route-injection "peer <sel>" path used by updateRoute.
-func (rs *RouteServer) peerAction(peerSelector, action string) {
+func (rs *routeServer) peerAction(peerSelector, action string) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	var tb textbuf.Buffer
@@ -505,7 +505,7 @@ func isConnectionError(err error) bool {
 // Dispatch and sends "peer pause <addr>" to the engine.
 // Low-water (<10%): the onLowWater callback fires in the worker goroutine
 // and sends "peer resume <addr>" to the engine.
-func (rs *RouteServer) wireFlowControl() {
+func (rs *routeServer) wireFlowControl() {
 	rs.pausedPeers = make(map[string]bool)
 
 	rs.workers.onLowWater = func(key workerKey) {
@@ -525,7 +525,7 @@ func (rs *RouteServer) wireFlowControl() {
 
 // resumeAllPaused sends resume RPCs for all currently paused peers.
 // Called during shutdown to ensure no peers remain paused after the RR exits.
-func (rs *RouteServer) resumeAllPaused() {
+func (rs *routeServer) resumeAllPaused() {
 	rs.mu.Lock()
 	paused := make([]string, 0, len(rs.pausedPeers))
 	for addr := range rs.pausedPeers {
@@ -553,7 +553,7 @@ func (rs *RouteServer) resumeAllPaused() {
 // Events with unrecognized types are silently ignored. This includes "borr" and "eorr"
 // (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
 // subscription but encodes with distinct message.type values.
-func (rs *RouteServer) dispatchText(text string) {
+func (rs *routeServer) dispatchText(text string) {
 	// Guard against delivery after shutdown: the engine's deliveryLoop goroutine
 	// can call bridge callbacks concurrently with bgp-rs cleanup (workers.Stop()).
 	if rs.stopping.Load() {
@@ -592,7 +592,7 @@ func (rs *RouteServer) dispatchText(text string) {
 		// Flow control: pause source peer if worker channel crossed high-water mark.
 		// BackpressureDetected is clear-on-read, so each transition fires once.
 		// Guard on pausedPeers != nil: flow control is only active after wireFlowControl().
-		if rs.workers.BackpressureDetected(key) {
+		if rs.workers.backpressureDetected(key) {
 			rs.mu.Lock()
 			if rs.pausedPeers != nil && !rs.pausedPeers[peerAddr] {
 				rs.pausedPeers[peerAddr] = true
@@ -626,7 +626,7 @@ func (rs *RouteServer) dispatchText(text string) {
 // dispatchStructured routes a structured UPDATE event from DirectBridge delivery.
 // Called from the OnStructuredEvent handler for UPDATE events only;
 // state, open, and refresh are handled inline in the handler's switch.
-func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMessage) {
+func (rs *routeServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMessage) {
 	// Guard against delivery after shutdown: the engine's deliveryLoop goroutine
 	// can call bridge callbacks concurrently with bgp-rs cleanup (workers.Stop()).
 	if rs.stopping.Load() {
@@ -658,7 +658,7 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 	}
 
 	// Flow control: pause source peer if worker channel crossed high-water mark.
-	if rs.workers.BackpressureDetected(key) {
+	if rs.workers.backpressureDetected(key) {
 		rs.mu.Lock()
 		if rs.pausedPeers != nil && !rs.pausedPeers[peerAddr] {
 			rs.pausedPeers[peerAddr] = true

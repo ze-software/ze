@@ -132,7 +132,7 @@ func TestRunSmallBenchmark(t *testing.T) {
 
 			// Extract prefixes from the UPDATE body (after header).
 			body := msg[message.HeaderLen:]
-			prefixes := ExtractPrefixes(body)
+			prefixes := extractPrefixes(body)
 			now := time.Now()
 
 			mu.Lock()

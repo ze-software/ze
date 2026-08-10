@@ -52,7 +52,7 @@ func TestPeerFSMHistory(t *testing.T) {
 	p.history.append(FSMTransition{From: "IDLE", To: "CONNECT"})
 	p.history.append(FSMTransition{From: "CONNECT", To: "ESTABLISHED"})
 
-	snap := p.FSMHistory()
+	snap := p.fSMHistory()
 	if len(snap) != 2 {
 		t.Fatalf("count = %d, want 2", len(snap))
 	}
@@ -63,7 +63,7 @@ func TestPeerFSMHistory(t *testing.T) {
 
 func TestPeerFSMHistoryNil(t *testing.T) {
 	p := &Peer{}
-	snap := p.FSMHistory()
+	snap := p.fSMHistory()
 	if len(snap) != 0 {
 		t.Fatalf("count = %d, want 0", len(snap))
 	}

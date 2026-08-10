@@ -105,9 +105,9 @@ func (m *Model) cmdShowDisplayWithSource(format, compareTarget, source string) (
 // cmdShowFiltered renders config with a tree-level filter (active or inactive).
 // The filter clones the tree and prunes it before serialization, then applies text filters.
 func (m *Model) cmdShowFiltered(filter string, textFilters []PipeFilter) (commandResult, error) {
-	content := m.editor.ActiveContentAtPath(m.contextPath)
+	content := m.editor.activeContentAtPath(m.contextPath)
 	if filter == cmdInactive {
-		content = m.editor.InactiveContentAtPath(m.contextPath)
+		content = m.editor.inactiveContentAtPath(m.contextPath)
 	}
 
 	if content == "" {
@@ -437,7 +437,7 @@ func (m *Model) resolveRollbackBaseline(nStr string) (string, error) {
 		return "", fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
 	}
 
-	data, err := m.editor.ReadBackupContent(backups[n-1].Path)
+	data, err := m.editor.readBackupContent(backups[n-1].Path)
 	if err != nil {
 		return "", fmt.Errorf("cannot read backup %d: %w", n, err)
 	}

@@ -294,7 +294,7 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 	// If it doesn't resolve (e.g., list without KeyDefault), try auto-selecting
 	// a single list entry before giving up.
 	if m.editor.WalkPath(fullPath) == nil {
-		fullPath = m.editor.AutoSelectListEntry(fullPath)
+		fullPath = m.editor.autoSelectListEntry(fullPath)
 		if m.editor.WalkPath(fullPath) == nil {
 			return commandResult{}, fmt.Errorf("block not found: %s", textbuf.Join(args, " "))
 		}

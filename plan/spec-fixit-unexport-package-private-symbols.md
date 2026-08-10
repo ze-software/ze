@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 7/8 (bucket 7 is the remainder) |
 | Deferral shard | `plan/deferrals/fixit-unexport-package-private-symbols.md` |
 | Updated | 2026-08-09 |
 
@@ -99,8 +99,8 @@ That symbol is skipped. No edit, no decision.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `gopls rename` refuses every unsafe rename rather than producing a broken tree | run against `TopologicalSort`, which it refused, naming the external test package | a broken build reaches a commit | the refusal above, plus step 4 compiling under every tag set | confirmed |
-| A-2 | A reference visible only under a different GOOS is caught by the compile, not the rename | `gopls` uses one build context | a linux-only reference breaks the linux build | `GOOS=linux go vet` in step 4 | unvalidated |
-| A-3 | No flagged symbol is reached by reflection or by name from a non-Go file | none of the findings is a struct field, which is what JSON tags reach | a runtime break no compiler sees | step 2's grep over non-Go files | unvalidated |
+| A-2 | A reference visible only under a different GOOS is caught by the compile, not the rename | `gopls` uses one build context | a linux-only reference breaks the linux build | `GOOS=linux go vet` in step 4 | confirmed: `internal/chaos/peer/simulator_actions_iface_linux.go` (`ChaosResult`) and `internal/component/l2tp/ppp/ipv6_service_linux.go` (`IPv6ServiceConfig`, `NewIPv6Service`) each broke the linux view and were caught there, not by the rename |
+| A-3 | No flagged symbol is reached by reflection or by name from a non-Go file | none of the findings is a struct field, which is what JSON tags reach | a runtime break no compiler sees | step 2's grep over non-Go files | broken: 653 of the 2015 worklist rows name a symbol that appears as a whole word in a tracked non-Go file, so step 2's pre-check skips them rather than renaming them |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -201,15 +201,32 @@ touch, and paste its result in the per-package commit.
 
 ### Step 0: build the worklist, once
 
+`check_cross_package_wiring()` in `scripts/dev/validate.py` reads only the files
+named by `--changed-file`, which defaults to `changed_files(root)` (the git
+diff). A bare `make ze-validate` on a clean tree therefore reports nothing, and
+it is not the way to get the worklist. Name every non-test Go file under
+`internal/` and `cmd/` instead. The check shells out one `grep -rlw` per exported
+symbol, which costs about one second per file, so split the list and run the
+parts at the same time.
+
 ```
-make ze-validate > tmp/unexport-validate.log 2>&1 || true
+find internal cmd -name '*.go' ! -name '*_test.go' | sort > tmp/unexport-gofiles.txt
+mkdir -p tmp/unexport-chunks
+split -n l/12 tmp/unexport-gofiles.txt tmp/unexport-chunks/c
+for c in tmp/unexport-chunks/c*; do
+  sed 's/^/--changed-file /' "$c" > "$c.args"
+  ( xargs python3 scripts/dev/validate.py --root . < "$c.args" > "$c.log" 2>&1 ) &
+done
+wait
+
 python3 - <<'PY' > tmp/unexport-worklist.tsv
 import re, pathlib
-for l in pathlib.Path('tmp/unexport-validate.log').read_text(errors='replace').splitlines():
-    m = re.search(r'\[ISSUE\] ([^:]+):(\d+): exported symbol (\w+) has no cross-package', l)
-    if m:
-        f, ln, s = m.group(1), m.group(2), m.group(3)
-        print(f"{f}\t{ln}\t{s}\t{pathlib.Path(f).parent}")
+for log in sorted(pathlib.Path('tmp/unexport-chunks').glob('*.log')):
+    for l in log.read_text(errors='replace').splitlines():
+        m = re.search(r'([^ :]+):(\d+): exported symbol (\w+) has no cross-package', l)
+        if m:
+            f, ln, s = m.group(1), m.group(2), m.group(3)
+            print(f"{f}\t{ln}\t{s}\t{pathlib.Path(f).parent}")
 PY
 wc -l tmp/unexport-worklist.tsv
 ```
@@ -325,6 +342,32 @@ file with `--file`. Read `ai/rules/git-safety.md` first. Never run `git add`,
 ## Known Limitations
 - Symbols that `gopls` refuses stay exported. That set is the honest remainder,
   and it is smaller than the 467 the gate reports.
+- **`gopls` cannot refuse a rename it cannot see.** It runs with no build tags on
+  the host GOOS, so a reference in a file carrying `//go:build ze_core` or
+  `//go:build linux` is invisible to it, and the refusal that protects a
+  cross-package test reference never fires. `internal/component/plugin`
+  `AvailableInternalPlugins` was unexported this way and broke `cmd/ze`, whose
+  only caller is `cmd/ze/main_test.go` under `//go:build ze_core`. A per-package
+  `go vet` cannot catch it either, because it never compiles the other package.
+  The catch is the whole-tree `go vet` over all four build views, run once after
+  every package is processed.
+- **Unexporting reveals dead code.** `golangci-lint`'s `unused` and `unparam`
+  linters skip an exported declaration, so a symbol nothing calls reads as clean
+  while it is exported and reports the moment it is not. 60-odd symbols were
+  renamed, reported by the linter, and renamed back for this reason. They are
+  recorded in `plan/spec-unused-code-hidden-behind-exported-symbols.md`, because
+  deleting them is a judgement this rename-only task must not take.
+
+## Remaining Work
+
+Buckets 1 to 6 and 8 are processed. **Bucket 7 is untouched**: 170 symbols over
+23 packages, listed in `tmp/unexport-bucket-7-remaining.tsv` (the driver is
+`tmp/unexport-rename-driver.py`, the pre-check skip list is
+`tmp/unexport-skipped-named-outside-go.tsv`, and the seven handoffs are in
+`tmp/unexport-handoffs-buckets-1-6-8.md`). It was held back because
+its packages share a `./PKG/...` vet scope with almost every other bucket, so it
+had to run alone, and the session's budget ended first. The spec stays open for
+it.
 
 ## Checklist
 
@@ -351,3 +394,38 @@ file with `--file`. Read `ai/rules/git-safety.md` first. Never run `git add`,
 - [ ] Journal row for anything this teaches
 - [ ] **Commit A:** code + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-fixit-unexport-package-private-symbols.md` only
+
+## Pre-Commit Verification
+
+This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| none: the spec creates no file | N-A | `Files to Create` says none. The worklist artifacts are `tmp/unexport-bucket-7-remaining.tsv` and `tmp/unexport-rename-driver.py`, both present |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_test $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
+| AC-2 | A refused symbol is untouched and its reason recorded | 139 refusals recorded in the per-bucket handoffs (`tmp/unexport-handoffs-buckets-1-6-8.md`), each carrying the `gopls` text |
+| AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT yet true tree-wide: bucket 7's 170 rows stay open |
+| AC-4 | Every touched package passes its tests | `make ze-test-pkg PKG=./<pkg>` green for all 161 processed packages, per phase |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-validate` -> `check_cross_package_wiring()` | none: the check IS the test | Yes. `validate.py --changed-file` re-run per package, and the finding for each renamed symbol is gone |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `internal/component/config/transaction/solver.go` `TopologicalSort` refused, naming the external test package |
+| A-2 | confirmed | `internal/chaos/peer/simulator_actions_iface_linux.go` and `internal/component/l2tp/ppp/ipv6_service_linux.go` broke only the linux view, caught by `GOOS=linux go vet` |
+| A-3 | broken | 653 of 2015 rows name a symbol that appears as a whole word in a tracked non-Go file. Step 2 skips them |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Item 16, source anchors naming a renamed symbol | `check_source_anchor_stale_paths` and `check_source_anchor_line_numbers` run inside every per-package `validate.py`, and reported nothing | Yes |
+| Items 1 to 15 and 17 | No user-facing surface changes: the change renames identifiers only, with no file move and no signature change | Yes |

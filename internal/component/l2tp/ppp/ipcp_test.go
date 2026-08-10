@@ -41,7 +41,7 @@ func TestIPCPParseOptions(t *testing.T) {
 //
 //	every populated field.
 func TestIPCPRoundtrip(t *testing.T) {
-	src := IPCPOptions{
+	src := iPCPOptions{
 		IPAddress:    netip.MustParseAddr("10.0.0.5"),
 		HasIPAddress: true,
 		PrimaryDNS:   netip.MustParseAddr("9.9.9.9"),

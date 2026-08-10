@@ -23,7 +23,7 @@ import (
 // newTestRouteServer creates a RouteServer with closed SDK connections for unit testing.
 // The plugin's connections are immediately closed so updateRoute calls fail silently,
 // allowing tests to verify internal state (withdrawal map, peers) without RPC side effects.
-func newTestRouteServer(t *testing.T) *RouteServer {
+func newTestRouteServer(t *testing.T) *routeServer {
 	t.Helper()
 	pluginEnd, remoteEnd := net.Pipe()
 	if err := remoteEnd.Close(); err != nil {
@@ -35,7 +35,7 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 			t.Logf("cleanup: %v", err)
 		}
 	})
-	rs := &RouteServer{
+	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[withdrawalKey]struct{}),
@@ -58,7 +58,7 @@ type dispatchCall struct {
 // flushWorkers stops and recreates the worker pool, ensuring all pending
 // items are processed. rs-fastpath-3 removed the fire-and-forget sender
 // goroutines; workers now call ForwardCached / ReleaseCached synchronously.
-func flushWorkers(t *testing.T, rs *RouteServer) {
+func flushWorkers(t *testing.T, rs *routeServer) {
 	t.Helper()
 	rs.workers.Stop()
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
@@ -291,13 +291,13 @@ func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	if peer.ASN != 65001 {
 		t.Errorf("expected ASN 65001, got %d", peer.ASN)
 	}
-	if !peer.HasCapability("route-refresh") {
+	if !peer.hasCapability("route-refresh") {
 		t.Error("missing route-refresh capability")
 	}
-	if !peer.HasCapability("multiprotocol") {
+	if !peer.hasCapability("multiprotocol") {
 		t.Error("missing multiprotocol capability")
 	}
-	if !peer.HasCapability("asn4") {
+	if !peer.hasCapability("asn4") {
 		t.Error("missing asn4 capability")
 	}
 	if !peer.SupportsFamily(family.IPv4Unicast) {

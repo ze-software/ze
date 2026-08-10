@@ -131,10 +131,10 @@ func TestEAPMSCHAPv2WrongPassword(t *testing.T) {
 		t.Fatal("different passwords produced same NT-Response")
 	}
 
-	if VerifyNTResponse(authChallenge, peerChallenge, userName, "clientPass", wrong) {
+	if verifyNTResponse(authChallenge, peerChallenge, userName, "clientPass", wrong) {
 		t.Fatal("wrong password should not verify")
 	}
-	if !VerifyNTResponse(authChallenge, peerChallenge, userName, "clientPass", correct) {
+	if !verifyNTResponse(authChallenge, peerChallenge, userName, "clientPass", correct) {
 		t.Fatal("correct password should verify")
 	}
 }
@@ -149,7 +149,7 @@ func TestStripDomain(t *testing.T) {
 		{"nodomain", "nodomain"},
 	}
 	for _, tt := range tests {
-		got := StripDomain(tt.input)
+		got := stripDomain(tt.input)
 		if got != tt.want {
 			t.Errorf("StripDomain(%q) = %q, want %q", tt.input, got, tt.want)
 		}
@@ -164,10 +164,10 @@ func TestChallengeHashExcludesDomainPrefix(t *testing.T) {
 	// RFC requirement: RFC2759-x-4 positive -- ChallengeHash consumes the bare username:
 	// StripDomain removes the DOMAIN\ prefix so the domain-qualified name hashes
 	// identically to its bare form.
-	if StripDomain("DOMAIN\\User") != "User" {
-		t.Fatalf("StripDomain(%q) = %q, want %q", "DOMAIN\\User", StripDomain("DOMAIN\\User"), "User")
+	if stripDomain("DOMAIN\\User") != "User" {
+		t.Fatalf("StripDomain(%q) = %q, want %q", "DOMAIN\\User", stripDomain("DOMAIN\\User"), "User")
 	}
-	if challengeHash(peerChallenge, authChallenge, StripDomain("DOMAIN\\User")) !=
+	if challengeHash(peerChallenge, authChallenge, stripDomain("DOMAIN\\User")) !=
 		challengeHash(peerChallenge, authChallenge, "User") {
 		t.Fatal("stripped DOMAIN\\ name must hash identically to the bare name")
 	}
@@ -180,7 +180,7 @@ func TestChallengeHashExcludesDomainPrefix(t *testing.T) {
 		t.Fatal("unstripped DOMAIN\\ name must hash differently from the bare name")
 	}
 	bare := GenerateNTResponse(authChallenge, peerChallenge, "User", password)
-	if VerifyNTResponse(authChallenge, peerChallenge, "DOMAIN\\User", password, bare) {
+	if verifyNTResponse(authChallenge, peerChallenge, "DOMAIN\\User", password, bare) {
 		t.Fatal("unstripped DOMAIN\\ username must not verify a bare-username NT-Response")
 	}
 }

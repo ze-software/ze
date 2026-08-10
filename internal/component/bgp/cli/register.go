@@ -45,7 +45,7 @@ func init() {
 	// Publish the hex-packet decoder through the leaf registry seam so the web
 	// tool page can decode in-process without cmd/ze/hub importing this
 	// package (which would pin internal/component/bgp into every binary).
-	pluginreg.SetPacketDecoder(DecodeHexPacket)
+	pluginreg.SetPacketDecoder(decodeHexPacket)
 
 	registry.MustRegisterRootHandler("bgp", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)

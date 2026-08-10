@@ -42,7 +42,7 @@ func TestHeadlessModelCreate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 	require.NotNil(t, hm)
 
@@ -60,13 +60,13 @@ func TestHeadlessModelSendKey(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Send some key messages
-	err = hm.SendMsg(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	err = hm.sendMsg(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	require.NoError(t, err)
-	err = hm.SendMsg(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	err = hm.sendMsg(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	require.NoError(t, err)
 
 	// Input should be captured (model processes it)
@@ -84,15 +84,15 @@ func TestHeadlessModelContext(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Initially at root
 	assert.Empty(t, hm.ContextPath())
 
 	// Type "edit bgp" and press enter
-	hm.TypeText("edit bgp")
-	hm.PressEnter()
+	hm.typeText("edit bgp")
+	hm.pressEnter()
 
 	// Should be in bgp context
 	assert.Equal(t, []string{"bgp"}, hm.ContextPath())
@@ -108,11 +108,11 @@ func TestHeadlessModelCompletions(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Type "set " to trigger completions
-	hm.TypeText("set ")
+	hm.typeText("set ")
 
 	comps := hm.Completions()
 	// Should have YANG-based completions
@@ -129,7 +129,7 @@ func TestHeadlessModelGhostText(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Ghost text is available through accessor
@@ -148,7 +148,7 @@ func TestHeadlessModelValidationErrors(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Valid config should have no errors
@@ -165,7 +165,7 @@ func TestHeadlessModelDirty(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Initially not dirty
@@ -182,7 +182,7 @@ func TestHeadlessModelStatusMessage(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Status message accessor should work
@@ -199,15 +199,15 @@ func TestHeadlessModelError(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Initially no error
 	assert.Nil(t, hm.Error())
 
 	// Execute invalid command
-	hm.TypeText("invalidcmd")
-	hm.PressEnter()
+	hm.typeText("invalidcmd")
+	hm.pressEnter()
 
 	// Should have error
 	assert.NotNil(t, hm.Error())
@@ -224,7 +224,7 @@ func TestHeadlessModelIsTemplate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Initially not in template mode
@@ -241,7 +241,7 @@ func TestHeadlessModelShowDropdown(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Initially dropdown not showing
@@ -258,7 +258,7 @@ func TestHeadlessModelWorkingContent(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Should have the original content
@@ -277,14 +277,14 @@ func TestHeadlessModelTypeAndEnter(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := NewHeadlessModel(configPath)
+	hm, err := newHeadlessModel(configPath)
 	require.NoError(t, err)
 
 	// Type and execute command
-	hm.TypeText("top")
+	hm.typeText("top")
 	assert.Contains(t, hm.InputValue(), "top")
 
-	hm.PressEnter()
+	hm.pressEnter()
 	// Input should be cleared after command
 	assert.Empty(t, hm.InputValue())
 }

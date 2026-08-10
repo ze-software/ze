@@ -105,7 +105,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// yet started PPP (subscriber retransmitted PADR before getting our
 	// PADS), re-send PADS with the existing SID instead of allocating a
 	// new session. Matches accel-ppp's find_channel check.
-	if existing := s.sessions.LookupByMAC(net.HardwareAddr(pkt.SrcMAC[:])); existing != nil && existing.State == StateDiscovery {
+	if existing := s.sessions.lookupByMAC(net.HardwareAddr(pkt.SrcMAC[:])); existing != nil && existing.State == StateDiscovery {
 		var buf [EthMaxLen]byte
 		frame := BuildPADS(buf[:], s.hwAddr, pkt, s.acName, existing.SID)
 		if frame != nil {
@@ -137,7 +137,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		sess.HostUniq = append([]byte(nil), hostUniq.Value...)
 	}
 	if err := s.sessions.Add(sess); err != nil {
-		s.sessions.FreeSID(sid)
+		s.sessions.freeSID(sid)
 		s.logger.Warn("pppoe: session add failed", "sid", sid, "error", err)
 		return
 	}

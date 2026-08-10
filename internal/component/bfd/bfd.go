@@ -50,9 +50,9 @@ func init() {
 // logger returns the current package-level logger.
 func logger() *slog.Logger { return pluginLogger.Load() }
 
-// UseLogger swaps in a new logger. Called from the plugin's CLI handler
+// useLogger swaps in a new logger. Called from the plugin's CLI handler
 // after the engine has resolved the per-plugin log level.
-func UseLogger(l *slog.Logger) {
+func useLogger(l *slog.Logger) {
 	if l != nil {
 		pluginLogger.Store(l)
 	}

@@ -44,7 +44,7 @@ func TestFormatMonitorLineUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatMonitorLine(tt.json)
+			got := formatMonitorLine(tt.json)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -74,7 +74,7 @@ func TestFormatMonitorLineState(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatMonitorLine(tt.json)
+			got := formatMonitorLine(tt.json)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -124,7 +124,7 @@ func TestFormatMonitorLineOther(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatMonitorLine(tt.json)
+			got := formatMonitorLine(tt.json)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -136,7 +136,7 @@ func TestFormatMonitorLineOther(t *testing.T) {
 // PREVENTS: Panic or empty output on malformed events.
 func TestFormatMonitorLineInvalidJSON(t *testing.T) {
 	raw := `not json at all`
-	got := FormatMonitorLine(raw)
+	got := formatMonitorLine(raw)
 	assert.Equal(t, raw, got)
 }
 
@@ -146,7 +146,7 @@ func TestFormatMonitorLineInvalidJSON(t *testing.T) {
 // PREVENTS: Extremely long output lines from large UPDATEs.
 func TestFormatMonitorLineManyPrefixes(t *testing.T) {
 	json := `{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"10.0.1.254","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24","10.0.2.0/24","10.0.3.0/24","10.0.4.0/24","10.0.5.0/24","10.0.6.0/24","10.0.7.0/24"]}]}}}}`
-	got := FormatMonitorLine(json)
+	got := formatMonitorLine(json)
 	assert.Contains(t, got, "+10.0.0.0/24")
 	assert.Contains(t, got, "(+3 more)")
 	assert.Contains(t, got, "nhop=10.0.1.254")

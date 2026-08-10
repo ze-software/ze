@@ -353,8 +353,8 @@ func GenerateNonce(length int) ([]byte, error) {
 	return nonce, nil
 }
 
-// SPIPairKey returns a string key for the SPI pair, used as a map key.
-func SPIPairKey(initiator, responder [8]byte) string {
+// sPIPairKey returns a string key for the SPI pair, used as a map key.
+func sPIPairKey(initiator, responder [8]byte) string {
 	return hex.EncodeToString(initiator[:]) + ":" + hex.EncodeToString(responder[:])
 }
 

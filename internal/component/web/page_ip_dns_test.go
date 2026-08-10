@@ -20,7 +20,7 @@ func TestDNSFormData_Build(t *testing.T) {
 	dns.Set("cache-size", "5000")
 	dns.Set("cache-ttl", "600")
 
-	data := BuildDNSFormData(tree)
+	data := buildDNSFormData(tree)
 	require.Len(t, data.Servers, 1)
 	assert.Equal(t, "8.8.8.8", data.Servers[0])
 	assert.Equal(t, "/etc/resolv.conf", data.ResolvConfPath)
@@ -31,7 +31,7 @@ func TestDNSFormData_Build(t *testing.T) {
 
 // TestDNSFormData_Defaults verifies default values when tree is empty.
 func TestDNSFormData_Defaults(t *testing.T) {
-	data := BuildDNSFormData(nil)
+	data := buildDNSFormData(nil)
 	assert.Empty(t, data.Servers)
 	assert.Equal(t, uint32(10000), data.CacheSize)
 	assert.Empty(t, data.ResolvConfPath)
@@ -40,14 +40,14 @@ func TestDNSFormData_Defaults(t *testing.T) {
 // TestDNSFormData_EmptyTree verifies defaults when tree has no DNS section.
 func TestDNSFormData_EmptyTree(t *testing.T) {
 	tree := config.NewTree()
-	data := BuildDNSFormData(tree)
+	data := buildDNSFormData(tree)
 	assert.Empty(t, data.Servers)
 	assert.Equal(t, uint32(10000), data.CacheSize)
 }
 
 // TestDNSWorkbenchForm_Fields verifies the form field construction.
 func TestDNSWorkbenchForm_Fields(t *testing.T) {
-	data := DNSFormData{
+	data := dNSFormData{
 		Servers:        []string{"8.8.8.8", "1.1.1.1"},
 		ResolvConfPath: "/etc/resolv.conf",
 		Timeout:        "3",
@@ -55,7 +55,7 @@ func TestDNSWorkbenchForm_Fields(t *testing.T) {
 		CacheTTL:       "600",
 	}
 
-	form := BuildDNSWorkbenchForm(data)
+	form := buildDNSWorkbenchForm(data)
 	assert.Equal(t, "DNS Configuration", form.Title)
 	assert.Equal(t, "/config/form/", form.SaveURL)
 	require.Len(t, form.Fields, 5)

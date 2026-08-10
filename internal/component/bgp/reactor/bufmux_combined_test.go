@@ -110,8 +110,8 @@ func TestProbedPool_AddProbe(t *testing.T) {
 	pp := newProbedPool(64, 4)
 
 	var calls1, calls2 int
-	pp.SetProbe(func() { calls1++ })
-	pp.AddProbe(func() { calls2++ })
+	pp.setProbe(func() { calls1++ })
+	pp.addProbe(func() { calls2++ })
 
 	h := pp.Get()
 	pp.Return(h)
@@ -125,7 +125,7 @@ func TestProbedPool_AddProbe(t *testing.T) {
 
 	// Chain a third.
 	var calls3 int
-	pp.AddProbe(func() { calls3++ })
+	pp.addProbe(func() { calls3++ })
 
 	h = pp.Get()
 	pp.Return(h)
@@ -140,7 +140,7 @@ func TestProbedPool_AddProbeOnNil(t *testing.T) {
 	pp := newProbedPool(64, 4)
 
 	var called int
-	pp.AddProbe(func() { called++ })
+	pp.addProbe(func() { called++ })
 
 	h := pp.Get()
 	pp.Return(h)
@@ -155,7 +155,7 @@ func TestBufMux_BudgetDeniesGrowth(t *testing.T) {
 	// PREVENTS: One pool growing unbounded while the other is under pressure.
 	budget := newCombinedBudget(64 * 2) // budget for exactly 1 block (2 * 64 bytes)
 	mux := newBufMux(64, 2)
-	mux.SetBudget(budget)
+	mux.setBudget(budget)
 
 	// First block grows normally (within budget).
 	h1 := mux.Get()
@@ -195,15 +195,15 @@ func TestBufMux_BudgetTracksCollapse(t *testing.T) {
 	// Budget counter decreases when blocks are collapsed.
 	budget := newCombinedBudget(64 * 4) // budget for 2 blocks
 	mux := newBufMux(64, 2)
-	mux.SetBudget(budget)
+	mux.setBudget(budget)
 
 	// Fill block 0, grow block 1.
 	h0a := mux.Get()
 	h0b := mux.Get()
 	h1a := mux.Get()
 
-	if budget.AllocatedBytes() != int64(64*2*2) {
-		t.Fatalf("after 2 blocks: allocated=%d, want %d", budget.AllocatedBytes(), 64*2*2)
+	if budget.allocatedBytes() != int64(64*2*2) {
+		t.Fatalf("after 2 blocks: allocated=%d, want %d", budget.allocatedBytes(), 64*2*2)
 	}
 
 	// Return all of block 1, enough of block 0 for collapse.
@@ -215,8 +215,8 @@ func TestBufMux_BudgetTracksCollapse(t *testing.T) {
 	// Collapse block 1.
 	mux.tryCollapse()
 
-	if budget.AllocatedBytes() != int64(64*2) {
-		t.Fatalf("after collapse: allocated=%d, want %d", budget.AllocatedBytes(), 64*2)
+	if budget.allocatedBytes() != int64(64*2) {
+		t.Fatalf("after collapse: allocated=%d, want %d", budget.allocatedBytes(), 64*2)
 	}
 
 	mux.Return(h0b)
@@ -295,8 +295,8 @@ func TestBufMux_SharedBudget(t *testing.T) {
 	// Budget: enough for 1 block of 4K (8192) + 1 block of 64K (131070) = 139262.
 	// A second block from either would exceed the budget.
 	cb := newCombinedBudget(139262)
-	mux4K.SetBudget(cb)
-	mux64K.SetBudget(cb)
+	mux4K.setBudget(cb)
+	mux64K.setBudget(cb)
 
 	// Fill both first blocks.
 	h4Ka := mux4K.Get()
@@ -372,7 +372,7 @@ func TestBufMux_BudgetExactBoundary(t *testing.T) {
 
 	// Budget for exactly 2 blocks (256 bytes).
 	cb := newCombinedBudget(int64(blockBytes * 2))
-	mux.SetBudget(cb)
+	mux.setBudget(cb)
 
 	// Fill block 0.
 	h0a := mux.Get()
@@ -423,11 +423,11 @@ func TestBufMux_SetBudgetSeedsExistingBlocks(t *testing.T) {
 
 	// Set budget — should seed the counter with the existing block's bytes.
 	cb := newCombinedBudget(64 * 4)
-	mux.SetBudget(cb)
+	mux.setBudget(cb)
 
-	if cb.AllocatedBytes() != int64(64*2) {
+	if cb.allocatedBytes() != int64(64*2) {
 		t.Fatalf("budget should be seeded with existing block: allocated=%d, want %d",
-			cb.AllocatedBytes(), 64*2)
+			cb.allocatedBytes(), 64*2)
 	}
 
 	// Return and collapse — counter should reach 0, not go negative.
@@ -441,8 +441,8 @@ func TestBufMux_SetBudgetSeedsExistingBlocks(t *testing.T) {
 	mux.Return(h2a)
 	mux.tryCollapse()
 
-	if cb.AllocatedBytes() < 0 {
-		t.Fatalf("budget counter went negative: %d", cb.AllocatedBytes())
+	if cb.allocatedBytes() < 0 {
+		t.Fatalf("budget counter went negative: %d", cb.allocatedBytes())
 	}
 
 	mux.Return(h2b)

@@ -335,7 +335,7 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 		if maxMPAttrValue <= 0 {
 			return ErrAttributesTooLarge
 		}
-		mpChunks, err := SplitMPUnreachNLRIWithAddPath(mpUnreach, maxMPAttrValue, addPath)
+		mpChunks, err := splitMPUnreachNLRIWithAddPath(mpUnreach, maxMPAttrValue, addPath)
 		if err != nil {
 			return fmt.Errorf("splitting MP_UNREACH_NLRI: %w", err)
 		}
@@ -591,7 +591,7 @@ func chunkIPv4NLRI(nlriData []byte, maxSize int, addPath bool) ([][]byte, error)
 // MP_REACH_NLRI and MP_UNREACH_NLRI attribute-level splitting
 // =============================================================================
 
-// SplitMPReachNLRI splits an MP_REACH_NLRI attribute into chunks.
+// splitMPReachNLRI splits an MP_REACH_NLRI attribute into chunks.
 //
 // maxAttrSize is the maximum size for the attribute VALUE (not including TLV header).
 // Returns multiple MPReachNLRI with chunked NLRI, preserving AFI/SAFI/NextHops.
@@ -603,7 +603,7 @@ func chunkIPv4NLRI(nlriData []byte, maxSize int, addPath bool) ([][]byte, error)
 //	AFI(2) + SAFI(1) + NH_Len(1) + NextHops + Reserved(1) + NLRI
 //
 // The overhead (everything except NLRI) is preserved in each chunk.
-func SplitMPReachNLRI(mp *attribute.MPReachNLRI, maxAttrSize int) ([]*attribute.MPReachNLRI, error) {
+func splitMPReachNLRI(mp *attribute.MPReachNLRI, maxAttrSize int) ([]*attribute.MPReachNLRI, error) {
 	return SplitMPReachNLRIWithAddPath(mp, maxAttrSize, false)
 }
 
@@ -653,7 +653,7 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 	return results, nil
 }
 
-// SplitMPUnreachNLRI splits an MP_UNREACH_NLRI attribute into chunks.
+// splitMPUnreachNLRI splits an MP_UNREACH_NLRI attribute into chunks.
 //
 // maxAttrSize is the maximum size for the attribute VALUE (not including TLV header).
 // Returns multiple MPUnreachNLRI with chunked NLRI, preserving AFI/SAFI.
@@ -665,15 +665,15 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 //	AFI(2) + SAFI(1) + Withdrawn_NLRI
 //
 // The overhead (AFI + SAFI) is preserved in each chunk.
-func SplitMPUnreachNLRI(mp *attribute.MPUnreachNLRI, maxAttrSize int) ([]*attribute.MPUnreachNLRI, error) {
-	return SplitMPUnreachNLRIWithAddPath(mp, maxAttrSize, false)
+func splitMPUnreachNLRI(mp *attribute.MPUnreachNLRI, maxAttrSize int) ([]*attribute.MPUnreachNLRI, error) {
+	return splitMPUnreachNLRIWithAddPath(mp, maxAttrSize, false)
 }
 
-// SplitMPUnreachNLRIWithAddPath splits MP_UNREACH_NLRI with Add-Path awareness.
+// splitMPUnreachNLRIWithAddPath splits MP_UNREACH_NLRI with Add-Path awareness.
 //
 // addPath indicates whether Add-Path is negotiated for this family.
 // Required for correct NLRI boundary detection when path-ids are present.
-func SplitMPUnreachNLRIWithAddPath(mp *attribute.MPUnreachNLRI, maxAttrSize int, addPath bool) ([]*attribute.MPUnreachNLRI, error) {
+func splitMPUnreachNLRIWithAddPath(mp *attribute.MPUnreachNLRI, maxAttrSize int, addPath bool) ([]*attribute.MPUnreachNLRI, error) {
 	if mp == nil || len(mp.NLRI) == 0 {
 		return []*attribute.MPUnreachNLRI{mp}, nil
 	}

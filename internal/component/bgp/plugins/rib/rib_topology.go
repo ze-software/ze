@@ -13,12 +13,12 @@ import (
 // builds an AS topology graph, and renders it as Unicode box-drawing text.
 // The rendered text is stored in PipelineMeta.JSON (following the prefix-summary precedent).
 type graphTerminal struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newGraphTerminal(upstream PipelineIterator) *graphTerminal {
+func newGraphTerminal(upstream pipelineIterator) *graphTerminal {
 	return &graphTerminal{upstream: upstream}
 }
 

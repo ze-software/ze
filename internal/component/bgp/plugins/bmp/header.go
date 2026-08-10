@@ -71,9 +71,9 @@ type CommonHeader struct {
 	Type    uint8
 }
 
-// DecodeCommonHeader parses a CommonHeader from buf at the given offset.
+// decodeCommonHeader parses a CommonHeader from buf at the given offset.
 // Returns the number of bytes consumed (always CommonHeaderSize on success).
-func DecodeCommonHeader(buf []byte, off int) (CommonHeader, int, error) {
+func decodeCommonHeader(buf []byte, off int) (CommonHeader, int, error) {
 	if len(buf)-off < CommonHeaderSize {
 		return CommonHeader{}, 0, errShortHeader
 	}
@@ -120,24 +120,24 @@ func (h *PeerHeader) IsIPv6() bool {
 	return h.PeerType != PeerTypeLocRIB && h.Flags&PeerFlagV != 0
 }
 
-// IsPostPolicy returns true if the L flag is set.
-func (h *PeerHeader) IsPostPolicy() bool {
+// isPostPolicy returns true if the L flag is set.
+func (h *PeerHeader) isPostPolicy() bool {
 	return h.Flags&PeerFlagL != 0
 }
 
-// Is2ByteAS returns true if the A flag is set (legacy 2-byte ASN).
-func (h *PeerHeader) Is2ByteAS() bool {
+// is2ByteAS returns true if the A flag is set (legacy 2-byte ASN).
+func (h *PeerHeader) is2ByteAS() bool {
 	return h.Flags&PeerFlagA != 0
 }
 
-// IsAdjRIBOut returns true if the O flag is set (RFC 8671).
-func (h *PeerHeader) IsAdjRIBOut() bool {
+// isAdjRIBOut returns true if the O flag is set (RFC 8671).
+func (h *PeerHeader) isAdjRIBOut() bool {
 	return h.Flags&PeerFlagO != 0
 }
 
-// DecodePeerHeader parses a PeerHeader from buf at the given offset.
+// decodePeerHeader parses a PeerHeader from buf at the given offset.
 // Returns the number of bytes consumed (always PeerHeaderSize on success).
-func DecodePeerHeader(buf []byte, off int) (PeerHeader, int, error) {
+func decodePeerHeader(buf []byte, off int) (PeerHeader, int, error) {
 	if len(buf)-off < PeerHeaderSize {
 		return PeerHeader{}, 0, errShortPeer
 	}
@@ -154,9 +154,9 @@ func DecodePeerHeader(buf []byte, off int) (PeerHeader, int, error) {
 	return p, PeerHeaderSize, nil
 }
 
-// WritePeerHeader writes a PeerHeader into buf at off.
+// writePeerHeader writes a PeerHeader into buf at off.
 // Returns the number of bytes written (always PeerHeaderSize).
-func WritePeerHeader(buf []byte, off int, p PeerHeader) int {
+func writePeerHeader(buf []byte, off int, p PeerHeader) int {
 	buf[off] = p.PeerType
 	buf[off+1] = p.Flags
 	binary.BigEndian.PutUint64(buf[off+2:off+10], p.Distinguisher)
@@ -168,8 +168,8 @@ func WritePeerHeader(buf []byte, off int, p PeerHeader) int {
 	return PeerHeaderSize
 }
 
-// HasPeerHeader returns true if the message type includes a per-peer header.
+// hasPeerHeader returns true if the message type includes a per-peer header.
 // RFC 7854: Initiation (4) and Termination (5) have no per-peer header.
-func HasPeerHeader(msgType uint8) bool {
+func hasPeerHeader(msgType uint8) bool {
 	return msgType != MsgInitiation && msgType != MsgTermination
 }

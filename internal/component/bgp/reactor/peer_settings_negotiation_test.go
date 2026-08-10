@@ -52,7 +52,7 @@ func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Ca
 	t.Helper()
 
 	s := NewSession(p.settings)
-	s.SetConfigCapabilityGetter(p.ConfiguredCapabilities)
+	s.setConfigCapabilityGetter(p.configuredCapabilities)
 	s.localOpen = s.buildOpen(p.settings, p.settings.Capabilities)
 	s.peerOpen = &message.Open{
 		Version:        4,
@@ -201,7 +201,7 @@ func TestReloadCapabilityChangeKeepsTheSessionWhenNegotiationIsUnchanged(t *test
 		"peerGeneration must not advance: a restart re-adds the peer and bumps it")
 	assert.Equal(t, PeerStateEstablished, after.State(),
 		"the established session must survive a capability change the negotiation ignores")
-	assert.True(t, capabilitiesEqual(next.Capabilities, after.ConfiguredCapabilities()),
+	assert.True(t, capabilitiesEqual(next.Capabilities, after.configuredCapabilities()),
 		"the new capability set must reach the running peer, so the NEXT OPEN carries it")
 }
 
@@ -260,7 +260,7 @@ func TestNegotiationProbeFailsClosed(t *testing.T) {
 	t.Run("session with our OPEN but not the peer's", func(t *testing.T) {
 		_, peer := newSwapTestReactor(t, current, next)
 		s := NewSession(peer.settings)
-		s.SetConfigCapabilityGetter(peer.ConfiguredCapabilities)
+		s.setConfigCapabilityGetter(peer.configuredCapabilities)
 		s.localOpen = s.buildOpen(peer.settings, peer.settings.Capabilities)
 		_, reason := peerSettingsSwapPlan(current, next, s)
 		assert.Equal(t, "Capabilities", reason, "half an OPEN exchange proves nothing")

@@ -10,8 +10,8 @@ func ParseIPv4Prefixes(data []byte) []netip.Prefix {
 	return ParsePrefixes(data, 4)
 }
 
-// ParseIPv6Prefixes parses a sequence of IPv6 prefixes from wire bytes.
-func ParseIPv6Prefixes(data []byte) []netip.Prefix {
+// parseIPv6Prefixes parses a sequence of IPv6 prefixes from wire bytes.
+func parseIPv6Prefixes(data []byte) []netip.Prefix {
 	return ParsePrefixes(data, 16)
 }
 

@@ -38,8 +38,8 @@ type SignalHandler struct {
 	mu sync.RWMutex
 }
 
-// NewSignalHandler creates a new signal handler.
-func NewSignalHandler() *SignalHandler {
+// newSignalHandler creates a new signal handler.
+func newSignalHandler() *SignalHandler {
 	return &SignalHandler{
 		sigChan: make(chan os.Signal, 1),
 	}

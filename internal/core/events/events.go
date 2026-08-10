@@ -140,9 +140,9 @@ func AllEventTypes() map[string][]string {
 	return result
 }
 
-// AllValidEventNames returns a sorted, comma-separated list of valid event types
+// allValidEventNames returns a sorted, comma-separated list of valid event types
 // across all namespaces (deduped). Safe for concurrent use.
-func AllValidEventNames() string {
+func allValidEventNames() string {
 	eventsMu.RLock()
 	defer eventsMu.RUnlock()
 	seen := make(map[string]bool)

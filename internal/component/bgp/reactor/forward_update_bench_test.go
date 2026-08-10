@@ -25,10 +25,10 @@ func BenchmarkForwardDirect(b *testing.B) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	cache := NewRecentUpdateCache(b.N + 100)
+	cache := newRecentUpdateCache(b.N + 100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rs")
-	cache.SetConsumerUnordered("rs")
+	cache.setConsumerUnordered("rs")
 
 	payload := []byte{0, 0, 0, 0}
 	for i := range b.N {
@@ -100,10 +100,10 @@ func BenchmarkForwardDirect_Batch(b *testing.B) {
 	const batchSize = 8
 	const peerCount = 32
 
-	cache := NewRecentUpdateCache(b.N*batchSize + 100)
+	cache := newRecentUpdateCache(b.N*batchSize + 100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rs")
-	cache.SetConsumerUnordered("rs")
+	cache.setConsumerUnordered("rs")
 
 	payload := []byte{0, 0, 0, 0}
 	for i := range b.N * batchSize {

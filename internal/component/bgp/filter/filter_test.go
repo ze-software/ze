@@ -97,7 +97,7 @@ func TestAttributeFilterModeNone(t *testing.T) {
 
 	attrBytes := buildTestAttributeBytes()
 	wire := attribute.NewAttributesWire(attrBytes, ctxID)
-	filter := NewFilterNone()
+	filter := newFilterNone()
 
 	result, err := filter.Apply(wire)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestAttributeFilterModeSelective(t *testing.T) {
 	wire := attribute.NewAttributesWire(attrBytes, ctxID)
 
 	// Only request ORIGIN and MED
-	filter := NewFilterSelective([]attribute.AttributeCode{
+	filter := newFilterSelective([]attribute.AttributeCode{
 		attribute.AttrOrigin,
 		attribute.AttrMED,
 	})
@@ -180,7 +180,7 @@ func TestAttributeFilterEmptyResult(t *testing.T) {
 	wire := attribute.NewAttributesWire(attrBytes, ctxID)
 
 	// Request attribute that doesn't exist
-	filter := NewFilterSelective([]attribute.AttributeCode{
+	filter := newFilterSelective([]attribute.AttributeCode{
 		attribute.AttrCommunity, // Not in test attrs
 	})
 
@@ -243,10 +243,10 @@ func TestFilterIsEmpty(t *testing.T) {
 		want   bool
 	}{
 		{"all", NewFilterAll(), false},
-		{"none", NewFilterNone(), true},
-		{"selective with codes", NewFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin}), false},
-		{"selective empty", NewFilterSelective(nil), true},
-		{"selective empty slice", NewFilterSelective([]attribute.AttributeCode{}), true},
+		{"none", newFilterNone(), true},
+		{"selective with codes", newFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin}), false},
+		{"selective empty", newFilterSelective(nil), true},
+		{"selective empty slice", newFilterSelective([]attribute.AttributeCode{}), true},
 	}
 
 	for _, tt := range tests {
@@ -268,7 +268,7 @@ func TestIncludesO1Lookup(t *testing.T) {
 	for i := range codes {
 		codes[i] = attribute.AttributeCode(i + 1) //nolint:gosec // test data
 	}
-	filter := NewFilterSelective(codes)
+	filter := newFilterSelective(codes)
 
 	// Verify codeSet is populated
 	if len(filter.codeSet) != 100 {
@@ -392,7 +392,7 @@ func TestApplyToUpdateFilterNone(t *testing.T) {
 	body[2], body[3] = 0, byte(len(attrBytes))
 	copy(body[4:], attrBytes)
 
-	filter := NewFilterNone()
+	filter := newFilterNone()
 	result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())
 	if err != nil {
 		t.Fatalf("ApplyToUpdate() error = %v", err)
@@ -419,7 +419,7 @@ func TestApplyToUpdateSelectiveFilter(t *testing.T) {
 	copy(body[4:], attrBytes)
 
 	// Only request ORIGIN
-	filter := NewFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin})
+	filter := newFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin})
 	result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())
 	if err != nil {
 		t.Fatalf("ApplyToUpdate() error = %v", err)
@@ -466,7 +466,7 @@ func TestApplyToUpdate(t *testing.T) {
 		t.Fatalf("Attrs() error = %v", err)
 	}
 
-	filter := NewFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin})
+	filter := newFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin})
 	result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())
 	if err != nil {
 		t.Fatalf("ApplyToUpdate() error = %v", err)

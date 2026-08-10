@@ -13,8 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// NextHopLayout holds computed positions for next-hop graph nodes.
-type NextHopLayout struct {
+// nextHopLayout holds computed positions for next-hop graph nodes.
+type nextHopLayout struct {
 	Positions map[string]Position // Address -> position.
 	Width     int
 	Height    int
@@ -22,9 +22,9 @@ type NextHopLayout struct {
 
 // computeNextHopLayout assigns x,y positions using a layered layout.
 // Layers left-to-right: forwarding routers at left, egress at right.
-func computeNextHopLayout(g *NextHopGraph) *NextHopLayout {
+func computeNextHopLayout(g *nextHopGraph) *nextHopLayout {
 	if len(g.Nodes) == 0 {
-		return &NextHopLayout{Positions: make(map[string]Position)}
+		return &nextHopLayout{Positions: make(map[string]Position)}
 	}
 
 	// Group nodes by layer.
@@ -91,7 +91,7 @@ func computeNextHopLayout(g *NextHopGraph) *NextHopLayout {
 		}
 	}
 
-	return &NextHopLayout{
+	return &nextHopLayout{
 		Positions: positions,
 		Width:     totalWidth,
 		Height:    maxHeight + graphPadding,
@@ -108,7 +108,7 @@ func formatNextHopNodeLabel(n NextHopNode) string {
 }
 
 // renderNextHopGraphSVG renders the next-hop graph as an SVG string.
-func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
+func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 	var sb textbuf.Buffer
 
 	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, //nolint:errcheck // buffer output

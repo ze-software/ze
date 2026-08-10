@@ -15,28 +15,28 @@ import (
 // PREVENTS: Nil-map panic on peer that never received OPEN.
 func TestHasCapability_NilMap(t *testing.T) {
 	p := &PeerState{Capabilities: nil}
-	assert.False(t, p.HasCapability("route-refresh"))
+	assert.False(t, p.hasCapability("route-refresh"))
 }
 
 // VALIDATES: HasCapability returns true for a capability that is present and true.
 // PREVENTS: Capability lookup failing on populated map.
 func TestHasCapability_Present(t *testing.T) {
 	p := &PeerState{Capabilities: map[string]bool{"route-refresh": true}}
-	assert.True(t, p.HasCapability("route-refresh"))
+	assert.True(t, p.hasCapability("route-refresh"))
 }
 
 // VALIDATES: HasCapability returns false for an absent key.
 // PREVENTS: False positive on capabilities never negotiated.
 func TestHasCapability_Absent(t *testing.T) {
 	p := &PeerState{Capabilities: map[string]bool{"route-refresh": true}}
-	assert.False(t, p.HasCapability("add-path"))
+	assert.False(t, p.hasCapability("add-path"))
 }
 
 // VALIDATES: HasCapability returns false when the capability is explicitly false.
 // PREVENTS: Treating explicitly-disabled capability as present.
 func TestHasCapability_ExplicitlyFalse(t *testing.T) {
 	p := &PeerState{Capabilities: map[string]bool{"route-refresh": false}}
-	assert.False(t, p.HasCapability("route-refresh"))
+	assert.False(t, p.hasCapability("route-refresh"))
 }
 
 // --- PeerState.SupportsFamily ---

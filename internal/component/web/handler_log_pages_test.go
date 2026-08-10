@@ -63,7 +63,7 @@ func TestLogLiveSSEStreamsEvents(t *testing.T) {
 	broker := NewEventBroker(10)
 	defer broker.Close()
 
-	handler := HandleLogLiveStream(broker)
+	handler := handleLogLiveStream(broker)
 	req := httptest.NewRequest(http.MethodGet, "/logs/live/stream", http.NoBody)
 	// Cancel the request context to make the SSE handler exit.
 	ctx, cancel := context.WithCancel(req.Context())
@@ -94,7 +94,7 @@ func TestLogLiveSSEClientDisconnect(t *testing.T) {
 }
 
 func TestLogLiveSSENilBroker(t *testing.T) {
-	handler := HandleLogLiveStream(nil)
+	handler := handleLogLiveStream(nil)
 	req := httptest.NewRequest(http.MethodGet, "/logs/live/stream", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

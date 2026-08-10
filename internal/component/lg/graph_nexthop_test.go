@@ -185,7 +185,7 @@ func TestExtractString(t *testing.T) {
 
 func TestRenderNextHopGraphText(t *testing.T) {
 	// VALIDATES: text output contains mode, nodes with egress flag, and edges.
-	g := &NextHopGraph{
+	g := &nextHopGraph{
 		Nodes: []NextHopNode{
 			{Address: "10.0.1.1", Layer: 1},
 			{Address: "10.0.5.1", Layer: 0, Egress: true},
@@ -213,7 +213,7 @@ func TestRenderNextHopGraphText(t *testing.T) {
 
 func TestRenderNextHopGraphTextWithName(t *testing.T) {
 	// VALIDATES: text output includes name when present.
-	g := &NextHopGraph{
+	g := &nextHopGraph{
 		Nodes: []NextHopNode{
 			{Address: "10.0.5.1", Layer: 0, Egress: true, Name: "slo-1"},
 		},
@@ -228,7 +228,7 @@ func TestRenderNextHopGraphTextWithName(t *testing.T) {
 
 func TestNextHopLayoutLayers(t *testing.T) {
 	// VALIDATES: egress nodes at right, forwarding nodes at left.
-	g := &NextHopGraph{
+	g := &nextHopGraph{
 		Nodes: []NextHopNode{
 			{Address: "10.0.1.1", Layer: 1},
 			{Address: "10.0.5.1", Layer: 0, Egress: true},
@@ -249,7 +249,7 @@ func TestNextHopLayoutLayers(t *testing.T) {
 
 func TestNextHopLayoutSameLayerVertical(t *testing.T) {
 	// VALIDATES: nodes in same layer stacked vertically.
-	g := &NextHopGraph{
+	g := &nextHopGraph{
 		Nodes: []NextHopNode{
 			{Address: "10.0.1.1", Layer: 1},
 			{Address: "10.0.1.2", Layer: 1},
@@ -275,7 +275,7 @@ func TestNextHopLayoutSameLayerVertical(t *testing.T) {
 
 func TestNextHopLayoutEmpty(t *testing.T) {
 	// VALIDATES: empty graph returns empty layout.
-	layout := computeNextHopLayout(&NextHopGraph{})
+	layout := computeNextHopLayout(&nextHopGraph{})
 
 	if len(layout.Positions) != 0 {
 		t.Errorf("positions = %d, want 0", len(layout.Positions))
@@ -284,7 +284,7 @@ func TestNextHopLayoutEmpty(t *testing.T) {
 
 func TestRenderNextHopGraphSVG(t *testing.T) {
 	// VALIDATES: valid SVG with egress styling.
-	g := &NextHopGraph{
+	g := &nextHopGraph{
 		Nodes: []NextHopNode{
 			{Address: "10.0.1.1", Layer: 1},
 			{Address: "10.0.5.1", Layer: 0, Egress: true},

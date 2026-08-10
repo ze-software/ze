@@ -15,7 +15,7 @@ const (
 	DefaultMaxPathDepth       = 10
 )
 
-// LimitsFromEnv reads limits from environment, falling back to defaults.
+// limitsFromEnv reads limits from environment, falling back to defaults.
 //
 // Environment variables:
 //   - ze.ci.max_file_size / ze.ci_max_file_size
@@ -23,7 +23,7 @@ const (
 //   - ze.ci.max_files / ze.ci_max_files
 //   - ze.ci.max_path_length / ze.ci_max_path_length
 //   - ze.ci.max_path_depth / ze.ci_max_path_depth
-func LimitsFromEnv() Limits {
+func limitsFromEnv() Limits {
 	return Limits{
 		MaxFileSize:  env.GetInt64("ci", "max_file_size", DefaultMaxFileSize),
 		MaxTotalSize: env.GetInt64("ci", "max_total_size", DefaultMaxTotalSize),

@@ -54,11 +54,11 @@ func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
 		return nil
 	}
 
-	return SerializeMessage(update)
+	return serializeMessage(update)
 }
 
-// BuildMulticastRoute constructs a serialized multicast UPDATE for a single prefix.
-func (s *Sender) BuildMulticastRoute(prefix netip.Prefix) []byte {
+// buildMulticastRoute constructs a serialized multicast UPDATE for a single prefix.
+func (s *Sender) buildMulticastRoute(prefix netip.Prefix) []byte {
 	params := message.UnicastParams{
 		Prefix:  prefix,
 		NextHop: s.nextHop,
@@ -71,13 +71,13 @@ func (s *Sender) BuildMulticastRoute(prefix netip.Prefix) []byte {
 		return nil
 	}
 
-	return SerializeMessage(update)
+	return serializeMessage(update)
 }
 
-// BuildWithdrawal constructs a serialized IPv4/unicast withdrawal UPDATE.
+// buildWithdrawal constructs a serialized IPv4/unicast withdrawal UPDATE.
 // RFC 4271 Section 4.3: withdrawals use the Withdrawn Routes field with no
 // path attributes and no NLRI. Returns nil for an empty prefix list.
-func BuildWithdrawal(prefixes []netip.Prefix) []byte {
+func buildWithdrawal(prefixes []netip.Prefix) []byte {
 	if len(prefixes) == 0 {
 		return nil
 	}
@@ -93,13 +93,13 @@ func BuildWithdrawal(prefixes []netip.Prefix) []byte {
 	}
 
 	update := &message.Update{WithdrawnRoutes: withdrawn}
-	return SerializeMessage(update)
+	return serializeMessage(update)
 }
 
-// BuildMalformedUpdate constructs a BGP UPDATE with an invalid ORIGIN attribute.
+// buildMalformedUpdate constructs a BGP UPDATE with an invalid ORIGIN attribute.
 // ORIGIN must be 0 (IGP), 1 (EGP), or 2 (INCOMPLETE); value 0xFF is invalid.
 // This tests RFC 7606 revised error handling (treat-as-withdraw).
-func BuildMalformedUpdate() []byte {
+func buildMalformedUpdate() []byte {
 	// UPDATE body: withdrawn=0, one attribute with invalid ORIGIN value.
 	body := []byte{
 		0x00, 0x00, // withdrawn routes length = 0
@@ -125,8 +125,8 @@ func BuildMalformedUpdate() []byte {
 	return msg
 }
 
-// BuildVPNRoute constructs a serialized VPN UPDATE for a single VPN route.
-func (s *Sender) BuildVPNRoute(route scenario.VPNRoute) []byte {
+// buildVPNRoute constructs a serialized VPN UPDATE for a single VPN route.
+func (s *Sender) buildVPNRoute(route scenario.VPNRoute) []byte {
 	params := message.VPNParams{
 		Prefix:  route.Prefix,
 		NextHop: s.nextHop,
@@ -140,11 +140,11 @@ func (s *Sender) BuildVPNRoute(route scenario.VPNRoute) []byte {
 		return nil
 	}
 
-	return SerializeMessage(update)
+	return serializeMessage(update)
 }
 
-// BuildEVPNRoute constructs a serialized EVPN Type-2 UPDATE for a single route.
-func (s *Sender) BuildEVPNRoute(route scenario.EVPNRoute) []byte {
+// buildEVPNRoute constructs a serialized EVPN Type-2 UPDATE for a single route.
+func (s *Sender) buildEVPNRoute(route scenario.EVPNRoute) []byte {
 	rd := evpn.RouteDistinguisher{
 		Type:  nlri.RDType(uint16(route.RDBytes[0])<<8 | uint16(route.RDBytes[1])),
 		Value: [6]byte(route.RDBytes[2:]),
@@ -162,11 +162,11 @@ func (s *Sender) BuildEVPNRoute(route scenario.EVPNRoute) []byte {
 		return nil
 	}
 
-	return SerializeMessage(update)
+	return serializeMessage(update)
 }
 
-// BuildFlowSpecRoute constructs a serialized FlowSpec UPDATE for a single route.
-func (s *Sender) BuildFlowSpecRoute(route scenario.FlowSpecRoute) []byte {
+// buildFlowSpecRoute constructs a serialized FlowSpec UPDATE for a single route.
+func (s *Sender) buildFlowSpecRoute(route scenario.FlowSpecRoute) []byte {
 	var family flowspec.Family
 	if route.IsIPv6 {
 		family = flowspec.Family{AFI: flowspec.AFIIPv6, SAFI: flowspec.SAFIFlowSpec}
@@ -189,7 +189,7 @@ func (s *Sender) BuildFlowSpecRoute(route scenario.FlowSpecRoute) []byte {
 		return nil
 	}
 
-	return SerializeMessage(update)
+	return serializeMessage(update)
 }
 
 // BuildEOR constructs a serialized End-of-RIB marker for the given family.
@@ -204,14 +204,14 @@ func BuildEOR(name string) []byte {
 		return nil
 	}
 	eor := message.BuildEOR(fam)
-	return SerializeMessage(eor)
+	return serializeMessage(eor)
 }
 
-// BuildEORIPv4Unicast constructs a serialized End-of-RIB marker for ipv4/unicast.
+// buildEORIPv4Unicast constructs a serialized End-of-RIB marker for ipv4/unicast.
 // RFC 4724: IPv4 unicast EOR is an empty UPDATE (no attributes, no NLRI).
 //
 // Deprecated: Use BuildEOR("ipv4/unicast") instead.
-func BuildEORIPv4Unicast() []byte {
+func buildEORIPv4Unicast() []byte {
 	eor := message.BuildEOR(family.IPv4Unicast)
-	return SerializeMessage(eor)
+	return serializeMessage(eor)
 }

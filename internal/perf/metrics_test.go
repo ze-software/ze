@@ -59,7 +59,7 @@ func TestStddevCalculation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Stddev(tt.vals)
+			got := stddev(tt.vals)
 			if got != tt.want {
 				t.Errorf("Stddev(%v) = %d, want %d", tt.vals, got, tt.want)
 			}

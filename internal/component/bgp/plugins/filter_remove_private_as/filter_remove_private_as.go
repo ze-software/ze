@@ -22,7 +22,7 @@ var logger = slogutil.LazyLogger("bgp.filter.remove-private-as")
 
 var defsByName atomic.Pointer[map[string]*removePrivateASDef]
 
-func RunFilterRemovePrivateAS(conn net.Conn) int {
+func runFilterRemovePrivateAS(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-remove-private-as", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 

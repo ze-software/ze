@@ -53,7 +53,7 @@ func TestHeartbeatReset(t *testing.T) {
 		defer ticker.Stop()
 		for range 6 {
 			<-ticker.C
-			hb.RecordPong()
+			hb.recordPong()
 		}
 	}()
 	<-done

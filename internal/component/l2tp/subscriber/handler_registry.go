@@ -95,7 +95,7 @@ func GetShaperHandler() ShaperHandler {
 	return h
 }
 
-func UnregisterShaperHandler() {
+func unregisterShaperHandler() {
 	handlerMu.Lock()
 	shaperHndlr = nil
 	handlerMu.Unlock()

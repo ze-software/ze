@@ -101,14 +101,14 @@ func aspaOverridesAccept(aspaState, invalidAction, unknownAction uint8) bool {
 	return false
 }
 
-// RPKIPlugin implements the bgp-rpki plugin.
+// rPKIPlugin implements the bgp-rpki plugin.
 // It manages RTR sessions to RPKI cache servers, maintains the ROA cache,
 // and validates received routes against VRPs.
-type RPKIPlugin struct {
+type rPKIPlugin struct {
 	plugin      *sdk.Plugin
 	cache       *ROACache
-	aspaCache   *ASPACache
-	aspaTracker *ASPATracker
+	aspaCache   *aSPACache
+	aspaTracker *aSPATracker
 	// originTracker records active routes for RFC 6811 Section 4 re-validation when the ROA
 	// cache (VRP set) changes. Populated whenever origin validation runs (independent of ASPA).
 	originTracker     *OriginTracker
@@ -146,19 +146,19 @@ type RPKIPlugin struct {
 	active atomic.Bool
 }
 
-// RunRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
-func RunRPKIPlugin(conn net.Conn) int {
+// runRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
+func runRPKIPlugin(conn net.Conn) int {
 	logger().Debug("bgp-rpki plugin starting")
 
 	p := sdk.NewWithConn("bgp-rpki", conn)
 	defer func() { _ = p.Close() }()
 
-	rp := &RPKIPlugin{
+	rp := &rPKIPlugin{
 		plugin:        p,
-		cache:         NewROACache(),
-		aspaCache:     NewASPACache(),
-		aspaTracker:   NewASPATracker(),
-		originTracker: NewOriginTracker(),
+		cache:         newROACache(),
+		aspaCache:     newASPACache(),
+		aspaTracker:   newASPATracker(),
+		originTracker: newOriginTracker(),
 		validateCh:    make(chan validationRequest, 4096),
 		stopCh:        make(chan struct{}),
 	}
@@ -269,7 +269,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 // Each cache server gets a long-lived goroutine running RTRSession.Run().
 // Sets active=true only when servers exist, so handleEvent/handleStructuredUpdate
 // skip per-prefix work when unconfigured.
-func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
+func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	rp.active.Store(false)
 	if cfg == nil || len(cfg.CacheServers) == 0 {
 		logger().Info("rpki: no cache servers configured")
@@ -291,7 +291,7 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	defer rp.mu.Unlock()
 
 	for _, cs := range cfg.CacheServers {
-		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, rp.stopCh)
+		session := newRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, rp.stopCh)
 		session.onASPAChange = rp.handleASPAChange
 		session.onROAChange = rp.handleROAChange
 		rp.sessions = append(rp.sessions, session)
@@ -307,7 +307,7 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 // handleStructuredUpdate processes a structured UPDATE event from DirectBridge.
 // Extracts AS_PATH from AttrsWire and NLRIs from WireUpdate, then validates
 // each prefix against the ROA cache. No JSON parsing needed.
-func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
+func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	if !rp.active.Load() {
 		return
 	}
@@ -386,7 +386,7 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 }
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
-func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
+func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
 	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8) {
 
 	addrLen := 4
@@ -456,7 +456,7 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 // handleEvent processes BGP events (UPDATE received).
 // Validates each prefix against the ROA cache, enqueues accept/reject decisions
 // to the async worker, and emits an rpki event with per-prefix validation states.
-func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
+func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	if !rp.active.Load() {
 		return
 	}
@@ -542,7 +542,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 // emitRPKIEvent emits an rpki validation event via the SDK EmitEvent RPC.
 // Called after validating all prefixes in a family for a single UPDATE.
 // aspaState is included when != aspaStateNone.
-func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, famName string, results map[string]uint8, cacheEmpty bool, aspaState uint8) {
+func (rp *rPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, famName string, results map[string]uint8, cacheEmpty bool, aspaState uint8) {
 	var event string
 	if cacheEmpty {
 		event = buildRPKIEventUnavailable(peerAddr, peerName, peerASN, msgID)
@@ -567,7 +567,7 @@ const (
 // decisions from validateCh into batches and dispatches them to adj-rib-in
 // in a single command. Bounded batch size (maxBatchSize) and bounded wait
 // (batchWait) control latency. Shutdown drains remaining decisions.
-func (rp *RPKIPlugin) validationWorker() {
+func (rp *rPKIPlugin) validationWorker() {
 	batch := make([]validationRequest, 0, maxBatchSize)
 	timer := time.NewTimer(batchWait)
 	timer.Stop()
@@ -616,7 +616,7 @@ func (rp *RPKIPlugin) validationWorker() {
 
 // drainAndDispatch drains remaining validateCh items and dispatches them
 // in maxBatchSize chunks so the lock hold time stays bounded.
-func (rp *RPKIPlugin) drainAndDispatch(batch []validationRequest) {
+func (rp *rPKIPlugin) drainAndDispatch(batch []validationRequest) {
 	for {
 		select {
 		case req := <-rp.validateCh:
@@ -636,7 +636,7 @@ func (rp *RPKIPlugin) drainAndDispatch(batch []validationRequest) {
 
 // dispatchBatch sends a batch of validation decisions to adj-rib-in
 // via the typed BatchValidate path (no string serialization for internal plugins).
-func (rp *RPKIPlugin) dispatchBatch(batch []validationRequest) {
+func (rp *rPKIPlugin) dispatchBatch(batch []validationRequest) {
 	if len(batch) == 0 {
 		return
 	}
@@ -654,7 +654,7 @@ func (rp *RPKIPlugin) dispatchBatch(batch []validationRequest) {
 
 // buildDecisions converts validation requests into typed decisions.
 // Updates metrics counters and applies ASPA override logic.
-func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.ValidationDecision {
+func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.ValidationDecision {
 	m := rpkiMetricsPtr.Load()
 
 	decisions := make([]rpc.ValidationDecision, len(batch))
@@ -742,7 +742,7 @@ func originASFromParsed(asPath []uint32) uint32 {
 
 // trackNLRIs walks wire NLRI bytes and tracks each route in the ASPA tracker.
 // Called after ASPA verification to enable re-validation when cache data changes (AC-5).
-func (rp *RPKIPlugin) trackNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
+func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
 	fam string, nlriData []byte, addPath, isIPv6 bool, normalizedPath []uint32, aspaState uint8) {
 
 	addrLen := 4
@@ -797,7 +797,7 @@ func (rp *RPKIPlugin) trackNLRIs(peerAddr, peerName string, peerASN uint32, msgI
 }
 
 // removeWithdrawnFromTracker removes withdrawn routes from the ASPA tracker.
-func (rp *RPKIPlugin) removeWithdrawnFromTracker(peerAddr string, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) {
+func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) {
 	// IPv4 withdrawn routes.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
@@ -818,7 +818,7 @@ func (rp *RPKIPlugin) removeWithdrawnFromTracker(peerAddr string, wu *wireu.Wire
 }
 
 // removeTrackedNLRIs walks wire NLRI bytes and removes each from the ASPA tracker.
-func (rp *RPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, addPath, isIPv6 bool) {
+func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, addPath, isIPv6 bool) {
 	addrLen := 4
 	if isIPv6 {
 		addrLen = 16
@@ -866,8 +866,8 @@ func (rp *RPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, 
 // and re-dispatches an accept/reject decision for each route whose state changed, so the
 // Adj-RIB-In and the decision process reflect the new VRPs. buildDecisions applies the configured
 // invalid-action to the re-dispatched decisions, exactly as it does for freshly received routes.
-func (rp *RPKIPlugin) handleROAChange() {
-	changed := rp.originTracker.Revalidate(rp.cache)
+func (rp *rPKIPlugin) handleROAChange() {
+	changed := rp.originTracker.revalidate(rp.cache)
 	if len(changed) == 0 {
 		return
 	}
@@ -891,14 +891,14 @@ func (rp *RPKIPlugin) handleROAChange() {
 // handleASPAChange is called by RTR sessions when ASPA cache data changes.
 // Re-validates tracked routes, emits updated events for state changes,
 // and dispatches reject for routes that ASPA policy now demands rejecting.
-func (rp *RPKIPlugin) handleASPAChange(changedCustomers []uint32) {
+func (rp *rPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 	if !rp.aspaEnabled.Load() {
 		return
 	}
 	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8
 	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8
 
-	changed := rp.aspaTracker.Revalidate(rp.aspaCache, changedCustomers)
+	changed := rp.aspaTracker.revalidate(rp.aspaCache, changedCustomers)
 	for _, rt := range changed {
 		rp.emitRPKIEvent(rt.key.peerAddr, rt.peerName, rt.peerASN, rt.msgID,
 			rt.key.family, nil, false, rt.aspaState)
@@ -954,7 +954,7 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
 }
 
 // handleCommand processes RPKI CLI commands.
-func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
+func (rp *rPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
 	case "show bgp rpki status":
 		return rp.statusCommand()
@@ -972,7 +972,7 @@ func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, any,
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-func (rp *RPKIPlugin) statusCommand() (string, any, error) {
+func (rp *rPKIPlugin) statusCommand() (string, any, error) {
 	rp.mu.RLock()
 	sessions := make([]*RTRSession, len(rp.sessions))
 	copy(sessions, rp.sessions)
@@ -1018,7 +1018,7 @@ func (rp *RPKIPlugin) statusCommand() (string, any, error) {
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) cacheCommand() (string, any, error) {
+func (rp *rPKIPlugin) cacheCommand() (string, any, error) {
 	rp.mu.RLock()
 	sessions := make([]*RTRSession, len(rp.sessions))
 	copy(sessions, rp.sessions)
@@ -1050,7 +1050,7 @@ func (rp *RPKIPlugin) cacheCommand() (string, any, error) {
 
 const roaDiagLimit = 1000
 
-func (rp *RPKIPlugin) roaCommand(args []string) (string, any, error) {
+func (rp *rPKIPlugin) roaCommand(args []string) (string, any, error) {
 	// "show bgp rpki roa <prefix>" looks up covering VRPs for prefix.
 	if len(args) > 0 && args[0] != "" {
 		_, _, err := net.ParseCIDR(args[0])
@@ -1088,7 +1088,7 @@ func (rp *RPKIPlugin) roaCommand(args []string) (string, any, error) {
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
+func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 	_, ipnet, _ := net.ParseCIDR(prefix) // already validated by caller
 	canonical := ipnet.String()
 	entries := rp.cache.Lookup(canonical)
@@ -1118,7 +1118,7 @@ func (rp *RPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) summaryCommand() (string, any, error) {
+func (rp *rPKIPlugin) summaryCommand() (string, any, error) {
 	v4, v6 := rp.cache.Count()
 	aspaCount := rp.aspaCache.count()
 	aspaEnabled := rp.aspaEnabled.Load()
@@ -1145,7 +1145,7 @@ func (rp *RPKIPlugin) summaryCommand() (string, any, error) {
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) validateCommand(args []string) (string, any, error) {
+func (rp *rPKIPlugin) validateCommand(args []string) (string, any, error) {
 	if len(args) < 2 {
 		return statusError, "", fmt.Errorf("usage: rpki validate <prefix> <origin-asn>")
 	}
@@ -1185,14 +1185,14 @@ func (rp *RPKIPlugin) validateCommand(args []string) (string, any, error) {
 
 const aspaDiagLimit = 1000
 
-func (rp *RPKIPlugin) aspaCommand(args []string) (string, any, error) {
+func (rp *rPKIPlugin) aspaCommand(args []string) (string, any, error) {
 	// "show bgp rpki aspa <customer-asn>" looks up a specific customer.
 	if len(args) > 0 && args[0] != "" {
 		asn, err := strconv.ParseUint(args[0], 10, 32)
 		if err != nil {
 			return statusError, "", fmt.Errorf("invalid ASN: %s", args[0])
 		}
-		providers := rp.aspaCache.LookupCustomer(uint32(asn)) //nolint:gosec // range checked by ParseUint
+		providers := rp.aspaCache.lookupCustomer(uint32(asn)) //nolint:gosec // range checked by ParseUint
 		b := textbuf.Get()
 		defer b.Release()
 		b.Str(`{"customer-asn":`).Uint(asn)

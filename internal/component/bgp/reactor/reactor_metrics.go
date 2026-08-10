@@ -249,12 +249,12 @@ func (r *Reactor) updatePeriodicMetrics() {
 		m.poolUsedRatio.Set(r.fwdPool.PoolUsedRatio())
 
 		// AC-17: per-destination overflow depth
-		for peer, depth := range r.fwdPool.OverflowDepths() {
+		for peer, depth := range r.fwdPool.overflowDepths() {
 			m.overflowItems.With(peer).Set(float64(depth))
 		}
 
 		// AC-16: per-source overflow ratio
-		for peer, ratio := range r.fwdPool.SourceOverflowRatios() {
+		for peer, ratio := range r.fwdPool.sourceOverflowRatios() {
 			m.overflowRatio.With(peer).Set(ratio)
 		}
 	}

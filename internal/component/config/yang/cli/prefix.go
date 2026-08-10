@@ -27,8 +27,8 @@ type SiblingInfo struct {
 	Description string
 }
 
-// CollisionGroup describes a set of siblings that share a prefix.
-type CollisionGroup struct {
+// collisionGroup describes a set of siblings that share a prefix.
+type collisionGroup struct {
 	Path     []string      // tree path to the parent node
 	Prefix   string        // shared first character(s)
 	MinChars int           // minimum chars needed to disambiguate any pair
@@ -36,10 +36,10 @@ type CollisionGroup struct {
 	Siblings []SiblingInfo // the colliding siblings
 }
 
-// FindCollisions groups siblings by shared first character and returns
+// findCollisions groups siblings by shared first character and returns
 // collision groups where the minimum disambiguation depth meets or exceeds
 // minPrefix. minPrefix=1 means any shared first character is reported.
-func FindCollisions(siblings []SiblingInfo, minPrefix int) []CollisionGroup {
+func findCollisions(siblings []SiblingInfo, minPrefix int) []collisionGroup {
 	if len(siblings) < 2 {
 		return nil
 	}
@@ -54,7 +54,7 @@ func FindCollisions(siblings []SiblingInfo, minPrefix int) []CollisionGroup {
 		byFirst[first] = append(byFirst[first], s)
 	}
 
-	var groups []CollisionGroup
+	var groups []collisionGroup
 	for _, members := range byFirst {
 		if len(members) < 2 {
 			continue
@@ -69,7 +69,7 @@ func FindCollisions(siblings []SiblingInfo, minPrefix int) []CollisionGroup {
 			return members[i].Name < members[j].Name
 		})
 
-		groups = append(groups, CollisionGroup{
+		groups = append(groups, collisionGroup{
 			Prefix:   string(members[0].Name[0]),
 			MinChars: minD,
 			MaxChars: maxD,

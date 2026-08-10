@@ -193,8 +193,8 @@ type Observer struct {
 	expectedEchoesPerBucket uint16
 }
 
-// ObserverConfig holds observer construction parameters.
-type ObserverConfig struct {
+// observerConfig holds observer construction parameters.
+type observerConfig struct {
 	MaxSessions   int
 	EventRingSize int
 	MaxLogins     int
@@ -202,8 +202,8 @@ type ObserverConfig struct {
 	EchoInterval  time.Duration
 }
 
-// NewObserver creates an observer with pre-allocated ring pools.
-func NewObserver(cfg ObserverConfig) *Observer {
+// newObserver creates an observer with pre-allocated ring pools.
+func newObserver(cfg observerConfig) *Observer {
 	var expected uint16
 	if cfg.EchoInterval > 0 {
 		expected = uint16(BucketInterval / cfg.EchoInterval)
@@ -217,8 +217,8 @@ func NewObserver(cfg ObserverConfig) *Observer {
 	}
 }
 
-// RecordEvent appends an event to the per-session event ring.
-func (o *Observer) RecordEvent(ev ObserverEvent) {
+// recordEvent appends an event to the per-session event ring.
+func (o *Observer) recordEvent(ev ObserverEvent) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -246,8 +246,8 @@ func (o *Observer) ReleaseSession(sessionID uint16) {
 	o.eventPool.release(ring)
 }
 
-// RecordEcho folds one echo RTT sample into the current CQM bucket.
-func (o *Observer) RecordEcho(login string, now time.Time, rtt time.Duration) {
+// recordEcho folds one echo RTT sample into the current CQM bucket.
+func (o *Observer) recordEcho(login string, now time.Time, rtt time.Duration) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -259,10 +259,10 @@ func (o *Observer) RecordEcho(login string, now time.Time, rtt time.Duration) {
 	entry.current.addEcho(rtt)
 }
 
-// SetLoginState updates the CQM bucket state for a login, creating
+// setLoginState updates the CQM bucket state for a login, creating
 // the entry if it does not yet exist (e.g. SessionIPAssigned arrives
 // before the first echo).
-func (o *Observer) SetLoginState(login string, state BucketState) {
+func (o *Observer) setLoginState(login string, state BucketState) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -411,8 +411,8 @@ func (o *Observer) EchoState(login string) *LoginEchoState {
 	return state
 }
 
-// AddUnsub registers an unsubscribe function to be called on Stop.
-func (o *Observer) AddUnsub(fn func()) {
+// addUnsub registers an unsubscribe function to be called on Stop.
+func (o *Observer) addUnsub(fn func()) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.unsubs = append(o.unsubs, fn)
@@ -518,8 +518,8 @@ func (o *Observer) promoteEntry(entry *lruEntry) {
 func (s *Subsystem) wireObserverSubscriptions(bus ze.EventBus) {
 	obs := s.observer
 
-	obs.AddUnsub(l2tpevents.SessionUp.Subscribe(bus, func(p *l2tpevents.SessionUpPayload) {
-		obs.RecordEvent(ObserverEvent{
+	obs.addUnsub(l2tpevents.SessionUp.Subscribe(bus, func(p *l2tpevents.SessionUpPayload) {
+		obs.recordEvent(ObserverEvent{
 			Timestamp: time.Now(),
 			Type:      ObserverEventSessionUp,
 			TunnelID:  p.TunnelID,
@@ -527,8 +527,8 @@ func (s *Subsystem) wireObserverSubscriptions(bus ze.EventBus) {
 		})
 	}))
 
-	obs.AddUnsub(l2tpevents.SessionDown.Subscribe(bus, func(p *l2tpevents.SessionDownPayload) {
-		obs.RecordEvent(ObserverEvent{
+	obs.addUnsub(l2tpevents.SessionDown.Subscribe(bus, func(p *l2tpevents.SessionDownPayload) {
+		obs.recordEvent(ObserverEvent{
 			Timestamp: time.Now(),
 			Type:      ObserverEventSessionDown,
 			TunnelID:  p.TunnelID,
@@ -536,25 +536,25 @@ func (s *Subsystem) wireObserverSubscriptions(bus ze.EventBus) {
 		})
 		obs.ReleaseSession(p.SessionID)
 		if p.Username != "" {
-			obs.SetLoginState(p.Username, BucketStateDown)
+			obs.setLoginState(p.Username, BucketStateDown)
 		}
 	}))
 
-	obs.AddUnsub(l2tpevents.SessionIPAssigned.Subscribe(bus, func(p *l2tpevents.SessionIPAssignedPayload) {
-		obs.RecordEvent(ObserverEvent{
+	obs.addUnsub(l2tpevents.SessionIPAssigned.Subscribe(bus, func(p *l2tpevents.SessionIPAssignedPayload) {
+		obs.recordEvent(ObserverEvent{
 			Timestamp: time.Now(),
 			Type:      ObserverEventSessionIPAssigned,
 			TunnelID:  p.TunnelID,
 			SessionID: p.SessionID,
 		})
 		if p.Username != "" {
-			obs.SetLoginState(p.Username, BucketStateEstablished)
+			obs.setLoginState(p.Username, BucketStateEstablished)
 		}
 	}))
 
-	obs.AddUnsub(l2tpevents.EchoRTT.Subscribe(bus, func(p *l2tpevents.EchoRTTPayload) {
+	obs.addUnsub(l2tpevents.EchoRTT.Subscribe(bus, func(p *l2tpevents.EchoRTTPayload) {
 		now := time.Now()
-		obs.RecordEvent(ObserverEvent{
+		obs.recordEvent(ObserverEvent{
 			Timestamp: now,
 			Type:      ObserverEventEchoRTT,
 			TunnelID:  p.TunnelID,
@@ -562,7 +562,7 @@ func (s *Subsystem) wireObserverSubscriptions(bus ze.EventBus) {
 			RTT:       p.RTT,
 		})
 		if p.Username != "" {
-			obs.RecordEcho(p.Username, now, p.RTT)
+			obs.recordEcho(p.Username, now, p.RTT)
 		}
 	}))
 }

@@ -86,7 +86,7 @@ func (r *L2TPReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns [
 //
 // When pppDriver is nil (no iface backend configured, test paths,
 // non-Linux platforms), the success is logged and the fds remain owned
-// by the kernel worker; the worker will close them on TeardownAll.
+// by the kernel worker; the worker will close them on teardownAll.
 func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	// spec-followup-l2tp-call A-4: a LAC-relayed session's PPP frames flow
 	// through the kernel channel bridge (PPPoE <-> pppol2tp); no local PPP
@@ -432,15 +432,15 @@ func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupF
 	// Wire the worker's per-tunnel sockets back into THIS reactor's listener.
 	// Once a kernel tunnel exists, its connected socket outranks the listener for
 	// every datagram from that peer, so without this the reactor stops seeing the
-	// peer's control messages entirely (UDPListener.AdoptTunnelSocket documents
+	// peer's control messages entirely (UDPListener.adoptTunnelSocket documents
 	// the kernel demux rule). Wired here, where the worker and the listener are
 	// both in scope, rather than in the subsystem, which holds neither.
 	if w != nil && r.listener != nil {
-		w.SetSocketHooks(r.listener.AdoptTunnelSocket, r.listener.ReleaseTunnelSocket)
+		w.setSocketHooks(r.listener.adoptTunnelSocket, r.listener.releaseTunnelSocket)
 	}
 }
 
-// SetPPPDriver wires the reactor's success-event dispatch to a PPP
+// setPPPDriver wires the reactor's success-event dispatch to a PPP
 // driver. The reactor sends ppp.StartSession on the driver's
 // SessionsIn() channel after every kernelSetupSucceeded event, and
 // reads ppp.Event values from EventsOut() to react to peer-side
@@ -451,7 +451,7 @@ func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupF
 // called, the reactor falls back to logging success events without
 // dispatching, which is acceptable on non-Linux or when the iface
 // backend is unavailable.
-func (r *L2TPReactor) SetPPPDriver(d pppDriverIface) {
+func (r *L2TPReactor) setPPPDriver(d pppDriverIface) {
 	r.pppDriver = d
 	if d != nil {
 		r.pppEventsOut = d.EventsOut()

@@ -284,14 +284,14 @@ func (li *linuxInstance) v6SourceLocked() (netip.Addr, bool) {
 	return src, ok
 }
 
-// WarmV6Source resolves and caches the macvlan link-local on the caller's
+// warmV6Source resolves and caches the macvlan link-local on the caller's
 // goroutine (v6SourceWarmer). The orchestrator calls it at AnnounceMaster so the
 // announcer worker never performs the netlink resolution itself: netlink sockets
 // are created in the calling thread's network namespace, and the worker thread's
 // namespace is not guaranteed to be the instance's (QEMU netns tests; Mistake
 // Log). A still-tentative or absent link-local stays unresolved; the send path
 // then skips and counts {reason=no-link-local}.
-func (li *linuxInstance) WarmV6Source() {
+func (li *linuxInstance) warmV6Source() {
 	li.sendMu.Lock()
 	defer li.sendMu.Unlock()
 	li.v6SourceLocked()

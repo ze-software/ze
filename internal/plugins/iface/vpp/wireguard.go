@@ -92,7 +92,7 @@ func (b *vppBackendImpl) ensureWireguardInterface(spec iface.WireguardSpec) (int
 	if err := b.ensureChannel(); err != nil {
 		return 0, err
 	}
-	if existing, ok := b.names.LookupIndex(spec.Name); ok {
+	if existing, ok := b.names.lookupIndex(spec.Name); ok {
 		return interface_types.InterfaceIndex(existing), nil
 	}
 	req := &wireguard.WireguardInterfaceCreate{

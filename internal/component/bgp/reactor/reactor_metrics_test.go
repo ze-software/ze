@@ -216,10 +216,10 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 
 	// Pre-populate source stats: source A has 80% forwarded, 20% overflowed.
 	for range 8 {
-		pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
+		pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
 	}
 	for range 2 {
-		pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
+		pool.recordOverflowed(netip.MustParseAddr("10.0.0.1"))
 	}
 
 	// Create a worker so WorkerCount > 0 and OverflowDepths has an entry.
@@ -235,7 +235,7 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
 		clock:           clock.RealClock{},
 		startTime:       time.Now().Add(-5 * time.Second),
-		recentUpdates:   NewRecentUpdateCache(100),
+		recentUpdates:   newRecentUpdateCache(100),
 	}
 
 	r.updatePeriodicMetrics()
@@ -301,7 +301,7 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	// First dispatch: worker starts and blocks in handler on <-blocker.
 	ok := pool.TryDispatch(key, fwdItem{})
 	require.True(t, ok, "first TryDispatch should succeed")
-	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
+	pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
 
 	// Wait for worker to consume from channel and block in handler.
 	select {
@@ -315,17 +315,17 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 		ok = pool.TryDispatch(key, fwdItem{})
 		require.True(t, ok, "TryDispatch should succeed while channel has space")
 	}
-	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
+	pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
 
 	// Channel is full (4/4). TryDispatch should fail.
 	ok = pool.TryDispatch(key, fwdItem{})
 	require.False(t, ok, "TryDispatch should fail (channel full)")
 	ok = pool.DispatchOverflow(key, fwdItem{})
 	require.True(t, ok, "DispatchOverflow should succeed")
-	pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
+	pool.recordOverflowed(netip.MustParseAddr("10.0.0.1"))
 
 	// Verify source stats: 2 forwarded, 1 overflowed = 1/3 ratio.
-	ratios := pool.SourceOverflowRatios()
+	ratios := pool.sourceOverflowRatios()
 	assert.InDelta(t, 1.0/3.0, ratios["10.0.0.1"], 0.001)
 
 	// Wire metrics and call updatePeriodicMetrics.
@@ -335,7 +335,7 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
 		clock:           clock.RealClock{},
 		startTime:       time.Now(),
-		recentUpdates:   NewRecentUpdateCache(100),
+		recentUpdates:   newRecentUpdateCache(100),
 	}
 
 	r.updatePeriodicMetrics()
@@ -380,7 +380,7 @@ func TestUpdatePeriodicMetrics_PublishesConnectRetryCounter(t *testing.T) {
 		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
 		clock:           clock.RealClock{},
 		startTime:       time.Now().Add(-5 * time.Second),
-		recentUpdates:   NewRecentUpdateCache(100),
+		recentUpdates:   newRecentUpdateCache(100),
 		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 

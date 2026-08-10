@@ -8,7 +8,7 @@ import (
 // PREVENTS: traffic config parsing broken.
 func TestParseTrafficHTB(t *testing.T) {
 	data := `{"traffic":{"control":{"interface":{"eth0":{"qdisc":{"type":"htb","default-class":"bulk","class":{"voip":{"rate":"10mbit","ceil":"100mbit","priority":"0","match":{"mark":{"value":"0x10"}}},"bulk":{"rate":"85mbit","ceil":"100mbit","priority":"2"}}}}}}}}`
-	qosMap, err := ParseTrafficConfig(data)
+	qosMap, err := parseTrafficConfig(data)
 	if err != nil {
 		t.Fatalf("ParseTrafficConfig: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestParseTrafficHTB(t *testing.T) {
 
 func TestParseTrafficNoSection(t *testing.T) {
 	data := `{}`
-	qosMap, err := ParseTrafficConfig(data)
+	qosMap, err := parseTrafficConfig(data)
 	if err != nil {
 		t.Fatalf("ParseTrafficConfig: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestParseTrafficNoSection(t *testing.T) {
 
 func TestParseTrafficInvalidQdisc(t *testing.T) {
 	data := `{"traffic":{"control":{"interface":{"eth0":{"qdisc":{"type":"invalid"}}}}}}`
-	_, err := ParseTrafficConfig(data)
+	_, err := parseTrafficConfig(data)
 	if err == nil {
 		t.Fatal("expected error for invalid qdisc type")
 	}
@@ -87,7 +87,7 @@ func TestParseTrafficInvalidRate(t *testing.T) {
 
 func TestParseTrafficNamedDSCP(t *testing.T) {
 	data := `{"traffic":{"control":{"interface":{"eth0":{"qdisc":{"type":"htb","default-class":"default","class":{"control":{"rate":"10mbit","ceil":"100mbit","priority":"0","match":{"dscp":{"value":"cs6"}}},"default":{"rate":"90mbit","ceil":"100mbit","priority":"1"}}}}}}}}`
-	qosMap, err := ParseTrafficConfig(data)
+	qosMap, err := parseTrafficConfig(data)
 	if err != nil {
 		t.Fatalf("ParseTrafficConfig: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestParseTrafficNamedDSCP(t *testing.T) {
 
 func TestParseTrafficDSCPRejectsOutOfRange(t *testing.T) {
 	data := `{"traffic":{"control":{"interface":{"eth0":{"qdisc":{"type":"htb","class":{"c":{"rate":"10mbit","match":{"dscp":{"value":"64"}}}}}}}}}}`
-	_, err := ParseTrafficConfig(data)
+	_, err := parseTrafficConfig(data)
 	if err == nil {
 		t.Fatal("expected error for dscp value 64")
 	}
@@ -121,7 +121,7 @@ func TestParseTrafficDSCPRejectsOutOfRange(t *testing.T) {
 
 func TestParseTrafficProtocolRejectsOutOfRange(t *testing.T) {
 	data := `{"traffic":{"control":{"interface":{"eth0":{"qdisc":{"type":"htb","class":{"c":{"rate":"10mbit","match":{"protocol":{"value":"256"}}}}}}}}}}`
-	_, err := ParseTrafficConfig(data)
+	_, err := parseTrafficConfig(data)
 	if err == nil {
 		t.Fatal("expected error for protocol value 256")
 	}

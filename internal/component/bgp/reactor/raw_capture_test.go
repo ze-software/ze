@@ -11,7 +11,7 @@ var rawTestStart = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func TestBGPRawCaptureRingAppend(t *testing.T) {
 	c := sim.NewFakeClock(rawTestStart)
-	r := NewBGPRawCaptureRing(c)
+	r := newBGPRawCaptureRing(c)
 	r.Append(0, []byte{1, 2, 3})
 	r.Append(1, []byte{4, 5, 6, 7})
 
@@ -29,7 +29,7 @@ func TestBGPRawCaptureRingAppend(t *testing.T) {
 
 func TestBGPRawCaptureRingOverflow(t *testing.T) {
 	c := sim.NewFakeClock(rawTestStart)
-	r := NewBGPRawCaptureRing(c)
+	r := newBGPRawCaptureRing(c)
 	for i := range bgpRawSlotCount + 10 {
 		r.Append(0, []byte{byte(i)})
 	}
@@ -41,7 +41,7 @@ func TestBGPRawCaptureRingOverflow(t *testing.T) {
 
 func TestBGPRawCaptureRingLimit(t *testing.T) {
 	c := sim.NewFakeClock(rawTestStart)
-	r := NewBGPRawCaptureRing(c)
+	r := newBGPRawCaptureRing(c)
 	for range 10 {
 		r.Append(0, []byte{1})
 	}
@@ -53,7 +53,7 @@ func TestBGPRawCaptureRingLimit(t *testing.T) {
 
 func TestBGPRawCaptureRingEmpty(t *testing.T) {
 	c := sim.NewFakeClock(rawTestStart)
-	r := NewBGPRawCaptureRing(c)
+	r := newBGPRawCaptureRing(c)
 	snap := r.Snapshot(0)
 	if snap == nil {
 		t.Fatal("snapshot should be non-nil empty slice")
@@ -65,7 +65,7 @@ func TestBGPRawCaptureRingEmpty(t *testing.T) {
 
 func TestBGPRawCaptureRingTruncation(t *testing.T) {
 	c := sim.NewFakeClock(rawTestStart)
-	r := NewBGPRawCaptureRing(c)
+	r := newBGPRawCaptureRing(c)
 	big := make([]byte, bgpRawSlotSize+100)
 	r.Append(0, big)
 	snap := r.Snapshot(0)

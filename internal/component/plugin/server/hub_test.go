@@ -77,7 +77,7 @@ func TestParseCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			block, err := ParseCommand(tt.input)
+			block, err := parseCommand(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

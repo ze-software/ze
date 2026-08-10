@@ -12,13 +12,13 @@ type ASPARecord struct {
 	Providers  []uint32
 }
 
-// HopResult is the outcome of checking a single hop pair against the ASPA database.
+// hopResult is the outcome of checking a single hop pair against the ASPA database.
 // draft-ietf-sidrops-aspa-verification Section 6: check_pair function.
-type HopResult uint8
+type hopResult uint8
 
 const (
 	// HopProviderPlus: customer has ASPA record AND provider candidate is in the set.
-	HopProviderPlus HopResult = iota
+	HopProviderPlus hopResult = iota
 	// HopNotProviderPlus: customer has ASPA record AND provider candidate is NOT in the set.
 	HopNotProviderPlus
 	// HopNoAttestation: customer has no ASPA record.
@@ -28,23 +28,23 @@ const (
 // maxASPARecords is the upper bound on customer-AS entries to prevent unbounded growth.
 const maxASPARecords = 1_000_000
 
-// ASPACache stores ASPA records indexed by customer AS for provider authorization lookups.
+// aSPACache stores ASPA records indexed by customer AS for provider authorization lookups.
 // Thread-safe for concurrent read/write access. Separate from ROACache.
-type ASPACache struct {
+type aSPACache struct {
 	records map[uint32]map[uint32]struct{}
 	mu      sync.RWMutex
 }
 
-// NewASPACache creates an empty ASPA cache.
-func NewASPACache() *ASPACache {
-	return &ASPACache{
+// newASPACache creates an empty ASPA cache.
+func newASPACache() *aSPACache {
+	return &aSPACache{
 		records: make(map[uint32]map[uint32]struct{}),
 	}
 }
 
 // Set stores or replaces the provider set for a customer AS.
 // RFC 9582 Section 5.12: announce = full replacement, not delta.
-func (c *ASPACache) Set(customerAS uint32, providers []uint32) {
+func (c *aSPACache) Set(customerAS uint32, providers []uint32) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -63,14 +63,14 @@ func (c *ASPACache) Set(customerAS uint32, providers []uint32) {
 }
 
 // Remove deletes the ASPA record for a customer AS.
-func (c *ASPACache) Remove(customerAS uint32) {
+func (c *aSPACache) Remove(customerAS uint32) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.records, customerAS)
 }
 
 // HasRecord returns true if the customer AS has an ASPA record.
-func (c *ASPACache) hasRecord(customerAS uint32) bool {
+func (c *aSPACache) hasRecord(customerAS uint32) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	_, ok := c.records[customerAS]
@@ -78,7 +78,7 @@ func (c *ASPACache) hasRecord(customerAS uint32) bool {
 }
 
 // IsProvider returns true if providerAS is in the provider set for customerAS.
-func (c *ASPACache) isProvider(customerAS, providerAS uint32) bool {
+func (c *aSPACache) isProvider(customerAS, providerAS uint32) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	providers, ok := c.records[customerAS]
@@ -89,9 +89,9 @@ func (c *ASPACache) isProvider(customerAS, providerAS uint32) bool {
 	return found
 }
 
-// CheckPair checks a single hop pair for ASPA authorization.
+// checkPair checks a single hop pair for ASPA authorization.
 // draft-ietf-sidrops-aspa-verification Section 6: check_pair function.
-func (c *ASPACache) CheckPair(providerCandidate, customerAS uint32) HopResult {
+func (c *aSPACache) checkPair(providerCandidate, customerAS uint32) hopResult {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -107,7 +107,7 @@ func (c *ASPACache) CheckPair(providerCandidate, customerAS uint32) HopResult {
 
 // ApplyDelta atomically removes and adds ASPA records.
 // Called at End of Data after accumulating ASPA PDUs.
-func (c *ASPACache) ApplyDelta(dels []uint32, adds []ASPARecord) {
+func (c *aSPACache) ApplyDelta(dels []uint32, adds []ASPARecord) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -129,14 +129,14 @@ func (c *ASPACache) ApplyDelta(dels []uint32, adds []ASPARecord) {
 }
 
 // Clear removes all ASPA records.
-func (c *ASPACache) clear() {
+func (c *aSPACache) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.records = make(map[uint32]map[uint32]struct{})
 }
 
 // Count returns the number of customer-AS entries.
-func (c *ASPACache) count() int {
+func (c *aSPACache) count() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.records)
@@ -149,7 +149,7 @@ type ASPADiagEntry struct {
 }
 
 // Entries returns up to limit ASPA records for diagnostic display. Pass 0 for all.
-func (c *ASPACache) Entries(limit int) []ASPADiagEntry {
+func (c *aSPACache) Entries(limit int) []ASPADiagEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -171,8 +171,8 @@ func (c *ASPACache) Entries(limit int) []ASPADiagEntry {
 	return result
 }
 
-// LookupCustomer returns the provider set for a customer AS, or nil if not found.
-func (c *ASPACache) LookupCustomer(customerAS uint32) []uint32 {
+// lookupCustomer returns the provider set for a customer AS, or nil if not found.
+func (c *aSPACache) lookupCustomer(customerAS uint32) []uint32 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	provSet, ok := c.records[customerAS]
@@ -186,9 +186,9 @@ func (c *ASPACache) LookupCustomer(customerAS uint32) []uint32 {
 	return providers
 }
 
-// ChangedCustomers returns the set of customer ASNs affected by a delta.
+// changedCustomers returns the set of customer ASNs affected by a delta.
 // Used by the route tracker to determine which routes need re-validation.
-func (c *ASPACache) ChangedCustomers(dels []uint32, adds []ASPARecord) []uint32 {
+func (c *aSPACache) changedCustomers(dels []uint32, adds []ASPARecord) []uint32 {
 	seen := make(map[uint32]struct{}, len(dels)+len(adds))
 	for _, d := range dels {
 		seen[d] = struct{}{}

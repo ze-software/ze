@@ -135,24 +135,24 @@ func GetPrefixReleaser() PrefixReleaser {
 	return r
 }
 
-// UnregisterPrefixHandler removes the prefix handler. Only for use in tests.
-func UnregisterPrefixHandler() {
+// unregisterPrefixHandler removes the prefix handler. Only for use in tests.
+func unregisterPrefixHandler() {
 	handlerMu.Lock()
 	prefixHandler = nil
 	handlerMu.Unlock()
 }
 
-// UnregisterPrefixReleaser removes the prefix releaser. Only for use in tests.
-func UnregisterPrefixReleaser() {
+// unregisterPrefixReleaser removes the prefix releaser. Only for use in tests.
+func unregisterPrefixReleaser() {
 	handlerMu.Lock()
 	prefixReleaser = nil
 	handlerMu.Unlock()
 }
 
-// RegisterPoolStatsProvider registers the function that returns pool
+// registerPoolStatsProvider registers the function that returns pool
 // statistics for "show l2tp pool". Called from the l2tp-pool plugin
 // init(). Ignores nil providers.
-func RegisterPoolStatsProvider(p PoolStatsProvider) {
+func registerPoolStatsProvider(p PoolStatsProvider) {
 	if p == nil {
 		return
 	}
@@ -161,8 +161,8 @@ func RegisterPoolStatsProvider(p PoolStatsProvider) {
 	handlerMu.Unlock()
 }
 
-// GetPoolStatsProvider returns the registered pool stats provider, or nil.
-func GetPoolStatsProvider() PoolStatsProvider {
+// getPoolStatsProvider returns the registered pool stats provider, or nil.
+func getPoolStatsProvider() PoolStatsProvider {
 	handlerMu.RLock()
 	p := poolStatsProvider
 	handlerMu.RUnlock()

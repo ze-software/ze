@@ -21,7 +21,7 @@ func TestRenderWorkbench(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:      "Ze: /bgp/peer",
 			Content:    template.HTML(`<div id="workspace-marker">workspace-content</div>`),
@@ -29,7 +29,7 @@ func TestRenderWorkbench(t *testing.T) {
 			Username:   "alice",
 			CLIPrompt:  "ze>",
 		},
-		Sections: WorkbenchSections([]string{"bgp", "peer"}),
+		Sections: workbenchSections([]string{"bgp", "peer"}),
 	}
 
 	rec := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestRenderWorkbenchTopbarUsesSharedChrome(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:          "Ze: /",
 			Content:        template.HTML(`<p>workspace</p>`),
@@ -77,7 +77,7 @@ func TestRenderWorkbenchTopbarUsesSharedChrome(t *testing.T) {
 			RouterIdentity: "ze",
 			Insecure:       true,
 		},
-		Sections: WorkbenchSections(nil),
+		Sections: workbenchSections(nil),
 	}
 
 	rec := httptest.NewRecorder()
@@ -101,14 +101,14 @@ func TestRenderWorkbenchTopbarShowsConfiguredIdentity(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:          "Ze: /",
 			Content:        template.HTML(`<p>workspace</p>`),
 			ActiveUI:       uiModeTokenWorkbench,
 			RouterIdentity: "edge-01",
 		},
-		Sections: WorkbenchSections(nil),
+		Sections: workbenchSections(nil),
 	}
 
 	rec := httptest.NewRecorder()
@@ -127,12 +127,12 @@ func TestRenderWorkbench_NoFinderMarkers(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:   "Ze: /",
 			Content: template.HTML(`<p>workspace</p>`),
 		},
-		Sections: WorkbenchSections(nil),
+		Sections: workbenchSections(nil),
 	}
 
 	rec := httptest.NewRecorder()
@@ -189,7 +189,7 @@ func TestRenderLayout_NoWorkbenchMarkers(t *testing.T) {
 // PREVENTS: The dashboard losing its highlight, which would mislead the
 // operator about which section they are in.
 func TestWorkbenchSections_DefaultDashboard(t *testing.T) {
-	got := WorkbenchSections(nil)
+	got := workbenchSections(nil)
 	assertOnlySelected(t, got, "dashboard")
 }
 
@@ -199,7 +199,7 @@ func TestWorkbenchSections_DefaultDashboard(t *testing.T) {
 // VALIDATES: Spec D12 -- BGP peer screen is the first complete workflow; the
 // nav must put the operator in Routing when they are on a BGP path.
 func TestWorkbenchSections_BGPRouting(t *testing.T) {
-	got := WorkbenchSections([]string{"bgp", "peer", "thomas"})
+	got := workbenchSections([]string{"bgp", "peer", "thomas"})
 	assertOnlySelected(t, got, "routing")
 }
 
@@ -208,14 +208,14 @@ func TestWorkbenchSections_BGPRouting(t *testing.T) {
 //
 // PREVENTS: Policy edits highlighting Routing and confusing the operator.
 func TestWorkbenchSections_BGPPolicy(t *testing.T) {
-	got := WorkbenchSections([]string{"bgp", "policy", "drop-bogons"})
+	got := workbenchSections([]string{"bgp", "policy", "drop-bogons"})
 	assertOnlySelected(t, got, "policy")
 }
 
 // TestWorkbenchSections_Interfaces verifies the Interfaces section lights up
 // for paths under iface.
 func TestWorkbenchSections_Interfaces(t *testing.T) {
-	got := WorkbenchSections([]string{"iface", "eth0"})
+	got := workbenchSections([]string{"iface", "eth0"})
 	assertOnlySelected(t, got, "interfaces")
 }
 
@@ -225,7 +225,7 @@ func TestWorkbenchSections_Interfaces(t *testing.T) {
 // VALIDATES: Spec TDD entry "TestWorkbenchSectionModel_BGP" (Phase 5 row in
 // spec, but the section model is built in Phase 1).
 func TestWorkbenchSectionModel_BGP(t *testing.T) {
-	got := WorkbenchSections([]string{"bgp"})
+	got := workbenchSections([]string{"bgp"})
 	var routing *WorkbenchSection
 	for i := range got {
 		if got[i].Key == "routing" {
@@ -244,12 +244,12 @@ func TestRenderWorkbenchNav_TwoLevel(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:   "Ze: /",
 			Content: template.HTML(`<p>workspace</p>`),
 		},
-		Sections: WorkbenchSections(nil),
+		Sections: workbenchSections(nil),
 	}
 
 	rec := httptest.NewRecorder()
@@ -269,12 +269,12 @@ func TestRenderWorkbenchNav_ActiveHighlight(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:   "Ze: /bgp/peer",
 			Content: template.HTML(`<p>peers</p>`),
 		},
-		Sections: WorkbenchSections([]string{"bgp", "peer"}),
+		Sections: workbenchSections([]string{"bgp", "peer"}),
 	}
 
 	rec := httptest.NewRecorder()
@@ -292,12 +292,12 @@ func TestRenderWorkbenchNav_ExpandedSection(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := WorkbenchData{
+	data := workbenchData{
 		LayoutData: LayoutData{
 			Title:   "Ze: /bgp/peer",
 			Content: template.HTML(`<p>peers</p>`),
 		},
-		Sections: WorkbenchSections([]string{"bgp", "peer"}),
+		Sections: workbenchSections([]string{"bgp", "peer"}),
 	}
 
 	rec := httptest.NewRecorder()

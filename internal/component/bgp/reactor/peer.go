@@ -495,12 +495,12 @@ func (p *Peer) ExportFilters() []filterapi.FilterRef {
 	return p.settings.ExportFilters
 }
 
-// ConfiguredCapabilities returns the capabilities the config asks this peer to
+// configuredCapabilities returns the capabilities the config asks this peer to
 // advertise, under p.mu. A reload swap replaces the slice when the new set would
 // negotiate to the same result (peer_settings_negotiation.go), so cross-goroutine
 // readers MUST use this accessor rather than p.settings.Capabilities. The returned
 // header is a snapshot; the backing array is never mutated in place.
-func (p *Peer) ConfiguredCapabilities() []capability.Capability {
+func (p *Peer) configuredCapabilities() []capability.Capability {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.settings.Capabilities
@@ -539,9 +539,9 @@ func (p *Peer) NegotiatedHoldTime() uint32 { return p.negotiatedHoldTime.Load() 
 // NegotiatedKeepaliveTime returns the negotiated keepalive time in seconds.
 func (p *Peer) NegotiatedKeepaliveTime() uint32 { return p.negotiatedKeepaliveTime.Load() }
 
-// TCPPorts returns the local and remote TCP ports of the active session.
+// tCPPorts returns the local and remote TCP ports of the active session.
 // Returns 0, 0 if no session or connection is active.
-func (p *Peer) TCPPorts() (localPort, remotePort uint16) {
+func (p *Peer) tCPPorts() (localPort, remotePort uint16) {
 	p.mu.RLock()
 	sess := p.session
 	p.mu.RUnlock()
@@ -736,33 +736,33 @@ func (p *Peer) waitPeerUpBarrier() bool {
 	}
 }
 
-// RecvContext returns the receive encoding context.
+// recvContext returns the receive encoding context.
 // Used when parsing routes received FROM this peer.
 // Returns nil if session is not established.
-func (p *Peer) RecvContext() *bgpctx.EncodingContext {
+func (p *Peer) recvContext() *bgpctx.EncodingContext {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.recvCtx
 }
 
-// RecvContextID returns the receive context ID.
+// recvContextID returns the receive context ID.
 // Used for fast compatibility checks.
-func (p *Peer) RecvContextID() bgpctx.ContextID {
+func (p *Peer) recvContextID() bgpctx.ContextID {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.recvCtxID
 }
 
-// SendContext returns the send encoding context.
+// sendContext returns the send encoding context.
 // Used when encoding routes TO this peer.
 // Returns nil if session is not established.
-func (p *Peer) SendContext() *bgpctx.EncodingContext {
+func (p *Peer) sendContext() *bgpctx.EncodingContext {
 	return p.sendCtx.Load()
 }
 
-// SendContextID returns the send context ID.
+// sendContextID returns the send context ID.
 // Used for fast compatibility checks.
-func (p *Peer) SendContextID() bgpctx.ContextID {
+func (p *Peer) sendContextID() bgpctx.ContextID {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.sendCtxID
@@ -796,7 +796,7 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 
 	if p.session != nil {
 		p.session.SetRecvCtxID(p.recvCtxID)
-		p.session.SetSendCtxID(p.sendCtxID)
+		p.session.setSendCtxID(p.sendCtxID)
 	}
 
 	p.mu.Unlock()
@@ -1116,7 +1116,7 @@ func (p *Peer) setState(s PeerState) {
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
 		if old == PeerStateEstablished && s != PeerStateEstablished {
-			p.IncrConnectionsDropped()
+			p.incrConnectionsDropped()
 		}
 		p.updatePeerStateMetric(old, s)
 		if p.health != nil {

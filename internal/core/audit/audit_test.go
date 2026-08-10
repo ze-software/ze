@@ -119,8 +119,8 @@ func TestAuditAuthFailRecord(t *testing.T) {
 // VALIDATES: Boundary tests for audit log max entries, last valid and first invalid values.
 // PREVENTS: unbounded audit logs or rejecting the documented maximum.
 func TestAuditMaxEntriesBoundary(t *testing.T) {
-	assert.NoError(t, ValidateMaxEntries(100))
-	assert.NoError(t, ValidateMaxEntries(100000))
-	assert.Error(t, ValidateMaxEntries(99))
-	assert.Error(t, ValidateMaxEntries(100001))
+	assert.NoError(t, validateMaxEntries(100))
+	assert.NoError(t, validateMaxEntries(100000))
+	assert.Error(t, validateMaxEntries(99))
+	assert.Error(t, validateMaxEntries(100001))
 }

@@ -93,9 +93,9 @@ func (f TableFamily) Valid() bool {
 	return ok
 }
 
-// ParseTableFamily returns the TableFamily for a name.
+// parseTableFamily returns the TableFamily for a name.
 // Returns familyUnknown and false if the name is not recognized.
-func ParseTableFamily(name string) (TableFamily, bool) {
+func parseTableFamily(name string) (TableFamily, bool) {
 	f, ok := familyByName[name]
 	if !ok {
 		return familyUnknown, false
@@ -149,8 +149,8 @@ func (h ChainHook) Valid() bool {
 	return ok
 }
 
-// ParseChainHook returns the ChainHook for a name.
-func ParseChainHook(name string) (ChainHook, bool) {
+// parseChainHook returns the ChainHook for a name.
+func parseChainHook(name string) (ChainHook, bool) {
 	h, ok := chainHookByName[name]
 	if !ok {
 		return chainHookUnknown, false
@@ -192,8 +192,8 @@ func (c ChainType) Valid() bool {
 	return ok
 }
 
-// ParseChainType returns the ChainType for a name.
-func ParseChainType(name string) (ChainType, bool) {
+// parseChainType returns the ChainType for a name.
+func parseChainType(name string) (ChainType, bool) {
 	ct, ok := chainTypeByName[name]
 	if !ok {
 		return chainTypeUnknown, false
@@ -232,8 +232,8 @@ func (p Policy) Valid() bool {
 	return ok
 }
 
-// ParsePolicy returns the Policy for a name.
-func ParsePolicy(name string) (Policy, bool) {
+// parsePolicy returns the Policy for a name.
+func parsePolicy(name string) (Policy, bool) {
 	pol, ok := policyByName[name]
 	if !ok {
 		return policyUnknown, false

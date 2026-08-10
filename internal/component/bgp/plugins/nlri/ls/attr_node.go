@@ -26,26 +26,26 @@ const (
 
 // --- TLV 1024: Node Flag Bits ---
 
-// LsNodeFlagBits represents BGP-LS Node Flag Bits (TLV 1024).
+// lsNodeFlagBits represents BGP-LS Node Flag Bits (TLV 1024).
 // RFC 7752 Section 3.3.1.1: 1 byte of flags.
 //
 //	+--+--+--+--+--+--+--+--+
 //	|O |T |E |B |R |V |  RSV |
 //	+--+--+--+--+--+--+--+--+
-type LsNodeFlagBits struct {
+type lsNodeFlagBits struct {
 	Flags uint8
 }
 
-func (t *LsNodeFlagBits) Code() uint16 { return TLVNodeFlagBits }
-func (t *LsNodeFlagBits) Len() int     { return 4 + 1 }
+func (t *lsNodeFlagBits) Code() uint16 { return TLVNodeFlagBits }
+func (t *lsNodeFlagBits) Len() int     { return 4 + 1 }
 
-func (t *LsNodeFlagBits) WriteTo(buf []byte, off int) int {
+func (t *lsNodeFlagBits) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVNodeFlagBits, 1)
 	buf[off+4] = t.Flags
 	return n
 }
 
-func (t *LsNodeFlagBits) ToJSON() map[string]any {
+func (t *lsNodeFlagBits) ToJSON() map[string]any {
 	return map[string]any{
 		"node-flags": map[string]any{
 			"O":   int((t.Flags >> 7) & 1),
@@ -59,91 +59,91 @@ func (t *LsNodeFlagBits) ToJSON() map[string]any {
 	}
 }
 
-func decodeNodeFlagBits(data []byte) (LsAttrTLV, error) {
+func decodeNodeFlagBits(data []byte) (lsAttrTLV, error) {
 	// RFC 7752 Section 3.3.1.1: exactly 1 byte
 	if len(data) < 1 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsNodeFlagBits{Flags: data[0]}, nil
+	return &lsNodeFlagBits{Flags: data[0]}, nil
 }
 
 // --- TLV 1025: Opaque Node Attribute ---
 
-// LsOpaqueNodeAttr represents BGP-LS Opaque Node Attribute (TLV 1025).
+// lsOpaqueNodeAttr represents BGP-LS Opaque Node Attribute (TLV 1025).
 // RFC 7752 Section 3.3.1.5: variable-length opaque data.
-type LsOpaqueNodeAttr struct {
+type lsOpaqueNodeAttr struct {
 	Data []byte
 }
 
-func (t *LsOpaqueNodeAttr) Code() uint16 { return TLVOpaqueNodeAttr }
-func (t *LsOpaqueNodeAttr) Len() int     { return 4 + len(t.Data) }
+func (t *lsOpaqueNodeAttr) Code() uint16 { return TLVOpaqueNodeAttr }
+func (t *lsOpaqueNodeAttr) Len() int     { return 4 + len(t.Data) }
 
-func (t *LsOpaqueNodeAttr) WriteTo(buf []byte, off int) int {
+func (t *lsOpaqueNodeAttr) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVOpaqueNodeAttr, t.Data)
 }
 
-func (t *LsOpaqueNodeAttr) ToJSON() map[string]any {
+func (t *lsOpaqueNodeAttr) ToJSON() map[string]any {
 	return map[string]any{
 		"opaque-node-attr": formatHex(t.Data),
 	}
 }
 
-func decodeOpaqueNodeAttr(data []byte) (LsAttrTLV, error) {
+func decodeOpaqueNodeAttr(data []byte) (lsAttrTLV, error) {
 	cp := make([]byte, len(data))
 	copy(cp, data)
-	return &LsOpaqueNodeAttr{Data: cp}, nil
+	return &lsOpaqueNodeAttr{Data: cp}, nil
 }
 
 // --- TLV 1026: Node Name ---
 
-// LsNodeName represents BGP-LS Node Name (TLV 1026).
+// lsNodeName represents BGP-LS Node Name (TLV 1026).
 // RFC 7752 Section 3.3.1.3: variable-length UTF-8 string.
-type LsNodeName struct {
+type lsNodeName struct {
 	Name string
 }
 
-func (t *LsNodeName) Code() uint16 { return TLVNodeName }
-func (t *LsNodeName) Len() int     { return 4 + len(t.Name) }
+func (t *lsNodeName) Code() uint16 { return TLVNodeName }
+func (t *lsNodeName) Len() int     { return 4 + len(t.Name) }
 
-func (t *LsNodeName) WriteTo(buf []byte, off int) int {
+func (t *lsNodeName) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVNodeName, []byte(t.Name))
 }
 
-func (t *LsNodeName) ToJSON() map[string]any {
+func (t *lsNodeName) ToJSON() map[string]any {
 	return map[string]any{
 		"node-name": t.Name,
 	}
 }
 
-func decodeNodeName(data []byte) (LsAttrTLV, error) {
-	return &LsNodeName{Name: string(data)}, nil
+func decodeNodeName(data []byte) (lsAttrTLV, error) {
+	return &lsNodeName{Name: string(data)}, nil
 }
 
 // --- TLV 1027: IS-IS Area Identifier ---
 
-// LsISISAreaID represents BGP-LS IS-IS Area Identifier (TLV 1027).
+// lsISISAreaID represents BGP-LS IS-IS Area Identifier (TLV 1027).
 // RFC 7752 Section 3.3.1.2: variable-length IS-IS area ID.
-type LsISISAreaID struct {
+type lsISISAreaID struct {
 	AreaID []byte
 }
 
-func (t *LsISISAreaID) Code() uint16 { return TLVISISAreaID }
-func (t *LsISISAreaID) Len() int     { return 4 + len(t.AreaID) }
+func (t *lsISISAreaID) Code() uint16 { return TLVISISAreaID }
+func (t *lsISISAreaID) Len() int     { return 4 + len(t.AreaID) }
 
-func (t *LsISISAreaID) WriteTo(buf []byte, off int) int {
+func (t *lsISISAreaID) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVISISAreaID, t.AreaID)
 }
 
-func (t *LsISISAreaID) ToJSON() map[string]any {
+func (t *lsISISAreaID) ToJSON() map[string]any {
 	return map[string]any{
 		"area-id": "0x" + strings.ToUpper(textbuf.StringHex(t.AreaID)),
 	}
 }
 
-func decodeISISAreaID(data []byte) (LsAttrTLV, error) {
+func decodeISISAreaID(data []byte) (lsAttrTLV, error) {
 	cp := make([]byte, len(data))
 	copy(cp, data)
-	return &LsISISAreaID{AreaID: cp}, nil
+	return &lsISISAreaID{AreaID: cp}, nil
 }
 
 // --- TLV 1028: IPv4 Router-ID (Local) ---
@@ -170,7 +170,7 @@ func (t *LsIPv4RouterIDLocal) ToJSON() map[string]any {
 	}
 }
 
-func decodeIPv4RouterIDLocal(data []byte) (LsAttrTLV, error) {
+func decodeIPv4RouterIDLocal(data []byte) (lsAttrTLV, error) {
 	// RFC 7752 Section 3.3.1.4: exactly 4 bytes
 	if len(data) != 4 {
 		return nil, ErrBGPLSTruncated
@@ -181,35 +181,35 @@ func decodeIPv4RouterIDLocal(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1029: IPv6 Router-ID (Local) ---
 
-// LsIPv6RouterIDLocal represents BGP-LS IPv6 Local Router-ID (TLV 1029).
+// lsIPv6RouterIDLocal represents BGP-LS IPv6 Local Router-ID (TLV 1029).
 // RFC 7752 Section 3.3.1.4: 16-byte IPv6 address.
-type LsIPv6RouterIDLocal struct {
+type lsIPv6RouterIDLocal struct {
 	Addr netip.Addr
 }
 
-func (t *LsIPv6RouterIDLocal) Code() uint16 { return TLVIPv6RouterIDLocal }
-func (t *LsIPv6RouterIDLocal) Len() int     { return 4 + 16 }
+func (t *lsIPv6RouterIDLocal) Code() uint16 { return TLVIPv6RouterIDLocal }
+func (t *lsIPv6RouterIDLocal) Len() int     { return 4 + 16 }
 
-func (t *LsIPv6RouterIDLocal) WriteTo(buf []byte, off int) int {
+func (t *lsIPv6RouterIDLocal) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVIPv6RouterIDLocal, 16)
 	b := t.Addr.As16()
 	copy(buf[off+4:], b[:])
 	return n
 }
 
-func (t *LsIPv6RouterIDLocal) ToJSON() map[string]any {
+func (t *lsIPv6RouterIDLocal) ToJSON() map[string]any {
 	return map[string]any{
 		"local-router-ids": []string{t.Addr.String()},
 	}
 }
 
-func decodeIPv6RouterIDLocal(data []byte) (LsAttrTLV, error) {
+func decodeIPv6RouterIDLocal(data []byte) (lsAttrTLV, error) {
 	// RFC 7752 Section 3.3.1.4: exactly 16 bytes
 	if len(data) != 16 {
 		return nil, ErrBGPLSTruncated
 	}
 	addr := netip.AddrFrom16([16]byte(data[:16]))
-	return &LsIPv6RouterIDLocal{Addr: addr}, nil
+	return &lsIPv6RouterIDLocal{Addr: addr}, nil
 }
 
 // --- Phase 2: SR-MPLS Node Attribute TLVs (RFC 9085) ---
@@ -355,7 +355,7 @@ func (t *LsSRCapabilities) ToJSON() map[string]any {
 	}
 }
 
-func decodeSRCapabilities(data []byte) (LsAttrTLV, error) {
+func decodeSRCapabilities(data []byte) (lsAttrTLV, error) {
 	// RFC 9085 Section 3: minimum flags(1) + reserved(1) = 2 bytes
 	if len(data) < 2 {
 		return nil, ErrBGPLSTruncated
@@ -369,22 +369,22 @@ func decodeSRCapabilities(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1035: SR Algorithm ---
 
-// LsSRAlgorithm represents BGP-LS SR Algorithm (TLV 1035).
+// lsSRAlgorithm represents BGP-LS SR Algorithm (TLV 1035).
 // RFC 9085 Section 4: variable-length array of algorithm IDs.
-type LsSRAlgorithm struct {
+type lsSRAlgorithm struct {
 	Algorithms []uint8
 }
 
-func (t *LsSRAlgorithm) Code() uint16 { return TLVSRAlgorithm }
-func (t *LsSRAlgorithm) Len() int     { return 4 + len(t.Algorithms) }
+func (t *lsSRAlgorithm) Code() uint16 { return TLVSRAlgorithm }
+func (t *lsSRAlgorithm) Len() int     { return 4 + len(t.Algorithms) }
 
-func (t *LsSRAlgorithm) WriteTo(buf []byte, off int) int {
+func (t *lsSRAlgorithm) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVSRAlgorithm, len(t.Algorithms))
 	copy(buf[off+4:], t.Algorithms)
 	return n
 }
 
-func (t *LsSRAlgorithm) ToJSON() map[string]any {
+func (t *lsSRAlgorithm) ToJSON() map[string]any {
 	algos := make([]int, len(t.Algorithms))
 	for i, a := range t.Algorithms {
 		algos[i] = int(a)
@@ -392,10 +392,10 @@ func (t *LsSRAlgorithm) ToJSON() map[string]any {
 	return map[string]any{"sr-algorithms": algos}
 }
 
-func decodeSRAlgorithm(data []byte) (LsAttrTLV, error) {
+func decodeSRAlgorithm(data []byte) (lsAttrTLV, error) {
 	algos := make([]uint8, len(data))
 	copy(algos, data)
-	return &LsSRAlgorithm{Algorithms: algos}, nil
+	return &lsSRAlgorithm{Algorithms: algos}, nil
 }
 
 // --- TLV 1036: SR Local Block ---
@@ -428,7 +428,7 @@ func (t *LsSRLocalBlock) ToJSON() map[string]any {
 	return map[string]any{"sr-local-block": map[string]any{"ranges": srLabelRangesToJSON(t.Ranges)}}
 }
 
-func decodeSRLocalBlock(data []byte) (LsAttrTLV, error) {
+func decodeSRLocalBlock(data []byte) (lsAttrTLV, error) {
 	if len(data) < 2 {
 		return nil, ErrBGPLSTruncated
 	}

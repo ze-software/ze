@@ -92,7 +92,7 @@ func FuzzParseBGPLSWithRest(f *testing.F) {
 	f.Add([]byte{0x00, 0x01, 0x00, 0x00}) // Zero length
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		nlri, rest, err := ParseBGPLSWithRest(data)
+		nlri, rest, err := parseBGPLSWithRest(data)
 		if err != nil {
 			return
 		}

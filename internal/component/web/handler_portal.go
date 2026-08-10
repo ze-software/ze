@@ -101,9 +101,9 @@ func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 		}
 
 		if mode == UIModeWorkbench {
-			wb := WorkbenchData{
+			wb := workbenchData{
 				LayoutData: layoutData,
-				Sections:   WorkbenchSections(nil),
+				Sections:   workbenchSections(nil),
 			}
 			if err := renderer.RenderWorkbench(w, wb); err != nil {
 				http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)

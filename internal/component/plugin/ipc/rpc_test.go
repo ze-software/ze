@@ -60,7 +60,7 @@ func TestRPCDeclareRegistration(t *testing.T) {
 	// Plugin sends declare-registration via plugin conn (write side)
 	done := make(chan error, 1)
 	go func() {
-		done <- pluginConn.SendDeclareRegistration(context.Background(), regInput)
+		done <- pluginConn.sendDeclareRegistration(context.Background(), regInput)
 	}()
 
 	// Engine receives via plugin conn (read side)
@@ -175,7 +175,7 @@ func TestRPCDeclareCapabilities(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- pluginConn.SendDeclareCapabilities(context.Background(), caps)
+		done <- pluginConn.sendDeclareCapabilities(context.Background(), caps)
 	}()
 
 	req, err := engineConn.ReadRequest(context.Background())
@@ -456,7 +456,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 	errCh := make(chan error, 1)
 	go func() {
 		// Stage 1: plugin sends declare-registration
-		if err := pluginConn.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+		if err := pluginConn.sendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
 			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
 			Commands:    []rpc.CommandDecl{{Name: "show-routes", Description: "Show routes"}},
 			WantsConfig: []string{"bgp"},
@@ -477,7 +477,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 		}
 
 		// Stage 3: plugin sends declare-capabilities
-		if err := pluginConn.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{}); err != nil {
+		if err := pluginConn.sendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{}); err != nil {
 			errCh <- err
 			return
 		}
@@ -613,7 +613,7 @@ func TestEngineDecodeCapability(t *testing.T) {
 		err  error
 	}, 1)
 	go func() {
-		j, err := engineConn.SendDecodeCapability(context.Background(), 73, "07686f73746e616d65")
+		j, err := engineConn.sendDecodeCapability(context.Background(), 73, "07686f73746e616d65")
 		done <- struct {
 			json string
 			err  error

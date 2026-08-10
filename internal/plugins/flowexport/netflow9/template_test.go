@@ -29,8 +29,8 @@ func TestNetflow9Template(t *testing.T) {
 
 	// Field count
 	fc := binary.BigEndian.Uint16(tmpl[6:])
-	if int(fc) != CounterFieldCount() {
-		t.Errorf("field count: got %d, want %d", fc, CounterFieldCount())
+	if int(fc) != counterFieldCount() {
+		t.Errorf("field count: got %d, want %d", fc, counterFieldCount())
 	}
 
 	// Verify each field specifier

@@ -57,9 +57,9 @@ func GetUsernameFromRequest(r *http.Request) string {
 	return ""
 }
 
-// GetProfilesFromRequest extracts the authenticated user's authz profile names
+// getProfilesFromRequest extracts the authenticated user's authz profile names
 // from the request context. Returns nil if the context does not carry profiles.
-func GetProfilesFromRequest(r *http.Request) []string {
+func getProfilesFromRequest(r *http.Request) []string {
 	if v, ok := r.Context().Value(ctxKeyProfiles).([]string); ok {
 		return v
 	}

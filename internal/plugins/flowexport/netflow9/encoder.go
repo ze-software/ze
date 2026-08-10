@@ -12,9 +12,9 @@ import (
 // RFC 3954 Section 5.1: 20 octets.
 const HeaderSize = 20
 
-// WritePacketHeader writes a NetFlow v9 export packet header at off.
+// writePacketHeader writes a NetFlow v9 export packet header at off.
 // RFC 3954 Section 5.1: version number MUST be 9.
-func WritePacketHeader(buf []byte, off int, count uint16, sysUpTime, unixSecs, seqNum, sourceID uint32) int {
+func writePacketHeader(buf []byte, off int, count uint16, sysUpTime, unixSecs, seqNum, sourceID uint32) int {
 	binary.BigEndian.PutUint16(buf[off:], 9)
 	binary.BigEndian.PutUint16(buf[off+2:], count)
 	binary.BigEndian.PutUint32(buf[off+4:], sysUpTime)
@@ -24,7 +24,7 @@ func WritePacketHeader(buf []byte, off int, count uint16, sysUpTime, unixSecs, s
 	return HeaderSize
 }
 
-// WriteExportPacket writes a complete NetFlow v9 export packet into buf
+// writeExportPacket writes a complete NetFlow v9 export packet into buf
 // starting at offset 0. It writes the header, optionally the template
 // FlowSet, then the data FlowSet for the given interfaces.
 // Returns the total bytes written.
@@ -33,7 +33,7 @@ func WritePacketHeader(buf []byte, off int, count uint16, sysUpTime, unixSecs, s
 // needTemplate is true, the template FlowSet is included before the
 // data FlowSet.
 // RFC 3954 Section 5.1: count = total records across all FlowSets.
-func WriteExportPacket(buf []byte, sysUpTime, unixSecs, seqNum, sourceID uint32, templateBytes []byte, needTemplate bool, ifaces []flowexport.InterfaceCounters) int {
+func writeExportPacket(buf []byte, sysUpTime, unixSecs, seqNum, sourceID uint32, templateBytes []byte, needTemplate bool, ifaces []flowexport.InterfaceCounters) int {
 	off := HeaderSize
 
 	var totalRecords uint16
@@ -45,12 +45,12 @@ func WriteExportPacket(buf []byte, sysUpTime, unixSecs, seqNum, sourceID uint32,
 	}
 
 	if len(ifaces) > 0 {
-		n, dataRecords := WriteDataFlowSet(buf, off, CounterTemplateID, ifaces)
+		n, dataRecords := writeDataFlowSet(buf, off, CounterTemplateID, ifaces)
 		off += n
 		totalRecords += dataRecords
 	}
 
-	WritePacketHeader(buf, 0, totalRecords, sysUpTime, unixSecs, seqNum, sourceID)
+	writePacketHeader(buf, 0, totalRecords, sysUpTime, unixSecs, seqNum, sourceID)
 
 	return off
 }

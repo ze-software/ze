@@ -12,7 +12,7 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:crashes",
 			Handler: func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-				return HandleShowCrashes(args)
+				return handleShowCrashes(args)
 			},
 		},
 	)

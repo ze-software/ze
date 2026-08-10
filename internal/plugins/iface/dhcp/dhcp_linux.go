@@ -29,7 +29,7 @@ type DHCPClient struct {
 	ifaceName string
 	unit      string
 	eventBus  ze.EventBus
-	config    DHCPConfig
+	config    dHCPConfig
 	stop      chan struct{}
 	done      chan struct{}
 	v4        bool
@@ -38,10 +38,10 @@ type DHCPClient struct {
 	stopOnce  sync.Once
 }
 
-// NewDHCPClient creates a DHCP client for the named interface.
+// newDHCPClient creates a DHCP client for the named interface.
 // eventBus must not be nil. At least one of v4 or v6 must be true.
 // cfg carries optional parameters (hostname, client-id) from the config.
-func NewDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cfg DHCPConfig) (*DHCPClient, error) {
+func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cfg dHCPConfig) (*DHCPClient, error) {
 	if eventBus == nil {
 		return nil, errors.New("iface dhcp: event bus is nil")
 	}

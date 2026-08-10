@@ -45,7 +45,7 @@ func TestKeepalivePack(t *testing.T) {
 // PREVENTS: Rejecting valid KEEPALIVE messages.
 func TestKeepaliveUnpack(t *testing.T) {
 	// KEEPALIVE has no body
-	msg, err := UnpackKeepalive([]byte{})
+	msg, err := unpackKeepalive([]byte{})
 	require.NoError(t, err)
 	assert.NotNil(t, msg)
 	assert.Equal(t, msgtype.TypeKEEPALIVE, msg.Type())
@@ -63,7 +63,7 @@ func TestKeepaliveRoundTrip(t *testing.T) {
 	// Strip header for unpacking (body only)
 	body := data[HeaderLen:]
 
-	parsed, err := UnpackKeepalive(body)
+	parsed, err := unpackKeepalive(body)
 	require.NoError(t, err)
 	assert.Equal(t, msgtype.TypeKEEPALIVE, parsed.Type())
 }
@@ -94,7 +94,7 @@ func TestKeepaliveRejectsPayload(t *testing.T) {
 	// KEEPALIVE with unexpected payload data
 	payload := []byte{0x01, 0x02, 0x03}
 
-	msg, err := UnpackKeepalive(payload)
+	msg, err := unpackKeepalive(payload)
 	require.Error(t, err, "KEEPALIVE with payload must be rejected")
 	assert.Nil(t, msg)
 

@@ -327,8 +327,8 @@ func TestParseGlob(t *testing.T) {
 		if sel.SelectorKind() != KindGlob {
 			t.Errorf("Parse(%q) kind = %v, want KindGlob", input, sel.SelectorKind())
 		}
-		if sel.GlobPattern() != input {
-			t.Errorf("Parse(%q).GlobPattern() = %q", input, sel.GlobPattern())
+		if sel.globPattern() != input {
+			t.Errorf("Parse(%q).GlobPattern() = %q", input, sel.globPattern())
 		}
 	}
 }
@@ -387,7 +387,7 @@ func TestStringRoundTrip(t *testing.T) {
 		{"addr", Addr(netip.MustParseAddr("10.0.0.1")), "10.0.0.1"},
 		{"exclude-addr", ExcludeAddr(netip.MustParseAddr("10.0.0.1")), "!10.0.0.1"},
 		{"exclude-name", excludeName("upstream"), "!upstream"},
-		{"multi", MultiAddr([]netip.Addr{
+		{"multi", multiAddr([]netip.Addr{
 			netip.MustParseAddr("10.0.0.1"),
 			netip.MustParseAddr("10.0.0.2"),
 		}), "10.0.0.1,10.0.0.2"},
@@ -683,7 +683,7 @@ func TestMultiAddrIPSetThreshold(t *testing.T) {
 	for i := range ips {
 		ips[i] = netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 1)})
 	}
-	sel := MultiAddr(ips)
+	sel := multiAddr(ips)
 	if sel.ipSet == nil {
 		t.Fatal("ipSet should be non-nil for >16 IPs")
 	}
@@ -707,7 +707,7 @@ func TestMultiAddrBelowThreshold(t *testing.T) {
 	for i := range ips {
 		ips[i] = netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 1)})
 	}
-	sel := MultiAddr(ips)
+	sel := multiAddr(ips)
 	if sel.ipSet != nil {
 		t.Error("ipSet should be nil for <=16 IPs")
 	}
@@ -735,8 +735,8 @@ func TestMatchesPeerKeyAllBranches(t *testing.T) {
 		{"addr-ip-no-match", Addr(netip.MustParseAddr("10.0.0.1")), "10.0.0.2", false},
 		{"addr-nonip-string-match", Addr(netip.MustParseAddr("10.0.0.1")), "10.0.0.1", true},
 		{"addr-nonip-no-match", Addr(netip.MustParseAddr("10.0.0.1")), "router1", false},
-		{"addrs-ip-match", MultiAddr([]netip.Addr{netip.MustParseAddr("10.0.0.1")}), "10.0.0.1", true},
-		{"addrs-nonip", MultiAddr([]netip.Addr{netip.MustParseAddr("10.0.0.1")}), "router1", false},
+		{"addrs-ip-match", multiAddr([]netip.Addr{netip.MustParseAddr("10.0.0.1")}), "10.0.0.1", true},
+		{"addrs-nonip", multiAddr([]netip.Addr{netip.MustParseAddr("10.0.0.1")}), "router1", false},
 		{"asn-returns-false", ASN(65000), "10.0.0.1", false},
 		{"glob-returns-false", Glob("10.*"), "10.0.0.1", false},
 	}

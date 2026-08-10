@@ -24,8 +24,8 @@ func ValidateRate(rate uint64) error {
 	return nil
 }
 
-// ValidateCeil checks that ceil is >= rate.
-func ValidateCeil(rate, ceil uint64) error {
+// validateCeil checks that ceil is >= rate.
+func validateCeil(rate, ceil uint64) error {
 	if ceil < rate {
 		return fmt.Errorf("traffic: ceil (%d) must be >= rate (%d)", ceil, rate)
 	}
@@ -132,8 +132,8 @@ func (f FilterType) Valid() bool {
 	return ok
 }
 
-// ParseFilterType returns the FilterType for a name.
-func ParseFilterType(name string) (FilterType, bool) {
+// parseFilterType returns the FilterType for a name.
+func parseFilterType(name string) (FilterType, bool) {
 	ft, ok := filterTypeByName[name]
 	if !ok {
 		return filterUnknown, false

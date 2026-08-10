@@ -361,9 +361,9 @@ func (s *Server) ExecutorForUser(username, remoteAddr string) CommandExecutor {
 	return factory(username, remoteAddr)
 }
 
-// StreamingExecutorForUser returns a StreamingExecutor for the given username.
+// streamingExecutorForUser returns a StreamingExecutor for the given username.
 // Returns nil if no streaming executor factory is set.
-func (s *Server) StreamingExecutorForUser(username, remoteAddr string) StreamingExecutor {
+func (s *Server) streamingExecutorForUser(username, remoteAddr string) StreamingExecutor {
 	s.mu.Lock()
 	factory := s.streamingExecutorFactory
 	s.mu.Unlock()

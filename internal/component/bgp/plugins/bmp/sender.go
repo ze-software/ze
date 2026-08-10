@@ -339,8 +339,8 @@ func (ss *senderSession) clearConnAndResetIf(c net.Conn, q *txQueue) {
 func (ss *senderSession) sendInitiation(conn net.Conn) error {
 	init := &Initiation{
 		TLVs: []TLV{
-			MakeStringTLV(InitTLVSysName, "ze"),
-			MakeStringTLV(InitTLVSysDescr, "ze BGP daemon"),
+			makeStringTLV(InitTLVSysName, "ze"),
+			makeStringTLV(InitTLVSysDescr, "ze BGP daemon"),
 		},
 	}
 
@@ -351,7 +351,7 @@ func (ss *senderSession) sendInitiation(conn net.Conn) error {
 	// provided scratch buffer, the same code path stays on the stack.
 	var stack [CommonHeaderSize + TLVHeaderSize + 2 + TLVHeaderSize + 14]byte
 	buf := stack[:]
-	n := WriteInitiation(buf, 0, init)
+	n := writeInitiation(buf, 0, init)
 	return ss.writeRaw(conn, buf[:n])
 }
 
@@ -407,7 +407,7 @@ func (ss *senderSession) acquireFlush(d time.Duration) bool {
 func (ss *senderSession) writeTerminationLocked(conn net.Conn) {
 	term := &Termination{
 		TLVs: []TLV{
-			MakeStringTLV(TermTLVString, "shutting down"),
+			makeStringTLV(TermTLVString, "shutting down"),
 		},
 	}
 
@@ -417,7 +417,7 @@ func (ss *senderSession) writeTerminationLocked(conn net.Conn) {
 	// becomes a concrete type.
 	var stack [CommonHeaderSize + TLVHeaderSize + 13]byte
 	buf := stack[:]
-	n := WriteTermination(buf, 0, term)
+	n := writeTermination(buf, 0, term)
 	if err := ss.writeDeadlineLocked(conn, buf[:n], terminationWait); err != nil {
 		logger().Debug("bmp: sender termination write failed", "collector", ss.name, "error", err)
 	}
@@ -617,7 +617,7 @@ func (ss *senderSession) writePeerUpLocked(peer PeerHeader, localAddr [16]byte, 
 	if err != nil {
 		return err
 	}
-	n := WritePeerUp(buf, 0, pu)
+	n := writePeerUp(buf, 0, pu)
 	return ss.enqueueLocked(buf[:n])
 }
 
@@ -636,7 +636,7 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 	if err != nil {
 		return err
 	}
-	n := WritePeerDown(buf, 0, pd)
+	n := writePeerDown(buf, 0, pd)
 	return ss.enqueueLocked(buf[:n])
 }
 
@@ -660,7 +660,7 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 		return err
 	}
 	off := CommonHeaderSize
-	off += WritePeerHeader(buf, off, peer)
+	off += writePeerHeader(buf, off, peer)
 	// Synthesize BGP message header (RFC 4271 §4.1): Marker(16) + Length(2) + Type(1).
 	copy(buf[off:], message.Marker[:])
 	binary.BigEndian.PutUint16(buf[off+message.MarkerLen:], uint16(bgpPDULen)) //nolint:gosec // bgpPDULen bounded by scratch size (maxBMPMsgSize < 65535)
@@ -673,7 +673,7 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 
 // writeStatisticsReport encodes and sends a BMP Statistics Report.
 func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntry) error {
-	sr := &StatisticsReport{
+	sr := &statisticsReport{
 		Peer:  peer,
 		Stats: stats,
 	}
@@ -690,7 +690,7 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 	if err != nil {
 		return err
 	}
-	n := WriteStatisticsReport(buf, 0, sr)
+	n := writeStatisticsReport(buf, 0, sr)
 	return ss.enqueueLocked(buf[:n])
 }
 
@@ -712,7 +712,7 @@ func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType msgtype.Me
 	}
 
 	off := CommonHeaderSize
-	off += WritePeerHeader(buf, off, peer)
+	off += writePeerHeader(buf, off, peer)
 
 	// TLV type 0 = BGP Message (RFC 7854 S4.7).
 	binary.BigEndian.PutUint16(buf[off:], MirrorTLVBGPMsg)

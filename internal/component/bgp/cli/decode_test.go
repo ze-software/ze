@@ -62,7 +62,7 @@ func TestDecodeOpen(t *testing.T) {
 	// From test/decode/bgp-open-sofware-version.test
 	hexInput := testOpenMsgHex
 
-	output, err := DecodeHexPacket(hexInput, "open", "", true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	require.NoError(t, err, "decode failed")
 
 	// Parse JSON output
@@ -116,7 +116,7 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
-	output, err := DecodeHexPacket(hexInput, "open", "", true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -174,7 +174,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode WITH plugin
-	output, err := DecodeHexPacket(hexInput, "open", "", true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -229,7 +229,7 @@ func TestDecodeOpenGRWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330104FFFD00B40A00000216021401040001000141040000FFFD4006007800010180"
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
-	output, err := DecodeHexPacket(hexInput, "open", "", true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -281,7 +281,7 @@ func TestDecodeOpenRRWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0104FFFD00B40A00000210020E01040001000141040000FFFD0200"
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
-	output, err := DecodeHexPacket(hexInput, "open", "", true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -333,7 +333,7 @@ func TestDecodeUpdate(t *testing.T) {
 	// UPDATE message from test/decode/ipv4-unicast-1.test
 	hexInput := testUpdateMsgHex
 
-	output, err := DecodeHexPacket(hexInput, "update", "", true)
+	output, err := decodeHexPacket(hexInput, "update", "", true)
 	require.NoError(t, err, "decode failed")
 
 	// Parse JSON output
@@ -536,7 +536,7 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	// From bgp-flow-2: rate-limit:0
 	hexInput := "000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109"
 
-	output, err := DecodeHexPacket(hexInput, "update", "ipv4/flow", true)
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -564,7 +564,7 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 func TestFlowSpecWithPacketRateExtendedCommunity(t *testing.T) {
 	hexInput := "0000002E4001010040020040050400000064C01008800C0000447A0000800E1200018500000C02180A000103810605910C38"
 
-	output, err := DecodeHexPacket(hexInput, "update", "ipv4/flow", true)
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -595,7 +595,7 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	// From bgp-ls-2.test - Link NLRI with local and remote node descriptors
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := DecodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -659,7 +659,7 @@ func TestBGPLSAttribute(t *testing.T) {
 	// From bgp-ls-2.test - has bgp-ls attribute with igp-metric: 1
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := DecodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -690,7 +690,7 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 	// Even if empty, they should be present as arrays
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := DecodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -725,7 +725,7 @@ func TestBGPLSRawNLRIFormat(t *testing.T) {
 	// Type: nlri bgp-ls/bgp-ls
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := DecodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -747,7 +747,7 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 	// Link NLRI should have l3-routing-topology from identifier field
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := DecodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -816,7 +816,7 @@ func TestDecodeNLRIFlag(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	// DecodeHexPacket with "nlri" type and family
-	output, err := DecodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -839,7 +839,7 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	// This tests the infrastructure path even without actual plugin
 	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
 
-	output, err := DecodeHexPacket(hexInput, "nlri", "ipv4/flow", true)
+	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -916,7 +916,7 @@ func TestDecodeOpenHuman(t *testing.T) {
 	// Simple OPEN message: version 4, AS 65533, hold time 180, router-id 10.0.0.2
 	hexInput := testOpenMsgHex
 
-	output, err := DecodeHexPacket(hexInput, "open", "", false)
+	output, err := decodeHexPacket(hexInput, "open", "", false)
 	require.NoError(t, err, "decode failed")
 
 	// Human output should NOT be valid JSON
@@ -943,7 +943,7 @@ func TestDecodeOpenHuman(t *testing.T) {
 func TestDecodeOpenJSON(t *testing.T) {
 	hexInput := testOpenMsgHex
 
-	output, err := DecodeHexPacket(hexInput, "open", "", true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	require.NoError(t, err, "decode failed")
 
 	// JSON output should be valid JSON
@@ -974,7 +974,7 @@ func TestDecodeUpdateHuman(t *testing.T) {
 	// UPDATE message from test/decode/ipv4-unicast-1.test
 	hexInput := testUpdateMsgHex
 
-	output, err := DecodeHexPacket(hexInput, "update", "", false)
+	output, err := decodeHexPacket(hexInput, "update", "", false)
 	require.NoError(t, err, "decode failed")
 
 	// Human output should NOT be valid JSON
@@ -994,7 +994,7 @@ func TestDecodeUpdateHuman(t *testing.T) {
 func TestDecodeUpdateJSON(t *testing.T) {
 	hexInput := testUpdateMsgHex
 
-	output, err := DecodeHexPacket(hexInput, "update", "", true)
+	output, err := decodeHexPacket(hexInput, "update", "", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -1019,7 +1019,7 @@ func TestDecodeNLRIHuman(t *testing.T) {
 	// BGP-LS Link NLRI
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := DecodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", false)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", false)
 	require.NoError(t, err, "decode failed")
 
 	// Human output should NOT be valid JSON
@@ -1036,7 +1036,7 @@ func TestDecodeNLRIHuman(t *testing.T) {
 func TestDecodeNLRIJSON(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := DecodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -1053,7 +1053,7 @@ func TestDecodeErrorHuman(t *testing.T) {
 	// Invalid hex input
 	hexInput := "ZZZ"
 
-	_, err := DecodeHexPacket(hexInput, "open", "", false)
+	_, err := decodeHexPacket(hexInput, "open", "", false)
 	require.Error(t, err, "expected error for invalid hex")
 	assert.Contains(t, err.Error(), "invalid hex")
 }
@@ -1066,7 +1066,7 @@ func TestParsePluginName(t *testing.T) {
 	tests := []struct {
 		input    string
 		wantName string
-		wantMode PluginMode
+		wantMode pluginMode
 		wantPath string
 		wantArgs []string
 	}{
@@ -1116,7 +1116,7 @@ func TestParsePluginNameBoundary(t *testing.T) {
 	tests := []struct {
 		input    string
 		wantName string
-		wantMode PluginMode
+		wantMode pluginMode
 		wantPath string
 		wantArgs []string
 	}{
@@ -1273,7 +1273,7 @@ func TestDecodeInput_ValidFamily_YANG(t *testing.T) {
 func TestDecodeOutput_Unchanged(t *testing.T) {
 	// Decode FlowSpec NLRI - should produce same output as before
 	hexData := testFlowSpecNLRI
-	output, err := DecodeHexPacket(hexData, msgTypeNLRI, testFlowSpecFamily, true)
+	output, err := decodeHexPacket(hexData, msgTypeNLRI, testFlowSpecFamily, true)
 	require.NoError(t, err, "decode failed")
 
 	// Verify it's valid JSON
@@ -1337,7 +1337,7 @@ func TestDecodeNotification_JSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := DecodeHexPacket(tt.hex, msgTypeNotification, "", true)
+			output, err := decodeHexPacket(tt.hex, msgTypeNotification, "", true)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -1357,7 +1357,7 @@ func TestDecodeNotification_JSON(t *testing.T) {
 // PREVENTS: KEEPALIVE decode regression.
 func TestDecodeKeepalive_JSON(t *testing.T) {
 	// marker(16) + length(0013=19) + type(04)
-	output, err := DecodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msgTypeKeepalive, "", true)
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msgTypeKeepalive, "", true)
 	require.NoError(t, err)
 
 	var decoded map[string]any
@@ -1375,7 +1375,7 @@ func TestDecodeKeepalive_JSON(t *testing.T) {
 // PREVENTS: Accepting malformed KEEPALIVE that has trailing data.
 func TestDecodeKeepalive_WrongLength(t *testing.T) {
 	// length(0015=21) instead of 19 -- invalid for KEEPALIVE
-	_, err := DecodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001504DEAD", msgTypeKeepalive, "", true)
+	_, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001504DEAD", msgTypeKeepalive, "", true)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "KEEPALIVE length")
 }
@@ -1385,7 +1385,7 @@ func TestDecodeKeepalive_WrongLength(t *testing.T) {
 // VALIDATES: detectMessageType returns "notification" for type byte 3.
 // PREVENTS: NOTIFICATION falling through to UPDATE decoder.
 func TestDecodeAutoDetect_Notification(t *testing.T) {
-	output, err := DecodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602", "", "", true)
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602", "", "", true)
 	require.NoError(t, err)
 
 	var decoded map[string]any
@@ -1400,7 +1400,7 @@ func TestDecodeAutoDetect_Notification(t *testing.T) {
 // VALIDATES: detectMessageType returns "keepalive" for type byte 4.
 // PREVENTS: KEEPALIVE falling through to UPDATE decoder.
 func TestDecodeAutoDetect_Keepalive(t *testing.T) {
-	output, err := DecodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", "", "", true)
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", "", "", true)
 	require.NoError(t, err)
 
 	var decoded map[string]any
@@ -1415,7 +1415,7 @@ func TestDecodeAutoDetect_Keepalive(t *testing.T) {
 // VALIDATES: Non-JSON NOTIFICATION output contains error details.
 // PREVENTS: Human output path crashing or returning empty.
 func TestDecodeNotification_Human(t *testing.T) {
-	output, err := DecodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602", msgTypeNotification, "", false)
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602", msgTypeNotification, "", false)
 	require.NoError(t, err)
 	assert.Contains(t, output, "NOTIFICATION")
 	assert.Contains(t, output, "Cease")
@@ -1426,7 +1426,7 @@ func TestDecodeNotification_Human(t *testing.T) {
 // VALIDATES: Non-JSON KEEPALIVE output returns "KEEPALIVE".
 // PREVENTS: Human output path returning empty or crashing.
 func TestDecodeKeepalive_Human(t *testing.T) {
-	output, err := DecodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msgTypeKeepalive, "", false)
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msgTypeKeepalive, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, "KEEPALIVE", output)
 }

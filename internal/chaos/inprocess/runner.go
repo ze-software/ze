@@ -748,7 +748,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			// the moment of the decision, and it does not trail the reader drain the
 			// way EventDisconnected does. peerEstablished reads the reactor's own peer
 			// state machine, which is the side that decides a connection collision.
-			if chaosProg.AwaitingFirstFall(i) &&
+			if chaosProg.awaitingFirstFall(i) &&
 				(!es.Up(i) || !peerEstablished(reactor, cfg.Profiles[i].Address)) {
 				return false
 			}

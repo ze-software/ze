@@ -16,7 +16,7 @@ import (
 )
 
 func TestEstablishedStateSetAndSnapshot(t *testing.T) {
-	es := NewEstablishedState(4)
+	es := newEstablishedState(4)
 
 	snap := es.Snapshot()
 	require.Len(t, snap, 4)
@@ -33,7 +33,7 @@ func TestEstablishedStateSetAndSnapshot(t *testing.T) {
 }
 
 func TestEstablishedStateSetFalse(t *testing.T) {
-	es := NewEstablishedState(3)
+	es := newEstablishedState(3)
 	es.Set(1, true)
 	assert.Equal(t, []bool{false, true, false}, es.Snapshot())
 
@@ -42,7 +42,7 @@ func TestEstablishedStateSetFalse(t *testing.T) {
 }
 
 func TestEstablishedStateConcurrent(t *testing.T) {
-	es := NewEstablishedState(10)
+	es := newEstablishedState(10)
 
 	var wg sync.WaitGroup
 	for i := range 10 {

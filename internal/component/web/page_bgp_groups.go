@@ -67,8 +67,8 @@ func extractGroupEntry(name string, groupTree *config.Tree) groupEntry {
 	return ge
 }
 
-// BuildBGPGroupsTableData constructs a WorkbenchTableData for the groups table.
-func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
+// buildBGPGroupsTableData constructs a WorkbenchTableData for the groups table.
+func buildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "peer-count", Label: "Peer Count", Sortable: true},
@@ -107,9 +107,9 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 	}
 }
 
-// HandleBGPGroupsPage renders the BGP groups table within the workbench.
-func HandleBGPGroupsPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+// handleBGPGroupsPage renders the BGP groups table within the workbench.
+func handleBGPGroupsPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	groups := collectGroups(viewTree)
-	tableData := BuildBGPGroupsTableData(groups)
+	tableData := buildBGPGroupsTableData(groups)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

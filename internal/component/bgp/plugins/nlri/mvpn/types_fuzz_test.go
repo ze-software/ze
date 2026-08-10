@@ -38,7 +38,7 @@ func FuzzParseMVPN(f *testing.F) {
 	f.Add([]byte{0x00, 0x00})             // Invalid type 0
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		mvpn, _, err := ParseMVPN(AFIIPv4, data)
+		mvpn, _, err := parseMVPN(AFIIPv4, data)
 		if err != nil {
 			return
 		}

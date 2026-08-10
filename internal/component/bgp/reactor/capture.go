@@ -60,9 +60,9 @@ func (r *bgpCaptureRecord) format() BGPCaptureEntry {
 	return e
 }
 
-// BGPCaptureRing is a fixed-size circular buffer of BGP message records.
+// bGPCaptureRing is a fixed-size circular buffer of BGP message records.
 // Safe for concurrent use. Append is zero-alloc.
-type BGPCaptureRing struct {
+type bGPCaptureRing struct {
 	mu      sync.Mutex
 	clock   clock.Clock
 	records []bgpCaptureRecord
@@ -70,13 +70,13 @@ type BGPCaptureRing struct {
 	count   int
 }
 
-// NewBGPCaptureRing creates a capture ring.
-func NewBGPCaptureRing(c clock.Clock) *BGPCaptureRing {
-	return &BGPCaptureRing{clock: c, records: make([]bgpCaptureRecord, bgpCaptureRingCapacity)}
+// newBGPCaptureRing creates a capture ring.
+func newBGPCaptureRing(c clock.Clock) *bGPCaptureRing {
+	return &bGPCaptureRing{clock: c, records: make([]bgpCaptureRecord, bgpCaptureRingCapacity)}
 }
 
 // Append records a BGP message. dirOut true = sent, false = received.
-func (r *BGPCaptureRing) Append(dirOut bool, peer netip.Addr, msgType msgtype.MessageType, byteCount int, errorCode, errorSub uint8) {
+func (r *bGPCaptureRing) Append(dirOut bool, peer netip.Addr, msgType msgtype.MessageType, byteCount int, errorCode, errorSub uint8) {
 	var d uint8
 	if dirOut {
 		d = 1
@@ -101,7 +101,7 @@ func (r *BGPCaptureRing) Append(dirOut bool, peer netip.Addr, msgType msgtype.Me
 
 // Snapshot returns up to limit formatted records, newest first.
 // peer filters by address (zero = no filter).
-func (r *BGPCaptureRing) Snapshot(limit int, peer netip.Addr) []BGPCaptureEntry {
+func (r *bGPCaptureRing) Snapshot(limit int, peer netip.Addr) []BGPCaptureEntry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

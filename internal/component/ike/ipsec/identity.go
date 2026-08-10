@@ -37,12 +37,12 @@ func RemoteIDTypeNames() []string {
 	return names
 }
 
-// ParseRemoteIDType maps a remote-id-type YANG enum value onto its RFC 7296 Section 3.5
+// parseRemoteIDType maps a remote-id-type YANG enum value onto its RFC 7296 Section 3.5
 // type number. The second result reports whether the name is known. The caller MUST
 // REFUSE an unknown name rather than treat it as unset. A name read as unset would
 // silently widen the peer's accepted identity types to every comparable one
 // (ai/rules/evidence.md).
-func ParseRemoteIDType(s string) (uint8, bool) {
+func parseRemoteIDType(s string) (uint8, bool) {
 	t, ok := remoteIDTypeNames[s]
 	return t, ok
 }

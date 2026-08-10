@@ -65,7 +65,7 @@ func TestPayloadLenMatchesWriteTo(t *testing.T) {
 		{"EAP", &PayloadEAP{Code: EAPCodeResponse, Identifier: 1, EAPData: make([]byte, 10)}},
 		{"ID", &PayloadID{IDPayloadType: PayloadTypeIDi, IDType: IDTypeFQDN, IDData: []byte("peer.example")}},
 		{"VendorID", &PayloadVendorID{VendorIDData: []byte("ze")}},
-		{"Raw", &PayloadRaw{PayloadType: 200, Data: make([]byte, 12)}},
+		{"Raw", &payloadRaw{PayloadType: 200, Data: make([]byte, 12)}},
 	}
 
 	buf := make([]byte, 8192)

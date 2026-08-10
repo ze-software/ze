@@ -4,15 +4,15 @@ package command
 
 import "sort"
 
-// VerbRole classifies what a command verb does. The role is load-bearing for the
+// verbRole classifies what a command verb does. The role is load-bearing for the
 // grammar gate: only VerbMutation verbs (set, delete) may target objects that live
 // in the config YANG tree (ai/rules/cli.md "Engine-Owned Tree Mutation");
 // everything else is a runtime action or a read.
-type VerbRole uint8
+type verbRole uint8
 
 const (
 	// VerbRead reads state without changing it (show, monitor, resolve).
-	VerbRead VerbRole = iota
+	VerbRead verbRole = iota
 	// VerbMutation mutates the config YANG tree via engine path form (set, delete).
 	VerbMutation
 	// VerbAction performs a runtime operational action (clear, request, ...).
@@ -31,7 +31,7 @@ const (
 // the runtime cache verb, the runtime-lifecycle verb create, and the diagnostic verb
 // debug. Adding a verb here is a deliberate vocabulary decision, not a convenience:
 // a small, learnable verb set is the point.
-var Verbs = map[string]VerbRole{
+var Verbs = map[string]verbRole{
 	// Reads.
 	"show":    VerbRead,
 	"monitor": VerbRead,

@@ -14,8 +14,8 @@ import (
 //
 // PREVENTS: Shared state corruption between peer transactions.
 func TestMultipleIndependentTransactions(t *testing.T) {
-	rib1 := NewOutgoingRIB()
-	rib2 := NewOutgoingRIB()
+	rib1 := newOutgoingRIB()
+	rib2 := newOutgoingRIB()
 
 	// Start transaction on rib1 only
 	if err := rib1.BeginTransaction("peer1-batch"); err != nil {
@@ -92,8 +92,8 @@ func TestMultipleIndependentTransactions(t *testing.T) {
 //
 // PREVENTS: Routes leaking between peer RIBs.
 func TestTransactionIsolation_RouteQueuing(t *testing.T) {
-	rib1 := NewOutgoingRIB()
-	rib2 := NewOutgoingRIB()
+	rib1 := newOutgoingRIB()
+	rib2 := newOutgoingRIB()
 
 	// Start transactions on both
 	_ = rib1.BeginTransaction("batch1")
@@ -109,8 +109,8 @@ func TestTransactionIsolation_RouteQueuing(t *testing.T) {
 	// Check pending routes are isolated
 	fam := family.IPv4Unicast
 
-	pending1 := rib1.GetTransactionPending(fam)
-	pending2 := rib2.GetTransactionPending(fam)
+	pending1 := rib1.getTransactionPending(fam)
+	pending2 := rib2.getTransactionPending(fam)
 
 	if len(pending1) != 1 {
 		t.Errorf("rib1 pending = %d, want 1", len(pending1))
@@ -150,8 +150,8 @@ func TestTransactionIsolation_RouteQueuing(t *testing.T) {
 //
 // PREVENTS: Commit side effects on other peers.
 func TestTransactionIsolation_CommitDoesNotAffectOther(t *testing.T) {
-	rib1 := NewOutgoingRIB()
-	rib2 := NewOutgoingRIB()
+	rib1 := newOutgoingRIB()
+	rib2 := newOutgoingRIB()
 
 	_ = rib1.BeginTransaction("batch1")
 	_ = rib2.BeginTransaction("batch2")
@@ -172,7 +172,7 @@ func TestTransactionIsolation_CommitDoesNotAffectOther(t *testing.T) {
 	}
 
 	fam := family.IPv4Unicast
-	pending2 := rib2.GetTransactionPending(fam)
+	pending2 := rib2.getTransactionPending(fam)
 	if len(pending2) != 2 {
 		t.Errorf("rib2 lost routes after rib1 commit: got %d, want 2", len(pending2))
 	}
@@ -187,8 +187,8 @@ func TestTransactionIsolation_CommitDoesNotAffectOther(t *testing.T) {
 //
 // PREVENTS: Rollback side effects on other peers.
 func TestTransactionIsolation_RollbackDoesNotAffectOther(t *testing.T) {
-	rib1 := NewOutgoingRIB()
-	rib2 := NewOutgoingRIB()
+	rib1 := newOutgoingRIB()
+	rib2 := newOutgoingRIB()
 
 	_ = rib1.BeginTransaction("batch1")
 	_ = rib2.BeginTransaction("batch2")
@@ -205,7 +205,7 @@ func TestTransactionIsolation_RollbackDoesNotAffectOther(t *testing.T) {
 	}
 
 	fam := family.IPv4Unicast
-	pending2 := rib2.GetTransactionPending(fam)
+	pending2 := rib2.getTransactionPending(fam)
 	if len(pending2) != 1 {
 		t.Errorf("rib2 lost routes after rib1 rollback: got %d, want 1", len(pending2))
 	}
@@ -226,8 +226,8 @@ func TestTransactionIsolation_RollbackDoesNotAffectOther(t *testing.T) {
 //
 // PREVENTS: Label collision between peers.
 func TestTransactionIsolation_DifferentLabels(t *testing.T) {
-	rib1 := NewOutgoingRIB()
-	rib2 := NewOutgoingRIB()
+	rib1 := newOutgoingRIB()
+	rib2 := newOutgoingRIB()
 
 	// Both use same label - should not conflict
 	_ = rib1.BeginTransaction("batch")
@@ -237,13 +237,13 @@ func TestTransactionIsolation_DifferentLabels(t *testing.T) {
 	rib2.QueueAnnounce(testRoute("20.0.0.0/24"))
 
 	// Commit with label on rib1
-	_, err := rib1.CommitTransactionWithLabel("batch")
+	_, err := rib1.commitTransactionWithLabel("batch")
 	if err != nil {
 		t.Fatalf("rib1 commit with label failed: %v", err)
 	}
 
 	// Commit with label on rib2 should also work
-	_, err = rib2.CommitTransactionWithLabel("batch")
+	_, err = rib2.commitTransactionWithLabel("batch")
 	if err != nil {
 		t.Fatalf("rib2 commit with label failed: %v", err)
 	}
@@ -255,8 +255,8 @@ func TestTransactionIsolation_DifferentLabels(t *testing.T) {
 //
 // PREVENTS: Withdrawal leakage between peers.
 func TestTransactionIsolation_WithdrawalsIsolated(t *testing.T) {
-	rib1 := NewOutgoingRIB()
-	rib2 := NewOutgoingRIB()
+	rib1 := newOutgoingRIB()
+	rib2 := newOutgoingRIB()
 
 	_ = rib1.BeginTransaction("batch1")
 	_ = rib2.BeginTransaction("batch2")

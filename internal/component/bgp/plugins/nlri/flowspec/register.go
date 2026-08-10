@@ -20,9 +20,9 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn"},
-		RunEngine:    RunFlowSpecPlugin,
+		RunEngine:    runFlowSpecPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetFlowSpecLogger(slogutil.Logger(loggerName))
+			setFlowSpecLogger(slogutil.Logger(loggerName))
 		},
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunFlowSpecDecode(input, output)
@@ -35,9 +35,9 @@ func init() {
 	reg.CLIHandler = func(args []string) int {
 		var family *string
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = GetFlowSpecYANG
+		cfg.GetYANG = getFlowSpecYANG
 		cfg.ConfigLogger = func(level string) {
-			SetFlowSpecLogger(slogutil.PluginLogger(reg.Name, level))
+			setFlowSpecLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
 			family = fs.String("family", "ipv4/flow", "Address family (ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn)")

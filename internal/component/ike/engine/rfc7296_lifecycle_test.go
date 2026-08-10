@@ -403,7 +403,7 @@ func TestLcyRetiredSPIsAreNeverReused(t *testing.T) {
 
 	// Every draw of a fresh Child SA SPI avoids the reserved zero.
 	for range 256 {
-		spi, err := GenerateESPSPI()
+		spi, err := generateESPSPI()
 		if err != nil {
 			t.Fatalf("GenerateESPSPI: %v", err)
 		}

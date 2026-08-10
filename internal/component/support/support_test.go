@@ -72,8 +72,8 @@ func TestModuleSelection_InvalidName(t *testing.T) {
 func TestManifest_Structure(t *testing.T) {
 	dir := t.TempDir()
 	manifest, err := collect(
-		map[string]ModuleCollector{"version": collectVersion},
-		&CollectOptions{},
+		map[string]moduleCollector{"version": collectVersion},
+		&collectOptions{},
 		"test-reason",
 		dir,
 	)
@@ -107,8 +107,8 @@ func TestManifest_Structure(t *testing.T) {
 func TestManifest_ReasonIncluded(t *testing.T) {
 	dir := t.TempDir()
 	manifest, err := collect(
-		map[string]ModuleCollector{"version": collectVersion},
-		&CollectOptions{},
+		map[string]moduleCollector{"version": collectVersion},
+		&collectOptions{},
 		"BGP flap at 14:00",
 		dir,
 	)
@@ -123,13 +123,13 @@ func TestManifest_ReasonIncluded(t *testing.T) {
 func TestArchiveStructure_ModuleFiles(t *testing.T) {
 	dir := t.TempDir()
 	manifest, err := collect(
-		map[string]ModuleCollector{
+		map[string]moduleCollector{
 			"version": collectVersion,
-			"doctor": func(_ *CollectOptions) (any, error) {
+			"doctor": func(_ *collectOptions) (any, error) {
 				return map[string]any{"test": true}, nil
 			},
 		},
-		&CollectOptions{},
+		&collectOptions{},
 		"",
 		dir,
 	)
@@ -172,8 +172,8 @@ func TestArchiveStructure_ModuleFiles(t *testing.T) {
 func TestArchiveManifest_ValidJSON(t *testing.T) {
 	dir := t.TempDir()
 	manifest, err := collect(
-		map[string]ModuleCollector{"version": collectVersion},
-		&CollectOptions{},
+		map[string]moduleCollector{"version": collectVersion},
+		&collectOptions{},
 		"",
 		dir,
 	)
@@ -275,12 +275,12 @@ func TestJSONOutput_ManifestToStdout(t *testing.T) {
 
 func TestGracefulDegradation_ModuleError(t *testing.T) {
 	dir := t.TempDir()
-	failing := func(_ *CollectOptions) (any, error) {
+	failing := func(_ *collectOptions) (any, error) {
 		return nil, os.ErrNotExist
 	}
 	manifest, err := collect(
-		map[string]ModuleCollector{"failing": failing, "version": collectVersion},
-		&CollectOptions{},
+		map[string]moduleCollector{"failing": failing, "version": collectVersion},
+		&collectOptions{},
 		"",
 		dir,
 	)
@@ -301,12 +301,12 @@ func TestGracefulDegradation_ModuleError(t *testing.T) {
 
 func TestGracefulDegradation_ModulePanic(t *testing.T) {
 	dir := t.TempDir()
-	panicking := func(_ *CollectOptions) (any, error) {
+	panicking := func(_ *collectOptions) (any, error) {
 		panic("collector blew up")
 	}
 	manifest, err := collect(
-		map[string]ModuleCollector{"panicking": panicking, "version": collectVersion},
-		&CollectOptions{},
+		map[string]moduleCollector{"panicking": panicking, "version": collectVersion},
+		&collectOptions{},
 		"",
 		dir,
 	)
@@ -333,7 +333,7 @@ func TestGracefulDegradation_ModulePanic(t *testing.T) {
 
 func TestRouteTruncation_Indicator(t *testing.T) {
 	dir := t.TempDir()
-	fakeRoutes := func(_ *CollectOptions) (any, error) {
+	fakeRoutes := func(_ *collectOptions) (any, error) {
 		routes := make([]string, 50000)
 		for i := range routes {
 			routes[i] = "route"
@@ -346,8 +346,8 @@ func TestRouteTruncation_Indicator(t *testing.T) {
 		return result, nil
 	}
 	manifest, err := collect(
-		map[string]ModuleCollector{"routes": fakeRoutes},
-		&CollectOptions{},
+		map[string]moduleCollector{"routes": fakeRoutes},
+		&collectOptions{},
 		"",
 		dir,
 	)
@@ -360,7 +360,7 @@ func TestRouteTruncation_Indicator(t *testing.T) {
 }
 
 func TestSensitiveFlag_EnvRedaction(t *testing.T) {
-	opts := &CollectOptions{Sensitive: false}
+	opts := &collectOptions{Sensitive: false}
 	result, err := collectEnv(opts)
 	if err != nil {
 		t.Fatal(err)

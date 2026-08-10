@@ -137,7 +137,7 @@ func TestParseExpectRule_Ordered(t *testing.T) {
 // PREVENTS: legal BGP UPDATE packing (fwdBucketMerge) failing per-message
 // framing assertions (functional test 224 fast-fail shape).
 func TestOrderedExpectationsPackingTolerant(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:ordered=180A0000",
 		"expect=bgp:conn=1:seq=1:ordered=180A0001",
 		"expect=bgp:conn=1:seq=1:ordered=180A0002",
@@ -158,7 +158,7 @@ func TestOrderedExpectationsPackingTolerant(t *testing.T) {
 // PREVENTS: the checker silently accepting the FIFO violation the forward
 // pool fix exists to prevent (test 224 slow-fail shape: 0006 before 0004).
 func TestOrderedExpectationsRejectOutOfOrder(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:ordered=180A0000",
 		"expect=bgp:conn=1:seq=1:ordered=180A0001",
 		"expect=bgp:conn=1:seq=1:ordered=180A0002",
@@ -178,7 +178,7 @@ func TestOrderedExpectationsRejectOutOfOrder(t *testing.T) {
 // PREVENTS: substring matching accepting reordered NLRIs inside one packed
 // UPDATE.
 func TestOrderedExpectationsIntraMessageOrder(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:ordered=180A0000",
 		"expect=bgp:conn=1:seq=1:ordered=180A0001",
 	})
@@ -196,7 +196,7 @@ func TestOrderedExpectationsIntraMessageOrder(t *testing.T) {
 // PREVENTS: consumeOrdered consuming a needle on a half-byte artifact of the
 // hex text that does not exist on the wire.
 func TestOrderedExpectationsByteAligned(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:ordered=80A00001",
 	})
 	require.NoError(t, err)
@@ -217,7 +217,7 @@ func TestOrderedExpectationsByteAligned(t *testing.T) {
 // ordered subqueue.
 // PREVENTS: grouping the EOR with ordered needles breaking either match.
 func TestOrderedExpectationsMixedWithPlainEOR(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
 		"expect=bgp:conn=1:seq=1:ordered=180A0000",
 		"expect=bgp:conn=1:seq=1:ordered=180A0001",

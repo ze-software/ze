@@ -293,9 +293,9 @@ func (s *Session) sendHoldTimerExpired() {
 	}
 }
 
-// TriggerHoldTimerExpiry triggers the hold timer expiry event.
+// triggerHoldTimerExpiry triggers the hold timer expiry event.
 // Exposed for testing.
-func (s *Session) TriggerHoldTimerExpiry() {
+func (s *Session) triggerHoldTimerExpiry() {
 	s.timers.StopAll()
 	s.logFSMEvent(fsm.EventHoldTimerExpires)
 	s.closeConn()
@@ -515,8 +515,8 @@ func (s *Session) HoldWrites() {
 	s.writeMu.Lock()
 }
 
-// ReleaseWrites releases the write lock acquired by HoldWrites.
-func (s *Session) ReleaseWrites() {
+// releaseWrites releases the write lock acquired by HoldWrites.
+func (s *Session) releaseWrites() {
 	s.writeMu.Unlock()
 }
 
@@ -577,13 +577,13 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// reporting 0 (WriteAnnounceUpdate, reactor_wire.go). Asking for the reason
 	// first is what turns that refusal into something an operator can act on: a
 	// silent no-op would look exactly like a route nobody asked for.
-	if err := ValidateAnnounceNextHop(route, linkLocalNextHop); err != nil {
+	if err := validateAnnounceNextHop(route, linkLocalNextHop); err != nil {
 		return err
 	}
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
-	n := WriteAnnounceUpdate(s.writeBuf.Buffer(), 0, route, linkLocalNextHop, localAS, isIBGP, asn4, addPath)
+	n := writeAnnounceUpdate(s.writeBuf.Buffer(), 0, route, linkLocalNextHop, localAS, isIBGP, asn4, addPath)
 
 	// Egress gate: an announce is always a route (never an EOR), so it honors the
 	// peer's export filter chain here.
@@ -629,7 +629,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	return nil
 }
 
-// SendWithdraw sends a BGP UPDATE message for withdrawing a route.
+// sendWithdraw sends a BGP UPDATE message for withdrawing a route.
 // Eliminates large buffer allocations by writing directly to session buffer.
 // Returns ErrInvalidState if the session is not established.
 //
@@ -638,7 +638,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 // RFC 7911 - ADD-PATH encoding when addPath is true.
 //
 // Concurrent calls are serialized by writeMu.
-func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
+func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()
@@ -657,7 +657,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
-	n := WriteWithdrawUpdate(s.writeBuf.Buffer(), 0, prefix, addPath)
+	n := writeWithdrawUpdate(s.writeBuf.Buffer(), 0, prefix, addPath)
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		return err
@@ -676,12 +676,12 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	return nil
 }
 
-// SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
+// sendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
 // Used for zero-copy forwarding when encoding contexts match.
 // Prepends the BGP header with correct length.
 // Returns ErrInvalidState if the session is not established.
 // Concurrent calls are serialized by writeMu.
-func (s *Session) SendRawUpdateBody(body []byte) error {
+func (s *Session) sendRawUpdateBody(body []byte) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()

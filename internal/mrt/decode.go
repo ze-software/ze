@@ -74,8 +74,8 @@ type GeoPeerEntry struct {
 	Longitude float32
 }
 
-// GeoPeerTable represents a TABLE_DUMP_V2 GEO_PEER_TABLE (RFC 6397 Section 4.1).
-type GeoPeerTable struct {
+// geoPeerTable represents a TABLE_DUMP_V2 GEO_PEER_TABLE (RFC 6397 Section 4.1).
+type geoPeerTable struct {
 	CollectorBGPID [4]byte
 	CollectorLat   float32
 	CollectorLon   float32
@@ -212,7 +212,7 @@ func DecodeRIBRecord(subtype uint16, data []byte) (*RIBRecord, error) {
 	off += 2
 
 	addPath := IsAddPathRIBSubtype(subtype) && subtype != TDV2RIBGenericAP
-	entries, err := DecodeRIBEntries(data[off:], entryCount, addPath)
+	entries, err := decodeRIBEntries(data[off:], entryCount, addPath)
 	if err != nil {
 		return nil, fmt.Errorf("rib record entries: %w", err)
 	}
@@ -265,7 +265,7 @@ func DecodeRIBGenericRecord(subtype uint16, data []byte) (*RIBGenericRecord, err
 	off += 2
 
 	// RIB_GENERIC_ADDPATH (12): RIB entries are NOT redefined per RFC 8050 Section 4.2.
-	entries, err := DecodeRIBEntries(data[off:], entryCount, false)
+	entries, err := decodeRIBEntries(data[off:], entryCount, false)
 	if err != nil {
 		return nil, fmt.Errorf("rib generic entries: %w", err)
 	}
@@ -274,9 +274,9 @@ func DecodeRIBGenericRecord(subtype uint16, data []byte) (*RIBGenericRecord, err
 	return rec, nil
 }
 
-// DecodeRIBEntries parses a sequence of RIB entries.
+// decodeRIBEntries parses a sequence of RIB entries.
 // When addPath is true, each entry includes a 4-byte Path Identifier (RFC 8050 Section 4.1).
-func DecodeRIBEntries(data []byte, count uint16, addPath bool) ([]RIBEntry, error) {
+func decodeRIBEntries(data []byte, count uint16, addPath bool) ([]RIBEntry, error) {
 	entries := make([]RIBEntry, 0, count)
 	off := 0
 
@@ -463,14 +463,14 @@ func DecodeTableDump(subtype uint16, data []byte) (*TableDumpRecord, error) {
 	return rec, nil
 }
 
-// DecodeGeoPeerTable parses a TABLE_DUMP_V2 GEO_PEER_TABLE message body (RFC 6397).
-func DecodeGeoPeerTable(data []byte) (*GeoPeerTable, error) {
+// decodeGeoPeerTable parses a TABLE_DUMP_V2 GEO_PEER_TABLE message body (RFC 6397).
+func decodeGeoPeerTable(data []byte) (*geoPeerTable, error) {
 	// CollectorBGPID(4) + Lat(4) + Lon(4) + PeerCount(2) = 14
 	if len(data) < 14 {
 		return nil, fmt.Errorf("geo peer table: %w (have %d, need >=14)", ErrShortData, len(data))
 	}
 
-	gpt := &GeoPeerTable{}
+	gpt := &geoPeerTable{}
 	copy(gpt.CollectorBGPID[:], data[0:4])
 	gpt.CollectorLat = math.Float32frombits(binary.BigEndian.Uint32(data[4:8]))
 	gpt.CollectorLon = math.Float32frombits(binary.BigEndian.Uint32(data[8:12]))

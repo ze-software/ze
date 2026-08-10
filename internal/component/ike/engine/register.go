@@ -335,7 +335,7 @@ func runEngine(conn net.Conn) int {
 		// RFC 7296 Section 2.6. Published before any peer is reconciled, so an
 		// initiation that arrives during the reconcile is judged against the config
 		// being applied rather than the one being replaced.
-		SetCookieThreshold(cfg.CookieThreshold)
+		setCookieThreshold(cfg.CookieThreshold)
 
 		if cfg.Interface != "" {
 			ifIP, ifErr := resolveInterfaceAddr(cfg.Interface)
@@ -603,7 +603,7 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 
 		sa := table.Lookup(iSPI, rSPI)
 		if sa == nil {
-			sa = table.LookupByInitiatorSPI(iSPI)
+			sa = table.lookupByInitiatorSPI(iSPI)
 		}
 		if sa == nil {
 			if tryResponderSAInit(nattPkt, iSPI, rSPI, table, tr, log) {
@@ -824,7 +824,7 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 
 		sa := table.Lookup(iSPI, rSPI)
 		if sa == nil {
-			sa = table.LookupByInitiatorSPI(iSPI)
+			sa = table.lookupByInitiatorSPI(iSPI)
 		}
 		if sa == nil {
 			if tryResponderSAInit(pkt, iSPI, rSPI, table, tr, log) {

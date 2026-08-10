@@ -102,8 +102,8 @@ type PDUHeader struct {
 	LabelSpace uint16
 }
 
-// EncodePDUHeader writes a PDU header to buf. Returns bytes written.
-func EncodePDUHeader(buf []byte, h PDUHeader) int {
+// encodePDUHeader writes a PDU header to buf. Returns bytes written.
+func encodePDUHeader(buf []byte, h PDUHeader) int {
 	binary.BigEndian.PutUint16(buf[0:2], h.Version)
 	binary.BigEndian.PutUint16(buf[2:4], h.PDULength)
 	copy(buf[4:8], h.LSRID[:])
@@ -111,8 +111,8 @@ func EncodePDUHeader(buf []byte, h PDUHeader) int {
 	return ldpHeaderLen
 }
 
-// DecodePDUHeader reads a PDU header from buf.
-func DecodePDUHeader(buf []byte) (PDUHeader, error) {
+// decodePDUHeader reads a PDU header from buf.
+func decodePDUHeader(buf []byte) (PDUHeader, error) {
 	if len(buf) < ldpHeaderLen {
 		return PDUHeader{}, errShortPDU
 	}
@@ -135,16 +135,16 @@ type MessageHeader struct {
 	MessageID uint32
 }
 
-// EncodeMessageHeader writes a message header to buf. Returns bytes written.
-func EncodeMessageHeader(buf []byte, h MessageHeader) int {
+// encodeMessageHeader writes a message header to buf. Returns bytes written.
+func encodeMessageHeader(buf []byte, h MessageHeader) int {
 	binary.BigEndian.PutUint16(buf[0:2], h.Type)
 	binary.BigEndian.PutUint16(buf[2:4], h.Length)
 	binary.BigEndian.PutUint32(buf[4:8], h.MessageID)
 	return ldpMsgHdrLen
 }
 
-// DecodeMessageHeader reads a message header from buf.
-func DecodeMessageHeader(buf []byte) (MessageHeader, error) {
+// decodeMessageHeader reads a message header from buf.
+func decodeMessageHeader(buf []byte) (MessageHeader, error) {
 	if len(buf) < ldpMsgHdrLen {
 		return MessageHeader{}, errShortMessage
 	}
@@ -199,7 +199,7 @@ type HelloMessage struct {
 // EncodeHello writes a Hello message body (after PDU header) to buf.
 // Returns total bytes written.
 func EncodeHello(buf []byte, h HelloMessage) int {
-	off := EncodeMessageHeader(buf, MessageHeader{
+	off := encodeMessageHeader(buf, MessageHeader{
 		Type:      MsgTypeHello,
 		MessageID: h.MessageID,
 	})
@@ -277,8 +277,8 @@ func DecodeHello(msgID uint32, body []byte) (HelloMessage, error) {
 	return h, nil
 }
 
-// InitMessage represents an LDP Initialization message (RFC 5036 Section 3.5.3).
-type InitMessage struct {
+// initMessage represents an LDP Initialization message (RFC 5036 Section 3.5.3).
+type initMessage struct {
 	MessageID          uint32
 	ProtocolVersion    uint16
 	KeepaliveTime      uint16
@@ -290,8 +290,8 @@ type InitMessage struct {
 }
 
 // EncodeInit writes an Initialization message body to buf.
-func EncodeInit(buf []byte, m InitMessage) int {
-	off := EncodeMessageHeader(buf, MessageHeader{
+func EncodeInit(buf []byte, m initMessage) int {
+	off := encodeMessageHeader(buf, MessageHeader{
 		Type:      MsgTypeInitialize,
 		MessageID: m.MessageID,
 	})
@@ -321,8 +321,8 @@ func EncodeInit(buf []byte, m InitMessage) int {
 }
 
 // DecodeInit reads an Initialization message body from buf (after message header).
-func DecodeInit(msgID uint32, body []byte) (InitMessage, error) {
-	m := InitMessage{MessageID: msgID}
+func DecodeInit(msgID uint32, body []byte) (initMessage, error) {
+	m := initMessage{MessageID: msgID}
 	off := 0
 	for off < len(body) {
 		tlv, n, err := DecodeTLV(body[off:])
@@ -343,14 +343,14 @@ func DecodeInit(msgID uint32, body []byte) (InitMessage, error) {
 	return m, nil
 }
 
-// KeepaliveMessage represents an LDP KeepAlive message.
-type KeepaliveMessage struct {
+// keepaliveMessage represents an LDP KeepAlive message.
+type keepaliveMessage struct {
 	MessageID uint32
 }
 
-// EncodeKeepalive writes a KeepAlive message to buf.
-func EncodeKeepalive(buf []byte, m KeepaliveMessage) int {
-	off := EncodeMessageHeader(buf, MessageHeader{
+// encodeKeepalive writes a KeepAlive message to buf.
+func encodeKeepalive(buf []byte, m keepaliveMessage) int {
+	off := encodeMessageHeader(buf, MessageHeader{
 		Type:      MsgTypeKeepAlive,
 		Length:    4,
 		MessageID: m.MessageID,
@@ -366,8 +366,8 @@ type FECElement struct {
 	Prefix  netip.Prefix
 }
 
-// LabelMappingMessage represents an LDP Label Mapping message (RFC 5036 Section 3.5.7).
-type LabelMappingMessage struct {
+// labelMappingMessage represents an LDP Label Mapping message (RFC 5036 Section 3.5.7).
+type labelMappingMessage struct {
 	MessageID uint32
 	FEC       FECElement
 	Label     uint32
@@ -417,9 +417,9 @@ func encodeLabelTLV(buf []byte, off int, label uint32) int {
 	})
 }
 
-// EncodeLabelMapping writes a Label Mapping message body to buf.
-func EncodeLabelMapping(buf []byte, m LabelMappingMessage) int {
-	off := EncodeMessageHeader(buf, MessageHeader{
+// encodeLabelMapping writes a Label Mapping message body to buf.
+func encodeLabelMapping(buf []byte, m labelMappingMessage) int {
+	off := encodeMessageHeader(buf, MessageHeader{
 		Type:      MsgTypeLabelMapping,
 		MessageID: m.MessageID,
 	})
@@ -429,9 +429,9 @@ func EncodeLabelMapping(buf []byte, m LabelMappingMessage) int {
 	return off
 }
 
-// DecodeLabelMapping reads a Label Mapping message body from buf.
-func DecodeLabelMapping(msgID uint32, body []byte) (LabelMappingMessage, error) {
-	m := LabelMappingMessage{MessageID: msgID}
+// decodeLabelMapping reads a Label Mapping message body from buf.
+func decodeLabelMapping(msgID uint32, body []byte) (labelMappingMessage, error) {
+	m := labelMappingMessage{MessageID: msgID}
 	off := 0
 	for off < len(body) {
 		tlv, n, err := DecodeTLV(body[off:])
@@ -487,8 +487,8 @@ func decodeFECElement(buf []byte) (FECElement, error) {
 	return fe, nil
 }
 
-// LabelWithdrawMessage represents an LDP Label Withdraw message (RFC 5036 Section 3.5.10).
-type LabelWithdrawMessage struct {
+// labelWithdrawMessage represents an LDP Label Withdraw message (RFC 5036 Section 3.5.10).
+type labelWithdrawMessage struct {
 	MessageID uint32
 	FEC       FECElement
 	Label     uint32
@@ -496,8 +496,8 @@ type LabelWithdrawMessage struct {
 }
 
 // EncodeLabelWithdraw writes a Label Withdraw message body to buf.
-func EncodeLabelWithdraw(buf []byte, m LabelWithdrawMessage) int {
-	off := EncodeMessageHeader(buf, MessageHeader{
+func EncodeLabelWithdraw(buf []byte, m labelWithdrawMessage) int {
+	off := encodeMessageHeader(buf, MessageHeader{
 		Type:      MsgTypeLabelWithdraw,
 		MessageID: m.MessageID,
 	})
@@ -509,20 +509,20 @@ func EncodeLabelWithdraw(buf []byte, m LabelWithdrawMessage) int {
 	return off
 }
 
-// AddressListMessage represents an LDP Address or Address Withdraw message
+// addressListMessage represents an LDP Address or Address Withdraw message
 // (RFC 5036 Section 3.5.5/3.5.6): the set of interface addresses the peer uses as
 // next hops. A downstream LSR uses these to resolve a label binding's advertising
 // peer to the IP next hop on the shared link.
-type AddressListMessage struct {
+type addressListMessage struct {
 	MessageID uint32
 	Family    uint16
 	Addresses []netip.Addr
 }
 
-// DecodeAddressList reads an Address / Address Withdraw message body (after the
+// decodeAddressList reads an Address / Address Withdraw message body (after the
 // message header). It tolerates and skips TLVs other than the Address List.
-func DecodeAddressList(msgID uint32, body []byte) (AddressListMessage, error) {
-	m := AddressListMessage{MessageID: msgID}
+func decodeAddressList(msgID uint32, body []byte) (addressListMessage, error) {
+	m := addressListMessage{MessageID: msgID}
 	off := 0
 	for off < len(body) {
 		tlv, n, err := DecodeTLV(body[off:])

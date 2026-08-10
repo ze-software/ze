@@ -190,7 +190,7 @@ func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	defer r.peerMu.RUnlock()
 	source := newBestSource(r, selector, candidatesByKey)
 
-	var current PipelineIterator = source
+	var current pipelineIterator = source
 	for _, stage := range stages {
 		if stage.kind == bestTerminalReason {
 			continue
@@ -316,13 +316,13 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 //
 //	{"best-path-reason": [{"family","prefix","winner-peer","steps":[{"step","winner","reason"}]}]}
 type bestReasonTerminal struct {
-	upstream        PipelineIterator
+	upstream        pipelineIterator
 	candidatesByKey map[string][]*Candidate
 	meta            PipelineMeta
 	drained         bool
 }
 
-func newBestReasonTerminal(upstream PipelineIterator, candidatesByKey map[string][]*Candidate) *bestReasonTerminal {
+func newBestReasonTerminal(upstream pipelineIterator, candidatesByKey map[string][]*Candidate) *bestReasonTerminal {
 	return &bestReasonTerminal{upstream: upstream, candidatesByKey: candidatesByKey}
 }
 
@@ -408,12 +408,12 @@ func (rt *bestReasonTerminal) drain() {
 
 // bestJSONTerminal drains upstream best-path items and serializes to best-path JSON format.
 type bestJSONTerminal struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newBestJSONTerminal(upstream PipelineIterator) *bestJSONTerminal {
+func newBestJSONTerminal(upstream pipelineIterator) *bestJSONTerminal {
 	return &bestJSONTerminal{upstream: upstream}
 }
 

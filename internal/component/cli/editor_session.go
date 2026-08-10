@@ -115,17 +115,17 @@ func ValidateUser(user string) error {
 	return nil
 }
 
-// ChangePrefix returns the filename prefix for scanning all change files.
+// changePrefix returns the filename prefix for scanning all change files.
 // Used with store.List(dir) to filter change files from other files.
-func ChangePrefix(configPath string) string {
+func changePrefix(configPath string) string {
 	var tb textbuf.Buffer
 	return tb.Str(filepath.Base(configPath)).Str(".change.").String()
 }
 
-// ChangeUser extracts the username from a change file path.
+// changeUser extracts the username from a change file path.
 // Returns empty string if the path is not a valid change file.
-func ChangeUser(configPath, changeFilePath string) string {
-	prefix := ChangePrefix(configPath)
+func changeUser(configPath, changeFilePath string) string {
+	prefix := changePrefix(configPath)
 	base := filepath.Base(changeFilePath)
 	if !strings.HasPrefix(base, prefix) {
 		return ""

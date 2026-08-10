@@ -12,8 +12,8 @@ const (
 	EventPathErr = "path-err"
 )
 
-// LSPEvent carries RSVP-TE LSP lifecycle information on the event bus.
-type LSPEvent struct {
+// lSPEvent carries RSVP-TE LSP lifecycle information on the event bus.
+type lSPEvent struct {
 	TunnelEndpoint string  `json:"tunnel-endpoint"`
 	TunnelID       uint16  `json:"tunnel-id"`
 	LSPID          uint16  `json:"lsp-id"`
@@ -21,8 +21,8 @@ type LSPEvent struct {
 	State          string  `json:"state"`
 }
 
-// PathErrEvent carries RSVP-TE PathErr information on the event bus.
-type PathErrEvent struct {
+// pathErrEvent carries RSVP-TE PathErr information on the event bus.
+type pathErrEvent struct {
 	TunnelEndpoint string `json:"tunnel-endpoint"`
 	TunnelID       uint16 `json:"tunnel-id"`
 	ErrorCode      uint8  `json:"error-code"`
@@ -31,7 +31,7 @@ type PathErrEvent struct {
 }
 
 var (
-	LSPUp   = events.Register[*LSPEvent](Namespace, EventLSPUp)
-	LSPDown = events.Register[*LSPEvent](Namespace, EventLSPDown)
-	PathErr = events.Register[*PathErrEvent](Namespace, EventPathErr)
+	LSPUp   = events.Register[*lSPEvent](Namespace, EventLSPUp)
+	LSPDown = events.Register[*lSPEvent](Namespace, EventLSPDown)
+	PathErr = events.Register[*pathErrEvent](Namespace, EventPathErr)
 )

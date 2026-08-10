@@ -210,14 +210,14 @@ func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 // Size-Aware Builders (spec-api-bounds-safety.md)
 // =============================================================================
 
-// BuildUnicastWithMaxSize builds a unicast UPDATE with size validation.
+// buildUnicastWithMaxSize builds a unicast UPDATE with size validation.
 //
 // Returns ErrUpdateTooLarge if route + attributes exceeds maxSize.
 // Single route is atomic - cannot be split.
 //
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p *UnicastParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) buildUnicastWithMaxSize(p *UnicastParams, maxSize int) (*Update, error) {
 	update := ub.BuildUnicast(p)
 
 	// Calculate total UPDATE size: Header(19) + WithdrawnLen(2) + AttrLen(2) + Attrs + NLRI
@@ -230,7 +230,7 @@ func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p *UnicastParams, maxSize int) 
 	return update, nil
 }
 
-// BuildVPNWithMaxSize builds a VPN UPDATE with size validation.
+// buildVPNWithMaxSize builds a VPN UPDATE with size validation.
 //
 // Returns ErrUpdateTooLarge if route + attributes exceeds maxSize.
 // Single VPN route is atomic - cannot be split.
@@ -238,7 +238,7 @@ func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p *UnicastParams, maxSize int) 
 // RFC 4364 - BGP/MPLS IP Virtual Private Networks.
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildVPNWithMaxSize(p *VPNParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) buildVPNWithMaxSize(p *VPNParams, maxSize int) (*Update, error) {
 	update := ub.BuildVPN(p)
 
 	// VPN routes use MP_REACH_NLRI, no inline NLRI
@@ -251,7 +251,7 @@ func (ub *UpdateBuilder) BuildVPNWithMaxSize(p *VPNParams, maxSize int) (*Update
 	return update, nil
 }
 
-// BuildLabeledUnicastWithMaxSize builds a labeled unicast UPDATE with size validation.
+// buildLabeledUnicastWithMaxSize builds a labeled unicast UPDATE with size validation.
 //
 // Returns ErrUpdateTooLarge if route + attributes exceeds maxSize.
 // Single labeled unicast route is atomic - cannot be split.
@@ -259,7 +259,7 @@ func (ub *UpdateBuilder) BuildVPNWithMaxSize(p *VPNParams, maxSize int) (*Update
 // RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes.
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildLabeledUnicastWithMaxSize(p *LabeledUnicastParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) buildLabeledUnicastWithMaxSize(p *LabeledUnicastParams, maxSize int) (*Update, error) {
 	update := ub.BuildLabeledUnicast(p)
 
 	// Labeled unicast uses MP_REACH_NLRI, no inline NLRI
@@ -272,7 +272,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicastWithMaxSize(p *LabeledUnicastParams,
 	return update, nil
 }
 
-// BuildEVPNWithMaxSize builds an EVPN UPDATE with size validation.
+// buildEVPNWithMaxSize builds an EVPN UPDATE with size validation.
 //
 // Returns ErrUpdateTooLarge if route + attributes exceeds maxSize.
 // Single EVPN route is atomic - cannot be split.
@@ -280,7 +280,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicastWithMaxSize(p *LabeledUnicastParams,
 // RFC 7432 - BGP MPLS-Based Ethernet VPN.
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildEVPNWithMaxSize(p EVPNParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) buildEVPNWithMaxSize(p EVPNParams, maxSize int) (*Update, error) {
 	update := ub.BuildEVPN(p)
 
 	// EVPN uses MP_REACH_NLRI, no inline NLRI

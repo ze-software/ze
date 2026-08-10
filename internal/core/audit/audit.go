@@ -68,8 +68,8 @@ type Log struct {
 	entries    []Entry
 }
 
-// ValidateMaxEntries verifies the configured audit retention bound.
-func ValidateMaxEntries(maxEntries int) error {
+// validateMaxEntries verifies the configured audit retention bound.
+func validateMaxEntries(maxEntries int) error {
 	if maxEntries < MinMaxEntries {
 		return fmt.Errorf("audit max entries must be >= %d", MinMaxEntries)
 	}
@@ -81,7 +81,7 @@ func ValidateMaxEntries(maxEntries int) error {
 
 // NewMemory creates an in-memory audit log.
 func NewMemory(maxEntries int) (*Log, error) {
-	if err := ValidateMaxEntries(maxEntries); err != nil {
+	if err := validateMaxEntries(maxEntries); err != nil {
 		return nil, err
 	}
 	return &Log{maxEntries: maxEntries}, nil

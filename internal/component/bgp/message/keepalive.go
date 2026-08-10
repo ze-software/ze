@@ -51,12 +51,12 @@ func (k *Keepalive) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	return HeaderLen
 }
 
-// UnpackKeepalive parses a KEEPALIVE message body.
+// unpackKeepalive parses a KEEPALIVE message body.
 // RFC 4271 Section 4.4 - KEEPALIVE has no body; the message is header-only.
 // RFC 4271 Section 4.4: "A KEEPALIVE message consists of only the message
 // header and has a length of 19 octets."
 // RFC 4271 Section 6.1: If length is not 19, send Bad Message Length error.
-func UnpackKeepalive(data []byte) (*Keepalive, error) {
+func unpackKeepalive(data []byte) (*Keepalive, error) {
 	// RFC 4271 Section 4.4 - KEEPALIVE MUST have no body
 	if len(data) > 0 {
 		// RFC 4271 Section 6.1 - Return Message Header Error / Bad Message Length

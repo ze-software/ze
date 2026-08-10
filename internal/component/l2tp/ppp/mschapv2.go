@@ -70,7 +70,7 @@ var (
 	errMSCHAPv2FlagsNonZero    = errors.New("ppp: MSCHAPv2 Flags octet is non-zero")
 )
 
-// MSCHAPv2Response is a parsed MS-CHAPv2 Response packet (code 2).
+// mSCHAPv2Response is a parsed MS-CHAPv2 Response packet (code 2).
 // PeerChallenge and NTResponse are freshly allocated copies (the
 // parser does `make([]byte, N) + copy(...)`), so the caller may
 // retain them past the parser-input buffer's lifetime without any
@@ -78,14 +78,14 @@ var (
 // validated as zero and dropped -- they are not exposed because the
 // RFC 2759 Section 5 hash recipes do not take them as input, so
 // passing them downstream would be noise.
-type MSCHAPv2Response struct {
+type mSCHAPv2Response struct {
 	Identifier    uint8
 	PeerChallenge []byte
 	NTResponse    []byte
 	Name          string
 }
 
-// ParseMSCHAPv2Response decodes an MS-CHAPv2 Response payload (after the
+// parseMSCHAPv2Response decodes an MS-CHAPv2 Response payload (after the
 // 2-byte PPP protocol field has been stripped by ParseFrame).
 //
 // RFC 2759 Section 4 packet format:
@@ -97,9 +97,9 @@ type MSCHAPv2Response struct {
 // RFC 2759 Section 4: Value-Size MUST be exactly 49 on Response;
 // Reserved MUST be zero on transmit and MUST be rejected if non-zero on
 // receive; Flags MUST be zero in this version.
-func ParseMSCHAPv2Response(buf []byte) (MSCHAPv2Response, error) {
+func parseMSCHAPv2Response(buf []byte) (mSCHAPv2Response, error) {
 	if len(buf) < mschapv2HeaderLen {
-		return MSCHAPv2Response{}, errMSCHAPv2TooShort
+		return mSCHAPv2Response{}, errMSCHAPv2TooShort
 	}
 	if buf[0] != MSCHAPv2CodeResponse {
 		// RFC 2759 Section 8 defines Code 7 (Change-Password) which a
@@ -108,24 +108,24 @@ func ParseMSCHAPv2Response(buf []byte) (MSCHAPv2Response, error) {
 		// Change-Password; such packets fall into this path and the
 		// caller (runMSCHAPv2AuthPhase) fails the session. Honoring
 		// Code 7 is deferred to a future spec.
-		return MSCHAPv2Response{}, errMSCHAPv2WrongCode
+		return mSCHAPv2Response{}, errMSCHAPv2WrongCode
 	}
 	identifier := buf[1]
 	length := int(binary.BigEndian.Uint16(buf[2:4]))
 	if length < mschapv2HeaderLen+1+mschapv2ResponseValueLen {
-		return MSCHAPv2Response{}, errMSCHAPv2LengthMismatch
+		return mSCHAPv2Response{}, errMSCHAPv2LengthMismatch
 	}
 	if length > len(buf) {
-		return MSCHAPv2Response{}, errMSCHAPv2LengthMismatch
+		return mSCHAPv2Response{}, errMSCHAPv2LengthMismatch
 	}
 	if length > MaxFrameLen-2 {
-		return MSCHAPv2Response{}, errMSCHAPv2LengthMismatch
+		return mSCHAPv2Response{}, errMSCHAPv2LengthMismatch
 	}
 	body := buf[mschapv2HeaderLen:length]
 
 	valueSize := int(body[0])
 	if valueSize != mschapv2ResponseValueLen {
-		return MSCHAPv2Response{}, errMSCHAPv2ValueSizeWrong
+		return mSCHAPv2Response{}, errMSCHAPv2ValueSizeWrong
 	}
 	// Value field layout within body:
 	//   [1 .. 1+16)                Peer-Challenge
@@ -143,12 +143,12 @@ func ParseMSCHAPv2Response(buf []byte) (MSCHAPv2Response, error) {
 	// that smuggles bits in the Reserved space cannot slip past.
 	for i := range mschapv2ReservedLen {
 		if body[reservedOff+i] != 0 {
-			return MSCHAPv2Response{}, errMSCHAPv2ReservedNonZero
+			return mSCHAPv2Response{}, errMSCHAPv2ReservedNonZero
 		}
 	}
 	// RFC 2759 Section 4: Flags MUST be zero in this version.
 	if body[flagsOff] != 0 {
-		return MSCHAPv2Response{}, errMSCHAPv2FlagsNonZero
+		return mSCHAPv2Response{}, errMSCHAPv2FlagsNonZero
 	}
 
 	peerChallenge := make([]byte, mschapv2PeerChallengeLen)
@@ -157,7 +157,7 @@ func ParseMSCHAPv2Response(buf []byte) (MSCHAPv2Response, error) {
 	copy(ntResponse, body[ntResponseOff:ntResponseOff+mschapv2NTResponseLen])
 	name := string(body[nameOff:])
 
-	return MSCHAPv2Response{
+	return mSCHAPv2Response{
 		Identifier:    identifier,
 		PeerChallenge: peerChallenge,
 		NTResponse:    ntResponse,
@@ -165,7 +165,7 @@ func ParseMSCHAPv2Response(buf []byte) (MSCHAPv2Response, error) {
 	}, nil
 }
 
-// WriteMSCHAPv2Challenge encodes an MS-CHAPv2 Challenge (code 1) into
+// writeMSCHAPv2Challenge encodes an MS-CHAPv2 Challenge (code 1) into
 // buf at offset off and returns the number of bytes written. Shape
 // matches WriteCHAPChallenge (shared Auth-Protocol 0xC223 framing) with
 // a fixed Value-Size of 16 per RFC 2759 Section 4.
@@ -179,7 +179,7 @@ func ParseMSCHAPv2Response(buf []byte) (MSCHAPv2Response, error) {
 // runMSCHAPv2AuthPhase owns that counter via s.chapIdentifier (shared
 // with CHAP-MD5 because LCP negotiates exactly one Auth-Protocol per
 // session).
-func WriteMSCHAPv2Challenge(buf []byte, off int, identifier uint8, value, name []byte) int {
+func writeMSCHAPv2Challenge(buf []byte, off int, identifier uint8, value, name []byte) int {
 	return writeMSCHAPv2Valued(buf, off, MSCHAPv2CodeChallenge, identifier, value, name)
 }
 
@@ -212,7 +212,7 @@ func writeMSCHAPv2Valued(buf []byte, off int, code, identifier uint8, value, nam
 	return total
 }
 
-// WriteMSCHAPv2Success encodes an MS-CHAPv2 Success (code 3) into buf at
+// writeMSCHAPv2Success encodes an MS-CHAPv2 Success (code 3) into buf at
 // offset off and returns the number of bytes written. The caller MUST
 // ensure buf[off:] has cap >= 4 + 45 + len(message). Panics with
 // "BUG: ..." if authResponseBlob is not exactly 20 octets.
@@ -231,7 +231,7 @@ func writeMSCHAPv2Valued(buf []byte, off int, code, identifier uint8, value, nam
 // encoder clamps the combined preface + message to MaxFrameLen - 2 -
 // mschapv2HeaderLen so the declared Length always fits a single PPP
 // frame.
-func WriteMSCHAPv2Success(buf []byte, off int, identifier uint8, authResponseBlob, message []byte) int {
+func writeMSCHAPv2Success(buf []byte, off int, identifier uint8, authResponseBlob, message []byte) int {
 	if len(authResponseBlob) != mschapv2AuthenticatorResponseLen {
 		panic("BUG: WriteMSCHAPv2Success authResponseBlob length != " +
 			strconv.Itoa(mschapv2AuthenticatorResponseLen))
@@ -274,12 +274,12 @@ func WriteMSCHAPv2Success(buf []byte, off int, identifier uint8, authResponseBlo
 	return total
 }
 
-// WriteMSCHAPv2Failure encodes an MS-CHAPv2 Failure (code 4). The
+// writeMSCHAPv2Failure encodes an MS-CHAPv2 Failure (code 4). The
 // Message is written verbatim. RFC 2759 Section 5 specifies a
 // structured format `E=<code> R=<retry> C=<32-hex> V=<ver> M=<text>` --
 // the auth handler is responsible for assembling that string. ze's
 // encoder does not interpret the error code.
-func WriteMSCHAPv2Failure(buf []byte, off int, identifier uint8, message []byte) int {
+func writeMSCHAPv2Failure(buf []byte, off int, identifier uint8, message []byte) int {
 	return writeMSCHAPv2Reply(buf, off, MSCHAPv2CodeFailure, identifier, message)
 }
 
@@ -353,7 +353,7 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	challengeBuf := getFrameBuf()
 	defer putFrameBuf(challengeBuf)
 	cOff := WriteFrame(challengeBuf, 0, ProtoCHAP, nil)
-	cOff += WriteMSCHAPv2Challenge(challengeBuf, cOff, identifier, value[:], []byte(mschapv2LNSName))
+	cOff += writeMSCHAPv2Challenge(challengeBuf, cOff, identifier, value[:], []byte(mschapv2LNSName))
 	if !s.writeFrame(challengeBuf[:cOff]) {
 		return false
 	}
@@ -411,7 +411,7 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	if decision.accept && len(decision.authResponseBlob) != mschapv2AuthenticatorResponseLen {
 		var bFail textbuf.Buffer
 		s.fail(bFail.Reset().Str("chap-v2: auth handler returned authResponseBlob length ").Int(int64(len(decision.authResponseBlob))).Str(", want ").Int(int64(mschapv2AuthenticatorResponseLen)).String())
-		s.sendAuthEvent(EventAuthFailure{
+		s.sendAuthEvent(eventAuthFailure{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 			Reason:    "auth handler returned wrong authResponseBlob length",
@@ -424,17 +424,17 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	rOff := WriteFrame(writeBuf, 0, ProtoCHAP, nil)
 	msg := []byte(decision.message)
 	if decision.accept {
-		rOff += WriteMSCHAPv2Success(writeBuf, rOff, identifier,
+		rOff += writeMSCHAPv2Success(writeBuf, rOff, identifier,
 			decision.authResponseBlob, msg)
 	} else {
-		rOff += WriteMSCHAPv2Failure(writeBuf, rOff, identifier, msg)
+		rOff += writeMSCHAPv2Failure(writeBuf, rOff, identifier, msg)
 	}
 	if !s.writeFrame(writeBuf[:rOff]) {
 		return false
 	}
 
 	if decision.accept {
-		s.sendAuthEvent(EventAuthSuccess{
+		s.sendAuthEvent(eventAuthSuccess{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 		})
@@ -445,7 +445,7 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	// auth channel, so the transport can tear the session down.
 	var tb textbuf.Buffer
 	s.fail(tb.Str("chap-v2: auth rejected: ").Str(decision.message).String())
-	s.sendAuthEvent(EventAuthFailure{
+	s.sendAuthEvent(eventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
 		Reason:    decision.message,

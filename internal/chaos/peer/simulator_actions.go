@@ -30,27 +30,27 @@ const defaultSlowReadDelay = 1 * time.Second
 func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 	stopKeepalive func(), p SimProfile, cfg SimulatorConfig, emit func(Event),
 	readDelayNs *atomic.Int64,
-) ChaosResult {
+) chaosResult {
 	switch action.Type {
 	case engine.ActionTCPDisconnect:
 		// Abrupt disconnect — no NOTIFICATION.
-		return ChaosResult{Disconnected: true}
+		return chaosResult{Disconnected: true}
 
 	case engine.ActionNotificationCease:
 		// Clean disconnect with NOTIFICATION.
 		sendCease(ctx, conn, p.Index, cfg.Quiet)
-		return ChaosResult{Disconnected: true}
+		return chaosResult{Disconnected: true}
 
 	case engine.ActionHoldTimerExpiry:
 		// Stop sending KEEPALIVEs — Ze will detect hold-timer expiry.
 		stopKeepalive()
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionDisconnectDuringBurst:
 		// During steady-state this acts like a TCP disconnect.
 		// The "during burst" aspect is handled by orchestrator scheduling
 		// the action before EOR is sent.
-		return ChaosResult{Disconnected: true}
+		return chaosResult{Disconnected: true}
 
 	case engine.ActionReconnectStorm:
 		// Rapid reconnect storm: close this connection, then rapidly
@@ -58,22 +58,22 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 		// The final reconnection is handled by runPeerLoop.
 		conn.Close() //nolint:errcheck,gosec // intentional close to start storm
 		executeReconnectStorm(ctx, cfg.Addr, p, cfg.Dialer, emit)
-		return ChaosResult{Disconnected: true}
+		return chaosResult{Disconnected: true}
 
 	case engine.ActionConnectionCollision:
 		// Open a second TCP connection with the same RouterID while
 		// the first is active. Tests RFC 4271 Section 6.8 collision handling.
 		executeConnectionCollision(ctx, cfg.Addr, p, cfg.Dialer, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionMalformedUpdate:
 		// Send an UPDATE with invalid ORIGIN value (0xFF).
 		// Tests RFC 7606 revised error handling (treat-as-withdraw).
-		data := BuildMalformedUpdate()
+		data := buildMalformedUpdate()
 		if _, writeErr := conn.Write(data); writeErr != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending malformed UPDATE: %w", writeErr)})
 		}
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionConfigReload:
 		// Send SIGHUP to the Ze process to trigger config reload.
@@ -86,7 +86,7 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 				}
 			}
 		}
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionSlowRead:
 		// Toggle slow reading: if currently reading normally, enable delay;
@@ -100,31 +100,31 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 		} else {
 			readDelayNs.Store(0)
 		}
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionClockDrift:
 		executeClockDrift(ctx, action, conn, p, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionRouteBurst:
 		executeRouteBurst(ctx, action, conn, p, cfg, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionWithdrawalBurst:
 		executeWithdrawalBurst(action, conn, p, cfg, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionRouteFlap:
 		executeRouteFlap(ctx, action, conn, p, cfg, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionSlowPeer:
 		go executeSlowPeer(ctx, action, conn, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionZeroWindow:
 		go executeZeroWindow(ctx, action, conn, emit)
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 
 	case engine.ActionIfaceLinkFlap:
 		// netns-scoped: brings the configured interface down then up. On a
@@ -135,7 +135,7 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 		// netns-scoped: removes then restores an address on the interface.
 		return executeIfaceAddrRemove(action, emit)
 	}
-	return ChaosResult{}
+	return chaosResult{}
 }
 
 // executeRoute handles a single route dynamics action on the simulator's live connection.
@@ -277,7 +277,7 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 // sendWithdrawal sends a withdrawal UPDATE for the given prefixes.
 // Returns the number of bytes written and any error.
 func sendWithdrawal(conn net.Conn, prefixes []netip.Prefix) (int, error) {
-	data := BuildWithdrawal(prefixes)
+	data := buildWithdrawal(prefixes)
 	if data == nil {
 		return 0, nil
 	}

@@ -17,8 +17,8 @@ type IncomingRIB struct {
 	routes map[string]map[string]*Route
 }
 
-// NewIncomingRIB creates a new Adj-RIB-In.
-func NewIncomingRIB() *IncomingRIB {
+// newIncomingRIB creates a new Adj-RIB-In.
+func newIncomingRIB() *IncomingRIB {
 	return &IncomingRIB{
 		routes: make(map[string]map[string]*Route),
 	}
@@ -104,9 +104,9 @@ func (r *IncomingRIB) ClearPeer(peerID string) []*Route {
 	return routes
 }
 
-// ClearAll removes all routes from all peers.
+// clearAll removes all routes from all peers.
 // Returns count of routes removed.
-func (r *IncomingRIB) ClearAll() int {
+func (r *IncomingRIB) clearAll() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

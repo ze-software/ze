@@ -57,7 +57,7 @@ func WellKnownCommunityNames() []string {
 //   - Bare integers: raw 32-bit community value
 //   - Hex values: 0xNNNNNNNN format
 func ParseCommunity(s string) (uint32, error) {
-	if v, ok := CommunityValue(s); ok {
+	if v, ok := communityValue(s); ok {
 		return uint32(v), nil
 	}
 
@@ -123,9 +123,9 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 	}, nil
 }
 
-// ParseOriginText parses origin string to uint8.
+// parseOriginText parses origin string to uint8.
 // RFC 4271: ORIGIN attribute.
-func ParseOriginText(s string) (uint8, error) {
+func parseOriginText(s string) (uint8, error) {
 	switch strings.ToLower(s) {
 	case "igp":
 		return 0, nil
@@ -221,7 +221,7 @@ func ParseASPathText(args []string) ([]uint32, int, error) {
 
 // ParseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
 // Returns the parsed communities and how many tokens were consumed.
-func ParseCommunitiesText(args []string) ([]uint32, int, error) {
+func parseCommunitiesText(args []string) ([]uint32, int, error) {
 	if len(args) == 0 {
 		return nil, 0, errMissingCommunityValue
 	}
@@ -241,7 +241,7 @@ func ParseCommunitiesText(args []string) ([]uint32, int, error) {
 
 // ParseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
 // Returns the parsed communities and how many tokens were consumed.
-func ParseLargeCommunitiesText(args []string) ([]LargeCommunity, int, error) {
+func parseLargeCommunitiesText(args []string) ([]LargeCommunity, int, error) {
 	if len(args) == 0 {
 		return nil, 0, errMissingLargeCommunityValue
 	}

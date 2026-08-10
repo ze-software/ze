@@ -60,7 +60,7 @@ func VerifyPDU(pdu []byte, keys []Key) error {
 		}
 	}
 
-	authTLV, derr := DecodeAuthTLV(tlvs[0].Value)
+	authTLV, derr := decodeAuthTLV(tlvs[0].Value)
 	if derr != nil {
 		return ErrAuthMalformed
 	}

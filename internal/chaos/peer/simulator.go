@@ -109,8 +109,8 @@ type SimulatorConfig struct {
 	OnSessionEnd func()
 }
 
-// ChaosResult describes the outcome of a chaos action on this simulator.
-type ChaosResult struct {
+// chaosResult describes the outcome of a chaos action on this simulator.
+type chaosResult struct {
 	// Disconnected is true if the action caused a session teardown.
 	Disconnected bool
 
@@ -326,7 +326,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildVPNRoute(r)
+				data := sender.buildVPNRoute(r)
 				if data == nil {
 					continue
 				}
@@ -342,7 +342,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := senderV6.BuildVPNRoute(r)
+				data := senderV6.buildVPNRoute(r)
 				if data == nil {
 					continue
 				}
@@ -358,7 +358,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildEVPNRoute(r)
+				data := sender.buildEVPNRoute(r)
 				if data == nil {
 					continue
 				}
@@ -374,7 +374,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildFlowSpecRoute(r)
+				data := sender.buildFlowSpecRoute(r)
 				if data == nil {
 					continue
 				}
@@ -390,7 +390,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := senderV6.BuildFlowSpecRoute(r)
+				data := senderV6.buildFlowSpecRoute(r)
 				if data == nil {
 					continue
 				}
@@ -406,7 +406,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildMulticastRoute(prefix)
+				data := sender.buildMulticastRoute(prefix)
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
@@ -419,7 +419,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := senderV6.BuildMulticastRoute(prefix)
+				data := senderV6.buildMulticastRoute(prefix)
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}

@@ -118,8 +118,8 @@ func nlriEqual[T NLRIHashable](a, b T) bool {
 	return true
 }
 
-// InternDirect performs synchronous interning.
-func (s *FamilyStore[T]) InternDirect(value T) T {
+// internDirect performs synchronous interning.
+func (s *FamilyStore[T]) internDirect(value T) T {
 	return s.internSync(value)
 }
 
@@ -217,10 +217,10 @@ func (n *NLRIStore[T]) Intern(value T) T {
 	return store.Intern(value)
 }
 
-// InternDirect performs synchronous interning.
-func (n *NLRIStore[T]) InternDirect(value T) T {
+// internDirect performs synchronous interning.
+func (n *NLRIStore[T]) internDirect(value T) T {
 	store := n.GetOrCreate(value.FamilyKey())
-	return store.InternDirect(value)
+	return store.internDirect(value)
 }
 
 // Release decrements the reference count for an NLRI.

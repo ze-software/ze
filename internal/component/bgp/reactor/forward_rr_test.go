@@ -55,7 +55,7 @@ func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool) []by
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(200)
 	update := &ReceivedUpdate{WireUpdate: wu, SourcePeerIP: netip.MustParseAddr("10.0.0.1"), ReceivedAt: time.Now()}
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(200, 1)
 

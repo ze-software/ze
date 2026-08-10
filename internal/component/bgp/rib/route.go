@@ -146,8 +146,8 @@ func (r *Route) WireBytes() []byte {
 	return r.wireBytes
 }
 
-// NLRIWireBytes returns the cached NLRI wire bytes (may be nil).
-func (r *Route) NLRIWireBytes() []byte {
+// nLRIWireBytes returns the cached NLRI wire bytes (may be nil).
+func (r *Route) nLRIWireBytes() []byte {
 	return r.nlriWireBytes
 }
 

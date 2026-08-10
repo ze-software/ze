@@ -9,8 +9,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ShowEntry represents one row in the show debug output.
-type ShowEntry struct {
+// showEntry represents one row in the show debug output.
+type showEntry struct {
 	Module string
 	Level  string
 	Flags  string
@@ -19,9 +19,9 @@ type ShowEntry struct {
 
 // showEntries builds structured display entries from a profile,
 // optionally filtered to a module subtree prefix.
-func showEntries(p *Profile, subtree string) []ShowEntry {
+func showEntries(p *Profile, subtree string) []showEntry {
 	names := p.ModuleNames()
-	entries := make([]ShowEntry, 0, len(names))
+	entries := make([]showEntry, 0, len(names))
 
 	var tb textbuf.Buffer
 	subtreePrefix := ""
@@ -39,7 +39,7 @@ func showEntries(p *Profile, subtree string) []ShowEntry {
 			continue
 		}
 
-		entries = append(entries, ShowEntry{
+		entries = append(entries, showEntry{
 			Module: name,
 			Level:  entry.Level,
 			Flags:  formatFlags(entry.Flags),

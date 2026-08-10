@@ -40,22 +40,22 @@ func (h *ISISHandlers) views() *snapshotHandlers {
 	}
 }
 
-// HandleISISNeighbors serves GET /isis (and /isis/neighbors): the IS-IS adjacency view.
-func (h *ISISHandlers) HandleISISNeighbors() http.HandlerFunc {
+// handleISISNeighbors serves GET /isis (and /isis/neighbors): the IS-IS adjacency view.
+func (h *ISISHandlers) handleISISNeighbors() http.HandlerFunc {
 	return h.views().handleView(isisNeighborView)
 }
 
-// HandleISISDatabase serves GET /isis/database: the IS-IS link-state database view.
-func (h *ISISHandlers) HandleISISDatabase() http.HandlerFunc {
+// handleISISDatabase serves GET /isis/database: the IS-IS link-state database view.
+func (h *ISISHandlers) handleISISDatabase() http.HandlerFunc {
 	return h.views().handleView(isisDatabaseView)
 }
 
-// HandleISISNeighborsSSE serves GET /isis/neighbors/stream.
-func (h *ISISHandlers) HandleISISNeighborsSSE() http.HandlerFunc {
+// handleISISNeighborsSSE serves GET /isis/neighbors/stream.
+func (h *ISISHandlers) handleISISNeighborsSSE() http.HandlerFunc {
 	return h.views().sse(isisNeighborView)
 }
 
-// HandleISISDatabaseSSE serves GET /isis/database/stream.
-func (h *ISISHandlers) HandleISISDatabaseSSE() http.HandlerFunc {
+// handleISISDatabaseSSE serves GET /isis/database/stream.
+func (h *ISISHandlers) handleISISDatabaseSSE() http.HandlerFunc {
 	return h.views().sse(isisDatabaseView)
 }

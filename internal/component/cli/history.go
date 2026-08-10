@@ -147,9 +147,9 @@ func (h *History) Down() (string, bool) {
 	return saved, true
 }
 
-// ResetBrowsing clears the browsing state without changing entries.
+// resetBrowsing clears the browsing state without changing entries.
 // Called when the user types a character, so the next Up starts fresh.
-func (h *History) ResetBrowsing() {
+func (h *History) resetBrowsing() {
 	h.idx = -1
 	h.tmp = ""
 }

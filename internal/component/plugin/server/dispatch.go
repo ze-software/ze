@@ -652,7 +652,7 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 
 	// Clear all subscriptions for this process
 	if s.subscriptions != nil {
-		s.subscriptions.ClearProcess(proc)
+		s.subscriptions.clearProcess(proc)
 	}
 
 	// Remove cache consumer tracking for this plugin.

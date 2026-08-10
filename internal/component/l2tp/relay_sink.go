@@ -1,6 +1,6 @@
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 PPPoE->L2TP relay (LAC role)
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 10.1 (LAC incoming call)
-// Related: reactor_dial.go -- PlaceIncomingCall originates the ICRQ
+// Related: reactor_dial.go -- placeIncomingCall originates the ICRQ
 
 package l2tp
 
@@ -51,7 +51,7 @@ func (rs *relaySink) Relay(req callsink.Request) (bool, error) {
 	// (A-4), which the reactor performs when the session's kernel resources
 	// are created.
 	params := callParams{callingNumber: req.SubscriberMAC, pppoeChannelFD: req.ChannelFD}
-	if _, err := reactor.PlaceIncomingCall(target, params); err != nil {
+	if _, err := reactor.placeIncomingCall(target, params); err != nil {
 		return false, err
 	}
 	rs.s.logger.Info("l2tp: relaying PPPoE subscriber into L2TP incoming call",

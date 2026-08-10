@@ -29,8 +29,8 @@ type ROACache struct {
 	mu sync.RWMutex
 }
 
-// NewROACache creates an empty ROA cache.
-func NewROACache() *ROACache {
+// newROACache creates an empty ROA cache.
+func newROACache() *ROACache {
 	return &ROACache{
 		ipv4: make(map[string][]vrpEntry),
 		ipv6: make(map[string][]vrpEntry),
@@ -117,10 +117,10 @@ func removeEntry(entries []vrpEntry, target vrpEntry) []vrpEntry {
 	return entries
 }
 
-// FindCovering returns all VRP entries that cover the given prefix.
+// findCovering returns all VRP entries that cover the given prefix.
 // A VRP covers a prefix if the VRP's prefix is equal to or shorter than
 // the query prefix, and the query prefix falls within the VRP's address space.
-func (c *ROACache) FindCovering(prefix string) []vrpEntry {
+func (c *ROACache) findCovering(prefix string) []vrpEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

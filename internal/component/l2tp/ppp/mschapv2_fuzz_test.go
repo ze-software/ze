@@ -58,7 +58,7 @@ func FuzzParseMSCHAPv2Response(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		resp, err := ParseMSCHAPv2Response(data)
+		resp, err := parseMSCHAPv2Response(data)
 		if err != nil {
 			return
 		}

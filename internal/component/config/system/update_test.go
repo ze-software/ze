@@ -73,7 +73,7 @@ func TestUpdateCheckFetch(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	uc := NewUpdateChecker(srv.URL, 86400)
+	uc := newUpdateChecker(srv.URL, 86400)
 	ver, err := uc.fetchVersion(context.Background())
 	if err != nil {
 		t.Fatalf("fetchVersion() error = %v", err)
@@ -92,7 +92,7 @@ func TestUpdateCheckFetchError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	uc := NewUpdateChecker(srv.URL, 86400)
+	uc := newUpdateChecker(srv.URL, 86400)
 	_, err := uc.fetchVersion(context.Background())
 	if err == nil {
 		t.Fatal("fetchVersion() expected error for 500 response with invalid JSON")
@@ -107,7 +107,7 @@ func TestUpdateCheckFetchInvalidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	uc := NewUpdateChecker(srv.URL, 86400)
+	uc := newUpdateChecker(srv.URL, 86400)
 	_, err := uc.fetchVersion(context.Background())
 	if err == nil {
 		t.Fatal("fetchVersion() expected error for invalid JSON")
@@ -122,7 +122,7 @@ func TestUpdateCheckEvent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	uc := NewUpdateChecker(srv.URL, 86400)
+	uc := newUpdateChecker(srv.URL, 86400)
 	uc.running = "26.05.17"
 	uc.check(context.Background())
 
@@ -155,7 +155,7 @@ func TestUpdateCheckNoEvent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	uc := NewUpdateChecker(srv.URL, 86400)
+	uc := newUpdateChecker(srv.URL, 86400)
 	uc.running = "26.05.17"
 	uc.check(context.Background())
 
@@ -179,7 +179,7 @@ func TestUpdateCheckStartStop(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	uc := NewUpdateChecker(srv.URL, 1)
+	uc := newUpdateChecker(srv.URL, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	uc.Start(ctx)
 

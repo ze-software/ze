@@ -13,7 +13,7 @@ import (
 
 // Open loads or creates a JSON-lines backed audit log.
 func Open(path string, maxEntries int) (*Log, error) {
-	if err := ValidateMaxEntries(maxEntries); err != nil {
+	if err := validateMaxEntries(maxEntries); err != nil {
 		return nil, err
 	}
 	log := &Log{path: path, maxEntries: maxEntries}

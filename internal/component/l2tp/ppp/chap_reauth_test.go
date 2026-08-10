@@ -291,7 +291,7 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeSuccess {
 		t.Fatalf("initial reply code = %d, want CHAPCodeSuccess", code)
 	}
-	awaitAuthEventOfType[EventAuthSuccess](t, d.AuthEventsOut(), 2*time.Second)
+	awaitAuthEventOfType[eventAuthSuccess](t, d.AuthEventsOut(), 2*time.Second)
 	// EventLCPUp + EventSessionUp fire after initial auth; drain
 	// them so the reauth-tick lifecycle events stand alone.
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -311,7 +311,7 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeFailure {
 		t.Errorf("reauth reply code = %d, want CHAPCodeFailure", code)
 	}
-	awaitAuthEventOfType[EventAuthFailure](t, d.AuthEventsOut(), 2*time.Second)
+	awaitAuthEventOfType[eventAuthFailure](t, d.AuthEventsOut(), 2*time.Second)
 
 	gotDown := false
 	deadline := time.After(2 * time.Second)
@@ -449,7 +449,7 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeSuccess {
 		t.Fatalf("initial reply code = %d, want CHAPCodeSuccess", code)
 	}
-	awaitAuthEventOfType[EventAuthSuccess](t, d.AuthEventsOut(), 2*time.Second)
+	awaitAuthEventOfType[eventAuthSuccess](t, d.AuthEventsOut(), 2*time.Second)
 	// EventLCPUp + EventSessionUp fire after initial auth; drain them so a
 	// later EventSessionDown (if any) cannot be mistaken for a queued event.
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)

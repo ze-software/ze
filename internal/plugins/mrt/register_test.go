@@ -29,8 +29,8 @@ func TestParseConfigUpdatesMode(t *testing.T) {
 	if cfg.UpdatesInterval != 60*time.Second {
 		t.Errorf("UpdatesInterval = %v, want 60s", cfg.UpdatesInterval)
 	}
-	if !cfg.HasUpdates() || cfg.HasAll() || cfg.HasRoutes() {
-		t.Errorf("mode flags wrong: updates=%v all=%v routes=%v", cfg.HasUpdates(), cfg.HasAll(), cfg.HasRoutes())
+	if !cfg.hasUpdates() || cfg.hasAll() || cfg.hasRoutes() {
+		t.Errorf("mode flags wrong: updates=%v all=%v routes=%v", cfg.hasUpdates(), cfg.hasAll(), cfg.hasRoutes())
 	}
 }
 
@@ -39,7 +39,7 @@ func TestParseConfigAllMode(t *testing.T) {
 	if cfg.AllPath != "/var/mrt/all" || cfg.AllInterval != 30*time.Second {
 		t.Errorf("all: got path=%q interval=%v", cfg.AllPath, cfg.AllInterval)
 	}
-	if !cfg.HasAll() {
+	if !cfg.hasAll() {
 		t.Error("HasAll false for all-mode config")
 	}
 }
@@ -50,7 +50,7 @@ func TestParseConfigRoutesMode(t *testing.T) {
 		t.Errorf("routes: got path=%q interval=%v", cfg.RoutesPath, cfg.RoutesInterval)
 	}
 	// HasRoutes requires BOTH a path and a positive interval.
-	if !cfg.HasRoutes() {
+	if !cfg.hasRoutes() {
 		t.Error("HasRoutes false for routes-mode config")
 	}
 }
@@ -58,7 +58,7 @@ func TestParseConfigRoutesMode(t *testing.T) {
 func TestParseConfigRoutesNoIntervalNotActive(t *testing.T) {
 	// A routes path with interval 0 must not enable RIB dumps (HasRoutes gates on interval).
 	cfg := mustParse(t, `{"routes":{"file":"/var/mrt/rib","interval":0}}`)
-	if cfg.HasRoutes() {
+	if cfg.hasRoutes() {
 		t.Error("HasRoutes true despite interval=0")
 	}
 }

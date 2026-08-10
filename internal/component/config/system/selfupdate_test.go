@@ -63,7 +63,7 @@ func newTestServer(t *testing.T, manifest map[string]any, binaryContent []byte) 
 
 func newTestUpdater(t *testing.T, serverURL, target string, cfg SelfUpdateConfig) *SelfUpdater {
 	t.Helper()
-	su := NewSelfUpdater(serverURL+"/version.json", 86400, cfg, nil)
+	su := newSelfUpdater(serverURL+"/version.json", 86400, cfg, nil)
 	su.running = "26.01.01"
 	su.targetPath = target
 	su.restartFunc = func(string) error { return nil }
@@ -88,7 +88,7 @@ func TestSelfUpdateFullCycle(t *testing.T) {
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{AutoApply: true, Spread: 0})
 	su.check(context.Background())
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if st.DownloadStatus != "staged" {
 		t.Errorf("expected status staged, got %q", st.DownloadStatus)
 	}
@@ -129,7 +129,7 @@ func TestSelfUpdateChecksumMismatch(t *testing.T) {
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{AutoApply: true, Spread: 0})
 	su.check(context.Background())
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if !strings.Contains(st.DownloadStatus, "checksum mismatch") {
 		t.Errorf("expected checksum mismatch error, got %q", st.DownloadStatus)
 	}
@@ -161,7 +161,7 @@ func TestSelfUpdateServerPaused(t *testing.T) {
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{AutoApply: true, Spread: 0})
 	su.check(context.Background())
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if st.DownloadStatus != "paused by server" {
 		t.Errorf("expected paused by server, got %q", st.DownloadStatus)
 	}
@@ -171,13 +171,13 @@ func TestSelfUpdateServerPaused(t *testing.T) {
 }
 
 func TestSelfUpdateSpreadDeterministic(t *testing.T) {
-	su1 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
+	su1 := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
 	su1.identityFunc = func() string { return "device-A" }
 
-	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
+	su2 := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
 	su2.identityFunc = func() string { return "device-A" }
 
-	su3 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
+	su3 := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
 	su3.identityFunc = func() string { return "device-B" }
 
 	d1 := su1.computeSpreadDelay("26.05.20")
@@ -217,7 +217,7 @@ func TestSelfUpdateMaintenanceWindow(t *testing.T) {
 
 	su.check(context.Background())
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if st.DownloadStatus != "waiting for maintenance window" {
 		t.Errorf("expected waiting for maintenance window, got %q", st.DownloadStatus)
 	}
@@ -234,14 +234,14 @@ func TestSelfUpdateMaintenanceWindow(t *testing.T) {
 
 	su2.check(context.Background())
 
-	st2 := su2.ExtendedStatus()
+	st2 := su2.extendedStatus()
 	if st2.DownloadStatus != "staged" {
 		t.Errorf("expected staged (inside window), got %q", st2.DownloadStatus)
 	}
 }
 
 func TestSelfUpdateMaintenanceWindowMidnight(t *testing.T) {
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{
 		MaintenanceStart: "22:00",
 		MaintenanceEnd:   "06:00",
 	}, nil)
@@ -289,7 +289,7 @@ func TestSelfUpdateMinimumVersion(t *testing.T) {
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{AutoApply: true, Spread: 0})
 	su.check(context.Background())
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if !strings.Contains(st.DownloadStatus, "upgrade requires intermediate") {
 		t.Errorf("expected minimum version error, got %q", st.DownloadStatus)
 	}
@@ -307,7 +307,7 @@ func TestSelfUpdateDiskSpaceCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 
 	// Should not error for reasonable size (disk is not full)
@@ -320,7 +320,7 @@ func TestSelfUpdateDiskSpaceCheck(t *testing.T) {
 func TestSelfUpdateAtomicRename(t *testing.T) {
 	target := newTestBinary(t)
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 
 	// Create a temp file to stage
@@ -364,7 +364,7 @@ func TestSelfUpdateRollback(t *testing.T) {
 	}
 
 	restarted := false
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.restartFunc = func(string) error { restarted = true; return nil }
 
@@ -396,7 +396,7 @@ func TestSelfUpdateRollbackNoPrev(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.restartFunc = func(string) error { return nil }
 
@@ -411,7 +411,7 @@ func TestSelfUpdateRollbackNoPrev(t *testing.T) {
 
 func TestSelfUpdateHistory(t *testing.T) {
 	dir := t.TempDir()
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = filepath.Join(dir, "ze-test")
 	su.nowFunc = func() time.Time { return time.Date(2026, 5, 21, 12, 0, 0, 0, time.UTC) }
 
@@ -437,7 +437,7 @@ func TestSelfUpdateNoSha256AutoApply(t *testing.T) {
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{AutoApply: true, Spread: 0})
 	su.check(context.Background())
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if !strings.Contains(st.DownloadStatus, "auto-apply requires server to provide sha256") {
 		t.Errorf("expected sha256 required error, got %q", st.DownloadStatus)
 	}
@@ -453,14 +453,14 @@ func TestSelfUpdateManualNoSha256(t *testing.T) {
 
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{})
 
-	ver, err := su.ManualDownload(context.Background())
+	ver, err := su.manualDownload(context.Background())
 	if err != nil {
 		t.Fatalf("ManualDownload without sha256 failed: %v", err)
 	}
 	if ver != "26.05.20" {
 		t.Errorf("expected version 26.05.20, got %q", ver)
 	}
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if st.DownloadStatus != "complete" {
 		t.Errorf("expected download complete, got %q", st.DownloadStatus)
 	}
@@ -479,7 +479,7 @@ func TestSelfUpdateManualBypassesPause(t *testing.T) {
 
 	su := newTestUpdater(t, ts.URL, target, SelfUpdateConfig{})
 
-	ver, err := su.ManualDownload(context.Background())
+	ver, err := su.manualDownload(context.Background())
 	if err != nil {
 		t.Fatalf("ManualDownload with pause failed: %v", err)
 	}
@@ -489,7 +489,7 @@ func TestSelfUpdateManualBypassesPause(t *testing.T) {
 }
 
 func TestSelfUpdateDownloadURLValidation(t *testing.T) {
-	su := NewSelfUpdater("https://update.example.com/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("https://update.example.com/version.json", 86400, SelfUpdateConfig{}, nil)
 
 	// HTTPS download URL should be accepted
 	_, err := su.resolveDownloadURL(extendedManifest{DownloadURL: "https://cdn.example.com/ze"})
@@ -560,7 +560,7 @@ func TestSelfUpdateHeldTempSkipsRedownload(t *testing.T) {
 		t.Errorf("expected no re-download, got %d downloads", downloadCount)
 	}
 
-	st := su.ExtendedStatus()
+	st := su.extendedStatus()
 	if st.DownloadStatus != "waiting for maintenance window" {
 		t.Errorf("expected waiting for maintenance window, got %q", st.DownloadStatus)
 	}
@@ -654,7 +654,7 @@ func TestSelfUpdateStaleCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.cleanStaleTempFiles()
 
@@ -693,7 +693,7 @@ func TestSelfUpdateHistoryPersist(t *testing.T) {
 	newHistoryStore(t)
 	target := filepath.Join(t.TempDir(), "ze-test")
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.nowFunc = func() time.Time { return time.Date(2026, 5, 21, 12, 0, 0, 0, time.UTC) }
 
@@ -701,7 +701,7 @@ func TestSelfUpdateHistoryPersist(t *testing.T) {
 	su.recordEvent("26.05.20", "26.05.21", "failed-checksum")
 
 	// New updater loads from the persisted zefs store.
-	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su2 := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su2.targetPath = target
 	su2.loadHistory()
 
@@ -728,7 +728,7 @@ func TestSelfUpdateHistoryPersistCorrupt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
+	su := newSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.loadHistory()
 
@@ -740,7 +740,7 @@ func TestSelfUpdateHistoryPersistCorrupt(t *testing.T) {
 
 func TestSelfUpdateConfigValidation(t *testing.T) {
 	// immediate + time = error
-	err := ValidateSelfUpdateConfig(SelfUpdateConfig{
+	err := validateSelfUpdateConfig(SelfUpdateConfig{
 		RestartImmediate: true,
 		RestartTime:      "03:00",
 	})
@@ -752,34 +752,34 @@ func TestSelfUpdateConfigValidation(t *testing.T) {
 	}
 
 	// Malformed time
-	err = ValidateSelfUpdateConfig(SelfUpdateConfig{RestartTime: "25:00"})
+	err = validateSelfUpdateConfig(SelfUpdateConfig{RestartTime: "25:00"})
 	if err == nil {
 		t.Error("25:00 should be rejected")
 	}
 
-	err = ValidateSelfUpdateConfig(SelfUpdateConfig{RestartTime: "abc"})
+	err = validateSelfUpdateConfig(SelfUpdateConfig{RestartTime: "abc"})
 	if err == nil {
 		t.Error("abc should be rejected")
 	}
 
 	// Valid configs
-	err = ValidateSelfUpdateConfig(SelfUpdateConfig{RestartTime: "03:00"})
+	err = validateSelfUpdateConfig(SelfUpdateConfig{RestartTime: "03:00"})
 	if err != nil {
 		t.Errorf("03:00 should be valid: %v", err)
 	}
 
-	err = ValidateSelfUpdateConfig(SelfUpdateConfig{RestartImmediate: true})
+	err = validateSelfUpdateConfig(SelfUpdateConfig{RestartImmediate: true})
 	if err != nil {
 		t.Errorf("immediate alone should be valid: %v", err)
 	}
 
-	err = ValidateSelfUpdateConfig(SelfUpdateConfig{})
+	err = validateSelfUpdateConfig(SelfUpdateConfig{})
 	if err != nil {
 		t.Errorf("empty config should be valid: %v", err)
 	}
 
 	// Malformed maintenance window
-	err = ValidateSelfUpdateConfig(SelfUpdateConfig{MaintenanceStart: "99:99"})
+	err = validateSelfUpdateConfig(SelfUpdateConfig{MaintenanceStart: "99:99"})
 	if err == nil {
 		t.Error("99:99 should be rejected")
 	}

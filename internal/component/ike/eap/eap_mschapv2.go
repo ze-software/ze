@@ -152,9 +152,9 @@ func (m *mschapv2Method) handleResponse(td []byte) MethodResult {
 	if len(td) > 54 {
 		peerName = string(td[54:])
 	}
-	userName := StripDomain(peerName)
+	userName := stripDomain(peerName)
 
-	if !VerifyNTResponse(m.authChallenge, peerChallenge, userName, m.password, ntResponse) {
+	if !verifyNTResponse(m.authChallenge, peerChallenge, userName, m.password, ntResponse) {
 		return m.sendFailure()
 	}
 

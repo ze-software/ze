@@ -31,12 +31,12 @@ func TestTLVRegistration(t *testing.T) {
 	}
 
 	for _, code := range phase1Codes {
-		decoder := LookupLsAttrTLVDecoder(code)
+		decoder := lookupLsAttrTLVDecoder(code)
 		assert.NotNilf(t, decoder, "no decoder registered for TLV code %d", code)
 	}
 
 	// At least 20 for Phase 1
-	assert.GreaterOrEqual(t, RegisteredLsAttrTLVCount(), 20)
+	assert.GreaterOrEqual(t, registeredLsAttrTLVCount(), 20)
 }
 
 // TestTLVIterator verifies the iterator yields correct entries.
@@ -53,8 +53,8 @@ func TestTLVIterator(t *testing.T) {
 	binary.BigEndian.PutUint16(data[10:], 1)
 	data[12] = 10
 
-	var entries []AttrTLVEntry
-	err := IterateAttrTLVs(data, func(e AttrTLVEntry) bool {
+	var entries []attrTLVEntry
+	err := iterateAttrTLVs(data, func(e attrTLVEntry) bool {
 		entries = append(entries, e)
 		return true
 	})
@@ -79,7 +79,7 @@ func TestTLVIteratorTruncated(t *testing.T) {
 	data[4] = 0xFF
 	data[5] = 0xFF
 
-	err := IterateAttrTLVs(data, func(e AttrTLVEntry) bool {
+	err := iterateAttrTLVs(data, func(e attrTLVEntry) bool {
 		t.Fatal("should not yield entries on truncated data")
 		return true
 	})
@@ -92,7 +92,7 @@ func TestTLVIteratorTruncated(t *testing.T) {
 // PREVENTS: Panic on nil/empty input.
 func TestTLVIteratorEmpty(t *testing.T) {
 	var count int
-	err := IterateAttrTLVs(nil, func(e AttrTLVEntry) bool {
+	err := iterateAttrTLVs(nil, func(e attrTLVEntry) bool {
 		count++
 		return true
 	})
@@ -115,7 +115,7 @@ func TestTLVIteratorStopEarly(t *testing.T) {
 	data[9] = 0x00
 
 	var count int
-	err := IterateAttrTLVs(data, func(e AttrTLVEntry) bool {
+	err := iterateAttrTLVs(data, func(e attrTLVEntry) bool {
 		count++
 		return false // stop after first
 	})
@@ -128,8 +128,8 @@ func TestTLVIteratorStopEarly(t *testing.T) {
 // VALIDATES: DecodeAttrTLV returns sentinel error for unregistered codes.
 // PREVENTS: Nil error on unknown TLV silently dropping data.
 func TestUnknownTLVDecode(t *testing.T) {
-	entry := AttrTLVEntry{Type: 65535, Value: []byte{0x01}}
-	_, err := DecodeAttrTLV(entry)
+	entry := attrTLVEntry{Type: 65535, Value: []byte{0x01}}
+	_, err := decodeAttrTLV(entry)
 	assert.ErrorIs(t, err, ErrUnknownAttrTLV)
 }
 
@@ -137,16 +137,16 @@ func TestUnknownTLVDecode(t *testing.T) {
 
 // tlvRoundTrip is a generic helper that encodes a TLV via WriteTo, then decodes via
 // the iterator + registry, and returns the decoded TLV cast to the expected type.
-func tlvRoundTrip[T LsAttrTLV](t *testing.T, original T) T {
+func tlvRoundTrip[T lsAttrTLV](t *testing.T, original T) T {
 	t.Helper()
 	buf := make([]byte, original.Len())
 	n := original.WriteTo(buf, 0)
 	require.Equal(t, original.Len(), n, "WriteTo returned wrong length")
 
-	var decoded LsAttrTLV
-	err := IterateAttrTLVs(buf, func(e AttrTLVEntry) bool {
+	var decoded lsAttrTLV
+	err := iterateAttrTLVs(buf, func(e attrTLVEntry) bool {
 		var decErr error
-		decoded, decErr = DecodeAttrTLV(e)
+		decoded, decErr = decodeAttrTLV(e)
 		require.NoError(t, decErr)
 		return false
 	})
@@ -162,7 +162,7 @@ func tlvRoundTrip[T LsAttrTLV](t *testing.T, original T) T {
 // VALIDATES: Node Flag Bits round-trip with non-zero flags.
 // PREVENTS: Flag bit ordering errors.
 func TestNodeFlagBitsRoundTrip(t *testing.T) {
-	original := &LsNodeFlagBits{Flags: 0xEC} // O=1, T=1, E=1, B=0, R=1, V=1, RSV=0
+	original := &lsNodeFlagBits{Flags: 0xEC} // O=1, T=1, E=1, B=0, R=1, V=1, RSV=0
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.Flags, decoded.Flags)
 
@@ -182,7 +182,7 @@ func TestNodeFlagBitsRoundTrip(t *testing.T) {
 // VALIDATES: Opaque node attribute preserves arbitrary bytes.
 // PREVENTS: Data corruption in opaque copy.
 func TestOpaqueNodeAttrRoundTrip(t *testing.T) {
-	original := &LsOpaqueNodeAttr{Data: []byte{0xDE, 0xAD, 0xBE, 0xEF}}
+	original := &lsOpaqueNodeAttr{Data: []byte{0xDE, 0xAD, 0xBE, 0xEF}}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.Data, decoded.Data)
 }
@@ -192,7 +192,7 @@ func TestOpaqueNodeAttrRoundTrip(t *testing.T) {
 // VALIDATES: Node Name string round-trip.
 // PREVENTS: String encoding issues.
 func TestNodeNameRoundTrip(t *testing.T) {
-	original := &LsNodeName{Name: "router1.example.com"}
+	original := &lsNodeName{Name: "router1.example.com"}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.Name, decoded.Name)
 
@@ -205,7 +205,7 @@ func TestNodeNameRoundTrip(t *testing.T) {
 // VALIDATES: IS-IS Area ID byte round-trip and hex JSON output.
 // PREVENTS: Area ID data loss.
 func TestISISAreaIDRoundTrip(t *testing.T) {
-	original := &LsISISAreaID{AreaID: []byte{0x49, 0x00, 0x01}}
+	original := &lsISISAreaID{AreaID: []byte{0x49, 0x00, 0x01}}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.AreaID, decoded.AreaID)
 
@@ -235,7 +235,7 @@ func TestIPv4RouterIDLocalRoundTrip(t *testing.T) {
 // PREVENTS: 16-byte address truncation.
 func TestIPv6RouterIDLocalRoundTrip(t *testing.T) {
 	addr := netip.MustParseAddr("2001:db8::1")
-	original := &LsIPv6RouterIDLocal{Addr: addr}
+	original := &lsIPv6RouterIDLocal{Addr: addr}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, addr, decoded.Addr)
 }
@@ -262,7 +262,7 @@ func TestIPv4RouterIDRemoteRoundTrip(t *testing.T) {
 // PREVENTS: 16-byte address truncation.
 func TestIPv6RouterIDRemoteRoundTrip(t *testing.T) {
 	addr := netip.MustParseAddr("fd00::2")
-	original := &LsIPv6RouterIDRemote{Addr: addr}
+	original := &lsIPv6RouterIDRemote{Addr: addr}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, addr, decoded.Addr)
 }
@@ -272,7 +272,7 @@ func TestIPv6RouterIDRemoteRoundTrip(t *testing.T) {
 // VALIDATES: Admin Group 4-byte mask round-trip.
 // PREVENTS: Bit mask endianness error.
 func TestAdminGroupRoundTrip(t *testing.T) {
-	original := &LsAdminGroup{Mask: 0xDEADBEEF}
+	original := &lsAdminGroup{Mask: 0xDEADBEEF}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint32(0xDEADBEEF), decoded.Mask)
 }
@@ -282,7 +282,7 @@ func TestAdminGroupRoundTrip(t *testing.T) {
 // VALIDATES: IEEE float32 bandwidth round-trip.
 // PREVENTS: Float encoding error.
 func TestMaxLinkBandwidthRoundTrip(t *testing.T) {
-	original := &LsMaxLinkBandwidth{Bandwidth: 1.25e9} // 10 Gbps in bytes/sec
+	original := &lsMaxLinkBandwidth{Bandwidth: 1.25e9} // 10 Gbps in bytes/sec
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, float32(1.25e9), decoded.Bandwidth)
 
@@ -295,7 +295,7 @@ func TestMaxLinkBandwidthRoundTrip(t *testing.T) {
 // VALIDATES: Max reservable bandwidth float32 round-trip.
 // PREVENTS: Wrong TLV code for reservable vs max bandwidth.
 func TestMaxReservableBWRoundTrip(t *testing.T) {
-	original := &LsMaxReservableBW{Bandwidth: 5e8}
+	original := &lsMaxReservableBW{Bandwidth: 5e8}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, float32(5e8), decoded.Bandwidth)
 }
@@ -306,7 +306,7 @@ func TestMaxReservableBWRoundTrip(t *testing.T) {
 // PREVENTS: Priority level ordering or count error.
 func TestUnreservedBWRoundTrip(t *testing.T) {
 	bw := [8]float32{1e9, 9e8, 8e8, 7e8, 6e8, 5e8, 4e8, 3e8}
-	original := &LsUnreservedBW{Bandwidth: bw}
+	original := &lsUnreservedBW{Bandwidth: bw}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, bw, decoded.Bandwidth)
 
@@ -343,7 +343,7 @@ func TestIGPMetricVariableLengths(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			original := &LsIGPMetric{Metric: tt.metric, wireLen: tt.wireLen}
+			original := &lsIGPMetric{Metric: tt.metric, wireLen: tt.wireLen}
 			decoded := tlvRoundTrip(t, original)
 			assert.Equal(t, tt.metric, decoded.Metric)
 			assert.Equal(t, tt.wireLen, decoded.wireLen)
@@ -356,7 +356,7 @@ func TestIGPMetricVariableLengths(t *testing.T) {
 // VALIDATES: SRLG array of uint32 values round-trip.
 // PREVENTS: Array element ordering or count error.
 func TestSRLGRoundTrip(t *testing.T) {
-	original := &LsSRLG{Values: []uint32{100, 200, 300}}
+	original := &lsSRLG{Values: []uint32{100, 200, 300}}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.Values, decoded.Values)
 }
@@ -366,7 +366,7 @@ func TestSRLGRoundTrip(t *testing.T) {
 // VALIDATES: Opaque link attribute data round-trip.
 // PREVENTS: Data corruption.
 func TestOpaqueLinkAttrRoundTrip(t *testing.T) {
-	original := &LsOpaqueLinkAttr{Data: []byte{0xCA, 0xFE}}
+	original := &lsOpaqueLinkAttr{Data: []byte{0xCA, 0xFE}}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.Data, decoded.Data)
 }
@@ -376,7 +376,7 @@ func TestOpaqueLinkAttrRoundTrip(t *testing.T) {
 // VALIDATES: Link name string round-trip.
 // PREVENTS: String encoding issues.
 func TestLinkNameRoundTrip(t *testing.T) {
-	original := &LsLinkName{Name: "ge-0/0/1"}
+	original := &lsLinkName{Name: "ge-0/0/1"}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, "ge-0/0/1", decoded.Name)
 }
@@ -413,7 +413,7 @@ func TestPrefixMetricRoundTrip(t *testing.T) {
 // VALIDATES: Opaque prefix attribute data round-trip.
 // PREVENTS: Data corruption.
 func TestOpaquePrefixAttrRoundTrip(t *testing.T) {
-	original := &LsOpaquePrefixAttr{Data: []byte{0xAB, 0xCD}}
+	original := &lsOpaquePrefixAttr{Data: []byte{0xAB, 0xCD}}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, original.Data, decoded.Data)
 }
@@ -439,7 +439,7 @@ func TestIGPMetricBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &LsIGPMetric{Metric: tt.metric}
+			m := &lsIGPMetric{Metric: tt.metric}
 			assert.Equal(t, 4+tt.wantLen, m.Len(), "unexpected Len()")
 
 			decoded := tlvRoundTrip(t, m)
@@ -453,7 +453,7 @@ func TestIGPMetricBoundary(t *testing.T) {
 // VALIDATES: Max float32 bandwidth encodes and decodes correctly.
 // PREVENTS: Float overflow in encoding.
 func TestBandwidthMaxFloat32(t *testing.T) {
-	original := &LsMaxLinkBandwidth{Bandwidth: math.MaxFloat32}
+	original := &lsMaxLinkBandwidth{Bandwidth: math.MaxFloat32}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, float32(math.MaxFloat32), decoded.Bandwidth)
 }
@@ -479,7 +479,7 @@ func TestDecodeAllAttrTLVs(t *testing.T) {
 	data[off+4] = 0xFF
 	data[off+5] = 0xFF
 
-	tlvs, err := DecodeAllAttrTLVs(data)
+	tlvs, err := decodeAllAttrTLVs(data)
 	require.NoError(t, err)
 	// Unknown TLV 9999 is not in the result (only recognized ones)
 	assert.Len(t, tlvs, 2)
@@ -567,7 +567,7 @@ func TestSRCapabilitiesRoundTrip(t *testing.T) {
 // VALIDATES: SR Algorithm byte array round-trip.
 // PREVENTS: Algorithm ID ordering or loss.
 func TestSRAlgorithmRoundTrip(t *testing.T) {
-	original := &LsSRAlgorithm{Algorithms: []uint8{0, 1, 128}}
+	original := &lsSRAlgorithm{Algorithms: []uint8{0, 1, 128}}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, []uint8{0, 1, 128}, decoded.Algorithms)
 
@@ -610,7 +610,7 @@ func TestAdjacencySIDRoundTrip(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			original := &LsAdjacencySID{
+			original := &lsAdjacencySID{
 				Flags:   tt.flags,
 				Weight:  tt.weight,
 				SID:     tt.sid,
@@ -634,7 +634,7 @@ func TestAdjacencySIDRoundTrip(t *testing.T) {
 // VALIDATES: Prefix SID with flags, algorithm, and SID (label vs index).
 // PREVENTS: Flags/algorithm byte position errors.
 func TestPrefixSIDRoundTrip(t *testing.T) {
-	original := &LsPrefixSID{
+	original := &lsPrefixSID{
 		Flags:     0x40, // N-flag set
 		Algorithm: 1,
 		SID:       24000,
@@ -666,7 +666,7 @@ func TestSIDLabelRoundTrip(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			original := &LsSIDLabel{SID: tt.sid, wireLen: tt.wireLen}
+			original := &lsSIDLabel{SID: tt.sid, wireLen: tt.wireLen}
 			decoded := tlvRoundTrip(t, original)
 			if tt.wireLen == 3 {
 				assert.Equal(t, tt.sid&0xFFFFF, decoded.SID)
@@ -682,7 +682,7 @@ func TestSIDLabelRoundTrip(t *testing.T) {
 // VALIDATES: SR Prefix Attribute Flags round-trip.
 // PREVENTS: Flag bit position errors (X/R/N).
 func TestSRPrefixFlagsRoundTrip(t *testing.T) {
-	original := &LsSRPrefixFlags{Flags: 0xE0} // X=1, R=1, N=1
+	original := &lsSRPrefixFlags{Flags: 0xE0} // X=1, R=1, N=1
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint8(0xE0), decoded.Flags)
 
@@ -709,7 +709,7 @@ func TestSourceRouterIDRoundTrip(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			original := &LsSourceRouterID{ID: tt.id}
+			original := &lsSourceRouterID{ID: tt.id}
 			decoded := tlvRoundTrip(t, original)
 			assert.Equal(t, tt.id, decoded.ID)
 
@@ -730,11 +730,11 @@ func TestPhase2Registration(t *testing.T) {
 		TLVPrefixSID, TLVSIDLabel, TLVSRPrefixFlags, TLVSourceRouterID,
 	}
 	for _, code := range phase2Codes {
-		decoder := LookupLsAttrTLVDecoder(code)
+		decoder := lookupLsAttrTLVDecoder(code)
 		assert.NotNilf(t, decoder, "no decoder registered for TLV code %d", code)
 	}
 	// Phase 1 (20) + Phase 2 (8) = 28
-	assert.GreaterOrEqual(t, RegisteredLsAttrTLVCount(), 28)
+	assert.GreaterOrEqual(t, registeredLsAttrTLVCount(), 28)
 }
 
 // --- Phase 3: EPE + Delay + SRv6 + Descriptor tests ---
@@ -744,7 +744,7 @@ func TestPhase2Registration(t *testing.T) {
 // VALIDATES: Peer Node SID with 4-byte index round-trip.
 // PREVENTS: Wrong TLV code in PeerSID dispatch.
 func TestPeerNodeSIDRoundTrip(t *testing.T) {
-	original := &LsPeerSID{TLVCode: TLVPeerNodeSID, Flags: 0xC0, Weight: 5, SID: 24000, wireLen: 8}
+	original := &lsPeerSID{TLVCode: TLVPeerNodeSID, Flags: 0xC0, Weight: 5, SID: 24000, wireLen: 8}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, TLVPeerNodeSID, decoded.TLVCode)
 	assert.Equal(t, uint8(0xC0), decoded.Flags)
@@ -761,7 +761,7 @@ func TestPeerNodeSIDRoundTrip(t *testing.T) {
 // VALIDATES: Peer Adjacency SID with 3-byte label.
 // PREVENTS: Label 20-bit masking error in peer SID.
 func TestPeerAdjSIDRoundTrip(t *testing.T) {
-	original := &LsPeerSID{TLVCode: TLVPeerAdjSID, Flags: 0x80, Weight: 10, SID: 16001, wireLen: 7}
+	original := &lsPeerSID{TLVCode: TLVPeerAdjSID, Flags: 0x80, Weight: 10, SID: 16001, wireLen: 7}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, TLVPeerAdjSID, decoded.TLVCode)
 	assert.Equal(t, uint32(16001)&0xFFFFF, decoded.SID)
@@ -816,7 +816,7 @@ func TestSRv6LANEndXISISRoundTrip(t *testing.T) {
 // VALIDATES: Peer Set SID with 4-byte index round-trip.
 // PREVENTS: Missing Peer Set SID variant.
 func TestPeerSetSIDRoundTrip(t *testing.T) {
-	original := &LsPeerSID{TLVCode: TLVPeerSetSID, Flags: 0x00, Weight: 1, SID: 50000, wireLen: 8}
+	original := &lsPeerSID{TLVCode: TLVPeerSetSID, Flags: 0x00, Weight: 1, SID: 50000, wireLen: 8}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, TLVPeerSetSID, decoded.TLVCode)
 	assert.Equal(t, uint32(50000), decoded.SID)
@@ -846,7 +846,7 @@ func TestRFC9086PeerSIDIgnoresReservedFields(t *testing.T) {
 	decode := decodePeerSID(TLVPeerNodeSID)
 	tlv, err := decode([]byte{0xCF, 0x05, 0xFF, 0xFF, 0x00, 0x00, 0x5D, 0xC0})
 	require.NoError(t, err) // non-zero reserved bits/field must NOT reject the TLV.
-	ps, ok := tlv.(*LsPeerSID)
+	ps, ok := tlv.(*lsPeerSID)
 	require.True(t, ok)
 
 	// RFC requirement: RFC9086-5-5 positive -- reserved bits in the Flags octet are ignored on receipt: they neither reject the TLV nor disturb the meaningful V/L flags or the decoded SID.
@@ -880,7 +880,7 @@ func TestRFC9085SIDLabelMasksLeftmostFourBits(t *testing.T) {
 	// treats them as zero, so the decoded label is the 20 rightmost bits: 0x12345.
 	tlv, err := decodeSIDLabel([]byte{0xF1, 0x23, 0x45})
 	require.NoError(t, err) // a 3-octet value with high bits set must NOT be rejected.
-	sl, ok := tlv.(*LsSIDLabel)
+	sl, ok := tlv.(*lsSIDLabel)
 	require.True(t, ok)
 
 	// RFC requirement: RFC9085-2.1.1-1 positive -- 3-octet SID/Label with its 4 leftmost bits set (0xF12345) decodes to the 20 rightmost bits (0x12345); the leftmost 4 bits are masked off, not folded into the SID.
@@ -963,7 +963,7 @@ func TestSRv6LANEndXOSPFRoundTrip(t *testing.T) {
 // VALIDATES: 24-bit delay in microseconds with A flag.
 // PREVENTS: A flag bit position error, 24-bit value extraction.
 func TestUnidirectionalDelayRoundTrip(t *testing.T) {
-	original := &LsUnidirectionalDelay{Anomalous: true, Delay: 500}
+	original := &lsUnidirectionalDelay{Anomalous: true, Delay: 500}
 	decoded := tlvRoundTrip(t, original)
 	assert.True(t, decoded.Anomalous)
 	assert.Equal(t, uint32(500), decoded.Delay)
@@ -974,7 +974,7 @@ func TestUnidirectionalDelayRoundTrip(t *testing.T) {
 // VALIDATES: Min/max delay with A flag round-trip.
 // PREVENTS: Min/max value swap.
 func TestMinMaxDelayRoundTrip(t *testing.T) {
-	original := &LsMinMaxDelay{Anomalous: false, MinDelay: 100, MaxDelay: 5000}
+	original := &lsMinMaxDelay{Anomalous: false, MinDelay: 100, MaxDelay: 5000}
 	decoded := tlvRoundTrip(t, original)
 	assert.False(t, decoded.Anomalous)
 	assert.Equal(t, uint32(100), decoded.MinDelay)
@@ -986,7 +986,7 @@ func TestMinMaxDelayRoundTrip(t *testing.T) {
 // VALIDATES: Delay variation 24-bit value round-trip.
 // PREVENTS: Reserved byte corruption.
 func TestDelayVariationRoundTrip(t *testing.T) {
-	original := &LsDelayVariation{Variation: 42}
+	original := &lsDelayVariation{Variation: 42}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint32(42), decoded.Variation)
 }
@@ -1026,7 +1026,7 @@ func TestSRv6BGPPeerNodeSIDRoundTrip(t *testing.T) {
 // VALIDATES: SRv6 SID Structure 4-byte fields round-trip.
 // PREVENTS: Field ordering.
 func TestSRv6SIDStructureAttrRoundTrip(t *testing.T) {
-	original := &LsSRv6SIDStructureAttr{LocBlockLen: 40, LocNodeLen: 24, FuncLen: 16, ArgLen: 0}
+	original := &lsSRv6SIDStructureAttr{LocBlockLen: 40, LocNodeLen: 24, FuncLen: 16, ArgLen: 0}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint8(40), decoded.LocBlockLen)
 	assert.Equal(t, uint8(24), decoded.LocNodeLen)
@@ -1108,9 +1108,9 @@ func TestPhase3Registration(t *testing.T) {
 		TLVSRv6EndpointBehavior, TLVSRv6BGPPeerNodeSID, TLVSRv6SIDStructure,
 	}
 	for _, code := range phase3Codes {
-		decoder := LookupLsAttrTLVDecoder(code)
+		decoder := lookupLsAttrTLVDecoder(code)
 		assert.NotNilf(t, decoder, "no decoder registered for TLV code %d", code)
 	}
 	// Phase 1 (20) + Phase 2 (8) + Phase 3 (12) = 40
-	assert.GreaterOrEqual(t, RegisteredLsAttrTLVCount(), 40)
+	assert.GreaterOrEqual(t, registeredLsAttrTLVCount(), 40)
 }

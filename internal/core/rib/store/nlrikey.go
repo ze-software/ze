@@ -101,9 +101,9 @@ type NLRIKey struct {
 	data [24]byte
 }
 
-// NewNLRIKey creates an NLRIKey from raw NLRI wire bytes.
+// newNLRIKey creates an NLRIKey from raw NLRI wire bytes.
 // If nlriBytes is longer than 24, it is truncated (should never happen for unicast).
-func NewNLRIKey(nlriBytes []byte) NLRIKey {
+func newNLRIKey(nlriBytes []byte) NLRIKey {
 	var k NLRIKey
 	n := min(len(nlriBytes), 24)
 	k.len = uint8(n)

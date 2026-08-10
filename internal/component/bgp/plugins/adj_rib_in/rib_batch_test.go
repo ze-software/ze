@@ -84,8 +84,8 @@ func benchManager(b *testing.B) *AdjRIBInManager {
 	return &AdjRIBInManager{
 		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[netip.Addr]bool),
-		pending:        make(map[compactPendingKey]*PendingRoute),
-		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
+		pending:        make(map[compactPendingKey]*pendingRoute),
+		earlyDecisions: make(map[compactPendingKey]*earlyDecision),
 	}
 }
 
@@ -105,7 +105,7 @@ func benchPrefixTable() ([]string, []compactRouteKey) {
 func benchPopulatePending(r *AdjRIBInManager, prefixes []string, rKeys []compactRouteKey) {
 	r.mu.Lock()
 	for i := range benchN {
-		r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKeys[i])] = &PendingRoute{
+		r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKeys[i])] = &pendingRoute{
 			peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: prefixes[i],
 			routeKey: rKeys[i], route: &RawRoute{Family: family.IPv4Unicast},
 			state: ValidationPending,
@@ -125,17 +125,17 @@ func TestBatchValidateMixedAcceptReject(t *testing.T) {
 	rKey3 := routeKeyFromStrings(family.IPv6Unicast, "2001:db8::/32", 0)
 
 	r.mu.Lock()
-	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey1)] = &PendingRoute{
+	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey1)] = &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: "10.0.0.0/24",
 		routeKey: rKey1, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now(), state: ValidationPending,
 	}
-	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey2)] = &PendingRoute{
+	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey2)] = &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: "10.0.1.0/24",
 		routeKey: rKey2, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0001"},
 		receivedAt: time.Now(), state: ValidationPending,
 	}
-	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey3)] = &PendingRoute{
+	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey3)] = &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv6Unicast, prefix: "2001:db8::/32",
 		routeKey: rKey3, route: &RawRoute{Family: family.IPv6Unicast, AttrHex: "40010100", NHopHex: "20010db8", NLRIHex: "2020010db8"},
 		receivedAt: time.Now(), state: ValidationPending,
@@ -188,7 +188,7 @@ func TestBatchValidateOddPeerIdentifiers(t *testing.T) {
 	rKey := routeKeyFromStrings(family.IPv4Unicast, "203.0.113.0/24", 42)
 
 	r.mu.Lock()
-	r.pending[pendingKey(validPeer, rKey)] = &PendingRoute{
+	r.pending[pendingKey(validPeer, rKey)] = &pendingRoute{
 		peerAddr: validPeer, family: family.IPv4Unicast, prefix: "203.0.113.0/24",
 		routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "18cb0071"},
 		receivedAt: time.Now(), state: ValidationPending,
@@ -340,7 +340,7 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 		r.mu.Lock()
 		for i, p := range prefixes {
 			rKey := routeKeyFromStrings(family.IPv4Unicast, p, uint32(i))
-			r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey)] = &PendingRoute{
+			r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey)] = &pendingRoute{
 				peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: p,
 				routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001"},
 				receivedAt: time.Now(), state: ValidationPending,
@@ -403,7 +403,7 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 		r.mu.Lock()
 		for i, p := range prefixes {
 			rKey := routeKeyFromStrings(family.IPv4Unicast, p, uint32(i))
-			r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey)] = &PendingRoute{
+			r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey)] = &pendingRoute{
 				peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: p,
 				routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001"},
 				receivedAt: time.Now(), state: ValidationPending,

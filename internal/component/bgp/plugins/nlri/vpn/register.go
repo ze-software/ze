@@ -24,12 +24,12 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"ipv4/mpls-vpn", "ipv6/mpls-vpn"},
-		RunEngine:    RunVPNPlugin,
+		RunEngine:    runVPNPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetVPNLogger(slogutil.Logger(loggerName))
+			setVPNLogger(slogutil.Logger(loggerName))
 		},
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
-			return RunVPNDecode(input, output)
+			return runVPNDecode(input, output)
 		},
 		InProcessNLRIDecoder:  DecodeNLRIHex,
 		InProcessNLRIEncoder:  EncodeNLRIHex,
@@ -38,9 +38,9 @@ func init() {
 	reg.CLIHandler = func(args []string) int {
 		var family *string
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = GetVPNYANG
+		cfg.GetYANG = getVPNYANG
 		cfg.ConfigLogger = func(level string) {
-			SetVPNLogger(slogutil.PluginLogger(reg.Name, level))
+			setVPNLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
 			family = fs.String("family", "ipv4/mpls-vpn", "Address family (ipv4/mpls-vpn, ipv6/mpls-vpn)")
@@ -48,7 +48,7 @@ func init() {
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)
 		}
-		cfg.RunDecode = RunVPNDecode
+		cfg.RunDecode = runVPNDecode
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

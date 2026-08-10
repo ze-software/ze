@@ -359,7 +359,7 @@ func TestSubscriptionMatches(t *testing.T) {
 // VALIDATES: Subscriptions can be added and removed.
 // PREVENTS: Memory leaks or incorrect tracking.
 func TestSubscriptionManagerAddRemove(t *testing.T) {
-	sm := NewSubscriptionManager()
+	sm := newSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
 	sub := &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth}
@@ -383,7 +383,7 @@ func TestSubscriptionManagerAddRemove(t *testing.T) {
 // VALIDATES: GetMatching returns processes with matching subscriptions.
 // PREVENTS: Events sent to wrong processes.
 func TestSubscriptionManagerGetMatching(t *testing.T) {
-	sm := NewSubscriptionManager()
+	sm := newSubscriptionManager()
 
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
@@ -418,7 +418,7 @@ func TestSubscriptionManagerGetMatching(t *testing.T) {
 // VALIDATES: Concurrent add/remove/get operations are safe.
 // PREVENTS: Race conditions.
 func TestSubscriptionManagerConcurrency(t *testing.T) {
-	sm := NewSubscriptionManager()
+	sm := newSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
 	var wg sync.WaitGroup
@@ -456,14 +456,14 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 // VALIDATES: ClearProcess removes all subscriptions for a process.
 // PREVENTS: Memory leaks when process dies.
 func TestSubscriptionManagerClearProcess(t *testing.T) {
-	sm := NewSubscriptionManager()
+	sm := newSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
 	sm.Add(proc, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth})
 	sm.Add(proc, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventState), Direction: events.DirBoth})
 	assert.Equal(t, 2, sm.Count(proc))
 
-	sm.ClearProcess(proc)
+	sm.clearProcess(proc)
 	assert.Equal(t, 0, sm.Count(proc))
 }
 

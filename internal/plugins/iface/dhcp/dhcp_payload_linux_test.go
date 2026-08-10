@@ -42,7 +42,7 @@ func (b *recordingBus) leases(t *testing.T) []iface.DHCPPayload {
 
 func newTestClient(t *testing.T, bus *recordingBus, v4, v6 bool) *DHCPClient {
 	t.Helper()
-	c, err := NewDHCPClient("eth0", "0", bus, v4, v6, DHCPConfig{})
+	c, err := newDHCPClient("eth0", "0", bus, v4, v6, dHCPConfig{})
 	if err != nil {
 		t.Fatalf("NewDHCPClient: %v", err)
 	}

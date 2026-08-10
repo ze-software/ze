@@ -40,7 +40,7 @@ func newReflectorHarness(t testing.TB, n, g int) *fanoutHarness {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(16)
+	cache := newRecentUpdateCache(16)
 	t.Cleanup(cache.Stop)
 	cache.Add(update)
 	cache.Activate(1, 1)
@@ -113,7 +113,7 @@ func newReflectorHarness(t testing.TB, n, g int) *fanoutHarness {
 	// destination falls back to a plain allocation, so the fixture would measure
 	// and assert against a path the daemon almost never takes.
 	for _, p := range dests {
-		pool.RegisterOutgoingPool(fwdKey{peerAddr: p.forwardFacts().peerKey}, message.MaxMsgLen)
+		pool.registerOutgoingPool(fwdKey{peerAddr: p.forwardFacts().peerKey}, message.MaxMsgLen)
 	}
 
 	h.adapter = &reactorAPIAdapter{r: &Reactor{
@@ -121,7 +121,7 @@ func newReflectorHarness(t testing.TB, n, g int) *fanoutHarness {
 		recentUpdates:   cache,
 		peers:           peers,
 		fwdPool:         pool,
-		updateGroups:    NewUpdateGroupIndex(true),
+		updateGroups:    newUpdateGroupIndex(true),
 	}}
 	h.update = update
 	h.dests = dests
@@ -242,7 +242,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(16)
+	cache := newRecentUpdateCache(16)
 	t.Cleanup(cache.Stop)
 	cache.Add(update)
 	// One consumer that never acks, so the entry outlives every RetainN/Release
@@ -310,7 +310,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 	// destination falls back to a plain allocation, so the fixture would measure
 	// and assert against a path the daemon almost never takes.
 	for _, p := range dests {
-		pool.RegisterOutgoingPool(fwdKey{peerAddr: p.forwardFacts().peerKey}, message.MaxMsgLen)
+		pool.registerOutgoingPool(fwdKey{peerAddr: p.forwardFacts().peerKey}, message.MaxMsgLen)
 	}
 
 	r := &Reactor{
@@ -322,7 +322,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 		// pointer-keyed body cache it replaces already was. A fixture that left
 		// this nil would measure the ungated path and report a flat result as a
 		// failed change.
-		updateGroups:    NewUpdateGroupIndex(opts.groups),
+		updateGroups:    newUpdateGroupIndex(opts.groups),
 		forwardDedupOff: opts.dedupOff,
 	}
 

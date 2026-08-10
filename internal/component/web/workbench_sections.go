@@ -145,13 +145,13 @@ func sections() []sectionDef {
 	}
 }
 
-// WorkbenchSections returns the ordered list of left-nav sections that the
+// workbenchSections returns the ordered list of left-nav sections that the
 // workbench shell renders. Selection is driven by URL path matching so the active section
 // follows /show navigation without per-page configuration.
 //
 // The order is intentional: Dashboard first, then operator-facing object
 // classes, then service control, then diagnostic tools.
-func WorkbenchSections(currentPath []string) []WorkbenchSection {
+func workbenchSections(currentPath []string) []WorkbenchSection {
 	defs := sections()
 	result := make([]WorkbenchSection, len(defs))
 

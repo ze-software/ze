@@ -651,7 +651,7 @@ func TestWebConfigCommitRBACDeny(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
 	authorizer := readOnlyWebAuthorizer()
-	handler := HandleConfigCommitWithAuthorizer(mgr, renderer, nil, authorizer)
+	handler := handleConfigCommitWithAuthorizer(mgr, renderer, nil, authorizer)
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
@@ -695,7 +695,7 @@ func TestWebConfigDiscardRBACDeny(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
 	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
 	authorizer := readOnlyWebAuthorizer()
-	handler := HandleConfigDiscardWithAuthorizer(mgr, authorizer)
+	handler := handleConfigDiscardWithAuthorizer(mgr, authorizer)
 
 	req := postConfigRequest(t, "/config/discard/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()

@@ -36,8 +36,8 @@ type DynamicGroupConfig struct {
 	ActivePeers atomic.Int32
 }
 
-// ContainsAddr reports whether addr falls within any of the group's ranges.
-func (d *DynamicGroupConfig) ContainsAddr(addr netip.Addr) bool {
+// containsAddr reports whether addr falls within any of the group's ranges.
+func (d *DynamicGroupConfig) containsAddr(addr netip.Addr) bool {
 	for _, r := range d.Ranges {
 		if r.Contains(addr) {
 			return true
@@ -89,7 +89,7 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 		r.fwdWeights.AddPeer(peer.peerAddrLabel(), totalPrefixMax(ps.PrefixMaximum), len(ps.PrefixMaximum))
 	}
 	if r.fwdPool != nil {
-		r.fwdPool.RegisterOutgoingPool(fwdKey{peerAddr: key}, 4096)
+		r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: key}, 4096)
 	}
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
@@ -205,8 +205,8 @@ func (r *Reactor) removeDynamicPeer(peer *Peer) {
 		r.fwdWeights.RemovePeer(peer.peerAddrLabel())
 	}
 	if r.fwdPool != nil {
-		r.fwdPool.UnregisterOutgoingPool(fwdKey{peerAddr: key})
-		r.fwdPool.RemoveSourceStats(settings.Address)
+		r.fwdPool.unregisterOutgoingPool(fwdKey{peerAddr: key})
+		r.fwdPool.removeSourceStats(settings.Address)
 	}
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
@@ -278,7 +278,7 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 			}
 			inRange := false
 			for _, g := range groups {
-				if g.GroupName == groupName && g.ContainsAddr(peer.Settings().Address) {
+				if g.GroupName == groupName && g.containsAddr(peer.Settings().Address) {
 					inRange = true
 					break
 				}

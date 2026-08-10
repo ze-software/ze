@@ -9,7 +9,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-func RegisterShowKernelLog() {
+func registerShowKernelLog() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-show:system-kernel-log", Handler: handleShowSystemKernelLog},
 	)

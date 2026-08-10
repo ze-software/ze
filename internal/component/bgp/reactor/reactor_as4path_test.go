@@ -345,7 +345,7 @@ func TestWriteAnnounceUpdate_NonMappableLocalAS_OldPeer_IPv4(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, nonMappableAS, false /*eBGP*/, false /*OLD*/, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, nonMappableAS, false /*eBGP*/, false /*OLD*/, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	attrs := announceMsgPathAttrs(t, buf, n)
 
@@ -368,7 +368,7 @@ func TestWriteAnnounceUpdate_NonMappableLocalAS_OldPeer_IPv6(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, nonMappableAS, false, false, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, nonMappableAS, false, false, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	attrs := announceMsgPathAttrs(t, buf, n)
 
@@ -386,7 +386,7 @@ func TestWriteAnnounceUpdate_NewPeer_NoAS4Path(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, nonMappableAS, false, true /*NEW*/, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, nonMappableAS, false, true /*NEW*/, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	_, _, ok := findPathAttr(announceMsgPathAttrs(t, buf, n), byte(attribute.AttrAS4Path))
 	assert.False(t, ok)

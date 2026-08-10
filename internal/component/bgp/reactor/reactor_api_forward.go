@@ -262,7 +262,7 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 		if err := peer.SendRawMessage(0, data); err != nil {
 			errs = append(errs, err)
 		} else {
-			peer.IncrRefreshSent()
+			peer.incrRefreshSent()
 		}
 	}
 
@@ -664,7 +664,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
 		if mods.IsWithdraw() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := a.r.fwdPool.OutgoingPool(peerKey)
+			modPool := a.r.fwdPool.outgoingPool(peerKey)
 			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
 				modBufIdx = bufIdx
@@ -676,7 +676,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			}
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := a.r.fwdPool.OutgoingPool(peerKey)
+			modPool := a.r.fwdPool.outgoingPool(peerKey)
 
 			// Ask, before rebuilding, whether an earlier destination in this
 			// same fan-out already produced exactly these bytes. A route server
@@ -794,10 +794,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		for i := range pending {
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
 			if a.r.fwdPool.TryDispatch(pending[i].key, pending[i].item) {
-				a.r.fwdPool.RecordForwarded(srcAddr)
+				a.r.fwdPool.recordForwarded(srcAddr)
 				dispatchedCount++
 			} else if a.r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
-				a.r.fwdPool.RecordOverflowed(srcAddr)
+				a.r.fwdPool.recordOverflowed(srcAddr)
 				dispatchedCount++
 			}
 			// DispatchOverflow false = pool stopped; done() already called (releasing cache ref).
@@ -891,7 +891,7 @@ func (a *reactorAPIAdapter) ListUpdates() []uint64 {
 // registration is what UnregisterConsumer and the walk key on.
 func (a *reactorAPIAdapter) RegisterCacheConsumer(name string, unordered bool) {
 	if unordered {
-		a.r.recentUpdates.SetConsumerUnordered(name)
+		a.r.recentUpdates.setConsumerUnordered(name)
 	}
 	a.r.recentUpdates.RegisterConsumer(name)
 }

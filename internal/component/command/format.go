@@ -9,9 +9,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// FormatNumber displays integers without decimal points.
+// formatNumber displays integers without decimal points.
 // JSON unmarshals all numbers as float64; this restores integer display.
-func FormatNumber(v any) any {
+func formatNumber(v any) any {
 	if n, ok := v.(float64); ok {
 		if n == float64(int64(n)) {
 			return int64(n)
@@ -50,7 +50,7 @@ func writeValue(b *textbuf.Buffer, v any, indent string) {
 		b.Str(indent).Str(val).Byte('\n')
 	case float64:
 		b.Str(indent)
-		writeScalar(b, FormatNumber(val))
+		writeScalar(b, formatNumber(val))
 		b.Byte('\n')
 	}
 }

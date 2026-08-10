@@ -104,8 +104,8 @@ type SubscriptionManager struct {
 	subscriptions map[*process.Process][]*Subscription
 }
 
-// NewSubscriptionManager creates a new subscription manager.
-func NewSubscriptionManager() *SubscriptionManager {
+// newSubscriptionManager creates a new subscription manager.
+func newSubscriptionManager() *SubscriptionManager {
 	return &SubscriptionManager{
 		subscriptions: make(map[*process.Process][]*Subscription),
 	}
@@ -141,8 +141,8 @@ func (sm *SubscriptionManager) Count(proc *process.Process) int {
 	return len(sm.subscriptions[proc])
 }
 
-// ClearProcess removes all subscriptions for a process.
-func (sm *SubscriptionManager) ClearProcess(proc *process.Process) {
+// clearProcess removes all subscriptions for a process.
+func (sm *SubscriptionManager) clearProcess(proc *process.Process) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	delete(sm.subscriptions, proc)
@@ -166,8 +166,8 @@ func (sm *SubscriptionManager) GetMatching(ns events.NamespaceID, et events.Even
 	return result
 }
 
-// GetSubscriptions returns all subscriptions for a process.
-func (sm *SubscriptionManager) GetSubscriptions(proc *process.Process) []*Subscription {
+// getSubscriptions returns all subscriptions for a process.
+func (sm *SubscriptionManager) getSubscriptions(proc *process.Process) []*Subscription {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 

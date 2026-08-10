@@ -204,30 +204,30 @@ type fakeTicker struct {
 func (t *fakeTicker) Stop()               { t.stopped = true }
 func (t *fakeTicker) C() <-chan time.Time { return t.ch }
 
-// FakeDialer is a Dialer implementation that delegates to a configurable function.
-type FakeDialer struct {
+// fakeDialer is a Dialer implementation that delegates to a configurable function.
+type fakeDialer struct {
 	DialFunc func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 // DialContext delegates to DialFunc.
-func (d *FakeDialer) DialContext(ctx context.Context, nw, address string) (net.Conn, error) {
+func (d *fakeDialer) DialContext(ctx context.Context, nw, address string) (net.Conn, error) {
 	return d.DialFunc(ctx, nw, address)
 }
 
-// FakeListenerFactory is a ListenerFactory implementation that delegates
+// fakeListenerFactory is a ListenerFactory implementation that delegates
 // to a configurable function.
-type FakeListenerFactory struct {
+type fakeListenerFactory struct {
 	ListenFunc func(ctx context.Context, network, address string) (net.Listener, error)
 }
 
 // Listen delegates to ListenFunc.
-func (f *FakeListenerFactory) Listen(ctx context.Context, nw, address string) (net.Listener, error) {
+func (f *fakeListenerFactory) Listen(ctx context.Context, nw, address string) (net.Listener, error) {
 	return f.ListenFunc(ctx, nw, address)
 }
 
 // Compile-time interface checks.
 var (
 	_ clock.Clock             = (*FakeClock)(nil)
-	_ network.Dialer          = (*FakeDialer)(nil)
-	_ network.ListenerFactory = (*FakeListenerFactory)(nil)
+	_ network.Dialer          = (*fakeDialer)(nil)
+	_ network.ListenerFactory = (*fakeListenerFactory)(nil)
 )

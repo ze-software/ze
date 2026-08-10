@@ -112,18 +112,18 @@ func ResolveAlias(token string) string {
 	return token
 }
 
-// ShortForm returns the short (API) form of a canonical keyword.
+// shortForm returns the short (API) form of a canonical keyword.
 // If no short form exists, returns the canonical name unchanged.
-func ShortForm(canonical string) string {
+func shortForm(canonical string) string {
 	if short, ok := canonicalToShort[canonical]; ok {
 		return short
 	}
 	return canonical
 }
 
-// LongForm returns the canonical (long) form for display.
+// longForm returns the canonical (long) form for display.
 // This is identity for canonical names; for aliases it resolves first.
-func LongForm(token string) string {
+func longForm(token string) string {
 	return ResolveAlias(token)
 }
 
@@ -162,9 +162,9 @@ var topLevelKeywords = map[string]bool{
 	KWNLRI:              true,
 }
 
-// IsAttributeKeyword returns true if the token is an attribute keyword.
+// isAttributeKeyword returns true if the token is an attribute keyword.
 // Resolves aliases internally — accepts both short and long forms.
-func IsAttributeKeyword(token string) bool {
+func isAttributeKeyword(token string) bool {
 	return attributeKeywords[ResolveAlias(token)]
 }
 

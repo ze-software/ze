@@ -105,7 +105,7 @@ func (f *FlowSpecVPN) SupportsAddPath() bool {
 // String returns command-style format for API round-trip compatibility.
 // Format: flow-vpn rd <rd> <components>.
 func (f *FlowSpecVPN) String() string {
-	compStr := f.flowSpec.ComponentString()
+	compStr := f.flowSpec.componentString()
 	if compStr == "" {
 		return "flow-vpn rd " + f.rd.String()
 	}

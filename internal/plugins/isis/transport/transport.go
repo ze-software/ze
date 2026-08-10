@@ -197,10 +197,10 @@ func (t *Transport) OnCircuitDown(fn func(ifindex int, name string)) {
 	t.onDown = fn
 }
 
-// OnMTUMismatch registers the callback invoked when an observed neighbor frame
+// onMTUMismatch registers the callback invoked when an observed neighbor frame
 // size implies an MTU different from the local interface MTU (ISO/IEC 10589 sec
 // 8.2.3). The transport does not act on the mismatch; the engine does.
-func (t *Transport) OnMTUMismatch(fn func(name string, localMTU, neighborMTU int)) {
+func (t *Transport) onMTUMismatch(fn func(name string, localMTU, neighborMTU int)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.onMismatch = fn
@@ -525,11 +525,11 @@ func (t *Transport) CircuitInfo(name string) (ifindex int, hwaddr [MACLen]byte, 
 	return c.handle.IfIndex(), c.handle.HWAddr(), c.handle.MTU(), true
 }
 
-// CircuitNameByIfIndex returns the interface name of the open circuit with the
+// circuitNameByIfIndex returns the interface name of the open circuit with the
 // given ifindex, so the engine can route a received PDU (delivered keyed by
 // ifindex) to the matching circuit. The boolean is false when no open circuit
 // has that ifindex.
-func (t *Transport) CircuitNameByIfIndex(ifindex int) (string, bool) {
+func (t *Transport) circuitNameByIfIndex(ifindex int) (string, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for name, c := range t.circuits {

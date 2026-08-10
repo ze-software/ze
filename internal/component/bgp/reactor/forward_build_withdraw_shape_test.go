@@ -352,7 +352,7 @@ func forwardOneBody(t *testing.T, srcPeerAS uint32, destSettings *PeerSettings, 
 	const updateID = 9300
 	wu.SetMessageID(updateID)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(&ReceivedUpdate{
 		WireUpdate:   wu,
 		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),

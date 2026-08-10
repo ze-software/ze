@@ -165,7 +165,7 @@ func TestLANAdjSIDSubTLVRoundTrip(t *testing.T) {
 func TestExtPrefixRangeTLVRoundTrip(t *testing.T) {
 	pfx := [4]byte{10, 1, 0, 0}
 	v := EncodeExtPrefixRangeValueV4(24, pfx, 8, true, PrefixSID{Flags: SIDFlags{NP: true}, Index: 100})
-	rng, err := DecodeExtPrefixRangeValueV4(v)
+	rng, err := decodeExtPrefixRangeValueV4(v)
 	if err != nil {
 		t.Fatalf("ext-prefix-range decode: %v", err)
 	}

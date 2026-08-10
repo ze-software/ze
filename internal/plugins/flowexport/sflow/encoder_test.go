@@ -115,7 +115,7 @@ func TestSFlowMultiInterface(t *testing.T) {
 		}
 	}
 
-	datagrams, nextSeq := WriteCounterDatagrams(buf, agent, 0, 1, 5000, ifaces, seqNums)
+	datagrams, nextSeq := writeCounterDatagrams(buf, agent, 0, 1, 5000, ifaces, seqNums)
 
 	// 15 interfaces: 11 fit in first datagram, 4 in second
 	if len(datagrams) != 2 {
@@ -167,7 +167,7 @@ func TestSFlowMultiInterface(t *testing.T) {
 	}
 
 	// First datagram size check: header(28) + 11 * sample(116) = 28 + 1276 = 1304
-	expectedSize1 := HeaderSizeIPv4 + 11*CounterSampleSize()
+	expectedSize1 := HeaderSizeIPv4 + 11*counterSampleSize()
 	if len(dg1) != expectedSize1 {
 		t.Errorf("datagram 1 size: expected %d, got %d", expectedSize1, len(dg1))
 	}
@@ -178,7 +178,7 @@ func TestSFlowEmptyInterfaces(t *testing.T) {
 	agent := netip.MustParseAddr("10.0.0.1")
 	seqNums := make(map[uint32]uint32)
 
-	datagrams, nextSeq := WriteCounterDatagrams(buf, agent, 0, 1, 5000, nil, seqNums)
+	datagrams, nextSeq := writeCounterDatagrams(buf, agent, 0, 1, 5000, nil, seqNums)
 
 	if len(datagrams) != 0 {
 		t.Errorf("expected 0 datagrams for empty interfaces, got %d", len(datagrams))
@@ -204,7 +204,7 @@ func TestSFlowSingleInterface(t *testing.T) {
 		Name:        "eth0",
 	}}
 
-	datagrams, nextSeq := WriteCounterDatagrams(buf, agent, 0, 1, 5000, ifaces, seqNums)
+	datagrams, nextSeq := writeCounterDatagrams(buf, agent, 0, 1, 5000, ifaces, seqNums)
 
 	if len(datagrams) != 1 {
 		t.Fatalf("expected 1 datagram, got %d", len(datagrams))
@@ -214,7 +214,7 @@ func TestSFlowSingleInterface(t *testing.T) {
 	}
 
 	dg := datagrams[0]
-	expectedSize := HeaderSizeIPv4 + CounterSampleSize()
+	expectedSize := HeaderSizeIPv4 + counterSampleSize()
 	if len(dg) != expectedSize {
 		t.Errorf("datagram size: expected %d, got %d", expectedSize, len(dg))
 	}

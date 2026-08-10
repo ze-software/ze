@@ -283,7 +283,7 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 	r.republishFrozen()
 }
 
-// RegisterDeprecated adds a deprecated alias that maps oldName to the
+// registerDeprecated adds a deprecated alias that maps oldName to the
 // canonical command registered under newName. When the old name is looked
 // up, the canonical RegisteredCommand is returned and a deprecation
 // warning is logged once per session.
@@ -296,7 +296,7 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 // Requiring the canonical to be already registered is safe because a plugin's
 // deprecated aliases (CommandDeprecatedNames) reference that same plugin's
 // commands, which startup registers immediately before the aliases.
-func (r *CommandRegistry) RegisterDeprecated(proc *process.Process, oldName, newName string) error {
+func (r *CommandRegistry) registerDeprecated(proc *process.Process, oldName, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -478,18 +478,18 @@ func (r *CommandRegistry) Complete(partial string) []Completion {
 	return completions
 }
 
-// IsBuiltin returns true if the command name is a builtin.
-func (r *CommandRegistry) IsBuiltin(name string) bool {
+// isBuiltin returns true if the command name is a builtin.
+func (r *CommandRegistry) isBuiltin(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.builtins[strings.ToLower(name)]
 }
 
-// LookupDeprecatedPrefix finds the longest deprecated alias that is a prefix
+// lookupDeprecatedPrefix finds the longest deprecated alias that is a prefix
 // of lowerInput (already lowercased by the caller). Returns the canonical
 // RegisteredCommand and the matched prefix length, or (nil, 0) if no
 // deprecated alias matches. Logs a deprecation warning on first match.
-func (r *CommandRegistry) LookupDeprecatedPrefix(lowerInput string) (*RegisteredCommand, int) {
+func (r *CommandRegistry) lookupDeprecatedPrefix(lowerInput string) (*RegisteredCommand, int) {
 	if snap := r.frozen.Load(); snap != nil {
 		return r.lookupDeprecatedPrefixInMaps(snap.deprecated, snap.commands, lowerInput)
 	}

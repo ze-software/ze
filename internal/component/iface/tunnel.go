@@ -68,9 +68,9 @@ func (k TunnelKind) String() string {
 	return "unknown"
 }
 
-// ParseTunnelKind returns the TunnelKind for a YANG case name.
+// parseTunnelKind returns the TunnelKind for a YANG case name.
 // Returns TunnelKindUnknown and false if the name is not recognized.
-func ParseTunnelKind(name string) (TunnelKind, bool) {
+func parseTunnelKind(name string) (TunnelKind, bool) {
 	k, ok := tunnelKindByName[name]
 	if !ok {
 		return TunnelKindUnknown, false
@@ -112,10 +112,10 @@ var bridgeableKinds = map[TunnelKind]bool{
 	TunnelKindIP6GRETap: true,
 }
 
-// IsBridgeable reports whether the tunnel carries Ethernet frames (L2) and
+// isBridgeable reports whether the tunnel carries Ethernet frames (L2) and
 // therefore can be a bridge port or carry VLAN sub-interfaces. Only gretap
 // and ip6gretap qualify; the other six kinds are L3 and reject VLAN tagging.
-func (k TunnelKind) IsBridgeable() bool {
+func (k TunnelKind) isBridgeable() bool {
 	return bridgeableKinds[k]
 }
 

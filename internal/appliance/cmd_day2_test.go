@@ -128,7 +128,7 @@ func TestRekeyChangesEncryption(t *testing.T) {
 		t.Fatalf("rekey returned %d", code)
 	}
 
-	hashData, err := ReadSecret(secretFilePath(dir, "rekey", "password.hash"), []byte("new-pass"))
+	hashData, err := readSecret(secretFilePath(dir, "rekey", "password.hash"), []byte("new-pass"))
 	if err != nil {
 		t.Fatalf("read with new passphrase: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestRekeyChangesEncryption(t *testing.T) {
 		t.Error("hash should not be empty")
 	}
 
-	_, err = ReadSecret(secretFilePath(dir, "rekey", "password.hash"), []byte("old-pass"))
+	_, err = readSecret(secretFilePath(dir, "rekey", "password.hash"), []byte("old-pass"))
 	if err == nil {
 		t.Error("old passphrase should no longer work")
 	}
@@ -146,7 +146,7 @@ func TestRekeyPlaintextToEncrypted(t *testing.T) {
 	dir := initTestAppliance(t, "toenc", nil)
 	baseDir = dir
 
-	if IsEncrypted(dir, "toenc") {
+	if isEncrypted(dir, "toenc") {
 		t.Fatal("should start unencrypted")
 	}
 
@@ -157,7 +157,7 @@ func TestRekeyPlaintextToEncrypted(t *testing.T) {
 		t.Fatalf("rekey returned %d", code)
 	}
 
-	if !IsEncrypted(dir, "toenc") {
+	if !isEncrypted(dir, "toenc") {
 		t.Error("should be encrypted after rekey")
 	}
 }
@@ -166,7 +166,7 @@ func TestRekeyEncryptedToPlaintext(t *testing.T) {
 	dir := initTestAppliance(t, "toplain", []byte("has-pass"))
 	baseDir = dir
 
-	if !IsEncrypted(dir, "toplain") {
+	if !isEncrypted(dir, "toplain") {
 		t.Fatal("should start encrypted")
 	}
 
@@ -178,11 +178,11 @@ func TestRekeyEncryptedToPlaintext(t *testing.T) {
 		t.Fatalf("rekey returned %d", code)
 	}
 
-	if IsEncrypted(dir, "toplain") {
+	if isEncrypted(dir, "toplain") {
 		t.Error("should be plaintext after rekey with empty passphrase")
 	}
 
-	hashData, err := ReadSecret(secretFilePath(dir, "toplain", "password.hash"), nil)
+	hashData, err := readSecret(secretFilePath(dir, "toplain", "password.hash"), nil)
 	if err != nil {
 		t.Fatalf("read plaintext hash: %v", err)
 	}

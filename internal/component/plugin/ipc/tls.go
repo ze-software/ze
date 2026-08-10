@@ -263,11 +263,11 @@ func SendAuth(_ context.Context, conn net.Conn, token, name string) error {
 	return nil
 }
 
-// AuthenticateWithName reads the first RPC from conn and validates that both
+// authenticateWithName reads the first RPC from conn and validates that both
 // the auth token and the plugin name match the expected values. This enforces
 // name binding: a plugin cannot use its token to impersonate another plugin.
 // On failure, the connection is closed and an error is returned.
-func AuthenticateWithName(ctx context.Context, conn net.Conn, expectedToken, expectedName string) (string, error) {
+func authenticateWithName(ctx context.Context, conn net.Conn, expectedToken, expectedName string) (string, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		if err := conn.SetReadDeadline(deadline); err != nil {
 			conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path

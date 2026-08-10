@@ -96,7 +96,7 @@ func TestParseUpdatePrefixesAnnounce(t *testing.T) {
 		24, 10, 0, 1,
 	}
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 3, buf)
 
@@ -122,7 +122,7 @@ func TestParseUpdatePrefixesWithdraw(t *testing.T) {
 		// No NLRI.
 	}
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 5, buf)
 
@@ -153,7 +153,7 @@ func TestParseUpdatePrefixesMultiple(t *testing.T) {
 		24, 10, 0, 5,
 	}
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 0, buf)
 
@@ -187,7 +187,7 @@ func TestParseUpdatePrefixesEOR(t *testing.T) {
 	// Empty UPDATE body: withdrawn-len=0, attr-len=0, no NLRI.
 	body := []byte{0, 0, 0, 0}
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 0, buf)
 
@@ -292,7 +292,7 @@ func TestParseUpdatePrefixesMPReach(t *testing.T) {
 	body = append(body, attrs...)
 	// No trailing IPv4 NLRI.
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 7, buf)
 
@@ -332,7 +332,7 @@ func TestParseUpdatePrefixesMPUnreach(t *testing.T) {
 	body = append(body, byte(len(attrs)>>8), byte(len(attrs)))
 	body = append(body, attrs...)
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 2, buf)
 
@@ -373,7 +373,7 @@ func TestParseUpdatePrefixesMPReachVPN(t *testing.T) {
 	body = append(body, byte(len(attrs)>>8), byte(len(attrs)))
 	body = append(body, attrs...)
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 0, buf)
 
@@ -448,7 +448,7 @@ func TestParseUpdatePrefixesMultipleAttrs(t *testing.T) {
 	body = append(body, byte(len(attrs)>>8), byte(len(attrs)))
 	body = append(body, attrs...)
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 
 	parseUpdatePrefixes(body, 5, buf)
 

@@ -9,13 +9,13 @@ package sysctl
 
 import "fmt"
 
-// ManagedKey describes a sysctl key owned by a config abstraction.
-type ManagedKey struct {
+// managedKey describes a sysctl key owned by a config abstraction.
+type managedKey struct {
 	SysctlKey    string // e.g., "net.netfilter.nf_conntrack_max"
 	FriendlyName string // e.g., "system conntrack table-size"
 }
 
-var managedKeys = map[string]ManagedKey{}
+var managedKeys = map[string]managedKey{}
 
 // RegisterManagedKeys registers a set of sysctl keys as managed by a
 // higher-level config abstraction. Called from init() in the owning package.
@@ -24,7 +24,7 @@ func RegisterManagedKeys(keys map[string]string) {
 	defer mu.Unlock()
 
 	for sysctlKey, friendlyName := range keys {
-		managedKeys[sysctlKey] = ManagedKey{
+		managedKeys[sysctlKey] = managedKey{
 			SysctlKey:    sysctlKey,
 			FriendlyName: friendlyName,
 		}
@@ -46,5 +46,5 @@ func CheckManaged(key string) error {
 func ResetManaged() {
 	mu.Lock()
 	defer mu.Unlock()
-	managedKeys = map[string]ManagedKey{}
+	managedKeys = map[string]managedKey{}
 }

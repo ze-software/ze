@@ -28,8 +28,8 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// RunMUPPlugin runs the MUP plugin using the SDK RPC protocol.
-func RunMUPPlugin(conn net.Conn) int {
+// runMUPPlugin runs the MUP plugin using the SDK RPC protocol.
+func runMUPPlugin(conn net.Conn) int {
 	logger.Debug("mup plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-mup", conn)

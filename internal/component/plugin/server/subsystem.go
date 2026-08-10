@@ -492,8 +492,8 @@ func findHandlerByCommand(handlers map[string]*SubsystemHandler, command string)
 	return nil
 }
 
-// AllCommands returns all commands from all subsystems.
-func (m *SubsystemManager) AllCommands() []string {
+// allCommands returns all commands from all subsystems.
+func (m *SubsystemManager) allCommands() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

@@ -96,7 +96,7 @@ func pushOne(name, imageFile string, opts pushOpts) int {
 	}
 
 	var passphrase []byte
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		var resolveErr error
 		passphrase, _, resolveErr = ResolvePassphrase(nil)
 		if resolveErr != nil {
@@ -107,7 +107,7 @@ func pushOne(name, imageFile string, opts pushOpts) int {
 	}
 
 	tokenPath := secretFilePath(dir, name, "update.token")
-	updateToken, err := ReadSecret(tokenPath, passphrase)
+	updateToken, err := readSecret(tokenPath, passphrase)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read update token: %v\n", err)
 		return exitError
@@ -300,7 +300,7 @@ func resolveContainedImagePath(realAppDir, path, displayName string) (string, er
 }
 
 func loadDeviceTLS(baseDir, name string) (*tls.Config, error) {
-	certPath := filepath.Join(TLSDir(baseDir, name), "cert.pem")
+	certPath := filepath.Join(tLSDir(baseDir, name), "cert.pem")
 	certPEM, err := os.ReadFile(certPath) //nolint:gosec // appliance trust anchor
 	if err != nil {
 		return nil, fmt.Errorf("read device cert: %w", err)

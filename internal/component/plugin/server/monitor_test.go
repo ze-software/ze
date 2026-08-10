@@ -195,7 +195,7 @@ func TestMonitorDeliverLazyNoMonitors(t *testing.T) {
 	mm := NewMonitorManager()
 
 	called := 0
-	mm.DeliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
+	mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
 		called++
 		return `{"should":"not appear"}`
 	})
@@ -216,7 +216,7 @@ func TestMonitorDeliverLazyNoMatch(t *testing.T) {
 	mm.Add(mc)
 
 	called := 0
-	mm.DeliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
+	mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
 		called++
 		return `{"should":"not appear"}`
 	})
@@ -245,7 +245,7 @@ func TestMonitorDeliverLazyMatch(t *testing.T) {
 
 	called := 0
 	const payload = `{"ok":true}`
-	mm.DeliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
+	mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
 		called++
 		return payload
 	})
@@ -290,7 +290,7 @@ func TestMonitorManagerConcurrency(t *testing.T) {
 			for range 100 {
 				_ = mm.GetMatching(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "")
 				mm.Deliver(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", `{"test":true}`)
-				mm.DeliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
+				mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
 					return `{"test":"lazy"}`
 				})
 			}
@@ -472,7 +472,7 @@ func TestGetMatchingTyped(t *testing.T) {
 	mm.Add(mc2)
 
 	stringResult := mm.GetMatching(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "")
-	typedResult := mm.GetMatchingTyped(
+	typedResult := mm.getMatchingTyped(
 		events.LookupNamespaceID("bgp"),
 		events.LookupEventTypeID(bgpevents.EventUpdate),
 		events.DirReceived,

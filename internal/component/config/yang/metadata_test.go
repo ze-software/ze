@@ -123,7 +123,7 @@ func TestMetadataFromRealYANG(t *testing.T) {
 	mod := loader.GetModule("ze-types")
 	require.NotNil(t, mod, "ze-types module should be available in embedded core modules")
 
-	meta := ExtractMetadata(mod)
+	meta := extractMetadata(mod)
 	assert.Equal(t, "ze-types", meta.Module)
 	assert.Equal(t, "urn:ze:types", meta.Namespace)
 }

@@ -39,7 +39,7 @@ func TestWeightTracker_WorstPeerRatio(t *testing.T) {
 	assert.Equal(t, "10.0.0.2", addr)
 	assert.Greater(t, ratio, 0.0)
 
-	demand2 := wt.PeerDemand("10.0.0.2")
+	demand2 := wt.peerDemand("10.0.0.2")
 	require.Greater(t, demand2, 0)
 	expectedRatio := float64(1000) / float64(demand2)
 	assert.InDelta(t, expectedRatio, ratio, 0.001)

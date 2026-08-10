@@ -26,18 +26,18 @@ type trackedRoute struct {
 // maxTrackedRoutes bounds tracker memory.
 const maxTrackedRoutes = 1_000_000
 
-// ASPATracker tracks active routes with their normalized AS_PATH for ASPA re-validation.
+// aSPATracker tracks active routes with their normalized AS_PATH for ASPA re-validation.
 // Maintains a reverse index (customer-AS -> route keys) for efficient re-validation
 // when ASPA cache data changes.
-type ASPATracker struct {
+type aSPATracker struct {
 	routes       map[routeKey]*trackedRoute
 	reverseIndex map[uint32]map[routeKey]struct{}
 	mu           sync.Mutex
 }
 
-// NewASPATracker creates an empty route tracker.
-func NewASPATracker() *ASPATracker {
-	return &ASPATracker{
+// newASPATracker creates an empty route tracker.
+func newASPATracker() *aSPATracker {
+	return &aSPATracker{
 		routes:       make(map[routeKey]*trackedRoute),
 		reverseIndex: make(map[uint32]map[routeKey]struct{}),
 	}
@@ -45,7 +45,7 @@ func NewASPATracker() *ASPATracker {
 
 // Track adds or updates a tracked route. Stores an owned copy of the path.
 // The path slice MUST NOT be retained from WireUpdate buffers.
-func (t *ASPATracker) Track(rt trackedRoute) {
+func (t *aSPATracker) Track(rt trackedRoute) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -62,7 +62,7 @@ func (t *ASPATracker) Track(rt trackedRoute) {
 }
 
 // Remove deletes a tracked route and its reverse index entries.
-func (t *ASPATracker) Remove(key routeKey) {
+func (t *aSPATracker) Remove(key routeKey) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -74,9 +74,9 @@ func (t *ASPATracker) Remove(key routeKey) {
 	delete(t.routes, key)
 }
 
-// Revalidate re-verifies routes affected by ASPA cache changes.
+// revalidate re-verifies routes affected by ASPA cache changes.
 // Returns routes whose ASPA state changed (for event emission).
-func (t *ASPATracker) Revalidate(cache *ASPACache, changedCustomers []uint32) []trackedRoute {
+func (t *aSPATracker) revalidate(cache *aSPACache, changedCustomers []uint32) []trackedRoute {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -106,14 +106,14 @@ func (t *ASPATracker) Revalidate(cache *ASPACache, changedCustomers []uint32) []
 }
 
 // Count returns the number of tracked routes.
-func (t *ASPATracker) count() int {
+func (t *aSPATracker) count() int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return len(t.routes)
 }
 
 // addToIndexLocked adds a route to the reverse index for all ASNs in its path.
-func (t *ASPATracker) addToIndexLocked(rt *trackedRoute) {
+func (t *aSPATracker) addToIndexLocked(rt *trackedRoute) {
 	for _, asn := range rt.path {
 		if t.reverseIndex[asn] == nil {
 			t.reverseIndex[asn] = make(map[routeKey]struct{})
@@ -123,7 +123,7 @@ func (t *ASPATracker) addToIndexLocked(rt *trackedRoute) {
 }
 
 // removeFromIndexLocked removes a route from the reverse index.
-func (t *ASPATracker) removeFromIndexLocked(rt *trackedRoute) {
+func (t *aSPATracker) removeFromIndexLocked(rt *trackedRoute) {
 	for _, asn := range rt.path {
 		if keys, ok := t.reverseIndex[asn]; ok {
 			delete(keys, rt.key)

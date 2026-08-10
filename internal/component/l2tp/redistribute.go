@@ -1,5 +1,5 @@
 // Design: docs/guide/l2tp.md -- redistribute source registration
-// Related: subsystem.go -- Start path calls RegisterL2TPSources
+// Related: subsystem.go -- Start path calls registerL2TPSources
 // Related: events/events.go -- typed EventBus handle for route-change
 
 package l2tp
@@ -13,13 +13,13 @@ import (
 
 var l2tpSourcesOnce sync.Once
 
-// RegisterL2TPSources registers the L2TP redistribute source so
+// registerL2TPSources registers the L2TP redistribute source so
 // operators can write `redistribute l2tp` in config. Safe to call
 // multiple times (sync.Once). Called from Subsystem.Start.
 //
 // The single source `l2tp` is exposed. Subscribers identified by
 // PPP username and assigned IP are routes with Source=`l2tp`.
-func RegisterL2TPSources() {
+func registerL2TPSources() {
 	l2tpSourcesOnce.Do(func() {
 		err := redistribute.RegisterSource(redistribute.RouteSource{
 			Name:        "l2tp",

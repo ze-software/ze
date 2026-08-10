@@ -15,7 +15,7 @@ import (
 // (AC-10). A non-conflicting config would proceed into a blocking run, so only
 // the reject path is exercised here.
 func TestRunConfigRangeConflict(t *testing.T) {
-	cfg := &OrchestratorConfig{
+	cfg := &orchestratorConfig{
 		Profiles: []scenario.PeerProfile{
 			{Index: 0, ZePort: 1790, Port: 1890},
 			{Index: 1, ZePort: 1791, Port: 1891},

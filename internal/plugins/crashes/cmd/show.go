@@ -7,7 +7,7 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 )
 
-func HandleShowCrashes(args []string) (*plugin.Response, error) {
+func handleShowCrashes(args []string) (*plugin.Response, error) {
 	switch len(args) {
 	case 0:
 		return showCrashList()

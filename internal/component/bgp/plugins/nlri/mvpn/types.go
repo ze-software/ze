@@ -96,8 +96,8 @@ func NewMVPN(routeType MVPNRouteType, data []byte) *MVPN {
 	}
 }
 
-// NewMVPNWithRD creates a new MVPN NLRI with Route Distinguisher.
-func NewMVPNWithRD(afi AFI, routeType MVPNRouteType, rd RouteDistinguisher, data []byte) *MVPN {
+// newMVPNWithRD creates a new MVPN NLRI with Route Distinguisher.
+func newMVPNWithRD(afi AFI, routeType MVPNRouteType, rd RouteDistinguisher, data []byte) *MVPN {
 	return &MVPN{
 		rd:        rd,
 		data:      data,
@@ -106,12 +106,12 @@ func NewMVPNWithRD(afi AFI, routeType MVPNRouteType, rd RouteDistinguisher, data
 	}
 }
 
-// ParseMVPN parses an MVPN NLRI from wire format.
+// parseMVPN parses an MVPN NLRI from wire format.
 //
 // RFC 6514 Section 4 defines the MCAST-VPN NLRI format:
 //
 //	Route Type (1 octet) + Length (1 octet) + Route Type specific (variable)
-func ParseMVPN(afi AFI, data []byte) (*MVPN, []byte, error) {
+func parseMVPN(afi AFI, data []byte) (*MVPN, []byte, error) {
 	if len(data) < 2 {
 		return nil, nil, ErrMVPNTruncated
 	}

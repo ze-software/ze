@@ -129,7 +129,7 @@ func (m *Model) cmdSave() (commandResult, error) {
 		}
 		return commandResult{statusMessage: "Changes saved to draft"}, nil
 	}
-	if err := m.editor.SaveEditState(); err != nil {
+	if err := m.editor.saveEditState(); err != nil {
 		return commandResult{}, err
 	}
 	return commandResult{statusMessage: "Configuration saved (snapshot)"}, nil
@@ -207,9 +207,9 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 	m.searchCache = ""
 
 	var archiveMsg string
-	if m.editor.HasArchiveNotifier() {
+	if m.editor.hasArchiveNotifier() {
 		content := []byte(m.editor.WorkingContent())
-		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
+		if errs := m.editor.notifyArchive(content); len(errs) > 0 {
 			archiveMsg = textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
 		}
 	}
@@ -241,8 +241,8 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 	m.recordConfigCommit(detail)
 
 	var archiveMsg string
-	if m.editor.HasArchiveNotifier() {
-		if errs := m.editor.NotifyArchive([]byte(content)); len(errs) > 0 {
+	if m.editor.hasArchiveNotifier() {
+		if errs := m.editor.notifyArchive([]byte(content)); len(errs) > 0 {
 			archiveMsg = textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
 		}
 	}
@@ -332,12 +332,12 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	}
 
 	// Archive config to remote locations (best-effort, non-fatal).
-	if m.editor.HasArchiveNotifier() {
+	if m.editor.hasArchiveNotifier() {
 		archiveContent := m.editor.OriginalContent()
 		if transactional {
 			archiveContent = content
 		}
-		if errs := m.editor.NotifyArchive([]byte(archiveContent)); len(errs) > 0 {
+		if errs := m.editor.notifyArchive([]byte(archiveContent)); len(errs) > 0 {
 			tb4.Str(" (archive: ").Int(int64(len(errs))).Str(" error(s))")
 		}
 	}

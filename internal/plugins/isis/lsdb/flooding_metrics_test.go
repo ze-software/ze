@@ -62,7 +62,7 @@ func TestISISFloodingMetricsRegisterExactSeries(t *testing.T) {
 	f.ReceivePSNP(cIn, psnp)
 
 	// 6) psnp_sent_total: arm SSN on a held LSP so a PSNP is built and sent.
-	d.SetSSN(Level1, id, cIn)
+	d.setSSN(Level1, id, cIn)
 	f.SendPSNP(l1l2Circuit("in", cIn), Level1, types.NewSourceID(testSys(1), 0))
 
 	out := scrape(t, reg)

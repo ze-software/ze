@@ -1598,7 +1598,7 @@ func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
 	}
 
 	// Very small maxSize - should fail
-	_, err := ub.BuildUnicastWithMaxSize(&params, 30)
+	_, err := ub.buildUnicastWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 		return
@@ -1626,7 +1626,7 @@ func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
 	}
 
 	// Large maxSize - should fit
-	update, err := ub.BuildUnicastWithMaxSize(&params, 4096)
+	update, err := ub.buildUnicastWithMaxSize(&params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1652,7 +1652,7 @@ func TestBuildVPN_MaxSize_Fits(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
-	update, err := ub.BuildVPNWithMaxSize(&params, 4096)
+	update, err := ub.buildVPNWithMaxSize(&params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1678,7 +1678,7 @@ func TestBuildVPN_MaxSize_TooLarge(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
-	_, err := ub.BuildVPNWithMaxSize(&params, 30)
+	_, err := ub.buildVPNWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 		return
@@ -1703,7 +1703,7 @@ func TestBuildLabeledUnicast_MaxSize_Fits(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	update, err := ub.BuildLabeledUnicastWithMaxSize(&params, 4096)
+	update, err := ub.buildLabeledUnicastWithMaxSize(&params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1728,7 +1728,7 @@ func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	_, err := ub.BuildLabeledUnicastWithMaxSize(&params, 30)
+	_, err := ub.buildLabeledUnicastWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 		return
@@ -1756,7 +1756,7 @@ func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update, err := ub.BuildEVPNWithMaxSize(params, 4096)
+	update, err := ub.buildEVPNWithMaxSize(params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1781,7 +1781,7 @@ func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	_, err := ub.BuildEVPNWithMaxSize(params, 30)
+	_, err := ub.buildEVPNWithMaxSize(params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 		return

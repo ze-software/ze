@@ -23,7 +23,7 @@ type Handler struct {
 	OnPeerIndex   func(h Header, pit *PeerIndexTable) error
 	OnRIB         func(h Header, r *RIBRecord) error
 	OnRIBGeneric  func(h Header, r *RIBGenericRecord) error
-	OnGeoPeer     func(h Header, g *GeoPeerTable) error
+	OnGeoPeer     func(h Header, g *geoPeerTable) error
 	OnMessage     func(h Header, microsecond uint32, m *MessageRecord) error
 	OnStateChange func(h Header, microsecond uint32, s *StateChangeRecord) error
 	OnTableDump   func(h Header, t *TableDumpRecord) error
@@ -310,7 +310,7 @@ func dispatchTDV2(h Header, data []byte, handler *Handler) error {
 		if handler.OnGeoPeer == nil {
 			return nil
 		}
-		g, err := DecodeGeoPeerTable(data)
+		g, err := decodeGeoPeerTable(data)
 		if err != nil {
 			return err
 		}
@@ -320,7 +320,7 @@ func dispatchTDV2(h Header, data []byte, handler *Handler) error {
 }
 
 func dispatchBGP4MP(h Header, usec uint32, data []byte, handler *Handler) error {
-	if IsStateChangeSubtype(h.Subtype) {
+	if isStateChangeSubtype(h.Subtype) {
 		if handler.OnStateChange == nil {
 			return nil
 		}

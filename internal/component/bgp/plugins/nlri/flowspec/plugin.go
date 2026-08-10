@@ -31,17 +31,17 @@ var errNoValidFlowspecDecoded = errors.New("no valid FlowSpec decoded")
 // flowLogger is the package-level logger, disabled by default.
 var flowLogger = slogutil.DiscardLogger()
 
-// SetFlowSpecLogger sets the package-level logger.
+// setFlowSpecLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_flowspec.go with slogutil.PluginLogger().
-func SetFlowSpecLogger(l *slog.Logger) {
+func setFlowSpecLogger(l *slog.Logger) {
 	if l != nil {
 		flowLogger = l
 	}
 }
 
-// RunFlowSpecPlugin runs the FlowSpec plugin using the SDK RPC protocol.
+// runFlowSpecPlugin runs the FlowSpec plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunFlowSpecPlugin(conn net.Conn) int {
+func runFlowSpecPlugin(conn net.Conn) int {
 	flowLogger.Debug("flowspec plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-flowspec", conn)
@@ -110,9 +110,9 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	return textbuf.StringHexUpper(wireBytes), nil
 }
 
-// GetFlowSpecYANG returns the embedded YANG schema for the flowspec plugin.
+// getFlowSpecYANG returns the embedded YANG schema for the flowspec plugin.
 // FlowSpec plugin doesn't augment config schema, returns empty.
-func GetFlowSpecYANG() string {
+func getFlowSpecYANG() string {
 	return ""
 }
 
@@ -154,8 +154,8 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	return 0
 }
 
-// FlowSpecFamilies returns the address families this plugin can decode.
-func FlowSpecFamilies() []string {
+// flowSpecFamilies returns the address families this plugin can decode.
+func flowSpecFamilies() []string {
 	return []string{
 		"ipv4/flow",
 		"ipv6/flow",

@@ -76,9 +76,9 @@ type RouteMonitoring struct {
 	BGPUpdate []byte // raw BGP UPDATE message (including BGP header)
 }
 
-// StatisticsReport represents a BMP Statistics Report (Type 1).
+// statisticsReport represents a BMP Statistics Report (Type 1).
 // RFC 7854 Section 4.8.
-type StatisticsReport struct {
+type statisticsReport struct {
 	Peer  PeerHeader
 	Stats []StatEntry
 }
@@ -89,9 +89,9 @@ type StatEntry struct {
 	Value []byte // 8 bytes (global) or 11 bytes (per-AFI/SAFI)
 }
 
-// RouteMirroring represents a BMP Route Mirroring message (Type 6).
+// routeMirroring represents a BMP Route Mirroring message (Type 6).
 // RFC 7854 Section 4.7.
-type RouteMirroring struct {
+type routeMirroring struct {
 	Peer PeerHeader
 	TLVs []TLV
 }
@@ -99,7 +99,7 @@ type RouteMirroring struct {
 // DecodeMsg decodes a complete BMP message from buf.
 // The buf must contain exactly one complete message (common header length bytes).
 func DecodeMsg(buf []byte) (any, error) {
-	ch, n, err := DecodeCommonHeader(buf, 0)
+	ch, n, err := decodeCommonHeader(buf, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func decodeTermination(buf []byte, off, end int) (*Termination, error) {
 }
 
 func decodePeerUp(buf []byte, off, end int) (*PeerUp, error) {
-	peer, n, err := DecodePeerHeader(buf, off)
+	peer, n, err := decodePeerHeader(buf, off)
 	if err != nil {
 		return nil, fmt.Errorf("peer up: %w", err)
 	}
@@ -218,7 +218,7 @@ func extractBGPOpen(buf []byte, off, end int) ([]byte, int, error) {
 }
 
 func decodePeerDown(buf []byte, off, end int) (*PeerDown, error) {
-	peer, n, err := DecodePeerHeader(buf, off)
+	peer, n, err := decodePeerHeader(buf, off)
 	if err != nil {
 		return nil, fmt.Errorf("peer down: %w", err)
 	}
@@ -242,7 +242,7 @@ func decodePeerDown(buf []byte, off, end int) (*PeerDown, error) {
 }
 
 func decodeRouteMonitoring(buf []byte, off, end int) (*RouteMonitoring, error) {
-	peer, n, err := DecodePeerHeader(buf, off)
+	peer, n, err := decodePeerHeader(buf, off)
 	if err != nil {
 		return nil, fmt.Errorf("route monitoring: %w", err)
 	}
@@ -254,8 +254,8 @@ func decodeRouteMonitoring(buf []byte, off, end int) (*RouteMonitoring, error) {
 	}, nil
 }
 
-func decodeStatisticsReport(buf []byte, off, end int) (*StatisticsReport, error) {
-	peer, n, err := DecodePeerHeader(buf, off)
+func decodeStatisticsReport(buf []byte, off, end int) (*statisticsReport, error) {
+	peer, n, err := decodePeerHeader(buf, off)
 	if err != nil {
 		return nil, fmt.Errorf("statistics report: %w", err)
 	}
@@ -289,11 +289,11 @@ func decodeStatisticsReport(buf []byte, off, end int) (*StatisticsReport, error)
 		stats = append(stats, se)
 	}
 
-	return &StatisticsReport{Peer: peer, Stats: stats}, nil
+	return &statisticsReport{Peer: peer, Stats: stats}, nil
 }
 
-func decodeRouteMirroring(buf []byte, off, end int) (*RouteMirroring, error) {
-	peer, n, err := DecodePeerHeader(buf, off)
+func decodeRouteMirroring(buf []byte, off, end int) (*routeMirroring, error) {
+	peer, n, err := decodePeerHeader(buf, off)
 	if err != nil {
 		return nil, fmt.Errorf("route mirroring: %w", err)
 	}
@@ -303,40 +303,40 @@ func decodeRouteMirroring(buf []byte, off, end int) (*RouteMirroring, error) {
 	if err != nil {
 		return nil, fmt.Errorf("route mirroring: %w", err)
 	}
-	return &RouteMirroring{Peer: peer, TLVs: tlvs}, nil
+	return &routeMirroring{Peer: peer, TLVs: tlvs}, nil
 }
 
 // --- Encoding ---
 
-// WriteInitiation writes a complete Initiation message into buf at off.
+// writeInitiation writes a complete Initiation message into buf at off.
 // Returns total bytes written.
-func WriteInitiation(buf []byte, off int, init *Initiation) int {
+func writeInitiation(buf []byte, off int, init *Initiation) int {
 	// Skip-and-backfill: reserve common header, write payload, backfill length.
 	start := off
 	off += CommonHeaderSize
-	off += WriteTLVs(buf, off, init.TLVs)
+	off += writeTLVs(buf, off, init.TLVs)
 	totalLen := off - start
 	WriteCommonHeader(buf, start, CommonHeader{Version: Version, Length: uint32(totalLen), Type: MsgInitiation})
 	return totalLen
 }
 
-// WriteTermination writes a complete Termination message into buf at off.
+// writeTermination writes a complete Termination message into buf at off.
 // Returns total bytes written.
-func WriteTermination(buf []byte, off int, term *Termination) int {
+func writeTermination(buf []byte, off int, term *Termination) int {
 	start := off
 	off += CommonHeaderSize
-	off += WriteTLVs(buf, off, term.TLVs)
+	off += writeTLVs(buf, off, term.TLVs)
 	totalLen := off - start
 	WriteCommonHeader(buf, start, CommonHeader{Version: Version, Length: uint32(totalLen), Type: MsgTermination})
 	return totalLen
 }
 
-// WritePeerUp writes a complete Peer Up message into buf at off.
+// writePeerUp writes a complete Peer Up message into buf at off.
 // Returns total bytes written.
-func WritePeerUp(buf []byte, off int, pu *PeerUp) int {
+func writePeerUp(buf []byte, off int, pu *PeerUp) int {
 	start := off
 	off += CommonHeaderSize
-	off += WritePeerHeader(buf, off, pu.Peer)
+	off += writePeerHeader(buf, off, pu.Peer)
 
 	copy(buf[off:off+16], pu.LocalAddress[:])
 	binary.BigEndian.PutUint16(buf[off+16:off+18], pu.LocalPort)
@@ -350,7 +350,7 @@ func WritePeerUp(buf []byte, off int, pu *PeerUp) int {
 	off += len(pu.ReceivedOpenMsg)
 
 	if len(pu.InfoTLVs) > 0 {
-		off += WriteTLVs(buf, off, pu.InfoTLVs)
+		off += writeTLVs(buf, off, pu.InfoTLVs)
 	}
 
 	totalLen := off - start
@@ -358,12 +358,12 @@ func WritePeerUp(buf []byte, off int, pu *PeerUp) int {
 	return totalLen
 }
 
-// WritePeerDown writes a complete Peer Down message into buf at off.
+// writePeerDown writes a complete Peer Down message into buf at off.
 // Returns total bytes written.
-func WritePeerDown(buf []byte, off int, pd *PeerDown) int {
+func writePeerDown(buf []byte, off int, pd *PeerDown) int {
 	start := off
 	off += CommonHeaderSize
-	off += WritePeerHeader(buf, off, pd.Peer)
+	off += writePeerHeader(buf, off, pd.Peer)
 	buf[off] = pd.Reason
 	off++
 	if len(pd.Data) > 0 {
@@ -375,12 +375,12 @@ func WritePeerDown(buf []byte, off int, pd *PeerDown) int {
 	return totalLen
 }
 
-// WriteRouteMonitoring writes a complete Route Monitoring message into buf at off.
+// writeRouteMonitoring writes a complete Route Monitoring message into buf at off.
 // Returns total bytes written.
-func WriteRouteMonitoring(buf []byte, off int, rm *RouteMonitoring) int {
+func writeRouteMonitoring(buf []byte, off int, rm *RouteMonitoring) int {
 	start := off
 	off += CommonHeaderSize
-	off += WritePeerHeader(buf, off, rm.Peer)
+	off += writePeerHeader(buf, off, rm.Peer)
 	copy(buf[off:], rm.BGPUpdate)
 	off += len(rm.BGPUpdate)
 	totalLen := off - start
@@ -388,12 +388,12 @@ func WriteRouteMonitoring(buf []byte, off int, rm *RouteMonitoring) int {
 	return totalLen
 }
 
-// WriteStatisticsReport writes a complete Statistics Report into buf at off.
+// writeStatisticsReport writes a complete Statistics Report into buf at off.
 // Returns total bytes written.
-func WriteStatisticsReport(buf []byte, off int, sr *StatisticsReport) int {
+func writeStatisticsReport(buf []byte, off int, sr *statisticsReport) int {
 	start := off
 	off += CommonHeaderSize
-	off += WritePeerHeader(buf, off, sr.Peer)
+	off += writePeerHeader(buf, off, sr.Peer)
 
 	// Stats count.
 	binary.BigEndian.PutUint32(buf[off:off+4], uint32(len(sr.Stats)))
@@ -411,13 +411,13 @@ func WriteStatisticsReport(buf []byte, off int, sr *StatisticsReport) int {
 	return totalLen
 }
 
-// WriteRouteMirroring writes a complete Route Mirroring message into buf at off.
+// writeRouteMirroring writes a complete Route Mirroring message into buf at off.
 // Returns total bytes written.
-func WriteRouteMirroring(buf []byte, off int, rm *RouteMirroring) int {
+func writeRouteMirroring(buf []byte, off int, rm *routeMirroring) int {
 	start := off
 	off += CommonHeaderSize
-	off += WritePeerHeader(buf, off, rm.Peer)
-	off += WriteTLVs(buf, off, rm.TLVs)
+	off += writePeerHeader(buf, off, rm.Peer)
+	off += writeTLVs(buf, off, rm.TLVs)
 	totalLen := off - start
 	WriteCommonHeader(buf, start, CommonHeader{Version: Version, Length: uint32(totalLen), Type: MsgRouteMirroring})
 	return totalLen

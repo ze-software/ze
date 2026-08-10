@@ -11,7 +11,7 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-func benchPipelinePlugin(b *testing.B) (*RPKIPlugin, *atomic.Int64, func()) {
+func benchPipelinePlugin(b *testing.B) (*rPKIPlugin, *atomic.Int64, func()) {
 	b.Helper()
 
 	var dispatched atomic.Int64
@@ -25,10 +25,10 @@ func benchPipelinePlugin(b *testing.B) (*RPKIPlugin, *atomic.Int64, func()) {
 	pluginEnd, engineEnd := net.Pipe()
 	p := sdk.NewWithConn("rpki-bench", rpc.NewBridgedConn(pluginEnd, bridge))
 
-	rp := &RPKIPlugin{
+	rp := &rPKIPlugin{
 		plugin:     p,
-		cache:      NewROACache(),
-		aspaCache:  NewASPACache(),
+		cache:      newROACache(),
+		aspaCache:  newASPACache(),
 		validateCh: make(chan validationRequest, 4096),
 		stopCh:     make(chan struct{}),
 	}

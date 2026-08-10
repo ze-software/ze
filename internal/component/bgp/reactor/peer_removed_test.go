@@ -27,7 +27,7 @@ func insertTestPeer(r *Reactor, addr netip.Addr) {
 	settings := NewPeerSettings(addr, 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 	peer.SetReactor(r)
-	r.peers[PeerKeyFromAddrPort(addr, DefaultBGPPort)] = peer
+	r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)] = peer
 }
 
 // TestDoRemovePeerReturnsRemovedIdentity verifies the locked removal work drops
@@ -50,7 +50,7 @@ func TestDoRemovePeerReturnsRemovedIdentity(t *testing.T) {
 	assert.Equal(t, uint32(65001), removed.PeerAS)
 	assert.Equal(t, uint32(65000), removed.LocalAS)
 
-	_, exists := r.peers[PeerKeyFromAddrPort(addr, DefaultBGPPort)]
+	_, exists := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]
 	assert.False(t, exists, "peer must be unregistered from the reactor")
 }
 
@@ -69,7 +69,7 @@ func TestRemovePeerNilDispatcherNoPanic(t *testing.T) {
 	require.NotPanics(t, func() {
 		require.NoError(t, r.RemovePeer(addr))
 	})
-	_, exists := r.peers[PeerKeyFromAddrPort(addr, DefaultBGPPort)]
+	_, exists := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]
 	assert.False(t, exists, "peer must be unregistered")
 }
 

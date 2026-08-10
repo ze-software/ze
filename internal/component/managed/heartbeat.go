@@ -45,8 +45,8 @@ func (h *Heartbeat) Stop() {
 	h.once.Do(func() { close(h.stop) })
 }
 
-// RecordPong resets the missed counter. Called when a pong is received.
-func (h *Heartbeat) RecordPong() {
+// recordPong resets the missed counter. Called when a pong is received.
+func (h *Heartbeat) recordPong() {
 	h.missed.Store(0)
 }
 

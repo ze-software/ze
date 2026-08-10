@@ -30,8 +30,8 @@ var (
 	errLoadNotSupportedInSessionMode       = errors.New("load not supported in session mode")
 )
 
-// SaveEditState saves the current working content to the .edit file.
-func (e *Editor) SaveEditState() error {
+// saveEditState saves the current working content to the .edit file.
+func (e *Editor) saveEditState() error {
 	if !e.dirty.Load() {
 		return nil // Nothing to save
 	}
@@ -62,9 +62,9 @@ func (e *Editor) deleteEditFileGuard(guard storage.WriteGuard) {
 	guard.Remove(editPath) //nolint:errcheck // Best effort; ignore error if it doesn't exist
 }
 
-// SetWorkingContent sets the working content and parses it into the tree.
+// setWorkingContent sets the working content and parses it into the tree.
 // If parsing fails, falls back to raw text mode (treeValid = false).
-func (e *Editor) SetWorkingContent(content string) {
+func (e *Editor) setWorkingContent(content string) {
 	e.workingContent = content
 	if e.schema != nil {
 		parser := config.NewParser(e.schema)
@@ -227,9 +227,9 @@ func (e *Editor) setLeafListMember(path []string, key, member string) error {
 	return nil
 }
 
-// DeleteLeafListValue removes one member from a leaf-list (the inverse of
+// deleteLeafListValue removes one member from a leaf-list (the inverse of
 // add-member set). Returns an error if the member is not present.
-func (e *Editor) DeleteLeafListValue(path []string, leafListName, value string) error {
+func (e *Editor) deleteLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
 		return e.writeThroughDeleteMember(path, leafListName, value)
 	}
@@ -316,7 +316,7 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 		memberParent := fullPath[:len(fullPath)-2]
 		leafName := fullPath[len(fullPath)-2]
 		if e.isValueOrArrayLeaf(memberParent, leafName) {
-			return e.DeleteLeafListValue(memberParent, leafName, fullPath[len(fullPath)-1])
+			return e.deleteLeafListValue(memberParent, leafName, fullPath[len(fullPath)-1])
 		}
 	}
 
@@ -379,9 +379,9 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 	return current
 }
 
-// IsListKeyLeafPath checks if the last two path elements are a list name
+// isListKeyLeafPath checks if the last two path elements are a list name
 // and its key leaf keyword. Uses the config schema which flattens choice/case.
-func (e *Editor) IsListKeyLeafPath(path []string) bool {
+func (e *Editor) isListKeyLeafPath(path []string) bool {
 	if e.schema == nil || len(path) < 2 {
 		return false
 	}
@@ -419,9 +419,9 @@ func (e *Editor) IsListKeyLeafPath(path []string) bool {
 	return listNode.KeyName == keyLeafName
 }
 
-// EnsureListEntry creates a list entry if it does not already exist.
+// ensureListEntry creates a list entry if it does not already exist.
 // Validates the key value against the list's YANG key type.
-func (e *Editor) EnsureListEntry(parentPath []string, listName, key string) error {
+func (e *Editor) ensureListEntry(parentPath []string, listName, key string) error {
 	if e.schema != nil {
 		listNode := e.resolveListNode(parentPath, listName)
 		if listNode != nil {

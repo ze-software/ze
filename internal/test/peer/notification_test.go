@@ -141,13 +141,13 @@ func TestCheckerNotificationAction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewChecker(tt.expected)
+			c, err := newChecker(tt.expected)
 			if err != nil {
 				t.Fatalf("NewChecker failed: %v", err)
 			}
 			c.Init()
 
-			action, text := c.NextNotificationAction()
+			action, text := c.nextNotificationAction()
 			if !action {
 				t.Error("expected notification action, got none")
 				return
@@ -167,13 +167,13 @@ func TestCheckerNotificationAction(t *testing.T) {
 // PREVENTS: Testpeer incorrectly trying to send BGP messages as notifications.
 func TestCheckerNoNotificationAction(t *testing.T) {
 	expected := []string{"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"}
-	c, err := NewChecker(expected)
+	c, err := newChecker(expected)
 	if err != nil {
 		t.Fatalf("NewChecker failed: %v", err)
 	}
 	c.Init()
 
-	action, _ := c.NextNotificationAction()
+	action, _ := c.nextNotificationAction()
 	if action {
 		t.Error("expect:bgp should not be treated as notification action")
 	}
@@ -188,7 +188,7 @@ func TestCheckerEORSilentAccept(t *testing.T) {
 	// Expect a NOTIFICATION (error code 1, subcode 0, text data).
 	notifHex := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004003010063616E206E6F74206465636F646520757064617465206D657373616765206F662074797065202232353522"
 	expected := []string{"expect=bgp:conn=1:seq=1:hex=" + notifHex}
-	c, err := NewChecker(expected)
+	c, err := newChecker(expected)
 	if err != nil {
 		t.Fatalf("NewChecker failed: %v", err)
 	}
@@ -231,13 +231,13 @@ func TestCheckerEORSilentAccept(t *testing.T) {
 func TestCheckerCloseAction(t *testing.T) {
 	t.Parallel()
 	expected := []string{"action=close:conn=1:seq=1"}
-	c, err := NewChecker(expected)
+	c, err := newChecker(expected)
 	if err != nil {
 		t.Fatalf("NewChecker failed: %v", err)
 	}
 	c.Init()
 
-	if !c.NextCloseAction() {
+	if !c.nextCloseAction() {
 		t.Error("expected close action, got none")
 	}
 
@@ -253,13 +253,13 @@ func TestCheckerCloseAction(t *testing.T) {
 func TestCheckerCloseNotConfusedWithExpect(t *testing.T) {
 	t.Parallel()
 	expected := []string{"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"}
-	c, err := NewChecker(expected)
+	c, err := newChecker(expected)
 	if err != nil {
 		t.Fatalf("NewChecker failed: %v", err)
 	}
 	c.Init()
 
-	if c.NextCloseAction() {
+	if c.nextCloseAction() {
 		t.Error("expect=bgp should not be treated as close action")
 	}
 }
@@ -274,20 +274,20 @@ func TestCheckerCloseAfterSend(t *testing.T) {
 		"action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
 		"action=close:conn=1:seq=1",
 	}
-	c, err := NewChecker(expected)
+	c, err := newChecker(expected)
 	if err != nil {
 		t.Fatalf("NewChecker failed: %v", err)
 	}
 	c.Init()
 
 	// Consume send action first
-	ok, _ := c.NextSendAction()
+	ok, _ := c.nextSendAction()
 	if !ok {
 		t.Fatal("expected send action")
 	}
 
 	// Now close should be consumable
-	if !c.NextCloseAction() {
+	if !c.nextCloseAction() {
 		t.Error("expected close action after send")
 	}
 
@@ -336,7 +336,7 @@ action=close:conn=1:seq=2`
 func TestCheckerEORExplicitExpectation(t *testing.T) {
 	eorHex := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"
 	expected := []string{"expect=bgp:conn=1:seq=1:hex=" + eorHex}
-	c, err := NewChecker(expected)
+	c, err := newChecker(expected)
 	if err != nil {
 		t.Fatalf("NewChecker failed: %v", err)
 	}

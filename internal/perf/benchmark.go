@@ -291,7 +291,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 			return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
 		}
 
-		receiverSetup, err = DoHandshake(receiverConn, receiverCfg)
+		receiverSetup, err = doHandshake(receiverConn, receiverCfg)
 		if err != nil {
 			return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
 		}
@@ -305,7 +305,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		return IterationResult{}, fmt.Errorf("setting sender deadline: %w", err)
 	}
 
-	senderSetup, err := DoHandshake(senderConn, senderCfg)
+	senderSetup, err := doHandshake(senderConn, senderCfg)
 	if err != nil {
 		return IterationResult{}, fmt.Errorf("sender handshake: %w", err)
 	}
@@ -348,7 +348,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	totalSendBytes := 0
 
 	for i, br := range batches {
-		b := sender.BuildBatch(prefixes[br.start:br.end])
+		b := sender.buildBatch(prefixes[br.start:br.end])
 		if b == nil {
 			return IterationResult{}, fmt.Errorf("BuildBatch returned nil for batch %d", i)
 		}
@@ -428,7 +428,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 				return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
 			}
 
-			receiverSetup, err = DoHandshake(receiverConn, rcfg)
+			receiverSetup, err = doHandshake(receiverConn, rcfg)
 			if err != nil {
 				return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
 			}
@@ -512,7 +512,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	recvTimes := make(map[netip.Prefix]time.Time, len(prefixes))
 	for _, raw := range rawMsgs {
 		body := raw.data[message.HeaderLen:]
-		for _, p := range ExtractPrefixes(body) {
+		for _, p := range extractPrefixes(body) {
 			if _, exists := recvTimes[p]; !exists {
 				recvTimes[p] = raw.when
 			}
@@ -683,7 +683,7 @@ func drainMessages(ctx context.Context, r io.Reader, conn net.Conn) int {
 func sendWithdrawals(conn net.Conn, sender *Sender, prefixes []netip.Prefix, batches []batchRange) {
 	w := bufio.NewWriterSize(conn, 16384)
 	for _, br := range batches {
-		wd := sender.BuildWithdrawBatch(prefixes[br.start:br.end])
+		wd := sender.buildWithdrawBatch(prefixes[br.start:br.end])
 		if wd == nil {
 			continue
 		}
@@ -788,7 +788,7 @@ func keepaliveLoop(ctx context.Context, conn net.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	ka := BuildKeepalive()
+	ka := buildKeepalive()
 
 	for {
 		select {
@@ -862,7 +862,7 @@ func receiveRaw(
 		}
 
 		msgs = append(msgs, rawMessage{data: msg, when: time.Now()})
-		prefixCount += CountPrefixes(msg[message.HeaderLen:])
+		prefixCount += countPrefixes(msg[message.HeaderLen:])
 	}
 }
 

@@ -64,10 +64,10 @@ func TestRPKISourceAddress(t *testing.T) {
 
 	// Constructor stores the source address for the dialer to bind.
 	stopCh := make(chan struct{})
-	sess := NewRTRSession("192.0.2.200", 3323, 100, "198.51.100.1", NewROACache(), NewASPACache(), stopCh)
+	sess := newRTRSession("192.0.2.200", 3323, 100, "198.51.100.1", newROACache(), newASPACache(), stopCh)
 	require.Equal(t, "198.51.100.1", sess.sourceAddress)
 
-	sessNoSrc := NewRTRSession("192.0.2.201", 3324, 100, "", NewROACache(), NewASPACache(), stopCh)
+	sessNoSrc := newRTRSession("192.0.2.201", 3324, 100, "", newROACache(), newASPACache(), stopCh)
 	require.Empty(t, sessNoSrc.sourceAddress)
 }
 

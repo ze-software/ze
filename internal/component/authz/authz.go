@@ -312,8 +312,8 @@ func (s *Store) HasProfiles() bool {
 	return len(s.profiles) > 0
 }
 
-// HasProfile returns true if a profile with the given name exists.
-func (s *Store) HasProfile(name string) bool {
+// hasProfile returns true if a profile with the given name exists.
+func (s *Store) hasProfile(name string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	_, ok := s.profiles[name]

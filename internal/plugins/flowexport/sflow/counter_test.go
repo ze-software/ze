@@ -37,7 +37,7 @@ func TestSFlowIfCounters(t *testing.T) {
 	buf := make([]byte, 256)
 	c := testCounters()
 
-	off := WriteIfCounters(buf, 0, c)
+	off := writeIfCounters(buf, 0, c)
 
 	// Total size: record_data_format(4) + record_length(4) + 88 = 96
 	expectedOff := ifCountersRecordHeaderSize + flowexport.IfCountersSize
@@ -145,9 +145,9 @@ func TestSFlowCounterSample(t *testing.T) {
 	buf := make([]byte, 256)
 	c := testCounters()
 
-	off := WriteCounterSample(buf, 0, 7, 1, c)
+	off := writeCounterSample(buf, 0, 7, 1, c)
 
-	expectedOff := CounterSampleSize()
+	expectedOff := counterSampleSize()
 	if off != expectedOff {
 		t.Fatalf("expected offset %d, got %d", expectedOff, off)
 	}
@@ -198,7 +198,7 @@ func TestSFlowCounterSampleSourceIDEncoding(t *testing.T) {
 	var largeIndex uint32 = 0x00ABCDEF
 	c.IfIndex = largeIndex
 
-	WriteCounterSample(buf, 0, largeIndex, 1, c)
+	writeCounterSample(buf, 0, largeIndex, 1, c)
 
 	// source_id should have type=0 in high byte, index=0xABCDEF in low 24 bits
 	sourceID := binary.BigEndian.Uint32(buf[12:])
@@ -215,7 +215,7 @@ func TestSFlowCounterSampleSourceIDOverflow(t *testing.T) {
 	// ifIndex larger than 24 bits should be masked
 	c.IfIndex = 0x01FFFFFF
 
-	WriteCounterSample(buf, 0, 0x01FFFFFF, 1, c)
+	writeCounterSample(buf, 0, 0x01FFFFFF, 1, c)
 
 	sourceID := binary.BigEndian.Uint32(buf[12:])
 	expected := uint32(0x00FFFFFF) // masked to 24 bits
@@ -228,7 +228,7 @@ func TestSFlowCounterSampleTotalSize(t *testing.T) {
 	// Verify CounterSampleSize() returns the correct total
 	// counterSampleHeader(20) + ifCountersRecordHeader(8) + ifCounters(88) = 116
 	expected := 116
-	if CounterSampleSize() != expected {
-		t.Errorf("CounterSampleSize: expected %d, got %d", expected, CounterSampleSize())
+	if counterSampleSize() != expected {
+		t.Errorf("CounterSampleSize: expected %d, got %d", expected, counterSampleSize())
 	}
 }

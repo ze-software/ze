@@ -11,12 +11,12 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// ExtractRawAttributes returns the raw path attribute bytes from an UPDATE.
+// extractRawAttributes returns the raw path attribute bytes from an UPDATE.
 // Returns the attribute bytes without the length prefix.
 // Returns nil for empty attributes, error for malformed payload.
 //
 // RFC 4271 Section 4.3: UPDATE message format.
-func ExtractRawAttributes(wu *WireUpdate) ([]byte, error) {
+func extractRawAttributes(wu *WireUpdate) ([]byte, error) {
 	attrs, err := wu.Attrs()
 	if err != nil {
 		return nil, err
@@ -27,14 +27,14 @@ func ExtractRawAttributes(wu *WireUpdate) ([]byte, error) {
 	return attrs.Packed(), nil
 }
 
-// ExtractRawNLRI returns raw NLRI bytes for the specified family.
+// extractRawNLRI returns raw NLRI bytes for the specified family.
 // For IPv4 unicast, returns NLRI from message body.
 // For other families, extracts from MP_REACH_NLRI attribute.
 // Returns nil if family not present, error if malformed.
 //
 // RFC 4271 Section 4.3: IPv4 unicast NLRI in message body.
 // RFC 4760 Section 3: Other families in MP_REACH_NLRI.
-func ExtractRawNLRI(wu *WireUpdate, fam family.Family, _ bool) ([]byte, error) {
+func extractRawNLRI(wu *WireUpdate, fam family.Family, _ bool) ([]byte, error) {
 	// IPv4 unicast uses message body NLRI field
 	if fam == (family.IPv4Unicast) {
 		return wu.NLRI()
@@ -58,14 +58,14 @@ func ExtractRawNLRI(wu *WireUpdate, fam family.Family, _ bool) ([]byte, error) {
 	return mpReach.NLRIBytes(), nil
 }
 
-// ExtractRawWithdrawn returns raw withdrawn NLRI bytes for the specified family.
+// extractRawWithdrawn returns raw withdrawn NLRI bytes for the specified family.
 // For IPv4 unicast, returns withdrawn routes from message body.
 // For other families, extracts from MP_UNREACH_NLRI attribute.
 // Returns nil if family not present, error if malformed.
 //
 // RFC 4271 Section 4.3: IPv4 unicast withdrawn in message body.
 // RFC 4760 Section 4: Other families in MP_UNREACH_NLRI.
-func ExtractRawWithdrawn(wu *WireUpdate, fam family.Family, _ bool) ([]byte, error) {
+func extractRawWithdrawn(wu *WireUpdate, fam family.Family, _ bool) ([]byte, error) {
 	// IPv4 unicast uses message body withdrawn field
 	if fam == (family.IPv4Unicast) {
 		return wu.Withdrawn()
@@ -124,11 +124,11 @@ func ExtractAllRawNLRI(wu *WireUpdate) (map[family.Family][]byte, error) {
 	return result, nil
 }
 
-// ExtractAllRawWithdrawn extracts raw withdrawn NLRI bytes for all families.
+// extractAllRawWithdrawn extracts raw withdrawn NLRI bytes for all families.
 // Returns a map of family -> raw withdrawn NLRI bytes.
 //
 // RFC 4271/4760: Extracts from both body withdrawn and MP_UNREACH_NLRI.
-func ExtractAllRawWithdrawn(wu *WireUpdate) (map[family.Family][]byte, error) {
+func extractAllRawWithdrawn(wu *WireUpdate) (map[family.Family][]byte, error) {
 	result := make(map[family.Family][]byte)
 
 	// Check body withdrawn (IPv4 unicast)
@@ -172,10 +172,10 @@ type RawUpdateComponents struct {
 	Withdrawn map[family.Family][]byte
 }
 
-// ExtractRawComponents extracts all wire components from an UPDATE.
+// extractRawComponents extracts all wire components from an UPDATE.
 // Attributes exclude MP_REACH/MP_UNREACH (those are in NLRI/Withdrawn maps).
 // This is the preferred method for pool-based RIB storage.
-func ExtractRawComponents(wu *WireUpdate) (*RawUpdateComponents, error) {
+func extractRawComponents(wu *WireUpdate) (*RawUpdateComponents, error) {
 	result := &RawUpdateComponents{
 		NLRI:      make(map[family.Family][]byte),
 		Withdrawn: make(map[family.Family][]byte),
@@ -199,7 +199,7 @@ func ExtractRawComponents(wu *WireUpdate) (*RawUpdateComponents, error) {
 	result.NLRI = nlriMap
 
 	// Extract all withdrawn
-	wdMap, err := ExtractAllRawWithdrawn(wu)
+	wdMap, err := extractAllRawWithdrawn(wu)
 	if err != nil {
 		return nil, fmt.Errorf("extract withdrawn: %w", err)
 	}

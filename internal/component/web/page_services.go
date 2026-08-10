@@ -93,9 +93,9 @@ func getConfigListItems(tree *config.Tree, containerPath, listName string) []str
 
 // --- Services > SSH ---
 
-// BuildSSHFormData constructs a WorkbenchFormData for the SSH service config.
+// buildSSHFormData constructs a WorkbenchFormData for the SSH service config.
 // Fields match environment/ssh in ze-ssh-conf.yang.
-func BuildSSHFormData(tree *config.Tree) WorkbenchFormData {
+func buildSSHFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "SSH Configuration",
 		Fields: []WorkbenchFormField{
@@ -140,17 +140,17 @@ func BuildSSHFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleSSHPage renders the SSH service configuration form.
-func HandleSSHPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildSSHFormData(viewTree)
+// handleSSHPage renders the SSH service configuration form.
+func handleSSHPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildSSHFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Services > Web ---
 
-// BuildWebFormData constructs a WorkbenchFormData for the Web service config.
+// buildWebFormData constructs a WorkbenchFormData for the Web service config.
 // Fields match environment/web in ze-web-conf.yang.
-func BuildWebFormData(tree *config.Tree) WorkbenchFormData {
+func buildWebFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "Web Configuration",
 		Fields: []WorkbenchFormField{
@@ -181,17 +181,17 @@ func BuildWebFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleWebServicePage renders the Web service configuration form.
-func HandleWebServicePage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildWebFormData(viewTree)
+// handleWebServicePage renders the Web service configuration form.
+func handleWebServicePage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildWebFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Services > Telemetry ---
 
-// BuildTelemetryFormData constructs a WorkbenchFormData for the Telemetry config.
+// buildTelemetryFormData constructs a WorkbenchFormData for the Telemetry config.
 // Fields match telemetry/prometheus in ze-telemetry-conf.yang.
-func BuildTelemetryFormData(tree *config.Tree) WorkbenchFormData {
+func buildTelemetryFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "Telemetry Configuration",
 		Fields: []WorkbenchFormField{
@@ -285,17 +285,17 @@ func BuildTelemetryFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleTelemetryPage renders the Telemetry service configuration form.
-func HandleTelemetryPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildTelemetryFormData(viewTree)
+// handleTelemetryPage renders the Telemetry service configuration form.
+func handleTelemetryPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildTelemetryFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Services > TACACS ---
 
-// BuildTACACSFormData constructs a WorkbenchFormData for the TACACS config.
+// buildTACACSFormData constructs a WorkbenchFormData for the TACACS config.
 // Fields match system/authentication/tacacs in ze-tacacs-conf.yang.
-func BuildTACACSFormData(tree *config.Tree) WorkbenchFormData {
+func buildTACACSFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "TACACS+ Configuration",
 		Fields: []WorkbenchFormField{
@@ -340,18 +340,18 @@ func BuildTACACSFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleTACACSPage renders the TACACS+ service configuration form.
-func HandleTACACSPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildTACACSFormData(viewTree)
+// handleTACACSPage renders the TACACS+ service configuration form.
+func handleTACACSPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildTACACSFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Services > MCP ---
 
-// BuildMCPFormData constructs a WorkbenchFormData for the MCP config.
+// buildMCPFormData constructs a WorkbenchFormData for the MCP config.
 // Fields match environment/mcp in ze-mcp-conf.yang. Sensitive fields
 // (token, TLS key) use the password type for masking.
-func BuildMCPFormData(tree *config.Tree) WorkbenchFormData {
+func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "MCP Configuration",
 		Fields: []WorkbenchFormField{
@@ -432,17 +432,17 @@ func BuildMCPFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleMCPPage renders the MCP service configuration form.
-func HandleMCPPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildMCPFormData(viewTree)
+// handleMCPPage renders the MCP service configuration form.
+func handleMCPPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildMCPFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Services > Looking Glass ---
 
-// BuildLookingGlassFormData constructs a WorkbenchFormData for the LG config.
+// buildLookingGlassFormData constructs a WorkbenchFormData for the LG config.
 // Fields match environment/looking-glass in ze-lg-conf.yang.
-func BuildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
+func buildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "Looking Glass Configuration",
 		Fields: []WorkbenchFormField{
@@ -487,18 +487,18 @@ func BuildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleLookingGlassPage renders the Looking Glass service configuration form.
-func HandleLookingGlassPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildLookingGlassFormData(viewTree)
+// handleLookingGlassPage renders the Looking Glass service configuration form.
+func handleLookingGlassPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildLookingGlassFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Services > API ---
 
-// BuildAPIFormData constructs a WorkbenchFormData for the API config.
+// buildAPIFormData constructs a WorkbenchFormData for the API config.
 // Fields match environment/api-server in ze-api-conf.yang. Sensitive fields
 // (token, TLS key) use the password type for masking.
-func BuildAPIFormData(tree *config.Tree) WorkbenchFormData {
+func buildAPIFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "API Configuration",
 		Fields: []WorkbenchFormField{
@@ -564,8 +564,8 @@ func BuildAPIFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleAPIPage renders the API service configuration form.
-func HandleAPIPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildAPIFormData(viewTree)
+// handleAPIPage renders the API service configuration form.
+func handleAPIPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildAPIFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }

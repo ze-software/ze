@@ -30,11 +30,11 @@ func LSAgeFromBytes(b []byte) (LSAge, error) {
 	if len(b) != LSAgeLen {
 		return 0, ErrWrongLength
 	}
-	return LSAgeFromRaw(uint16(b[0])<<8 | uint16(b[1]))
+	return lSAgeFromRaw(uint16(b[0])<<8 | uint16(b[1]))
 }
 
-// LSAgeFromRaw validates and preserves a raw 16-bit LS Age field.
-func LSAgeFromRaw(raw uint16) (LSAge, error) {
+// lSAgeFromRaw validates and preserves a raw 16-bit LS Age field.
+func lSAgeFromRaw(raw uint16) (LSAge, error) {
 	if raw&^DoNotAgeBit > MaxAge {
 		return 0, ErrOutOfRange
 	}

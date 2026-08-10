@@ -82,7 +82,7 @@ func TestWriteReadSecretPlaintext(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	got, err := ReadSecret(path, nil)
+	got, err := readSecret(path, nil)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestWriteReadSecretEncrypted(t *testing.T) {
 		t.Fatal("file on disk should be encrypted, not plaintext")
 	}
 
-	got, err := ReadSecret(path, passphrase)
+	got, err := readSecret(path, passphrase)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -152,15 +152,15 @@ func TestIsEncrypted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		t.Error("should not be encrypted without marker")
 	}
 
-	if err := WriteEncryptedMarker(dir, name); err != nil {
+	if err := writeEncryptedMarker(dir, name); err != nil {
 		t.Fatalf("write marker: %v", err)
 	}
 
-	if !IsEncrypted(dir, name) {
+	if !isEncrypted(dir, name) {
 		t.Error("should be encrypted with marker")
 	}
 }

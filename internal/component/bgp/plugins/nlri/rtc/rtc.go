@@ -28,8 +28,8 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// RunRTCPlugin runs the RTC plugin using the SDK RPC protocol.
-func RunRTCPlugin(conn net.Conn) int {
+// runRTCPlugin runs the RTC plugin using the SDK RPC protocol.
+func runRTCPlugin(conn net.Conn) int {
 	logger.Debug("rtc plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-rtc", conn)
@@ -62,7 +62,7 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	rtc, _, err := ParseRTC(data)
+	rtc, _, err := parseRTC(data)
 	if err != nil {
 		return nil, fmt.Errorf("parse RTC failed: %w", err)
 	}
@@ -93,7 +93,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 1
 	}
 
-	rtc, _, err := ParseRTC(data)
+	rtc, _, err := parseRTC(data)
 	if err != nil {
 		writeErr("error: parse RTC failed: %v\n", err)
 		return 1
@@ -151,7 +151,7 @@ func RunDecode(input io.Reader, output io.Writer) int {
 func rtcToJSON(r *RTC) map[string]any {
 	return map[string]any{
 		"origin-as":    r.OriginAS(),
-		"route-target": r.RouteTargetValue().String(),
-		"is-default":   r.IsDefault(),
+		"route-target": r.routeTargetValue().String(),
+		"is-default":   r.isDefault(),
 	}
 }

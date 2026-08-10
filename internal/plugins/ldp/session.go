@@ -116,8 +116,8 @@ func (s *Session) removePeerAddresses(addrs []netip.Addr) {
 	}
 }
 
-// PeerAddresses returns a copy of the peer's advertised interface addresses.
-func (s *Session) PeerAddresses() []netip.Addr {
+// peerAddresses returns a copy of the peer's advertised interface addresses.
+func (s *Session) peerAddresses() []netip.Addr {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := make([]netip.Addr, len(s.peerAddrs))
@@ -210,7 +210,7 @@ func (s *Session) SendInit() error {
 	var buf [256]byte
 	msgID := s.nextMsgID.Add(1)
 
-	bodyLen := EncodeInit(buf[ldpHeaderLen:], InitMessage{
+	bodyLen := EncodeInit(buf[ldpHeaderLen:], initMessage{
 		MessageID:          msgID,
 		ProtocolVersion:    ldpVersion,
 		KeepaliveTime:      uint16(s.keepaliveTime.Seconds()),
@@ -220,7 +220,7 @@ func (s *Session) SendInit() error {
 	})
 
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      s.localLSRID,
@@ -243,12 +243,12 @@ func (s *Session) SendKeepalive() error {
 	var buf [64]byte
 	msgID := s.nextMsgID.Add(1)
 
-	bodyLen := EncodeKeepalive(buf[ldpHeaderLen:], KeepaliveMessage{
+	bodyLen := encodeKeepalive(buf[ldpHeaderLen:], keepaliveMessage{
 		MessageID: msgID,
 	})
 
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      s.localLSRID,
@@ -264,7 +264,7 @@ func (s *Session) SendLabelMapping(prefix netip.Prefix, label uint32) error {
 	var buf [256]byte
 	msgID := s.nextMsgID.Add(1)
 
-	bodyLen := EncodeLabelMapping(buf[ldpHeaderLen:], LabelMappingMessage{
+	bodyLen := encodeLabelMapping(buf[ldpHeaderLen:], labelMappingMessage{
 		MessageID: msgID,
 		FEC: FECElement{
 			Type:   FECPrefix,
@@ -274,7 +274,7 @@ func (s *Session) SendLabelMapping(prefix netip.Prefix, label uint32) error {
 	})
 
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      s.localLSRID,
@@ -290,7 +290,7 @@ func (s *Session) SendLabelWithdraw(prefix netip.Prefix, label uint32) error {
 	var buf [256]byte
 	msgID := s.nextMsgID.Add(1)
 
-	bodyLen := EncodeLabelWithdraw(buf[ldpHeaderLen:], LabelWithdrawMessage{
+	bodyLen := EncodeLabelWithdraw(buf[ldpHeaderLen:], labelWithdrawMessage{
 		MessageID: msgID,
 		FEC: FECElement{
 			Type:   FECPrefix,
@@ -301,7 +301,7 @@ func (s *Session) SendLabelWithdraw(prefix netip.Prefix, label uint32) error {
 	})
 
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      s.localLSRID,
@@ -317,7 +317,7 @@ func (s *Session) SendLabelWithdraw(prefix netip.Prefix, label uint32) error {
 // once, when the Initialization exchange completes and the session reaches the
 // operational state, so the caller can advertise its local label mappings
 // (RFC 5036 Section 2.5.3). It may be nil.
-func (s *Session) ReadLoop(onLabel func(LabelMappingMessage, [4]byte), onWithdraw func(LabelWithdrawMessage, [4]byte), onOperational func()) error {
+func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onOperational func()) error {
 	var hdrBuf [ldpHeaderLen]byte
 	for {
 		if s.stopped() {
@@ -336,7 +336,7 @@ func (s *Session) ReadLoop(onLabel func(LabelMappingMessage, [4]byte), onWithdra
 			return err
 		}
 
-		pdu, err := DecodePDUHeader(hdrBuf[:])
+		pdu, err := decodePDUHeader(hdrBuf[:])
 		if err != nil {
 			return err
 		}
@@ -357,13 +357,13 @@ func (s *Session) ReadLoop(onLabel func(LabelMappingMessage, [4]byte), onWithdra
 	}
 }
 
-func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(LabelMappingMessage, [4]byte), onWithdraw func(LabelWithdrawMessage, [4]byte), onOperational func()) error {
+func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onOperational func()) error {
 	off := 0
 	for off < len(body) {
 		if len(body[off:]) < ldpMsgHdrLen {
 			break
 		}
-		msgHdr, err := DecodeMessageHeader(body[off:])
+		msgHdr, err := decodeMessageHeader(body[off:])
 		if err != nil {
 			return err
 		}
@@ -394,7 +394,7 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(L
 				onOperational()
 			}
 		case MsgTypeLabelMapping:
-			lm, err := DecodeLabelMapping(msgHdr.MessageID, msgBody)
+			lm, err := decodeLabelMapping(msgHdr.MessageID, msgBody)
 			if err != nil {
 				return err
 			}
@@ -410,14 +410,14 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(L
 				onWithdraw(lw, peerLSRID)
 			}
 		case MsgTypeAddress:
-			am, err := DecodeAddressList(msgHdr.MessageID, msgBody)
+			am, err := decodeAddressList(msgHdr.MessageID, msgBody)
 			if err != nil {
 				return err
 			}
 			s.addPeerAddresses(am.Addresses)
 			s.log.Debug("ldp: peer addresses learned", "count", len(am.Addresses))
 		case MsgTypeAddressWithdraw:
-			am, err := DecodeAddressList(msgHdr.MessageID, msgBody)
+			am, err := decodeAddressList(msgHdr.MessageID, msgBody)
 			if err != nil {
 				return err
 			}
@@ -434,8 +434,8 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(L
 	return nil
 }
 
-func (s *Session) decodeLabelWithdraw(msgID uint32, msgBody []byte) (LabelWithdrawMessage, error) {
-	lw := LabelWithdrawMessage{MessageID: msgID}
+func (s *Session) decodeLabelWithdraw(msgID uint32, msgBody []byte) (labelWithdrawMessage, error) {
+	lw := labelWithdrawMessage{MessageID: msgID}
 	for bOff := 0; bOff < len(msgBody); {
 		tlv, n, err := DecodeTLV(msgBody[bOff:])
 		if err != nil {
@@ -464,7 +464,7 @@ func (s *Session) decodeLabelWithdraw(msgID uint32, msgBody []byte) (LabelWithdr
 // handleInit applies a received Initialization message and advances the FSM.
 // It returns true when this message transitions the session into the operational
 // state, so the caller can advertise its local label mappings.
-func (s *Session) handleInit(msg InitMessage, peerLSRID [4]byte) bool {
+func (s *Session) handleInit(msg initMessage, peerLSRID [4]byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

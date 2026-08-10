@@ -58,13 +58,13 @@ func validatePath(path string) error {
 	return nil
 }
 
-// ValidateOptions provides optional validation settings.
-type ValidateOptions struct {
+// validateOptions provides optional validation settings.
+type validateOptions struct {
 	AllowHidden bool // Allow hidden files (starting with .)
 }
 
-// ValidateWithOptions checks all files with custom options.
-func (v *Tmpfs) ValidateWithOptions(opts ValidateOptions) error {
+// validateWithOptions checks all files with custom options.
+func (v *Tmpfs) validateWithOptions(opts validateOptions) error {
 	for _, f := range v.Files {
 		if err := validatePathWithOptions(f.Path, opts); err != nil {
 			return err
@@ -74,7 +74,7 @@ func (v *Tmpfs) ValidateWithOptions(opts ValidateOptions) error {
 }
 
 // validatePathWithOptions checks a path with custom options.
-func validatePathWithOptions(path string, opts ValidateOptions) error {
+func validatePathWithOptions(path string, opts validateOptions) error {
 	// Reject absolute paths
 	if filepath.IsAbs(path) || strings.HasPrefix(path, "/") {
 		return fmt.Errorf("absolute path not allowed: %s", path)

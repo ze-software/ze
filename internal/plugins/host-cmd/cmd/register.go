@@ -3,7 +3,7 @@
 package cmd
 
 func init() {
-	RegisterShowHost()
-	RegisterShowKernelLog()
-	RegisterSetFD()
+	registerShowHost()
+	registerShowKernelLog()
+	registerSetFD()
 }

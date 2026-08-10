@@ -117,7 +117,7 @@ func TestRFC4271NonSmallestLengthRejected(t *testing.T) {
 		assert.Equal(t, NotifyHeaderBadLength, notif.ErrorSubcode)
 	}
 
-	_, err := UnpackKeepalive([]byte{0x00})
+	_, err := unpackKeepalive([]byte{0x00})
 	require.Error(t, err)
 	var notif *Notification
 	require.ErrorAs(t, err, &notif)

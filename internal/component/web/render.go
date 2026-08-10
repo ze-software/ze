@@ -74,10 +74,10 @@ type LoginData struct {
 	Locale string
 }
 
-// WorkbenchData holds the data passed to the workbench page template. It
+// workbenchData holds the data passed to the workbench page template. It
 // embeds LayoutData so existing fragments (cli_bar, commit_bar, breadcrumb,
 // diff_modal, error_panel) render unchanged inside the workbench shell.
-type WorkbenchData struct {
+type workbenchData struct {
 	LayoutData
 	// Sections drives the workbench left navigation rendering.
 	Sections []WorkbenchSection
@@ -250,7 +250,7 @@ func NewRenderer() (*Renderer, error) {
 
 // RenderWorkbench renders the workbench page template with the given data.
 // Renders to a buffer first to avoid partial writes on template errors.
-func (r *Renderer) RenderWorkbench(w http.ResponseWriter, data WorkbenchData) error {
+func (r *Renderer) RenderWorkbench(w http.ResponseWriter, data workbenchData) error {
 	data.Services = PortalServices()
 	var buf bytes.Buffer
 	if err := r.workbench.Execute(&buf, data); err != nil {
@@ -304,7 +304,7 @@ func (r *Renderer) ResolveDecorations(fields []FieldMeta) {
 	}
 
 	for i := range fields {
-		r.decorators.ResolveField(&fields[i])
+		r.decorators.resolveField(&fields[i])
 	}
 }
 
@@ -313,7 +313,7 @@ func (r *Renderer) ResolveDecorations(fields []FieldMeta) {
 func (r *Renderer) RenderField(field FieldMeta) template.HTML {
 	// Resolve decoration if a registry is available.
 	if r.decorators != nil {
-		r.decorators.ResolveField(&field)
+		r.decorators.resolveField(&field)
 	}
 
 	var buf bytes.Buffer

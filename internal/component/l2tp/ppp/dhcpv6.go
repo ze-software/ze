@@ -71,8 +71,8 @@ type DHCPv6IAPrefix struct {
 	Prefix        netip.Prefix
 }
 
-// DHCPv6Message is a parsed DHCPv6 message.
-type DHCPv6Message struct {
+// dHCPv6Message is a parsed DHCPv6 message.
+type dHCPv6Message struct {
 	Type          uint8
 	TransactionID [3]byte
 	ClientID      *DHCPv6DUID
@@ -94,13 +94,13 @@ var (
 	errDHCPv6DUIDTooBig = errors.New("dhcpv6: DUID exceeds maximum length")
 )
 
-// ParseDHCPv6 parses a DHCPv6 message from wire bytes.
-func ParseDHCPv6(buf []byte) (*DHCPv6Message, error) {
+// parseDHCPv6 parses a DHCPv6 message from wire bytes.
+func parseDHCPv6(buf []byte) (*dHCPv6Message, error) {
 	if len(buf) < 4 {
 		return nil, errDHCPv6TooShort
 	}
 
-	msg := &DHCPv6Message{
+	msg := &dHCPv6Message{
 		Type: buf[0],
 	}
 	copy(msg.TransactionID[:], buf[1:4])
@@ -232,9 +232,9 @@ func parseIAPrefix(data []byte) *DHCPv6IAPrefix {
 	return pref
 }
 
-// DHCPv6ReplyConfig holds parameters for building a DHCPv6 reply
+// dHCPv6ReplyConfig holds parameters for building a DHCPv6 reply
 // containing an IA_PD with a prefix.
-type DHCPv6ReplyConfig struct {
+type dHCPv6ReplyConfig struct {
 	Type          uint8
 	TransactionID [3]byte
 	ServerID      DHCPv6DUID
@@ -278,7 +278,7 @@ func duidLen(d *DHCPv6DUID) int {
 func duidOptionLen(d *DHCPv6DUID) int { return 4 + duidLen(d) }
 
 // dhcpv6ReplyLen reports the exact byte count BuildDHCPv6Reply writes for cfg.
-func dhcpv6ReplyLen(cfg DHCPv6ReplyConfig) int {
+func dhcpv6ReplyLen(cfg dHCPv6ReplyConfig) int {
 	n := 4 // message header
 	n += duidOptionLen(&cfg.ServerID)
 	if cfg.ClientID != nil {
@@ -289,7 +289,7 @@ func dhcpv6ReplyLen(cfg DHCPv6ReplyConfig) int {
 }
 
 // dhcpv6StatusReplyLen reports the exact byte count BuildDHCPv6StatusReply writes.
-func dhcpv6StatusReplyLen(cfg DHCPv6StatusReplyConfig) int {
+func dhcpv6StatusReplyLen(cfg dHCPv6StatusReplyConfig) int {
 	n := 4 // message header
 	n += duidOptionLen(&cfg.ServerID)
 	if cfg.ClientID != nil {
@@ -299,31 +299,31 @@ func dhcpv6StatusReplyLen(cfg DHCPv6StatusReplyConfig) int {
 	return n
 }
 
-// CheckedBuildDHCPv6Reply is the capacity-checked form of BuildDHCPv6Reply.
+// checkedBuildDHCPv6Reply is the capacity-checked form of BuildDHCPv6Reply.
 // It writes nothing and returns an error naming the required length when buf is
 // too small, so the caller can drop the reply instead of panicking mid-encode.
-func CheckedBuildDHCPv6Reply(buf []byte, cfg DHCPv6ReplyConfig) (int, error) {
+func checkedBuildDHCPv6Reply(buf []byte, cfg dHCPv6ReplyConfig) (int, error) {
 	need := dhcpv6ReplyLen(cfg)
 	if need > len(buf) {
 		return 0, fmt.Errorf("%w: needs %d bytes but buffer has %d", errDHCPv6BufferTooSmall, need, len(buf))
 	}
-	return BuildDHCPv6Reply(buf, cfg), nil
+	return buildDHCPv6Reply(buf, cfg), nil
 }
 
-// CheckedBuildDHCPv6StatusReply is the capacity-checked form of
+// checkedBuildDHCPv6StatusReply is the capacity-checked form of
 // BuildDHCPv6StatusReply (see CheckedBuildDHCPv6Reply).
-func CheckedBuildDHCPv6StatusReply(buf []byte, cfg DHCPv6StatusReplyConfig) (int, error) {
+func checkedBuildDHCPv6StatusReply(buf []byte, cfg dHCPv6StatusReplyConfig) (int, error) {
 	need := dhcpv6StatusReplyLen(cfg)
 	if need > len(buf) {
 		return 0, fmt.Errorf("%w: needs %d bytes but buffer has %d", errDHCPv6BufferTooSmall, need, len(buf))
 	}
-	return BuildDHCPv6StatusReply(buf, cfg), nil
+	return buildDHCPv6StatusReply(buf, cfg), nil
 }
 
-// BuildDHCPv6Reply writes a DHCPv6 Advertise or Reply message with an
+// buildDHCPv6Reply writes a DHCPv6 Advertise or Reply message with an
 // IA_PD containing the delegated prefix.
 // The caller must guarantee buf has capacity (see CheckedBuildDHCPv6Reply).
-func BuildDHCPv6Reply(buf []byte, cfg DHCPv6ReplyConfig) int {
+func buildDHCPv6Reply(buf []byte, cfg dHCPv6ReplyConfig) int {
 	off := 0
 
 	// Message header.
@@ -371,9 +371,9 @@ func BuildDHCPv6Reply(buf []byte, cfg DHCPv6ReplyConfig) int {
 	return off
 }
 
-// DHCPv6StatusReplyConfig holds parameters for a status-only reply
+// dHCPv6StatusReplyConfig holds parameters for a status-only reply
 // (e.g., NoPrefixAvail).
-type DHCPv6StatusReplyConfig struct {
+type dHCPv6StatusReplyConfig struct {
 	TransactionID [3]byte
 	ServerID      DHCPv6DUID
 	ClientID      *DHCPv6DUID
@@ -381,8 +381,8 @@ type DHCPv6StatusReplyConfig struct {
 	StatusMessage string
 }
 
-// BuildDHCPv6StatusReply writes a DHCPv6 Reply with a Status Code option.
-func BuildDHCPv6StatusReply(buf []byte, cfg DHCPv6StatusReplyConfig) int {
+// buildDHCPv6StatusReply writes a DHCPv6 Reply with a Status Code option.
+func buildDHCPv6StatusReply(buf []byte, cfg dHCPv6StatusReplyConfig) int {
 	off := 0
 
 	buf[off] = DHCPv6Reply

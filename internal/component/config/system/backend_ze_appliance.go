@@ -25,10 +25,10 @@ func newStrippedZeBackend(cfg UpdateCheckConfig, _ BackendOptions) (UpdateBacken
 	if err := ValidateUpdateCheckURL(cfg.URL); err != nil {
 		return nil, err
 	}
-	if err := ValidateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
+	if err := validateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
 		return nil, err
 	}
-	WarnConfigConflicts(cfg.SelfUpdate)
+	warnConfigConflicts(cfg.SelfUpdate)
 	return backend, nil
 }
 

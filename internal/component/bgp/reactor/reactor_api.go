@@ -112,7 +112,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		if s.LocalAS == peerAS {
 			peerType = "internal"
 		}
-		localPort, remotePort := p.TCPPorts()
+		localPort, remotePort := p.tCPPorts()
 		info := plugin.PeerInfo{
 			Address:              s.Address,
 			LocalAddress:         s.LocalAddress,
@@ -320,7 +320,7 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 		// Through the accessor: a reload swap can replace the slice on the shared
 		// PeerSettings (peer_settings_negotiation.go), and this runs on the plugin
 		// protocol's goroutine.
-		for _, cap := range p.ConfiguredCapabilities() {
+		for _, cap := range p.configuredCapabilities() {
 			if provider, ok := cap.(capability.ConfigProvider); ok {
 				maps.Copy(cfg.Values, provider.ConfigValues())
 			}
@@ -520,7 +520,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 	currentSessions := make(map[netip.AddrPort]*Session)
 	for key, peer := range r.peers {
 		currentPeers[key] = peer.SettingsSnapshot()
-		currentSessions[key] = peer.CurrentSession()
+		currentSessions[key] = peer.currentSession()
 	}
 	r.mu.RUnlock()
 
@@ -676,7 +676,7 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 	currentSessions := make(map[netip.AddrPort]*Session)
 	for key, peer := range a.r.peers {
 		currentPeers[key] = peer.SettingsSnapshot()
-		currentSessions[key] = peer.CurrentSession()
+		currentSessions[key] = peer.currentSession()
 	}
 	a.r.mu.RUnlock()
 

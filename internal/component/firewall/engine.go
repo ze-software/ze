@@ -304,7 +304,7 @@ func runEngine(conn net.Conn) int {
 		if cfg.Backend == "" {
 			return errFirewallNoBackendConfiguredAndNo
 		}
-		SetFlushOnShutdown(cfg.FlushOnShutdown)
+		setFlushOnShutdown(cfg.FlushOnShutdown)
 
 		if err := validateBackendGate(sections, cfg.Backend); err != nil {
 			return err
@@ -354,7 +354,7 @@ func runEngine(conn net.Conn) int {
 		}
 		// Track the option across reloads: removing the firewall section reverts
 		// FlushOnShutdown to the parsed default (true).
-		SetFlushOnShutdown(cfg.FlushOnShutdown)
+		setFlushOnShutdown(cfg.FlushOnShutdown)
 
 		previousCfg := activeCfg.Load()
 
@@ -442,7 +442,7 @@ func runEngine(conn net.Conn) int {
 	// the flush sequentially before CloseBackend, so it is the single ordered
 	// actor: no race with the per-plugin withdraw paths (copp/policy-routes/
 	// ddos-local) that share this in-process backend.
-	if FlushOnShutdownEnabled() {
+	if flushOnShutdownEnabled() {
 		if err := FlushAllTables(); err != nil {
 			log.Warn("firewall flush-on-shutdown failed", "error", err)
 		} else {

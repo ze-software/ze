@@ -108,10 +108,10 @@ func TestHandleL2TPList_RendersSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &L2TPHandlers{Renderer: renderer}
+	h := &l2TPHandlers{Renderer: renderer}
 	req := httptest.NewRequest("GET", "/l2tp?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
-	h.HandleL2TPList()(rec, req)
+	h.handleL2TPList()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200", rec.Code)
@@ -143,10 +143,10 @@ func TestHandleL2TPDetail_RendersTimeline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &L2TPHandlers{Renderer: renderer}
+	h := &l2TPHandlers{Renderer: renderer}
 	req := httptest.NewRequest("GET", "/l2tp/42?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
-	h.HandleL2TPDetail()(rec, req)
+	h.handleL2TPDetail()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200", rec.Code)
@@ -173,7 +173,7 @@ func TestHandleL2TPSamplesJSON_ColumnarShape(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/l2tp/testuser/samples", http.NoBody)
 	rec := httptest.NewRecorder()
-	HandleL2TPSamplesJSON()(rec, req)
+	handleL2TPSamplesJSON()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200", rec.Code)
@@ -207,7 +207,7 @@ func TestHandleL2TPSamplesJSON_FromToFilter(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/l2tp/testuser/samples?from=1000100&to=1000200", http.NoBody)
 	rec := httptest.NewRecorder()
-	HandleL2TPSamplesJSON()(rec, req)
+	handleL2TPSamplesJSON()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200", rec.Code)
@@ -233,7 +233,7 @@ func TestHandleL2TPSamplesCSV_Format(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/l2tp/testuser/samples.csv", http.NoBody)
 	rec := httptest.NewRecorder()
-	HandleL2TPSamplesCSV()(rec, req)
+	handleL2TPSamplesCSV()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200", rec.Code)
@@ -255,7 +255,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 	publishFakeL2TP(t, &fakeL2TPService{})
 
 	var dispatched string
-	h := &L2TPHandlers{
+	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 			dispatched = cmd
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"status":"ok"}`)), nil
@@ -266,7 +266,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	h.HandleL2TPDisconnect()(rec, req)
+	h.handleL2TPDisconnect()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200, body=%s", rec.Code, rec.Body.String())
@@ -278,7 +278,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 }
 
 func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
-	h := &L2TPHandlers{
+	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},
@@ -287,7 +287,7 @@ func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	h.HandleL2TPDisconnect()(rec, req)
+	h.handleL2TPDisconnect()(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status=%d, want 400", rec.Code)
@@ -295,7 +295,7 @@ func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
 }
 
 func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
-	h := &L2TPHandlers{
+	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},
@@ -304,7 +304,7 @@ func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	h.HandleL2TPDisconnect()(rec, req)
+	h.handleL2TPDisconnect()(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status=%d, want 400", rec.Code)
@@ -314,7 +314,7 @@ func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
 func TestHandleL2TPDisconnect_DispatchFailureReturns500JSON(t *testing.T) {
 	publishFakeL2TP(t, &fakeL2TPService{})
 
-	h := &L2TPHandlers{
+	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 			return nil, fmt.Errorf("session not found")
 		},
@@ -324,7 +324,7 @@ func TestHandleL2TPDisconnect_DispatchFailureReturns500JSON(t *testing.T) {
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	h.HandleL2TPDisconnect()(rec, req)
+	h.handleL2TPDisconnect()(rec, req)
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status=%d, want 500", rec.Code)
@@ -393,7 +393,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 	publishFakeL2TP(t, &fakeL2TPService{})
 
 	var dispatched string
-	h := &L2TPHandlers{
+	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 			dispatched = cmd
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"status":"ok"}`)), nil
@@ -404,7 +404,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	h.HandleL2TPDisconnect()(rec, req)
+	h.handleL2TPDisconnect()(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200, body=%s", rec.Code, rec.Body.String())

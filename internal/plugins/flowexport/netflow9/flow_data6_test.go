@@ -27,7 +27,7 @@ func TestNetflow9FlowData6(t *testing.T) {
 		},
 	}
 
-	written, count := WriteFlowDataFlowSet6(buf, 0, flows)
+	written, count := writeFlowDataFlowSet6(buf, 0, flows)
 	if count != 1 {
 		t.Fatalf("record count = %d, want 1", count)
 	}

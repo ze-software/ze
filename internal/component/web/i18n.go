@@ -57,9 +57,9 @@ func Translate(locale, key string) string {
 	return key
 }
 
-// LocaleSupported reports whether a translation catalog exists for locale.
+// localeSupported reports whether a translation catalog exists for locale.
 // English is always supported (it is the base).
-func LocaleSupported(locale string) bool {
+func localeSupported(locale string) bool {
 	if locale == LocaleEnglish {
 		return true
 	}
@@ -92,7 +92,7 @@ func localeFromAcceptLanguage(header string) string {
 		if i := strings.IndexByte(tag, '-'); i >= 0 {
 			tag = tag[:i] // primary subtag: fr-FR -> fr
 		}
-		if LocaleSupported(tag) {
+		if localeSupported(tag) {
 			return tag
 		}
 	}

@@ -49,10 +49,10 @@ const certValidityDuration = 365 * 24 * time.Hour
 
 var certLogger = slogutil.Logger("web.server")
 
-// GenerateWebCert creates a self-signed ECDSA P-256 certificate suitable for
+// generateWebCert creates a self-signed ECDSA P-256 certificate suitable for
 // local HTTPS access. The certificate includes SANs for localhost, 127.0.0.1,
 // and ::1.
-func GenerateWebCert() (certPEM, keyPEM []byte, err error) {
+func generateWebCert() (certPEM, keyPEM []byte, err error) {
 	return GenerateWebCertWithNames("", nil, 0)
 }
 
@@ -61,7 +61,7 @@ func GenerateWebCert() (certPEM, keyPEM []byte, err error) {
 // parses as a valid IP not already covered by the defaults).
 func GenerateWebCertWithAddr(listenAddr string) (certPEM, keyPEM []byte, err error) {
 	if listenAddr == "" {
-		return GenerateWebCert()
+		return generateWebCert()
 	}
 	return GenerateWebCertWithNames(listenAddr, nil, 0)
 }

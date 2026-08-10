@@ -68,7 +68,7 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	templates := collectTemplates(tree)
 
 	// Check if we need to inject RIB plugin
-	needsRIB := NeedsRIBPlugin(tree)
+	needsRIB := needsRIBPlugin(tree)
 	if needsRIB {
 		result.RIBInjected = true
 		injectRIBPlugin(result.Tree)
@@ -110,9 +110,9 @@ func collectTemplates(tree *config.Tree) map[string]*config.Tree {
 	return templates
 }
 
-// NeedsRIBPlugin checks if the config requires a RIB plugin.
+// needsRIBPlugin checks if the config requires a RIB plugin.
 // ZeBGP delegates RIB to plugins, so features requiring state storage need one.
-func NeedsRIBPlugin(tree *config.Tree) bool {
+func needsRIBPlugin(tree *config.Tree) bool {
 	if tree == nil {
 		return false
 	}

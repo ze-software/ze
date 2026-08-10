@@ -33,9 +33,9 @@ var (
 	peerConfigs map[string]filterConfig // keyed by peer name
 )
 
-// RunFilterCommunity runs the community filter plugin using the SDK RPC protocol.
+// runFilterCommunity runs the community filter plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunFilterCommunity(conn net.Conn) int {
+func runFilterCommunity(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-community", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 

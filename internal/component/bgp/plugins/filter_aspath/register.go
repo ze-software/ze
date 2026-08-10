@@ -13,7 +13,7 @@ func init() {
 		Dependencies: []string{"bgp"},
 		YANG:         fayang.ZeFilterAsPathYANG,
 		FilterTypes:  []string{"as-path-list"},
-		RunEngine:    RunFilterAsPath,
+		RunEngine:    runFilterAsPath,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})
 }

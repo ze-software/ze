@@ -161,9 +161,9 @@ func (p *Peer) IncrKeepalivesReceived() {
 	}
 }
 
-// IncrKeepalivesSent increments the sent KEEPALIVE counter.
+// incrKeepalivesSent increments the sent KEEPALIVE counter.
 // Also increments the per-peer Prometheus counter with type label.
-func (p *Peer) IncrKeepalivesSent() {
+func (p *Peer) incrKeepalivesSent() {
 	p.counters.keepalivesSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "keepalive").Inc()
@@ -225,16 +225,16 @@ func notificationCodeLabel(code uint8) string {
 	}
 }
 
-// IncrOpensReceived increments the received OPEN counter.
-func (p *Peer) IncrOpensReceived() {
+// incrOpensReceived increments the received OPEN counter.
+func (p *Peer) incrOpensReceived() {
 	p.counters.opensReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "open").Inc()
 	}
 }
 
-// IncrOpensSent increments the sent OPEN counter.
-func (p *Peer) IncrOpensSent() {
+// incrOpensSent increments the sent OPEN counter.
+func (p *Peer) incrOpensSent() {
 	p.counters.opensSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "open").Inc()
@@ -286,39 +286,39 @@ func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
 	}
 }
 
-// IncrRefreshReceived increments the received ROUTE-REFRESH counter.
-func (p *Peer) IncrRefreshReceived() {
+// incrRefreshReceived increments the received ROUTE-REFRESH counter.
+func (p *Peer) incrRefreshReceived() {
 	p.counters.refreshReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "refresh").Inc()
 	}
 }
 
-// IncrRefreshSent increments the sent ROUTE-REFRESH counter.
-func (p *Peer) IncrRefreshSent() {
+// incrRefreshSent increments the sent ROUTE-REFRESH counter.
+func (p *Peer) incrRefreshSent() {
 	p.counters.refreshSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "refresh").Inc()
 	}
 }
 
-// IncrConnectionsEstablished increments the lifetime connections-established counter.
-func (p *Peer) IncrConnectionsEstablished() {
+// incrConnectionsEstablished increments the lifetime connections-established counter.
+func (p *Peer) incrConnectionsEstablished() {
 	p.counters.connectionsEstablished.Add(1)
 }
 
-// IncrConnectionsDropped increments the lifetime connections-dropped counter.
-func (p *Peer) IncrConnectionsDropped() {
+// incrConnectionsDropped increments the lifetime connections-dropped counter.
+func (p *Peer) incrConnectionsDropped() {
 	p.counters.connectionsDropped.Add(1)
 }
 
-// TouchLastRead records the current time as the last message read time.
-func (p *Peer) TouchLastRead() {
+// touchLastRead records the current time as the last message read time.
+func (p *Peer) touchLastRead() {
 	p.counters.lastReadTime.Store(p.clock.Now().UnixNano())
 }
 
-// TouchLastWrite records the current time as the last message write time.
-func (p *Peer) TouchLastWrite() {
+// touchLastWrite records the current time as the last message write time.
+func (p *Peer) touchLastWrite() {
 	p.counters.lastWriteTime.Store(p.clock.Now().UnixNano())
 }
 
@@ -326,7 +326,7 @@ func (p *Peer) TouchLastWrite() {
 // and increments the lifetime connections-established counter.
 func (p *Peer) SetEstablishedNow() {
 	p.counters.establishedAt.Store(p.clock.Now().UnixNano())
-	p.IncrConnectionsEstablished()
+	p.incrConnectionsEstablished()
 }
 
 // EstablishedAt returns the time the session was established.

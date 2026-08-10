@@ -484,7 +484,7 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	var matchedKind TunnelKind
 	var matchedCase map[string]any
 	for caseName, raw := range encMap {
-		k, ok := ParseTunnelKind(caseName)
+		k, ok := parseTunnelKind(caseName)
 		if !ok {
 			return entry, fmt.Errorf("unknown encapsulation kind %q", caseName)
 		}
@@ -504,7 +504,7 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	}
 	// MAC address lives inside the case container for bridgeable kinds
 	// (gretap/ip6gretap). L3 kinds have no mac/address leaf in YANG.
-	if matchedKind.IsBridgeable() {
+	if matchedKind.isBridgeable() {
 		if macC, ok := matchedCase["mac"].(map[string]any); ok {
 			if mac, ok := macC["address"].(string); ok {
 				entry.MACAddress = mac
@@ -517,7 +517,7 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	if entry.Spec.LocalAddress == "" && entry.Spec.LocalInterface == "" {
 		return entry, errLocalIpOrLocalInterfaceRequired
 	}
-	if !matchedKind.IsBridgeable() {
+	if !matchedKind.isBridgeable() {
 		for i := range entry.Units {
 			if entry.Units[i].VLANID > 0 {
 				return entry, fmt.Errorf("vlan-id units are not supported on %s tunnels (only gretap and ip6gretap carry Ethernet frames)", matchedKind)
@@ -898,7 +898,7 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 	}
 	var units []unitEntry
 	for name, v := range unitMap {
-		if err := ValidateUnitName(name); err != nil {
+		if err := validateUnitName(name); err != nil {
 			return nil, fmt.Errorf("unit %q: %w", name, err)
 		}
 		um, _ := v.(map[string]any)

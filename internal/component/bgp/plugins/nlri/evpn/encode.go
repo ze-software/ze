@@ -115,7 +115,7 @@ func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
 		if r.Label1 != 0 {
 			labels = []uint32{r.Label1}
 		}
-		evpnNLRI = NewEVPNType5(rd, esiArr, r.EthernetTag, r.Prefix, r.Gateway, labels)
+		evpnNLRI = newEVPNType5(rd, esiArr, r.EthernetTag, r.Prefix, r.Gateway, labels)
 	default:
 		return p, fmt.Errorf("unknown EVPN route type: %s", r.RouteType)
 	}

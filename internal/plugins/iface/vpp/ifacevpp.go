@@ -230,7 +230,7 @@ func (b *vppBackendImpl) resolveIndex(name string) (interface_types.InterfaceInd
 	if err := b.ensureChannel(); err != nil {
 		return 0, err
 	}
-	idx, ok := b.names.LookupIndex(name)
+	idx, ok := b.names.lookupIndex(name)
 	if !ok {
 		return 0, fmt.Errorf("ifacevpp: unknown interface %q", name)
 	}

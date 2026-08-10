@@ -102,12 +102,12 @@ func (e *FlowEncoder) sendDataPacket(sender *flowexport.Sender, recs []FlowRecor
 	var n int
 	var count uint16
 	if v6 {
-		n, count = WriteFlowDataFlowSet6(b, off, recs)
+		n, count = writeFlowDataFlowSet6(b, off, recs)
 	} else {
-		n, count = WriteFlowDataFlowSet(b, off, recs)
+		n, count = writeFlowDataFlowSet(b, off, recs)
 	}
 	off += n
-	WritePacketHeader(b, 0, count, sysUpTime, unixSecs, e.seqNum, e.SourceID)
+	writePacketHeader(b, 0, count, sysUpTime, unixSecs, e.seqNum, e.SourceID)
 	// RFC 3954 Section 5.1: the sequence number counts EXPORT PACKETS, not
 	// records or flows. Advance by one per datagram (matches the counter
 	// encoder and the template path), so collectors do not see false loss.
@@ -140,7 +140,7 @@ func (e *FlowEncoder) sendTemplatePacket(sender *flowexport.Sender, tmpl []byte,
 
 	off := HeaderSize
 	off += copy(b[off:], tmpl)
-	WritePacketHeader(b, 0, 1, sysUpTime, unixSecs, e.seqNum, e.SourceID)
+	writePacketHeader(b, 0, 1, sysUpTime, unixSecs, e.seqNum, e.SourceID)
 	e.seqNum++
 
 	return sender.Send(b[:off])

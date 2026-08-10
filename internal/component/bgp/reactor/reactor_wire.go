@@ -49,13 +49,13 @@ import (
 // length, and neither trusts a caller to have checked.
 var ErrNextHopUnencodable = errors.New("next hop cannot be encoded")
 
-// ValidateAnnounceNextHop reports why WriteAnnounceUpdate would refuse this route
+// validateAnnounceNextHop reports why WriteAnnounceUpdate would refuse this route
 // and this link-local address, and nil when it would encode them.
 //
 // It is the reason behind the writer's zero return, not a second gate in front of
 // it: both call announceNextHopOctets, so a caller that skips this function still
 // cannot get bad octets out of the writer. What it loses is the diagnosis.
-func ValidateAnnounceNextHop(route bgptypes.RouteSpec, linkLocalNextHop netip.Addr) error {
+func validateAnnounceNextHop(route bgptypes.RouteSpec, linkLocalNextHop netip.Addr) error {
 	_, err := announceNextHopOctets(route, linkLocalNextHop)
 	return err
 }
@@ -357,7 +357,7 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 	return off - start
 }
 
-// WriteAnnounceUpdate writes a complete BGP UPDATE message for announcing a route
+// writeAnnounceUpdate writes a complete BGP UPDATE message for announcing a route
 // directly into buf at offset off. Returns total bytes written.
 //
 // True zero-allocation: writes all attributes directly to the buffer.
@@ -383,7 +383,7 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // The int return is the buffer-first writer contract this package keeps
 // (WriteWithdrawUpdate, nlri.WriteNLRI, attribute.WriteAttrTo), so the reason
 // travels beside it rather than inside it.
-func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLocalNextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) int {
+func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLocalNextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) int {
 	start := off
 
 	// Both halves of the Next Hop field are settled before the first byte is
@@ -619,7 +619,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 	return totalLen
 }
 
-// WriteWithdrawUpdate writes a complete BGP UPDATE message for withdrawing a route
+// writeWithdrawUpdate writes a complete BGP UPDATE message for withdrawing a route
 // directly into buf at offset off. Returns total bytes written.
 //
 // Eliminates large buffer allocations by writing directly to the provided buffer.
@@ -627,7 +627,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
-func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool) int {
+func writeWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)

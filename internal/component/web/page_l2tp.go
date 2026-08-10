@@ -18,10 +18,10 @@ import (
 
 // --- L2TP > Sessions ---
 
-// BuildL2TPSessionsTableData constructs a WorkbenchTableData for the L2TP
+// buildL2TPSessionsTableData constructs a WorkbenchTableData for the L2TP
 // sessions page. Data comes from the live L2TP service snapshot. When the
 // L2TP subsystem is not running, the table shows an empty state.
-func BuildL2TPSessionsTableData() WorkbenchTableData {
+func buildL2TPSessionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "tunnel-id", Label: "Tunnel ID", Sortable: true},
 		{Key: "session-id", Label: "Session ID", Sortable: true},
@@ -85,10 +85,10 @@ func BuildL2TPSessionsTableData() WorkbenchTableData {
 	}
 }
 
-// HandleL2TPSessionsPage renders the L2TP Sessions table for the workbench.
+// handleL2TPSessionsPage renders the L2TP Sessions table for the workbench.
 // The outer div polls every 5 seconds so session state updates automatically.
-func HandleL2TPSessionsPage(renderer *Renderer) template.HTML {
-	tableData := BuildL2TPSessionsTableData()
+func handleL2TPSessionsPage(renderer *Renderer) template.HTML {
+	tableData := buildL2TPSessionsTableData()
 	table := renderer.RenderFragment("workbench_table", tableData)
 	return template.HTML(`<div hx-get="/show/l2tp/sessions/" hx-trigger="every 5s" hx-swap="innerHTML">`) + //nolint:gosec // trusted builder output
 		table +
@@ -97,10 +97,10 @@ func HandleL2TPSessionsPage(renderer *Renderer) template.HTML {
 
 // --- L2TP > Configuration ---
 
-// BuildL2TPConfigFormData constructs a WorkbenchFormData for the L2TP config.
+// buildL2TPConfigFormData constructs a WorkbenchFormData for the L2TP config.
 // Fields match l2tp{} and environment/l2tp in ze-l2tp-conf.yang. The
 // shared-secret field uses password type for masking.
-func BuildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
+func buildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "L2TP Configuration",
 		Fields: []WorkbenchFormField{
@@ -173,18 +173,18 @@ func BuildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleL2TPConfigPage renders the L2TP Configuration form for the workbench.
-func HandleL2TPConfigPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildL2TPConfigFormData(viewTree)
+// handleL2TPConfigPage renders the L2TP Configuration form for the workbench.
+func handleL2TPConfigPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildL2TPConfigFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- L2TP > Health ---
 
-// BuildL2TPHealthTableData constructs a WorkbenchTableData for the L2TP
+// buildL2TPHealthTableData constructs a WorkbenchTableData for the L2TP
 // health page. Without a running L2TP subsystem, this shows an empty state.
 // With live data, sessions are listed with their current state.
-func BuildL2TPHealthTableData() WorkbenchTableData {
+func buildL2TPHealthTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "session", Label: "Session", Sortable: true},
 		{Key: "username", Label: "Username", Sortable: true},
@@ -233,9 +233,9 @@ func BuildL2TPHealthTableData() WorkbenchTableData {
 	}
 }
 
-// HandleL2TPHealthPage renders the L2TP Health table for the workbench.
-func HandleL2TPHealthPage(renderer *Renderer) template.HTML {
-	tableData := BuildL2TPHealthTableData()
+// handleL2TPHealthPage renders the L2TP Health table for the workbench.
+func handleL2TPHealthPage(renderer *Renderer) template.HTML {
+	tableData := buildL2TPHealthTableData()
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
@@ -247,14 +247,14 @@ func HandleL2TPHealthPage(renderer *Renderer) template.HTML {
 func renderL2TPPageContent(renderer *Renderer, path []string, viewTree *config.Tree) (template.HTML, bool) {
 	if len(path) == 0 || (len(path) == 1 && path[0] == "") {
 		// /show/l2tp/ defaults to configuration.
-		return HandleL2TPConfigPage(renderer, viewTree), true
+		return handleL2TPConfigPage(renderer, viewTree), true
 	}
 
 	switch path[0] {
 	case "sessions":
-		return HandleL2TPSessionsPage(renderer), true
+		return handleL2TPSessionsPage(renderer), true
 	case "health":
-		return HandleL2TPHealthPage(renderer), true
+		return handleL2TPHealthPage(renderer), true
 	}
 
 	return "", false

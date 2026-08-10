@@ -166,10 +166,10 @@ type pppSession struct {
 	ipv6Svc *IPv6Service
 }
 
-// SessionInfo is a snapshot of pppSession state suitable for `show
+// sessionInfo is a snapshot of pppSession state suitable for `show
 // l2tp session` and tests. Returned by Manager.SessionByID under
 // the per-session lock; safe to use after the lock is released.
-type SessionInfo struct {
+type sessionInfo struct {
 	TunnelID        uint16
 	SessionID       uint16
 	UnitNum         int
@@ -180,8 +180,8 @@ type SessionInfo struct {
 
 // snapshot copies the locked state into a SessionInfo. Caller MUST
 // hold s.mu.
-func (s *pppSession) snapshot() SessionInfo {
-	return SessionInfo{
+func (s *pppSession) snapshot() sessionInfo {
+	return sessionInfo{
 		TunnelID:        s.tunnelID,
 		SessionID:       s.sessionID,
 		UnitNum:         s.unitNum,

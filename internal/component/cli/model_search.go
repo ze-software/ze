@@ -26,7 +26,7 @@ func (m *Model) searchConfig(query string) []Completion {
 	// Cache the set-view to avoid re-serializing the entire config tree on every keystroke.
 	// Invalidated when the tree is dirty (user edited config since last cache).
 	if m.searchCache == "" || m.editor.Dirty() {
-		m.searchCache = m.editor.SetView()
+		m.searchCache = m.editor.setView()
 	}
 	if m.searchCache == "" {
 		return nil

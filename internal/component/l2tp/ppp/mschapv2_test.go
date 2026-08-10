@@ -84,7 +84,7 @@ func TestMSCHAPv2ParseResponse(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := ParseMSCHAPv2Response(tc.buf)
+			resp, err := parseMSCHAPv2Response(tc.buf)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -233,7 +233,7 @@ func TestMSCHAPv2ParseResponseInvalid(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf := tc.mut(valid)
-			_, err := ParseMSCHAPv2Response(buf)
+			_, err := parseMSCHAPv2Response(buf)
 			if !errors.Is(err, tc.want) {
 				t.Errorf("err = %v, want %v", err, tc.want)
 			}
@@ -253,19 +253,19 @@ func TestMSCHAPv2ParseResponseBoundary49(t *testing.T) {
 	pc := bytes.Repeat([]byte{0x33}, mschapv2PeerChallengeLen)
 	nt := bytes.Repeat([]byte{0x44}, mschapv2NTResponseLen)
 	good := buildMSCHAPv2ResponsePayload(0x20, pc, nt, "")
-	if _, err := ParseMSCHAPv2Response(good); err != nil {
+	if _, err := parseMSCHAPv2Response(good); err != nil {
 		t.Fatalf("Value-Size=49 rejected: %v", err)
 	}
 
 	low := bytes.Clone(good)
 	low[4] = 48
-	if _, err := ParseMSCHAPv2Response(low); !errors.Is(err, errMSCHAPv2ValueSizeWrong) {
+	if _, err := parseMSCHAPv2Response(low); !errors.Is(err, errMSCHAPv2ValueSizeWrong) {
 		t.Errorf("Value-Size=48 err = %v, want errMSCHAPv2ValueSizeWrong", err)
 	}
 
 	high := bytes.Clone(good)
 	high[4] = 50
-	if _, err := ParseMSCHAPv2Response(high); !errors.Is(err, errMSCHAPv2ValueSizeWrong) {
+	if _, err := parseMSCHAPv2Response(high); !errors.Is(err, errMSCHAPv2ValueSizeWrong) {
 		t.Errorf("Value-Size=50 err = %v, want errMSCHAPv2ValueSizeWrong", err)
 	}
 }
@@ -300,7 +300,7 @@ func TestMSCHAPv2ParseResponseMaxName(t *testing.T) {
 	for i := range nameLen {
 		buf[headerLen+i] = 'N'
 	}
-	resp, err := ParseMSCHAPv2Response(buf)
+	resp, err := parseMSCHAPv2Response(buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestMSCHAPv2ParseResponseMaxName(t *testing.T) {
 func TestMSCHAPv2WriteChallenge(t *testing.T) {
 	buf := make([]byte, 64)
 	value := bytes.Repeat([]byte{0x5A}, mschapv2ChallengeValueLen)
-	n := WriteMSCHAPv2Challenge(buf, 0, 0x42, value, []byte("ze"))
+	n := writeMSCHAPv2Challenge(buf, 0, 0x42, value, []byte("ze"))
 	wantLen := mschapv2HeaderLen + 1 + mschapv2ChallengeValueLen + 2
 	if n != wantLen {
 		t.Fatalf("n = %d, want %d", n, wantLen)
@@ -344,7 +344,7 @@ func TestMSCHAPv2WriteChallengeOffset(t *testing.T) {
 	buf[0] = 0xAA
 	buf[1] = 0xAA
 	value := bytes.Repeat([]byte{0xCC}, mschapv2ChallengeValueLen)
-	n := WriteMSCHAPv2Challenge(buf, 2, 0x01, value, []byte("x"))
+	n := writeMSCHAPv2Challenge(buf, 2, 0x01, value, []byte("x"))
 	if buf[0] != 0xAA || buf[1] != 0xAA {
 		t.Errorf("prefix overwritten: %x", buf[:2])
 	}
@@ -368,7 +368,7 @@ func TestMSCHAPv2WriteChallengeCapsNameByFrame(t *testing.T) {
 	buf := make([]byte, MaxFrameLen)
 	value := bytes.Repeat([]byte{0xCD}, mschapv2ChallengeValueLen)
 	hugeName := bytes.Repeat([]byte{'n'}, MaxFrameLen)
-	n := WriteMSCHAPv2Challenge(buf, 2, 0x10, value, hugeName)
+	n := writeMSCHAPv2Challenge(buf, 2, 0x10, value, hugeName)
 	maxName := MaxFrameLen - 2 - mschapv2HeaderLen - 1 - mschapv2ChallengeValueLen
 	wantTotal := mschapv2HeaderLen + 1 + mschapv2ChallengeValueLen + maxName
 	if n != wantTotal {
@@ -406,7 +406,7 @@ func TestMSCHAPv2WriteSuccess(t *testing.T) {
 	buf := make([]byte, 128)
 	blob := bytes.Repeat([]byte{0xAB}, mschapv2AuthenticatorResponseLen)
 	message := []byte("welcome")
-	n := WriteMSCHAPv2Success(buf, 0, 0x42, blob, message)
+	n := writeMSCHAPv2Success(buf, 0, 0x42, blob, message)
 
 	// "S=" + 40 uppercase hex + " M=" + "welcome"
 	// Hex of 0xAB -> 'A' 'B'; 20 bytes => 40 chars of "AB"x20.
@@ -455,7 +455,7 @@ func TestMSCHAPv2WriteSuccessEmptyMessage(t *testing.T) {
 	for i := range blob {
 		blob[i] = 0x00
 	}
-	n := WriteMSCHAPv2Success(buf, 0, 0x01, blob, nil)
+	n := writeMSCHAPv2Success(buf, 0, 0x01, blob, nil)
 	hexPart := strings.Repeat("00", mschapv2AuthenticatorResponseLen)
 	wantMsg := "S=" + hexPart + " M="
 	wantTotal := mschapv2HeaderLen + len(wantMsg)
@@ -489,7 +489,7 @@ func TestMSCHAPv2WriteSuccessPanicsOnWrongBlobLen(t *testing.T) {
 	}()
 	buf := make([]byte, 128)
 	blob := make([]byte, mschapv2AuthenticatorResponseLen-1)
-	_ = WriteMSCHAPv2Success(buf, 0, 0x01, blob, nil)
+	_ = writeMSCHAPv2Success(buf, 0, 0x01, blob, nil)
 }
 
 // VALIDATES: WriteMSCHAPv2Success clamps the Message field so the
@@ -503,7 +503,7 @@ func TestMSCHAPv2WriteSuccessCapsMessageByFrame(t *testing.T) {
 	buf := make([]byte, MaxFrameLen+1)
 	blob := bytes.Repeat([]byte{0x55}, mschapv2AuthenticatorResponseLen)
 	hugeMessage := bytes.Repeat([]byte{'m'}, MaxFrameLen)
-	n := WriteMSCHAPv2Success(buf, 2, 0x20, blob, hugeMessage)
+	n := writeMSCHAPv2Success(buf, 2, 0x20, blob, hugeMessage)
 	maxMessage := MaxFrameLen - 2 - mschapv2HeaderLen
 	wantTotal := mschapv2HeaderLen + maxMessage
 	if n != wantTotal {
@@ -534,7 +534,7 @@ func TestMSCHAPv2WriteSuccessCapsMessageByFrame(t *testing.T) {
 func TestMSCHAPv2WriteFailure(t *testing.T) {
 	buf := make([]byte, 128)
 	msg := []byte("E=691 R=0 V=3 M=invalid credentials")
-	n := WriteMSCHAPv2Failure(buf, 0, 0x77, msg)
+	n := writeMSCHAPv2Failure(buf, 0, 0x77, msg)
 	wantTotal := mschapv2HeaderLen + len(msg)
 	if n != wantTotal {
 		t.Fatalf("n = %d, want %d", n, wantTotal)
@@ -686,7 +686,7 @@ func TestMSCHAPv2ResponseEmitsEvent(t *testing.T) {
 
 	select {
 	case ev := <-authEventsOut:
-		if _, ok := ev.(EventAuthSuccess); !ok {
+		if _, ok := ev.(eventAuthSuccess); !ok {
 			t.Errorf("second auth event %T, want EventAuthSuccess", ev)
 		}
 	case <-time.After(1 * time.Second):
@@ -750,7 +750,7 @@ func TestMSCHAPv2RejectWritesFailure(t *testing.T) {
 
 	select {
 	case ev := <-authEventsOut:
-		if _, ok := ev.(EventAuthFailure); !ok {
+		if _, ok := ev.(eventAuthFailure); !ok {
 			t.Errorf("second auth event %T, want EventAuthFailure", ev)
 		}
 	case <-time.After(1 * time.Second):
@@ -855,7 +855,7 @@ func TestMSCHAPv2HandlerWrongBlobLenFailsClean(t *testing.T) {
 
 			select {
 			case ev := <-authEventsOut:
-				fail, ok := ev.(EventAuthFailure)
+				fail, ok := ev.(eventAuthFailure)
 				if !ok {
 					t.Fatalf("second auth event %T, want EventAuthFailure", ev)
 				}
@@ -907,7 +907,7 @@ func TestMSCHAPv2TimeoutEmitsFailure(t *testing.T) {
 
 	select {
 	case ev := <-authEventsOut:
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("second auth event %T, want EventAuthFailure", ev)
 		}
@@ -991,7 +991,7 @@ func TestMSCHAPv2HandlerWireErrors(t *testing.T) {
 				buf := make([]byte, 64)
 				off := WriteFrame(buf, 0, ProtoCHAP, nil)
 				value := bytes.Repeat([]byte{0x01}, mschapv2ChallengeValueLen)
-				off += WriteMSCHAPv2Challenge(buf, off, challengeID,
+				off += writeMSCHAPv2Challenge(buf, off, challengeID,
 					value, []byte("z"))
 				if _, err := peerEnd.Write(buf[:off]); err != nil {
 					t.Fatalf("peer write: %v", err)

@@ -364,7 +364,7 @@ type Reactor struct {
 	msgObservers  []MessageObserver
 	observersMu   sync.RWMutex
 
-	capture    *BGPCaptureRing
+	capture    *bGPCaptureRing
 	rawCapture atomic.Pointer[BGPRawCaptureRing]
 
 	// sessionCaptures tracks the per-peer JSONL protocol event captures that
@@ -385,7 +385,7 @@ type Reactor struct {
 
 	// API process synchronization state.
 	// Embedded to access fields directly (e.g., r.apiStarted).
-	APISyncState
+	aPISyncState
 
 	// reloadFunc is called by Reload() to get the list of peers from config.
 	// Set via SetReloadFunc. If nil, Reload() returns an error.
@@ -465,7 +465,7 @@ func New(config *Config) *Reactor {
 		pluginServerMaker: pluginserver.NewServer,
 		peers:             make(map[netip.AddrPort]*Peer),
 		listeners:         make(map[string]*Listener),
-		recentUpdates:     NewRecentUpdateCache(maxEntries),
+		recentUpdates:     newRecentUpdateCache(maxEntries),
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
 			chanSize:   fwdChanSize,
 			batchLimit: fwdBatchLimit,
@@ -490,9 +490,9 @@ func New(config *Config) *Reactor {
 	r.fwdOverflowMux = newMixedBufMux()
 	if fwdPoolSize > 0 {
 		// Operator override: ze.fwd.pool.size as byte budget.
-		r.fwdOverflowMux.SetByteBudget(int64(fwdPoolSize))
+		r.fwdOverflowMux.setByteBudget(int64(fwdPoolSize))
 	}
-	r.fwdPool.SetOverflowMux(r.fwdOverflowMux)
+	r.fwdPool.setOverflowMux(r.fwdOverflowMux)
 
 	// Weight tracker: recalculates pool budget when peers change.
 	// When ze.fwd.pool.maxbytes is not explicitly set (0), auto-size the
@@ -518,7 +518,7 @@ func New(config *Config) *Reactor {
 			// prefix maximums and negotiated message sizes.
 			if fwdPoolSize <= 0 {
 				overflowBytes := max(ob.bytes, minPoolBudget)
-				overflowMux.SetByteBudget(overflowBytes)
+				overflowMux.setByteBudget(overflowBytes)
 			}
 		})
 	} else {
@@ -530,7 +530,7 @@ func New(config *Config) *Reactor {
 	r.fwdPool.congestion = newCongestionController(congestionConfig{
 		gracePeriod:    teardownGrace,
 		poolUsedRatio:  r.fwdPool.PoolUsedRatio,
-		overflowDepths: r.fwdPool.OverflowDepths,
+		overflowDepths: r.fwdPool.overflowDepths,
 		weights:        r.fwdWeights,
 		onTeardown: congestionTeardownPeer(func(addr netip.AddrPort) *Peer {
 			r.mu.RLock()
@@ -592,7 +592,7 @@ func New(config *Config) *Reactor {
 	// ze.cache.safety.valve overrides the safety valve duration for gap-based eviction.
 	// Default: 5 minutes. Invalid values use default.
 	if d := env.GetDuration("ze.cache.safety.valve", 0); d != 0 {
-		r.recentUpdates.SetSafetyValveDuration(d)
+		r.recentUpdates.setSafetyValveDuration(d)
 	}
 
 	// ze.cache.pressure.* enables load-aware reclamation of passed-over cache entries.
@@ -601,9 +601,9 @@ func New(config *Config) *Reactor {
 	// safety valve, bounding how long a stuck consumer can pin pool buffers. High-water
 	// 0 (default) leaves the feature disabled, preserving legacy behavior.
 	if hw := env.GetInt("ze.cache.pressure.highwater", 0); hw > 0 {
-		r.recentUpdates.SetPressureHighWater(float64(hw) / 100.0)
+		r.recentUpdates.setPressureHighWater(float64(hw) / 100.0)
 		if d := env.GetDuration("ze.cache.pressure.valve", 30*time.Second); d > 0 {
-			r.recentUpdates.SetPressureValve(d)
+			r.recentUpdates.setPressureValve(d)
 		}
 	}
 
@@ -865,7 +865,7 @@ func (r *Reactor) Peers() []*Peer {
 // EnableCapture allocates the BGP capture ring.
 func (r *Reactor) EnableCapture() {
 	if r.capture == nil {
-		r.capture = NewBGPCaptureRing(r.clock)
+		r.capture = newBGPCaptureRing(r.clock)
 	}
 }
 
@@ -879,7 +879,7 @@ func (r *Reactor) CaptureSnapshot(limit int, peer netip.Addr) []BGPCaptureEntry 
 
 // EnableRawCapture allocates the raw byte capture ring for pcap export.
 func (r *Reactor) EnableRawCapture() {
-	r.rawCapture.CompareAndSwap(nil, NewBGPRawCaptureRing(r.clock))
+	r.rawCapture.CompareAndSwap(nil, newBGPRawCaptureRing(r.clock))
 }
 
 // DisableRawCapture releases the raw capture ring.
@@ -950,7 +950,7 @@ func (r *Reactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
 	defer r.mu.RUnlock()
 	for _, p := range r.peers {
 		if p.addrString == addr {
-			internal := p.FSMHistory()
+			internal := p.fSMHistory()
 			out := make([]plugin.FSMTransitionRecord, len(internal))
 			for i, t := range internal {
 				out[i] = plugin.FSMTransitionRecord{
@@ -1100,7 +1100,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Subscribe to EventBus events for cross-component reactions (interface
 	// addr changes, etc.). Must happen before listeners start so handlers are
 	// active when events arrive.
-	r.SubscribeInterfaceEvents()
+	r.subscribeInterfaceEvents()
 
 	// Start global listener if ListenAddr is configured.
 	if r.config.ListenAddr != "" {
@@ -1333,7 +1333,7 @@ func (r *Reactor) startAPIServer() error {
 // startSignalHandler creates and starts the signal handler for SIGHUP/SIGTERM/SIGUSR1.
 // Caller MUST hold r.mu.
 func (r *Reactor) startSignalHandler() {
-	r.signals = NewSignalHandler()
+	r.signals = newSignalHandler()
 	r.signals.OnShutdown(func() {
 		r.Stop()
 	})
@@ -1588,7 +1588,7 @@ func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
 		// Extract Multiprotocol capabilities (these are the configured families).
 		// Through the accessor: a reload swap can replace the slice on the shared
 		// PeerSettings (peer_settings_negotiation.go).
-		for _, cap := range peer.ConfiguredCapabilities() {
+		for _, cap := range peer.configuredCapabilities() {
 			if mp, ok := cap.(*capability.Multiprotocol); ok {
 				fam := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
 				configuredFamilies = append(configuredFamilies, fam.String())

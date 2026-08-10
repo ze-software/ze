@@ -54,7 +54,7 @@ func TestBMPCommonHeaderDecode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h, n, err := DecodeCommonHeader(tt.buf, 0)
+			h, n, err := decodeCommonHeader(tt.buf, 0)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -104,7 +104,7 @@ func TestBMPCommonHeaderRoundTrip(t *testing.T) {
 	buf := make([]byte, CommonHeaderSize)
 	WriteCommonHeader(buf, 0, original)
 
-	decoded, _, err := DecodeCommonHeader(buf, 0)
+	decoded, _, err := decodeCommonHeader(buf, 0)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestBMPPeerHeaderDecode(t *testing.T) {
 	buf[34], buf[35], buf[36], buf[37] = 0, 0, 0x03, 0xE8
 	buf[38], buf[39], buf[40], buf[41] = 0, 0, 0x01, 0xF4
 
-	p, n, err := DecodePeerHeader(buf, 0)
+	p, n, err := decodePeerHeader(buf, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -186,13 +186,13 @@ func TestBMPPeerHeaderEncode(t *testing.T) {
 	p.Address[12], p.Address[13], p.Address[14], p.Address[15] = 192, 168, 1, 1
 
 	buf := make([]byte, PeerHeaderSize)
-	n := WritePeerHeader(buf, 0, p)
+	n := writePeerHeader(buf, 0, p)
 	if n != PeerHeaderSize {
 		t.Fatalf("wrote %d, want %d", n, PeerHeaderSize)
 	}
 
 	// Round-trip decode.
-	decoded, _, err := DecodePeerHeader(buf, 0)
+	decoded, _, err := decodePeerHeader(buf, 0)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -226,11 +226,11 @@ func TestRFC8671OFlagBit4(t *testing.T) {
 		t.Fatalf("PeerFlagO = %#x, want 0x10 (bit 4)", PeerFlagO)
 	}
 	set := PeerHeader{Flags: 0x10}
-	if !set.IsAdjRIBOut() {
+	if !set.isAdjRIBOut() {
 		t.Error("flags byte 0x10 (bit 4 set) must decode as Adj-RIB-Out")
 	}
 	unset := PeerHeader{Flags: 0x08}
-	if unset.IsAdjRIBOut() {
+	if unset.isAdjRIBOut() {
 		t.Error("flags byte 0x08 (bit 3, not bit 4) must not decode as Adj-RIB-Out")
 	}
 }
@@ -260,13 +260,13 @@ func TestBMPPeerHeaderFlags(t *testing.T) {
 			if got := p.IsIPv6(); got != tt.wantIPv6 {
 				t.Errorf("IsIPv6() = %v, want %v", got, tt.wantIPv6)
 			}
-			if got := p.IsPostPolicy(); got != tt.wantPost {
+			if got := p.isPostPolicy(); got != tt.wantPost {
 				t.Errorf("IsPostPolicy() = %v, want %v", got, tt.wantPost)
 			}
-			if got := p.Is2ByteAS(); got != tt.wantTwoAS {
+			if got := p.is2ByteAS(); got != tt.wantTwoAS {
 				t.Errorf("Is2ByteAS() = %v, want %v", got, tt.wantTwoAS)
 			}
-			if got := p.IsAdjRIBOut(); got != tt.wantRIBOut {
+			if got := p.isAdjRIBOut(); got != tt.wantRIBOut {
 				t.Errorf("IsAdjRIBOut() = %v, want %v", got, tt.wantRIBOut)
 			}
 		})
@@ -285,8 +285,8 @@ func TestBMPPeerHeaderIPv4Mapped(t *testing.T) {
 	p.Address[15] = 1
 
 	buf := make([]byte, PeerHeaderSize)
-	WritePeerHeader(buf, 0, p)
-	decoded, _, err := DecodePeerHeader(buf, 0)
+	writePeerHeader(buf, 0, p)
+	decoded, _, err := decodePeerHeader(buf, 0)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -303,7 +303,7 @@ func TestBMPPeerHeaderIPv4Mapped(t *testing.T) {
 func TestBMPPeerHeaderTooShort(t *testing.T) {
 	// VALIDATES: AC-6 -- short per-peer header returns error
 	buf := make([]byte, PeerHeaderSize-1)
-	_, _, err := DecodePeerHeader(buf, 0)
+	_, _, err := decodePeerHeader(buf, 0)
 	if err == nil {
 		t.Fatal("expected error for short peer header")
 	}
@@ -315,14 +315,14 @@ func TestBMPPeerHeaderTooShort(t *testing.T) {
 // carry no per-peer header: HasPeerHeader returns false for both.
 func TestHasPeerHeader(t *testing.T) {
 	// VALIDATES: RFC 7854 -- Initiation and Termination have no per-peer header
-	if HasPeerHeader(MsgInitiation) {
+	if hasPeerHeader(MsgInitiation) {
 		t.Error("Initiation should not have per-peer header")
 	}
-	if HasPeerHeader(MsgTermination) {
+	if hasPeerHeader(MsgTermination) {
 		t.Error("Termination should not have per-peer header")
 	}
 	for _, mt := range []uint8{MsgRouteMonitoring, MsgStatisticsReport, MsgPeerDownNotify, MsgPeerUpNotify, MsgRouteMirroring} {
-		if !HasPeerHeader(mt) {
+		if !hasPeerHeader(mt) {
 			t.Errorf("message type %d should have per-peer header", mt)
 		}
 	}

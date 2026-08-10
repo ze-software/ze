@@ -493,8 +493,8 @@ func EncodeExtPrefixRangeValueV4(prefixLen uint8, addr [4]byte, rangeSize uint16
 	return b
 }
 
-// DecodeExtPrefixRangeValueV4 parses an IPv4 Extended Prefix Range TLV value.
-func DecodeExtPrefixRangeValueV4(v []byte) (ExtPrefixRange, error) {
+// decodeExtPrefixRangeValueV4 parses an IPv4 Extended Prefix Range TLV value.
+func decodeExtPrefixRangeValueV4(v []byte) (ExtPrefixRange, error) {
 	if len(v) < 12 {
 		return ExtPrefixRange{}, ErrMalformed
 	}

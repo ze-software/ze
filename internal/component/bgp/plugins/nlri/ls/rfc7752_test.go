@@ -72,7 +72,7 @@ func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 	assert.Equal(t, []string{"0xAABBCC"}, js[genericTLVKey(unknownAttrTLVType)],
 		"unknown TLV value is preserved verbatim under a generic key")
 
-	tlvs, err := DecodeAllAttrTLVs(attr)
+	tlvs, err := decodeAllAttrTLVs(attr)
 	require.NoError(t, err, "an unknown TLV is not an error")
 	require.Len(t, tlvs, 1, "only the recognized TLV is typed")
 
@@ -106,20 +106,20 @@ func TestRFC7752MalformedTLVNotPreserved(t *testing.T) {
 	binary.BigEndian.PutUint16(truncated[2:], 10) // claims 10 value octets, 2 present
 	truncated[4], truncated[5] = 0xFF, 0xFF
 
-	err := IterateAttrTLVs(truncated, func(AttrTLVEntry) bool {
+	err := iterateAttrTLVs(truncated, func(attrTLVEntry) bool {
 		t.Fatal("a truncated TLV must not be yielded")
 		return false
 	})
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "TLV sum beyond the attribute length is refused")
 
-	_, err = DecodeAllAttrTLVs(truncated)
+	_, err = decodeAllAttrTLVs(truncated)
 	assert.ErrorIs(t, err, ErrBGPLSTruncated)
 
 	assert.Empty(t, AttrTLVsToJSON(truncated),
 		"a malformed TLV is not preserved under a generic key")
 
 	// Fixed-length TLV 1028 (IPv4 Router-ID) with three value octets.
-	_, err = DecodeAttrTLV(AttrTLVEntry{Type: TLVIPv4RouterIDLocal, Value: []byte{10, 0, 0}})
+	_, err = decodeAttrTLV(attrTLVEntry{Type: TLVIPv4RouterIDLocal, Value: []byte{10, 0, 0}})
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "fixed-length TLV of the wrong size is refused")
 }
 
@@ -139,7 +139,7 @@ func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 
 	var types []uint16
 	var consumed int
-	err := IterateAttrTLVs(attr, func(e AttrTLVEntry) bool {
+	err := iterateAttrTLVs(attr, func(e attrTLVEntry) bool {
 		types = append(types, e.Type)
 		consumed += 4 + len(e.Value)
 		return true
@@ -148,7 +148,7 @@ func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 	assert.Equal(t, []uint16{TLVIPv4RouterIDLocal, TLVNodeName, TLVIGPMetric}, types)
 	assert.Equal(t, len(attr), consumed, "TLV lengths sum exactly to the attribute length")
 
-	tlvs, err := DecodeAllAttrTLVs(attr)
+	tlvs, err := decodeAllAttrTLVs(attr)
 	require.NoError(t, err)
 	assert.Len(t, tlvs, 3)
 }
@@ -270,7 +270,7 @@ func TestRFC7752NonLinkStateFamilyRefused(t *testing.T) {
 		assert.False(t, isValidBGPLSFamily(fam), "family %q must not be treated as BGP-LS", fam)
 
 		var out, errOut strBuf
-		rc := RunBGPLSCLIDecode("0002001b0300000000000000000100", fam, false, &out, &errOut)
+		rc := runBGPLSCLIDecode("0002001b0300000000000000000100", fam, false, &out, &errOut)
 		assert.Equal(t, 1, rc, "decode under family %q is refused", fam)
 		assert.Empty(t, out.String(), "no NLRI is emitted for family %q", fam)
 	}

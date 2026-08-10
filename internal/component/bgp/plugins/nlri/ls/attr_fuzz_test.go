@@ -24,9 +24,9 @@ func FuzzAttrTLVParse(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Must not panic
-		_ = IterateAttrTLVs(data, func(entry AttrTLVEntry) bool {
+		_ = iterateAttrTLVs(data, func(entry attrTLVEntry) bool {
 			// Attempt decode -- must not panic
-			tlv, _ := DecodeAttrTLV(entry)
+			tlv, _ := decodeAttrTLV(entry)
 			if tlv != nil {
 				_ = tlv.Code()
 				_ = tlv.Len()
@@ -36,7 +36,7 @@ func FuzzAttrTLVParse(f *testing.F) {
 		})
 
 		// Also test DecodeAllAttrTLVs
-		tlvs, _ := DecodeAllAttrTLVs(data)
+		tlvs, _ := decodeAllAttrTLVs(data)
 		for _, tlv := range tlvs {
 			_ = tlv.ToJSON()
 		}

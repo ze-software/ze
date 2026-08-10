@@ -40,19 +40,19 @@ func init() {
 		InProcessConfigVerifier: verifyVPPConfig,
 		RunEngine:               runVPPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetVPPLogger(slogutil.Logger(loggerName))
+			setVPPLogger(slogutil.Logger(loggerName))
 		},
 		ConfigureMetrics: func(reg metrics.Registry) {
-			SetVPPMetricsRegistry(reg)
+			setVPPMetricsRegistry(reg)
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
-			SetVPPEventBus(eb)
+			setVPPEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
 		cfg.ConfigLogger = func(level string) {
-			SetVPPLogger(slogutil.PluginLogger(reg.Name, level))
+			setVPPLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		return cli.RunPlugin(cfg, args)
 	}

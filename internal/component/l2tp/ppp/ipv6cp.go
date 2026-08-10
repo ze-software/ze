@@ -35,31 +35,31 @@ const ipv6cpInterfaceIDLen = 8
 
 var errIPv6CPBadOptionLen = errors.New("ppp: IPv6CP option length invalid")
 
-// IPv6CPOptions carries the parsed option set for one IPv6CP packet.
-type IPv6CPOptions struct {
+// iPv6CPOptions carries the parsed option set for one IPv6CP packet.
+type iPv6CPOptions struct {
 	InterfaceID    [ipv6cpInterfaceIDLen]byte
 	HasInterfaceID bool
 }
 
-// ParseIPv6CPOptions walks the option list and populates the struct.
+// parseIPv6CPOptions walks the option list and populates the struct.
 // Unknown options are skipped -- ipv6cpHasUnknownOption separately
 // reports whether a Configure-Reject is required.
-func ParseIPv6CPOptions(buf []byte) (IPv6CPOptions, error) {
-	var out IPv6CPOptions
+func parseIPv6CPOptions(buf []byte) (iPv6CPOptions, error) {
+	var out iPv6CPOptions
 	off := 0
 	for off < len(buf) {
 		if len(buf)-off < 2 {
-			return IPv6CPOptions{}, errOptionTooShort
+			return iPv6CPOptions{}, errOptionTooShort
 		}
 		t := buf[off]
 		l := int(buf[off+1])
 		if l < 2 || off+l > len(buf) {
-			return IPv6CPOptions{}, errOptionLengthMismatch
+			return iPv6CPOptions{}, errOptionLengthMismatch
 		}
 		data := buf[off+2 : off+l]
 		if t == IPv6CPOptInterfaceID {
 			if l != ipv6cpInterfaceIDOptLen {
-				return IPv6CPOptions{}, errIPv6CPBadOptionLen
+				return iPv6CPOptions{}, errIPv6CPBadOptionLen
 			}
 			copy(out.InterfaceID[:], data)
 			out.HasInterfaceID = true
@@ -69,9 +69,9 @@ func ParseIPv6CPOptions(buf []byte) (IPv6CPOptions, error) {
 	return out, nil
 }
 
-// WriteIPv6CPOptions encodes opts into buf at offset off. Only options
+// writeIPv6CPOptions encodes opts into buf at offset off. Only options
 // marked Has* are serialized. Caller MUST ensure buf has capacity.
-func WriteIPv6CPOptions(buf []byte, off int, opts IPv6CPOptions) int {
+func writeIPv6CPOptions(buf []byte, off int, opts iPv6CPOptions) int {
 	start := off
 	if opts.HasInterfaceID {
 		off += writeIPv6CPInterfaceID(buf, off, opts.InterfaceID)

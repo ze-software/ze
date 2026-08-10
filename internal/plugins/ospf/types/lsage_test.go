@@ -15,21 +15,21 @@ func TestLSAgeBitsAndMaxAge(t *testing.T) {
 	if !maxAge.IsMaxAge() {
 		t.Fatalf("MaxAge did not report IsMaxAge")
 	}
-	frozen, err := LSAgeFromRaw(DoNotAgeBit)
+	frozen, err := lSAgeFromRaw(DoNotAgeBit)
 	if err != nil {
 		t.Fatalf("LSAgeFromRaw(DoNotAgeBit) returned error: %v", err)
 	}
 	if !frozen.DoNotAge() || frozen.Age() != 0 || frozen.IsMaxAge() {
 		t.Fatalf("DoNotAge flags wrong: age=%d do-not-age=%v max=%v", frozen.Age(), frozen.DoNotAge(), frozen.IsMaxAge())
 	}
-	frozenMax, err := LSAgeFromRaw(DoNotAgeBit | MaxAge)
+	frozenMax, err := lSAgeFromRaw(DoNotAgeBit | MaxAge)
 	if err != nil {
 		t.Fatalf("LSAgeFromRaw(DoNotAgeBit|MaxAge) returned error: %v", err)
 	}
 	if !frozenMax.DoNotAge() || frozenMax.Age() != MaxAge || !frozenMax.IsMaxAge() {
 		t.Fatalf("DoNotAge MaxAge flags wrong: age=%d do-not-age=%v max=%v", frozenMax.Age(), frozenMax.DoNotAge(), frozenMax.IsMaxAge())
 	}
-	if _, err := LSAgeFromRaw(MaxAge + 1); err == nil {
+	if _, err := lSAgeFromRaw(MaxAge + 1); err == nil {
 		t.Fatalf("LSAgeFromRaw(MaxAge+1) succeeded, want error")
 	}
 }
@@ -42,7 +42,7 @@ func TestLSAgeAddSaturates(t *testing.T) {
 	if got := age.Add(20); got.Age() != MaxAge || !got.IsMaxAge() {
 		t.Fatalf("age.Add saturated to age=%d max=%v, want MaxAge", got.Age(), got.IsMaxAge())
 	}
-	frozen, err := LSAgeFromRaw(DoNotAgeBit | 10)
+	frozen, err := lSAgeFromRaw(DoNotAgeBit | 10)
 	if err != nil {
 		t.Fatalf("LSAgeFromRaw returned error: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestLSAgeString(t *testing.T) {
 	if got := LSAge(MaxAge).String(); got != "3600" {
 		t.Errorf("LSAge(MaxAge).String() = %q, want 3600", got)
 	}
-	frozen, err := LSAgeFromRaw(DoNotAgeBit | 42)
+	frozen, err := lSAgeFromRaw(DoNotAgeBit | 42)
 	if err != nil {
 		t.Fatalf("LSAgeFromRaw returned error: %v", err)
 	}

@@ -39,7 +39,7 @@ const (
 // the two sessions establishes first. A fixture that declared it would pin a
 // coin toss.
 func TestCheckerRelayShapeToleratesAnEarlyIdenticalMarker(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:hex=" + relayRouteHex,
 		"expect=bgp:conn=1:seq=2:hex=" + relayWithdrawHex,
 		"expect=bgp:conn=1:seq=3:hex=" + relayEORHex,
@@ -50,7 +50,7 @@ func TestCheckerRelayShapeToleratesAnEarlyIdenticalMarker(t *testing.T) {
 	matched, silent := c.ExpectedOrKeepalive(mkFrame(t, relayEORHex))
 	assert.False(t, matched, "the marker does not satisfy the seq-1 route expectation")
 	assert.True(t, silent, "ze's own establishment marker is not the fixture's business")
-	assert.Contains(t, c.TakeMisorderNote(), relayEORHex,
+	assert.Contains(t, c.takeMisorderNote(), relayEORHex,
 		"it is accepted, and recorded: had the run gone on to fail, this frame is a suspect")
 
 	for _, frameHex := range []string{relayRouteHex, relayWithdrawHex, relayEORHex} {
@@ -65,7 +65,7 @@ func TestCheckerRelayShapeToleratesAnEarlyIdenticalMarker(t *testing.T) {
 // TestCheckerRelayShapeInDeclaredOrder keeps the passing path honest: the same
 // three frames with no early marker match one for one and record nothing.
 func TestCheckerRelayShapeInDeclaredOrder(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:hex=" + relayRouteHex,
 		"expect=bgp:conn=1:seq=2:hex=" + relayWithdrawHex,
 		"expect=bgp:conn=1:seq=3:hex=" + relayEORHex,
@@ -79,5 +79,5 @@ func TestCheckerRelayShapeInDeclaredOrder(t *testing.T) {
 		assert.False(t, s)
 	}
 	assert.True(t, c.Completed())
-	assert.Empty(t, c.MisorderNotes())
+	assert.Empty(t, c.misorderNotes())
 }

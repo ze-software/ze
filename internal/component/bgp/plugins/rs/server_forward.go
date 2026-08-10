@@ -16,7 +16,7 @@ import (
 // batchForwardUpdateSkipped forwards a cached UPDATE to only the peers that
 // the reactor fast path skipped (those with ExportFilters). Called when
 // ReactorForwarded is true and FastPathSkipped is non-empty.
-func (rs *RouteServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []netip.AddrPort) {
+func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []netip.AddrPort) {
 	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
 	batch, ok := val.(*forwardBatch)
 	if !ok {
@@ -117,7 +117,7 @@ type forwardBatch struct {
 // same route reaching a peer twice, in scheduling order, was the duplicate; a
 // replayed announcement overtaking a live withdrawal of the same prefix would
 // have resurrected a withdrawn route.
-func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, msgID uint64, families map[family.Family]bool) []string {
+func (rs *routeServer) selectForwardTargets(buf []string, sourcePeer string, msgID uint64, families map[family.Family]bool) []string {
 	buf = buf[:0]
 	for addr, peer := range rs.peers {
 		if addr == sourcePeer || !peer.Up {
@@ -148,7 +148,7 @@ func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, msg
 //
 // Caller must hold rs.mu. Built only on the discard path, so the cost is paid
 // only when an UPDATE is about to be dropped for every destination.
-func (rs *RouteServer) explainNoTarget(sourcePeer string, msgID uint64, families map[family.Family]bool) string {
+func (rs *routeServer) explainNoTarget(sourcePeer string, msgID uint64, families map[family.Family]bool) string {
 	var b textbuf.Buffer
 	first := true
 	for addr, peer := range rs.peers {
@@ -191,7 +191,7 @@ func (rs *RouteServer) explainNoTarget(sourcePeer string, msgID uint64, families
 // if the target selector changes (different peer set). Flushes when the batch
 // reaches maxBatchSize items. Partial batches are flushed by the onDrained
 // callback when the worker channel empties.
-func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool) {
+func (rs *routeServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool) {
 	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
 	batch, ok := val.(*forwardBatch)
 	if !ok {
@@ -256,7 +256,7 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 // flushBatch sends the accumulated IDs via the reactor-owned ForwardCached
 // primitive (rs-fastpath-3). Bypasses the text-command tokenise path; the
 // engine dispatches directly to the reactor adapter.
-func (rs *RouteServer) flushBatch(batch *forwardBatch) {
+func (rs *routeServer) flushBatch(batch *forwardBatch) {
 	if len(batch.ids) == 0 {
 		return
 	}
@@ -282,7 +282,7 @@ func (rs *RouteServer) flushBatch(batch *forwardBatch) {
 
 // flushWorkerBatch flushes the batch for a given worker key.
 // Called by the onDrained callback when the worker's channel empties.
-func (rs *RouteServer) flushWorkerBatch(key workerKey) {
+func (rs *routeServer) flushWorkerBatch(key workerKey) {
 	val, loaded := rs.batches.Load(key)
 	if !loaded {
 		return

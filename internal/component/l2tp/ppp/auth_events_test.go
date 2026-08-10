@@ -13,7 +13,7 @@ import (
 // timeout, request-content assertions -- use this instead of
 // makeTestDriver so autoAcceptAuth does not race them to the channel.
 func newTestDriverNoResponder(backend IfaceBackend, ops pppOps) *Driver {
-	return NewDriver(DriverConfig{
+	return newDriver(driverConfig{
 		Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Backend: backend,
 		Ops:     ops,
@@ -199,7 +199,7 @@ func TestRunAuthPhaseTimeout(t *testing.T) {
 	// Expect EventAuthFailure{timeout} on auth channel within ~300ms.
 	select {
 	case ev := <-d.AuthEventsOut():
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthFailure", ev)
 		}
@@ -274,7 +274,7 @@ func TestRunAuthPhaseReject(t *testing.T) {
 	// EventAuthFailure with the supplied reason.
 	select {
 	case ev := <-d.AuthEventsOut():
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthFailure", ev)
 		}
@@ -402,7 +402,7 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 	// EventAuthSuccess follows on the auth channel.
 	select {
 	case ev := <-d.AuthEventsOut():
-		success, ok := ev.(EventAuthSuccess)
+		success, ok := ev.(eventAuthSuccess)
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthSuccess", ev)
 		}
@@ -457,7 +457,7 @@ func TestRunAuthPhaseRequiredAuthRejectsNoMethod(t *testing.T) {
 
 	select {
 	case ev := <-d.AuthEventsOut():
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthFailure", ev)
 		}

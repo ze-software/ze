@@ -31,11 +31,11 @@ func TestNotificationTextPreserved(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewChecker([]string{tt.input})
+			c, err := newChecker([]string{tt.input})
 			require.NoError(t, err)
 			c.Init()
 
-			ok, text := c.NextNotificationAction()
+			ok, text := c.nextNotificationAction()
 			if !ok {
 				t.Fatalf("expected notification action, got none")
 			}
@@ -87,11 +87,11 @@ func TestNotificationMsgLengthCapped(t *testing.T) {
 // TestNotificationWithColons ensures colons in message text are preserved.
 func TestNotificationWithColons(t *testing.T) {
 	input := "action=notification:conn=1:seq=1:text=time: 12:30:45 zone: UTC"
-	c, err := NewChecker([]string{input})
+	c, err := newChecker([]string{input})
 	require.NoError(t, err)
 	c.Init()
 
-	ok, text := c.NextNotificationAction()
+	ok, text := c.nextNotificationAction()
 	if !ok {
 		t.Fatal("expected notification action")
 	}
@@ -151,12 +151,12 @@ func TestNotificationSequence(t *testing.T) {
 		"action=notification:conn=1:seq=2:text=session ending",
 	}
 
-	c, err := NewChecker(inputs)
+	c, err := newChecker(inputs)
 	require.NoError(t, err)
 	c.Init()
 
 	// First should NOT be a notification (it's a BGP expect)
-	ok, _ := c.NextNotificationAction()
+	ok, _ := c.nextNotificationAction()
 	if ok {
 		t.Error("expect:bgp should not be a notification action")
 	}
@@ -178,7 +178,7 @@ func TestMultiConnectionSequences(t *testing.T) {
 		"expect=bgp:conn=6:seq=1:hex=CCCC",
 	}
 
-	c, err := NewChecker(inputs)
+	c, err := newChecker(inputs)
 	require.NoError(t, err)
 
 	// Should have 3 sequences (one per connection)
@@ -313,7 +313,7 @@ func TestParseExpectRuleValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewChecker([]string{tt.input})
+			_, err := newChecker([]string{tt.input})
 			if err == nil {
 				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
 				return
@@ -345,7 +345,7 @@ func TestParseExpectRuleValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewChecker([]string{tt.input})
+			_, err := newChecker([]string{tt.input})
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -382,11 +382,11 @@ func TestSendActionParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewChecker([]string{tt.input})
+			c, err := newChecker([]string{tt.input})
 			require.NoError(t, err)
 			c.Init()
 
-			ok, hexData := c.NextSendAction()
+			ok, hexData := c.nextSendAction()
 			if !ok {
 				t.Fatalf("expected send action, got none")
 			}
@@ -402,12 +402,12 @@ func TestSendActionParsing(t *testing.T) {
 //
 // VALIDATES: Send actions trigger sending, not receiving expectations.
 func TestSendNotTreatedAsExpect(t *testing.T) {
-	c, err := NewChecker([]string{"action=send:conn=1:seq=1:hex=FFFF"})
+	c, err := newChecker([]string{"action=send:conn=1:seq=1:hex=FFFF"})
 	require.NoError(t, err)
 	c.Init()
 
 	// Should be a send action, not an expect
-	ok, _ := c.NextSendAction()
+	ok, _ := c.nextSendAction()
 	if !ok {
 		t.Error("action:send should be treated as send action")
 	}

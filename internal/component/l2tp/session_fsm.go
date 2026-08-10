@@ -303,7 +303,7 @@ func (t *L2TPTunnel) handleOCCN(sess *L2TPSession, payload []byte, now time.Time
 	sess.framingType = info.framingType
 	sess.sequencingRequired = info.sequencingRequired
 
-	// AC-4: a blocking PlaceOutgoingCallSync learns the call is up.
+	// AC-4: a blocking placeOutgoingCallSync learns the call is up.
 	sess.resolveCall(callOutcome{localSID: sess.localSID, remoteSID: sess.remoteSID})
 
 	// Phase 5: signal reactor to create kernel resources.
@@ -528,7 +528,7 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 			if attrType != AVPMessageType {
 				return icrqInfo{}, errors.New("l2tp: first ICRQ AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return icrqInfo{}, fmt.Errorf("l2tp: read ICRQ message type: %w", rerr)
 			}
@@ -540,20 +540,20 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 		}
 		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown are silently skipped per RFC
 		case AVPAssignedSessionID:
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return icrqInfo{}, fmt.Errorf("l2tp: read ICRQ assigned session id: %w", rerr)
 			}
 			info.assignedSessionID = v
 		case AVPCallSerialNumber:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr != nil {
 				return icrqInfo{}, fmt.Errorf("l2tp: read ICRQ call serial: %w", rerr)
 			}
 			info.callSerialNumber = v
 			hasCallSerial = true
 		case AVPBearerType:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.bearerType = v
 			}
@@ -564,7 +564,7 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 		case AVPSubAddress:
 			info.subAddress = string(value)
 		case AVPPhysicalChannelID:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.physicalChanID = v
 			}
@@ -634,7 +634,7 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 			if attrType != AVPMessageType {
 				return iccnInfo{}, errors.New("l2tp: first ICCN AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return iccnInfo{}, fmt.Errorf("l2tp: read ICCN message type: %w", rerr)
 			}
@@ -646,19 +646,19 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 		}
 		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
 		case AVPTxConnectSpeed:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr != nil {
 				return iccnInfo{}, fmt.Errorf("l2tp: read ICCN tx connect speed: %w", rerr)
 			}
 			info.txConnectSpeed = v
 			hasTxSpeed = true
 		case AVPRxConnectSpeed:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.rxConnectSpeed = v
 			}
 		case AVPFramingType:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr != nil {
 				return iccnInfo{}, fmt.Errorf("l2tp: read ICCN framing type: %w", rerr)
 			}
@@ -675,7 +675,7 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 			info.proxyLastRecvLCPConfReq = append([]byte(nil), value...)
 		// AC-18: Proxy Auth AVPs.
 		case AVPProxyAuthenType:
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr == nil {
 				info.proxyAuthenType = v
 			}
@@ -684,7 +684,7 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 		case AVPProxyAuthenChallenge:
 			info.proxyAuthenChallenge = append([]byte(nil), value...)
 		case AVPProxyAuthenID:
-			v, rerr := ReadProxyAuthenID(value)
+			v, rerr := readProxyAuthenID(value)
 			if rerr == nil {
 				info.proxyAuthenID = v.ChapID
 			}
@@ -751,7 +751,7 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 			if attrType != AVPMessageType {
 				return ocrqInfo{}, errors.New("l2tp: first OCRQ AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return ocrqInfo{}, fmt.Errorf("l2tp: read OCRQ message type: %w", rerr)
 			}
@@ -763,34 +763,34 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 		}
 		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
 		case AVPAssignedSessionID:
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return ocrqInfo{}, fmt.Errorf("l2tp: read OCRQ assigned session id: %w", rerr)
 			}
 			info.assignedSessionID = v
 		case AVPCallSerialNumber:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr != nil {
 				return ocrqInfo{}, fmt.Errorf("l2tp: read OCRQ call serial: %w", rerr)
 			}
 			info.callSerialNumber = v
 		case AVPMinimumBPS:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.minimumBPS = v
 			}
 		case AVPMaximumBPS:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.maximumBPS = v
 			}
 		case AVPBearerType:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.bearerType = v
 			}
 		case AVPFramingType:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.framingType = v
 			}
@@ -853,7 +853,7 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 			if attrType != AVPMessageType {
 				return occnInfo{}, errors.New("l2tp: first OCCN AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return occnInfo{}, fmt.Errorf("l2tp: read OCCN message type: %w", rerr)
 			}
@@ -865,19 +865,19 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 		}
 		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
 		case AVPTxConnectSpeed:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr != nil {
 				return occnInfo{}, fmt.Errorf("l2tp: read OCCN tx connect speed: %w", rerr)
 			}
 			info.txConnectSpeed = v
 			hasTxSpeed = true
 		case AVPRxConnectSpeed:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.rxConnectSpeed = v
 			}
 		case AVPFramingType:
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr != nil {
 				return occnInfo{}, fmt.Errorf("l2tp: read OCCN framing type: %w", rerr)
 			}
@@ -942,7 +942,7 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 			if attrType != AVPMessageType {
 				return cdnInfo{}, errors.New("l2tp: first CDN AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return cdnInfo{}, fmt.Errorf("l2tp: read CDN message type: %w", rerr)
 			}
@@ -954,7 +954,7 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 		}
 		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
 		case AVPResultCode:
-			rc, rerr := ReadResultCode(value)
+			rc, rerr := readResultCode(value)
 			if rerr != nil {
 				return cdnInfo{}, fmt.Errorf("l2tp: read CDN result code: %w", rerr)
 			}
@@ -964,13 +964,13 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 			}
 			info.message = rc.Message
 		case AVPAssignedSessionID:
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return cdnInfo{}, fmt.Errorf("l2tp: read CDN assigned session id: %w", rerr)
 			}
 			info.assignedSessionID = v
 		case AVPQ931CauseCode:
-			v, rerr := ReadQ931Cause(value)
+			v, rerr := readQ931Cause(value)
 			if rerr == nil {
 				info.q931Cause = &v
 			}
@@ -1019,7 +1019,7 @@ func parseSingleAVPMessage(payload []byte, expectedMsg MessageType, targetAVP AV
 			if attrType != AVPMessageType {
 				return nil, fmt.Errorf("l2tp: first %s AVP must be Message Type (RFC 2661 S4.1)", msgName)
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return nil, fmt.Errorf("l2tp: read %s message type: %w", msgName, rerr)
 			}
@@ -1052,7 +1052,7 @@ func parseWEN(payload []byte) (wenInfo, error) {
 	if err != nil {
 		return wenInfo{}, err
 	}
-	v, rerr := ReadCallErrors(raw)
+	v, rerr := readCallErrors(raw)
 	if rerr != nil {
 		return wenInfo{}, fmt.Errorf("l2tp: read WEN call errors: %w", rerr)
 	}
@@ -1069,7 +1069,7 @@ func parseSLI(payload []byte) (sliInfo, error) {
 	if err != nil {
 		return sliInfo{}, err
 	}
-	v, rerr := ReadACCM(raw)
+	v, rerr := readACCM(raw)
 	if rerr != nil {
 		return sliInfo{}, fmt.Errorf("l2tp: read SLI ACCM: %w", rerr)
 	}
@@ -1104,7 +1104,7 @@ func writeOCRPBody(buf []byte, localSID uint16) int {
 func writeCDNBody(buf []byte, localSID, resultCode uint16) int {
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgCDN))
-	off += WriteAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
 	off += WriteAVPUint16(buf, off, true, AVPAssignedSessionID, localSID)
 	return off
 }

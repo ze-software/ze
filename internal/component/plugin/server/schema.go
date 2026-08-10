@@ -183,9 +183,9 @@ func (r *SchemaRegistry) RegisterNotifications(module string, notifs []yang.Noti
 	return nil
 }
 
-// RegisterCLICommand associates a CLI text command with a wire method.
+// registerCLICommand associates a CLI text command with a wire method.
 // The wire method must already be registered via RegisterRPCs.
-func (r *SchemaRegistry) RegisterCLICommand(cliCommand, wireMethod string) error {
+func (r *SchemaRegistry) registerCLICommand(cliCommand, wireMethod string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -199,8 +199,8 @@ func (r *SchemaRegistry) RegisterCLICommand(cliCommand, wireMethod string) error
 	return nil
 }
 
-// FindRPC returns the registered RPC for an exact wire method match.
-func (r *SchemaRegistry) FindRPC(wireMethod string) (*RegisteredRPC, error) {
+// findRPC returns the registered RPC for an exact wire method match.
+func (r *SchemaRegistry) findRPC(wireMethod string) (*RegisteredRPC, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -211,8 +211,8 @@ func (r *SchemaRegistry) FindRPC(wireMethod string) (*RegisteredRPC, error) {
 	return rpc, nil
 }
 
-// FindRPCByCommand returns the registered RPC for a CLI text command.
-func (r *SchemaRegistry) FindRPCByCommand(cliCommand string) (*RegisteredRPC, error) {
+// findRPCByCommand returns the registered RPC for a CLI text command.
+func (r *SchemaRegistry) findRPCByCommand(cliCommand string) (*RegisteredRPC, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -265,8 +265,8 @@ func (r *SchemaRegistry) GetByModule(name string) (*Schema, error) {
 	return schema, nil
 }
 
-// GetByHandler returns a schema by exact handler path.
-func (r *SchemaRegistry) GetByHandler(path string) (*Schema, error) {
+// getByHandler returns a schema by exact handler path.
+func (r *SchemaRegistry) getByHandler(path string) (*Schema, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

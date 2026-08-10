@@ -66,16 +66,16 @@ var (
 	errCHAPValueOverflow  = errors.New("ppp: CHAP Value-Size exceeds packet")
 )
 
-// CHAPResponse is a parsed CHAP Response packet (code 2). Value is a
+// cHAPResponse is a parsed CHAP Response packet (code 2). Value is a
 // fresh sub-slice of the parser input: the caller may retain it past
 // the read-buffer lifetime by copying or converting it.
-type CHAPResponse struct {
+type cHAPResponse struct {
 	Identifier uint8
 	Value      []byte
 	Name       string
 }
 
-// ParseCHAPResponse decodes a CHAP Response payload (after the 2-byte
+// parseCHAPResponse decodes a CHAP Response payload (after the 2-byte
 // PPP protocol field has been stripped by ParseFrame).
 //
 // RFC 1994 Section 4.1 packet format:
@@ -86,45 +86,45 @@ type CHAPResponse struct {
 // RFC 1994 Section 4.1 requires Value-Size >= 1 ("The length of the
 // Challenge Value depends upon the method of generation ... The Value
 // field is one or more octets").
-func ParseCHAPResponse(buf []byte) (CHAPResponse, error) {
+func parseCHAPResponse(buf []byte) (cHAPResponse, error) {
 	if len(buf) < chapHeaderLen {
-		return CHAPResponse{}, errCHAPTooShort
+		return cHAPResponse{}, errCHAPTooShort
 	}
 	if buf[0] != CHAPCodeResponse {
-		return CHAPResponse{}, errCHAPWrongCode
+		return cHAPResponse{}, errCHAPWrongCode
 	}
 	identifier := buf[1]
 	length := int(binary.BigEndian.Uint16(buf[2:4]))
 	if length < chapHeaderLen+1 {
-		return CHAPResponse{}, errCHAPLengthMismatch
+		return cHAPResponse{}, errCHAPLengthMismatch
 	}
 	if length > len(buf) {
-		return CHAPResponse{}, errCHAPLengthMismatch
+		return cHAPResponse{}, errCHAPLengthMismatch
 	}
 	if length > MaxFrameLen-2 {
-		return CHAPResponse{}, errCHAPLengthMismatch
+		return cHAPResponse{}, errCHAPLengthMismatch
 	}
 	body := buf[chapHeaderLen:length]
 
 	valueSize := int(body[0])
 	if valueSize == 0 {
-		return CHAPResponse{}, errCHAPValueSizeZero
+		return cHAPResponse{}, errCHAPValueSizeZero
 	}
 	if 1+valueSize > len(body) {
-		return CHAPResponse{}, errCHAPValueOverflow
+		return cHAPResponse{}, errCHAPValueOverflow
 	}
 	value := make([]byte, valueSize)
 	copy(value, body[1:1+valueSize])
 	name := string(body[1+valueSize:])
 
-	return CHAPResponse{
+	return cHAPResponse{
 		Identifier: identifier,
 		Value:      value,
 		Name:       name,
 	}, nil
 }
 
-// WriteCHAPChallenge encodes a CHAP Challenge (code 1) into buf at
+// writeCHAPChallenge encodes a CHAP Challenge (code 1) into buf at
 // offset off and returns the number of bytes written. The caller
 // SHOULD pass buf[off:] with cap >= MaxFrameLen - 2 (the PPP-payload
 // room after WriteFrame); smaller buffers clamp Name safely but the
@@ -141,7 +141,7 @@ func ParseCHAPResponse(buf []byte) (CHAPResponse, error) {
 // RFC 1994 Section 4.1: Challenge shares the Response layout. The
 // Identifier MUST change each time a Challenge is sent; the caller
 // (runCHAPAuthPhase) owns that counter.
-func WriteCHAPChallenge(buf []byte, off int, identifier uint8, value, name []byte) int {
+func writeCHAPChallenge(buf []byte, off int, identifier uint8, value, name []byte) int {
 	return writeCHAPValued(buf, off, CHAPCodeChallenge, identifier, value, name)
 }
 
@@ -171,7 +171,7 @@ func writeCHAPValued(buf []byte, off int, code, identifier uint8, value, name []
 	return total
 }
 
-// WriteCHAPSuccess encodes a CHAP Success (code 3) into buf at offset
+// writeCHAPSuccess encodes a CHAP Success (code 3) into buf at offset
 // off and returns the number of bytes written. The caller MUST ensure
 // buf[off:] has cap >= 4 + len(message).
 //
@@ -183,13 +183,13 @@ func writeCHAPValued(buf []byte, off int, code, identifier uint8, value, name []
 // the Message runs from byte 4 to Length. The encoder clamps Message
 // to MaxFrameLen - 2 (frame header) - 4 (CHAP header) so the declared
 // Length always fits a single PPP frame.
-func WriteCHAPSuccess(buf []byte, off int, identifier uint8, message []byte) int {
+func writeCHAPSuccess(buf []byte, off int, identifier uint8, message []byte) int {
 	return writeCHAPReply(buf, off, CHAPCodeSuccess, identifier, message)
 }
 
-// WriteCHAPFailure encodes a CHAP Failure (code 4). Identical shape to
+// writeCHAPFailure encodes a CHAP Failure (code 4). Identical shape to
 // Success except for the Code byte; see RFC 1994 Section 4.2.
-func WriteCHAPFailure(buf []byte, off int, identifier uint8, message []byte) int {
+func writeCHAPFailure(buf []byte, off int, identifier uint8, message []byte) int {
 	return writeCHAPReply(buf, off, CHAPCodeFailure, identifier, message)
 }
 
@@ -257,7 +257,7 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 	challengeBuf := getFrameBuf()
 	defer putFrameBuf(challengeBuf)
 	cOff := WriteFrame(challengeBuf, 0, ProtoCHAP, nil)
-	cOff += WriteCHAPChallenge(challengeBuf, cOff, identifier, value[:], []byte(chapLNSName))
+	cOff += writeCHAPChallenge(challengeBuf, cOff, identifier, value[:], []byte(chapLNSName))
 	if !s.writeFrame(challengeBuf[:cOff]) {
 		return false
 	}
@@ -293,16 +293,16 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 	rOff := WriteFrame(writeBuf, 0, ProtoCHAP, nil)
 	msg := []byte(decision.message)
 	if decision.accept {
-		rOff += WriteCHAPSuccess(writeBuf, rOff, identifier, msg)
+		rOff += writeCHAPSuccess(writeBuf, rOff, identifier, msg)
 	} else {
-		rOff += WriteCHAPFailure(writeBuf, rOff, identifier, msg)
+		rOff += writeCHAPFailure(writeBuf, rOff, identifier, msg)
 	}
 	if !s.writeFrame(writeBuf[:rOff]) {
 		return false
 	}
 
 	if decision.accept {
-		s.sendAuthEvent(EventAuthSuccess{
+		s.sendAuthEvent(eventAuthSuccess{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 		})
@@ -313,7 +313,7 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 	// channel, so the transport can tear the session down.
 	var tb textbuf.Buffer
 	s.fail(tb.Str("chap: auth rejected: ").Str(decision.message).String())
-	s.sendAuthEvent(EventAuthFailure{
+	s.sendAuthEvent(eventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
 		Reason:    decision.message,

@@ -147,7 +147,7 @@ func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, ne
 		p := toStaticRouteVPNParams(route, nextHop)
 		return ub.BuildVPN(&p)
 	}
-	if route.IsLabeledUnicast() {
+	if route.isLabeledUnicast() {
 		p := toStaticRouteLabeledUnicastParams(route, nextHop)
 		return ub.BuildLabeledUnicast(&p)
 	}
@@ -164,7 +164,7 @@ func routeFamily(route *StaticRoute) family.Family {
 		}
 		return family.Family{AFI: family.AFIIPv4, SAFI: 128} // VPNv4
 	}
-	if route.IsLabeledUnicast() {
+	if route.isLabeledUnicast() {
 		if route.Prefix.Addr().Is6() {
 			return family.Family{AFI: family.AFIIPv6, SAFI: 4} // IPv6 Labeled Unicast
 		}
@@ -285,9 +285,9 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Sep()
 	b.Uint(uint64(r.MED))
 	b.Sep()
-	b.Uint32Slice(comms)
+	b.uint32Slice(comms)
 	b.Sep()
-	b.LargeComms(lcs)
+	b.largeComms(lcs)
 	b.Sep()
 	b.Hex(r.ExtCommunityBytes)
 	b.Sep()
@@ -297,7 +297,7 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Sep()
 	b.WriteString(prefixKey)
 	b.Sep()
-	b.Uint32Slice(r.ASPath)
+	b.uint32Slice(r.ASPath)
 	b.Sep()
 	b.Bool(r.AtomicAggregate)
 	b.Sep()
@@ -307,7 +307,7 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Sep()
 	b.Uint(uint64(r.OriginatorID))
 	b.Sep()
-	b.Uint32Slice(r.ClusterList)
+	b.uint32Slice(r.ClusterList)
 	if r.AIGPMetric != nil {
 		b.Sep()
 		b.Uint(*r.AIGPMetric)
@@ -370,7 +370,7 @@ func (b *keyBuilder) Bool(v bool) {
 	}
 }
 
-func (b *keyBuilder) Uint32Slice(s []uint32) {
+func (b *keyBuilder) uint32Slice(s []uint32) {
 	b.WriteByte('[')
 	for i, v := range s {
 		if i > 0 {
@@ -381,7 +381,7 @@ func (b *keyBuilder) Uint32Slice(s []uint32) {
 	b.WriteByte(']')
 }
 
-func (b *keyBuilder) LargeComms(lcs [][3]uint32) {
+func (b *keyBuilder) largeComms(lcs [][3]uint32) {
 	b.WriteByte('[')
 	for i, lc := range lcs {
 		if i > 0 {

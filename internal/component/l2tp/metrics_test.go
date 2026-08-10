@@ -105,8 +105,8 @@ func TestStatsPoller_CounterDeltas(t *testing.T) {
 	}
 	defer func() { getStatsFn = oldFn }()
 
-	ln := NewUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), nil)
-	reactor := NewL2TPReactor(ln, nil, ReactorParams{MaxTunnels: 10, MaxSessions: 10})
+	ln := newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), nil)
+	reactor := newL2TPReactor(ln, nil, reactorParams{MaxTunnels: 10, MaxSessions: 10})
 
 	poller := newL2TPStatsPoller([]*L2TPReactor{reactor}, 30*time.Second)
 	poller.poll()

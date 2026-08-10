@@ -31,23 +31,23 @@ type ConfigStore struct {
 	mu   sync.RWMutex
 }
 
-// NewConfigStore creates a new configuration store.
-func NewConfigStore() *ConfigStore {
+// newConfigStore creates a new configuration store.
+func newConfigStore() *ConfigStore {
 	return &ConfigStore{
 		live: make(map[string]any),
 		edit: make(map[string]any),
 	}
 }
 
-// SetEdit sets the candidate (edit) configuration.
-func (s *ConfigStore) SetEdit(cfg map[string]any) {
+// setEdit sets the candidate (edit) configuration.
+func (s *ConfigStore) setEdit(cfg map[string]any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.edit = cfg
 }
 
-// SetLive sets the live configuration directly.
-func (s *ConfigStore) SetLive(cfg map[string]any) {
+// setLive sets the live configuration directly.
+func (s *ConfigStore) setLive(cfg map[string]any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.live = cfg
@@ -83,15 +83,15 @@ func (s *ConfigStore) Query(state ConfigState, path string) (any, error) {
 	return queryPath(cfg, path)
 }
 
-// GetLive returns the entire live configuration.
-func (s *ConfigStore) GetLive() map[string]any {
+// getLive returns the entire live configuration.
+func (s *ConfigStore) getLive() map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.live
 }
 
-// GetEdit returns the entire edit configuration.
-func (s *ConfigStore) GetEdit() map[string]any {
+// getEdit returns the entire edit configuration.
+func (s *ConfigStore) getEdit() map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.edit

@@ -32,7 +32,7 @@ func TestSplitMVPNCarvesOnLength(t *testing.T) {
 	b := mvpnNLRI(7)
 	c := mvpnNLRI(5, 0xcc)
 
-	got, err := SplitMVPN(concat(a, b, c), false)
+	got, err := splitMVPN(concat(a, b, c), false)
 	require.NoError(t, err)
 	assert.Equal(t, [][]byte{a, b, c}, got)
 }
@@ -45,7 +45,7 @@ func TestSplitMVPNAddPathIncludesPathID(t *testing.T) {
 	a := concat(pathID, mvpnNLRI(1, 0xaa))
 	b := concat(pathID, mvpnNLRI(6, 0xbb, 0xcc))
 
-	got, err := SplitMVPN(concat(a, b), true)
+	got, err := splitMVPN(concat(a, b), true)
 	require.NoError(t, err)
 	assert.Equal(t, [][]byte{a, b}, got)
 }
@@ -59,15 +59,15 @@ func TestSplitMVPNBoundaries(t *testing.T) {
 	good := mvpnNLRI(1, 0xaa)
 
 	// Header boundary: exactly two octets is the shortest legal NLRI; one is not.
-	_, err := SplitMVPN([]byte{1, 0x00}, false)
+	_, err := splitMVPN([]byte{1, 0x00}, false)
 	assert.NoError(t, err, "a two-octet header with a zero-length body is well framed")
-	_, err = SplitMVPN([]byte{1}, false)
+	_, err = splitMVPN([]byte{1}, false)
 	assert.Error(t, err, "one octet cannot hold a route type and a length")
 
 	// Value boundary: length 1 with one octet left is legal, with none is not.
-	_, err = SplitMVPN([]byte{1, 0x01, 0xaa}, false)
+	_, err = splitMVPN([]byte{1, 0x01, 0xaa}, false)
 	assert.NoError(t, err)
-	partial, err := SplitMVPN(concat(good, []byte{1, 0x01}), false)
+	partial, err := splitMVPN(concat(good, []byte{1, 0x01}), false)
 	assert.Error(t, err, "the last NLRI overruns the section")
 	assert.Equal(t, [][]byte{good}, partial, "what parsed cleanly is still returned")
 }

@@ -128,9 +128,9 @@ func TestProcessManagerStartAll(t *testing.T) {
 	require.NoError(t, err)
 	defer pm.Stop()
 
-	assert.Equal(t, 2, pm.ProcessCount())
-	assert.True(t, pm.IsRunning("sleep"))
-	assert.True(t, pm.IsRunning("run"))
+	assert.Equal(t, 2, pm.processCount())
+	assert.True(t, pm.isRunning("sleep"))
+	assert.True(t, pm.isRunning("run"))
 }
 
 // TestProcessManagerStopAll verifies all processes stop.
@@ -154,7 +154,7 @@ func TestProcessManagerStopAll(t *testing.T) {
 	err = pm.Wait(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, 0, pm.ProcessCount())
+	assert.Equal(t, 0, pm.processCount())
 }
 
 // TestProcessNotFound verifies handling of missing executable.
@@ -187,7 +187,7 @@ func TestProcessManagerNoProcesses(t *testing.T) {
 	require.NoError(t, err)
 	defer pm.Stop()
 
-	assert.Equal(t, 0, pm.ProcessCount())
+	assert.Equal(t, 0, pm.processCount())
 }
 
 // TestProcessSyncState verifies sync state management on Process.
@@ -240,12 +240,12 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 			break // Limit reached
 		}
 		require.Eventually(t, func() bool {
-			return !pm.IsRunning("crash")
+			return !pm.isRunning("crash")
 		}, 2*time.Second, time.Millisecond, "crash plugin should exit")
 	}
 
 	// Process should be disabled after exceeding limit
-	assert.True(t, pm.IsDisabled("crash"), "process should be disabled after exceeding respawn limit")
+	assert.True(t, pm.isDisabled("crash"), "process should be disabled after exceeding respawn limit")
 }
 
 // TestProcessManagerCumulativeRespawnLimit verifies process disabled after MaxTotalRespawns across windows.
@@ -272,7 +272,7 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 		}
 		require.NoError(t, respawnErr, "respawn %d should succeed within cumulative limit", batch)
 		require.Eventually(t, func() bool {
-			return !pm.IsRunning("cycle")
+			return !pm.isRunning("cycle")
 		}, 2*time.Second, time.Millisecond, "cycle plugin should exit")
 
 		// Clear per-window tracking to simulate window expiry (same package access)
@@ -287,7 +287,7 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 		assert.ErrorIs(t, finalErr, ErrRespawnLimitExceeded, "should hit cumulative limit")
 	}
 
-	assert.True(t, pm.IsDisabled("cycle"), "process should be disabled after cumulative limit")
+	assert.True(t, pm.isDisabled("cycle"), "process should be disabled after cumulative limit")
 }
 
 // TestProcessManagerRespawnNotStarted verifies Respawn fails if manager not started.
@@ -326,12 +326,12 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 		err := pm.Respawn("run")
 		require.NoError(t, err, "respawn %d should succeed", i)
 		require.Eventually(t, func() bool {
-			return pm.IsRunning("run")
+			return pm.isRunning("run")
 		}, 2*time.Second, time.Millisecond, "run plugin should start")
 	}
 
-	assert.True(t, pm.IsRunning("run"), "process should be running after respawn")
-	assert.False(t, pm.IsDisabled("run"), "process should not be disabled within limit")
+	assert.True(t, pm.isRunning("run"), "process should be running after respawn")
+	assert.False(t, pm.isDisabled("run"), "process should not be disabled within limit")
 }
 
 // TestProcessInternalPlugin verifies internal plugins run in-process.
@@ -764,7 +764,7 @@ func TestPluginCrashReportBus(t *testing.T) {
 			break
 		}
 		require.Eventually(t, func() bool {
-			return !pm.IsRunning("crash")
+			return !pm.isRunning("crash")
 		}, 2*time.Second, time.Millisecond)
 	}
 

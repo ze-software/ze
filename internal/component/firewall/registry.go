@@ -25,13 +25,13 @@ var flushOnShutdown atomic.Bool
 //nolint:gochecknoinits // package default: flush-on-shutdown is on unless config disables it
 func init() { flushOnShutdown.Store(true) }
 
-// SetFlushOnShutdown records the parsed firewall `flush-on-shutdown` option.
+// setFlushOnShutdown records the parsed firewall `flush-on-shutdown` option.
 // Called from the firewall engine when it processes a firewall config section;
 // a copp-only config (no firewall block) leaves the default (true) in place.
-func SetFlushOnShutdown(v bool) { flushOnShutdown.Store(v) }
+func setFlushOnShutdown(v bool) { flushOnShutdown.Store(v) }
 
-// FlushOnShutdownEnabled reports whether a clean shutdown should flush tables.
-func FlushOnShutdownEnabled() bool { return flushOnShutdown.Load() }
+// flushOnShutdownEnabled reports whether a clean shutdown should flush tables.
+func flushOnShutdownEnabled() bool { return flushOnShutdown.Load() }
 
 // FlushAllTables removes every ze-owned table the active backend applied, by
 // clearing the registry and reconciling an empty desired state. The firewall

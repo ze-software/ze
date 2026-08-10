@@ -33,7 +33,7 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"ipv4/mup", "ipv6/mup"},
-		RunEngine:    RunMUPPlugin,
+		RunEngine:    runMUPPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
 		},

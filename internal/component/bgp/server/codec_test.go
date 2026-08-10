@@ -24,7 +24,7 @@ func TestCodecRPCHandlerRouting(t *testing.T) {
 		"ze-plugin-engine:decode-mp-unreach",
 		"ze-plugin-engine:decode-update",
 	}
-	handlers := CodecRPCHandlers()
+	handlers := codecRPCHandlers()
 	for _, m := range methods {
 		t.Run(m, func(t *testing.T) {
 			h, ok := handlers[m]

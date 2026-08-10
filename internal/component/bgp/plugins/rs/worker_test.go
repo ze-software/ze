@@ -137,7 +137,7 @@ func TestWorkerPool_BackpressureWarning(t *testing.T) {
 	}
 
 	// Check that backpressure was detected.
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Error("expected backpressure detection for key with full channel")
 	}
 
@@ -363,12 +363,12 @@ func TestWorkerPool_BackpressureClearedAfterRead(t *testing.T) {
 	}
 
 	// First read: should be true.
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Fatal("expected backpressure on first read")
 	}
 
 	// Second read: should be false (cleared).
-	if wp.BackpressureDetected(key) {
+	if wp.backpressureDetected(key) {
 		t.Error("expected backpressure cleared after first read")
 	}
 
@@ -409,7 +409,7 @@ func TestWorkerPoolLowWater(t *testing.T) {
 		wp.Dispatch(key, workItem{msgID: uint64(i)})
 	}
 
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Fatal("expected backpressure detection")
 	}
 
@@ -459,12 +459,12 @@ func TestWorkerPoolHighLowCycle(t *testing.T) {
 	}
 
 	// First read: backpressure detected.
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Fatal("expected backpressure on first read")
 	}
 
 	// Second read: cleared (no duplicate).
-	if wp.BackpressureDetected(key) {
+	if wp.backpressureDetected(key) {
 		t.Error("expected backpressure cleared after first read")
 	}
 
@@ -539,13 +539,13 @@ func TestSetChanSize(t *testing.T) {
 
 	require.Equal(t, 64, wp.cfg.chanSize)
 
-	wp.SetChanSize(256)
+	wp.setChanSize(256)
 	require.Equal(t, 256, wp.cfg.chanSize)
 
 	// Zero/negative ignored.
-	wp.SetChanSize(0)
+	wp.setChanSize(0)
 	require.Equal(t, 256, wp.cfg.chanSize)
-	wp.SetChanSize(-1)
+	wp.setChanSize(-1)
 	require.Equal(t, 256, wp.cfg.chanSize)
 }
 
@@ -754,7 +754,7 @@ func TestWorkerPool_DepthIncludesOverflow(t *testing.T) {
 	}
 
 	// Channel full + overflow items → backpressure must be detected.
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Error("expected backpressure when overflow items exist")
 	}
 
@@ -936,14 +936,14 @@ func TestBackpressureHighWaterFull(t *testing.T) {
 	for i := uint64(2); i <= 10; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
-	if wp.BackpressureDetected(key) {
+	if wp.backpressureDetected(key) {
 		t.Error("backpressure should NOT trigger at 90% (9/10)")
 	}
 
 	// Fill to 100% (10 items in channel of 10). depth=10 >= cap=10 → triggers.
 	wp.Dispatch(key, workItem{msgID: 11})
 
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Error("backpressure should trigger when channel is full (10/10)")
 	}
 
@@ -986,7 +986,7 @@ func TestBackpressureLowWater10Percent(t *testing.T) {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
 
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Fatal("expected backpressure detection")
 	}
 
@@ -1035,7 +1035,7 @@ func TestBackpressureThresholdOscillation(t *testing.T) {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
 
-	if wp.BackpressureDetected(key) {
+	if wp.backpressureDetected(key) {
 		t.Error("backpressure should NOT trigger at 95% (19/20) with 100% threshold")
 	}
 }
@@ -1095,7 +1095,7 @@ func TestBackpressureNoResumeAbove10Percent(t *testing.T) {
 	for i := uint64(1); i <= 11; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
-	require.True(t, wp.BackpressureDetected(key),
+	require.True(t, wp.backpressureDetected(key),
 		"channel must be at capacity after dispatching 11 items into a cap-10 channel")
 
 	// Release item 1 so the worker can advance through items 2-5. Item 6
@@ -1150,7 +1150,7 @@ func TestBackpressureReminder(t *testing.T) {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
 
-	if !wp.BackpressureDetected(key) {
+	if !wp.backpressureDetected(key) {
 		t.Fatal("expected backpressure detection")
 	}
 
@@ -1163,7 +1163,7 @@ func TestBackpressureReminder(t *testing.T) {
 	require.Eventually(t, func() bool {
 		wp.Dispatch(key, workItem{msgID: msgID})
 		msgID++
-		return wp.BackpressureDetected(key)
+		return wp.backpressureDetected(key)
 	}, 2*time.Second, 10*time.Millisecond,
 		"expected backpressure after reminder interval elapsed")
 }

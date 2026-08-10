@@ -20,7 +20,7 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{familyVPLS},
-		RunEngine:    RunVPLSPlugin,
+		RunEngine:    runVPLSPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
 		},

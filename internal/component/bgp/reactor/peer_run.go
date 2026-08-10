@@ -213,18 +213,18 @@ func (p *Peer) runOnce() error {
 	capture := p.startCapture(session)
 	session.onNotifSent = p.IncrNotificationSent
 	session.onNotifRecv = p.IncrNotificationReceived
-	session.onOpenSent = p.IncrOpensSent
-	session.onOpenRecv = p.IncrOpensReceived
-	session.onRefreshRecv = p.IncrRefreshReceived
-	session.onRead = p.TouchLastRead
-	session.onWrite = p.TouchLastWrite
+	session.onOpenSent = p.incrOpensSent
+	session.onOpenRecv = p.incrOpensReceived
+	session.onRefreshRecv = p.incrRefreshReceived
+	session.onRead = p.touchLastRead
+	session.onWrite = p.touchLastWrite
 	session.onNegotiated = func(holdSec, keepaliveSec uint32) {
 		p.negotiatedHoldTime.Store(holdSec)
 		p.negotiatedKeepaliveTime.Store(keepaliveSec)
 	}
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
-	session.SetConfigCapabilityGetter(p.ConfiguredCapabilities)
+	session.setConfigCapabilityGetter(p.configuredCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
 	session.SetOpenValidator(p.validateOpen)
 
@@ -253,7 +253,7 @@ func (p *Peer) runOnce() error {
 		//      defer runs (Session.Run has returned), so prefixCounts.warned is
 		//      no longer being mutated. See ClearReportedWarnings godoc.
 		if sess := p.session; sess != nil {
-			sess.ClearReportedWarnings()
+			sess.clearReportedWarnings()
 		}
 		// Reset sendingInitialRoutes flag so next session can run sendInitialRoutes().
 		// This is needed because session.Teardown() may return before the old
@@ -650,7 +650,7 @@ func prefixReconnectDecision(settings *PeerSettings, err error, count uint32) (p
 	if count > maxPrefixTeardownCount {
 		count = maxPrefixTeardownCount
 	}
-	plan.Delay = time.Duration(settings.PrefixIdleTimeoutFor(family)) * time.Second
+	plan.Delay = time.Duration(settings.prefixIdleTimeoutFor(family)) * time.Second
 	for i := uint32(1); i < count; i++ {
 		plan.Delay *= 2
 		if plan.Delay > time.Hour {

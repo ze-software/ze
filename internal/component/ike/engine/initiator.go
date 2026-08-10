@@ -573,7 +573,7 @@ func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wi
 	if len(sa.ESPGroup.Proposals) == 0 {
 		return 0, nil, nil, nil, errors.New("no ESP proposals configured")
 	}
-	espSPI, err := GenerateESPSPI()
+	espSPI, err := generateESPSPI()
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
@@ -602,7 +602,7 @@ func buildChildSAResponsePayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.Payloa
 	if sa.ChildProposalNum == 0 {
 		return 0, nil, nil, nil, errNoAcceptedESPProposal
 	}
-	espSPI, err := GenerateESPSPI()
+	espSPI, err := generateESPSPI()
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}

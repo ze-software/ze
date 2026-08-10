@@ -115,7 +115,7 @@ func TestHeapBytesPerRouteInOutgoingRIB(t *testing.T) {
 
 	const N = 100_000
 
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	totalAlloc, mallocs := measureHeap(func() {
 		for i := range N {

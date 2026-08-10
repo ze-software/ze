@@ -148,8 +148,8 @@ func (pc *PluginConn) Close() error {
 
 // --- Stage RPCs ---
 
-// SendDeclareRegistration sends Stage 1: declare-registration to the engine.
-func (pc *PluginConn) SendDeclareRegistration(ctx context.Context, input *rpc.DeclareRegistrationInput) error {
+// sendDeclareRegistration sends Stage 1: declare-registration to the engine.
+func (pc *PluginConn) sendDeclareRegistration(ctx context.Context, input *rpc.DeclareRegistrationInput) error {
 	_, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-registration", input)
 	return err
 }
@@ -170,8 +170,8 @@ func (pc *PluginConn) SendConfigure(ctx context.Context, sections []rpc.ConfigSe
 	return err
 }
 
-// SendDeclareCapabilities sends Stage 3: declare-capabilities to the engine.
-func (pc *PluginConn) SendDeclareCapabilities(ctx context.Context, input *rpc.DeclareCapabilitiesInput) error {
+// sendDeclareCapabilities sends Stage 3: declare-capabilities to the engine.
+func (pc *PluginConn) sendDeclareCapabilities(ctx context.Context, input *rpc.DeclareCapabilitiesInput) error {
 	_, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-capabilities", input)
 	return err
 }
@@ -257,8 +257,8 @@ func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family, hex string) (s
 	return decoded.JSON, nil
 }
 
-// SendDecodeCapability requests capability decoding from the plugin. Returns JSON result.
-func (pc *PluginConn) SendDecodeCapability(ctx context.Context, code uint8, hex string) (string, error) {
+// sendDecodeCapability requests capability decoding from the plugin. Returns JSON result.
+func (pc *PluginConn) sendDecodeCapability(ctx context.Context, code uint8, hex string) (string, error) {
 	input := &rpc.DecodeCapabilityInput{Code: code, Hex: hex}
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-capability", input)
 	if err != nil {

@@ -181,7 +181,7 @@ func TestListenerHandlerRecoversPanic(t *testing.T) {
 // VALIDATES: AC-6 — panicking signal callback doesn't kill signal loop.
 // PREVENTS: Lost signal handling from a single bad callback.
 func TestSignalHandlerRecoversPanic(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	var callCount atomic.Int32
 	handler.OnShutdown(func() {
@@ -300,7 +300,7 @@ func TestSafeRunGapScanRecoversPanic(t *testing.T) {
 	// inspecting that the wrapper method exists and follows the safe pattern.
 	// The actual panic recovery mechanism is the same defer/recover pattern
 	// proven by TestPeerRunRecoversPanic and TestSignalHandlerRecoversPanic.
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	// Must not panic on empty cache — proves wrapper calls through correctly.

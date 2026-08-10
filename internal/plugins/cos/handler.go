@@ -67,21 +67,21 @@ func recordCoAChanged() {
 	}
 }
 
-// UpdateQoSFunc is the signature for updating VLAN QoS maps on an interface.
+// updateQoSFunc is the signature for updating VLAN QoS maps on an interface.
 // In production this is iface.GetBackend().UpdateVLANQoSMap.
-type UpdateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) error
+type updateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) error
 
-// ResolveStaticFunc returns the static CoS maps for an interface from config.
+// resolveStaticFunc returns the static CoS maps for an interface from config.
 // Returns nil, nil when the interface has no static CoS profile.
-type ResolveStaticFunc func(ifaceName string) (ingress, egress map[uint32]uint32)
+type resolveStaticFunc func(ifaceName string) (ingress, egress map[uint32]uint32)
 
 type cosHandler struct {
-	updateQoS     UpdateQoSFunc
-	resolveStatic ResolveStaticFunc
+	updateQoS     updateQoSFunc
+	resolveStatic resolveStaticFunc
 	unsubs        []func()
 }
 
-func newCosHandler(bus ze.EventBus, updateQoS UpdateQoSFunc, resolveStatic ResolveStaticFunc) *cosHandler {
+func newCosHandler(bus ze.EventBus, updateQoS updateQoSFunc, resolveStatic resolveStaticFunc) *cosHandler {
 	h := &cosHandler{updateQoS: updateQoS, resolveStatic: resolveStatic}
 	h.unsubs = append(h.unsubs,
 		l2tpevents.SessionUp.Subscribe(bus, h.onSessionUp),

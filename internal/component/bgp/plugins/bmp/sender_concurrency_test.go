@@ -248,7 +248,7 @@ func TestBMPSenderInitiationPrecedesConcurrentProducer(t *testing.T) {
 	headerBuf := make([]byte, CommonHeaderSize)
 	if _, rerr := io.ReadFull(collectorConn, headerBuf); rerr != nil {
 		t.Errorf("read first header: %v", rerr)
-	} else if ch, _, derr := DecodeCommonHeader(headerBuf, 0); derr != nil {
+	} else if ch, _, derr := decodeCommonHeader(headerBuf, 0); derr != nil {
 		t.Errorf("decode first header: %v", derr)
 	} else if ch.Type != MsgInitiation {
 		t.Errorf("first message type = %d, want %d (Initiation): a producer got ahead of it", ch.Type, MsgInitiation)

@@ -72,7 +72,7 @@ func TestCHAPParseResponse(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := ParseCHAPResponse(tc.buf)
+			resp, err := parseCHAPResponse(tc.buf)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -108,7 +108,7 @@ func TestCHAPParseResponseBoundaryValueSize(t *testing.T) {
 		buf[5+i] = byte(i)
 	}
 
-	resp, err := ParseCHAPResponse(buf)
+	resp, err := parseCHAPResponse(buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestCHAPParseResponseInvalid(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseCHAPResponse(tc.buf)
+			_, err := parseCHAPResponse(tc.buf)
 			if !errors.Is(err, tc.want) {
 				t.Errorf("err = %v, want %v", err, tc.want)
 			}
@@ -200,7 +200,7 @@ func TestCHAPParseResponseInvalid(t *testing.T) {
 func TestCHAPWriteChallenge(t *testing.T) {
 	buf := make([]byte, 64)
 	value := bytes.Repeat([]byte{0x5A}, chapChallengeValueLen)
-	n := WriteCHAPChallenge(buf, 0, 0x42, value, []byte("ze"))
+	n := writeCHAPChallenge(buf, 0, 0x42, value, []byte("ze"))
 	// Length = 4 + 1 + 16 + 2 = 23 (0x17).
 	wantLen := chapHeaderLen + 1 + chapChallengeValueLen + 2
 	if n != wantLen {
@@ -219,7 +219,7 @@ func TestCHAPWriteChallenge(t *testing.T) {
 //	overwriting preceding buffer contents.
 func TestCHAPWriteChallengeOffset(t *testing.T) {
 	buf := []byte{0xAA, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	n := WriteCHAPChallenge(buf, 2, 0x01, []byte{0xCC}, []byte("x"))
+	n := writeCHAPChallenge(buf, 2, 0x01, []byte{0xCC}, []byte("x"))
 	if buf[0] != 0xAA || buf[1] != 0xAA {
 		t.Errorf("prefix overwritten: %x", buf[:2])
 	}
@@ -243,7 +243,7 @@ func TestCHAPWriteChallengeCapsNameByFrame(t *testing.T) {
 	value := bytes.Repeat([]byte{0xCD}, chapChallengeValueLen)
 	hugeName := bytes.Repeat([]byte{'n'}, MaxFrameLen) // way more than fits
 	// Layout space after WriteFrame (off=2) = MaxFrameLen - 2.
-	n := WriteCHAPChallenge(buf, 2, 0x10, value, hugeName)
+	n := writeCHAPChallenge(buf, 2, 0x10, value, hugeName)
 	maxName := MaxFrameLen - 2 - chapHeaderLen - 1 - chapChallengeValueLen
 	wantTotal := chapHeaderLen + 1 + chapChallengeValueLen + maxName
 	if n != wantTotal {
@@ -283,7 +283,7 @@ func TestCHAPWriteChallengeCapsNameByFrame(t *testing.T) {
 //	inserts a Msg-Length octet at byte 4.
 func TestCHAPWriteSuccess(t *testing.T) {
 	buf := make([]byte, 32)
-	n := WriteCHAPSuccess(buf, 0, 0x42, []byte("auth ok"))
+	n := writeCHAPSuccess(buf, 0, 0x42, []byte("auth ok"))
 	// Length = 4 + 7 = 11 (0x0B). Byte 4 MUST be 'a', not 0x07.
 	want := []byte{
 		CHAPCodeSuccess, 0x42, 0x00, 0x0B,
@@ -315,7 +315,7 @@ func TestCHAPWriteSuccessCapsMessageByFrame(t *testing.T) {
 	buf := make([]byte, MaxFrameLen+1)
 	hugeMessage := bytes.Repeat([]byte{'m'}, MaxFrameLen) // way more than fits
 	// Layout space after WriteFrame (off=2) = MaxFrameLen - 2.
-	n := WriteCHAPSuccess(buf, 2, 0x20, hugeMessage)
+	n := writeCHAPSuccess(buf, 2, 0x20, hugeMessage)
 	maxMessage := MaxFrameLen - 2 - chapHeaderLen
 	wantTotal := chapHeaderLen + maxMessage
 	if n != wantTotal {
@@ -345,7 +345,7 @@ func TestCHAPWriteSuccessCapsMessageByFrame(t *testing.T) {
 //	packet with Length=4 and no trailing bytes.
 func TestCHAPWriteSuccessEmptyMessage(t *testing.T) {
 	buf := make([]byte, 16)
-	n := WriteCHAPSuccess(buf, 0, 0x01, nil)
+	n := writeCHAPSuccess(buf, 0, 0x01, nil)
 	want := []byte{CHAPCodeSuccess, 0x01, 0x00, 0x04}
 	if n != len(want) || !bytes.Equal(buf[:n], want) {
 		t.Errorf("buf = %x (n=%d), want %x", buf[:n], n, want)
@@ -357,7 +357,7 @@ func TestCHAPWriteSuccessEmptyMessage(t *testing.T) {
 //	the same format as Success (NO Msg-Length octet).
 func TestCHAPWriteFailure(t *testing.T) {
 	buf := make([]byte, 32)
-	n := WriteCHAPFailure(buf, 0, 0x77, []byte("bad"))
+	n := writeCHAPFailure(buf, 0, 0x77, []byte("bad"))
 	want := []byte{
 		CHAPCodeFailure, 0x77, 0x00, 0x07,
 		'b', 'a', 'd',
@@ -497,7 +497,7 @@ func TestCHAPResponseEmitsEvent(t *testing.T) {
 
 	select {
 	case ev := <-authEventsOut:
-		if _, ok := ev.(EventAuthSuccess); !ok {
+		if _, ok := ev.(eventAuthSuccess); !ok {
 			t.Errorf("second auth event %T, want EventAuthSuccess", ev)
 		}
 	case <-time.After(1 * time.Second):
@@ -576,7 +576,7 @@ func TestCHAPRejectWritesFailure(t *testing.T) {
 
 	select {
 	case ev := <-authEventsOut:
-		if _, ok := ev.(EventAuthFailure); !ok {
+		if _, ok := ev.(eventAuthFailure); !ok {
 			t.Errorf("second auth event %T, want EventAuthFailure", ev)
 		}
 	case <-time.After(1 * time.Second):
@@ -641,7 +641,7 @@ func TestCHAPTimeoutEmitsFailure(t *testing.T) {
 	// authRespCh intentionally unfed; the 80 ms authTimeout fires.
 	select {
 	case ev := <-authEventsOut:
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("second auth event %T, want EventAuthFailure", ev)
 		}
@@ -919,7 +919,7 @@ func TestCHAPParseResponseMaxName(t *testing.T) {
 	for i := range nameLen {
 		buf[6+i] = 'N'
 	}
-	resp, err := ParseCHAPResponse(buf)
+	resp, err := parseCHAPResponse(buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

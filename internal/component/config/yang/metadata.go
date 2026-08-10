@@ -50,11 +50,11 @@ func ParseYANGMetadata(content string) (*Metadata, error) {
 		return nil, errNoModuleFoundInYangContent
 	}
 
-	return ExtractMetadata(mod), nil
+	return extractMetadata(mod), nil
 }
 
-// ExtractMetadata extracts metadata from a parsed goyang Module.
-func ExtractMetadata(mod *yang.Module) *Metadata {
+// extractMetadata extracts metadata from a parsed goyang Module.
+func extractMetadata(mod *yang.Module) *Metadata {
 	meta := &Metadata{
 		Module: mod.Name,
 	}

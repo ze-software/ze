@@ -36,7 +36,7 @@ type bgpListenerReadyPayload struct {
 	Address string `json:"address"`
 }
 
-// SubscribeInterfaceEvents registers EventBus handlers for the interface
+// subscribeInterfaceEvents registers EventBus handlers for the interface
 // events the reactor cares about. Replaces the legacy OnBusEvent prefix
 // subscription that lived in reactor_bus.go. Must be called after
 // SetEventBus and before StartWithContext.
@@ -46,7 +46,7 @@ type bgpListenerReadyPayload struct {
 // Other events (created, up, down, dhcp-*, rollback) have no BGP-side
 // reaction yet but the subscription points are documented for future
 // handlers.
-func (r *Reactor) SubscribeInterfaceEvents() {
+func (r *Reactor) subscribeInterfaceEvents() {
 	if r.eventBus == nil {
 		return
 	}

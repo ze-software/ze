@@ -19,13 +19,13 @@ func TestBuildGroupedUpdate_SingleRoute(t *testing.T) {
 		testRouteWithAttrs("10.0.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 	if len(groups) != 1 {
 		t.Fatalf("got %d groups, want 1", len(groups))
 	}
 
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], false)
+	update, err := buildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -59,13 +59,13 @@ func TestBuildGroupedUpdate_MultipleRoutes(t *testing.T) {
 		testRouteWithAttrs("10.2.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 	if len(groups) != 1 {
 		t.Fatalf("got %d groups, want 1", len(groups))
 	}
 
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], false)
+	update, err := buildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -89,9 +89,9 @@ func TestBuildGroupedUpdate_IncludesNextHop(t *testing.T) {
 		testRouteWithAttrs("10.0.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], false)
+	update, err := buildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -139,9 +139,9 @@ func TestBuildGroupedUpdate_IncludesOrigin(t *testing.T) {
 		testRouteWithAttrs("10.0.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], false)
+	update, err := buildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestBuildGroupedUpdate_EmptyGroup(t *testing.T) {
 	}
 
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(group, false)
+	update, err := buildGroupedUpdate(group, false)
 
 	// Either error or empty UPDATE is acceptable
 	if err == nil && len(update.NLRI) > 0 {

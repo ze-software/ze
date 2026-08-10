@@ -22,23 +22,23 @@ type sseClient struct {
 	done chan struct{}
 }
 
-// SSEBroker manages SSE client connections and broadcasts events.
+// sSEBroker manages SSE client connections and broadcasts events.
 // Clients register via the HTTP handler. The broker's Run goroutine
 // reads dirty flags from DashboardState at a configurable interval
 // and broadcasts rendered HTML fragments to all connected clients.
-type SSEBroker struct {
+type sSEBroker struct {
 	mu       sync.Mutex
 	clients  map[*sseClient]struct{}
 	closed   bool
 	interval time.Duration
 }
 
-// NewSSEBroker creates a broker with the given debounce interval.
-func NewSSEBroker(debounceInterval time.Duration) *SSEBroker {
+// newSSEBroker creates a broker with the given debounce interval.
+func newSSEBroker(debounceInterval time.Duration) *sSEBroker {
 	if debounceInterval < 50*time.Millisecond {
 		debounceInterval = 50 * time.Millisecond
 	}
-	return &SSEBroker{
+	return &sSEBroker{
 		clients:  make(map[*sseClient]struct{}),
 		interval: debounceInterval,
 	}
@@ -46,7 +46,7 @@ func NewSSEBroker(debounceInterval time.Duration) *SSEBroker {
 
 // Subscribe registers a new client and returns its event channel and done signal.
 // The caller should call Unsubscribe when the client disconnects.
-func (b *SSEBroker) Subscribe() *sseClient {
+func (b *sSEBroker) Subscribe() *sseClient {
 	c := &sseClient{
 		ch:   make(chan SSEEvent, 64),
 		done: make(chan struct{}),
@@ -59,7 +59,7 @@ func (b *SSEBroker) Subscribe() *sseClient {
 
 // Unsubscribe removes a client from the broker.
 // If Close() already removed and signaled this client, this is a no-op.
-func (b *SSEBroker) Unsubscribe(c *sseClient) {
+func (b *sSEBroker) Unsubscribe(c *sseClient) {
 	b.mu.Lock()
 	_, exists := b.clients[c]
 	delete(b.clients, c)
@@ -71,7 +71,7 @@ func (b *SSEBroker) Unsubscribe(c *sseClient) {
 
 // Broadcast sends an event to all connected clients.
 // Non-blocking: if a client's buffer is full, the event is dropped for that client.
-func (b *SSEBroker) Broadcast(ev SSEEvent) {
+func (b *sSEBroker) Broadcast(ev SSEEvent) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for c := range b.clients {
@@ -84,14 +84,14 @@ func (b *SSEBroker) Broadcast(ev SSEEvent) {
 }
 
 // ClientCount returns the number of connected clients.
-func (b *SSEBroker) ClientCount() int {
+func (b *sSEBroker) ClientCount() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return len(b.clients)
 }
 
 // Close marks the broker as closed and drains all clients.
-func (b *SSEBroker) Close() {
+func (b *sSEBroker) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.closed = true
@@ -102,14 +102,14 @@ func (b *SSEBroker) Close() {
 }
 
 // Interval returns the debounce interval.
-func (b *SSEBroker) Interval() time.Duration {
+func (b *sSEBroker) Interval() time.Duration {
 	return b.interval
 }
 
 // ServeHTTP handles SSE client connections. It sets the appropriate headers,
 // registers the client, and streams events until the client disconnects
 // or the broker is closed.
-func (b *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (b *sSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)

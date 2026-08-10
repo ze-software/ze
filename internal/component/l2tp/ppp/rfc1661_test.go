@@ -587,7 +587,7 @@ func TestRFC1661NoTerminateAckForTerminateAck(t *testing.T) {
 func TestRFC1661RenegotiateOnConfigureRequestInOpened(t *testing.T) {
 	cases := []struct {
 		name  string
-		event LCPEvent
+		event lCPEvent
 		want  []LCPAction
 		next  LCPState
 	}{
@@ -666,7 +666,7 @@ func TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest(t *testing.T) {
 func TestRFC1661OpenTransmitsConfigureRequest(t *testing.T) {
 	for _, tc := range []struct {
 		state LCPState
-		event LCPEvent
+		event lCPEvent
 	}{
 		{LCPStateClosed, LCPEventOpen},
 		{LCPStateStarting, LCPEventUp},
@@ -838,7 +838,7 @@ func TestRFC1661ConfigureRejectDoesNotReorderOptions(t *testing.T) {
 	b := LCPOption{Type: 98, Data: []byte{0xBB, 0xCC}}
 	for _, order := range [][]LCPOption{{a, b}, {b, a}} {
 		opts := append([]LCPOption(nil), order...)
-		_, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+		_, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 		if len(rejects) != 2 {
 			t.Fatalf("rejects = %d, want 2", len(rejects))
 		}
@@ -937,7 +937,7 @@ func TestRFC1661BooleanOptionsUseRejectNotNak(t *testing.T) {
 		{Type: LCPOptPFC, Data: []byte{0xAA}},
 		{Type: LCPOptACFC, Data: []byte{0xBB, 0xCC}},
 	}
-	_, naks, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+	_, naks, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 	if len(naks) != 0 {
 		t.Fatalf("naks = %+v, want none for boolean options", naks)
 	}
@@ -954,7 +954,7 @@ func TestRFC1661BooleanOptionsUseRejectNotNak(t *testing.T) {
 // and negotiatePeerOption (lcp_options.go) answers an unacceptable MRU with a
 // Nak, so the Nak path exists and is deliberately not used for booleans.
 func TestRFC1661ValuedOptionUsesNak(t *testing.T) {
-	_, naks, rejects := NegotiatePeerOptions([]LCPOption{mruOption(2000)}, LCPNegPolicy{MaxMRU: 1500})
+	_, naks, rejects := NegotiatePeerOptions([]LCPOption{mruOption(2000)}, lCPNegPolicy{MaxMRU: 1500})
 	if len(rejects) != 0 {
 		t.Fatalf("rejects = %+v, want none", rejects)
 	}
@@ -971,7 +971,7 @@ func TestRFC1661ValuedOptionUsesNak(t *testing.T) {
 // (lcp_options.go) writes into the Nak passes its own acceptance check, so the
 // value field really does indicate a value acceptable to the Nak sender.
 func TestRFC1661NakValueIsAcceptable(t *testing.T) {
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 	for _, bad := range []uint16{2000, 32} {
 		_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(bad)}, policy)
 		if len(naks) != 1 {
@@ -993,7 +993,7 @@ func TestRFC1661NakValueIsAcceptable(t *testing.T) {
 // asked for draws another Nak from negotiatePeerOption (lcp_options.go), which
 // is what makes the accepted suggestion above meaningful.
 func TestRFC1661RejectedValueStaysUnacceptable(t *testing.T) {
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 	for range 2 {
 		_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(2000)}, policy)
 		if len(naks) != 1 {
@@ -1010,7 +1010,7 @@ func TestRFC1661RejectedValueStaysUnacceptable(t *testing.T) {
 // (lcp_options.go) appends one entry per received option in receive order, so
 // two Nak-worthy MRU options come back in the order they arrived.
 func TestRFC1661NakPreservesRequestOrder(t *testing.T) {
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(2000), mruOption(32)}, policy)
 	if len(naks) != 2 {
 		t.Fatalf("naks = %d, want 2", len(naks))
@@ -1028,7 +1028,7 @@ func TestRFC1661NakPreservesRequestOrder(t *testing.T) {
 // RFC requirement: RFC1661-5.3-6 negative -- with the two MRU options swapped,
 // NegotiatePeerOptions (lcp_options.go) produces the swapped Nak list.
 func TestRFC1661NakOrderFollowsRequestNotAFixedOrder(t *testing.T) {
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(32), mruOption(2000)}, policy)
 	if len(naks) != 2 {
 		t.Fatalf("naks = %d, want 2", len(naks))
@@ -1170,7 +1170,7 @@ func TestRFC1661EchoReplyInOpened(t *testing.T) {
 	if pkt.Identifier != 0x51 {
 		t.Fatalf("Echo-Reply Identifier = 0x%02x, want 0x51", pkt.Identifier)
 	}
-	magic, err := ParseLCPEchoMagic(pkt.Data)
+	magic, err := parseLCPEchoMagic(pkt.Data)
 	if err != nil {
 		t.Fatalf("ParseLCPEchoMagic: %v", err)
 	}
@@ -1273,7 +1273,7 @@ func TestRFC1661SingleAuthProtocolOptionInRequest(t *testing.T) {
 // RFC requirement: RFC1661-6.4-3 negative -- a non-zero Magic-Number is
 // accepted, which is what makes the mandatory refusal of zero meaningful.
 func TestRFC1661PeerMagicNumberAcked(t *testing.T) {
-	acks, naks, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0xDEADBEEF)}, LCPNegPolicy{})
+	acks, naks, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0xDEADBEEF)}, lCPNegPolicy{})
 	if len(rejects) != 0 {
 		t.Fatalf("rejects = %+v, want none for a well-formed Magic-Number", rejects)
 	}
@@ -1296,7 +1296,7 @@ func TestRFC1661PeerMagicNumberAcked(t *testing.T) {
 // rfc/short/rfc1661.md.
 func TestRFC1661UnknownOptionRejectedWhileMagicIsNot(t *testing.T) {
 	opts := []LCPOption{{Type: 99, Data: []byte{0x01}}, magicOption(0xCAFEBABE)}
-	acks, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+	acks, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 	if len(rejects) != 1 || rejects[0].Type != 99 {
 		t.Fatalf("rejects = %+v, want only the unknown type 99", rejects)
 	}
@@ -1311,7 +1311,7 @@ func TestRFC1661UnknownOptionRejectedWhileMagicIsNot(t *testing.T) {
 // (lcp_options.go) returns negReject when the four Magic-Number octets decode
 // to zero, so a zero Magic-Number is Rejected rather than accepted.
 func TestRFC1661ZeroMagicNumberRefused(t *testing.T) {
-	acks, _, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0)}, LCPNegPolicy{})
+	acks, _, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0)}, lCPNegPolicy{})
 	if len(acks) != 0 {
 		t.Fatalf("acks = %+v, want none for a zero Magic-Number", acks)
 	}
@@ -1339,7 +1339,7 @@ func TestRFC1661EchoReplyDoesNotMirrorPeerMagic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseLCPPacket: %v", err)
 	}
-	got, err := ParseLCPEchoMagic(pkt.Data)
+	got, err := parseLCPEchoMagic(pkt.Data)
 	if err != nil {
 		t.Fatalf("ParseLCPEchoMagic: %v", err)
 	}

@@ -20,7 +20,7 @@ func TestBearerAuthenticator_ValidToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("valid token rejected: %v", err)
 	}
-	if !id.IsAnonymous() {
+	if !id.isAnonymous() {
 		t.Fatalf("bearer mode identity should be anonymous, got %+v", id)
 	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestAdjacencyTableUpdate(t *testing.T) {
-	table := NewAdjacencyTable()
+	table := newAdjacencyTable()
 	pdu := PDUHeader{
 		Version:    ldpVersion,
 		LSRID:      [4]byte{10, 0, 0, 1},
@@ -40,7 +40,7 @@ func TestAdjacencyTableUpdate(t *testing.T) {
 }
 
 func TestAdjacencyTableDefaultHoldTime(t *testing.T) {
-	table := NewAdjacencyTable()
+	table := newAdjacencyTable()
 	pdu := PDUHeader{LSRID: [4]byte{10, 0, 0, 1}}
 	hello := HelloMessage{
 		HoldTime:      0,
@@ -69,7 +69,7 @@ func TestAdjacencyExpired(t *testing.T) {
 }
 
 func TestAdjacencyTableExpireSweep(t *testing.T) {
-	table := NewAdjacencyTable()
+	table := newAdjacencyTable()
 	pdu := PDUHeader{LSRID: [4]byte{10, 0, 0, 1}}
 	hello := HelloMessage{
 		HoldTime:      1,
@@ -95,7 +95,7 @@ func TestAdjacencyTableExpireSweep(t *testing.T) {
 }
 
 func TestAdjacencyTableRemove(t *testing.T) {
-	table := NewAdjacencyTable()
+	table := newAdjacencyTable()
 	pdu := PDUHeader{LSRID: [4]byte{10, 0, 0, 1}}
 	hello := HelloMessage{
 		HoldTime:      15,
@@ -111,7 +111,7 @@ func TestAdjacencyTableRemove(t *testing.T) {
 }
 
 func TestAdjacencyTableAll(t *testing.T) {
-	table := NewAdjacencyTable()
+	table := newAdjacencyTable()
 	for i := byte(1); i <= 3; i++ {
 		pdu := PDUHeader{LSRID: [4]byte{10, 0, 0, i}}
 		hello := HelloMessage{

@@ -51,10 +51,10 @@ func SecretsDir(baseDir, name string) string {
 	return filepath.Join(baseDir, name, secretsDirName)
 }
 
-func TLSDir(baseDir, name string) string {
+func tLSDir(baseDir, name string) string {
 	return filepath.Join(baseDir, name, secretsDirName, tlsDirName)
 }
 
-func DatabasePath(baseDir, name string) string {
+func databasePath(baseDir, name string) string {
 	return filepath.Join(baseDir, name, databaseFileName)
 }

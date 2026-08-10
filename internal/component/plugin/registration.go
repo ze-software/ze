@@ -265,8 +265,8 @@ func (r *PluginRegistry) GetDecodeFamilies() []string {
 	return families
 }
 
-// RegisterCapabilities adds capability declarations, checking for conflicts.
-func (r *PluginRegistry) RegisterCapabilities(caps *PluginCapabilities) error {
+// registerCapabilities adds capability declarations, checking for conflicts.
+func (r *PluginRegistry) registerCapabilities(caps *PluginCapabilities) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -366,7 +366,7 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	pending := make([]InjectedCapability, 0, len(caps.Capabilities))
 
 	for _, cap := range caps.Capabilities {
-		value, err := DecodeCapabilityPayload(cap)
+		value, err := decodeCapabilityPayload(cap)
 		if err != nil {
 			return err
 		}
@@ -506,10 +506,10 @@ func (ci *CapabilityInjector) GetCapabilitiesForPeer(peerAddr string) []Injected
 	return result
 }
 
-// DecodeCapabilityPayload decodes a plugin capability payload.
+// decodeCapabilityPayload decodes a plugin capability payload.
 // Flag-only capabilities (e.g., link-local-nexthop code 77) have no encoding
 // and no payload — they return nil, nil.
-func DecodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
+func decodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
 	if cap.Encoding == rpc.CapEncodingUnspecified && cap.Payload == "" {
 		return nil, nil
 	}

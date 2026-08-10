@@ -40,8 +40,8 @@ var logger = slogutil.LazyLogger("bgp.filter.modify")
 // Updated atomically on every OnConfigure delivery.
 var defsByName atomic.Pointer[map[string]*modifyDef]
 
-// RunFilterModify runs the route modify plugin using the SDK RPC protocol.
-func RunFilterModify(conn net.Conn) int {
+// runFilterModify runs the route modify plugin using the SDK RPC protocol.
+func runFilterModify(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-modify", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 

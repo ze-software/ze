@@ -10,7 +10,7 @@ import (
 // RFC requirement: RFC3954-x-3 positive -- header integer fields (version, count, sysUpTime, unixSecs, seq, sourceID) decode big-endian to their asymmetric written values (encoder.go:17-24); a little-endian write would fail these BigEndian reads.
 func TestNetflow9Header(t *testing.T) {
 	buf := make([]byte, 64)
-	n := WritePacketHeader(buf, 0, 3, 1000, 1716900000, 42, 1)
+	n := writePacketHeader(buf, 0, 3, 1000, 1716900000, 42, 1)
 
 	if n != HeaderSize {
 		t.Fatalf("header size: got %d, want %d", n, HeaderSize)
@@ -54,7 +54,7 @@ func TestNetflow9Header(t *testing.T) {
 func TestNetflow9HeaderOffset(t *testing.T) {
 	buf := make([]byte, 128)
 	buf[10] = 0xff
-	n := WritePacketHeader(buf, 10, 0, 0, 0, 0, 0)
+	n := writePacketHeader(buf, 10, 0, 0, 0, 0, 0)
 
 	if n != HeaderSize {
 		t.Fatalf("header size: got %d, want %d", n, HeaderSize)
@@ -81,7 +81,7 @@ func TestWriteExportPacketWithTemplate(t *testing.T) {
 		},
 	}
 
-	n := WriteExportPacket(buf, 5000, 1716900000, 1, 0, tmpl, true, ifaces)
+	n := writeExportPacket(buf, 5000, 1716900000, 1, 0, tmpl, true, ifaces)
 
 	// Header
 	ver := binary.BigEndian.Uint16(buf[0:])
@@ -114,7 +114,7 @@ func TestWriteExportPacketWithoutTemplate(t *testing.T) {
 		},
 	}
 
-	n := WriteExportPacket(buf, 5000, 1716900000, 1, 0, tmpl, false, ifaces)
+	n := writeExportPacket(buf, 5000, 1716900000, 1, 0, tmpl, false, ifaces)
 
 	count := binary.BigEndian.Uint16(buf[2:])
 	if count != 1 {

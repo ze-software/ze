@@ -10,6 +10,6 @@ import (
 	"net/netip"
 )
 
-func startIPv6Service(_ IPv6ServiceConfig, _ DHCPv6DUID, _ func() (netip.Prefix, bool), _ *slog.Logger) (*IPv6Service, error) {
+func startIPv6Service(_ iPv6ServiceConfig, _ DHCPv6DUID, _ func() (netip.Prefix, bool), _ *slog.Logger) (*IPv6Service, error) {
 	return nil, errNotLinux
 }

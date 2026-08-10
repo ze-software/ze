@@ -41,7 +41,7 @@ func fakeZePeer(t *testing.T, ln net.Listener, done chan<- int) {
 		RouterID: netip.MustParseAddr("10.0.0.1"),
 		HoldTime: 90,
 	})
-	data := SerializeMessage(open)
+	data := serializeMessage(open)
 	if _, writeErr := conn.Write(data); writeErr != nil {
 		done <- -1
 		return
@@ -55,7 +55,7 @@ func fakeZePeer(t *testing.T, ln net.Listener, done chan<- int) {
 
 	// Send our KEEPALIVE.
 	ka := message.NewKeepalive()
-	kaData := SerializeMessage(ka)
+	kaData := serializeMessage(ka)
 	if _, writeErr := conn.Write(kaData); writeErr != nil {
 		done <- -1
 		return

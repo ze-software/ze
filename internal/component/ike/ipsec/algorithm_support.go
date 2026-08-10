@@ -98,14 +98,14 @@ var (
 	prfNames       = crypto.SupportedPRFNames
 )
 
-// SupportedHashNames lists the hash algorithms this build implements. HashImplemented
+// supportedHashNames lists the hash algorithms this build implements. HashImplemented
 // requires both an integrity transform and a PRF, so the answer is the intersection of
 // the two registries.
 //
 // The two hold the same names today. Naming one of them would still be wrong, because
 // the message would then advertise a hash the parser refuses on the other half. The
 // intersection cannot say that, whichever registry grows first.
-func SupportedHashNames() []string {
+func supportedHashNames() []string {
 	prfs := make(map[string]bool, len(prfNames()))
 	for _, name := range prfNames() {
 		prfs[name] = true

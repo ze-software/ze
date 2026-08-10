@@ -65,7 +65,7 @@ func TestObservability_InitiatorSessionState(t *testing.T) {
 	waitForLog(t, logs, "OCRQ sent; session wait-reply (LNS outgoing)")
 
 	// The auto-placed outgoing call is a wait-reply session on this tunnel.
-	tun := r.TunnelByLocalID(localTID)
+	tun := r.tunnelByLocalID(localTID)
 	require.NotNil(t, tun)
 	r.tunnelsMu.Lock()
 	var localSID uint16

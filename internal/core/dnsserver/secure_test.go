@@ -59,7 +59,7 @@ func TestDoTListener(t *testing.T) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
 	mgr := New(testLogger(), echoHandler("10.0.0.7"), Options{})
-	err := mgr.ApplyListeners(true, Listeners{
+	err := mgr.applyListeners(true, Listeners{
 		DoT:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		TLSConfig: srvTLS,
 	})
@@ -126,7 +126,7 @@ func TestDoHListener(t *testing.T) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
 	mgr := New(testLogger(), echoHandler("10.0.0.8"), Options{})
-	err := mgr.ApplyListeners(true, Listeners{
+	err := mgr.applyListeners(true, Listeners{
 		DoH:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		TLSConfig: srvTLS,
 	})
@@ -202,7 +202,7 @@ func TestDoHRefusedYields403(t *testing.T) {
 	// drop never writes a reply (models as112 allow-from denial).
 	drop := dns.HandlerFunc(func(_ dns.ResponseWriter, _ *dns.Msg) {})
 	mgr := New(testLogger(), drop, Options{})
-	if err := mgr.ApplyListeners(true, Listeners{
+	if err := mgr.applyListeners(true, Listeners{
 		DoH:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		TLSConfig: srvTLS,
 	}); err != nil {
@@ -232,7 +232,7 @@ func TestDoHMethodNotAllowed(t *testing.T) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
 	mgr := New(testLogger(), echoHandler("10.0.0.8"), Options{})
-	if err := mgr.ApplyListeners(true, Listeners{
+	if err := mgr.applyListeners(true, Listeners{
 		DoH:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		TLSConfig: srvTLS,
 	}); err != nil {
@@ -405,7 +405,7 @@ func TestParseSecureLeavesPortZero(t *testing.T) {
 func TestSecureWithoutTLSSkipsSecure(t *testing.T) {
 	port := freePort(t)
 	mgr := New(testLogger(), echoHandler("10.0.0.9"), Options{})
-	err := mgr.ApplyListeners(true, Listeners{
+	err := mgr.applyListeners(true, Listeners{
 		Plain: []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		DoT:   []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: freePort(t)}},
 	})
@@ -428,7 +428,7 @@ func startDoH(t *testing.T, handler dns.Handler) (uint16, *http.Client) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
 	mgr := New(testLogger(), handler, Options{})
-	if err := mgr.ApplyListeners(true, Listeners{
+	if err := mgr.applyListeners(true, Listeners{
 		DoH:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		TLSConfig: srvTLS,
 	}); err != nil {
@@ -615,7 +615,7 @@ func startDoT(t *testing.T, handler dns.Handler) (uint16, *x509.CertPool) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
 	mgr := New(testLogger(), handler, Options{})
-	if err := mgr.ApplyListeners(true, Listeners{
+	if err := mgr.applyListeners(true, Listeners{
 		DoT:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 		TLSConfig: srvTLS,
 	}); err != nil {

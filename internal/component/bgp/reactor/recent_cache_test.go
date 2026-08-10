@@ -81,7 +81,7 @@ func newTestUpdate(id uint64) *ReceivedUpdate {
 // VALIDATES: Updates are cached and retrievable via Get (non-destructive).
 // PREVENTS: Lost updates, broken forwarding.
 func TestRecentUpdateCacheAdd(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	update := newTestUpdate(1)
@@ -107,7 +107,7 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 // VALIDATES: Non-existent IDs return not found.
 // PREVENTS: False positives on lookup.
 func TestRecentUpdateCacheNotFound(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	_, ok := cache.Get(999)
@@ -121,7 +121,7 @@ func TestRecentUpdateCacheNotFound(t *testing.T) {
 // VALIDATES: Delete removes entry from cache.
 // PREVENTS: Memory leaks from unflushed entries.
 func TestRecentUpdateCacheDelete(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -150,7 +150,7 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 // VALIDATES: Multiple Gets return same entry, entry remains in cache (AC-7).
 // PREVENTS: Accidental entry removal on read.
 func TestCacheGetNonDestructive(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -178,7 +178,7 @@ func TestCacheGetNonDestructive(t *testing.T) {
 // VALIDATES: Pending entries (between Add and Activate) are accessible via Get.
 // PREVENTS: Race where plugin receives msg-id before Activate completes.
 func TestCacheGetPendingEntry(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -200,7 +200,7 @@ func TestCacheGetPendingEntry(t *testing.T) {
 // VALIDATES: Soft limit warns but never rejects (AC-1, AC-15).
 // PREVENTS: UPDATE loss when cache is full.
 func TestRecentUpdateCacheSoftLimit(t *testing.T) {
-	cache := NewRecentUpdateCache(3)
+	cache := newRecentUpdateCache(3)
 	defer cache.Stop()
 
 	for i := uint64(1); i <= 5; i++ {
@@ -226,7 +226,7 @@ func TestRecentUpdateCacheSoftLimit(t *testing.T) {
 // VALIDATES: List returns IDs of all entries.
 // PREVENTS: Missing entries in API response.
 func TestRecentUpdateCacheList(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	ids := cache.List()
@@ -264,7 +264,7 @@ func TestCacheNoTTLEviction(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
 
@@ -289,7 +289,7 @@ func TestCacheNoTTLEviction(t *testing.T) {
 // VALIDATES: NewRecentUpdateCache takes only maxEntries (AC-16).
 // PREVENTS: TTL-based eviction from being reintroduced.
 func TestCacheNoTTLConstructor(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	if cache == nil {
 		t.Fatal("NewRecentUpdateCache(100) returned nil")
@@ -304,7 +304,7 @@ func TestCacheNoTTLConstructor(t *testing.T) {
 // VALIDATES: Entry evicted immediately when last consumer acks (AC-9).
 // PREVENTS: Stale entries lingering after all consumers are done.
 func TestCacheImmediateEvictOnZeroConsumers(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -332,7 +332,7 @@ func TestCacheImmediateEvictOnZeroConsumers(t *testing.T) {
 // VALIDATES: Activate(id, nil) with no consumers evicts entry immediately (AC-5).
 // PREVENTS: Permanently pending entries when no plugins subscribe.
 func TestCacheActivateZeroConsumersEvictsImmediately(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -359,7 +359,7 @@ func TestCacheActivateZeroConsumersEvictsImmediately(t *testing.T) {
 // PREVENTS: Log flooding from FIFO violation errors when multi-peer delivery
 // causes events to arrive in non-ID-order.
 func TestCacheFIFOOrdering(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -395,7 +395,7 @@ func TestCacheFIFOOrdering(t *testing.T) {
 // VALIDATES: Ack for N implicitly acks 1..N for that plugin (AC-13).
 // PREVENTS: Missing acks causing entries to remain in cache.
 func TestCacheFIFOImplicitAck(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	// Add 5 entries, all with same single consumer
@@ -425,7 +425,7 @@ func TestCacheFIFOImplicitAck(t *testing.T) {
 // VALIDATES: Each plugin has independent FIFO ordering.
 // PREVENTS: Cross-plugin ack interference.
 func TestCacheFIFOPerPlugin(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -478,7 +478,7 @@ func TestCacheFIFOPerPlugin(t *testing.T) {
 // compete for callMu and deliver events out of global ID order.
 func TestCacheOutOfOrderAck(t *testing.T) {
 	t.Run("single_consumer_out_of_order", func(t *testing.T) {
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
 
 		// Simulate 4 entries delivered to 1 plugin, processed out of order.
@@ -514,7 +514,7 @@ func TestCacheOutOfOrderAck(t *testing.T) {
 	})
 
 	t.Run("two_consumers_out_of_order_no_double_decrement", func(t *testing.T) {
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
 
 		cache.Add(newTestUpdate(20))
@@ -568,7 +568,7 @@ func TestCacheOutOfOrderAck(t *testing.T) {
 // VALIDATES: Ack before Activate is stored as early ack and applied on Activate (AC-3).
 // PREVENTS: Lost acks from fast plugins.
 func TestCacheAckBeforeActivate(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -592,7 +592,7 @@ func TestCacheAckBeforeActivate(t *testing.T) {
 // VALIDATES: Early ack from one plugin, normal ack from another.
 // PREVENTS: Partial early ack handling bugs.
 func TestCacheAckBeforeActivateTwoPlugins(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -628,7 +628,7 @@ func TestCacheAckBeforeActivateTwoPlugins(t *testing.T) {
 // VALIDATES: Retain prevents eviction even after all plugin acks.
 // PREVENTS: Premature eviction of routes needed for graceful restart.
 func TestRecentUpdateCacheRetain(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -655,7 +655,7 @@ func TestRecentUpdateCacheRetain(t *testing.T) {
 // VALIDATES: Retain returns false for non-existent entry.
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestRecentUpdateCacheRetainNotFound(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	if cache.Retain(999) {
@@ -668,7 +668,7 @@ func TestRecentUpdateCacheRetainNotFound(t *testing.T) {
 // VALIDATES: Retain adds 1, Release subtracts 1 — balanced usage (AC-6).
 // PREVENTS: Refcount imbalance from API commands.
 func TestCacheRetainAndRelease(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -698,7 +698,7 @@ func TestCacheRetainAndRelease(t *testing.T) {
 // VALIDATES: Release decrements retain count, evicts when zero.
 // PREVENTS: Memory leaks from permanently retained entries.
 func TestRecentUpdateCacheRelease(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -727,7 +727,7 @@ func TestRecentUpdateCacheRelease(t *testing.T) {
 // VALIDATES: Release returns false for non-existent entry.
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestRecentUpdateCacheReleaseNotFound(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	if cache.Release(999) {
@@ -748,7 +748,7 @@ func TestCacheSafetyValveGapDetection(t *testing.T) {
 	// Setup: "stalled" plugin consumes entry 100, "healthy" consumes entry 200.
 	// Register "stalled" before entry 100 (lastAck=0), "healthy" after (lastAck=100).
 	// This way "healthy" acking 200 won't implicit-ack entry 100.
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
 
@@ -791,7 +791,7 @@ func TestCacheNoTimeoutAtFrontier(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
 
@@ -817,7 +817,7 @@ func TestCacheNoTimeoutAtFrontier(t *testing.T) {
 // VALIDATES: Ack returns ErrUpdateExpired for missing entry.
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestCacheAckExpiredEntry(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	err := cache.Ack(999, "rr")
@@ -833,7 +833,7 @@ func TestCacheAckExpiredEntry(t *testing.T) {
 // VALIDATES: Decrement returns false for non-existent entry.
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestCacheDecrementNotFound(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	if cache.Decrement(999) {
@@ -851,7 +851,7 @@ func TestRecentCacheWithFakeClock(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
 
@@ -886,7 +886,7 @@ func TestRecentCacheWithFakeClock(t *testing.T) {
 // VALIDATES: Concurrent Add/Get/Ack are safe (AC-8).
 // PREVENTS: Race conditions, data corruption.
 func TestRecentUpdateCacheConcurrency(t *testing.T) {
-	cache := NewRecentUpdateCache(1000)
+	cache := newRecentUpdateCache(1000)
 	defer cache.Stop()
 
 	var wg sync.WaitGroup
@@ -928,7 +928,7 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 // VALIDATES: Multiple goroutines acking different plugins simultaneously is safe.
 // PREVENTS: Race conditions in consumer tracking.
 func TestCacheConcurrentAck(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	const numPlugins = 50
@@ -963,7 +963,7 @@ func TestCacheConcurrentAck(t *testing.T) {
 // VALIDATES: Buffer returned to pool only when entry evicted with all consumers done.
 // PREVENTS: Buffer leaks or double-free.
 func TestCacheBufferReturnedOnEviction(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -993,7 +993,7 @@ func TestCacheBufferReturnedOnEviction(t *testing.T) {
 // VALIDATES: Entry needs both plugin acks AND retain releases to be evicted.
 // PREVENTS: Premature eviction when either layer still holds a reference.
 func TestCacheRetainPlusPluginConsumers(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -1027,7 +1027,7 @@ func TestCacheRetainPlusPluginConsumers(t *testing.T) {
 // so implicit acks from this plugin skip pre-registration entries.
 // PREVENTS: New plugin accidentally acking old entries via implicit cumulative ack.
 func TestCacheRegisterConsumer(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	// Add entry 1 BEFORE registering plugin
@@ -1059,7 +1059,7 @@ func TestCacheRegisterConsumer(t *testing.T) {
 // and evicts entries that reach zero total consumers.
 // PREVENTS: Memory leak when a plugin disconnects without acking.
 func TestCacheUnregisterConsumer(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.RegisterConsumer("pluginA")
@@ -1098,7 +1098,7 @@ func TestCacheUnregisterConsumer(t *testing.T) {
 // VALIDATES: UnregisterConsumer only affects entries the plugin hasn't acked yet.
 // PREVENTS: Double-decrement of entries already acked by the unregistering plugin.
 func TestCacheUnregisterConsumerPartialAck(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.RegisterConsumer("stays")
@@ -1141,7 +1141,7 @@ func TestCacheUnregisterConsumerPartialAck(t *testing.T) {
 // VALIDATES: UnregisterConsumer is safe to call for unregistered plugins.
 // PREVENTS: Panic or incorrect state mutation for unknown plugin names.
 func TestCacheUnregisterUnknownConsumer(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
@@ -1165,10 +1165,10 @@ func TestSafetyValveConfigurable(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		fc := sim.NewFakeClock(start)
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
 		cache.SetClock(fc)
-		cache.SetSafetyValveDuration(10 * time.Second) // Much shorter than default 5min
+		cache.setSafetyValveDuration(10 * time.Second) // Much shorter than default 5min
 
 		cache.RegisterConsumer("stalled")
 		cache.Add(newTestUpdate(100))
@@ -1199,7 +1199,7 @@ func TestSafetyValveConfigurable(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		fc := sim.NewFakeClock(start)
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
 		cache.SetClock(fc)
 		// No SetSafetyValveDuration call — default 5min should apply.
@@ -1226,9 +1226,9 @@ func TestSafetyValveConfigurable(t *testing.T) {
 	})
 
 	t.Run("zero_uses_default", func(t *testing.T) {
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
-		cache.SetSafetyValveDuration(0) // Should fall back to default.
+		cache.setSafetyValveDuration(0) // Should fall back to default.
 
 		// Verify via the field (internal check).
 		cache.mu.RLock()
@@ -1248,10 +1248,10 @@ func TestSafetyValveConfigurable(t *testing.T) {
 // VALIDATES: Acking a high ID for an unordered consumer only affects that entry.
 // PREVENTS: Route loss when per-source-peer workers process entries out of global order.
 func TestCacheUnorderedConsumerNoSweep(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rr")
-	cache.SetConsumerUnordered("rr")
+	cache.setConsumerUnordered("rr")
 
 	// Add 5 entries, each with 1 consumer
 	for i := uint64(1); i <= 5; i++ {
@@ -1298,10 +1298,10 @@ func TestCacheUnorderedConsumerNoSweep(t *testing.T) {
 // VALIDATES: Unregistering an unordered consumer decrements all pending entries.
 // PREVENTS: Stuck cache entries when unordered consumer disconnects.
 func TestCacheUnorderedConsumerUnregister(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rr")
-	cache.SetConsumerUnordered("rr")
+	cache.setConsumerUnordered("rr")
 
 	for i := uint64(1); i <= 5; i++ {
 		cache.Add(newTestUpdate(i))
@@ -1337,12 +1337,12 @@ func TestCacheUnorderedConsumerUnregister(t *testing.T) {
 // and that consumer's later ForwardCached then logs "BUG: ForwardUpdatesDirect:
 // msgID missing from cache" and forwards the UPDATE to nobody.
 func TestCacheUnorderedUnregisterKeepsEntriesItAlreadyAcked(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rs")
-	cache.SetConsumerUnordered("rs")
+	cache.setConsumerUnordered("rs")
 	cache.RegisterConsumer("slow")
-	cache.SetConsumerUnordered("slow")
+	cache.setConsumerUnordered("slow")
 
 	// Two consumers took delivery of both entries.
 	for i := uint64(1); i <= 2; i++ {
@@ -1397,17 +1397,17 @@ func TestCacheUnorderedUnregisterKeepsEntriesItAlreadyAcked(t *testing.T) {
 // sorted: with a plain append, the binary search for the floor lands past entry
 // 50 and late's obligation on it is never released.
 func TestCacheUnorderedUnregisterSkipsPreRegistrationEntries(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("keeper")
-	cache.SetConsumerUnordered("keeper")
+	cache.setConsumerUnordered("keeper")
 
 	cache.Add(newTestUpdate(40))
 	cache.Activate(40, 1)
 
 	// "late" registers behind entry 40, so its floor is 40.
 	cache.RegisterConsumer("late")
-	cache.SetConsumerUnordered("late")
+	cache.setConsumerUnordered("late")
 
 	// 50 and 60 are delivered to both; 10 carries an id below late's floor, so
 	// it predates late's registration and only keeper owes it.
@@ -1454,12 +1454,12 @@ func TestCacheUnorderedUnregisterSkipsPreRegistrationEntries(t *testing.T) {
 // PREVENTS: the opposite failure of the test above -- an entry pinned to the
 // safety valve because a stale bit made a later consumer's walk skip it.
 func TestCacheUnorderedAckBitClearedOnUnregister(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("first")
-	cache.SetConsumerUnordered("first")
+	cache.setConsumerUnordered("first")
 	cache.RegisterConsumer("keeper")
-	cache.SetConsumerUnordered("keeper")
+	cache.setConsumerUnordered("keeper")
 
 	cache.Add(newTestUpdate(1))
 	cache.Activate(1, 2)
@@ -1507,10 +1507,10 @@ func TestCacheUnorderedAckBitClearedOnUnregister(t *testing.T) {
 // VALIDATES: id <= lastAck is NOT skipped for unordered consumers.
 // PREVENTS: Lost acks when slow workers process older entries after fast workers.
 func TestCacheUnorderedConsumerReAck(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rr")
-	cache.SetConsumerUnordered("rr")
+	cache.setConsumerUnordered("rr")
 
 	cache.Add(newTestUpdate(10))
 	cache.Add(newTestUpdate(20))
@@ -1549,9 +1549,9 @@ func TestGapScanRunsInBackground(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.SetClock(fc)
-	cache.SetSafetyValveDuration(10 * time.Second)
+	cache.setSafetyValveDuration(10 * time.Second)
 
 	cache.RegisterConsumer("stalled")
 	cache.Add(newTestUpdate(100))
@@ -1591,10 +1591,10 @@ func TestAddDoesNotRunGapScanInline(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
-	cache.SetSafetyValveDuration(10 * time.Second)
+	cache.setSafetyValveDuration(10 * time.Second)
 
 	cache.RegisterConsumer("stalled")
 	cache.Add(newTestUpdate(100))
@@ -1626,7 +1626,7 @@ func TestAddDoesNotRunGapScanInline(t *testing.T) {
 // VALIDATES: AC-4 — cumulative ack visits only cached entries, not every integer.
 // PREVENTS: O(gap) cumulative ack loop when non-UPDATE messages consume IDs.
 func TestAckCumulativeSkipsNonCachedIDs(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.RegisterConsumer("rr")
@@ -1668,7 +1668,7 @@ func TestAckCumulativeSkipsNonCachedIDs(t *testing.T) {
 // VALIDATES: AC-6 — only entries with seq > lastAck are decremented.
 // PREVENTS: Double-decrement of already-acked entries during unregister.
 func TestUnregisterConsumerUsesSince(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 
 	cache.RegisterConsumer("stays")
@@ -1713,8 +1713,8 @@ func TestUnregisterConsumerUsesSince(t *testing.T) {
 // VALIDATES: AC-3 — background goroutine exits cleanly within one tick interval.
 // PREVENTS: Goroutine leak on cache shutdown.
 func TestStopCleansUpGoroutine(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
-	cache.SetGapScanInterval(time.Millisecond)
+	cache := newRecentUpdateCache(100)
+	cache.setGapScanInterval(time.Millisecond)
 	cache.Start()
 
 	// Stop should return quickly
@@ -1737,8 +1737,8 @@ func TestStopCleansUpGoroutine(t *testing.T) {
 // VALIDATES: Idempotent Stop — no panic on double close.
 // PREVENTS: Panic from closing an already-closed channel.
 func TestStopIdempotent(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
-	cache.SetGapScanInterval(time.Millisecond)
+	cache := newRecentUpdateCache(100)
+	cache.setGapScanInterval(time.Millisecond)
 	cache.Start()
 
 	// Calling Stop twice should not panic
@@ -1751,7 +1751,7 @@ func TestStopIdempotent(t *testing.T) {
 // VALIDATES: Stop is a no-op when Start was never called.
 // PREVENTS: Nil channel panic when defer cache.Stop() runs without Start().
 func TestStopWithoutStart(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	// Should not panic
 	cache.Stop()
 }
@@ -1761,8 +1761,8 @@ func TestStopWithoutStart(t *testing.T) {
 // VALIDATES: AC-8 — no races with concurrent Add/Get/Ack + background goroutine.
 // PREVENTS: Data race between background gap scan and cache operations.
 func TestConcurrentAddAckWithBackground(t *testing.T) {
-	cache := NewRecentUpdateCache(1000)
-	cache.SetGapScanInterval(time.Millisecond)
+	cache := newRecentUpdateCache(1000)
+	cache.setGapScanInterval(time.Millisecond)
 	cache.Start()
 	defer cache.Stop()
 
@@ -1819,14 +1819,14 @@ func TestPendingCacheNeverExpires(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		fc := sim.NewFakeClock(start)
 
-		cache := NewRecentUpdateCache(batchSize + 100)
+		cache := newRecentUpdateCache(batchSize + 100)
 		defer cache.Stop()
 		cache.SetClock(fc)
-		cache.SetSafetyValveDuration(10 * time.Second)
+		cache.setSafetyValveDuration(10 * time.Second)
 
 		// Mimic rs registration: unordered consumer so per-entry acks only.
 		cache.RegisterConsumer("rs")
-		cache.SetConsumerUnordered("rs")
+		cache.setConsumerUnordered("rs")
 
 		// Seed full-sized batch. Each entry has one pending consumer (rs).
 		for i := uint64(1); i <= batchSize; i++ {
@@ -1856,13 +1856,13 @@ func TestPendingCacheNeverExpires(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		fc := sim.NewFakeClock(start)
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
 		cache.SetClock(fc)
-		cache.SetSafetyValveDuration(5 * time.Minute)
+		cache.setSafetyValveDuration(5 * time.Minute)
 
 		cache.RegisterConsumer("rs")
-		cache.SetConsumerUnordered("rs")
+		cache.setConsumerUnordered("rs")
 
 		// Add 5 entries with one consumer each.
 		for i := uint64(1); i <= 5; i++ {
@@ -1892,13 +1892,13 @@ func TestPendingCacheNeverExpires(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		fc := sim.NewFakeClock(start)
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		defer cache.Stop()
 		cache.SetClock(fc)
-		cache.SetSafetyValveDuration(time.Hour)
+		cache.setSafetyValveDuration(time.Hour)
 
 		cache.RegisterConsumer("rs")
-		cache.SetConsumerUnordered("rs")
+		cache.setConsumerUnordered("rs")
 
 		for i := uint64(1); i <= 10; i++ {
 			cache.Add(newTestUpdate(i))
@@ -1940,12 +1940,12 @@ func TestPendingCacheNeverExpires(t *testing.T) {
 // clock and drives runGapScan.
 func gapCacheUnderPressure(t *testing.T, fc *sim.FakeClock, ratio, highWater float64, pressureValve time.Duration, stalledID, healthyID uint64) *RecentUpdateCache {
 	t.Helper()
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.SetClock(fc)
-	cache.SetSafetyValveDuration(5 * time.Minute)
-	cache.SetPressureValve(pressureValve)
-	cache.SetPressureHighWater(highWater)
-	cache.SetPressureSource(func() float64 { return ratio })
+	cache.setSafetyValveDuration(5 * time.Minute)
+	cache.setPressureValve(pressureValve)
+	cache.setPressureHighWater(highWater)
+	cache.setPressureSource(func() float64 { return ratio })
 
 	cache.RegisterConsumer("stalled")
 	cache.Add(newTestUpdate(stalledID))
@@ -2006,13 +2006,13 @@ func TestCacheFrontierRetainedUnderPressure(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
-	cache.SetSafetyValveDuration(5 * time.Minute)
-	cache.SetPressureValve(10 * time.Second)
-	cache.SetPressureHighWater(0.80)
-	cache.SetPressureSource(func() float64 { return 0.99 }) // maximum pressure
+	cache.setSafetyValveDuration(5 * time.Minute)
+	cache.setPressureValve(10 * time.Second)
+	cache.setPressureHighWater(0.80)
+	cache.setPressureSource(func() float64 { return 0.99 }) // maximum pressure
 
 	// Single entry with a live consumer at the frontier: no later entry fully acked.
 	cache.Add(newTestUpdate(1))
@@ -2037,13 +2037,13 @@ func TestCacheSoftLimitStaysWarnOnlyUnderPressure(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(3) // soft limit 3
+	cache := newRecentUpdateCache(3) // soft limit 3
 	defer cache.Stop()
 	cache.SetClock(fc)
-	cache.SetSafetyValveDuration(5 * time.Minute)
-	cache.SetPressureValve(10 * time.Second)
-	cache.SetPressureHighWater(0.80)
-	cache.SetPressureSource(func() float64 { return 0.95 })
+	cache.setSafetyValveDuration(5 * time.Minute)
+	cache.setPressureValve(10 * time.Second)
+	cache.setPressureHighWater(0.80)
+	cache.setPressureSource(func() float64 { return 0.95 })
 
 	// Add 5 entries past the soft limit of 3 — Add must NEVER reject.
 	cache.RegisterConsumer("stalled")
@@ -2124,13 +2124,13 @@ func TestCacheNormalLoadUnchanged(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	fc := sim.NewFakeClock(start)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.SetClock(fc)
-	cache.SetSafetyValveDuration(5 * time.Minute)
+	cache.setSafetyValveDuration(5 * time.Minute)
 	// High-water left at the default 0 = feature DISABLED.
 	// A high pressure signal must be ignored while the feature is off.
-	cache.SetPressureSource(func() float64 { return 0.99 })
+	cache.setPressureSource(func() float64 { return 0.99 })
 
 	cache.RegisterConsumer("stalled")
 	cache.Add(newTestUpdate(100))
@@ -2263,7 +2263,7 @@ func TestReactorPressureDisabledByDefault(t *testing.T) {
 // at or above the target leaves the ones behind it unacked, and nothing else
 // releases them until the 5-minute safety valve.
 func TestCacheFIFOCumulativeAckSweepsOutOfOrderEntries(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("fifo")
 

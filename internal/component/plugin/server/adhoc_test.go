@@ -25,7 +25,7 @@ func TestAdHocProcessHandshake(t *testing.T) {
 
 	// Minimal server with required fields for handshake.
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),
@@ -95,7 +95,7 @@ func TestAdHocProcessRuntime(t *testing.T) {
 
 	// Server with dispatch-command support.
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),
@@ -162,7 +162,7 @@ func TestNewWithIO(t *testing.T) {
 
 	// Minimal server for handshake.
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),

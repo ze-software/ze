@@ -25,13 +25,13 @@ func (p *Peer) AcceptConnection(conn net.Conn) error {
 	return session.Accept(conn)
 }
 
-// CurrentSession returns the peer's live session under p.mu, or nil when the peer
+// currentSession returns the peer's live session under p.mu, or nil when the peer
 // has none: it has never connected, or its run loop is between sessions.
 //
 // The reload path uses it to take the swap-or-restart decision against what the
 // running session actually negotiated (peer_settings_negotiation.go). A nil result
 // is the honest answer that there is no negotiation to preserve, which restarts.
-func (p *Peer) CurrentSession() *Session {
+func (p *Peer) currentSession() *Session {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.session

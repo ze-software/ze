@@ -106,8 +106,8 @@ func (h HashAlgo) String() string {
 	return unknownEnum
 }
 
-// ParseHashAlgo returns the HashAlgo for a YANG enum value.
-func ParseHashAlgo(s string) (HashAlgo, bool) {
+// parseHashAlgo returns the HashAlgo for a YANG enum value.
+func parseHashAlgo(s string) (HashAlgo, bool) {
 	a, ok := hashByName[s]
 	return a, ok
 }
@@ -150,8 +150,8 @@ func (p PFSMode) String() string {
 	return unknownEnum
 }
 
-// ParsePFSMode returns the PFSMode for a YANG enum value.
-func ParsePFSMode(s string) (PFSMode, bool) {
+// parsePFSMode returns the PFSMode for a YANG enum value.
+func parsePFSMode(s string) (PFSMode, bool) {
 	a, ok := pfsByName[s]
 	return a, ok
 }
@@ -225,8 +225,8 @@ func (c ConnectionType) String() string {
 	return unknownEnum
 }
 
-// ParseConnectionType returns the ConnectionType for a YANG enum value.
-func ParseConnectionType(s string) (ConnectionType, bool) {
+// parseConnectionType returns the ConnectionType for a YANG enum value.
+func parseConnectionType(s string) (ConnectionType, bool) {
 	t, ok := connectionTypeByName[s]
 	return t, ok
 }
@@ -262,8 +262,8 @@ func (c CloseAction) String() string {
 	return unknownEnum
 }
 
-// ParseCloseAction returns the CloseAction for a YANG enum value.
-func ParseCloseAction(s string) (CloseAction, bool) {
+// parseCloseAction returns the CloseAction for a YANG enum value.
+func parseCloseAction(s string) (CloseAction, bool) {
 	a, ok := closeActionByName[s]
 	return a, ok
 }
@@ -299,8 +299,8 @@ func (d DPDAction) String() string {
 	return unknownEnum
 }
 
-// ParseDPDAction returns the DPDAction for a YANG enum value.
-func ParseDPDAction(s string) (DPDAction, bool) {
+// parseDPDAction returns the DPDAction for a YANG enum value.
+func parseDPDAction(s string) (DPDAction, bool) {
 	a, ok := dpdActionByName[s]
 	return a, ok
 }
@@ -334,8 +334,8 @@ func (k KeyExchange) String() string {
 	return unknownEnum
 }
 
-// ParseKeyExchange returns the KeyExchange for a YANG enum value.
-func ParseKeyExchange(s string) (KeyExchange, bool) {
+// parseKeyExchange returns the KeyExchange for a YANG enum value.
+func parseKeyExchange(s string) (KeyExchange, bool) {
 	v, ok := keyExchangeByName[s]
 	return v, ok
 }

@@ -27,7 +27,7 @@ func TestHeapBytesPerPluginRIBRoute(t *testing.T) {
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 
 	runtime.GC()
 	runtime.GC()

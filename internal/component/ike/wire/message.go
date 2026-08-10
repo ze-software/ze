@@ -127,9 +127,9 @@ func (m *Message) ReadFrom(data []byte) error {
 			// Section 2.5 puts the one-octet payload type in the answering Notify, so
 			// the error carries it out to the caller that builds that Notify.
 			if gh.Critical {
-				return &UnsupportedCritError{PayloadType: nextType}
+				return &unsupportedCritError{PayloadType: nextType}
 			}
-			payload = &PayloadRaw{PayloadType: nextType, Data: bodyData}
+			payload = &payloadRaw{PayloadType: nextType, Data: bodyData}
 		default:
 			return err
 		}

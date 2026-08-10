@@ -228,7 +228,7 @@ func TestFrameLen(t *testing.T) {
 		{1498, 1500},
 	}
 	for _, tc := range cases {
-		got := FrameLen(tc.payloadLen)
+		got := frameLen(tc.payloadLen)
 		if got != tc.want {
 			t.Errorf("FrameLen(%d) = %d, want %d", tc.payloadLen, got, tc.want)
 		}

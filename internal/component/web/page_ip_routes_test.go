@@ -17,7 +17,7 @@ func TestRouteTableData_Build(t *testing.T) {
 		{Destination: "172.16.0.0/12", NextHop: "10.0.0.1", Device: "eth1", Protocol: "bgp", Metric: 20, Family: "ipv4"},
 	}
 
-	data := BuildRouteTableData(routes, "")
+	data := buildRouteTableData(routes, "")
 	assert.Equal(t, "Routes", data.Title)
 	require.Len(t, data.Rows, 3)
 	assert.Equal(t, "0.0.0.0/0", data.Rows[0].Key)
@@ -53,11 +53,11 @@ func TestRouteTableData_FilterByProtocol(t *testing.T) {
 		{Destination: "172.16.0.0/12", Protocol: "bgp", Family: "ipv4"},
 	}
 
-	data := BuildRouteTableData(routes, "static")
+	data := buildRouteTableData(routes, "static")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "0.0.0.0/0", data.Rows[0].Key)
 
-	data = BuildRouteTableData(routes, "bgp")
+	data = buildRouteTableData(routes, "bgp")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "172.16.0.0/12", data.Rows[0].Key)
 }
@@ -68,14 +68,14 @@ func TestRouteTableData_EmptyGateway(t *testing.T) {
 		{Destination: "10.0.0.0/8", NextHop: "", Device: "eth0", Protocol: "kernel", Family: "ipv4"},
 	}
 
-	data := BuildRouteTableData(routes, "")
+	data := buildRouteTableData(routes, "")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "-", data.Rows[0].Cells[1]) // gateway column
 }
 
 // TestRouteTableData_Empty verifies empty state.
 func TestRouteTableData_Empty(t *testing.T) {
-	data := BuildRouteTableData(nil, "")
+	data := buildRouteTableData(nil, "")
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "No routes")
 }

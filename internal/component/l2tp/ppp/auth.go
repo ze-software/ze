@@ -228,7 +228,7 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 		}
 		reason := tb.Str("auth timeout after ").Str(timeout.String()).String()
 		s.fail(reason)
-		s.sendAuthEvent(EventAuthFailure{
+		s.sendAuthEvent(eventAuthFailure{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 			Reason:    "timeout",
@@ -329,7 +329,7 @@ func waitCHAPLike[T any](
 			var tb textbuf.Buffer
 			reason := tb.Str(label).Str(": timeout awaiting Response for identifier ").Uint(uint64(wantID)).String()
 			s.fail(reason)
-			s.sendAuthEvent(EventAuthFailure{
+			s.sendAuthEvent(eventAuthFailure{
 				TunnelID:  s.tunnelID,
 				SessionID: s.sessionID,
 				Reason:    "timeout",
@@ -342,10 +342,10 @@ func waitCHAPLike[T any](
 // waitCHAPResponse is the CHAP-MD5 specialization of waitCHAPLike.
 // Silent-discards Responses whose Identifier differs from wantID per
 // RFC 1994 §4.1 and AC-16.
-func (s *pppSession) waitCHAPResponse(wantID uint8) (CHAPResponse, bool) {
+func (s *pppSession) waitCHAPResponse(wantID uint8) (cHAPResponse, bool) {
 	return waitCHAPLike(s, "chap", wantID,
-		func(p []byte) (CHAPResponse, uint8, error) {
-			r, err := ParseCHAPResponse(p)
+		func(p []byte) (cHAPResponse, uint8, error) {
+			r, err := parseCHAPResponse(p)
 			return r, r.Identifier, err
 		},
 	)
@@ -355,10 +355,10 @@ func (s *pppSession) waitCHAPResponse(wantID uint8) (CHAPResponse, bool) {
 // ParseMSCHAPv2Response enforces the RFC 2759 §4 shape (49-byte
 // Response, Reserved/Flags == 0) as hard errors; identifier mismatch
 // is the only case that loops.
-func (s *pppSession) waitMSCHAPv2Response(wantID uint8) (MSCHAPv2Response, bool) {
+func (s *pppSession) waitMSCHAPv2Response(wantID uint8) (mSCHAPv2Response, bool) {
 	return waitCHAPLike(s, "chap-v2", wantID,
-		func(p []byte) (MSCHAPv2Response, uint8, error) {
-			r, err := ParseMSCHAPv2Response(p)
+		func(p []byte) (mSCHAPv2Response, uint8, error) {
+			r, err := parseMSCHAPv2Response(p)
 			return r, r.Identifier, err
 		},
 	)

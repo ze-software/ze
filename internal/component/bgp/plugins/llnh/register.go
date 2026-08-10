@@ -20,19 +20,19 @@ func init() {
 		Dependencies:    []string{"bgp"},
 		YANG:            llnhyang.ZeLinkLocalNexthopYANG,
 		CapabilityCodes: []uint8{77},
-		RunEngine:       RunLLNHPlugin,
+		RunEngine:       runLLNHPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetLLNHLogger(slogutil.Logger(loggerName))
+			setLLNHLogger(slogutil.Logger(loggerName))
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = GetLLNHYANG
+		cfg.GetYANG = getLLNHYANG
 		cfg.ConfigLogger = func(level string) {
-			SetLLNHLogger(slogutil.PluginLogger(reg.Name, level))
+			setLLNHLogger(slogutil.PluginLogger(reg.Name, level))
 		}
-		cfg.RunCLIDecode = RunLLNHCLIDecode
-		cfg.RunDecode = RunLLNHDecodeMode
+		cfg.RunCLIDecode = runLLNHCLIDecode
+		cfg.RunDecode = runLLNHDecodeMode
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

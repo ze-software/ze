@@ -56,13 +56,13 @@ func TestSourceIDConvenienceMethods(t *testing.T) {
 		if got := tt.id.IsValid(); got != tt.valid {
 			t.Errorf("SourceID(%d).IsValid() = %v, want %v", tt.id, got, tt.valid)
 		}
-		if got := tt.id.IsPeer(); got != tt.isPeer {
+		if got := tt.id.isPeer(); got != tt.isPeer {
 			t.Errorf("SourceID(%d).IsPeer() = %v, want %v", tt.id, got, tt.isPeer)
 		}
 		if got := tt.id.IsAPI(); got != tt.isAPI {
 			t.Errorf("SourceID(%d).IsAPI() = %v, want %v", tt.id, got, tt.isAPI)
 		}
-		if got := tt.id.IsConfig(); got != tt.isConfig {
+		if got := tt.id.isConfig(); got != tt.isConfig {
 			t.Errorf("SourceID(%d).IsConfig() = %v, want %v", tt.id, got, tt.isConfig)
 		}
 	}

@@ -187,7 +187,7 @@ func TestReloadListenersRefusesUnauthNonLoopback(t *testing.T) {
 	// PREVENTS: a boot-only exposure guard failing open when a reload moves an
 	// unauthenticated listener off loopback.
 	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
-	migrator := NewListenerMigrator(nil)
+	migrator := newListenerMigrator(nil)
 	migrator.web = web
 	migrator.MarkUnauthenticated("web")
 
@@ -205,7 +205,7 @@ func TestReloadListenersAllowsAuthenticatedNonLoopback(t *testing.T) {
 	// A service NOT marked unauthenticated may migrate to a non-loopback
 	// address (auth middleware protects it): the gate must not over-refuse.
 	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
-	migrator := NewListenerMigrator(nil)
+	migrator := newListenerMigrator(nil)
 	migrator.web = web
 
 	_, err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))

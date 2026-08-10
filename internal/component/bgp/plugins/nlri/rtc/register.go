@@ -20,7 +20,7 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"ipv4/rtc"},
-		RunEngine:    RunRTCPlugin,
+		RunEngine:    runRTCPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
 		},

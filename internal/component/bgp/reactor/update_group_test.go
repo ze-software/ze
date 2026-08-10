@@ -50,7 +50,7 @@ func TestUpdateGroupKey(t *testing.T) {
 // VALIDATES: Add peer to index, remove peer, verify membership.
 // PREVENTS: Peer not tracked after Add, or still tracked after Remove.
 func TestUpdateGroupAddRemove(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 5)
 	idx.Add(peer)
@@ -69,7 +69,7 @@ func TestUpdateGroupAddRemove(t *testing.T) {
 // VALIDATES: Two peers with same sendCtxID join the same group.
 // PREVENTS: Peers with identical encoding being placed in separate groups.
 func TestUpdateGroupFormation(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer1 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 7)
 	peer2 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.2"), 7)
@@ -86,7 +86,7 @@ func TestUpdateGroupFormation(t *testing.T) {
 // VALIDATES: Two peers with different sendCtxID get separate groups.
 // PREVENTS: Peers with different encoding contexts sharing a group (would produce wrong wire bytes).
 func TestUpdateGroupDifferentContexts(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer1 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 3)
 	peer2 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.2"), 4)
@@ -105,7 +105,7 @@ func TestUpdateGroupDifferentContexts(t *testing.T) {
 // VALIDATES: Last peer removed from a group deletes the group entry.
 // PREVENTS: Empty groups accumulating in the index (memory leak).
 func TestUpdateGroupTeardown(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer1 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 9)
 	peer2 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.2"), 9)
@@ -128,7 +128,7 @@ func TestUpdateGroupTeardown(t *testing.T) {
 // VALIDATES: Peer moves between groups when sendCtxID changes (renegotiation).
 // PREVENTS: Stale group membership after capability renegotiation.
 func TestUpdateGroupRenegotiation(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 10)
 	idx.Add(peer)
@@ -188,7 +188,7 @@ func TestUpdateGroupDisabledByEnv(t *testing.T) {
 // VALIDATES: All-unique-context peers: N peers = N groups (no false sharing).
 // PREVENTS: Unrelated peers being grouped together due to hash collisions or bugs.
 func TestUpdateGroupNoRegression(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peers := make([]*Peer, 10)
 	for i := range peers {
@@ -206,7 +206,7 @@ func TestUpdateGroupNoRegression(t *testing.T) {
 // VALIDATES: GroupsForPeers returns correctly grouped peers.
 // PREVENTS: GroupsForPeers returning wrong membership or missing peers.
 func TestUpdateGroupGroupsForPeers(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	// 3 peers: two with ctxID=5, one with ctxID=6
 	peer1 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 5)
@@ -241,7 +241,7 @@ func TestUpdateGroupGroupsForPeers(t *testing.T) {
 // VALIDATES: Peer with ctxID=0 (not established) is not grouped.
 // PREVENTS: Unestablished peers contaminating update groups.
 func TestUpdateGroupZeroContextID(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 0)
 	idx.Add(peer)
@@ -252,7 +252,7 @@ func TestUpdateGroupZeroContextID(t *testing.T) {
 // VALIDATES: Double-Remove safety -- peer.updateGroupKey cleared on first Remove.
 // PREVENTS: Panic or corruption on redundant Remove calls.
 func TestUpdateGroupDoubleRemove(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 11)
 	idx.Add(peer)
@@ -272,7 +272,7 @@ func TestUpdateGroupDoubleRemove(t *testing.T) {
 // VALIDATES: Re-establishment with identical capabilities works.
 // PREVENTS: Stale state from previous session interfering with new group membership.
 func TestUpdateGroupReestablishSameCtxID(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 12)
 	idx.Add(peer)
@@ -297,7 +297,7 @@ func TestUpdateGroupReestablishSameCtxID(t *testing.T) {
 // VALIDATES: Mutex protects concurrent access correctly.
 // PREVENTS: Data races between concurrent peer lifecycle events.
 func TestUpdateGroupConcurrentAddRemove(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	const numPeers = 100
 	peers := make([]*Peer, numPeers)
@@ -344,7 +344,7 @@ func TestUpdateGroupConcurrentAddRemove(t *testing.T) {
 // VALIDATES: Empty input handled correctly.
 // PREVENTS: Nil pointer dereference on empty peer list.
 func TestUpdateGroupGroupsForPeersEmpty(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	// Add a peer so the index is non-empty, then query with empty slice.
 	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 13)
@@ -357,7 +357,7 @@ func TestUpdateGroupGroupsForPeersEmpty(t *testing.T) {
 // VALIDATES: Unestablished peers filtered correctly.
 // PREVENTS: Groups created for unestablished peers.
 func TestUpdateGroupGroupsForPeersAllZeroCtxID(t *testing.T) {
-	idx := NewUpdateGroupIndex(true)
+	idx := newUpdateGroupIndex(true)
 
 	// Create peers with ctxID=0 (not established).
 	peer1 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 0)

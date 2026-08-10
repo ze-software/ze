@@ -154,7 +154,7 @@ function tpSync(){
     <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
 
 	// Donut chart showing peer status distribution.
-	counts := s.StatusCounts()
+	counts := s.statusCounts()
 	writeDonut(w, counts, s.PeerCount)
 	writeDonutLegend(w, counts)
 	writeDonutEnd(w)
@@ -163,7 +163,7 @@ function tpSync(){
       <div class="stat-grid">
         <span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>
         <span class="stat-label">Msgs</span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span><span class="stat-value">` + itoa(s.TotalReceived) + `</span>
-        <span class="stat-label">Bytes</span><span class="stat-value">` + FormatBytes(s.TotalBytesSent) + `</span><span class="stat-value">` + FormatBytes(s.TotalBytesRecv) + `</span>
+        <span class="stat-label">Bytes</span><span class="stat-value">` + formatBytes(s.TotalBytesSent) + `</span><span class="stat-value">` + formatBytes(s.TotalBytesRecv) + `</span>
         <span class="stat-label">Rate</span><span class="stat-value">` + FormatBitRate(s.AggregateThroughput(true)) + `</span><span class="stat-value">` + FormatBitRate(s.AggregateThroughput(false)) + `</span>
         <span class="stat-label">Wdraw</span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span>
       </div>
@@ -339,7 +339,7 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 		if ps == nil {
 			continue
 		}
-		pinned := state.Active.IsPinned(idx)
+		pinned := state.Active.isPinned(idx)
 		pinClass := cssPinDefault
 		if pinned {
 			pinClass = cssPinPinned
@@ -350,8 +350,8 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 		h.writef(`<td><span class="dot %s"></span> %s</td>`, ps.Status.CSSClass(), ps.Status.String())
 		h.writef(`<td>%d</td>`, ps.RoutesSent)
 		h.writef(`<td>%d</td>`, ps.RoutesRecv)
-		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesSent))
-		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesRecv))
+		h.writef(`<td>%s</td>`, formatBytes(ps.BytesSent))
+		h.writef(`<td>%s</td>`, formatBytes(ps.BytesRecv))
 		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputOut))
 		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputIn))
 		h.writef(`<td>%d</td>`, ps.ChaosCount)
@@ -459,22 +459,22 @@ func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter, sea
 }
 
 // toastForEvent returns a ToastEntry for toast-worthy events, or false for non-toast events.
-func toastForEvent(ev peer.Event) (ToastEntry, bool) {
+func toastForEvent(ev peer.Event) (toastEntry, bool) {
 	switch ev.Type {
 	case peer.EventDisconnected:
-		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "disconnected", CSSClass: "toast-error", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: "disconnected", CSSClass: "toast-error", Time: ev.Time}, true
 	case peer.EventReconnecting:
-		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "reconnecting", CSSClass: "toast-warn", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: "reconnecting", CSSClass: "toast-warn", Time: ev.Time}, true
 	case peer.EventError:
 		detail := ""
 		if ev.Err != nil {
 			detail = ev.Err.Error()
 		}
-		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "error", Detail: detail, CSSClass: "toast-error", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: "error", Detail: detail, CSSClass: "toast-error", Time: ev.Time}, true
 	case peer.EventChaosExecuted:
-		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "chaos", Detail: ev.ChaosAction, CSSClass: "toast-warn", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: "chaos", Detail: ev.ChaosAction, CSSClass: "toast-warn", Time: ev.Time}, true
 	default:
-		return ToastEntry{}, false
+		return toastEntry{}, false
 	}
 }
 
@@ -482,7 +482,7 @@ func toastForEvent(ev peer.Event) (ToastEntry, bool) {
 // Delivered via SSE event "toast" — the container's sse-swap="toast" + hx-swap="beforeend"
 // handles insertion. No hx-swap-oob here: OOB treats the root element as a wrapper and
 // discards it, losing the toast div's class/style/onclick.
-func renderToast(t ToastEntry) string {
+func renderToast(t toastEntry) string {
 	detail := ""
 	if t.Detail != "" {
 		detail = ` — ` + escapeHTML(t.Detail)
@@ -602,7 +602,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []stri
   </div>
 </div>`, ps.Status.CSSClass(), ps.Status.String(),
 		ps.RoutesSent, ps.RoutesRecv, ps.Missing,
-		FormatBytes(ps.BytesSent), FormatBytes(ps.BytesRecv),
+		formatBytes(ps.BytesSent), formatBytes(ps.BytesRecv),
 		FormatBitRate(ps.throughputOut), FormatBitRate(ps.throughputIn),
 		ps.ChaosCount, ps.Reconnects)
 
@@ -646,7 +646,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []stri
 	for i := len(events) - 1; i >= 0; i-- {
 		ev := events[i]
 		evClass := eventTypeClass(ev.Type)
-		elapsed := FormatElapsed(time.Since(ev.Time))
+		elapsed := formatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
 		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">%s</span><span>%s</span></div>`,
@@ -671,7 +671,7 @@ func writeRecentEvents(w io.Writer, s *DashboardState) {
 	for i := len(events) - 1; i >= start; i-- {
 		ev := events[i]
 		evClass := eventTypeClass(ev.Type)
-		elapsed := FormatElapsed(time.Since(ev.Time))
+		elapsed := formatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		h.writef(`<div class="event-row"><span class="event-time">%s</span><span class="event-type %s">p%d %s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, label)

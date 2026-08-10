@@ -162,8 +162,8 @@ func (p *ASPath) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
 	return p.LenWithASN4(false)
 }
 
-// CheckedWriteToWithContext validates capacity before writing with context.
-func (p *ASPath) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
+// checkedWriteToWithContext validates capacity before writing with context.
+func (p *ASPath) checkedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
 	needed := p.LenWithContext(srcCtx, dstCtx)
 	if len(buf) < off+needed {
 		return 0, wire.ErrBufferTooSmall

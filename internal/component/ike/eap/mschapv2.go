@@ -145,9 +145,9 @@ func GenerateAuthenticatorResponse(password string, ntResponse [24]byte, peerCha
 	return out
 }
 
-// VerifyNTResponse checks whether the received NT-Response matches the expected value.
+// verifyNTResponse checks whether the received NT-Response matches the expected value.
 // Uses constant-time comparison to prevent timing attacks.
-func VerifyNTResponse(authChallenge, peerChallenge [16]byte, userName, password string, received [24]byte) bool {
+func verifyNTResponse(authChallenge, peerChallenge [16]byte, userName, password string, received [24]byte) bool {
 	expected := GenerateNTResponse(authChallenge, peerChallenge, userName, password)
 	return constantTimeEqual(expected[:], received[:])
 }
@@ -216,9 +216,9 @@ func DeriveMSK(password string, ntResponse [24]byte) [64]byte {
 	return msk
 }
 
-// StripDomain removes a DOMAIN\ prefix from a username for ChallengeHash.
+// stripDomain removes a DOMAIN\ prefix from a username for ChallengeHash.
 // RFC 2759: UserName in ChallengeHash excludes the domain prefix.
-func StripDomain(userName string) string {
+func stripDomain(userName string) string {
 	for i := range userName {
 		if userName[i] == '\\' {
 			return userName[i+1:]

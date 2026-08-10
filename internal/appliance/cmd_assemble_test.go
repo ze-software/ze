@@ -25,7 +25,7 @@ func TestAssembleProducesZeFS(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "asm")
+	dbPath := databasePath(dir, "asm")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open database: %v", err)
@@ -68,7 +68,7 @@ func TestAssembleReusesExistingCert(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "cert-reuse")
+	dbPath := databasePath(dir, "cert-reuse")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -113,7 +113,7 @@ func TestAssembleConfigLayering(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "layered")
+	dbPath := databasePath(dir, "layered")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -142,7 +142,7 @@ func TestAssembleDefaultZeConf(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "noconf")
+	dbPath := databasePath(dir, "noconf")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -167,7 +167,7 @@ func TestAssembleHostnamePatch(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "hostname")
+	dbPath := databasePath(dir, "hostname")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -195,7 +195,7 @@ func TestAssembleWrongPassphraseFails(t *testing.T) {
 		t.Errorf("assemble should fail with wrong passphrase, got %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "wrongpw")
+	dbPath := databasePath(dir, "wrongpw")
 	if _, err := os.Stat(dbPath); err == nil {
 		t.Error("no partial database should remain after failed assemble")
 	}
@@ -209,7 +209,7 @@ func TestAssembleAutoDeleteZeFS(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "autodel")
+	dbPath := databasePath(dir, "autodel")
 	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
 		t.Error("database.zefs should be auto-deleted without --keep")
 	}
@@ -223,7 +223,7 @@ func TestAssembleKeepRetainsZeFS(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "kept")
+	dbPath := databasePath(dir, "kept")
 	if _, err := os.Stat(dbPath); err != nil {
 		t.Error("database.zefs should be retained with --keep")
 	}
@@ -245,7 +245,7 @@ func TestAssembleSeedConfigIncludesSSHPort(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "sshport")
+	dbPath := databasePath(dir, "sshport")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -280,7 +280,7 @@ func TestAssembleSeedConfigIncludesWebPort(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "webport")
+	dbPath := databasePath(dir, "webport")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -309,7 +309,7 @@ func TestAssembleIncludesAuthorizedKeys(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	dbPath := DatabasePath(dir, "authkeys")
+	dbPath := databasePath(dir, "authkeys")
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)

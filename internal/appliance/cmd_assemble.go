@@ -45,7 +45,7 @@ func runAssemble(args []string) int {
 	}
 
 	var passphrase []byte
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		var resolveErr error
 		passphrase, _, resolveErr = ResolvePassphrase(nil)
 		if resolveErr != nil {
@@ -55,7 +55,7 @@ func runAssemble(args []string) int {
 		defer ZeroBytes(passphrase)
 	}
 
-	dbPath := DatabasePath(dir, name)
+	dbPath := databasePath(dir, name)
 	if code := assembleZeFS(dir, name, cfg, passphrase, dbPath); code != exitOK {
 		return code
 	}
@@ -71,20 +71,20 @@ func runAssemble(args []string) int {
 }
 
 func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte, dbPath string) int {
-	passwordHash, err := ReadSecret(secretFilePath(baseDir, name, "password.hash"), passphrase)
+	passwordHash, err := readSecret(secretFilePath(baseDir, name, "password.hash"), passphrase)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read password hash: %v\n", err)
 		return exitError
 	}
 	defer ZeroBytes(passwordHash)
 
-	certPEM, err := os.ReadFile(filepath.Join(TLSDir(baseDir, name), "cert.pem")) //nolint:gosec // appliance secret
+	certPEM, err := os.ReadFile(filepath.Join(tLSDir(baseDir, name), "cert.pem")) //nolint:gosec // appliance secret
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read cert: %v\n", err)
 		return exitError
 	}
 
-	keyPEM, err := ReadSecret(filepath.Join(TLSDir(baseDir, name), "key.pem"), passphrase)
+	keyPEM, err := readSecret(filepath.Join(tLSDir(baseDir, name), "key.pem"), passphrase)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read key: %v\n", err)
 		return exitError
@@ -123,7 +123,7 @@ func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte,
 	if seedConfig != "" {
 		entries = append(entries,
 			struct{ key, value string }{zefs.KeyFileTemplate.Key("ze.conf"), seedConfig},
-			struct{ key, value string }{zefs.KeyConfigLastKnownGood.Pattern, ConfigHash(seedConfig)},
+			struct{ key, value string }{zefs.KeyConfigLastKnownGood.Pattern, configHash(seedConfig)},
 		)
 	}
 

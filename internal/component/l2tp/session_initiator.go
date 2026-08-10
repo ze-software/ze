@@ -330,7 +330,7 @@ func parseAssignedSessionIDReply(payload []byte, expectedMsg MessageType, msgNam
 			if attrType != AVPMessageType {
 				return 0, fmt.Errorf("l2tp: first %s AVP must be Message Type (RFC 2661 S4.1)", msgName)
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return 0, fmt.Errorf("l2tp: read %s message type: %w", msgName, rerr)
 			}
@@ -341,7 +341,7 @@ func parseAssignedSessionIDReply(payload []byte, expectedMsg MessageType, msgNam
 			continue
 		}
 		if attrType == AVPAssignedSessionID {
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return 0, fmt.Errorf("l2tp: read %s assigned session id: %w", msgName, rerr)
 			}

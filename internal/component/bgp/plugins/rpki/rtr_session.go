@@ -57,7 +57,7 @@ type RTRSession struct {
 	mu        sync.Mutex
 	stopCh    <-chan struct{}
 	cache     *ROACache
-	aspaCache *ASPACache
+	aspaCache *aSPACache
 
 	// onASPAChange is called after ASPA data changes at End of Data.
 	// The argument is the set of customer ASNs that were modified.
@@ -68,8 +68,8 @@ type RTRSession struct {
 	onROAChange func()
 }
 
-// NewRTRSession creates a new RTR session for the given cache server.
-func NewRTRSession(address string, port uint16, pref uint8, sourceAddress string, cache *ROACache, aspaCache *ASPACache, stopCh <-chan struct{}) *RTRSession {
+// newRTRSession creates a new RTR session for the given cache server.
+func newRTRSession(address string, port uint16, pref uint8, sourceAddress string, cache *ROACache, aspaCache *aSPACache, stopCh <-chan struct{}) *RTRSession {
 	return &RTRSession{
 		address:         address,
 		port:            port,
@@ -226,7 +226,7 @@ func (s *RTRSession) readLoop(conn net.Conn) error {
 }
 
 // handlePDU processes a single RTR PDU. Returns true when session sync is complete.
-func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
+func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 	switch hdr.Type {
 	case pduCacheResp:
 		s.mu.Lock()
@@ -316,7 +316,7 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		aspaWithdrawn := len(s.pendingASPADels)
 		var aspaChanged []uint32
 		if s.aspaCache != nil && (aspaAnnounced > 0 || aspaWithdrawn > 0) {
-			aspaChanged = s.aspaCache.ChangedCustomers(s.pendingASPADels, s.pendingASPAs)
+			aspaChanged = s.aspaCache.changedCustomers(s.pendingASPADels, s.pendingASPAs)
 			s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
 		}
 		s.pendingASPAs = nil

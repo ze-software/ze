@@ -18,7 +18,7 @@ func TestAssembleWritesLastKnownGood(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	store, err := zefs.Open(DatabasePath(dir, "lkg"))
+	store, err := zefs.Open(databasePath(dir, "lkg"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestLastKnownGoodHashMatchesSeedConfig(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	store, err := zefs.Open(DatabasePath(dir, "lkg-hash"))
+	store, err := zefs.Open(databasePath(dir, "lkg-hash"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestLastKnownGoodHashMatchesSeedConfig(t *testing.T) {
 	}
 
 	cfg, _ := LoadConfig(ConfigPath(dir, "lkg-hash"))
-	want := ConfigHash(appendListenerOverrides(seedContent, cfg))
+	want := configHash(appendListenerOverrides(seedContent, cfg))
 	got := string(data)
 	if got != want {
 		t.Errorf("last-known-good hash = %q, want %q", got, want)
@@ -74,7 +74,7 @@ func TestBuildWritesLastKnownGood(t *testing.T) {
 		t.Fatalf("assemble returned %d", code)
 	}
 
-	store, err := zefs.Open(DatabasePath(dir, "build-lkg"))
+	store, err := zefs.Open(databasePath(dir, "build-lkg"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestBuildWritesLastKnownGood(t *testing.T) {
 	}
 
 	cfg, _ := LoadConfig(ConfigPath(dir, "build-lkg"))
-	want := ConfigHash(appendListenerOverrides("set environment log level debug\n", cfg))
+	want := configHash(appendListenerOverrides("set environment log level debug\n", cfg))
 	if string(data) != want {
 		t.Errorf("hash = %q, want %q", string(data), want)
 	}

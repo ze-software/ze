@@ -80,7 +80,7 @@ func All() *Selector                      { return &Selector{kind: KindAll} }
 func Addr(ip netip.Addr) *Selector        { return &Selector{kind: KindAddr, ip: ip} }
 func ExcludeAddr(ip netip.Addr) *Selector { return &Selector{kind: KindAddr, ip: ip, exclude: true} }
 
-func MultiAddr(ips []netip.Addr) *Selector {
+func multiAddr(ips []netip.Addr) *Selector {
 	sel := &Selector{kind: KindAddrs, ips: ips}
 	if len(ips) > 16 {
 		sel.ipSet = make(map[netip.Addr]struct{}, len(ips))
@@ -104,7 +104,7 @@ func (s *Selector) IP() netip.Addr      { return s.ip }
 func (s *Selector) IPs() []netip.Addr   { return s.ips }
 func (s *Selector) NameValue() string   { return s.name }
 func (s *Selector) ASNValue() uint32    { return s.asn }
-func (s *Selector) GlobPattern() string { return s.name }
+func (s *Selector) globPattern() string { return s.name }
 
 // ParseDefault parses a selector string, treating empty/"*" as All.
 // On parse error, falls back to PeerName (fail-closed: no accidental match-all).
@@ -263,7 +263,7 @@ func parseMultiIP(s string) (*Selector, error) {
 		ips = append(ips, ip)
 	}
 
-	return MultiAddr(ips), nil
+	return multiAddr(ips), nil
 }
 
 // Matches returns true if the selector matches the given peer address.

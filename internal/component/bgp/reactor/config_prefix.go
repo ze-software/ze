@@ -98,7 +98,7 @@ func parsePrefixCount(familyKey string, prefixMap map[string]any, ps *PeerSettin
 		return nil
 	}
 
-	mode, valid := ParsePrefixCountMode(raw)
+	mode, valid := parsePrefixCountMode(raw)
 	if !valid {
 		return fmt.Errorf("family %s: prefix count %q is not one of offered, installed", familyKey, raw)
 	}
@@ -127,7 +127,7 @@ func parsePrefixReconnect(familyKey string, prefixMap map[string]any, idle uint1
 		return nil
 	}
 
-	mode, valid := ParsePrefixReconnectMode(raw)
+	mode, valid := parsePrefixReconnectMode(raw)
 	if !valid {
 		return fmt.Errorf("family %s: prefix reconnect %q is not one of never, backoff, timer", familyKey, raw)
 	}

@@ -166,7 +166,7 @@ func Run(args []string) int {
 		}
 	}
 
-	manifest, err := collect(modules, &CollectOptions{
+	manifest, err := collect(modules, &collectOptions{
 		ConfigPath: configPath,
 		Since:      since,
 		SinceTime:  sinceTime,
@@ -191,7 +191,7 @@ func Run(args []string) int {
 	return 0
 }
 
-func collect(modules map[string]ModuleCollector, opts *CollectOptions, reason, outputDir string) (*SupportManifest, error) {
+func collect(modules map[string]moduleCollector, opts *collectOptions, reason, outputDir string) (*SupportManifest, error) {
 	hostname, _ := os.Hostname()
 	now := time.Now().UTC()
 	ts := now.Format("20060102-150405")
@@ -270,7 +270,7 @@ func collect(modules map[string]ModuleCollector, opts *CollectOptions, reason, o
 	return manifest, nil
 }
 
-func runCollector(fn ModuleCollector, opts *CollectOptions) (result any, err error) {
+func runCollector(fn moduleCollector, opts *collectOptions) (result any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			result = nil
@@ -336,7 +336,7 @@ func writeTarEntry(tw *tar.Writer, name string, data []byte) error {
 }
 
 // collectVersion gathers Ze version, build info, and Go runtime details.
-func collectVersion(opts *CollectOptions) (any, error) {
+func collectVersion(opts *collectOptions) (any, error) {
 	_ = opts
 	result := map[string]any{
 		"ze-version": zeversion.Release(),
@@ -361,7 +361,7 @@ func collectVersion(opts *CollectOptions) (any, error) {
 }
 
 // collectDoctor runs the registered doctor checks.
-func collectDoctor(opts *CollectOptions) (any, error) {
+func collectDoctor(opts *collectOptions) (any, error) {
 	diags := diagnostic.RunDoctorChecks(opts.ConfigPath)
 	if diags == nil {
 		return map[string]any{"available": false, "reason": "no doctor provider registered"}, nil
@@ -377,19 +377,19 @@ func collectDoctor(opts *CollectOptions) (any, error) {
 }
 
 // collectHost gathers hardware inventory.
-func collectHost(opts *CollectOptions) (any, error) {
+func collectHost(opts *collectOptions) (any, error) {
 	_ = opts
 	return hostinv.Detect()
 }
 
 // collectPlatform gathers runtime platform type and capabilities.
-func collectPlatform(opts *CollectOptions) (any, error) {
+func collectPlatform(opts *collectOptions) (any, error) {
 	_ = opts
 	return hostinv.DetectPlatform()
 }
 
 // collectConfig loads and optionally sanitizes the configuration.
-func collectConfig(opts *CollectOptions) (any, error) {
+func collectConfig(opts *collectOptions) (any, error) {
 	var tb textbuf.Buffer
 	store, err := resolve.Storage()
 	if err != nil {
@@ -435,7 +435,7 @@ func collectConfig(opts *CollectOptions) (any, error) {
 }
 
 // collectCrashes gathers crash log files.
-func collectCrashes(opts *CollectOptions) (any, error) {
+func collectCrashes(opts *collectOptions) (any, error) {
 	_ = opts
 	crashlog.Init()
 	summaries := crashlog.ListCrashes()
@@ -463,13 +463,13 @@ func collectCrashes(opts *CollectOptions) (any, error) {
 }
 
 // collectDisk gathers filesystem usage information.
-func collectDisk(opts *CollectOptions) (any, error) {
+func collectDisk(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectDiskInfo()
 }
 
 // collectInterfaces gathers kernel network interface state.
-func collectInterfaces(opts *CollectOptions) (any, error) {
+func collectInterfaces(opts *collectOptions) (any, error) {
 	_ = opts
 	ifs, err := iface.ListInterfaces()
 	if err != nil {
@@ -479,7 +479,7 @@ func collectInterfaces(opts *CollectOptions) (any, error) {
 }
 
 // collectRoutes gathers the kernel routing table.
-func collectRoutes(opts *CollectOptions) (any, error) {
+func collectRoutes(opts *collectOptions) (any, error) {
 	_ = opts
 	const routeLimit = 50000
 	routes, err := iface.ListKernelRoutes("", routeLimit)
@@ -495,7 +495,7 @@ func collectRoutes(opts *CollectOptions) (any, error) {
 }
 
 // collectNeighbors gathers the kernel ARP/neighbor table.
-func collectNeighbors(opts *CollectOptions) (any, error) {
+func collectNeighbors(opts *collectOptions) (any, error) {
 	_ = opts
 	neighbors, err := iface.ListNeighbors(iface.NeighborFamilyAny)
 	if err != nil {
@@ -505,7 +505,7 @@ func collectNeighbors(opts *CollectOptions) (any, error) {
 }
 
 // collectEnv gathers Ze's registered environment variables.
-func collectEnv(opts *CollectOptions) (any, error) {
+func collectEnv(opts *collectOptions) (any, error) {
 	_ = opts
 	entries := env.Entries()
 	result := make([]map[string]any, 0, len(entries))
@@ -526,54 +526,54 @@ func collectEnv(opts *CollectOptions) (any, error) {
 }
 
 // collectSysctl gathers current values of Ze's registered sysctl keys.
-func collectSysctl(opts *CollectOptions) (any, error) {
+func collectSysctl(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectSysctlInfo()
 }
 
 // collectDmesg gathers recent kernel log entries from /dev/kmsg.
-func collectDmesg(opts *CollectOptions) (any, error) {
+func collectDmesg(opts *collectOptions) (any, error) {
 	return collectDmesgInfo(opts.SinceTime)
 }
 
 // collectSockets gathers open TCP/UDP sockets from /proc/net.
-func collectSockets(opts *CollectOptions) (any, error) {
+func collectSockets(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectSocketsInfo()
 }
 
 // collectModules gathers loaded kernel modules from /proc/modules.
-func collectModules(opts *CollectOptions) (any, error) {
+func collectModules(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectKernelModulesInfo()
 }
 
 // collectConntrack gathers netfilter connection tracking state.
-func collectConntrack(opts *CollectOptions) (any, error) {
+func collectConntrack(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectConntrackInfo()
 }
 
 // collectFDs gathers open file descriptors for the current process.
-func collectFDs(opts *CollectOptions) (any, error) {
+func collectFDs(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectFDsInfo()
 }
 
 // collectDNS gathers DNS resolver configuration.
-func collectDNS(opts *CollectOptions) (any, error) {
+func collectDNS(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectDNSInfo()
 }
 
 // collectFirewall gathers nftables tables and chains via netlink.
-func collectFirewall(opts *CollectOptions) (any, error) {
+func collectFirewall(opts *collectOptions) (any, error) {
 	_ = opts
 	return collectFirewallInfo()
 }
 
 // collectRuntime gathers Go runtime memory and goroutine stats.
-func collectRuntime(opts *CollectOptions) (any, error) {
+func collectRuntime(opts *collectOptions) (any, error) {
 	_ = opts
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)

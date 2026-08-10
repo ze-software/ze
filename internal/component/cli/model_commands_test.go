@@ -1014,7 +1014,7 @@ func TestCLIConfigCommitAuditRecord(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
-	ed.SetWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
+	ed.setWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
 
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
@@ -1044,7 +1044,7 @@ func TestCLIConfigDiscardAuditRecord(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
-	ed.SetWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
+	ed.setWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
 
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
@@ -1343,7 +1343,7 @@ func TestFilterOutSessionCommandsEmpty(t *testing.T) {
 // PREVENTS: Panic or hang when daemon is not running.
 func TestSocketReloadNotifierNoDaemon(t *testing.T) {
 	// Use a non-existent socket path
-	notifier := NewSocketReloadNotifier("/tmp/ze-test-nonexistent-" + t.Name() + ".sock")
+	notifier := newSocketReloadNotifier("/tmp/ze-test-nonexistent-" + t.Name() + ".sock")
 	err := notifier()
 	require.Error(t, err, "should fail when daemon socket doesn't exist")
 	assert.Contains(t, err.Error(), "daemon not reachable")

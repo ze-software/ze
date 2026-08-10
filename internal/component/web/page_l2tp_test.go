@@ -12,7 +12,7 @@ import (
 )
 
 func TestBuildL2TPSessionsTableData_NoService(t *testing.T) {
-	table := BuildL2TPSessionsTableData()
+	table := buildL2TPSessionsTableData()
 	assert.Equal(t, "L2TP Sessions", table.Title)
 	assert.Nil(t, table.Rows)
 	assert.Equal(t, "L2TP subsystem is not running.", table.EmptyMessage)
@@ -32,7 +32,7 @@ func TestBuildL2TPConfigFormData_WithValues(t *testing.T) {
 	l2tp.Set("cqm-enabled", "true")
 	l2tp.Set("max-logins", "10000")
 
-	form := BuildL2TPConfigFormData(tree)
+	form := buildL2TPConfigFormData(tree)
 	assert.Equal(t, "L2TP Configuration", form.Title)
 	require.Len(t, form.Fields, 9)
 	assert.Equal(t, "true", form.Fields[0].Value)
@@ -46,7 +46,7 @@ func TestBuildL2TPConfigFormData_WithValues(t *testing.T) {
 }
 
 func TestBuildL2TPConfigFormData_NilTree(t *testing.T) {
-	form := BuildL2TPConfigFormData(nil)
+	form := buildL2TPConfigFormData(nil)
 	assert.Equal(t, "L2TP Configuration", form.Title)
 	require.Len(t, form.Fields, 9)
 	assert.Empty(t, form.Fields[0].Value)
@@ -55,13 +55,13 @@ func TestBuildL2TPConfigFormData_NilTree(t *testing.T) {
 
 func TestBuildL2TPConfigFormData_EmptyTree(t *testing.T) {
 	tree := config.NewTree()
-	form := BuildL2TPConfigFormData(tree)
+	form := buildL2TPConfigFormData(tree)
 	require.Len(t, form.Fields, 9)
 	assert.Empty(t, form.Fields[0].Value)
 }
 
 func TestBuildL2TPHealthTableData_NoService(t *testing.T) {
-	table := BuildL2TPHealthTableData()
+	table := buildL2TPHealthTableData()
 	assert.Equal(t, "L2TP Health", table.Title)
 	assert.Nil(t, table.Rows)
 	assert.Equal(t, "L2TP subsystem is not running.", table.EmptyMessage)

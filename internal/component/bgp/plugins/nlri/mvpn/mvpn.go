@@ -27,8 +27,8 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// RunMVPNPlugin runs the MVPN plugin using the SDK RPC protocol.
-func RunMVPNPlugin(conn net.Conn) int {
+// runMVPNPlugin runs the MVPN plugin using the SDK RPC protocol.
+func runMVPNPlugin(conn net.Conn) int {
 	logger.Debug("mvpn plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-mvpn", conn)
@@ -63,7 +63,7 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	mvpn, _, err := ParseMVPN(afi, data)
+	mvpn, _, err := parseMVPN(afi, data)
 	if err != nil {
 		return nil, fmt.Errorf("parse MVPN failed: %w", err)
 	}
@@ -95,7 +95,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 1
 	}
 
-	mvpn, _, err := ParseMVPN(afi, data)
+	mvpn, _, err := parseMVPN(afi, data)
 	if err != nil {
 		writeErr("error: parse MVPN failed: %v\n", err)
 		return 1

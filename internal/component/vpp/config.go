@@ -169,8 +169,8 @@ func unknownKeys(context string, raw map[string]json.RawMessage, known []string)
 	return nil
 }
 
-// ValidatePCIAddress checks that addr matches the PCI bus address format.
-func ValidatePCIAddress(addr string) error {
+// validatePCIAddress checks that addr matches the PCI bus address format.
+func validatePCIAddress(addr string) error {
 	if !pciAddressRE.MatchString(addr) {
 		return fmt.Errorf("invalid PCI address %q: expected DDDD:DD:DD.D format (e.g. 0000:03:00.0)", addr)
 	}
@@ -324,7 +324,7 @@ func (s *VPPSettings) Validate() error {
 	}
 
 	for i, iface := range s.DPDK.Interfaces {
-		if err := ValidatePCIAddress(iface.PCIAddress); err != nil {
+		if err := validatePCIAddress(iface.PCIAddress); err != nil {
 			return fmt.Errorf("vpp: dpdk interface %d: %w", i, err)
 		}
 		if err := validateIfaceName(iface.Name); err != nil {

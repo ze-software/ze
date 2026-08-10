@@ -135,14 +135,14 @@ func (r *StaticRoute) IsVPN() bool {
 	return r.RD != ""
 }
 
-// IsLabeledUnicast returns true if this is a labeled unicast route (has labels but no RD).
+// isLabeledUnicast returns true if this is a labeled unicast route (has labels but no RD).
 // RFC 8277 Section 2: Labeled routes have MPLS label stack but no Route Distinguisher.
-func (r *StaticRoute) IsLabeledUnicast() bool {
+func (r *StaticRoute) isLabeledUnicast() bool {
 	return len(r.Labels) > 0 && r.RD == ""
 }
 
-// SingleLabel returns the first label from the label stack, or 0 if empty.
-func (r *StaticRoute) SingleLabel() uint32 {
+// singleLabel returns the first label from the label stack, or 0 if empty.
+func (r *StaticRoute) singleLabel() uint32 {
 	if len(r.Labels) > 0 {
 		return r.Labels[0]
 	}
@@ -554,7 +554,7 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 	}
 }
 
-// PrefixTeardownFor reports whether exceeding the prefix maximum of fam must
+// prefixTeardownFor reports whether exceeding the prefix maximum of fam must
 // tear the session down. fam is an "afi/safi" string.
 //
 // An unconfigured family reads as ENABLED. The YANG default is
@@ -563,7 +563,7 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 // warn-only (ai/rules/fail-closed-guards.md). This is why the enforcement path
 // calls this method and never indexes PrefixTeardown directly: a bare map read
 // returns the zero value false and silently disables the protection.
-func (n *PeerSettings) PrefixTeardownFor(fam string) bool {
+func (n *PeerSettings) prefixTeardownFor(fam string) bool {
 	if teardown, ok := n.PrefixTeardown[fam]; ok {
 		return teardown
 	}
@@ -602,9 +602,9 @@ func (m PrefixCountMode) String() string {
 	return textbuf.StrUintStr("unknown(", uint64(m), ")")
 }
 
-// ParsePrefixCountMode maps a YANG enum value to its mode. ok is false for any
+// parsePrefixCountMode maps a YANG enum value to its mode. ok is false for any
 // other string, which the config parser rejects rather than approximates.
-func ParsePrefixCountMode(s string) (mode PrefixCountMode, ok bool) {
+func parsePrefixCountMode(s string) (mode PrefixCountMode, ok bool) {
 	switch s {
 	case "offered":
 		return PrefixCountOffered, true
@@ -627,13 +627,13 @@ func (n *PeerSettings) PrefixCountFor(fam string) PrefixCountMode {
 	return n.PrefixCount[fam]
 }
 
-// PrefixIdleTimeoutFor returns the seconds to wait before reconnecting after
+// prefixIdleTimeoutFor returns the seconds to wait before reconnecting after
 // fam exceeded its prefix maximum. fam is an "afi/safi" string.
 //
 // An unconfigured family returns 0, which is also the YANG default. Zero is not
 // "reconnect immediately" and not "reconnect on the usual backoff": it keeps the
 // peer down, and PrefixReconnectFor is the accessor that states it.
-func (n *PeerSettings) PrefixIdleTimeoutFor(fam string) uint16 {
+func (n *PeerSettings) prefixIdleTimeoutFor(fam string) uint16 {
 	return n.PrefixIdleTimeout[fam]
 }
 
@@ -675,9 +675,9 @@ func (m PrefixReconnectMode) String() string {
 	return textbuf.StrUintStr("unknown(", uint64(m), ")")
 }
 
-// ParsePrefixReconnectMode maps a YANG enum value to its mode. ok is false for
+// parsePrefixReconnectMode maps a YANG enum value to its mode. ok is false for
 // any other string, which the config parser rejects rather than approximates.
-func ParsePrefixReconnectMode(s string) (mode PrefixReconnectMode, ok bool) {
+func parsePrefixReconnectMode(s string) (mode PrefixReconnectMode, ok bool) {
 	switch s {
 	case "never":
 		return PrefixReconnectNever, true
@@ -768,12 +768,12 @@ func (n *PeerSettings) PeerKey() netip.AddrPort {
 	if port == 0 {
 		port = DefaultBGPPort
 	}
-	return PeerKeyFromAddrPort(n.Address, port)
+	return peerKeyFromAddrPort(n.Address, port)
 }
 
-// PeerKeyFromAddrPort builds a peer map key from address and port.
+// peerKeyFromAddrPort builds a peer map key from address and port.
 // Returns a netip.AddrPort value type (20 bytes, comparable, zero allocation).
-func PeerKeyFromAddrPort(addr netip.Addr, port uint16) netip.AddrPort {
+func peerKeyFromAddrPort(addr netip.Addr, port uint16) netip.AddrPort {
 	return netip.AddrPortFrom(addr, port)
 }
 
@@ -787,9 +787,9 @@ func (n *PeerSettings) IsEBGP() bool {
 	return n.LocalAS != n.PeerAS
 }
 
-// EffectiveClusterID returns the cluster-id for route reflection.
+// effectiveClusterID returns the cluster-id for route reflection.
 // RFC 4456 Section 7: defaults to router-id when not explicitly configured.
-func (n *PeerSettings) EffectiveClusterID() uint32 {
+func (n *PeerSettings) effectiveClusterID() uint32 {
 	if n.ClusterID != 0 {
 		return n.ClusterID
 	}

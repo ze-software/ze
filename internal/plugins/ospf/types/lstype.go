@@ -96,10 +96,10 @@ func (t LSType) InterAreaRouter() bool {
 }
 
 // Known reports whether t is a known OSPFv2 LSA type value.
-func (t LSType) Known() bool { return t.InScope() || t.IsOpaque() }
+func (t LSType) Known() bool { return t.inScope() || t.IsOpaque() }
 
-// InScope reports whether t is implemented by the first OSPFv2 pass.
-func (t LSType) InScope() bool {
+// inScope reports whether t is implemented by the first OSPFv2 pass.
+func (t LSType) inScope() bool {
 	switch t {
 	case LSTypeRouter, LSTypeNetwork, LSTypeSummaryNetwork, LSTypeSummaryASBR, LSTypeASExternal, LSTypeNSSA:
 		return true

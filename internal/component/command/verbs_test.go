@@ -11,7 +11,7 @@ import "testing"
 // role. The gate and the plugin registration check both derive from Verbs, so a
 // change here is a deliberate vocabulary decision (AC-1).
 func TestVerbRegistryCanonical(t *testing.T) {
-	want := map[string]VerbRole{
+	want := map[string]verbRole{
 		"show":    VerbRead,
 		"monitor": VerbRead,
 		"resolve": VerbRead,

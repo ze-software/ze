@@ -634,7 +634,7 @@ func (e *engine) handlePathErr(msg *ParsedMessage) {
 	}
 	eb := getEventBus()
 	if eb != nil {
-		evt := &PathErrEvent{
+		evt := &pathErrEvent{
 			TunnelEndpoint: msg.Session.TunnelEndpoint.String(),
 			TunnelID:       msg.Session.TunnelID,
 			ErrorCode:      msg.ErrorSpec.ErrorCode,
@@ -811,7 +811,7 @@ func (e *engine) emitLocalPathErr(key lspKey, es errorSpec) {
 	if eb == nil {
 		return
 	}
-	evt := &PathErrEvent{
+	evt := &pathErrEvent{
 		TunnelEndpoint: key.TunnelEndpoint.String(),
 		TunnelID:       key.TunnelID,
 		ErrorCode:      es.ErrorCode,

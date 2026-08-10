@@ -11,7 +11,7 @@ import (
 
 func benchSetupRIB(b *testing.B, n int) (*FamilyRIB, [][]byte) {
 	b.Helper()
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
 	nlris := make([][]byte, n)
 	for i := range n {
@@ -107,7 +107,7 @@ func BenchmarkRIBInsertUnique(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		rib := NewFamilyRIB(family.IPv4Unicast, false)
+		rib := newFamilyRIB(family.IPv4Unicast, false)
 		for _, nlri := range nlris {
 			rib.Insert(attrs, nlri, true)
 		}
@@ -150,7 +150,7 @@ func BenchmarkRIBInsertUniqueSharedAttrs(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		rib := NewFamilyRIB(family.IPv4Unicast, false)
+		rib := newFamilyRIB(family.IPv4Unicast, false)
 		entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
 		if err != nil {
 			b.Fatal(err)
@@ -167,7 +167,7 @@ func BenchmarkRIBInsertUniqueSharedAttrs(b *testing.B) {
 // between two attribute blobs, each parsed once per pass via InsertEntry.
 func BenchmarkRIBInsertReplaceSharedAttrs(b *testing.B) {
 	const n = 10_000
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 	attrsA := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
 	attrsB := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100,

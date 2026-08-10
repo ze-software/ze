@@ -45,8 +45,8 @@ const tunnelRxPoolSize = 8
 // to the caller-supplied peer addr:port using `sendto()`-style semantics.
 //
 // It ALSO reads control frames from the per-tunnel connected sockets handed to
-// the kernel L2TP module (AdoptTunnelSocket). That is not an optimisation, it is
-// required for correctness: see AdoptTunnelSocket.
+// the kernel L2TP module (adoptTunnelSocket). That is not an optimisation, it is
+// required for correctness: see adoptTunnelSocket.
 //
 // Caller MUST call Stop after Start; Start is not idempotent. RX is safe
 // for concurrent read only by a single consumer (the reactor).
@@ -78,9 +78,9 @@ var (
 	errListenerRestart        = errors.New("l2tp: UDP listener was stopped and cannot restart")
 )
 
-// NewUDPListener constructs a listener bound to the given address. Start
+// newUDPListener constructs a listener bound to the given address. Start
 // must be called before RX yields any packets.
-func NewUDPListener(bind netip.AddrPort, logger *slog.Logger) *UDPListener {
+func newUDPListener(bind netip.AddrPort, logger *slog.Logger) *UDPListener {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -252,7 +252,7 @@ func (u *UDPListener) Send(to netip.AddrPort, bytes []byte) error {
 	return err
 }
 
-// AdoptTunnelSocket starts reading control frames from fd, the connected UDP
+// adoptTunnelSocket starts reading control frames from fd, the connected UDP
 // socket that the kernel worker created for tunnel tid and handed to the kernel
 // L2TP module via L2TP_ATTR_FD.
 //
@@ -270,9 +270,9 @@ func (u *UDPListener) Send(to netip.AddrPort, bytes []byte) error {
 // first session reaches the kernel data plane.
 //
 // fd stays owned by the caller: this dups it, so the caller's own Close on
-// tunnel delete is still correct. Call ReleaseTunnelSocket(tid) before that Close
+// tunnel delete is still correct. Call releaseTunnelSocket(tid) before that Close
 // so the reader stops. Adopting a tid that is already adopted is a no-op.
-func (u *UDPListener) AdoptTunnelSocket(tid uint16, fd int) error {
+func (u *UDPListener) adoptTunnelSocket(tid uint16, fd int) error {
 	u.mu.Lock()
 	if u.closed || u.conn == nil {
 		u.mu.Unlock()
@@ -338,10 +338,10 @@ func (u *UDPListener) AdoptTunnelSocket(tid uint16, fd int) error {
 	return nil
 }
 
-// ReleaseTunnelSocket stops reading tunnel tid's adopted socket and closes this
+// releaseTunnelSocket stops reading tunnel tid's adopted socket and closes this
 // listener's dup of it. Idempotent; unknown tids are ignored. The caller still
-// owns (and must close) the original fd it passed to AdoptTunnelSocket.
-func (u *UDPListener) ReleaseTunnelSocket(tid uint16) {
+// owns (and must close) the original fd it passed to adoptTunnelSocket.
+func (u *UDPListener) releaseTunnelSocket(tid uint16) {
 	u.mu.Lock()
 	conn := u.tunnels[tid]
 	delete(u.tunnels, tid)

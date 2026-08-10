@@ -26,7 +26,7 @@ func TestTrafficTableData_Build(t *testing.T) {
 		},
 	}
 
-	data := BuildTrafficTableData(infos)
+	data := buildTrafficTableData(infos)
 	assert.Equal(t, "Traffic", data.Title)
 	require.Len(t, data.Rows, 2)
 }
@@ -54,7 +54,7 @@ func TestTrafficTableData_SortByRate(t *testing.T) {
 		},
 	}
 
-	data := BuildTrafficTableData(infos)
+	data := buildTrafficTableData(infos)
 	require.Len(t, data.Rows, 3)
 	assert.Equal(t, "high", data.Rows[0].Key, "highest traffic should be first")
 	assert.Equal(t, "mid", data.Rows[1].Key, "medium traffic should be second")
@@ -67,7 +67,7 @@ func TestTrafficTableData_NilStats(t *testing.T) {
 		{Name: "eth0", Stats: nil},
 	}
 
-	data := BuildTrafficTableData(infos)
+	data := buildTrafficTableData(infos)
 	require.Len(t, data.Rows, 1)
 	// First cell is interface name, all counter cells should be "0".
 	assert.Equal(t, "eth0", data.Rows[0].Cells[0])
@@ -76,14 +76,14 @@ func TestTrafficTableData_NilStats(t *testing.T) {
 
 // TestTrafficTableData_Empty verifies empty state.
 func TestTrafficTableData_Empty(t *testing.T) {
-	data := BuildTrafficTableData(nil)
+	data := buildTrafficTableData(nil)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No interfaces to monitor.", data.EmptyMessage)
 }
 
 // TestComputeTrafficRate verifies the TrafficRow total rate computation.
 func TestComputeTrafficRate(t *testing.T) {
-	tr := TrafficRow{
+	tr := trafficRow{
 		RxBytes:   1000,
 		TxBytes:   2000,
 		TotalRate: 3000,

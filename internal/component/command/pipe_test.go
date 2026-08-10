@@ -836,7 +836,7 @@ func TestApplyResolve_UsesSystemResolver(t *testing.T) {
 	defer SetPTRResolver(nil)
 
 	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.0},{"ttl":2,"addr":"154.54.74.6","rtt-ms":5.0}]}`
-	result := ApplyResolve(input)
+	result := applyResolve(input)
 	if !strings.Contains(result, "gw.example.com") {
 		t.Errorf("expected gw.example.com in result: %s", result)
 	}
@@ -848,7 +848,7 @@ func TestApplyResolve_UsesSystemResolver(t *testing.T) {
 func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
 	SetPTRResolver(nil)
 	input := `{"addr":"127.0.0.1"}`
-	result := ApplyResolve(input)
+	result := applyResolve(input)
 	t.Logf("fallback result: %s", result)
 	if !strings.Contains(result, "addr-name") {
 		t.Errorf("should add addr-name field: %s", result)
@@ -857,7 +857,7 @@ func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
 
 func TestApplyResolve_AddsNameField(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
-	result := ApplyResolve(input)
+	result := applyResolve(input)
 	if !strings.Contains(result, "addr-name") {
 		t.Errorf("resolve should add addr-name field: %s", result)
 	}
@@ -865,7 +865,7 @@ func TestApplyResolve_AddsNameField(t *testing.T) {
 
 func TestApplyResolve_SkipsStar(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"*","rtt-ms":null}]}`
-	result := ApplyResolve(input)
+	result := applyResolve(input)
 	if strings.Contains(result, "addr-name") {
 		t.Errorf("resolve should skip '*' addresses: %s", result)
 	}

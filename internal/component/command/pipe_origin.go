@@ -99,9 +99,9 @@ func originJSON(v any) any {
 	return v
 }
 
-// ApplyOrigin adds ASN origin data for IP address string values in JSON.
+// applyOrigin adds ASN origin data for IP address string values in JSON.
 // For each string value that parses as an IP, sibling fields are added:
 // "<key>-asn" (uint32), "<key>-as-name" (string), "<key>-prefix" (string).
-func ApplyOrigin(input string) string {
+func applyOrigin(input string) string {
 	return applyJSONTransform(input, originJSON)
 }

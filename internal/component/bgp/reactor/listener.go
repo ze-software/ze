@@ -21,8 +21,8 @@ var (
 	ErrNotListening     = errors.New("not listening")
 )
 
-// ConnectionHandler is called for each accepted connection.
-type ConnectionHandler func(conn net.Conn)
+// connectionHandler is called for each accepted connection.
+type connectionHandler func(conn net.Conn)
 
 // Listener accepts incoming BGP connections.
 //
@@ -31,7 +31,7 @@ type ConnectionHandler func(conn net.Conn)
 // if the connection is from a configured peer.
 type Listener struct {
 	addr            string
-	handler         ConnectionHandler
+	handler         connectionHandler
 	clock           clock.Clock
 	listenerFactory network.ListenerFactory
 
@@ -68,7 +68,7 @@ func (l *Listener) SetListenerFactory(f network.ListenerFactory) {
 }
 
 // SetHandler sets the connection handler.
-func (l *Listener) SetHandler(h ConnectionHandler) {
+func (l *Listener) SetHandler(h connectionHandler) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.handler = h
@@ -203,7 +203,7 @@ func (l *Listener) acceptLoop() {
 
 // safeHandle wraps a connection handler with panic recovery so that a panic
 // in one connection's handler doesn't kill the accept loop or leak connections.
-func (l *Listener) safeHandle(conn net.Conn, handler ConnectionHandler) {
+func (l *Listener) safeHandle(conn net.Conn, handler connectionHandler) {
 	defer func() {
 		if r := recover(); r != nil {
 			buf := make([]byte, 4096)

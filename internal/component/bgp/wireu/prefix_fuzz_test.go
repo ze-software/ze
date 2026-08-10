@@ -42,7 +42,7 @@ func FuzzParseIPv6Prefixes(f *testing.F) {
 	f.Add([]byte{0xFF})           // Length 255
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_ = ParseIPv6Prefixes(data) // MUST NOT panic
+		_ = parseIPv6Prefixes(data) // MUST NOT panic
 	})
 }
 

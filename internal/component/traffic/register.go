@@ -122,7 +122,7 @@ func parseTrafficSectionData(data string) (*trafficConfig, error) {
 		}
 	}
 
-	ifaces, err := ParseTrafficConfig(data)
+	ifaces, err := parseTrafficConfig(data)
 	if err != nil {
 		return nil, err
 	}

@@ -149,8 +149,8 @@ var builtinProfiles = []ProfileDef{
 	},
 }
 
-// ResetProfiles clears all profile registrations. Only for use in tests.
-func ResetProfiles() {
+// resetProfiles clears all profile registrations. Only for use in tests.
+func resetProfiles() {
 	profileMu.Lock()
 	defer profileMu.Unlock()
 	profileRegistry = map[string]ProfileDef{}

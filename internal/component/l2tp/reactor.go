@@ -55,11 +55,11 @@ type peerKey struct {
 	tid  uint16
 }
 
-// ReactorParams carries the per-reactor configuration. Constructed by
+// reactorParams carries the per-reactor configuration. Constructed by
 // the subsystem from parsed Parameters + hardcoded defaults (phase 3
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
-type ReactorParams struct {
+type reactorParams struct {
 	MaxTunnels      uint16         // 0 = unbounded (by this knob; uint16 still caps at 65535)
 	MaxSessions     uint16         // 0 = unbounded per-tunnel session limit
 	AuthMethod      ppp.AuthMethod // PPP Auth-Protocol first advertised to new sessions
@@ -86,7 +86,7 @@ type ReactorParams struct {
 // that tests introspect (state, peerAddr, peerHostName). Runtime hot
 // paths (the reactor goroutine itself) still hold the lock for the
 // brief moments of map mutation and tunnel state transition; tests
-// grab it through TunnelCount/TunnelByLocalID/State accessors.
+// grab it through TunnelCount/tunnelByLocalID/State accessors.
 //
 // Caller MUST call Stop after Start. Start is not idempotent; the
 // underlying UDPListener must already be Start()ed before the reactor
@@ -94,7 +94,7 @@ type ReactorParams struct {
 type L2TPReactor struct {
 	listener *UDPListener
 	logger   *slog.Logger
-	params   ReactorParams
+	params   reactorParams
 
 	tunnelsMu        sync.Mutex
 	tunnelsByLocalID map[uint16]*L2TPTunnel
@@ -144,7 +144,7 @@ type L2TPReactor struct {
 	eventBus ze.EventBus
 
 	// diag-4: control packet capture ring.
-	capture    *CaptureRing
+	capture    *captureRing
 	rawCapture atomic.Pointer[RawCaptureRing]
 
 	mu      sync.Mutex
@@ -153,10 +153,10 @@ type L2TPReactor struct {
 	started bool
 }
 
-// NewL2TPReactor constructs a reactor bound to the given listener. The
+// newL2TPReactor constructs a reactor bound to the given listener. The
 // listener must be started before the reactor is started; the reactor
 // does not manage the listener's lifecycle.
-func NewL2TPReactor(listener *UDPListener, logger *slog.Logger, params ReactorParams) *L2TPReactor {
+func newL2TPReactor(listener *UDPListener, logger *slog.Logger, params reactorParams) *L2TPReactor {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -186,7 +186,7 @@ func NewL2TPReactor(listener *UDPListener, logger *slog.Logger, params ReactorPa
 // diagnostics.capture is true. No-op if already enabled.
 func (r *L2TPReactor) EnableCapture() {
 	if r.capture == nil {
-		r.capture = NewCaptureRing()
+		r.capture = newCaptureRing()
 	}
 }
 
@@ -339,7 +339,7 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	payload := pkt.bytes[hdr.PayloadOff:int(hdr.Length)]
 
 	if r.capture != nil {
-		r.capture.AppendInbound(hdr.TunnelID, hdr.SessionID, extractMsgType(payload), pkt.from, int(hdr.Length), 0)
+		r.capture.appendInbound(hdr.TunnelID, hdr.SessionID, extractMsgType(payload), pkt.from, int(hdr.Length), 0)
 	}
 	if rc := r.rawCapture.Load(); rc != nil {
 		rc.Append(0, pkt.bytes[:hdr.Length])
@@ -449,7 +449,7 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	for _, req := range outbound {
 		if r.capture != nil && len(req.bytes) > 12 {
 			outSID := uint16(req.bytes[8])<<8 | uint16(req.bytes[9])
-			r.capture.AppendOutbound(localTID, outSID, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
+			r.capture.appendOutbound(localTID, outSID, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
 		}
 		if rc := r.rawCapture.Load(); rc != nil {
 			rc.Append(1, req.bytes)
@@ -823,9 +823,9 @@ func (r *L2TPReactor) TunnelCount() int {
 	return len(r.tunnelsByLocalID)
 }
 
-// TunnelByLocalID returns the tunnel with the given local TID, or nil
+// tunnelByLocalID returns the tunnel with the given local TID, or nil
 // if none. Intended for tests; thread-safe.
-func (r *L2TPReactor) TunnelByLocalID(tid uint16) *L2TPTunnel {
+func (r *L2TPReactor) tunnelByLocalID(tid uint16) *L2TPTunnel {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	return r.tunnelsByLocalID[tid]

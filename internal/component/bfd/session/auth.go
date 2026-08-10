@@ -45,10 +45,10 @@ func (m *Machine) SetAuth(pair *AuthPair) {
 // Sign and Verify around the wire path.
 func (m *Machine) HasAuth() bool { return m.authPair != nil }
 
-// AuthBodyLen reports the size of the authentication section the
+// authBodyLen reports the size of the authentication section the
 // signer emits, or zero when no signer is installed. Used by
 // engine.sendLocked to set Control.Length before calling WriteTo.
-func (m *Machine) AuthBodyLen() int {
+func (m *Machine) authBodyLen() int {
 	if m.authPair == nil {
 		return 0
 	}

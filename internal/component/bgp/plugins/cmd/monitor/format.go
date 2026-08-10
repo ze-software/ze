@@ -12,9 +12,9 @@ import (
 
 const maxDisplayPrefixes = 5
 
-// FormatMonitorLine renders a JSON event into a visual one-liner for terminal display.
+// formatMonitorLine renders a JSON event into a visual one-liner for terminal display.
 // Returns the raw string unchanged if JSON parsing fails.
-func FormatMonitorLine(raw string) string {
+func formatMonitorLine(raw string) string {
 	var ev monitorEvent
 	if err := json.Unmarshal([]byte(raw), &ev); err != nil {
 		return raw

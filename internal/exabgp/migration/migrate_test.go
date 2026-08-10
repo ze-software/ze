@@ -744,7 +744,7 @@ neighbor 10.0.0.1 {
 			tree, err := ParseExaBGPConfig(tt.input)
 			require.NoError(t, err, "parse")
 
-			got := NeedsRIBPlugin(tree)
+			got := needsRIBPlugin(tree)
 			assert.Equal(t, tt.wantRIB, got, "NeedsRIBPlugin()")
 		})
 	}

@@ -19,8 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
-// LogTableData is the template payload for warning/error log tables.
-type LogTableData struct {
+// logTableData is the template payload for warning/error log tables.
+type logTableData struct {
 	Title        string
 	Columns      []WorkbenchTableColumn
 	Rows         []WorkbenchTableRow
@@ -34,16 +34,16 @@ type LogTableData struct {
 func renderLogPageContent(renderer *Renderer, r *http.Request, path []string, dispatch CommandDispatcher, _ *EventBroker) (template.HTML, bool) {
 	if len(path) == 0 {
 		// /show/logs/ defaults to live.
-		return HandleLogLivePage(renderer), true
+		return handleLogLivePage(renderer), true
 	}
 
 	switch path[0] {
 	case "live":
-		return HandleLogLivePage(renderer), true
+		return handleLogLivePage(renderer), true
 	case "warnings":
-		return HandleLogWarningsPage(renderer, r, dispatch), true
+		return handleLogWarningsPage(renderer, r, dispatch), true
 	case "errors":
-		return HandleLogErrorsPage(renderer, r, dispatch), true
+		return handleLogErrorsPage(renderer, r, dispatch), true
 	}
 
 	return "", false
@@ -51,17 +51,17 @@ func renderLogPageContent(renderer *Renderer, r *http.Request, path []string, di
 
 // --- Live Log ---
 
-// HandleLogLivePage returns the rendered HTML for the Live Log toolbar and
+// handleLogLivePage returns the rendered HTML for the Live Log toolbar and
 // streaming area. The page opens an SSE connection to /logs/live/stream
 // on the client side for real-time event display.
-func HandleLogLivePage(renderer *Renderer) template.HTML {
+func handleLogLivePage(renderer *Renderer) template.HTML {
 	return renderer.RenderFragment("log_live", nil)
 }
 
-// HandleLogLiveStream returns an HTTP handler that streams log events via SSE.
+// handleLogLiveStream returns an HTTP handler that streams log events via SSE.
 // It delegates to the EventBroker's ServeHTTP for subscription management.
 // The broker handles client limits, buffering, and heartbeats.
-func HandleLogLiveStream(broker *EventBroker) http.HandlerFunc {
+func handleLogLiveStream(broker *EventBroker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if broker == nil {
 			http.Error(w, "SSE not available", http.StatusServiceUnavailable)
@@ -86,7 +86,7 @@ const (
 // empty-state text with an honest "unavailable" message when the dispatcher is
 // absent or returns an error. Only a successful, empty response keeps the
 // caller's "all good" EmptyMessage (F4/AC-9).
-func fillOperationalRows(data *LogTableData, dispatch CommandDispatcher, r *http.Request, command, key string, includeDuration bool) {
+func fillOperationalRows(data *logTableData, dispatch CommandDispatcher, r *http.Request, command, key string, includeDuration bool) {
 	if dispatch == nil {
 		data.EmptyMessage = operationalUnavailableMessage
 		data.EmptyHint = operationalUnavailableHint
@@ -104,12 +104,12 @@ func fillOperationalRows(data *LogTableData, dispatch CommandDispatcher, r *http
 	}
 }
 
-// HandleLogWarningsPage returns the rendered HTML for the Warnings table.
+// handleLogWarningsPage returns the rendered HTML for the Warnings table.
 // Dispatches "show warnings" and renders the response. With a working
 // dispatcher and no warnings, shows the "all clear" empty state; with no
 // dispatcher or a dispatch error, shows the honest "unavailable" message.
-func HandleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
-	data := LogTableData{
+func handleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+	data := logTableData{
 		Title: "Warnings",
 		Columns: []WorkbenchTableColumn{
 			{Key: "time", Label: "Time"},
@@ -127,12 +127,12 @@ func HandleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch Command
 
 // --- Errors ---
 
-// HandleLogErrorsPage returns the rendered HTML for the Errors table.
+// handleLogErrorsPage returns the rendered HTML for the Errors table.
 // Dispatches "show errors" and renders the response. With a working dispatcher
 // and no errors, shows the "no recent errors" empty state; with no dispatcher
 // or a dispatch error, shows the honest "unavailable" message.
-func HandleLogErrorsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
-	data := LogTableData{
+func handleLogErrorsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+	data := logTableData{
 		Title: "Errors",
 		Columns: []WorkbenchTableColumn{
 			{Key: "time", Label: "Time"},

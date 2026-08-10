@@ -33,9 +33,9 @@ func NetworkFromCIDR(cidr string) string {
 	return prefix.Masked().String()
 }
 
-// BuildAddressTableData constructs a WorkbenchTableData from interface
+// buildAddressTableData constructs a WorkbenchTableData from interface
 // information, collecting all addresses across all interfaces.
-func BuildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProtocol string) WorkbenchTableData {
+func buildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProtocol string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "address", Label: "Address", Sortable: true},
 		{Key: "network", Label: "Network", Sortable: true},
@@ -89,17 +89,17 @@ func addrFamily(addr iface.AddrInfo) string {
 	return "IPv4"
 }
 
-// HandleAddressesPage renders the IP addresses table content for the workbench.
-func HandleAddressesPage(renderer *Renderer, r *http.Request) template.HTML {
+// handleAddressesPage renders the IP addresses table content for the workbench.
+func handleAddressesPage(renderer *Renderer, r *http.Request) template.HTML {
 	filterIface := r.URL.Query().Get("interface")
 	filterProtocol := r.URL.Query().Get("protocol")
 
 	infos, err := iface.ListInterfaces()
 	if err != nil {
-		tableData := BuildAddressTableData(nil, filterIface, filterProtocol)
+		tableData := buildAddressTableData(nil, filterIface, filterProtocol)
 		return renderer.RenderFragment("workbench_table", tableData)
 	}
 
-	tableData := BuildAddressTableData(infos, filterIface, filterProtocol)
+	tableData := buildAddressTableData(infos, filterIface, filterProtocol)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

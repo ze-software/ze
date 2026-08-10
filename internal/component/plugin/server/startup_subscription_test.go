@@ -38,7 +38,7 @@ type saShape struct {
 
 func newSubscriptionServer() *Server {
 	return &Server{
-		subscriptions:     NewSubscriptionManager(),
+		subscriptions:     newSubscriptionManager(),
 		engineSubscribers: newEngineEventSubscribers(),
 	}
 }

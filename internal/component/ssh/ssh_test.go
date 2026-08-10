@@ -608,7 +608,7 @@ func TestSSHStreamingCommandPropagatesRemoteAddr(t *testing.T) {
 		}
 	})
 
-	exec := srv.StreamingExecutorForUser("alice", "203.0.113.5:2222")
+	exec := srv.streamingExecutorForUser("alice", "203.0.113.5:2222")
 	require.NotNil(t, exec)
 
 	err = exec(context.Background(), io.Discard, []string{"monitor event"})

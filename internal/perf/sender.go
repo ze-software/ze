@@ -93,14 +93,14 @@ func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
 		return nil
 	}
 
-	return SerializeMsg(update)
+	return serializeMsg(update)
 }
 
-// BuildBatch constructs a serialized UPDATE containing multiple NLRIs.
+// buildBatch constructs a serialized UPDATE containing multiple NLRIs.
 // All prefixes share the same path attributes (origin, AS_PATH, next-hop).
 // For ipv4/unicast without force-mp: packs NLRIs in the inline NLRI field.
 // For ipv6/unicast or force-mp: packs NLRIs inside MP_REACH_NLRI.
-func (s *Sender) BuildBatch(prefixes []netip.Prefix) []byte {
+func (s *Sender) buildBatch(prefixes []netip.Prefix) []byte {
 	if len(prefixes) == 0 {
 		return nil
 	}
@@ -157,7 +157,7 @@ func (s *Sender) buildInlineBatch(prefixes []netip.Prefix) []byte {
 	// heap buffer before returning; no call path holds a reference past this
 	// line. Any future refactor that defers serialization (queue, channel,
 	// callback) must copy dummy.PathAttributes first.
-	return SerializeMsg(&message.Update{
+	return serializeMsg(&message.Update{
 		PathAttributes: dummy.PathAttributes,
 		NLRI:           nlriBytes[:off],
 	})
@@ -240,15 +240,15 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 	attrBytes := make([]byte, attrSize)
 	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
-	return SerializeMsg(&message.Update{
+	return serializeMsg(&message.Update{
 		PathAttributes: attrBytes,
 	})
 }
 
-// BuildWithdrawBatch constructs a serialized UPDATE withdrawing multiple prefixes.
+// buildWithdrawBatch constructs a serialized UPDATE withdrawing multiple prefixes.
 // For ipv4/unicast: uses the inline Withdrawn Routes field.
 // For ipv6/unicast: uses MP_UNREACH_NLRI attribute.
-func (s *Sender) BuildWithdrawBatch(prefixes []netip.Prefix) []byte {
+func (s *Sender) buildWithdrawBatch(prefixes []netip.Prefix) []byte {
 	if len(prefixes) == 0 {
 		return nil
 	}
@@ -276,7 +276,7 @@ func (s *Sender) BuildWithdrawBatch(prefixes []netip.Prefix) []byte {
 	}
 
 	if s.cfg.Family == FamilyIPv4Unicast && !s.cfg.ForceMP {
-		return SerializeMsg(&message.Update{
+		return serializeMsg(&message.Update{
 			WithdrawnRoutes: nlriBytes[:off],
 		})
 	}
@@ -298,7 +298,7 @@ func (s *Sender) BuildWithdrawBatch(prefixes []netip.Prefix) []byte {
 	attrBytes := make([]byte, attrSize)
 	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
-	return SerializeMsg(&message.Update{
+	return serializeMsg(&message.Update{
 		PathAttributes: attrBytes,
 	})
 }
@@ -365,5 +365,5 @@ func (s *Sender) buildForceMPRoute(prefix netip.Prefix) []byte {
 		PathAttributes: attrBytes,
 	}
 
-	return SerializeMsg(update)
+	return serializeMsg(update)
 }

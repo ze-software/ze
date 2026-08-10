@@ -117,10 +117,10 @@ type AdjRIBInManager struct {
 	seqCounter uint64
 
 	// pending stores routes awaiting RPKI validation.
-	pending map[compactPendingKey]*PendingRoute
+	pending map[compactPendingKey]*pendingRoute
 
 	// earlyDecisions buffers RPKI decisions that arrived before the route.
-	earlyDecisions map[compactPendingKey]*EarlyDecision
+	earlyDecisions map[compactPendingKey]*earlyDecision
 
 	// validationEnabled is set by "request bgp adj-rib-in enable-validation".
 	// When true, received routes are stored as pending instead of installed.
@@ -193,8 +193,8 @@ func newSeqMap() *seqmap.Map[compactRouteKey, *RawRoute] {
 	return seqmap.New[compactRouteKey, *RawRoute]()
 }
 
-// RunAdjRIBInPlugin runs the Adj-RIB-In plugin using the SDK RPC protocol.
-func RunAdjRIBInPlugin(conn net.Conn) int {
+// runAdjRIBInPlugin runs the Adj-RIB-In plugin using the SDK RPC protocol.
+func runAdjRIBInPlugin(conn net.Conn) int {
 	logger().Debug("adj-rib-in plugin starting")
 
 	p := sdk.NewWithConn("bgp-adj-rib-in", conn)
@@ -204,8 +204,8 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 		plugin:         p,
 		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[netip.Addr]bool),
-		pending:        make(map[compactPendingKey]*PendingRoute),
-		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
+		pending:        make(map[compactPendingKey]*pendingRoute),
+		earlyDecisions: make(map[compactPendingKey]*earlyDecision),
 		// Only the in-process path carries a reactor MessageID, so only there is
 		// an ingest position meaningful. Resolved here, before Stage 2, so no
 		// event can observe it unset.
@@ -433,7 +433,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 		}
 
 		if r.validationEnabled {
-			pr := &PendingRoute{
+			pr := &pendingRoute{
 				peerAddr:   peerAddr,
 				family:     fam,
 				prefix:     pfx.String(),
@@ -510,7 +510,7 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			MsgID:   msgID,
 		}
 		if r.validationEnabled {
-			pr := &PendingRoute{
+			pr := &pendingRoute{
 				peerAddr:   peerAddr,
 				family:     fam,
 				prefix:     prefix,
@@ -765,7 +765,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						}
 
 						if r.validationEnabled {
-							pr := &PendingRoute{
+							pr := &pendingRoute{
 								peerAddr:   peerAddr,
 								family:     fam,
 								prefix:     prefix,

@@ -78,9 +78,9 @@ func (m *Manager) setClock(c clock.Clock) {
 	m.clock = c
 }
 
-// SetOverrides applies per-collector enable/disable and interval settings.
+// setOverrides applies per-collector enable/disable and interval settings.
 // Must be called before Start.
-func (m *Manager) SetOverrides(overrides map[string]CollectorOverride) {
+func (m *Manager) setOverrides(overrides map[string]CollectorOverride) {
 	m.overrides = overrides
 }
 
@@ -162,7 +162,7 @@ func (m *Manager) collectAll(force bool) {
 // Stop() on shutdown; returns nil if no collectors are available.
 func StartOSCollectors(reg metrics.Registry, prefix string, interval time.Duration, overrides map[string]CollectorOverride, logger *slog.Logger) *Manager {
 	m := NewManager(reg, prefix, interval, logger)
-	m.SetOverrides(overrides)
+	m.setOverrides(overrides)
 	registerPlatformCollectors(m)
 	if len(m.collectors) == 0 {
 		return nil

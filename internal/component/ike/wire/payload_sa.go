@@ -464,10 +464,10 @@ func (p *PayloadSA) ValidateInitialSPISize() error {
 	return nil
 }
 
-// SpecifiesDHGroup reports whether any proposal in the SA payload names a real
+// specifiesDHGroup reports whether any proposal in the SA payload names a real
 // Diffie-Hellman group. The Transform ID NONE names no group (RFC 7296 Section
 // 3.3.2), so a proposal offering only NONE does not specify one.
-func (p *PayloadSA) SpecifiesDHGroup() bool {
+func (p *PayloadSA) specifiesDHGroup() bool {
 	for i := range p.Proposals {
 		for j := range p.Proposals[i].Transforms {
 			t := &p.Proposals[i].Transforms[j]
@@ -499,7 +499,7 @@ func (p *PayloadSA) ValidateKEGroup(ke *PayloadKE) error {
 	if ke == nil {
 		return nil
 	}
-	if !p.SpecifiesDHGroup() {
+	if !p.specifiesDHGroup() {
 		return ErrKEWithoutDHProposal
 	}
 	// A KE payload that names NONE names no group, so it can never "match a

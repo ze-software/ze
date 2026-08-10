@@ -15,12 +15,12 @@ func TestAESGCMEncryptDecrypt128(t *testing.T) {
 	plaintext := []byte("hello AES-GCM-128 encryption test")
 	aad := []byte("additional authenticated data")
 
-	ct, err := EncryptAESGCM(key, plaintext, aad)
+	ct, err := encryptAESGCM(key, plaintext, aad)
 	if err != nil {
 		t.Fatalf("EncryptAESGCM: %v", err)
 	}
 
-	pt, err := DecryptAESGCM(key, ct, aad)
+	pt, err := decryptAESGCM(key, ct, aad)
 	if err != nil {
 		t.Fatalf("DecryptAESGCM: %v", err)
 	}
@@ -37,12 +37,12 @@ func TestAESGCMEncryptDecrypt256(t *testing.T) {
 	}
 	plaintext := []byte("hello AES-GCM-256 encryption test")
 
-	ct, err := EncryptAESGCM(key, plaintext, nil)
+	ct, err := encryptAESGCM(key, plaintext, nil)
 	if err != nil {
 		t.Fatalf("EncryptAESGCM: %v", err)
 	}
 
-	pt, err := DecryptAESGCM(key, ct, nil)
+	pt, err := decryptAESGCM(key, ct, nil)
 	if err != nil {
 		t.Fatalf("DecryptAESGCM: %v", err)
 	}
@@ -57,13 +57,13 @@ func TestAESGCMTagVerification(t *testing.T) {
 	if _, err := rand.Read(key); err != nil {
 		t.Fatal(err)
 	}
-	ct, err := EncryptAESGCM(key, []byte("test"), nil)
+	ct, err := encryptAESGCM(key, []byte("test"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ct[len(ct)-1] ^= 0xff
-	_, err = DecryptAESGCM(key, ct, nil)
+	_, err = decryptAESGCM(key, ct, nil)
 	if !errors.Is(err, ErrDecryptionFailed) {
 		t.Errorf("tampered ciphertext: got %v, want ErrDecryptionFailed", err)
 	}
@@ -74,12 +74,12 @@ func TestAESGCMWrongAAD(t *testing.T) {
 	if _, err := rand.Read(key); err != nil {
 		t.Fatal(err)
 	}
-	ct, err := EncryptAESGCM(key, []byte("test"), []byte("aad1"))
+	ct, err := encryptAESGCM(key, []byte("test"), []byte("aad1"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = DecryptAESGCM(key, ct, []byte("aad2"))
+	_, err = decryptAESGCM(key, ct, []byte("aad2"))
 	if !errors.Is(err, ErrDecryptionFailed) {
 		t.Errorf("wrong AAD: got %v, want ErrDecryptionFailed", err)
 	}
@@ -93,7 +93,7 @@ func TestIKEAEADRoundTrip128(t *testing.T) {
 	plaintext := []byte("IKE AEAD roundtrip test payload")
 	aad := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08} // IKE header stub
 
-	ct, err := EncryptIKEAEAD(keyWithSalt, plaintext, aad)
+	ct, err := encryptIKEAEAD(keyWithSalt, plaintext, aad)
 	if err != nil {
 		t.Fatalf("EncryptIKEAEAD: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestIKEAEADRoundTrip256(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ct, err := EncryptIKEAEAD(keyWithSalt, plaintext, aad)
+	ct, err := encryptIKEAEAD(keyWithSalt, plaintext, aad)
 	if err != nil {
 		t.Fatalf("EncryptIKEAEAD: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestIKEAEADWrongAAD(t *testing.T) {
 	if _, err := rand.Read(keyWithSalt); err != nil {
 		t.Fatal(err)
 	}
-	ct, err := EncryptIKEAEAD(keyWithSalt, []byte("test"), []byte("correct-aad"))
+	ct, err := encryptIKEAEAD(keyWithSalt, []byte("test"), []byte("correct-aad"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestIKEAEADWrongAAD(t *testing.T) {
 }
 
 func TestIKEAEADShortKey(t *testing.T) {
-	_, err := EncryptIKEAEAD([]byte{1, 2, 3}, []byte("test"), nil)
+	_, err := encryptIKEAEAD([]byte{1, 2, 3}, []byte("test"), nil)
 	if !errors.Is(err, ErrInvalidKeyLength) {
 		t.Errorf("short key: got %v, want ErrInvalidKeyLength", err)
 	}
@@ -175,7 +175,7 @@ func TestIKEAEADWireFormat(t *testing.T) {
 	}
 	plaintext := []byte("wire format check")
 
-	ct, err := EncryptIKEAEAD(keyWithSalt, plaintext, nil)
+	ct, err := encryptIKEAEAD(keyWithSalt, plaintext, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,12 +193,12 @@ func TestAESCBCEncryptDecrypt128(t *testing.T) {
 	}
 	plaintext := []byte("hello AES-CBC-128 test data here")
 
-	ct, err := EncryptAESCBC(key, plaintext)
+	ct, err := encryptAESCBC(key, plaintext)
 	if err != nil {
 		t.Fatalf("EncryptAESCBC: %v", err)
 	}
 
-	pt, err := DecryptAESCBC(key, ct)
+	pt, err := decryptAESCBC(key, ct)
 	if err != nil {
 		t.Fatalf("DecryptAESCBC: %v", err)
 	}
@@ -215,12 +215,12 @@ func TestAESCBCEncryptDecrypt256(t *testing.T) {
 	}
 	plaintext := []byte("hello AES-CBC-256")
 
-	ct, err := EncryptAESCBC(key, plaintext)
+	ct, err := encryptAESCBC(key, plaintext)
 	if err != nil {
 		t.Fatalf("EncryptAESCBC: %v", err)
 	}
 
-	pt, err := DecryptAESCBC(key, ct)
+	pt, err := decryptAESCBC(key, ct)
 	if err != nil {
 		t.Fatalf("DecryptAESCBC: %v", err)
 	}
@@ -242,12 +242,12 @@ func TestAESCBCPadding(t *testing.T) {
 			plaintext[i] = byte(i)
 		}
 
-		ct, err := EncryptAESCBC(key, plaintext)
+		ct, err := encryptAESCBC(key, plaintext)
 		if err != nil {
 			t.Fatalf("EncryptAESCBC(size=%d): %v", size, err)
 		}
 
-		pt, err := DecryptAESCBC(key, ct)
+		pt, err := decryptAESCBC(key, ct)
 		if err != nil {
 			t.Fatalf("DecryptAESCBC(size=%d): %v", size, err)
 		}

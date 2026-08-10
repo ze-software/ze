@@ -12,20 +12,20 @@ import (
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 )
 
-// PoolSet manages named watchdog route pools.
+// poolSet manages named watchdog route pools.
 // Provides a centralized store for routes that can be
 // announced/withdrawn in bulk via "request bgp watchdog announce/withdraw <name>".
 //
 // Thread-safe for concurrent access from command handlers and state events.
-type PoolSet struct {
-	pools map[string]*RoutePool
+type poolSet struct {
+	pools map[string]*routePool
 	mu    sync.RWMutex
 }
 
-// NewPoolSet creates a new PoolSet.
-func NewPoolSet() *PoolSet {
-	return &PoolSet{
-		pools: make(map[string]*RoutePool),
+// newPoolSet creates a new PoolSet.
+func newPoolSet() *poolSet {
+	return &poolSet{
+		pools: make(map[string]*routePool),
 	}
 }
 
@@ -34,7 +34,7 @@ var ErrRouteExists = errors.New("route already exists in pool")
 
 // AddRoute adds a route to a named pool, creating the pool if needed.
 // Returns ErrRouteExists if a route with the same key already exists.
-func (s *PoolSet) AddRoute(poolName string, entry *PoolEntry) error {
+func (s *poolSet) AddRoute(poolName string, entry *PoolEntry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -50,7 +50,7 @@ func (s *PoolSet) AddRoute(poolName string, entry *PoolEntry) error {
 // RemoveRoute removes a route from a pool by key.
 // Returns the removed entry and true, or nil and false if not found.
 // Cleans up empty pools automatically.
-func (s *PoolSet) RemoveRoute(poolName, routeKey string) (*PoolEntry, bool) {
+func (s *poolSet) RemoveRoute(poolName, routeKey string) (*PoolEntry, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -71,16 +71,16 @@ func (s *PoolSet) RemoveRoute(poolName, routeKey string) (*PoolEntry, bool) {
 	return removed, true
 }
 
-// GetPool returns a pool by name, or nil if not found.
-func (s *PoolSet) GetPool(name string) *RoutePool {
+// getPool returns a pool by name, or nil if not found.
+func (s *poolSet) getPool(name string) *routePool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.pools[name]
 }
 
-// PoolNames returns all pool names.
-func (s *PoolSet) PoolNames() []string {
+// poolNames returns all pool names.
+func (s *poolSet) poolNames() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -94,7 +94,7 @@ func (s *PoolSet) PoolNames() []string {
 // AnnouncePool marks all withdrawn routes as announced for a peer.
 // Returns entries that transitioned from withdrawn to announced.
 // Returns nil if pool doesn't exist.
-func (s *PoolSet) AnnouncePool(poolName, peerAddr string) []*PoolEntry {
+func (s *poolSet) AnnouncePool(poolName, peerAddr string) []*PoolEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -106,10 +106,10 @@ func (s *PoolSet) AnnouncePool(poolName, peerAddr string) []*PoolEntry {
 	return pool.announceForPeer(peerAddr)
 }
 
-// WithdrawPool marks all announced routes as withdrawn for a peer.
+// withdrawPool marks all announced routes as withdrawn for a peer.
 // Returns entries that transitioned from announced to withdrawn.
 // Returns nil if pool doesn't exist.
-func (s *PoolSet) WithdrawPool(poolName, peerAddr string) []*PoolEntry {
+func (s *poolSet) withdrawPool(poolName, peerAddr string) []*PoolEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -124,7 +124,7 @@ func (s *PoolSet) WithdrawPool(poolName, peerAddr string) []*PoolEntry {
 // AnnounceInitial marks only initiallyAnnounced routes as announced for a peer.
 // Routes that are not initiallyAnnounced are left untouched.
 // Returns entries that were marked as announced.
-func (s *PoolSet) AnnounceInitial(poolName, peerAddr string) []*PoolEntry {
+func (s *poolSet) AnnounceInitial(poolName, peerAddr string) []*PoolEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -137,7 +137,7 @@ func (s *PoolSet) AnnounceInitial(poolName, peerAddr string) []*PoolEntry {
 }
 
 // AnnouncedForPeer returns all routes in a pool that are announced for a peer.
-func (s *PoolSet) AnnouncedForPeer(poolName, peerAddr string) []*PoolEntry {
+func (s *poolSet) AnnouncedForPeer(poolName, peerAddr string) []*PoolEntry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -149,28 +149,28 @@ func (s *PoolSet) AnnouncedForPeer(poolName, peerAddr string) []*PoolEntry {
 	return pool.announcedForPeer(peerAddr)
 }
 
-// RoutePool holds routes for a named watchdog group.
+// routePool holds routes for a named watchdog group.
 // Each route tracks per-peer announced/withdrawn state.
-type RoutePool struct {
+type routePool struct {
 	name   string
 	routes map[string]*PoolEntry
 	mu     sync.RWMutex
 }
 
-func newRoutePool(name string) *RoutePool {
-	return &RoutePool{
+func newRoutePool(name string) *routePool {
+	return &routePool{
 		name:   name,
 		routes: make(map[string]*PoolEntry),
 	}
 }
 
 // Name returns the pool name.
-func (p *RoutePool) Name() string {
+func (p *routePool) Name() string {
 	return p.name
 }
 
 // Routes returns all entries in the pool.
-func (p *RoutePool) Routes() []*PoolEntry {
+func (p *routePool) Routes() []*PoolEntry {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -181,14 +181,14 @@ func (p *RoutePool) Routes() []*PoolEntry {
 	return entries
 }
 
-func (p *RoutePool) isEmpty() bool {
+func (p *routePool) isEmpty() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	return len(p.routes) == 0
 }
 
-func (p *RoutePool) addRoute(entry *PoolEntry) error {
+func (p *routePool) addRoute(entry *PoolEntry) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -201,7 +201,7 @@ func (p *RoutePool) addRoute(entry *PoolEntry) error {
 	return nil
 }
 
-func (p *RoutePool) removeRoute(routeKey string) *PoolEntry {
+func (p *routePool) removeRoute(routeKey string) *PoolEntry {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -213,7 +213,7 @@ func (p *RoutePool) removeRoute(routeKey string) *PoolEntry {
 	return entry
 }
 
-func (p *RoutePool) announceInitialForPeer(peerAddr string) []*PoolEntry {
+func (p *routePool) announceInitialForPeer(peerAddr string) []*PoolEntry {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -227,7 +227,7 @@ func (p *RoutePool) announceInitialForPeer(peerAddr string) []*PoolEntry {
 	return announced
 }
 
-func (p *RoutePool) announceForPeer(peerAddr string) []*PoolEntry {
+func (p *routePool) announceForPeer(peerAddr string) []*PoolEntry {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -241,7 +241,7 @@ func (p *RoutePool) announceForPeer(peerAddr string) []*PoolEntry {
 	return announced
 }
 
-func (p *RoutePool) withdrawForPeer(peerAddr string) []*PoolEntry {
+func (p *routePool) withdrawForPeer(peerAddr string) []*PoolEntry {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -255,7 +255,7 @@ func (p *RoutePool) withdrawForPeer(peerAddr string) []*PoolEntry {
 	return withdrawn
 }
 
-func (p *RoutePool) announcedForPeer(peerAddr string) []*PoolEntry {
+func (p *routePool) announcedForPeer(peerAddr string) []*PoolEntry {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -292,11 +292,11 @@ type PoolEntry struct {
 	// or on explicit withdraw.
 	pendingMED map[string]*uint32 // peerAddr → MED (protected by pool.mu)
 
-	pool *RoutePool // back-pointer for locking
+	pool *routePool // back-pointer for locking
 }
 
-// NewPoolEntry creates a new pool entry with the given key and commands.
-func NewPoolEntry(key, announceCmd, withdrawCmd string) *PoolEntry {
+// newPoolEntry creates a new pool entry with the given key and commands.
+func newPoolEntry(key, announceCmd, withdrawCmd string) *PoolEntry {
 	return &PoolEntry{
 		Key:         key,
 		AnnounceCmd: announceCmd,
@@ -306,18 +306,18 @@ func NewPoolEntry(key, announceCmd, withdrawCmd string) *PoolEntry {
 	}
 }
 
-// IsAnnounced returns true if the route is announced for the given peer.
+// isAnnounced returns true if the route is announced for the given peer.
 // Thread-safe: acquires pool lock.
-func (e *PoolEntry) IsAnnounced(peerAddr string) bool {
+func (e *PoolEntry) isAnnounced(peerAddr string) bool {
 	e.pool.mu.RLock()
 	defer e.pool.mu.RUnlock()
 
 	return e.announced[peerAddr]
 }
 
-// AnnouncedPeers returns all peer addresses for which this route is announced.
+// announcedPeers returns all peer addresses for which this route is announced.
 // Thread-safe: acquires pool lock.
-func (e *PoolEntry) AnnouncedPeers() []string {
+func (e *PoolEntry) announcedPeers() []string {
 	e.pool.mu.RLock()
 	defer e.pool.mu.RUnlock()
 

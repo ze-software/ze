@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testObserverConfig() ObserverConfig {
-	return ObserverConfig{
+func testObserverConfig() observerConfig {
+	return observerConfig{
 		MaxSessions:   10,
 		EventRingSize: 4,
 		MaxLogins:     3,
@@ -37,12 +37,12 @@ func TestEventRingReset(t *testing.T) {
 }
 
 func TestEventRingRoutesBySessionID(t *testing.T) {
-	obs := NewObserver(testObserverConfig())
+	obs := newObserver(testObserverConfig())
 	now := time.Now()
 
-	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 100})
-	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 200})
-	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventEchoRTT, SessionID: 100})
+	obs.recordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 100})
+	obs.recordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 200})
+	obs.recordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventEchoRTT, SessionID: 100})
 
 	snap100 := obs.SessionEvents(100)
 	snap200 := obs.SessionEvents(200)
@@ -54,46 +54,46 @@ func TestEventRingRoutesBySessionID(t *testing.T) {
 
 func TestObserverPoolPreallocation(t *testing.T) {
 	cfg := testObserverConfig()
-	obs := NewObserver(cfg)
+	obs := newObserver(cfg)
 
 	// All pool slots should be available
 	for i := range cfg.MaxSessions {
-		obs.RecordEvent(ObserverEvent{SessionID: uint16(i + 1)})
+		obs.recordEvent(ObserverEvent{SessionID: uint16(i + 1)})
 	}
 	// One more should be silently dropped (pool exhausted)
-	obs.RecordEvent(ObserverEvent{SessionID: uint16(cfg.MaxSessions + 1)})
+	obs.recordEvent(ObserverEvent{SessionID: uint16(cfg.MaxSessions + 1)})
 	require.Nil(t, obs.SessionEvents(uint16(cfg.MaxSessions+1)))
 }
 
 func TestObserverPoolReturnAndReuse(t *testing.T) {
-	cfg := ObserverConfig{MaxSessions: 1, EventRingSize: 4, MaxLogins: 1, BucketCount: 10}
-	obs := NewObserver(cfg)
+	cfg := observerConfig{MaxSessions: 1, EventRingSize: 4, MaxLogins: 1, BucketCount: 10}
+	obs := newObserver(cfg)
 
-	obs.RecordEvent(ObserverEvent{SessionID: 1})
+	obs.recordEvent(ObserverEvent{SessionID: 1})
 	require.Len(t, obs.SessionEvents(1), 1)
 
 	obs.ReleaseSession(1)
 	require.Nil(t, obs.SessionEvents(1))
 
 	// Pool should have the buffer back
-	obs.RecordEvent(ObserverEvent{SessionID: 2})
+	obs.recordEvent(ObserverEvent{SessionID: 2})
 	require.Len(t, obs.SessionEvents(2), 1)
 }
 
 func TestObserverLRUEviction(t *testing.T) {
-	cfg := ObserverConfig{MaxSessions: 10, EventRingSize: 4, MaxLogins: 2, BucketCount: 10}
-	obs := NewObserver(cfg)
+	cfg := observerConfig{MaxSessions: 10, EventRingSize: 4, MaxLogins: 2, BucketCount: 10}
+	obs := newObserver(cfg)
 	now := time.Now()
 
-	obs.RecordEcho("alice", now, 10*time.Millisecond)
-	obs.RecordEcho("bob", now.Add(time.Second), 20*time.Millisecond)
+	obs.recordEcho("alice", now, 10*time.Millisecond)
+	obs.recordEcho("bob", now.Add(time.Second), 20*time.Millisecond)
 
 	// Both should exist
 	require.NotNil(t, obs.LoginSamples("alice"))
 	require.NotNil(t, obs.LoginSamples("bob"))
 
 	// Adding a third login should evict alice (LRU -- bob was touched more recently)
-	obs.RecordEcho("carol", now.Add(2*time.Second), 30*time.Millisecond)
+	obs.recordEcho("carol", now.Add(2*time.Second), 30*time.Millisecond)
 	require.Nil(t, obs.LoginSamples("alice"))
 	require.NotNil(t, obs.LoginSamples("bob"))
 	require.NotNil(t, obs.LoginSamples("carol"))
@@ -101,20 +101,20 @@ func TestObserverLRUEviction(t *testing.T) {
 
 func TestLoginContinuity(t *testing.T) {
 	cfg := testObserverConfig()
-	obs := NewObserver(cfg)
+	obs := newObserver(cfg)
 	now := time.Now()
 
 	// First session for "alice"
-	obs.RecordEcho("alice", now, 10*time.Millisecond)
-	obs.RecordEvent(ObserverEvent{SessionID: 100, Type: ObserverEventSessionUp})
+	obs.recordEcho("alice", now, 10*time.Millisecond)
+	obs.recordEvent(ObserverEvent{SessionID: 100, Type: ObserverEventSessionUp})
 
 	// Session ends, event ring released
 	obs.ReleaseSession(100)
 	require.Nil(t, obs.SessionEvents(100))
 
 	// Same login reconnects with new SID
-	obs.RecordEcho("alice", now.Add(time.Second), 20*time.Millisecond)
-	obs.RecordEvent(ObserverEvent{SessionID: 200, Type: ObserverEventSessionUp})
+	obs.recordEcho("alice", now.Add(time.Second), 20*time.Millisecond)
+	obs.recordEvent(ObserverEvent{SessionID: 200, Type: ObserverEventSessionUp})
 
 	// Sample ring is continuous (login-keyed)
 	require.NotNil(t, obs.LoginSamples("alice"))
@@ -125,20 +125,20 @@ func TestLoginContinuity(t *testing.T) {
 }
 
 func TestCQMBucketBoundary(t *testing.T) {
-	cfg := ObserverConfig{MaxSessions: 1, EventRingSize: 4, MaxLogins: 1, BucketCount: 10}
-	obs := NewObserver(cfg)
+	cfg := observerConfig{MaxSessions: 1, EventRingSize: 4, MaxLogins: 1, BucketCount: 10}
+	obs := newObserver(cfg)
 
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Echoes within first bucket
-	obs.RecordEcho("alice", start, 10*time.Millisecond)
-	obs.RecordEcho("alice", start.Add(50*time.Second), 20*time.Millisecond)
+	obs.recordEcho("alice", start, 10*time.Millisecond)
+	obs.recordEcho("alice", start.Add(50*time.Second), 20*time.Millisecond)
 
 	// No closed buckets yet (still within 100s)
 	require.Empty(t, obs.LoginSamples("alice"))
 
 	// Echo after bucket boundary triggers close
-	obs.RecordEcho("alice", start.Add(101*time.Second), 30*time.Millisecond)
+	obs.recordEcho("alice", start.Add(101*time.Second), 30*time.Millisecond)
 
 	snap := obs.LoginSamples("alice")
 	require.Len(t, snap, 1)
@@ -148,21 +148,21 @@ func TestCQMBucketBoundary(t *testing.T) {
 }
 
 func TestCQMBucketStateTag(t *testing.T) {
-	cfg := ObserverConfig{MaxSessions: 1, EventRingSize: 4, MaxLogins: 1, BucketCount: 10}
-	obs := NewObserver(cfg)
+	cfg := observerConfig{MaxSessions: 1, EventRingSize: 4, MaxLogins: 1, BucketCount: 10}
+	obs := newObserver(cfg)
 
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	obs.RecordEcho("alice", start, 10*time.Millisecond)
-	obs.SetLoginState("alice", BucketStateEstablished)
+	obs.recordEcho("alice", start, 10*time.Millisecond)
+	obs.setLoginState("alice", BucketStateEstablished)
 
 	// Close bucket
-	obs.RecordEcho("alice", start.Add(101*time.Second), 20*time.Millisecond)
+	obs.recordEcho("alice", start.Add(101*time.Second), 20*time.Millisecond)
 
 	snap := obs.LoginSamples("alice")
 	require.Len(t, snap, 1)
 	// State was negotiating when bucket opened, then changed to established.
-	// The last-set state wins because SetLoginState updates current.State.
+	// The last-set state wins because setLoginState updates current.State.
 	require.Equal(t, BucketStateEstablished, snap[0].State)
 }
 
@@ -173,14 +173,14 @@ func TestObserverEventTypeString(t *testing.T) {
 }
 
 func TestObserverEventSnapshot(t *testing.T) {
-	obs := NewObserver(testObserverConfig())
+	obs := newObserver(testObserverConfig())
 	now := time.Now()
 
-	obs.RecordEvent(ObserverEvent{
+	obs.recordEvent(ObserverEvent{
 		Timestamp: now, Type: ObserverEventSessionUp,
 		SessionID: 42, TunnelID: 1,
 	})
-	obs.RecordEvent(ObserverEvent{
+	obs.recordEvent(ObserverEvent{
 		Timestamp: now.Add(time.Second), Type: ObserverEventEchoRTT,
 		SessionID: 42, TunnelID: 1, RTT: 5 * time.Millisecond,
 	})
@@ -194,17 +194,17 @@ func TestObserverEventSnapshot(t *testing.T) {
 }
 
 func TestObserverSnapshotNonExistent(t *testing.T) {
-	obs := NewObserver(testObserverConfig())
+	obs := newObserver(testObserverConfig())
 	require.Nil(t, obs.SessionEvents(9999))
 }
 
 func TestSessionSummaries(t *testing.T) {
-	obs := NewObserver(testObserverConfig())
+	obs := newObserver(testObserverConfig())
 	now := time.Now()
 
-	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 10})
-	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 20})
-	obs.RecordEvent(ObserverEvent{Timestamp: now.Add(time.Second), Type: ObserverEventEchoRTT, SessionID: 10})
+	obs.recordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 10})
+	obs.recordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 20})
+	obs.recordEvent(ObserverEvent{Timestamp: now.Add(time.Second), Type: ObserverEventEchoRTT, SessionID: 10})
 
 	summaries := obs.SessionSummaries()
 	require.Len(t, summaries, 2)
@@ -222,11 +222,11 @@ func TestSessionSummaries(t *testing.T) {
 func TestLoginSummaries(t *testing.T) {
 	cfg := testObserverConfig()
 	cfg.EchoInterval = 10 * time.Second
-	obs := NewObserver(cfg)
+	obs := newObserver(cfg)
 	now := time.Now()
 
-	obs.RecordEcho("alice", now, 10*time.Millisecond)
-	obs.RecordEcho("bob", now, 20*time.Millisecond)
+	obs.recordEcho("alice", now, 10*time.Millisecond)
+	obs.recordEcho("bob", now, 20*time.Millisecond)
 
 	summaries := obs.LoginSummaries()
 	require.Len(t, summaries, 2)
@@ -242,10 +242,10 @@ func TestLoginSummaries(t *testing.T) {
 func TestEchoState(t *testing.T) {
 	cfg := testObserverConfig()
 	cfg.EchoInterval = 10 * time.Second
-	obs := NewObserver(cfg)
+	obs := newObserver(cfg)
 	now := time.Now()
 
-	obs.RecordEcho("alice", now, 15*time.Millisecond)
+	obs.recordEcho("alice", now, 15*time.Millisecond)
 
 	state := obs.EchoState("alice")
 	require.NotNil(t, state)

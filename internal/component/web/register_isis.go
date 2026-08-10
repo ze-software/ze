@@ -10,18 +10,18 @@ func init() {
 		return &ISISHandlers{Renderer: d.Renderer, Dispatch: d.Dispatch}
 	}
 	RegisterWebRoute(WebRoute{Pattern: "GET /isis", Wrap: WrapAuth, Build: func(d RouteDeps) http.Handler {
-		return isis(d).HandleISISNeighbors()
+		return isis(d).handleISISNeighbors()
 	}})
 	RegisterWebRoute(WebRoute{Pattern: "GET /isis/neighbors", Wrap: WrapAuth, Build: func(d RouteDeps) http.Handler {
-		return isis(d).HandleISISNeighbors()
+		return isis(d).handleISISNeighbors()
 	}})
 	RegisterWebRoute(WebRoute{Pattern: "GET /isis/neighbors/stream", Wrap: WrapAuth, Build: func(d RouteDeps) http.Handler {
-		return isis(d).HandleISISNeighborsSSE()
+		return isis(d).handleISISNeighborsSSE()
 	}})
 	RegisterWebRoute(WebRoute{Pattern: "GET /isis/database", Wrap: WrapAuth, Build: func(d RouteDeps) http.Handler {
-		return isis(d).HandleISISDatabase()
+		return isis(d).handleISISDatabase()
 	}})
 	RegisterWebRoute(WebRoute{Pattern: "GET /isis/database/stream", Wrap: WrapAuth, Build: func(d RouteDeps) http.Handler {
-		return isis(d).HandleISISDatabaseSSE()
+		return isis(d).handleISISDatabaseSSE()
 	}})
 }

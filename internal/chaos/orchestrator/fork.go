@@ -14,8 +14,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ZeChild represents a forked child process (Ze or external daemon).
-type ZeChild struct {
+// zeChild represents a forked child process (Ze or external daemon).
+type zeChild struct {
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	done    chan struct{}
@@ -23,8 +23,8 @@ type ZeChild struct {
 	tmpFile string
 }
 
-// ForkZe starts a Ze instance with config piped via stdin.
-func ForkZe(ctx context.Context, config, binary string) (*ZeChild, error) {
+// forkZe starts a Ze instance with config piped via stdin.
+func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
 	if binary == "" {
 		var err error
 		binary, err = exec.LookPath("ze")
@@ -64,7 +64,7 @@ func ForkZe(ctx context.Context, config, binary string) (*ZeChild, error) {
 		return nil, fmt.Errorf("writing sentinel: %w", err)
 	}
 
-	child := &ZeChild{cmd: cmd, stdin: stdin, done: make(chan struct{})}
+	child := &zeChild{cmd: cmd, stdin: stdin, done: make(chan struct{})}
 	go func() {
 		child.waitErr = cmd.Wait()
 		close(child.done)
@@ -74,25 +74,25 @@ func ForkZe(ctx context.Context, config, binary string) (*ZeChild, error) {
 }
 
 // PID returns the process ID of the child.
-func (z *ZeChild) PID() int {
+func (z *zeChild) PID() int {
 	return z.cmd.Process.Pid
 }
 
 // Done returns a channel that closes when the child process exits.
-func (z *ZeChild) Done() <-chan struct{} { return z.done }
+func (z *zeChild) Done() <-chan struct{} { return z.done }
 
 // WaitErr returns the error from the child process Wait call.
-func (z *ZeChild) WaitErr() error { return z.waitErr }
+func (z *zeChild) WaitErr() error { return z.waitErr }
 
 // Signal sends a signal to the child process.
-func (z *ZeChild) Signal(sig os.Signal) {
+func (z *zeChild) Signal(sig os.Signal) {
 	if err := z.cmd.Process.Signal(sig); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: signaling ze: %v\n", err)
 	}
 }
 
 // Shutdown closes stdin and waits for the child to exit.
-func (z *ZeChild) Shutdown() {
+func (z *zeChild) Shutdown() {
 	if z.stdin != nil {
 		if err := z.stdin.Close(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: closing stdin: %v\n", err)
@@ -117,9 +117,9 @@ func (z *ZeChild) Shutdown() {
 	}
 }
 
-// ForkDaemon launches an external BGP daemon (FRR bgpd or BIRD) with config
+// forkDaemon launches an external BGP daemon (FRR bgpd or BIRD) with config
 // written to a temp file. The daemon runs in the foreground as a child process.
-func ForkDaemon(ctx context.Context, config, binary string, target scenario.Target, port int, localAddr string) (*ZeChild, error) {
+func forkDaemon(ctx context.Context, config, binary string, target scenario.Target, port int, localAddr string) (*zeChild, error) {
 	if binary == "" {
 		var err error
 		binary, err = exec.LookPath(target.DefaultBinary())
@@ -182,7 +182,7 @@ func ForkDaemon(ctx context.Context, config, binary string, target scenario.Targ
 		return nil, fmt.Errorf("starting %s: %w", target, err)
 	}
 
-	child := &ZeChild{cmd: cmd, done: make(chan struct{}), tmpFile: tmpPath}
+	child := &zeChild{cmd: cmd, done: make(chan struct{}), tmpFile: tmpPath}
 	go func() {
 		child.waitErr = cmd.Wait()
 		close(child.done)

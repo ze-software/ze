@@ -162,11 +162,11 @@ func addCommunityText(m map[string]Community, value Community, name string) {
 	}
 }
 
-// CommunityValue resolves a well-known community name to its wire value.
+// communityValue resolves a well-known community name to its wire value.
 // The lookup accepts the canonical name, its underscore spelling, and any
 // registered alias. Callers that also accept ASN:value or hex forms use
 // ParseCommunity, which consults this first.
-func CommunityValue(name string) (Community, bool) {
+func communityValue(name string) (Community, bool) {
 	v, ok := communityValues[strings.ToLower(name)]
 	return v, ok
 }
@@ -196,12 +196,12 @@ func RegisterCommunityName(value Community, name string) error {
 	return nil
 }
 
-// RegisterCommunityAlias registers one more accepted spelling for a
+// registerCommunityAlias registers one more accepted spelling for a
 // community that is already named. The alias parses to the value and is never
 // rendered: output always uses the canonical name from RegisterCommunityName.
 // Called by plugins during init(). Idempotent for the same alias and value.
 // Must only be called during init() (not thread-safe for concurrent writes).
-func RegisterCommunityAlias(value Community, alias string) error {
+func registerCommunityAlias(value Community, alias string) error {
 	if _, ok := communityNames[value]; !ok {
 		return fmt.Errorf("community 0x%08X has no registered name, cannot add alias %q", uint32(value), alias)
 	}

@@ -33,7 +33,7 @@ func TestSubsystem_PlaceOutgoingCall_PreflightErrors(t *testing.T) {
 // TestOutgoingCall_SignalsSuccessOnOCCN -- AC-4 result surfacing.
 //
 // VALIDATES: a callResult channel installed on an LNS-outgoing session (as
-// PlaceOutgoingCallSync does) receives a success outcome carrying local and
+// placeOutgoingCallSync does) receives a success outcome carrying local and
 // remote SIDs the moment OCCN establishes the call, and is cleared after.
 func TestOutgoingCall_SignalsSuccessOnOCCN(t *testing.T) {
 	tun := newEstablishedTunnel(t, 0)

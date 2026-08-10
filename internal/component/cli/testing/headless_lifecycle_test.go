@@ -9,7 +9,7 @@ import (
 // VALIDATES: .et lifecycle infrastructure -- restartFunc through headless model.
 // PREVENTS: restartFunc nil when model processes "restart" command.
 func TestHeadlessRestartFuncPropagation(t *testing.T) {
-	hm := NewHeadlessCommandModel()
+	hm := newHeadlessCommandModel()
 
 	// Set restartFunc via the Model() pointer (same as runner line 225-227).
 	called := false
@@ -18,8 +18,8 @@ func TestHeadlessRestartFuncPropagation(t *testing.T) {
 	m.SetRestartFunc(func() { called = true })
 
 	// Type "restart" and press Enter (same as .et input=type:text=restart + input=enter).
-	hm.TypeText("restart")
-	hm.PressEnter()
+	hm.typeText("restart")
+	hm.pressEnter()
 
 	// The status message reveals whether restartFunc was nil.
 	// "restart not available" = nil, confirmation prompt = set.

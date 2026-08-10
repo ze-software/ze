@@ -142,8 +142,8 @@ func EncodeLANAdjSIDValueV6(a AdjSID) []byte {
 	return b
 }
 
-// DecodeLANAdjSIDValueV6 parses an OSPFv3 LAN-Adj-SID sub-TLV value.
-func DecodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
+// decodeLANAdjSIDValueV6 parses an OSPFv3 LAN-Adj-SID sub-TLV value.
+func decodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
 	if len(v) < 8 {
 		return AdjSID{}, ErrMalformed
 	}
@@ -171,8 +171,8 @@ func DecodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
 
 // ---- OSPFv3 SID/Label sub-TLV (RFC 8666 §3.1, type 7) ----
 
-// EncodeSIDLabelSubTLVV6 frames an OSPFv3 SID/Label sub-TLV (type 7).
-func EncodeSIDLabelSubTLVV6(isLabel bool, val uint32) []byte {
+// encodeSIDLabelSubTLVV6 frames an OSPFv3 SID/Label sub-TLV (type 7).
+func encodeSIDLabelSubTLVV6(isLabel bool, val uint32) []byte {
 	return writeSubTLV(V6TypeSIDLabel, sidBytes(isLabel, val))
 }
 

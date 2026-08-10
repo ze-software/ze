@@ -369,7 +369,7 @@ func parseT2STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 		ep:       ep,
 		teid:     teid,
 		teidBits: bits,
-		dataSize: 1 + addrByteLen(ep) + TEIDFieldLen(bits),
+		dataSize: 1 + addrByteLen(ep) + tEIDFieldLen(bits),
 	}, nil
 }
 
@@ -426,7 +426,7 @@ func writeT2STData(buf []byte, off int, f mupParsed) int {
 	pos++
 	pos += writeAddr(buf, pos, f.ep)
 	writeTEIDWithBits(buf, pos, f.teid, f.teidBits)
-	pos += TEIDFieldLen(f.teidBits)
+	pos += tEIDFieldLen(f.teidBits)
 	return pos - off
 }
 

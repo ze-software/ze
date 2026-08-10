@@ -1148,12 +1148,12 @@ func TestRFC5880AuthSequenceFieldIsXmitAuthSeq(t *testing.T) {
 	m.SetAuth(rfc5880AuthPair(t))
 	m.vars.XmitAuthSeq = 0x11223344
 
-	buf := make([]byte, packet.MandatoryLen+m.AuthBodyLen())
+	buf := make([]byte, packet.MandatoryLen+m.authBodyLen())
 	c := m.Build()
 	c.WriteTo(buf, 0)
 	n := m.Sign(buf, packet.MandatoryLen)
-	if n != m.AuthBodyLen() {
-		t.Fatalf("Sign wrote %d bytes, want %d", n, m.AuthBodyLen())
+	if n != m.authBodyLen() {
+		t.Fatalf("Sign wrote %d bytes, want %d", n, m.authBodyLen())
 	}
 	if got := binary.BigEndian.Uint32(buf[packet.MandatoryLen+4:]); got != 0x11223344 {
 		t.Fatalf("Sequence Number field = %#x, want bfd.XmitAuthSeq %#x", got, uint32(0x11223344))
@@ -1171,7 +1171,7 @@ func TestRFC5880AuthSequenceFieldFollowsAdvance(t *testing.T) {
 	m.SetAuth(rfc5880AuthPair(t))
 	m.vars.XmitAuthSeq = 100
 
-	buf := make([]byte, packet.MandatoryLen+m.AuthBodyLen())
+	buf := make([]byte, packet.MandatoryLen+m.authBodyLen())
 	c := m.Build()
 	c.WriteTo(buf, 0)
 	m.Sign(buf, packet.MandatoryLen)

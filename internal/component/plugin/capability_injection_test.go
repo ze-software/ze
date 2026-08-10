@@ -22,7 +22,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			Payload:  base64.StdEncoding.EncodeToString([]byte("router1.example.com")),
 		}
 
-		decoded, err := DecodeCapabilityPayload(cap)
+		decoded, err := decodeCapabilityPayload(cap)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("router1.example.com"), decoded)
 	})
@@ -34,7 +34,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			Payload:  "74657374", // "test" in hex
 		}
 
-		decoded, err := DecodeCapabilityPayload(cap)
+		decoded, err := decodeCapabilityPayload(cap)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("test"), decoded)
 	})
@@ -46,7 +46,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			Payload:  "router1.example.com",
 		}
 
-		decoded, err := DecodeCapabilityPayload(cap)
+		decoded, err := decodeCapabilityPayload(cap)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("router1.example.com"), decoded)
 	})
@@ -58,7 +58,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			Payload:  "not-valid-base64!!!",
 		}
 
-		_, err := DecodeCapabilityPayload(cap)
+		_, err := decodeCapabilityPayload(cap)
 		require.Error(t, err)
 	})
 
@@ -69,7 +69,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			Payload:  "not-valid-hex-ZZ",
 		}
 
-		_, err := DecodeCapabilityPayload(cap)
+		_, err := decodeCapabilityPayload(cap)
 		require.Error(t, err)
 	})
 
@@ -83,7 +83,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			Payload:  "",
 		}
 
-		decoded, err := DecodeCapabilityPayload(cap)
+		decoded, err := decodeCapabilityPayload(cap)
 		require.NoError(t, err)
 		assert.Empty(t, decoded, "route-refresh should have empty payload")
 	})
@@ -97,7 +97,7 @@ func TestCapabilityDecoding(t *testing.T) {
 			// Encoding and Payload both empty — flag capability, no data
 		}
 
-		decoded, err := DecodeCapabilityPayload(cap)
+		decoded, err := decodeCapabilityPayload(cap)
 		require.NoError(t, err)
 		assert.Nil(t, decoded, "flag capability should have nil payload")
 	})

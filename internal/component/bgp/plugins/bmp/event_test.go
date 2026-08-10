@@ -451,7 +451,7 @@ func TestBMPRouteMirroringSend(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Route Mirroring read: %v", err)
 			}
-			rm, ok := msg.(*RouteMirroring)
+			rm, ok := msg.(*routeMirroring)
 			if !ok {
 				t.Fatalf("expected *RouteMirroring, got %T", msg)
 			}

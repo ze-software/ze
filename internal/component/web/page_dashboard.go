@@ -22,16 +22,16 @@ import (
 	"github.com/ze-software/ze/internal/core/health"
 )
 
-// DashboardHealthData is the template payload for the component health table.
-type DashboardHealthData struct {
+// dashboardHealthData is the template payload for the component health table.
+type dashboardHealthData struct {
 	Title        string
 	Columns      []WorkbenchTableColumn
 	Rows         []WorkbenchTableRow
 	EmptyMessage string
 }
 
-// DashboardEventsData is the template payload for the recent events table.
-type DashboardEventsData struct {
+// dashboardEventsData is the template payload for the recent events table.
+type dashboardEventsData struct {
 	Title        string
 	Columns      []WorkbenchTableColumn
 	Rows         []WorkbenchTableRow
@@ -66,12 +66,12 @@ var knownComponents = []componentDef{
 	{Name: "Looking Glass", ConfigKey: "environment/looking-glass"},
 }
 
-// HandleDashboardHealthPage returns the rendered HTML for the component health
+// handleDashboardHealthPage returns the rendered HTML for the component health
 // table. Rows backed by a live probe in health.DefaultRegistry show real
 // operational state; the web server is always shown running (it is serving this
 // page); the remaining rows fall back to config-tree presence (F10).
-func HandleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *http.Request, _ CommandDispatcher) template.HTML {
-	data := DashboardHealthData{
+func handleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *http.Request, _ CommandDispatcher) template.HTML {
+	data := dashboardHealthData{
 		Title: "Component Health",
 		Columns: []WorkbenchTableColumn{
 			{Key: "component", Label: "Component"},
@@ -152,12 +152,12 @@ func isComponentConfigured(tree *config.Tree, configKey string) bool {
 
 // --- Dashboard > Events ---
 
-// HandleDashboardEventsPage returns the rendered HTML for the recent events table.
+// handleDashboardEventsPage returns the rendered HTML for the recent events table.
 // Dispatches "show event recent" with optional namespace filter.
-func HandleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+func handleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
 	selectedNS := r.URL.Query().Get("namespace")
 
-	data := DashboardEventsData{
+	data := dashboardEventsData{
 		Title: "Recent Events",
 		Columns: []WorkbenchTableColumn{
 			{Key: "time", Label: "Time"},

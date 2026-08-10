@@ -88,8 +88,8 @@ var bufMuxExt = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSi
 // created so updateBufMuxBudget never needs the create-path concurrently.
 func initBufMuxBudget(maxBytes int64) {
 	cb := newCombinedBudget(maxBytes) // 0 = unlimited
-	bufMuxStd.SetBudget(cb)
-	bufMuxExt.SetBudget(cb)
+	bufMuxStd.setBudget(cb)
+	bufMuxExt.setBudget(cb)
 }
 
 // updateBufMuxBudget updates the shared byte budget limit atomically.
@@ -628,9 +628,9 @@ func (s *Session) SetRecvCtxID(ctxID bgpctx.ContextID) {
 	s.recvCtxID = ctxID
 }
 
-// SetSendCtxID sets the encoding context ID for sent messages.
+// setSendCtxID sets the encoding context ID for sent messages.
 // Called by Peer after capability negotiation for AttrsWire creation in callbacks.
-func (s *Session) SetSendCtxID(ctxID bgpctx.ContextID) {
+func (s *Session) setSendCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sendCtxID = ctxID

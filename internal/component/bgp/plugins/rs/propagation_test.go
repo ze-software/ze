@@ -23,7 +23,7 @@ import (
 
 // newIntegrationRouteServer creates a RouteServer with live net.Pipe SDK
 // connections and an engine-side RPC conn for verifying RPCs.
-func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
+func newIntegrationRouteServer(t *testing.T) (*routeServer, *rpc.Conn) {
 	t.Helper()
 	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() {
@@ -40,7 +40,7 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 
 	engineConn := rpc.NewConn(engineEnd, engineEnd)
 
-	rs := &RouteServer{
+	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[withdrawalKey]struct{}),

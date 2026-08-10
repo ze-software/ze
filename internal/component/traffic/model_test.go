@@ -153,7 +153,7 @@ func TestHTBCeilBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateCeil(tt.rate, tt.ceil)
+			err := validateCeil(tt.rate, tt.ceil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateCeil(%d, %d) error = %v, wantErr %v", tt.rate, tt.ceil, err, tt.wantErr)
 			}

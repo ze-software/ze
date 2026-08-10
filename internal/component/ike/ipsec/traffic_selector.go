@@ -137,10 +137,10 @@ type TrafficSelectorPolicy struct {
 // ErrTrafficSelectorPolicy marks a traffic-selector configuration Ze refuses.
 var ErrTrafficSelectorPolicy = errors.New("ipsec traffic-selector")
 
-// ParseChildMode reads the peer mode leaf. The second result is false for a value
+// parseChildMode reads the peer mode leaf. The second result is false for a value
 // outside the enumeration, and the caller then refuses the config rather than
 // defaulting: a mode nobody recognized must not silently become tunnel.
-func ParseChildMode(v string) (uint8, bool) {
+func parseChildMode(v string) (uint8, bool) {
 	switch v {
 	case "tunnel":
 		return dataplane.ModeTunnel, true

@@ -60,7 +60,7 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// RunWatchdogPlugin runs the watchdog plugin using the SDK RPC protocol.
+// runWatchdogPlugin runs the watchdog plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 //
 // Lifecycle:
@@ -68,7 +68,7 @@ func setLogger(l *slog.Logger) {
 //  2. SetStartupSubscriptions — subscribes to state events
 //  3. OnEvent — handles peer up/down, resends announced routes
 //  4. OnExecuteCommand — handles request bgp watchdog announce/withdraw commands
-func RunWatchdogPlugin(conn net.Conn) int {
+func runWatchdogPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-watchdog", conn)
 	defer func() { _ = p.Close() }()
 

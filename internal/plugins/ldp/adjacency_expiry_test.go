@@ -21,14 +21,14 @@ func TestExpireAdjacenciesStopsSession(t *testing.T) {
 	var labelSpace uint16
 	key := AdjacencyKey(lsrID, labelSpace)
 
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	adj, _ := adjTable.Update(PDUHeader{LSRID: lsrID, LabelSpace: labelSpace}, HelloMessage{}, "")
 	adj.LastSeen = time.Now().Add(-time.Hour) // force the adjacency past its hold time
 
 	c1, c2 := net.Pipe()
 	t.Cleanup(func() { _ = c2.Close() })
 	sess := NewSession(c1, [4]byte{10, 0, 0, 1}, 0, lsrID, labelSpace,
-		netip.MustParseAddr("10.0.0.2"), NewLIB(), slogutil.DiscardLogger())
+		netip.MustParseAddr("10.0.0.2"), newLIB(), slogutil.DiscardLogger())
 	var mu sync.Mutex
 	sessions := map[string]*Session{key: sess}
 

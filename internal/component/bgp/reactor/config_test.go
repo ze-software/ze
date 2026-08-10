@@ -1840,7 +1840,7 @@ func TestPrefixLimitConfigTeardownDefault(t *testing.T) {
 	}
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-	assert.True(t, ps.PrefixTeardownFor("ipv4/unicast"))
+	assert.True(t, ps.prefixTeardownFor("ipv4/unicast"))
 }
 
 // TestPrefixLimitConfigTeardownFalse verifies teardown can be set to false (warn-only mode).
@@ -1854,7 +1854,7 @@ func TestPrefixLimitConfigTeardownFalse(t *testing.T) {
 	}
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-	assert.False(t, ps.PrefixTeardownFor("ipv4/unicast"))
+	assert.False(t, ps.prefixTeardownFor("ipv4/unicast"))
 }
 
 // TestPrefixLimitConfigIdleTimeout verifies idle-timeout parsed into PeerSettings.
@@ -1868,7 +1868,7 @@ func TestPrefixLimitConfigIdleTimeout(t *testing.T) {
 	}
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-	assert.Equal(t, uint16(30), ps.PrefixIdleTimeoutFor("ipv4/unicast"))
+	assert.Equal(t, uint16(30), ps.prefixIdleTimeoutFor("ipv4/unicast"))
 }
 
 // TestPrefixLimitBoundaryMaximum verifies boundary values for prefix maximum.
@@ -1939,7 +1939,7 @@ func TestParsePeerFromTree_ClusterID(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0x01010101)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(0), ps.ClusterID)
-	assert.Equal(t, uint32(0x01010101), ps.EffectiveClusterID())
+	assert.Equal(t, uint32(0x01010101), ps.effectiveClusterID())
 
 	// Explicit cluster-id.
 	tree["session"] = map[string]any{
@@ -1949,7 +1949,7 @@ func TestParsePeerFromTree_ClusterID(t *testing.T) {
 	ps, err = parsePeerFromTree("peer1", tree, 65000, 0x01010101)
 	require.NoError(t, err)
 	assert.Equal(t, ipToUint32(netip.MustParseAddr("2.2.2.2")), ps.ClusterID)
-	assert.Equal(t, ipToUint32(netip.MustParseAddr("2.2.2.2")), ps.EffectiveClusterID())
+	assert.Equal(t, ipToUint32(netip.MustParseAddr("2.2.2.2")), ps.effectiveClusterID())
 
 	// Invalid cluster-id.
 	tree["session"] = map[string]any{

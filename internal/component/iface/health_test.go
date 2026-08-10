@@ -13,7 +13,7 @@ import (
 func TestIfaceErrorCounters(t *testing.T) {
 	report.ResetForTest()
 	defer report.ResetForTest()
-	ResetErrorTracker()
+	resetErrorTracker()
 
 	// First poll: baseline captured, no warning.
 	findings := checkErrorsFromStats(map[string]InterfaceStats{
@@ -46,7 +46,7 @@ func TestIfaceErrorCounters(t *testing.T) {
 func TestIfaceErrorCountersCleared(t *testing.T) {
 	report.ResetForTest()
 	defer report.ResetForTest()
-	ResetErrorTracker()
+	resetErrorTracker()
 
 	// Baseline.
 	checkErrorsFromStats(map[string]InterfaceStats{

@@ -45,10 +45,10 @@ type fwdDedupMetrics struct {
 // recorder guards its use and a build with metrics disabled costs one nil load.
 var fwdDedupMetricsPtr atomic.Pointer[fwdDedupMetrics]
 
-// SetForwardDedupMetrics creates the fan-out dedup metrics from the given
+// setForwardDedupMetrics creates the fan-out dedup metrics from the given
 // registry. A nil registry is a no-op, leaving the Prometheus half disabled; the
 // atomics above are unconditional and keep working either way.
-func SetForwardDedupMetrics(reg metrics.Registry) {
+func setForwardDedupMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}

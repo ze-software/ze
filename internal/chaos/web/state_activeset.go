@@ -38,8 +38,8 @@ type ActiveSet struct {
 	entries    map[int]*ActiveSetEntry // peerIndex -> entry
 }
 
-// NewActiveSet creates an active set with the given capacity.
-func NewActiveSet(maxVisible int) *ActiveSet {
+// newActiveSet creates an active set with the given capacity.
+func newActiveSet(maxVisible int) *ActiveSet {
 	if maxVisible < 10 {
 		maxVisible = 10
 	}
@@ -116,8 +116,8 @@ func (a *ActiveSet) Unpin(peerIndex int) {
 	}
 }
 
-// IsPinned returns true if the peer is pinned.
-func (a *ActiveSet) IsPinned(peerIndex int) bool {
+// isPinned returns true if the peer is pinned.
+func (a *ActiveSet) isPinned(peerIndex int) bool {
 	e, ok := a.entries[peerIndex]
 	return ok && e.Pinned
 }
@@ -165,8 +165,8 @@ func (a *ActiveSet) AdaptiveTTL() time.Duration {
 	return a.adaptiveTTL()
 }
 
-// SetMaxVisible updates the maximum number of visible peers.
-func (a *ActiveSet) SetMaxVisible(n int) {
+// setMaxVisible updates the maximum number of visible peers.
+func (a *ActiveSet) setMaxVisible(n int) {
 	if n < 1 {
 		n = 1
 	}
@@ -192,9 +192,9 @@ func (a *ActiveSet) Entry(peerIndex int) *ActiveSetEntry {
 	return a.entries[peerIndex]
 }
 
-// PromotionPriorityForEvent returns the priority for auto-promoting a peer
+// promotionPriorityForEvent returns the priority for auto-promoting a peer
 // based on the event type.
-func PromotionPriorityForEvent(evType peer.EventType) (PromotionPriority, bool) {
+func promotionPriorityForEvent(evType peer.EventType) (PromotionPriority, bool) {
 	switch evType {
 	case peer.EventDisconnected, peer.EventError:
 		return PriorityHigh, true

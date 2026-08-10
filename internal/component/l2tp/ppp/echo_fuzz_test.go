@@ -23,7 +23,7 @@ func FuzzParseLCPEchoMagic(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, err := ParseLCPEchoMagic(data)
+		_, err := parseLCPEchoMagic(data)
 		if err == nil && len(data) < 4 {
 			t.Errorf("len=%d returned no error", len(data))
 		}

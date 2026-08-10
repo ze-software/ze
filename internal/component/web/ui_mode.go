@@ -42,9 +42,9 @@ func (m UIMode) String() string {
 	}
 }
 
-// ParseUIMode converts a token to a UIMode. Unknown or empty values
+// parseUIMode converts a token to a UIMode. Unknown or empty values
 // fall back to Workbench. Finder remains available as an explicit rollback.
-func ParseUIMode(s string) UIMode {
+func parseUIMode(s string) UIMode {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case uiModeTokenFinder:
 		return UIModeFinder
@@ -56,7 +56,7 @@ func ParseUIMode(s string) UIMode {
 // GetUIMode reads ze.web.ui-mode from the env registry and returns the startup
 // mode. Workbench is the normal UI; Finder is only an explicit rollback.
 func GetUIMode() UIMode {
-	return ParseUIMode(env.Get("ze.web.ui-mode"))
+	return parseUIMode(env.Get("ze.web.ui-mode"))
 }
 
 // ReadUIModeFromRequest checks the current UI switch cookie before falling back
@@ -67,5 +67,5 @@ func ReadUIModeFromRequest(r *http.Request, fallback UIMode) UIMode {
 	if err != nil || c.Value == "" {
 		return fallback
 	}
-	return ParseUIMode(c.Value)
+	return parseUIMode(c.Value)
 }

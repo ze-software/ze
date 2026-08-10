@@ -14,7 +14,7 @@ var testStart = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func TestBGPCaptureRingAppend(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer := netip.MustParseAddr("192.0.2.1")
 
 	r.Append(false, peer, msgtype.TypeOPEN, 100, 0, 0)
@@ -37,7 +37,7 @@ func TestBGPCaptureRingAppend(t *testing.T) {
 
 func TestBGPCaptureRingOverflow(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer := netip.MustParseAddr("192.0.2.1")
 
 	for range bgpCaptureRingCapacity + 10 {
@@ -51,7 +51,7 @@ func TestBGPCaptureRingOverflow(t *testing.T) {
 
 func TestBGPCaptureRingFilterPeer(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer1 := netip.MustParseAddr("192.0.2.1")
 	peer2 := netip.MustParseAddr("198.51.100.1")
 
@@ -72,7 +72,7 @@ func TestBGPCaptureRingFilterPeer(t *testing.T) {
 
 func TestBGPCaptureRingLimit(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer := netip.MustParseAddr("192.0.2.1")
 
 	for range 10 {
@@ -86,7 +86,7 @@ func TestBGPCaptureRingLimit(t *testing.T) {
 
 func TestBGPCaptureRingEmpty(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	snap := r.Snapshot(0, netip.Addr{})
 	if snap == nil {
 		t.Fatal("snapshot should be non-nil empty slice")
@@ -98,7 +98,7 @@ func TestBGPCaptureRingEmpty(t *testing.T) {
 
 func TestBGPCaptureRingDirection(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer := netip.MustParseAddr("192.0.2.1")
 
 	r.Append(false, peer, msgtype.TypeOPEN, 100, 0, 0)
@@ -115,7 +115,7 @@ func TestBGPCaptureRingDirection(t *testing.T) {
 
 func TestBGPCaptureRingErrorCode(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer := netip.MustParseAddr("192.0.2.1")
 
 	r.Append(false, peer, msgtype.TypeNOTIFICATION, 23, 6, 3)
@@ -135,7 +135,7 @@ func TestBGPCaptureRingErrorCode(t *testing.T) {
 
 func TestBGPCaptureRingTimestamp(t *testing.T) {
 	c := sim.NewFakeClock(testStart)
-	r := NewBGPCaptureRing(c)
+	r := newBGPCaptureRing(c)
 	peer := netip.MustParseAddr("192.0.2.1")
 
 	r.Append(false, peer, msgtype.TypeKEEPALIVE, 19, 0, 0)

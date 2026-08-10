@@ -209,9 +209,9 @@ func WriteAVPBytes(buf []byte, off int, mandatory bool, vendorID uint16, attrTyp
 	return total
 }
 
-// WriteAVPEmpty writes a header-only AVP (no value), used by
+// writeAVPEmpty writes a header-only AVP (no value), used by
 // AVPSequencingRequired and similar. Returns AVPHeaderLen.
-func WriteAVPEmpty(buf []byte, off int, mandatory bool, vendorID uint16, attrType AVPType) int {
+func writeAVPEmpty(buf []byte, off int, mandatory bool, vendorID uint16, attrType AVPType) int {
 	flags := AVPFlags(0)
 	if mandatory {
 		flags |= FlagMandatory
@@ -219,8 +219,8 @@ func WriteAVPEmpty(buf []byte, off int, mandatory bool, vendorID uint16, attrTyp
 	return WriteAVPHeader(buf, off, flags, vendorID, attrType, AVPHeaderLen)
 }
 
-// WriteAVPUint8 writes an AVP with a 1-byte value. Returns AVPHeaderLen + 1.
-func WriteAVPUint8(buf []byte, off int, mandatory bool, attrType AVPType, value uint8) int {
+// writeAVPUint8 writes an AVP with a 1-byte value. Returns AVPHeaderLen + 1.
+func writeAVPUint8(buf []byte, off int, mandatory bool, attrType AVPType, value uint8) int {
 	buf[off+AVPHeaderLen] = value
 	flags := AVPFlags(0)
 	if mandatory {
@@ -252,9 +252,9 @@ func WriteAVPUint32(buf []byte, off int, mandatory bool, attrType AVPType, value
 	return AVPHeaderLen + 4
 }
 
-// WriteAVPUint64 writes an AVP with a uint64 value (e.g. Tie Breaker).
+// writeAVPUint64 writes an AVP with a uint64 value (e.g. Tie Breaker).
 // Returns AVPHeaderLen + 8.
-func WriteAVPUint64(buf []byte, off int, mandatory bool, attrType AVPType, value uint64) int {
+func writeAVPUint64(buf []byte, off int, mandatory bool, attrType AVPType, value uint64) int {
 	binary.BigEndian.PutUint64(buf[off+AVPHeaderLen:], value)
 	flags := AVPFlags(0)
 	if mandatory {
@@ -285,32 +285,32 @@ func WriteAVPString(buf []byte, off int, mandatory bool, attrType AVPType, s str
 	return total
 }
 
-// ReadAVPUint8 extracts the 1-byte value. Returns ErrInvalidAVPLen on wrong size.
-func ReadAVPUint8(value []byte) (uint8, error) {
+// readAVPUint8 extracts the 1-byte value. Returns ErrInvalidAVPLen on wrong size.
+func readAVPUint8(value []byte) (uint8, error) {
 	if len(value) != 1 {
 		return 0, ErrInvalidAVPLen
 	}
 	return value[0], nil
 }
 
-// ReadAVPUint16 extracts the uint16 value. Returns ErrInvalidAVPLen on wrong size.
-func ReadAVPUint16(value []byte) (uint16, error) {
+// readAVPUint16 extracts the uint16 value. Returns ErrInvalidAVPLen on wrong size.
+func readAVPUint16(value []byte) (uint16, error) {
 	if len(value) != 2 {
 		return 0, ErrInvalidAVPLen
 	}
 	return binary.BigEndian.Uint16(value), nil
 }
 
-// ReadAVPUint32 extracts the uint32 value. Returns ErrInvalidAVPLen on wrong size.
-func ReadAVPUint32(value []byte) (uint32, error) {
+// readAVPUint32 extracts the uint32 value. Returns ErrInvalidAVPLen on wrong size.
+func readAVPUint32(value []byte) (uint32, error) {
 	if len(value) != 4 {
 		return 0, ErrInvalidAVPLen
 	}
 	return binary.BigEndian.Uint32(value), nil
 }
 
-// ReadAVPUint64 extracts the uint64 value. Returns ErrInvalidAVPLen on wrong size.
-func ReadAVPUint64(value []byte) (uint64, error) {
+// readAVPUint64 extracts the uint64 value. Returns ErrInvalidAVPLen on wrong size.
+func readAVPUint64(value []byte) (uint64, error) {
 	if len(value) != 8 {
 		return 0, ErrInvalidAVPLen
 	}

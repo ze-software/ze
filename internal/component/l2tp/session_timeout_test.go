@@ -52,7 +52,7 @@ func TestRunIdleTimeoutCanceled(t *testing.T) {
 func newTestReactor(t *testing.T) *L2TPReactor {
 	t.Helper()
 	addr := netip.MustParseAddrPort("127.0.0.1:0")
-	listener := NewUDPListener(addr, nil)
+	listener := newUDPListener(addr, nil)
 	t.Cleanup(func() { _ = listener.Stop() })
-	return NewL2TPReactor(listener, nil, ReactorParams{})
+	return newL2TPReactor(listener, nil, reactorParams{})
 }

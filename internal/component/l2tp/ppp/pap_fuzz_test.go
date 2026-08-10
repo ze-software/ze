@@ -40,7 +40,7 @@ func FuzzParsePAPRequest(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		req, err := ParsePAPRequest(data)
+		req, err := parsePAPRequest(data)
 		if err != nil {
 			return
 		}

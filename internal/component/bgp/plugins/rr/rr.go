@@ -84,11 +84,11 @@ type peerState struct {
 	Capabilities map[string]bool
 }
 
-// RouteReflector implements a BGP Route Reflector plugin (RFC 4456).
+// routeReflector implements a BGP Route Reflector plugin (RFC 4456).
 // Subscribes to UPDATE events and forwards them to all peers via cache-forward.
 // The reactor handles RFC 4456 forwarding rules, ORIGINATOR_ID injection,
 // CLUSTER_LIST prepend, and next-hop rewriting.
-type RouteReflector struct {
+type routeReflector struct {
 	plugin   *sdk.Plugin
 	peers    map[string]*peerState
 	mu       sync.RWMutex
@@ -102,13 +102,13 @@ type RouteReflector struct {
 	withdrawals map[string]map[string]withdrawalInfo
 }
 
-// RunRouteReflector runs the Route Reflector plugin using the SDK RPC protocol.
+// runRouteReflector runs the Route Reflector plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunRouteReflector(conn net.Conn) int {
+func runRouteReflector(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rr", conn)
 	defer func() { _ = p.Close() }()
 
-	rr := &RouteReflector{
+	rr := &routeReflector{
 		plugin:      p,
 		peers:       make(map[string]*peerState),
 		withdrawals: make(map[string]map[string]withdrawalInfo),
@@ -188,7 +188,7 @@ func RunRouteReflector(conn net.Conn) int {
 // forwardUpdate forwards a cached UPDATE to all peers via cache-forward.
 // The reactor handles source exclusion, client/non-client filtering (RFC 4456),
 // ORIGINATOR_ID, CLUSTER_LIST, and next-hop rewriting.
-func (rr *RouteReflector) forwardUpdate(msgID uint64) {
+func (rr *routeReflector) forwardUpdate(msgID uint64) {
 	if rr.stopping.Load() {
 		return
 	}
@@ -196,7 +196,7 @@ func (rr *RouteReflector) forwardUpdate(msgID uint64) {
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
-func (rr *RouteReflector) updateRoute(peerSelector, command string) {
+func (rr *routeReflector) updateRoute(peerSelector, command string) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 
@@ -216,7 +216,7 @@ func (rr *RouteReflector) updateRoute(peerSelector, command string) {
 }
 
 // updateRouteSel sends a route update using a typed selector via DirectBridge.
-func (rr *RouteReflector) updateRouteSel(sel *selector.Selector, command string) {
+func (rr *routeReflector) updateRouteSel(sel *selector.Selector, command string) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 
@@ -244,7 +244,7 @@ func isConnectionError(err error) bool {
 }
 
 // handleStructuredState processes state events from DirectBridge.
-func (rr *RouteReflector) handleStructuredState(se *rpc.StructuredEvent) {
+func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	if se.PeerAddress == "" {
 		return
 	}
@@ -279,7 +279,7 @@ func (rr *RouteReflector) handleStructuredState(se *rpc.StructuredEvent) {
 // race within the structured path. The withdrawalMu guards against the
 // (theoretical) case of text and structured paths processing the same peer
 // concurrently.
-func (rr *RouteReflector) handleStateDown(peerAddr string) {
+func (rr *routeReflector) handleStateDown(peerAddr string) {
 	rr.withdrawalMu.Lock()
 	entries := rr.withdrawals[peerAddr]
 	delete(rr.withdrawals, peerAddr)
@@ -315,7 +315,7 @@ func (rr *RouteReflector) handleStateDown(peerAddr string) {
 
 // handleStructuredOpen processes OPEN events from DirectBridge.
 // Decodes raw OPEN wire bytes to extract peer capabilities and families.
-func (rr *RouteReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) {
+func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) {
 	if se.PeerAddress == "" || msg.RawBytes == nil {
 		return
 	}
@@ -383,7 +383,7 @@ func (rr *RouteReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 }
 
 // dispatchText routes text-format events to handlers (fork-mode fallback).
-func (rr *RouteReflector) dispatchText(text string) {
+func (rr *routeReflector) dispatchText(text string) {
 	if rr.stopping.Load() {
 		return
 	}
@@ -446,7 +446,7 @@ func (rr *RouteReflector) dispatchText(text string) {
 }
 
 // handleCommand processes command requests via SDK execute-command callback.
-func (rr *RouteReflector) handleCommand(command string) (string, any, error) {
+func (rr *routeReflector) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "show rr status":
 		return statusDone, map[string]any{"running": true}, nil
@@ -458,7 +458,7 @@ func (rr *RouteReflector) handleCommand(command string) (string, any, error) {
 }
 
 // peerStatus returns peer state.
-func (rr *RouteReflector) peerStatus() any {
+func (rr *routeReflector) peerStatus() any {
 	rr.mu.RLock()
 	defer rr.mu.RUnlock()
 
@@ -480,7 +480,7 @@ func (rr *RouteReflector) peerStatus() any {
 //
 // The gen parameter guards against rapid reconnects: if the peer's ReplayGen
 // has changed by the time replay finishes, this goroutine is stale.
-func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
+func (rr *routeReflector) replayForPeer(peerAddr string, gen uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -527,12 +527,12 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 }
 
 // dispatchCommand sends a command to the engine via the SDK.
-func (rr *RouteReflector) dispatchCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+func (rr *routeReflector) dispatchCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
 	return rr.plugin.DispatchCommandArgs(ctx, command, args, "")
 }
 
 // sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
-func (rr *RouteReflector) sendEOR(peerAddr string, gen uint64) {
+func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
 	rr.mu.RLock()
 	p := rr.peers[peerAddr]
 	if p == nil || p.ReplayGen != gen || len(p.Families) == 0 {

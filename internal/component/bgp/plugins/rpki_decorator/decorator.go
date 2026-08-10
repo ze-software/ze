@@ -41,8 +41,8 @@ const unionTimeout = 2 * time.Second
 // eventTypeUpdateRPKI is the event type produced by this decorator.
 const eventTypeUpdateRPKI = "update-rpki"
 
-// RunDecorator runs the bgp-rpki-decorator plugin using the SDK RPC protocol.
-func RunDecorator(conn net.Conn) int {
+// runDecorator runs the bgp-rpki-decorator plugin using the SDK RPC protocol.
+func runDecorator(conn net.Conn) int {
 	logger().Debug("bgp-rpki-decorator plugin starting")
 
 	p := sdk.NewWithConn("bgp-rpki-decorator", conn)

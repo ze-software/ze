@@ -86,7 +86,7 @@ func TestKernelWorkerAdoptsAndReleasesTunnelSocket(t *testing.T) {
 	errCh := make(chan kernelSetupFailed, 4)
 	successCh := make(chan kernelSetupSucceeded, 4)
 	w := newKernelWorker(connFDOps(connFD, &closes, &closeMu), errCh, successCh, discardLogger())
-	w.SetSocketHooks(rec.adopt, rec.release)
+	w.setSocketHooks(rec.adopt, rec.release)
 	w.Start()
 	defer w.Stop()
 
@@ -108,7 +108,7 @@ func TestKernelWorkerAdoptsAndReleasesTunnelSocket(t *testing.T) {
 		"the CONNECTED socket fd must be adopted, not the listener fd")
 
 	// Tear the tunnel down and assert release happens before the fd is closed.
-	w.TeardownAll()
+	w.teardownAll()
 
 	deadline := time.Now().Add(5 * time.Second)
 	for {
@@ -146,7 +146,7 @@ func TestKernelWorkerRollsBackWhenAdoptFails(t *testing.T) {
 	errCh := make(chan kernelSetupFailed, 4)
 	successCh := make(chan kernelSetupSucceeded, 4)
 	w := newKernelWorker(connFDOps(connFD, &closes, &closeMu), errCh, successCh, discardLogger())
-	w.SetSocketHooks(rec.adopt, rec.release)
+	w.setSocketHooks(rec.adopt, rec.release)
 	w.Start()
 	defer w.Stop()
 

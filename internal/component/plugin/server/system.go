@@ -264,8 +264,8 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	if err != nil {
 		return errResp, err
 	}
-	if ctx.Server != nil && ctx.Server.HasFullReloadFunc() {
-		if err := ctx.Server.ReloadFull(ctx.Context()); err != nil {
+	if ctx.Server != nil && ctx.Server.hasFullReloadFunc() {
+		if err := ctx.Server.reloadFull(ctx.Context()); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  func() string { var tb textbuf.Buffer; return tb.Str("reload failed: ").Err(err).String() }(),
@@ -392,12 +392,12 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 		}, errMissingCommandName
 	}
 
-	return LookupCommandHelp(ctx, args[0], "command")
+	return lookupCommandHelp(ctx, args[0], "command")
 }
 
-// LookupCommandHelp looks up a command by name in builtins then plugins.
+// lookupCommandHelp looks up a command by name in builtins then plugins.
 // The kind parameter is used in error messages (e.g., "command", "bgp rib command").
-func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response, error) {
+func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response, error) {
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &plugin.Response{

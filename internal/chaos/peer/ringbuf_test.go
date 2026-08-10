@@ -11,7 +11,7 @@ import (
 // VALIDATES: AC-10 — all events preserved, no drops.
 // PREVENTS: Lost events or incorrect ordering.
 func TestEventBuffer(t *testing.T) {
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 	out := make(chan Event, 16)
 
 	go buf.Drain(t.Context(), out)
@@ -39,7 +39,7 @@ func TestEventBuffer(t *testing.T) {
 // VALIDATES: AC-10 — unbounded buffer preserves all events.
 // PREVENTS: Dropped events causing dashboard undercount.
 func TestEventBufferNoDrop(t *testing.T) {
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 	out := make(chan Event, 1) // Tiny output channel to force buffering.
 
 	go buf.Drain(t.Context(), out)
@@ -67,7 +67,7 @@ func TestEventBufferNoDrop(t *testing.T) {
 // VALIDATES: Drain goroutine exits cleanly.
 // PREVENTS: Goroutine leaks from drain that never exits.
 func TestEventBufferDrainCancellation(t *testing.T) {
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 	out := make(chan Event, 16)
 
 	ctx, cancel := context.WithCancel(t.Context())

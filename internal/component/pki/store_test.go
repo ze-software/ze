@@ -299,7 +299,7 @@ func TestListCACerts(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	cas := ListCACerts()
+	cas := listCACerts()
 	if len(cas) != 1 {
 		t.Fatalf("expected 1 CA, got %d", len(cas))
 	}
@@ -314,7 +314,7 @@ func TestListCertificates(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	certs := ListCertificates()
+	certs := listCertificates()
 	if len(certs) != 1 {
 		t.Fatalf("expected 1 certificate, got %d", len(certs))
 	}

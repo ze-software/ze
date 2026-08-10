@@ -45,8 +45,8 @@ type RouteConfig struct {
 	BaseRoutes int
 }
 
-// OrchestratorConfig holds all parameters for RunOrchestrator.
-type OrchestratorConfig struct {
+// orchestratorConfig holds all parameters for RunOrchestrator.
+type orchestratorConfig struct {
 	Profiles            []scenario.PeerProfile
 	Target              scenario.Target
 	Seed                uint64
@@ -74,28 +74,28 @@ type OrchestratorConfig struct {
 	OnStop func()
 }
 
-// EstablishedState tracks which peers are currently in Established state.
+// establishedState tracks which peers are currently in Established state.
 // It is written by the event-processing goroutine and read by the scheduler
 // goroutine, so all access is mutex-protected.
-type EstablishedState struct {
+type establishedState struct {
 	mu    sync.RWMutex
 	peers []bool
 }
 
-// NewEstablishedState creates an established state tracker for n peers.
-func NewEstablishedState(n int) *EstablishedState {
-	return &EstablishedState{peers: make([]bool, n)}
+// newEstablishedState creates an established state tracker for n peers.
+func newEstablishedState(n int) *establishedState {
+	return &establishedState{peers: make([]bool, n)}
 }
 
 // Set marks peer idx as established (true) or not (false).
-func (es *EstablishedState) Set(idx int, val bool) {
+func (es *establishedState) Set(idx int, val bool) {
 	es.mu.Lock()
 	es.peers[idx] = val
 	es.mu.Unlock()
 }
 
 // Snapshot returns a copy of the current established state.
-func (es *EstablishedState) Snapshot() []bool {
+func (es *establishedState) Snapshot() []bool {
 	es.mu.RLock()
 	snap := make([]bool, len(es.peers))
 	copy(snap, es.peers)
@@ -103,9 +103,9 @@ func (es *EstablishedState) Snapshot() []bool {
 	return snap
 }
 
-// IsLifecycleEvent returns true for event types that produce immediate
+// isLifecycleEvent returns true for event types that produce immediate
 // dashboard output.
-func IsLifecycleEvent(t peer.EventType) bool {
+func isLifecycleEvent(t peer.EventType) bool {
 	switch t {
 	case peer.EventEstablished, peer.EventDisconnected, peer.EventEORSent,
 		peer.EventDroppedEvents, peer.EventError, peer.EventChaosExecuted,

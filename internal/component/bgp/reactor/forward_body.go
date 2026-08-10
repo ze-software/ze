@@ -121,7 +121,7 @@ func buildFwdBody(
 		// destination context -- so emitting a mixed shape here is the plainer violation
 		// of the two.
 		if destUpdate.Len(nil) > maxMsgSize || destUpdate.MixesNLRIFields() {
-			destSendCtx := peer.SendContext()
+			destSendCtx := peer.sendContext()
 			addPath := addPathForUpdate(destSendCtx, destUpdate)
 
 			splitErr := fwdSplitParsedUpdate(destUpdate, maxMsgSize, addPath, &result)

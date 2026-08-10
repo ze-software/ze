@@ -290,7 +290,7 @@ func (f *Flooder) ReceiveLSP(cid CircuitID, p2p bool, lsp *packet.LSP, raw []byt
 		// (a-2), so this queue is the only thing that survives the arrival, and it
 		// survives only until the PSNP goes out.
 		if held := f.db.Lookup(level, id); held != nil {
-			f.db.SetSSN(level, id, cid)
+			f.db.setSSN(level, id, cid)
 		} else {
 			f.recordAckOnly(cid, level, id, packet.LSPEntry{
 				RemainingLifetime: lsp.RemainingLifetime,
@@ -315,7 +315,7 @@ func (f *Flooder) ReceiveLSP(cid CircuitID, p2p bool, lsp *packet.LSP, raw []byt
 		// acknowledge on the incoming one. ISO/IEC 10589 clause 7.3.16: SRM on all
 		// circuits except the one it arrived on; SSN on the arrival circuit.
 		f.armSRMExcept(level, id, cid)
-		f.db.SetSSN(level, id, cid)
+		f.db.setSSN(level, id, cid)
 		// The request (if any) for this LSP on the incoming circuit is satisfied.
 		f.clearPending(cid, level, id)
 	case Equal:
@@ -323,7 +323,7 @@ func (f *Flooder) ReceiveLSP(cid CircuitID, p2p bool, lsp *packet.LSP, raw []byt
 		// SSN so the periodic PSNP acknowledges the LSP to the DIS; a P2P duplicate
 		// needs no explicit ack (the sender cleared SRM when it sent).
 		if !p2p {
-			f.db.SetSSN(level, id, cid)
+			f.db.setSSN(level, id, cid)
 		}
 	default: // Older
 		f.handleOlderLSP(cid, level, id, lsp)
@@ -362,7 +362,7 @@ func (f *Flooder) handleOlderLSP(cid CircuitID, level Level, id types.LSPID, lsp
 	case lsp.SequenceNumber == held.Sequence():
 		// Same sequence, kept ours (differing checksum / purge-class mismatch):
 		// ask for the authoritative copy. ISO/IEC 10589 clause 7.3.16.1.
-		f.db.SetSSN(level, id, cid)
+		f.db.setSSN(level, id, cid)
 		f.metricSet().dropped.With(level.String(), "same-seq-checksum").Inc()
 	default:
 		// Strictly older: send our newer copy back on the arrival circuit.

@@ -388,7 +388,7 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 	return nil
 }
 
-// PluginForFilterType returns the plugin process name that owns the given
+// pluginForFilterType returns the plugin process name that owns the given
 // YANG filter list type (e.g., "prefix-list" -> "bgp-filter-prefix").
 // Returns "" if no plugin has registered that filter type.
 //
@@ -396,7 +396,7 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 // write `filter import [ CUSTOMERS ]` or `[ prefix-list:CUSTOMERS ]` and
 // the config layer looks up the filter type via this function and rewrites
 // the ref to the full `<plugin>:<filter>` form consumed by runtime dispatch.
-func PluginForFilterType(filterType string) string {
+func pluginForFilterType(filterType string) string {
 	mu.RLock()
 	defer mu.RUnlock()
 	return filterTypes[filterType]
@@ -869,9 +869,9 @@ func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS u
 	return nil
 }
 
-// ConfigNLRIBuilder finds the plugin registered for a family and returns
+// configNLRIBuilder finds the plugin registered for a family and returns
 // its config NLRI builder. Returns nil if no builder is registered.
-func ConfigNLRIBuilder(family string) func(map[string][]string, bool, bool) []byte {
+func configNLRIBuilder(family string) func(map[string][]string, bool, bool) []byte {
 	mu.RLock()
 	defer mu.RUnlock()
 
@@ -894,9 +894,9 @@ func ConfigRouteParserByFamily(family string) func(req ConfigRouteRequest) (Plug
 	return nil
 }
 
-// WriteUsage writes a formatted plugin list to w for help text.
+// writeUsage writes a formatted plugin list to w for help text.
 // Each line follows the format: "  name    description".
-func WriteUsage(w io.Writer) error {
+func writeUsage(w io.Writer) error {
 	regs := All()
 	if len(regs) == 0 {
 		return nil

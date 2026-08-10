@@ -317,7 +317,7 @@ func parseNumericComponentText(args []string, compType FlowComponentType) (FlowC
 		return nil, 0, fmt.Errorf("%s requires value", compType)
 	}
 
-	return NewFlowNumericComponent(compType, matches), consumed + 1, nil
+	return newFlowNumericComponent(compType, matches), consumed + 1, nil
 }
 
 // parseTCPFlagsComponentText parses TCP flags with bitmask operators.
@@ -352,7 +352,7 @@ func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
 		return nil, 0, errTcpFlagsRequiresValue
 	}
 
-	return NewFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
+	return newFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
 }
 
 // parseFragmentComponentText parses fragment flags.
@@ -386,7 +386,7 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 		return nil, 0, errFragmentRequiresValue
 	}
 
-	return NewFlowFragmentMatchComponent(matches), consumed + 1, nil
+	return newFlowFragmentMatchComponent(matches), consumed + 1, nil
 }
 
 // isComponentKeyword checks if token is a component keyword.

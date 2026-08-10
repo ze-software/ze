@@ -109,8 +109,8 @@ func BuildCeaseNotification() *message.Notification {
 	}
 }
 
-// SerializeMessage serializes any BGP message to wire bytes.
-func SerializeMessage(msg message.Message) []byte {
+// serializeMessage serializes any BGP message to wire bytes.
+func serializeMessage(msg message.Message) []byte {
 	size := msg.Len(nil)
 	buf := make([]byte, size)
 	msg.WriteTo(buf, 0, nil)

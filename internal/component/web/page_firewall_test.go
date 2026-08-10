@@ -128,7 +128,7 @@ func TestFirewallTablesRendersTable(t *testing.T) {
 	entries := collectTables()
 	require.Len(t, entries, 2, "should have filter and nat tables")
 
-	data := BuildFirewallTablesTableData(entries)
+	data := buildFirewallTablesTableData(entries)
 	assert.Equal(t, "Firewall Tables", data.Title)
 	assert.Len(t, data.Rows, 2)
 	assert.Equal(t, "Add Table", data.AddLabel)
@@ -146,7 +146,7 @@ func TestFirewallTablesJSON(t *testing.T) {
 	defer cleanup()
 
 	entries := collectTables()
-	data := BuildFirewallTablesTableData(entries)
+	data := buildFirewallTablesTableData(entries)
 
 	// The first table (filter) should have 3 chains and 1 set.
 	require.Len(t, data.Rows, 2)
@@ -169,7 +169,7 @@ func TestFirewallTablesEmpty(t *testing.T) {
 	defer cleanup()
 
 	entries := collectTables()
-	data := BuildFirewallTablesTableData(entries)
+	data := buildFirewallTablesTableData(entries)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No firewall tables configured.", data.EmptyMessage)
 	assert.Contains(t, data.EmptyHint, "Create a table")
@@ -201,7 +201,7 @@ func TestFirewallTablesRowActions(t *testing.T) {
 	defer cleanup()
 
 	entries := collectTables()
-	data := BuildFirewallTablesTableData(entries)
+	data := buildFirewallTablesTableData(entries)
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
@@ -233,7 +233,7 @@ func TestFirewallChainsRendersTable(t *testing.T) {
 	entries := collectChains("", "", "")
 	require.Len(t, entries, 4, "filter(3) + nat(1) = 4 chains")
 
-	data := BuildFirewallChainsTableData(entries, "")
+	data := buildFirewallChainsTableData(entries, "")
 	assert.Equal(t, "Firewall Chains", data.Title)
 	assert.Len(t, data.Rows, 4)
 	assert.Equal(t, "Add Chain", data.AddLabel)
@@ -260,7 +260,7 @@ func TestFirewallChainsFilterByTable(t *testing.T) {
 		assert.Equal(t, "filter", e.Table)
 	}
 
-	data := BuildFirewallChainsTableData(entries, "filter")
+	data := buildFirewallChainsTableData(entries, "filter")
 	assert.Len(t, data.Rows, 3)
 	assert.Equal(t, "/show/firewall/table/filter/chain/", data.AddURL)
 }
@@ -290,7 +290,7 @@ func TestFirewallChainsEmpty(t *testing.T) {
 	defer cleanup()
 
 	entries := collectChains("", "", "")
-	data := BuildFirewallChainsTableData(entries, "")
+	data := buildFirewallChainsTableData(entries, "")
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No chains configured.", data.EmptyMessage)
 }
@@ -300,7 +300,7 @@ func TestFirewallChainsEmptyFilteredTable(t *testing.T) {
 	defer cleanup()
 
 	entries := collectChains("nonexistent", "", "")
-	data := BuildFirewallChainsTableData(entries, "nonexistent")
+	data := buildFirewallChainsTableData(entries, "nonexistent")
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "nonexistent")
 }
@@ -352,7 +352,7 @@ func TestFirewallChainsRowActions(t *testing.T) {
 	defer cleanup()
 
 	entries := collectChains("", "", "")
-	data := BuildFirewallChainsTableData(entries, "")
+	data := buildFirewallChainsTableData(entries, "")
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
@@ -373,7 +373,7 @@ func TestFirewallRulesRendersTable(t *testing.T) {
 	// filter: input(3) + forward(0) + custom(0) + nat: postrouting(1) = 4 rules
 	require.Len(t, entries, 4)
 
-	data := BuildFirewallRulesTableData(entries, "", "")
+	data := buildFirewallRulesTableData(entries, "", "")
 	assert.Equal(t, "Firewall Rules", data.Title)
 	assert.Len(t, data.Rows, 4)
 }
@@ -421,7 +421,7 @@ func TestFirewallRulesEmpty(t *testing.T) {
 	defer cleanup()
 
 	entries := collectRules("", "")
-	data := BuildFirewallRulesTableData(entries, "", "")
+	data := buildFirewallRulesTableData(entries, "", "")
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No rules configured.", data.EmptyMessage)
 }
@@ -431,7 +431,7 @@ func TestFirewallRulesEmptyChain(t *testing.T) {
 	defer cleanup()
 
 	entries := collectRules("filter", "forward")
-	data := BuildFirewallRulesTableData(entries, "filter", "forward")
+	data := buildFirewallRulesTableData(entries, "filter", "forward")
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "forward")
 	assert.Contains(t, data.EmptyHint, "default policy")
@@ -442,7 +442,7 @@ func TestFirewallRulesRowActions(t *testing.T) {
 	defer cleanup()
 
 	entries := collectRules("filter", "input")
-	data := BuildFirewallRulesTableData(entries, "filter", "input")
+	data := buildFirewallRulesTableData(entries, "filter", "input")
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
@@ -725,7 +725,7 @@ func TestFirewallSetsRendersTable(t *testing.T) {
 	entries := collectSets("")
 	require.Len(t, entries, 1)
 
-	data := BuildFirewallSetsTableData(entries)
+	data := buildFirewallSetsTableData(entries)
 	assert.Equal(t, "Firewall Sets", data.Title)
 	assert.Len(t, data.Rows, 1)
 	assert.Equal(t, "Add Set", data.AddLabel)
@@ -743,7 +743,7 @@ func TestFirewallSetsElementCount(t *testing.T) {
 	assert.Equal(t, "ipv4_addr", entries[0].Type)
 	assert.Equal(t, 2, entries[0].ElementCount)
 
-	data := BuildFirewallSetsTableData(entries)
+	data := buildFirewallSetsTableData(entries)
 	require.Len(t, data.Rows, 1)
 	// Elements column
 	assert.Equal(t, "2", data.Rows[0].Cells[4])
@@ -763,7 +763,7 @@ func TestFirewallSetsEmpty(t *testing.T) {
 	defer cleanup()
 
 	entries := collectSets("")
-	data := BuildFirewallSetsTableData(entries)
+	data := buildFirewallSetsTableData(entries)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No named sets.", data.EmptyMessage)
 }
@@ -785,7 +785,7 @@ func TestFirewallSetsRowActions(t *testing.T) {
 	defer cleanup()
 
 	entries := collectSets("")
-	data := BuildFirewallSetsTableData(entries)
+	data := buildFirewallSetsTableData(entries)
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
@@ -797,7 +797,7 @@ func TestFirewallSetsRowActions(t *testing.T) {
 // --- Connections page tests ---
 
 func TestFirewallConnectionsRendersTable(t *testing.T) {
-	data := BuildFirewallConnectionsTableData()
+	data := buildFirewallConnectionsTableData()
 	assert.Equal(t, "Firewall Connections", data.Title)
 	assert.Empty(t, data.Rows)
 	assert.Len(t, data.Columns, 7)
@@ -805,7 +805,7 @@ func TestFirewallConnectionsRendersTable(t *testing.T) {
 
 func TestFirewallConnectionsNoBackend(t *testing.T) {
 	// No backend loaded: show placeholder.
-	data := BuildFirewallConnectionsTableData()
+	data := buildFirewallConnectionsTableData()
 	assert.Contains(t, data.EmptyMessage, "requires a running firewall")
 }
 
@@ -1047,7 +1047,7 @@ func TestWorkbench_FirewallTablesEmptyPageDispatch(t *testing.T) {
 // --- Navigation tests ---
 
 func TestFirewallSubNavigation(t *testing.T) {
-	sections := WorkbenchSections([]string{"firewall"})
+	sections := workbenchSections([]string{"firewall"})
 
 	var fwSection *WorkbenchSection
 	for i := range sections {
@@ -1073,7 +1073,7 @@ func TestFirewallSubNavigation(t *testing.T) {
 }
 
 func TestFirewallChainsSubNavigation(t *testing.T) {
-	sections := WorkbenchSections([]string{"firewall", "chain"})
+	sections := workbenchSections([]string{"firewall", "chain"})
 
 	var fwSection *WorkbenchSection
 	for i := range sections {
@@ -1102,7 +1102,7 @@ func TestFirewallContextNavigation(t *testing.T) {
 	defer cleanup()
 
 	entries := collectTables()
-	data := BuildFirewallTablesTableData(entries)
+	data := buildFirewallTablesTableData(entries)
 
 	require.NotEmpty(t, data.Rows)
 	viewChainsAction := data.Rows[0].Actions[0]
@@ -1111,7 +1111,7 @@ func TestFirewallContextNavigation(t *testing.T) {
 
 	// Verify that View Rules action from a chain row includes table and chain params.
 	chainEntries := collectChains("filter", "", "")
-	chainData := BuildFirewallChainsTableData(chainEntries, "filter")
+	chainData := buildFirewallChainsTableData(chainEntries, "filter")
 
 	require.NotEmpty(t, chainData.Rows)
 	viewRulesAction := chainData.Rows[0].Actions[0]

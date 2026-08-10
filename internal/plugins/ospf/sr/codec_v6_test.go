@@ -87,7 +87,7 @@ func TestOSPFv3LANAdjSIDCodec(t *testing.T) {
 	nbr := [4]byte{0, 0, 0, 9}
 	in := AdjSID{Flags: AdjSIDFlags{V: true, L: true}, Weight: 0, Label: 40011, NeighborID: nbr}
 	v := EncodeLANAdjSIDValueV6(in)
-	out, err := DecodeLANAdjSIDValueV6(v)
+	out, err := decodeLANAdjSIDValueV6(v)
 	if err != nil || out.NeighborID != nbr || out.Label != 40011 {
 		t.Fatalf("v3 lan-adj-SID round-trip = %+v,%v", out, err)
 	}
@@ -151,7 +151,7 @@ func TestOSPFv3SRTLVMalformed(t *testing.T) {
 			if got, err := DecodeAdjSIDValueV6(in); err == nil {
 				t.Fatalf("v3 input %d: DecodeAdjSIDValueV6 accepted a malformed value: %+v", i, got)
 			}
-			if got, err := DecodeLANAdjSIDValueV6(in); err == nil {
+			if got, err := decodeLANAdjSIDValueV6(in); err == nil {
 				t.Fatalf("v3 input %d: DecodeLANAdjSIDValueV6 accepted a malformed value: %+v", i, got)
 			}
 			if got, err := DecodeExtPrefixRangeValueV6(in); err == nil {

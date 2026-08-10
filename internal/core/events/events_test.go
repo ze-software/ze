@@ -153,7 +153,7 @@ func TestAllEventTypes(t *testing.T) {
 }
 
 func TestAllValidEventNames(t *testing.T) {
-	names := AllValidEventNames()
+	names := allValidEventNames()
 	if !strings.Contains(names, "update") {
 		t.Fatalf("AllValidEventNames should include update, got: %s", names)
 	}

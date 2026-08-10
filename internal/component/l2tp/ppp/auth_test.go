@@ -369,7 +369,7 @@ func TestAwaitAuthDecisionTimeout(t *testing.T) {
 	<-authEventsOut // drop the EventAuthRequest
 	select {
 	case ev := <-authEventsOut:
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthFailure", ev)
 		}

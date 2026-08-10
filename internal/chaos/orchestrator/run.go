@@ -36,7 +36,7 @@ import (
 var ErrMcpRequiresWeb = errors.New("--mcp requires --web (MCP reads dashboard state)")
 
 // RunOrchestrator launches N peer simulators and validates route propagation.
-func RunOrchestrator(ctx context.Context, cfg *OrchestratorConfig) int {
+func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 	var savedTermState *term.State
 	if fd := int(os.Stderr.Fd()); term.IsTerminal(fd) {
 		savedTermState, _ = term.GetState(fd)
@@ -99,7 +99,7 @@ func RunOrchestrator(ctx context.Context, cfg *OrchestratorConfig) int {
 	}
 	defer rr.cleanup()
 
-	established := NewEstablishedState(n)
+	established := newEstablishedState(n)
 	guard := guard.New(n)
 
 	var chaosChannels []chan engine.ChaosAction
@@ -188,16 +188,16 @@ func RunOrchestrator(ctx context.Context, cfg *OrchestratorConfig) int {
 				return
 			}
 
-			RunPeerLoop(ctx, simCfg, prof.Index, events)
+			runPeerLoop(ctx, simCfg, prof.Index, events)
 		}(profiles[i])
 	}
 
 	if chaosEnabled {
-		go RunScheduler(ctx, cfg.ChaosCfg, cfg.Seed, n, established, guard, chaosChannels, rr.controlCh, cfg.Quiet)
+		go runScheduler(ctx, cfg.ChaosCfg, cfg.Seed, n, established, guard, chaosChannels, rr.controlCh, cfg.Quiet)
 	}
 
 	if routeEnabled {
-		go RunRouteScheduler(ctx, cfg.RouteCfg, cfg.Seed, n, established, guard, routeChannels, rr.routeControlCh, cfg.Quiet)
+		go runRouteScheduler(ctx, cfg.RouteCfg, cfg.Seed, n, established, guard, routeChannels, rr.routeControlCh, cfg.Quiet)
 	}
 
 	go func() {
@@ -208,7 +208,7 @@ func RunOrchestrator(ctx context.Context, cfg *OrchestratorConfig) int {
 	propUpdateCounter := 0
 
 	for ev := range events {
-		if savedTermState != nil && IsLifecycleEvent(ev.Type) {
+		if savedTermState != nil && isLifecycleEvent(ev.Type) {
 			_ = term.Restore(int(os.Stderr.Fd()), savedTermState)
 		}
 
@@ -367,7 +367,7 @@ type reportingResult struct {
 	webDash        *web.Dashboard
 }
 
-func setupReporting(cfg *OrchestratorConfig, peerCount int) (*reportingResult, error) {
+func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, error) {
 	var consumers []report.Consumer
 	var cleanups []func()
 	var controlCh chan web.ControlCommand

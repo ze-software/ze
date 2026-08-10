@@ -26,17 +26,17 @@ var errNoValidBgpLsNlrisDecoded = errors.New("no valid BGP-LS NLRIs decoded")
 // bgplsLogger is the package-level logger, disabled by default.
 var bgplsLogger = slogutil.DiscardLogger()
 
-// SetBGPLSLogger sets the package-level logger.
+// setBGPLSLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_bgpls.go with slogutil.PluginLogger().
-func SetBGPLSLogger(l *slog.Logger) {
+func setBGPLSLogger(l *slog.Logger) {
 	if l != nil {
 		bgplsLogger = l
 	}
 }
 
-// RunBGPLSPlugin runs the BGP-LS plugin using the SDK RPC protocol.
+// runBGPLSPlugin runs the BGP-LS plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunBGPLSPlugin(conn net.Conn) int {
+func runBGPLSPlugin(conn net.Conn) int {
 	bgplsLogger.Debug("bgpls plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-ls", conn)
@@ -89,17 +89,17 @@ const (
 	respDecodedJSON = "decoded json "
 )
 
-// GetBGPLSYANG returns the embedded YANG schema for the bgpls plugin.
+// getBGPLSYANG returns the embedded YANG schema for the bgpls plugin.
 // BGP-LS plugin doesn't augment config schema, returns empty.
-func GetBGPLSYANG() string {
+func getBGPLSYANG() string {
 	return ""
 }
 
-// RunBGPLSCLIDecode decodes BGP-LS NLRI from hex string for CLI mode.
+// runBGPLSCLIDecode decodes BGP-LS NLRI from hex string for CLI mode.
 // This is for direct CLI invocation: ze plugin bgpls --nlri <hex>
 // Output is plain JSON or text (no "decoded json" prefix).
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
-func RunBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
+func runBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
 		_, e := fmt.Fprintf(errOut, format, args...) //nolint:errcheck // output
 		_ = e                                        // CLI output - pipe failure is unrecoverable
@@ -146,8 +146,8 @@ func RunBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut i
 	return 0
 }
 
-// RunBGPLSDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
-func RunBGPLSDecode(input io.Reader, output io.Writer) int {
+// runBGPLSDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
+func runBGPLSDecode(input io.Reader, output io.Writer) int {
 	writeUnknown := func() {
 		if _, err := fmt.Fprintln(output, "decoded unknown"); err != nil { //nolint:errcheck // output
 			bgplsLogger.Debug("write error", "err", err)
@@ -262,7 +262,7 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 
 	remaining := data
 	for len(remaining) > 0 {
-		parsed, rest, err := ParseBGPLSWithRest(remaining)
+		parsed, rest, err := parseBGPLSWithRest(remaining)
 		if err != nil {
 			bgplsLogger.Debug("parse bgpls failed", "err", err)
 			if rest == nil {
@@ -299,7 +299,7 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 
 // bgplsToJSON converts a BGP-LS NLRI to JSON format.
 // RFC 7752 defines the NLRI structure.
-func bgplsToJSON(n BGPLSNLRI, data []byte) map[string]any {
+func bgplsToJSON(n bGPLSNLRI, data []byte) map[string]any {
 	result := map[string]any{
 		"ls-nlri-type":        bgplsNLRITypeString(uint16(n.NLRIType())),
 		"l3-routing-topology": n.Identifier(),

@@ -82,7 +82,7 @@ func TestProfilesInRequestContext(t *testing.T) {
 	}
 	var gotProfiles []string
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotProfiles = GetProfilesFromRequest(r)
+		gotProfiles = getProfilesFromRequest(r)
 		w.WriteHeader(http.StatusOK)
 	})
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{}, noopRenderer, next)
@@ -129,7 +129,7 @@ func TestRouteGateRealAuthzChain(t *testing.T) {
 
 	reqBob := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	reqBob = reqBob.WithContext(withUsername(reqBob.Context(), "bob"))
-	if CanEdit(reqBob, authorizer) {
+	if canEdit(reqBob, authorizer) {
 		t.Fatal("read-only profile via real store: CanEdit = true, want false")
 	}
 }
@@ -138,13 +138,13 @@ func TestCanEditReflectsAuthorizer(t *testing.T) {
 	// VALIDATES: AC-1 -- CanEdit (used for nav hiding) mirrors the gate decision.
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req = req.WithContext(withUsername(req.Context(), "bob"))
-	if CanEdit(req, fakeAuthorizer{allowEdit: false}) {
+	if canEdit(req, fakeAuthorizer{allowEdit: false}) {
 		t.Fatal("read-only user: CanEdit = true, want false")
 	}
-	if !CanEdit(req, fakeAuthorizer{allowEdit: true}) {
+	if !canEdit(req, fakeAuthorizer{allowEdit: true}) {
 		t.Fatal("admin user: CanEdit = false, want true")
 	}
-	if !CanEdit(req, nil) {
+	if !canEdit(req, nil) {
 		t.Fatal("nil authorizer: CanEdit = false, want true (fail open)")
 	}
 }

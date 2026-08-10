@@ -27,7 +27,7 @@ func TestBGPLSPluginDecodeMode(t *testing.T) {
 	input := bytes.NewBufferString("decode nlri bgp-ls/bgp-ls " + hexData + "\n")
 	output := &bytes.Buffer{}
 
-	RunBGPLSDecode(input, output)
+	runBGPLSDecode(input, output)
 
 	result := output.String()
 	assert.True(t, strings.HasPrefix(result, "decoded json "), "should return decoded json prefix")
@@ -50,7 +50,7 @@ func TestBGPLSPluginInvalidFamily(t *testing.T) {
 	input := bytes.NewBufferString("decode nlri ipv4/unicast 00000000\n")
 	output := &bytes.Buffer{}
 
-	RunBGPLSDecode(input, output)
+	runBGPLSDecode(input, output)
 
 	result := strings.TrimSpace(output.String())
 	assert.Equal(t, "decoded unknown", result)
@@ -65,7 +65,7 @@ func TestBGPLSPluginInvalidHex(t *testing.T) {
 	input := bytes.NewBufferString("decode nlri bgp-ls/bgp-ls GGGG\n")
 	output := &bytes.Buffer{}
 
-	RunBGPLSDecode(input, output)
+	runBGPLSDecode(input, output)
 
 	result := strings.TrimSpace(output.String())
 	assert.Equal(t, "decoded unknown", result)
@@ -86,7 +86,7 @@ func TestBGPLSCLIDecode(t *testing.T) {
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
-	exitCode := RunBGPLSCLIDecode(hexData, "bgp-ls/bgp-ls", false, output, errOut)
+	exitCode := runBGPLSCLIDecode(hexData, "bgp-ls/bgp-ls", false, output, errOut)
 
 	assert.Equal(t, 0, exitCode)
 	assert.Empty(t, errOut.String())
@@ -114,7 +114,7 @@ func TestBGPLSCLIDecodeText(t *testing.T) {
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
-	exitCode := RunBGPLSCLIDecode(hexData, "bgp-ls/bgp-ls", true, output, errOut)
+	exitCode := runBGPLSCLIDecode(hexData, "bgp-ls/bgp-ls", true, output, errOut)
 
 	assert.Equal(t, 0, exitCode)
 	assert.Empty(t, errOut.String())
@@ -130,7 +130,7 @@ func TestBGPLSCLIDecodeInvalidFamily(t *testing.T) {
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
-	exitCode := RunBGPLSCLIDecode("00000000", "ipv4/unicast", false, output, errOut)
+	exitCode := runBGPLSCLIDecode("00000000", "ipv4/unicast", false, output, errOut)
 
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, errOut.String(), "invalid family")
@@ -231,7 +231,7 @@ func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
 // PREVENTS: Wrong NLRI type detection.
 func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
 	t.Parallel()
-	srv6 := NewBGPLSSRv6SID(
+	srv6 := newBGPLSSRv6SID(
 		ProtoSegment, 0x300,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 		SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
@@ -441,7 +441,7 @@ func TestBGPLSVPNFamilyDecode(t *testing.T) {
 	input := bytes.NewBufferString("decode nlri bgp-ls/bgp-ls-vpn " + hexData + "\n")
 	output := &bytes.Buffer{}
 
-	RunBGPLSDecode(input, output)
+	runBGPLSDecode(input, output)
 
 	result := output.String()
 	assert.True(t, strings.HasPrefix(result, "decoded json "), "bgp-ls-vpn should return decoded json")
@@ -469,7 +469,7 @@ func TestBGPLSCLIDecodeVPNFamily(t *testing.T) {
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
-	exitCode := RunBGPLSCLIDecode(hexData, "bgp-ls/bgp-ls-vpn", false, output, errOut)
+	exitCode := runBGPLSCLIDecode(hexData, "bgp-ls/bgp-ls-vpn", false, output, errOut)
 
 	assert.Equal(t, 0, exitCode, "bgp-ls-vpn should succeed")
 	assert.Empty(t, errOut.String(), "no errors expected")

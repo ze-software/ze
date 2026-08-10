@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// StartupProtocol handles the 5-stage ZeBGP plugin registration protocol.
+// startupProtocol handles the 5-stage ZeBGP plugin registration protocol.
 // This must be completed before the bridge can begin JSON translation.
 //
 // Stages:
@@ -30,7 +30,7 @@ import (
 //  3. Capability (Bridge → ZeBGP): send capability lines, then "capability done"
 //  4. Registry (ZeBGP → Bridge): wait for "registry done" (discard registry lines)
 //  5. Ready (Bridge → ZeBGP): send "ready"
-type StartupProtocol struct {
+type startupProtocol struct {
 	output  io.Writer
 	scanner *bufio.Scanner
 
@@ -46,11 +46,11 @@ type StartupProtocol struct {
 	AddPathMode string
 }
 
-// NewStartupProtocol creates a new startup protocol handler.
+// newStartupProtocol creates a new startup protocol handler.
 // The scanner should be reused after startup for JSON event processing
 // to avoid losing buffered data.
-func NewStartupProtocol(scanner *bufio.Scanner, output io.Writer) *StartupProtocol {
-	return &StartupProtocol{
+func newStartupProtocol(scanner *bufio.Scanner, output io.Writer) *startupProtocol {
+	return &startupProtocol{
 		scanner:  scanner,
 		output:   output,
 		Families: []string{"ipv4/unicast"}, // Default family
@@ -61,20 +61,20 @@ func NewStartupProtocol(scanner *bufio.Scanner, output io.Writer) *StartupProtoc
 const defaultFamily = "ipv4/unicast"
 
 // Run executes the full 5-stage startup protocol.
-func (sp *StartupProtocol) Run() error {
+func (sp *startupProtocol) Run() error {
 	// Stage 1: Declaration
-	sp.SendDeclarations()
+	sp.sendDeclarations()
 
 	// Stage 2: Wait for config done
-	if err := sp.WaitForConfigDone(); err != nil {
+	if err := sp.waitForConfigDone(); err != nil {
 		return fmt.Errorf("stage 2 (config): %w", err)
 	}
 
 	// Stage 3: Capability
-	sp.SendCapabilityDone()
+	sp.sendCapabilityDone()
 
 	// Stage 4: Wait for registry done
-	if err := sp.WaitForRegistryDone(); err != nil {
+	if err := sp.waitForRegistryDone(); err != nil {
 		return fmt.Errorf("stage 4 (registry): %w", err)
 	}
 
@@ -84,8 +84,8 @@ func (sp *StartupProtocol) Run() error {
 	return nil
 }
 
-// SendDeclarations sends Stage 1 declarations.
-func (sp *StartupProtocol) SendDeclarations() {
+// sendDeclarations sends Stage 1 declarations.
+func (sp *startupProtocol) sendDeclarations() {
 	if sp.output == nil {
 		return
 	}
@@ -114,12 +114,12 @@ func (sp *StartupProtocol) SendDeclarations() {
 	_, _ = fmt.Fprintln(sp.output, "declare done") //nolint:errcheck // output
 }
 
-// SendCapabilityDone sends Stage 3 capability lines and done marker.
+// sendCapabilityDone sends Stage 3 capability lines and done marker.
 //
 // Capability format: "capability <enc> <code> [payload]".
 // - Route-refresh (RFC 2918): code 2, no payload (0-length value per RFC).
 // - ADD-PATH (RFC 7911): code 69, payload is hex-encoded AFI/SAFI/mode tuples.
-func (sp *StartupProtocol) SendCapabilityDone() {
+func (sp *startupProtocol) sendCapabilityDone() {
 	if sp.output == nil {
 		return
 	}
@@ -145,7 +145,7 @@ func (sp *StartupProtocol) SendCapabilityDone() {
 //
 // RFC 7911 Section 4: Each tuple is 4 octets: AFI (2) + SAFI (1) + Send/Receive (1).
 // Mode values: 1=receive, 2=send, 3=both.
-func (sp *StartupProtocol) encodeAddPath() string {
+func (sp *startupProtocol) encodeAddPath() string {
 	mode := sp.addPathModeValue()
 	if mode == 0 {
 		return ""
@@ -171,7 +171,7 @@ func (sp *StartupProtocol) encodeAddPath() string {
 }
 
 // addPathModeValue converts mode string to RFC 7911 value.
-func (sp *StartupProtocol) addPathModeValue() byte {
+func (sp *startupProtocol) addPathModeValue() byte {
 	switch strings.ToLower(sp.AddPathMode) {
 	case modeReceive:
 		return 1
@@ -306,25 +306,25 @@ func ValidateFamily(family string) error {
 }
 
 // SendReady sends Stage 5 ready signal.
-func (sp *StartupProtocol) SendReady() {
+func (sp *startupProtocol) SendReady() {
 	if sp.output == nil {
 		return
 	}
 	_, _ = fmt.Fprintln(sp.output, "ready") //nolint:errcheck // output
 }
 
-// WaitForConfigDone waits for Stage 2 "config done" marker.
-func (sp *StartupProtocol) WaitForConfigDone() error {
+// waitForConfigDone waits for Stage 2 "config done" marker.
+func (sp *startupProtocol) waitForConfigDone() error {
 	return sp.waitForLine("config done")
 }
 
-// WaitForRegistryDone waits for Stage 4 "registry done" marker.
-func (sp *StartupProtocol) WaitForRegistryDone() error {
+// waitForRegistryDone waits for Stage 4 "registry done" marker.
+func (sp *startupProtocol) waitForRegistryDone() error {
 	return sp.waitForLine("registry done")
 }
 
 // waitForLine reads lines until the expected line is found.
-func (sp *StartupProtocol) waitForLine(expected string) error {
+func (sp *startupProtocol) waitForLine(expected string) error {
 	if sp.scanner == nil {
 		return nil
 	}
@@ -429,7 +429,7 @@ func (b *Bridge) Run(ctx context.Context) error {
 	stdinScanner := bufio.NewScanner(os.Stdin)
 
 	// Stage 1-5: Complete startup protocol with ZeBGP (raw text, no MuxConn)
-	sp := NewStartupProtocol(stdinScanner, os.Stdout)
+	sp := newStartupProtocol(stdinScanner, os.Stdout)
 	sp.Families = b.Families
 	sp.RouteRefresh = b.RouteRefresh
 	sp.AddPathMode = b.AddPathMode

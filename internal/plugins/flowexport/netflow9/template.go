@@ -32,8 +32,8 @@ func CounterRecordSize() int {
 	return size
 }
 
-// CounterFieldCount returns the number of fields in the counter template.
-func CounterFieldCount() int {
+// counterFieldCount returns the number of fields in the counter template.
+func counterFieldCount() int {
 	return len(counterFields)
 }
 

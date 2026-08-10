@@ -89,8 +89,8 @@ type Identity struct {
 	Scopes []string
 }
 
-// IsAnonymous reports whether no identity was authenticated.
-func (i Identity) IsAnonymous() bool {
+// isAnonymous reports whether no identity was authenticated.
+func (i Identity) isAnonymous() bool {
 	return i.Name == ""
 }
 

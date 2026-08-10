@@ -453,7 +453,7 @@ func srWellFormedValues() []srTLVCase {
 		{"lan-adj-sid", EncodeLANAdjSIDValue(AdjSID{Index: 9}), 12, func(b []byte) error { _, err := DecodeLANAdjSIDValue(b); return err }},
 		// 12 fixed octets (the sub-TLV region is optional) then one Prefix-SID sub-TLV.
 		{"ext-prefix-range", EncodeExtPrefixRangeValueV4(32, [4]byte{10, 0, 0, 9}, 1, false, PrefixSID{Index: 9}), 12,
-			func(b []byte) error { _, err := DecodeExtPrefixRangeValueV4(b); return err }},
+			func(b []byte) error { _, err := decodeExtPrefixRangeValueV4(b); return err }},
 	}
 }
 

@@ -33,8 +33,8 @@ type OriginTracker struct {
 	mu     sync.Mutex
 }
 
-// NewOriginTracker creates an empty origin route tracker.
-func NewOriginTracker() *OriginTracker {
+// newOriginTracker creates an empty origin route tracker.
+func newOriginTracker() *OriginTracker {
 	return &OriginTracker{routes: make(map[routeKey]*originRoute)}
 }
 
@@ -57,10 +57,10 @@ func (t *OriginTracker) Remove(key routeKey) {
 	delete(t.routes, key)
 }
 
-// Revalidate re-runs origin validation over every tracked route against the current ROA cache and
+// revalidate re-runs origin validation over every tracked route against the current ROA cache and
 // returns the routes whose validation state changed (with their updated state and ASPA snapshot),
 // updating the stored state in place.
-func (t *OriginTracker) Revalidate(cache *ROACache) []originRevalidation {
+func (t *OriginTracker) revalidate(cache *ROACache) []originRevalidation {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	var changed []originRevalidation

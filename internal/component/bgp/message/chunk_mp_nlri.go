@@ -15,10 +15,10 @@ import (
 
 var errMalformedNlri = errors.New("malformed NLRI")
 
-// NewNLRIElements creates a generic element iterator for NLRI wire bytes.
+// newNLRIElements creates a generic element iterator for NLRI wire bytes.
 // The iterator yields one NLRI at a time as subslices of nlriData.
 // Use GetNLRISizeFunc to obtain the appropriate sizeFunc for the address family.
-func NewNLRIElements(nlriData []byte, sizeFunc NLRISizeFunc) iter.Elements {
+func newNLRIElements(nlriData []byte, sizeFunc NLRISizeFunc) iter.Elements {
 	return iter.NewElements(nlriData, iter.SizeFunc(sizeFunc))
 }
 
@@ -46,7 +46,7 @@ func ChunkMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 	}
 
 	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
-	e := NewNLRIElements(nlriData, sizeFunc)
+	e := newNLRIElements(nlriData, sizeFunc)
 
 	// Fast path: validate structure and return single chunk if all fits
 	if len(nlriData) <= maxSize {
@@ -124,7 +124,7 @@ func SplitMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 	}
 
 	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
-	e := NewNLRIElements(nlriData, sizeFunc)
+	e := newNLRIElements(nlriData, sizeFunc)
 
 	prevOffset := 0
 	for elem := e.Next(); elem != nil; elem = e.Next() {

@@ -86,9 +86,9 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	"file":       checkFile,
 }
 
-// CheckExpectation verifies a single expectation against the current state.
+// checkExpectation verifies a single expectation against the current state.
 // Returns nil if expectation passes, error describing the failure otherwise.
-func CheckExpectation(exp Expectation, state State) error {
+func checkExpectation(exp Expectation, state State) error {
 	handler, ok := validExpectationTypes[exp.Type]
 	if !ok {
 		return fmt.Errorf("unknown expectation type: %s", exp.Type)
@@ -587,7 +587,7 @@ func truncate(s string, maxLen int) string {
 // Returns the first error encountered, or nil if all pass.
 func CheckExpectations(expectations []Expectation, state State) error {
 	for i, exp := range expectations {
-		if err := CheckExpectation(exp, state); err != nil {
+		if err := checkExpectation(exp, state); err != nil {
 			return fmt.Errorf("expectation %d (%s): %w", i+1, exp.Type, err)
 		}
 	}

@@ -91,7 +91,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	h := &htmlWriter{w: w}
 	peers := opts.customPeers
 	if len(peers) == 0 {
-		peers = m.TopNPeers(opts.topN)
+		peers = m.topNPeers(opts.topN)
 	}
 
 	latencyMode := opts.mode == "latency"
@@ -157,19 +157,19 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	var maxVal int
 	var maxLatency time.Duration
 	if latencyMode {
-		maxLatency = m.MaxAvgLatency()
+		maxLatency = m.maxAvgLatency()
 	} else {
 		if opts.family != "" {
 			// Compute max cell for filtered view.
 			for _, src := range peers {
 				for _, dst := range peers {
-					if v := m.GetByFamily(src, dst, opts.family); v > maxVal {
+					if v := m.getByFamily(src, dst, opts.family); v > maxVal {
 						maxVal = v
 					}
 				}
 			}
 		} else {
-			maxVal = m.MaxCell()
+			maxVal = m.maxCell()
 		}
 	}
 
@@ -233,7 +233,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 // writeCountCell renders a single heatmap cell in count mode.
 func writeCountCell(w io.Writer, m *RouteMatrix, src, dst, maxVal int, family string) {
 	h := &htmlWriter{w: w}
-	count := m.GetByFamily(src, dst, family)
+	count := m.getByFamily(src, dst, family)
 	intensity := 0
 	if maxVal > 0 && count > 0 {
 		intensity = max(count*100/maxVal, 5)
@@ -305,7 +305,7 @@ func (d *Dashboard) handleVizAllPeers(w http.ResponseWriter, r *http.Request) {
 // Auto-refreshes so users see propagation counters ticking live.
 func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 	h := &htmlWriter{w: w}
-	families := s.SortedFamilies()
+	families := s.sortedFamilies()
 
 	h.write(`<div class="viz-panel" hx-get="/viz/families" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
 <div class="viz-header">
@@ -629,8 +629,8 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 		h.writef(`<td><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
 		h.writef(`<td>%d</td>`, ps.RoutesSent)
 		h.writef(`<td>%d</td>`, ps.RoutesRecv)
-		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesSent))
-		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesRecv))
+		h.writef(`<td>%s</td>`, formatBytes(ps.BytesSent))
+		h.writef(`<td>%s</td>`, formatBytes(ps.BytesRecv))
 		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputOut))
 		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputIn))
 		h.writef(`<td>%d</td>`, ps.Missing)

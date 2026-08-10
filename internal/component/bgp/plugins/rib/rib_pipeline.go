@@ -54,8 +54,8 @@ type PipelineMeta struct {
 	JSON  string // set by json, prefix-summary, and graph terminals
 }
 
-// PipelineIterator is the pull-based iterator interface for pipeline stages.
-type PipelineIterator interface {
+// pipelineIterator is the pull-based iterator interface for pipeline stages.
+type pipelineIterator interface {
 	Next() (RouteItem, bool)
 	Meta() PipelineMeta
 }
@@ -399,12 +399,12 @@ func validatePathPattern(pattern string) string {
 
 // pathFilter filters routes by AS path pattern.
 type pathFilter struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	pattern  string
 	count    int
 }
 
-func newPathFilter(upstream PipelineIterator, pattern string) *pathFilter {
+func newPathFilter(upstream pipelineIterator, pattern string) *pathFilter {
 	return &pathFilter{upstream: upstream, pattern: pattern}
 }
 
@@ -447,13 +447,13 @@ func (f *pathFilter) Meta() PipelineMeta {
 
 // familyFilter filters routes by address family.
 type familyFilter struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	family   family.Family
 	match    string // original pattern for unregistered/fallback matching
 	count    int
 }
 
-func newFamilyFilter(upstream PipelineIterator, familyPattern string) *familyFilter {
+func newFamilyFilter(upstream pipelineIterator, familyPattern string) *familyFilter {
 	f, _ := family.LookupFamily(familyPattern)
 	return &familyFilter{upstream: upstream, family: f, match: familyPattern}
 }
@@ -477,12 +477,12 @@ func (f *familyFilter) Meta() PipelineMeta {
 
 // prefixFilter filters routes by prefix string match.
 type prefixFilter struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	pattern  string
 	count    int
 }
 
-func newPrefixFilter(upstream PipelineIterator, pattern string) *prefixFilter {
+func newPrefixFilter(upstream pipelineIterator, pattern string) *prefixFilter {
 	return &prefixFilter{upstream: upstream, pattern: pattern}
 }
 
@@ -505,12 +505,12 @@ func (f *prefixFilter) Meta() PipelineMeta {
 
 // communityFilter filters routes containing a specific community.
 type communityFilter struct {
-	upstream  PipelineIterator
+	upstream  pipelineIterator
 	community attribute.Community
 	count     int
 }
 
-func newCommunityFilter(upstream PipelineIterator, communityStr string) *communityFilter {
+func newCommunityFilter(upstream pipelineIterator, communityStr string) *communityFilter {
 	v, _ := attribute.ParseCommunity(communityStr)
 	return &communityFilter{upstream: upstream, community: attribute.Community(v)}
 }
@@ -560,12 +560,12 @@ func (f *communityFilter) Meta() PipelineMeta {
 
 // matchFilter filters routes by case-insensitive substring match on field values.
 type matchFilter struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	pattern  string
 	count    int
 }
 
-func newMatchFilter(upstream PipelineIterator, pattern string) *matchFilter {
+func newMatchFilter(upstream pipelineIterator, pattern string) *matchFilter {
 	return &matchFilter{upstream: upstream, pattern: strings.ToLower(pattern)}
 }
 
@@ -702,12 +702,12 @@ func (f *matchFilter) Meta() PipelineMeta {
 }
 
 type firstFilter struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	limit    int
 	seen     int
 }
 
-func newFirstFilter(upstream PipelineIterator, arg string) *firstFilter {
+func newFirstFilter(upstream pipelineIterator, arg string) *firstFilter {
 	n, _ := strconv.Atoi(arg)
 	if n <= 0 {
 		n = 1
@@ -738,7 +738,7 @@ func (f *firstFilter) Meta() PipelineMeta {
 const lastFilterInitialCap = 1024
 
 type lastFilter struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	limit    int
 	buf      []RouteItem // ring buffer; len grows lazily to at most limit
 	head     int         // index of the oldest element once the ring is full
@@ -747,7 +747,7 @@ type lastFilter struct {
 	idx      int // emission cursor over the drained items
 }
 
-func newLastFilter(upstream PipelineIterator, arg string) *lastFilter {
+func newLastFilter(upstream pipelineIterator, arg string) *lastFilter {
 	// parsePipelineArgs validates N (positive integer) before construction; the
 	// clamp is a defensive fallback for any direct caller.
 	n, _ := strconv.Atoi(arg)
@@ -806,12 +806,12 @@ func (f *lastFilter) Meta() PipelineMeta {
 // countTerminal drains the upstream and records count in metadata.
 // It never yields items.
 type countTerminal struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newCountTerminal(upstream PipelineIterator) *countTerminal {
+func newCountTerminal(upstream pipelineIterator) *countTerminal {
 	return &countTerminal{upstream: upstream}
 }
 
@@ -843,12 +843,12 @@ func (ct *countTerminal) Meta() PipelineMeta {
 
 // prefixSummaryTerminal drains the upstream and counts routes by family and prefix length.
 type prefixSummaryTerminal struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newPrefixSummaryTerminal(upstream PipelineIterator) *prefixSummaryTerminal {
+func newPrefixSummaryTerminal(upstream pipelineIterator) *prefixSummaryTerminal {
 	return &prefixSummaryTerminal{upstream: upstream}
 }
 
@@ -910,12 +910,12 @@ func extractPrefixLength(prefix string) string {
 
 // jsonTerminal drains the upstream, serializes all items to JSON, and records metadata.
 type jsonTerminal struct {
-	upstream PipelineIterator
+	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newJSONTerminal(upstream PipelineIterator) *jsonTerminal {
+func newJSONTerminal(upstream pipelineIterator) *jsonTerminal {
 	return &jsonTerminal{upstream: upstream}
 }
 
@@ -1049,7 +1049,7 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 	defer r.peerMu.RUnlock()
 
 	// Create source based on scope
-	var source PipelineIterator
+	var source pipelineIterator
 	switch scope {
 	case scopeReceived:
 		source = newInboundSource(r, selector)
@@ -1093,7 +1093,7 @@ type pipelineStage struct {
 	terminal bool
 }
 
-func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
+func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 	switch s.kind {
 	case filterPath, "aspath":
 		return newPathFilter(upstream, s.arg)

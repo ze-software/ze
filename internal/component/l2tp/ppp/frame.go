@@ -84,8 +84,8 @@ func WriteFrame(buf []byte, off int, proto uint16, payload []byte) int {
 	return 2 + n
 }
 
-// FrameLen returns the wire size of a frame with the given payload
+// frameLen returns the wire size of a frame with the given payload
 // length, using the two-byte protocol form WriteFrame produces.
-func FrameLen(payloadLen int) int {
+func frameLen(payloadLen int) int {
 	return 2 + payloadLen
 }

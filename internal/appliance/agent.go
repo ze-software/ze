@@ -15,7 +15,7 @@ import (
 const DefaultAgentDuration = 30 * time.Minute
 
 func RunAgent(key []byte, duration time.Duration) error {
-	sockPath := AgentSocketPath()
+	sockPath := agentSocketPath()
 
 	if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove old socket: %w", err)
@@ -76,7 +76,7 @@ func RunAgent(key []byte, duration time.Duration) error {
 // stored; removing the socket is sufficient since the agent's Accept loop will
 // return an error and the agent will zero its key and exit.
 func StopAgent() error {
-	sockPath := AgentSocketPath()
+	sockPath := agentSocketPath()
 	if _, err := os.Stat(sockPath); err != nil {
 		return fmt.Errorf("agent not running (no socket at %s)", sockPath)
 	}

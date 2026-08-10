@@ -16,7 +16,7 @@ import (
 func TestSSEBroadcast(t *testing.T) {
 	t.Parallel()
 
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 	defer broker.Close()
 
 	c1 := broker.Subscribe()
@@ -50,7 +50,7 @@ func TestSSEBroadcast(t *testing.T) {
 func TestSSEClientCleanup(t *testing.T) {
 	t.Parallel()
 
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 	defer broker.Close()
 
 	c := broker.Subscribe()
@@ -80,13 +80,13 @@ func TestSSEDebounce(t *testing.T) {
 	t.Parallel()
 
 	// Below minimum — should clamp to 50ms.
-	broker := NewSSEBroker(10 * time.Millisecond)
+	broker := newSSEBroker(10 * time.Millisecond)
 	if broker.Interval() != 50*time.Millisecond {
 		t.Fatalf("Interval() = %v, want 50ms (clamped)", broker.Interval())
 	}
 
 	// Valid interval.
-	broker = NewSSEBroker(200 * time.Millisecond)
+	broker = newSSEBroker(200 * time.Millisecond)
 	if broker.Interval() != 200*time.Millisecond {
 		t.Fatalf("Interval() = %v, want 200ms", broker.Interval())
 	}
@@ -99,7 +99,7 @@ func TestSSEDebounce(t *testing.T) {
 func TestSSEBroadcastDropsOnFullBuffer(t *testing.T) {
 	t.Parallel()
 
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 	defer broker.Close()
 
 	c := broker.Subscribe()
@@ -144,7 +144,7 @@ func TestSSEBroadcastDropsOnFullBuffer(t *testing.T) {
 func TestSSEClose(t *testing.T) {
 	t.Parallel()
 
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 
 	c1 := broker.Subscribe()
 	c2 := broker.Subscribe()
@@ -175,7 +175,7 @@ func TestSSEClose(t *testing.T) {
 func TestSSEServeHTTP(t *testing.T) {
 	t.Parallel()
 
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 	defer broker.Close()
 
 	// Start the handler in a goroutine — it blocks until client disconnects.
@@ -230,7 +230,7 @@ func TestSSEServeHTTP(t *testing.T) {
 func TestSSEMultiLineData(t *testing.T) {
 	t.Parallel()
 
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 	defer broker.Close()
 
 	ts := httptest.NewServer(broker)
@@ -290,7 +290,7 @@ func TestSSEMultiLineData(t *testing.T) {
 // headers are flushed) and the server-side ServeHTTP goroutine actually
 // calling broker.Subscribe. Without this barrier, a Broadcast can run
 // before any client is registered and the test reader blocks forever.
-func waitForClient(t *testing.T, b *SSEBroker) {
+func waitForClient(t *testing.T, b *sSEBroker) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {

@@ -24,8 +24,8 @@ const (
 // defaultValidationTimeout is the fail-open timeout for pending routes.
 const defaultValidationTimeout = 30 * time.Second
 
-// PendingRoute stores a route awaiting validation.
-type PendingRoute struct {
+// pendingRoute stores a route awaiting validation.
+type pendingRoute struct {
 	peerAddr   netip.Addr
 	family     family.Family
 	prefix     string
@@ -42,7 +42,7 @@ func pendingKey(peerAddr netip.Addr, routeKey compactRouteKey) compactPendingKey
 
 // promoteToInstalled moves a pending route to the installed ribIn map.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) promoteToInstalled(pr *PendingRoute, validationState uint8) {
+func (r *AdjRIBInManager) promoteToInstalled(pr *pendingRoute, validationState uint8) {
 	pr.route.ValidationState = validationState
 
 	if r.ribIn[pr.peerAddr] == nil {
@@ -105,8 +105,8 @@ func parseValidationState(s string) (uint8, error) {
 	return 0, fmt.Errorf("invalid validation state: %s (expected 1=Valid or 2=NotFound)", s)
 }
 
-// EarlyDecision stores a validation decision that arrived before the route.
-type EarlyDecision struct {
+// earlyDecision stores a validation decision that arrived before the route.
+type earlyDecision struct {
 	action     earlyAction // accept or reject
 	state      uint8       // validation state (only meaningful for accept)
 	receivedAt time.Time
@@ -126,7 +126,7 @@ const earlyDecisionTimeout = 1 * time.Minute
 // applyEarlyDecision checks for a buffered decision and applies it to a
 // newly-pending route. Returns true if a decision was found and applied.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, pr *PendingRoute) bool {
+func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, pr *pendingRoute) bool {
 	key := pendingKey(peerAddr, routeKey)
 	ed, ok := r.earlyDecisions[key]
 	if !ok {
@@ -150,7 +150,7 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compa
 // Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) storeEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, action earlyAction, state uint8) {
 	key := pendingKey(peerAddr, routeKey)
-	r.earlyDecisions[key] = &EarlyDecision{
+	r.earlyDecisions[key] = &earlyDecision{
 		action:     action,
 		state:      state,
 		receivedAt: time.Now(),

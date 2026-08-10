@@ -23,7 +23,7 @@ func parseIdentityPolicy(peerName string, t *config.Tree, auth *AuthConfig) erro
 	if !ok || v == "" {
 		return nil
 	}
-	idType, known := ParseRemoteIDType(v)
+	idType, known := parseRemoteIDType(v)
 	if !known {
 		return fmt.Errorf(
 			"ipsec peer %q remote-id-type: unsupported value %q (valid: %v)",

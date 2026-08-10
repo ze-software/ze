@@ -229,7 +229,7 @@ func (d *Dashboard) handleControlSpeed(w http.ResponseWriter, r *http.Request) {
 		h.write(`<div id="speed-error" class="event-type event-type-disconnected">invalid speed (1, 10, 100, 1000)</div>`)
 		return
 	}
-	d.SetSpeedFactor(factor) // factor already validated by switch above
+	d.setSpeedFactor(factor) // factor already validated by switch above
 	d.logControl("speed", r.FormValue("factor"))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
@@ -298,13 +298,13 @@ func (d *Dashboard) SetPropertyResults(results []PropertyBadge) {
 	d.state.mu.Unlock()
 }
 
-// ControlChannel returns the chaos control command channel, or nil if not configured.
-func (d *Dashboard) ControlChannel() <-chan ControlCommand {
+// controlChannel returns the chaos control command channel, or nil if not configured.
+func (d *Dashboard) controlChannel() <-chan ControlCommand {
 	return d.control
 }
 
-// RouteControlChannel returns the route dynamics control command channel, or nil if not configured.
-func (d *Dashboard) RouteControlChannel() <-chan ControlCommand {
+// routeControlChannel returns the route dynamics control command channel, or nil if not configured.
+func (d *Dashboard) routeControlChannel() <-chan ControlCommand {
 	return d.routeControl
 }
 

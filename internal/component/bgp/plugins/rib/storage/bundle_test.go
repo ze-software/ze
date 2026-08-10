@@ -18,7 +18,7 @@ func TestBundleSizeCompact(t *testing.T) {
 }
 
 func TestBundlePoolInternDedup(t *testing.T) {
-	bp := NewBundlePool()
+	bp := newBundlePool()
 
 	originH := mustIntern(t, pool.Origin, []byte{0x00})
 	nextHopH := mustIntern(t, pool.NextHop, []byte{0x0A, 0x00, 0x00, 0x01})
@@ -49,7 +49,7 @@ func TestBundlePoolInternDedup(t *testing.T) {
 }
 
 func TestBundlePoolReleaseCascade(t *testing.T) {
-	bp := NewBundlePool()
+	bp := newBundlePool()
 
 	// Unique data unlikely to be interned by any other test.
 	originH := mustIntern(t, pool.Origin, []byte{0xFE})
@@ -74,7 +74,7 @@ func TestBundlePoolReleaseCascade(t *testing.T) {
 }
 
 func TestBundlePoolAddRef(t *testing.T) {
-	bp := NewBundlePool()
+	bp := newBundlePool()
 
 	originH := mustIntern(t, pool.Origin, []byte{0x00})
 	b := NewBundle()
@@ -100,7 +100,7 @@ func TestBundlePoolAddRef(t *testing.T) {
 }
 
 func TestBundlePoolGet(t *testing.T) {
-	bp := NewBundlePool()
+	bp := newBundlePool()
 
 	originH := mustIntern(t, pool.Origin, []byte{0x02})
 	medH := mustIntern(t, pool.MED, []byte{0x00, 0x00, 0x00, 0x32})
@@ -121,7 +121,7 @@ func TestBundlePoolGet(t *testing.T) {
 }
 
 func TestBundlePoolSlotReuse(t *testing.T) {
-	bp := NewBundlePool()
+	bp := newBundlePool()
 
 	originH1 := mustIntern(t, pool.Origin, []byte{0xFA})
 	b1 := NewBundle()
@@ -144,7 +144,7 @@ func TestBundlePoolSlotReuse(t *testing.T) {
 }
 
 func TestBundlePoolHandleEncoding(t *testing.T) {
-	bp := NewBundlePool()
+	bp := newBundlePool()
 
 	b := NewBundle()
 	h := bp.Intern(b)
@@ -164,9 +164,9 @@ func TestBundleNewBundleAllInvalid(t *testing.T) {
 	assert.False(t, b.HasAtomicAggregate())
 	assert.False(t, b.HasAggregator())
 	assert.False(t, b.HasCommunities())
-	assert.False(t, b.HasLargeCommunities())
-	assert.False(t, b.HasExtCommunities())
-	assert.False(t, b.HasClusterList())
+	assert.False(t, b.hasLargeCommunities())
+	assert.False(t, b.hasExtCommunities())
+	assert.False(t, b.hasClusterList())
 	assert.False(t, b.HasOriginatorID())
 	assert.False(t, b.HasOtherAttrs())
 }

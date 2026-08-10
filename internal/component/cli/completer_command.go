@@ -9,8 +9,8 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 )
 
-// CommandNode is an alias for command.Node. Use command.Node directly in new code.
-type CommandNode = command.Node
+// commandNode is an alias for command.Node. Use command.Node directly in new code.
+type commandNode = command.Node
 
 // CommandCompleter delegates to command.TreeCompleter and converts
 // command.Suggestion to the editor's Completion type at the boundary.

@@ -18,7 +18,7 @@ import (
 //  2. Forward the UPDATE via batchForwardUpdate.
 //  3. Update the withdrawal map AFTER forwarding using the pre-extracted records,
 //     keeping per-prefix string-keyed map maintenance off the forward critical path.
-func (rs *RouteServer) processForward(key workerKey, item workItem) {
+func (rs *routeServer) processForward(key workerKey, item workItem) {
 	// Guard: release cache entry on any early return or panic.
 	// forwardUpdate handles the entry when reached (forward or release),
 	// so the flag prevents double-release on the normal path.
@@ -141,7 +141,7 @@ func isUnicast(f family.Family) bool {
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
 // Caller must hold rs.withdrawalMu.
-func (rs *RouteServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation) {
+func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation) {
 	for famName, familyOps := range ops {
 		fam, _ := family.LookupFamily(famName)
 		for _, op := range familyOps {

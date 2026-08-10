@@ -15,18 +15,18 @@ type kernelWorker struct{}
 // Enqueue is a no-op on non-Linux. Satisfies the reactor's call site.
 func (w *kernelWorker) Enqueue(_ any) {}
 
-// SetSocketHooks is a no-op on non-Linux: there is no kernel tunnel, so no
+// setSocketHooks is a no-op on non-Linux: there is no kernel tunnel, so no
 // connected socket ever displaces the listener for a peer's datagrams.
-func (w *kernelWorker) SetSocketHooks(_ func(tid uint16, fd int) error, _ func(tid uint16)) {}
+func (w *kernelWorker) setSocketHooks(_ func(tid uint16, fd int) error, _ func(tid uint16)) {}
 
-// TeardownAll is a no-op on non-Linux.
-func (w *kernelWorker) TeardownAll() {}
+// teardownAll is a no-op on non-Linux.
+func (w *kernelWorker) teardownAll() {}
 
 // Stop is a no-op on non-Linux.
 func (w *kernelWorker) Stop() {}
 
-// SignalStop is a no-op on non-Linux.
-func (w *kernelWorker) SignalStop() {}
+// signalStop is a no-op on non-Linux.
+func (w *kernelWorker) signalStop() {}
 
 // Start is a no-op on non-Linux.
 func (w *kernelWorker) Start() {}

@@ -59,11 +59,11 @@ func TestSetVPPLoggerRoutesStatsclientLog(t *testing.T) {
 	t.Cleanup(func() {
 		statsclient.Log = prevLog
 		statsclient.Debug = prevDebug
-		SetVPPLogger(slogutil.DiscardLogger())
+		setVPPLogger(slogutil.DiscardLogger())
 	})
 
 	var buf bytes.Buffer
-	SetVPPLogger(slogutil.LoggerWithOutput("vpp", "info", &buf))
+	setVPPLogger(slogutil.LoggerWithOutput("vpp", "info", &buf))
 
 	statsclient.Log.WithField("socket", "/run/vpp/stats.sock").Warn("stats connect failed")
 

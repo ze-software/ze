@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	RegisterHealth()
+	registerHealth()
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{

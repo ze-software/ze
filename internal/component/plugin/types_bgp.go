@@ -466,8 +466,8 @@ type PeerProcessBinding struct {
 	SendCustom  map[string]bool // Plugin-registered send types (e.g., "enhanced-refresh")
 }
 
-// StateChangeReceiver receives BGP peer state change notifications.
+// stateChangeReceiver receives BGP peer state change notifications.
 // State events are separate from BGP protocol messages.
-type StateChangeReceiver interface {
+type stateChangeReceiver interface {
 	OnPeerStateChange(peer PeerInfo, state rpc.SessionState)
 }

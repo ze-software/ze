@@ -22,7 +22,7 @@ func requireKeyPress(t *testing.T, msg tea.Msg) tea.KeyPressMsg {
 // PREVENTS: Text not delivered to editor character by character.
 func TestInputTypeToMessages(t *testing.T) {
 	inp := Input{Kind: "type", Text: "abc"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 3)
 
@@ -44,7 +44,7 @@ func TestInputTypeToMessages(t *testing.T) {
 // PREVENTS: Spaces lost during conversion.
 func TestInputTypeWithSpaces(t *testing.T) {
 	inp := Input{Kind: "type", Text: "edit bgp"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 8)
 
@@ -58,7 +58,7 @@ func TestInputTypeWithSpaces(t *testing.T) {
 // PREVENTS: Tab completion not triggering.
 func TestInputKeyTab(t *testing.T) {
 	inp := Input{Kind: "key", Key: "tab"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
@@ -72,7 +72,7 @@ func TestInputKeyTab(t *testing.T) {
 // PREVENTS: Commands not executing.
 func TestInputKeyEnter(t *testing.T) {
 	inp := Input{Kind: "key", Key: "enter"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
@@ -98,7 +98,7 @@ func TestInputKeyArrows(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			inp := Input{Kind: "key", Key: tt.key}
-			msgs, err := inp.ToMessages()
+			msgs, err := inp.toMessages()
 			require.NoError(t, err)
 			require.Len(t, msgs, 1)
 			assert.Equal(t, tt.expected, requireKeyPress(t, msgs[0]).Code)
@@ -114,7 +114,7 @@ func TestInputKeyEscape(t *testing.T) {
 	for _, key := range []string{"esc", "escape"} {
 		t.Run(key, func(t *testing.T) {
 			inp := Input{Kind: "key", Key: key}
-			msgs, err := inp.ToMessages()
+			msgs, err := inp.toMessages()
 			require.NoError(t, err)
 			require.Len(t, msgs, 1)
 			assert.Equal(t, tea.KeyEscape, requireKeyPress(t, msgs[0]).Code)
@@ -145,7 +145,7 @@ func TestInputKeySpecial(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			inp := Input{Kind: "key", Key: tt.key}
-			msgs, err := inp.ToMessages()
+			msgs, err := inp.toMessages()
 			require.NoError(t, err)
 			require.Len(t, msgs, 1)
 			assert.Equal(t, tt.expected, requireKeyPress(t, msgs[0]).Code)
@@ -159,7 +159,7 @@ func TestInputKeySpecial(t *testing.T) {
 // PREVENTS: Shift+Tab not working for reverse tab completion.
 func TestInputShiftTab(t *testing.T) {
 	inp := Input{Kind: "key", Key: "shift+tab"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 	km := requireKeyPress(t, msgs[0])
@@ -173,7 +173,7 @@ func TestInputShiftTab(t *testing.T) {
 // PREVENTS: Space not inserting text in textinput.
 func TestInputSpaceSpecial(t *testing.T) {
 	inp := Input{Kind: "key", Key: "space"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 	km := requireKeyPress(t, msgs[0])
@@ -186,7 +186,7 @@ func TestInputSpaceSpecial(t *testing.T) {
 // PREVENTS: Silent failure on typos.
 func TestInputKeyUnknown(t *testing.T) {
 	inp := Input{Kind: "key", Key: "unknown"}
-	_, err := inp.ToMessages()
+	_, err := inp.toMessages()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown key")
 }
@@ -197,7 +197,7 @@ func TestInputKeyUnknown(t *testing.T) {
 // PREVENTS: Ctrl combinations not working.
 func TestInputCtrlC(t *testing.T) {
 	inp := Input{Kind: "ctrl", Key: "c"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
@@ -212,7 +212,7 @@ func TestInputCtrlC(t *testing.T) {
 // PREVENTS: Line clear not working.
 func TestInputCtrlU(t *testing.T) {
 	inp := Input{Kind: "ctrl", Key: "u"}
-	msgs, err := inp.ToMessages()
+	msgs, err := inp.toMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
@@ -238,7 +238,7 @@ func TestInputCtrlInvalid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			inp := Input{Kind: "ctrl", Key: tt.key}
-			_, err := inp.ToMessages()
+			_, err := inp.toMessages()
 			require.Error(t, err)
 		})
 	}
@@ -250,7 +250,7 @@ func TestInputCtrlInvalid(t *testing.T) {
 // PREVENTS: Silent failure on invalid test files.
 func TestInputUnknownKind(t *testing.T) {
 	inp := Input{Kind: "invalid", Key: "x"}
-	_, err := inp.ToMessages()
+	_, err := inp.toMessages()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown input kind")
 }
@@ -265,7 +265,7 @@ func TestInputsToMessages(t *testing.T) {
 		{Kind: "key", Key: "enter"},
 	}
 
-	msgs, err := InputsToMessages(inputs)
+	msgs, err := inputsToMessages(inputs)
 	require.NoError(t, err)
 	// "hi" = 2 messages, enter = 1 message
 	require.Len(t, msgs, 3)

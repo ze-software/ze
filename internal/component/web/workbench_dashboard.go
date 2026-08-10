@@ -26,8 +26,8 @@ import (
 
 var processStart = time.Now()
 
-// DashboardData holds the data for the workbench dashboard overview page.
-type DashboardData struct {
+// dashboardData holds the data for the workbench dashboard overview page.
+type dashboardData struct {
 	System     DashboardSystemPanel
 	BGP        DashboardBGPPanel
 	Interfaces DashboardIfacePanel
@@ -77,12 +77,12 @@ type DashboardEvent struct {
 	Message   string
 }
 
-// BuildDashboardData assembles dashboard panels from available sources.
+// buildDashboardData assembles dashboard panels from available sources.
 // In v1, this uses config tree walking for counts and Go runtime for system
 // info. Real-time operational data (BGP session state, warnings, errors) will
 // be populated by subsequent specs via SSE or command dispatch.
-func BuildDashboardData(tree *config.Tree, schema *config.Schema) DashboardData {
-	return DashboardData{
+func buildDashboardData(tree *config.Tree, schema *config.Schema) dashboardData {
+	return dashboardData{
 		System:     buildSystemPanel(tree),
 		BGP:        buildBGPPanel(tree, schema),
 		Interfaces: buildIfacePanel(tree, schema),

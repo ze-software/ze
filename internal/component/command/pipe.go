@@ -317,13 +317,13 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 		case pipeTable:
 			result = ApplyTable(result)
 		case pipeText:
-			result = ApplyText(result)
+			result = applyText(result)
 		case pipeYAML:
 			result = applyYAML(result)
 		case pipeResolve:
-			result = ApplyResolve(result)
+			result = applyResolve(result)
 		case pipeOrigin:
-			result = ApplyOrigin(result)
+			result = applyOrigin(result)
 		case pipeFirst:
 			result = applyFirst(result, op.arg)
 		case pipeLast:

@@ -66,13 +66,13 @@ type Listeners struct {
 	DoHPath   string
 }
 
-// ApplyListeners reconciles every bound listener (cleartext, DoT, DoH) with the
+// applyListeners reconciles every bound listener (cleartext, DoT, DoH) with the
 // desired set. Like Apply, a pure host-data change (same listener set + same
 // certificate) is a no-op; any change to the endpoint sets, the DoH path, or the
 // serving certificate stops and rebinds. Rotating the certificate therefore
 // forces a rebind because the signature folds in the leaf certificate
 // fingerprint.
-func (m *Manager) ApplyListeners(enabled bool, l Listeners) error {
+func (m *Manager) applyListeners(enabled bool, l Listeners) error {
 	if l.DoHPath == "" {
 		l.DoHPath = DefaultDoHPath
 	}
@@ -237,7 +237,7 @@ func (m *Manager) ApplyWithSecure(enabled bool, plain []Endpoint, sc SecureConfi
 			}
 		}
 	}
-	return m.ApplyListeners(enabled, l)
+	return m.applyListeners(enabled, l)
 }
 
 // buildSecureTLS returns the tls.Config for the secure listeners. Operator PEM

@@ -109,7 +109,7 @@ func testVerbTree() *Node {
 func TestHelpTopLevel(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, nil)
+	writeHelp(&buf, tree, nil)
 	output := buf.String()
 
 	// Check verbs and their descriptions appear together.
@@ -138,7 +138,7 @@ func TestHelpTopLevel(t *testing.T) {
 func TestHelpVerbLevel(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, []string{"show"})
+	writeHelp(&buf, tree, []string{"show"})
 	output := buf.String()
 
 	if !strings.Contains(output, "bgp") {
@@ -154,7 +154,7 @@ func TestHelpVerbLevel(t *testing.T) {
 func TestHelpNestedLevel(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, []string{"show", "bgp"})
+	writeHelp(&buf, tree, []string{"show", "bgp"})
 	output := buf.String()
 
 	if !strings.Contains(output, "peer") {
@@ -170,7 +170,7 @@ func TestHelpNestedLevel(t *testing.T) {
 func TestHelpUnknownPath(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	ok := WriteHelp(&buf, tree, []string{"nonexistent"})
+	ok := writeHelp(&buf, tree, []string{"nonexistent"})
 
 	if ok {
 		t.Error("expected WriteHelp to return false for unknown path")
@@ -182,7 +182,7 @@ func TestHelpUnknownPath(t *testing.T) {
 func TestHelpIncludesDescriptions(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, []string{"show"})
+	writeHelp(&buf, tree, []string{"show"})
 	output := buf.String()
 
 	if !strings.Contains(output, "BGP introspection") {
@@ -202,7 +202,7 @@ func TestHelpEntryUsesSummaryLine(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, nil)
+	writeHelp(&buf, tree, nil)
 	output := buf.String()
 
 	if !strings.Contains(output, "audit") {
@@ -228,7 +228,7 @@ func TestHelpLeafMultilineDescriptionIndented(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, []string{"crashes"})
+	writeHelp(&buf, tree, []string{"crashes"})
 	output := buf.String()
 
 	if !strings.Contains(output, "  View saved crash reports from panics.\n") {
@@ -278,7 +278,7 @@ func TestVerbClassification(t *testing.T) {
 func TestHelpLeafNode(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	ok := WriteHelp(&buf, tree, []string{"show", "version"})
+	ok := writeHelp(&buf, tree, []string{"show", "version"})
 	output := buf.String()
 
 	if !ok {
@@ -294,7 +294,7 @@ func TestHelpLeafNode(t *testing.T) {
 func TestHelpDescribeChildren(t *testing.T) {
 	tree := testVerbTree()
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, []string{"set"})
+	writeHelp(&buf, tree, []string{"set"})
 	output := buf.String()
 
 	// set > system has no description, should show "subcommands: file-descriptors"
@@ -321,7 +321,7 @@ func TestHelpDescribeChildrenTruncation(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	WriteHelp(&buf, tree, nil)
+	writeHelp(&buf, tree, nil)
 	output := buf.String()
 
 	if !strings.Contains(output, "... (5 total)") {
@@ -354,10 +354,10 @@ func TestHelpNilRoot(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if WriteHelp(&buf, nil, nil) {
+	if writeHelp(&buf, nil, nil) {
 		t.Error("WriteHelp with nil root should return false")
 	}
-	if WriteHelp(&buf, nil, []string{"show"}) {
+	if writeHelp(&buf, nil, []string{"show"}) {
 		t.Error("WriteHelp with nil root and path should return false")
 	}
 }

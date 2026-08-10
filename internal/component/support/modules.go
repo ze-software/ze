@@ -10,14 +10,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ModuleCollector gathers data for a single support module.
+// moduleCollector gathers data for a single support module.
 // It returns a JSON-serializable value and any error encountered.
 // Errors are non-fatal: the orchestrator records the error in the
 // module result and continues with the next module.
-type ModuleCollector func(opts *CollectOptions) (any, error)
+type moduleCollector func(opts *collectOptions) (any, error)
 
-// CollectOptions carries flags that affect collection behavior.
-type CollectOptions struct {
+// collectOptions carries flags that affect collection behavior.
+type collectOptions struct {
 	ConfigPath string
 	Since      string
 	Sensitive  bool
@@ -28,7 +28,7 @@ type CollectOptions struct {
 // modules available in `ze support`. Adding a new module means one
 // entry here; all consumers (help text, --list-modules, validation,
 // collection) DERIVE from this map.
-var moduleRegistry = map[string]ModuleCollector{
+var moduleRegistry = map[string]moduleCollector{
 	"version":    collectVersion,
 	"doctor":     collectDoctor,
 	"host":       collectHost,
@@ -69,9 +69,9 @@ func ModuleList() string {
 // filterModules returns the subset of moduleRegistry matching the
 // include/exclude filters. Empty include means all modules. Returns
 // an error string if any requested name is unknown.
-func filterModules(include, exclude []string) (map[string]ModuleCollector, string) {
+func filterModules(include, exclude []string) (map[string]moduleCollector, string) {
 	if len(include) > 0 {
-		result := make(map[string]ModuleCollector, len(include))
+		result := make(map[string]moduleCollector, len(include))
 		for _, name := range include {
 			fn, ok := moduleRegistry[name]
 			if !ok {
@@ -82,7 +82,7 @@ func filterModules(include, exclude []string) (map[string]ModuleCollector, strin
 		return result, ""
 	}
 
-	result := make(map[string]ModuleCollector, len(moduleRegistry))
+	result := make(map[string]moduleCollector, len(moduleRegistry))
 	maps.Copy(result, moduleRegistry)
 
 	for _, name := range exclude {

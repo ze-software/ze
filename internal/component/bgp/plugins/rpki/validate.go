@@ -23,7 +23,7 @@ const OriginNone uint32 = 0xFFFFFFFF
 // Validate performs RFC 6811 origin validation for a prefix and origin AS.
 // Returns ValidationValid, ValidationInvalid, or ValidationNotFound.
 func (c *ROACache) Validate(prefix string, originAS uint32) uint8 {
-	covering := c.FindCovering(prefix)
+	covering := c.findCovering(prefix)
 	if len(covering) == 0 {
 		return ValidationNotFound
 	}

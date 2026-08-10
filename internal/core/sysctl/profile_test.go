@@ -9,8 +9,8 @@ import (
 func TestMustRegisterProfile(t *testing.T) {
 	// VALIDATES: AC-6 -- Profile registration and lookup.
 	// PREVENTS: Profile silently lost after registration.
-	ResetProfiles()
-	t.Cleanup(ResetProfiles)
+	resetProfiles()
+	t.Cleanup(resetProfiles)
 
 	MustRegisterProfile(ProfileDef{
 		Name:        "test-profile",
@@ -41,8 +41,8 @@ func TestMustRegisterProfile(t *testing.T) {
 func TestDuplicateProfileRegistration(t *testing.T) {
 	// VALIDATES: Built-in duplicate panics (programming bug).
 	// PREVENTS: Silent overwrite of a profile definition.
-	ResetProfiles()
-	t.Cleanup(ResetProfiles)
+	resetProfiles()
+	t.Cleanup(resetProfiles)
 
 	MustRegisterProfile(ProfileDef{
 		Name:     "dup-test",
@@ -65,8 +65,8 @@ func TestDuplicateProfileRegistration(t *testing.T) {
 func TestUserProfileOverridesBuiltin(t *testing.T) {
 	// VALIDATES: AC-13 -- User-defined profile overrides built-in with same name.
 	// PREVENTS: User profile silently ignored when built-in exists.
-	ResetProfiles()
-	t.Cleanup(ResetProfiles)
+	resetProfiles()
+	t.Cleanup(resetProfiles)
 
 	MustRegisterProfile(ProfileDef{
 		Name:     "override-me",
@@ -95,8 +95,8 @@ func TestUserProfileOverridesBuiltin(t *testing.T) {
 func TestLookupProfileUnknown(t *testing.T) {
 	// VALIDATES: AC-8 -- Unknown profile name returns false.
 	// PREVENTS: False positive lookup for nonexistent profile.
-	ResetProfiles()
-	t.Cleanup(ResetProfiles)
+	resetProfiles()
+	t.Cleanup(resetProfiles)
 
 	if _, ok := LookupProfile("nosuch"); ok {
 		t.Error("expected LookupProfile to return false for unknown profile")
@@ -106,8 +106,8 @@ func TestLookupProfileUnknown(t *testing.T) {
 func TestAllProfiles(t *testing.T) {
 	// VALIDATES: AC-6 -- AllProfiles returns all registered profiles.
 	// PREVENTS: Profiles missing from listing.
-	ResetProfiles()
-	t.Cleanup(ResetProfiles)
+	resetProfiles()
+	t.Cleanup(resetProfiles)
 
 	MustRegisterProfile(ProfileDef{
 		Name:     "alpha",
@@ -134,11 +134,11 @@ func TestAllProfiles(t *testing.T) {
 // Needed because other tests call ResetProfiles in cleanup.
 func resetAndReregisterBuiltins(t *testing.T) {
 	t.Helper()
-	ResetProfiles()
+	resetProfiles()
 	for _, p := range builtinProfiles {
 		MustRegisterProfile(p)
 	}
-	t.Cleanup(ResetProfiles)
+	t.Cleanup(resetProfiles)
 }
 
 func TestBuiltinDSR(t *testing.T) {
@@ -267,10 +267,10 @@ func TestBuiltinProxy(t *testing.T) {
 func TestConflictRegistration(t *testing.T) {
 	// VALIDATES: Conflict table registration and lookup.
 	// PREVENTS: Conflict rules silently lost.
-	ResetConflicts()
-	t.Cleanup(ResetConflicts)
+	resetConflicts()
+	t.Cleanup(resetConflicts)
 
-	RegisterConflict(ConflictRule{
+	registerConflict(ConflictRule{
 		KeyA:   "arp_ignore",
 		ValueA: "1",
 		KeyB:   "proxy_arp",
@@ -278,7 +278,7 @@ func TestConflictRegistration(t *testing.T) {
 		Reason: "test conflict",
 	})
 
-	rules := AllConflicts()
+	rules := allConflicts()
 	if len(rules) != 1 {
 		t.Fatalf("AllConflicts: got %d, want 1", len(rules))
 	}
@@ -290,10 +290,10 @@ func TestConflictRegistration(t *testing.T) {
 func TestCheckConflicts(t *testing.T) {
 	// VALIDATES: AC-4 -- Detects arp_ignore + proxy_arp conflict.
 	// PREVENTS: Conflicting profiles applied without warning.
-	ResetConflicts()
-	t.Cleanup(ResetConflicts)
+	resetConflicts()
+	t.Cleanup(resetConflicts)
 
-	RegisterConflict(ConflictRule{
+	registerConflict(ConflictRule{
 		KeyA:   "arp_ignore",
 		ValueA: "1",
 		KeyB:   "proxy_arp",
@@ -318,10 +318,10 @@ func TestCheckConflicts(t *testing.T) {
 func TestCheckConflictsNoMatch(t *testing.T) {
 	// VALIDATES: No false positives for non-conflicting profiles.
 	// PREVENTS: Spurious warnings for dsr + hardened.
-	ResetConflicts()
-	t.Cleanup(ResetConflicts)
+	resetConflicts()
+	t.Cleanup(resetConflicts)
 
-	RegisterConflict(ConflictRule{
+	registerConflict(ConflictRule{
 		KeyA:   "arp_ignore",
 		ValueA: "1",
 		KeyB:   "proxy_arp",
@@ -355,8 +355,8 @@ func settingsMap(s []ProfileSetting) map[string]string {
 func TestTemplateSubstitution(t *testing.T) {
 	// VALIDATES: AC-11 -- <iface> replaced with actual interface name.
 	// PREVENTS: Literal <iface> written to kernel.
-	ResetProfiles()
-	t.Cleanup(ResetProfiles)
+	resetProfiles()
+	t.Cleanup(resetProfiles)
 
 	MustRegisterProfile(ProfileDef{
 		Name: "sub-test",

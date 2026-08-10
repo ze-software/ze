@@ -190,7 +190,7 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 				t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v): a trailing value must not cost the command its path", strings.Join(withValue, " "), ok, res.Valid, res.Declared)
 			}
 			want := textbuf.Join(base.Path, " ") + " " + value
-			if got := res.DispatchString(); got != want {
+			if got := res.dispatchString(); got != want {
 				t.Errorf("dispatch = %q, want %q: a trailing value is passed through in the position it was typed", got, want)
 			}
 		})
@@ -205,7 +205,7 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 			t.Fatalf("`ze show bgp peer edge1 detail` does not resolve (ok=%v valid=%v declared=%v)", ok, res.Valid, res.Declared)
 		}
 		const want = "show bgp peer detail edge1"
-		if got := res.DispatchString(); got != want {
+		if got := res.dispatchString(); got != want {
 			t.Errorf("dispatch = %q, want %q: an inline selector moves to the end, the daemon is keyed on the action word", got, want)
 		}
 	})
@@ -308,7 +308,7 @@ func TestDescribedValueCommandsAcceptTheirValue(t *testing.T) {
 				if !ok || !res.Valid || !res.Declared {
 					t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v): the description promises a value, so the value must not cost the command its path", strings.Join(withValue, " "), ok, res.Valid, res.Declared)
 				}
-				if got, want := res.DispatchString(), path+" "+value; got != want {
+				if got, want := res.dispatchString(), path+" "+value; got != want {
 					t.Errorf("dispatch = %q, want %q", got, want)
 				}
 			})
@@ -577,12 +577,12 @@ func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
 	joined := strings.Join(path, " ")
 	t.Logf("grouping container under test: `%s`", joined)
 
-	if res.Dispatchable() {
+	if res.dispatchable() {
 		t.Fatalf("`%s` is dispatchable with no fallback registered", joined)
 	}
 
 	registry.MustRegisterOfflineFallback(joined, func(_ []string) int { return 0 })
-	if !res.Dispatchable() {
+	if !res.dispatchable() {
 		t.Errorf("`%s` is not dispatchable with an offline fallback registered: RunCommand will print its subcommands and exit 1 instead of serving it", joined)
 	}
 
@@ -592,7 +592,7 @@ func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
 	if !ok {
 		t.Fatalf("`ze %s no-such-child` does not resolve", joined)
 	}
-	if !sub.Dispatchable() {
+	if !sub.dispatchable() {
 		t.Errorf("`ze %s no-such-child` is not dispatchable: the fallback lookup is not longest-prefix", joined)
 	}
 }
@@ -645,7 +645,7 @@ func TestLocalHandlerWithFormatKeywordPathStillRuns(t *testing.T) {
 	defer registry.ResetForTest()
 
 	called := false
-	if err := RegisterLocalCommand("show json", func(_ []string) int {
+	if err := registerLocalCommand("show json", func(_ []string) int {
 		called = true
 		return 7
 	}); err != nil {
@@ -726,7 +726,7 @@ func TestLocalHandlerUnderVerbGetsItsFlag(t *testing.T) {
 	defer registry.ResetForTest()
 
 	var got []string
-	if err := RegisterLocalCommand("show version", func(args []string) int {
+	if err := registerLocalCommand("show version", func(args []string) int {
 		got = args
 		return 3
 	}); err != nil {
@@ -761,7 +761,7 @@ func TestExtractOutputFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			words, format := ExtractOutputFormat(tt.words)
+			words, format := extractOutputFormat(tt.words)
 			if format != tt.wantFormat {
 				t.Errorf("format = %q, want %q", format, tt.wantFormat)
 			}
@@ -870,7 +870,7 @@ func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 	defer registry.ResetForTest()
 
 	called := false
-	err := RegisterLocalCommand("test cmd", func(_ []string) int {
+	err := registerLocalCommand("test cmd", func(_ []string) int {
 		called = true
 		return 42
 	})
@@ -897,7 +897,7 @@ func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 // VALIDATES: RegisterLocalCommand rejects empty path.
 // PREVENTS: empty key in localHandlers map causing silent misdispatch.
 func TestRegisterLocalCommandEmptyPath(t *testing.T) {
-	err := RegisterLocalCommand("", func(_ []string) int { return 0 })
+	err := registerLocalCommand("", func(_ []string) int { return 0 })
 	if err == nil {
 		t.Error("expected error for empty path, got nil")
 		registry.ResetForTest() // cleanup
@@ -907,7 +907,7 @@ func TestRegisterLocalCommandEmptyPath(t *testing.T) {
 // VALIDATES: RegisterLocalCommand rejects nil handler.
 // PREVENTS: nil function call panic at dispatch time.
 func TestRegisterLocalCommandNilHandler(t *testing.T) {
-	err := RegisterLocalCommand("test nil", nil)
+	err := registerLocalCommand("test nil", nil)
 	if err == nil {
 		t.Error("expected error for nil handler, got nil")
 		registry.ResetForTest() // cleanup
@@ -922,14 +922,14 @@ func TestRegisterLocalCommandOverwrite(t *testing.T) {
 	first := false
 	second := false
 
-	if err := RegisterLocalCommand("overwrite", func(_ []string) int {
+	if err := registerLocalCommand("overwrite", func(_ []string) int {
 		first = true
 		return 1
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := RegisterLocalCommand("overwrite", func(_ []string) int {
+	if err := registerLocalCommand("overwrite", func(_ []string) int {
 		second = true
 		return 2
 	}); err != nil {
@@ -960,10 +960,10 @@ func TestMatchLocalHandler(t *testing.T) {
 	// Register handlers for testing.
 	short := func(_ []string) int { return 1 }
 	long := func(_ []string) int { return 2 }
-	if err := RegisterLocalCommand("show bgp", short); err != nil {
+	if err := registerLocalCommand("show bgp", short); err != nil {
 		t.Fatal(err)
 	}
-	if err := RegisterLocalCommand("show bgp decode", long); err != nil {
+	if err := registerLocalCommand("show bgp decode", long); err != nil {
 		t.Fatal(err)
 	}
 

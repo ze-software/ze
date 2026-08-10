@@ -73,9 +73,9 @@ func (h *fsmHistory) newest() (FSMTransition, bool) {
 	return h.records[idx], true
 }
 
-// FSMHistory returns a snapshot of this peer's FSM transition history,
+// fSMHistory returns a snapshot of this peer's FSM transition history,
 // newest first.
-func (p *Peer) FSMHistory() []FSMTransition {
+func (p *Peer) fSMHistory() []FSMTransition {
 	if p.history == nil {
 		return []FSMTransition{}
 	}

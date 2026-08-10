@@ -22,7 +22,7 @@ func init() {
 		Dependencies:    []string{"bgp"},
 		YANG:            hostnameyang.ZeHostnameYANG,
 		CapabilityCodes: []uint8{73},
-		RunEngine:       RunHostnamePlugin,
+		RunEngine:       runHostnamePlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
 		},

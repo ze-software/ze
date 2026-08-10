@@ -35,7 +35,7 @@ input=enter
 expect=dirty:true
 expect=file:path=test.conf.change.thomas:contains=#thomas @local
 `
-	result := RunETTest(et)
+	result := runETTest(et)
 	if !result.Passed {
 		t.Fatalf("test failed: %s", result.Error)
 	}
@@ -72,7 +72,7 @@ expect=dirty:true
 expect=file:path=test.conf.change.alice:contains=#alice @ssh
 expect=file:path=test.conf.change.bob:contains=#bob @ssh
 `
-	result := RunETTest(et)
+	result := runETTest(et)
 	if !result.Passed {
 		t.Fatalf("test failed: %s", result.Error)
 	}
@@ -95,7 +95,7 @@ func TestETFileExpectation(t *testing.T) {
 		Type:   "file",
 		Values: map[string]string{"path": "test.txt", "contains": "hello"},
 	}
-	err = CheckExpectation(exp, fs)
+	err = checkExpectation(exp, fs)
 	assert.NoError(t, err, "file contains 'hello' should pass")
 
 	// Test not-contains
@@ -103,7 +103,7 @@ func TestETFileExpectation(t *testing.T) {
 		Type:   "file",
 		Values: map[string]string{"path": "test.txt", "not-contains": "goodbye"},
 	}
-	err = CheckExpectation(exp2, fs)
+	err = checkExpectation(exp2, fs)
 	assert.NoError(t, err, "file not-contains 'goodbye' should pass")
 
 	// Test absent
@@ -111,7 +111,7 @@ func TestETFileExpectation(t *testing.T) {
 		Type:   "file",
 		Values: map[string]string{"path": "nonexistent.txt", "absent": ""},
 	}
-	err = CheckExpectation(exp3, fs)
+	err = checkExpectation(exp3, fs)
 	assert.NoError(t, err, "absent file should pass")
 
 	// Test absent fails when file exists
@@ -119,7 +119,7 @@ func TestETFileExpectation(t *testing.T) {
 		Type:   "file",
 		Values: map[string]string{"path": "test.txt", "absent": ""},
 	}
-	err = CheckExpectation(exp4, fs)
+	err = checkExpectation(exp4, fs)
 	assert.Error(t, err, "absent should fail when file exists")
 }
 
@@ -152,7 +152,7 @@ input=enter
 session=alice
 expect=dirty:true
 `
-	result := RunETTest(et)
+	result := runETTest(et)
 	if !result.Passed {
 		t.Fatalf("test failed: %s", result.Error)
 	}
@@ -177,7 +177,7 @@ func TestParseSessionErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseETFile(tt.input)
+			_, err := parseETFile(tt.input)
 			require.Error(t, err, "expected error for input: %s", tt.input)
 			assert.Contains(t, err.Error(), tt.want,
 				"error for %q should contain %q, got: %v", tt.input, tt.want, err)
@@ -207,7 +207,7 @@ func TestCheckFilePathTraversal(t *testing.T) {
 				Type:   "file",
 				Values: map[string]string{"path": tt.path, "contains": "root"},
 			}
-			err := CheckExpectation(exp, fs)
+			err := checkExpectation(exp, fs)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "relative without")
 		})

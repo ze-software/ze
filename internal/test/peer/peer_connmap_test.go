@@ -83,7 +83,7 @@ func TestSortConnBatchRouterID(t *testing.T) {
 // checker reports completed, which is the state a passing run ends in.
 func newBatchTestPeer(t testing.TB, out io.Writer, expect ...string) *Peer {
 	t.Helper()
-	checker, err := NewChecker(expect)
+	checker, err := newChecker(expect)
 	if err != nil {
 		t.Fatalf("NewChecker(%v): %v", expect, err)
 	}

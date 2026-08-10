@@ -189,9 +189,9 @@ func (AtomicAggregate) CheckedWriteTo(_ []byte, _ int) (int, error) {
 	return 0, nil
 }
 
-// ParseAtomicAggregate validates and returns an AtomicAggregate.
+// parseAtomicAggregate validates and returns an AtomicAggregate.
 // RFC 4271: ATOMIC_AGGREGATE has length 0.
-func ParseAtomicAggregate(data []byte) (Attribute, error) {
+func parseAtomicAggregate(data []byte) (Attribute, error) {
 	if len(data) != 0 {
 		return nil, fmt.Errorf("ATOMIC_AGGREGATE must be empty, got %d bytes", len(data))
 	}
@@ -267,8 +267,8 @@ func (a *Aggregator) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
 	return 6
 }
 
-// CheckedWriteToWithContext validates capacity before writing with context.
-func (a *Aggregator) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
+// checkedWriteToWithContext validates capacity before writing with context.
+func (a *Aggregator) checkedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
 	needed := a.LenWithContext(srcCtx, dstCtx)
 	if len(buf) < off+needed {
 		return 0, wire.ErrBufferTooSmall

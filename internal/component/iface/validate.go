@@ -74,9 +74,9 @@ func loadReservedIfaceNames() {
 	}
 }
 
-// ValidateUnitName checks that a unit name follows the shared node-name
+// validateUnitName checks that a unit name follows the shared node-name
 // pattern (lowercase alphanumeric and hyphens, 1-64 chars).
-func ValidateUnitName(name string) error {
+func validateUnitName(name string) error {
 	return naming.ValidateNodeName("unit", name, 64)
 }
 

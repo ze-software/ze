@@ -58,8 +58,8 @@ type PeerState struct {
 	ForwardFrom uint64
 }
 
-// HasCapability returns true if peer supports the given capability.
-func (p *PeerState) HasCapability(cap string) bool {
+// hasCapability returns true if peer supports the given capability.
+func (p *PeerState) hasCapability(cap string) bool {
 	if p.Capabilities == nil {
 		return false
 	}

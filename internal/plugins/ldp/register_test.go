@@ -19,7 +19,7 @@ import (
 // (RFC 5443 §2) instead of reverse-mapping a transport address.
 func TestLDPSessionEventCarriesInterface(t *testing.T) {
 	const ifName = "eth7"
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 
 	// Build a valid discovery Hello from a peer LSR (mirrors sendHello), addressed
 	// from a different LSR-ID than the local one so it is not self-filtered.
@@ -30,7 +30,7 @@ func TestLDPSessionEventCarriesInterface(t *testing.T) {
 		TransportAddr: netip.MustParseAddr("10.0.0.2"),
 	})
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      [4]byte{10, 0, 0, 2},
@@ -81,7 +81,7 @@ func TestLDPTransportAddressBinding(t *testing.T) {
 // snapshot) on the SAME adjacency; run under -race it must report no data race on
 // Adjacency.Interface. It fails (races) if Interface is set outside the lock.
 func TestAdjacencyInterfaceNoRace(t *testing.T) {
-	adjTable := NewAdjacencyTable()
+	adjTable := newAdjacencyTable()
 	pdu := PDUHeader{Version: ldpVersion, LSRID: [4]byte{10, 0, 0, 2}, LabelSpace: 0}
 	hello := HelloMessage{HoldTime: 15, TransportAddr: netip.MustParseAddr("10.0.0.2")}
 

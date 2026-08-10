@@ -82,7 +82,7 @@ func TestAcceptPendingRoute(t *testing.T) {
 	// Add a pending route
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -128,7 +128,7 @@ func TestRejectPendingRoute(t *testing.T) {
 	// Add a pending route
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -167,7 +167,7 @@ func TestAcceptPendingRouteOddPeerKey(t *testing.T) {
 	routeKey := routeKeyFromStrings(family.IPv4Unicast, "203.0.113.0/24", 0)
 
 	r.mu.Lock()
-	r.pending[pendingKey(validPeer, routeKey)] = &PendingRoute{
+	r.pending[pendingKey(validPeer, routeKey)] = &pendingRoute{
 		peerAddr:   validPeer,
 		family:     family.IPv4Unicast,
 		prefix:     "203.0.113.0/24",
@@ -205,7 +205,7 @@ func TestRejectPendingRouteOddPeerKey(t *testing.T) {
 	routeKey := routeKeyFromStrings(family.IPv4Unicast, "198.51.100.0/24", 0)
 
 	r.mu.Lock()
-	r.pending[pendingKey(validPeer, routeKey)] = &PendingRoute{
+	r.pending[pendingKey(validPeer, routeKey)] = &pendingRoute{
 		peerAddr:   validPeer,
 		family:     family.IPv4Unicast,
 		prefix:     "198.51.100.0/24",
@@ -273,7 +273,7 @@ func TestPendingTimeout(t *testing.T) {
 	// Add a pending route with old receivedAt
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -399,7 +399,7 @@ func TestEarlyDecisionAppliedOnArrival(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "18c0a801",
 	}
-	pr := &PendingRoute{
+	pr := &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast,
 		prefix: "192.168.1.0/24", routeKey: rKey, route: route,
 	}
@@ -436,7 +436,7 @@ func TestEarlyRejectDropsRoute(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "18ac1000",
 	}
-	pr := &PendingRoute{
+	pr := &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast,
 		prefix: "172.16.0.0/24", routeKey: rKey, route: route,
 	}
@@ -465,7 +465,7 @@ func TestMultiplePendingRoutes(t *testing.T) {
 	// Add two pending routes
 	r.mu.Lock()
 	key1 := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key1] = &PendingRoute{
+	r.pending[key1] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -475,7 +475,7 @@ func TestMultiplePendingRoutes(t *testing.T) {
 		state:      ValidationPending,
 	}
 	key2 := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0))
-	r.pending[key2] = &PendingRoute{
+	r.pending[key2] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.1.0/24",
@@ -532,7 +532,7 @@ func TestValidationStateField(t *testing.T) {
 
 			r.mu.Lock()
 			key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-			r.pending[key] = &PendingRoute{
+			r.pending[key] = &pendingRoute{
 				peerAddr:   netip.MustParseAddr("10.0.0.1"),
 				family:     family.IPv4Unicast,
 				prefix:     "10.0.0.0/24",
@@ -567,7 +567,7 @@ func TestAcceptWithAddPathID(t *testing.T) {
 
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 42))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -602,7 +602,7 @@ func TestRejectWithAddPathID(t *testing.T) {
 
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 7))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -644,7 +644,7 @@ func TestPeerDownClearsPending(t *testing.T) {
 	// Add a pending route
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -713,7 +713,7 @@ func TestSweepExpiredMixed(t *testing.T) {
 	r.mu.Lock()
 	// Expired route
 	key1 := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key1] = &PendingRoute{
+	r.pending[key1] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
@@ -724,7 +724,7 @@ func TestSweepExpiredMixed(t *testing.T) {
 	}
 	// Not-yet-expired route
 	key2 := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0))
-	r.pending[key2] = &PendingRoute{
+	r.pending[key2] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.1.0/24",
@@ -762,7 +762,7 @@ func TestClearPeerPendingPreservesOthers(t *testing.T) {
 	r.mu.Lock()
 	// Pending route for peer 1
 	key1 := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key1] = &PendingRoute{
+	r.pending[key1] = &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: "10.0.0.0/24",
 		routeKey: routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0),
 		route:    &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
@@ -770,7 +770,7 @@ func TestClearPeerPendingPreservesOthers(t *testing.T) {
 	}
 	// Pending route for peer 2
 	key2 := pendingKey(netip.MustParseAddr("10.0.0.2"), routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0))
-	r.pending[key2] = &PendingRoute{
+	r.pending[key2] = &pendingRoute{
 		peerAddr: netip.MustParseAddr("10.0.0.2"), family: family.IPv4Unicast, prefix: "10.0.1.0/24",
 		routeKey: routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0),
 		route:    &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000002", NLRIHex: "180a0001"},
@@ -806,7 +806,7 @@ func TestWithdrawalRemovesPending(t *testing.T) {
 	// Add a pending route
 	r.mu.Lock()
 	key := pendingKey(netip.MustParseAddr("10.0.0.1"), routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0))
-	r.pending[key] = &PendingRoute{
+	r.pending[key] = &pendingRoute{
 		peerAddr:   netip.MustParseAddr("10.0.0.1"),
 		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",

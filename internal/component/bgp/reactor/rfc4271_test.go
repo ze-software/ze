@@ -39,7 +39,7 @@ func rfc4271Announce(t *testing.T, isIBGP bool) []byte {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, isIBGP, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, isIBGP, true, false)
 	require.Greater(t, n, message.HeaderLen+4)
 
 	// Header(19) + WithdrawnLen(2) + AttrLen(2) then the attribute section.
@@ -412,7 +412,7 @@ func TestRFC4271OwnASReachabilityChangeAdvertised(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
 	require.Greater(t, n, message.HeaderLen)
 
 	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])
@@ -437,7 +437,7 @@ func TestRFC4271OwnASReachabilityChangeAdvertised(t *testing.T) {
 // (internal/component/bgp/reactor/reactor_wire.go:451-475).
 func TestRFC4271OwnASUnreachabilityChangeAdvertised(t *testing.T) {
 	buf := make([]byte, 4096)
-	n := WriteWithdrawUpdate(buf, 0, netip.MustParsePrefix("10.0.0.0/24"), false)
+	n := writeWithdrawUpdate(buf, 0, netip.MustParsePrefix("10.0.0.0/24"), false)
 	require.Greater(t, n, message.HeaderLen)
 
 	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])
@@ -528,7 +528,7 @@ func TestRFC4271NoIBGPToIBGPRedistribution(t *testing.T) {
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
 		ReceivedAt:   time.Now(),
 	}
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(81, 1)
 
@@ -587,7 +587,7 @@ func TestRFC4271IBGPRedistributionAllowedForReflectorClient(t *testing.T) {
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
 		ReceivedAt:   time.Now(),
 	}
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(82, 1)
 

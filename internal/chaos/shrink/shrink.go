@@ -173,7 +173,7 @@ func singleStepEliminate(events []peer.Event, property string, cfg Config) ([]pe
 	iterations := 0
 
 	for i := len(events) - 1; i >= 0; i-- {
-		candidate := RemoveWithDependents(events, i)
+		candidate := removeWithDependents(events, i)
 		if len(candidate) >= len(events) {
 			// Nothing was actually removed.
 			continue

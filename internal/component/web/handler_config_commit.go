@@ -45,12 +45,12 @@ func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFun
 // On conflict, re-renders the commit page with conflict errors.
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
 func handleConfigCommit(mgr *EditorManager, renderer *Renderer) http.HandlerFunc {
-	return HandleConfigCommitWithAuthorizer(mgr, renderer, nil, nil)
+	return handleConfigCommitWithAuthorizer(mgr, renderer, nil, nil)
 }
 
-// HandleConfigCommitWithAuthorizer returns a handler for /config/commit/ that
+// handleConfigCommitWithAuthorizer returns a handler for /config/commit/ that
 // enforces profile-based RBAC on POST before committing the user's draft.
-func HandleConfigCommitWithAuthorizer(mgr *EditorManager, renderer *Renderer, broker *EventBroker, authorizer aaa.Authorizer) http.HandlerFunc {
+func handleConfigCommitWithAuthorizer(mgr *EditorManager, renderer *Renderer, broker *EventBroker, authorizer aaa.Authorizer) http.HandlerFunc {
 	return HandleConfigCommitWithAuthorizerAndAudit(mgr, renderer, broker, authorizer, nil)
 }
 
@@ -194,12 +194,12 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 // handleConfigDiscard returns a POST handler for /config/discard/.
 // It discards the user's pending changes and redirects to /config/edit/.
 func handleConfigDiscard(mgr *EditorManager) http.HandlerFunc {
-	return HandleConfigDiscardWithAuthorizer(mgr, nil)
+	return handleConfigDiscardWithAuthorizer(mgr, nil)
 }
 
-// HandleConfigDiscardWithAuthorizer returns a POST handler for /config/discard/
+// handleConfigDiscardWithAuthorizer returns a POST handler for /config/discard/
 // that enforces profile-based RBAC before discarding the user's draft.
-func HandleConfigDiscardWithAuthorizer(mgr *EditorManager, authorizer aaa.Authorizer) http.HandlerFunc {
+func handleConfigDiscardWithAuthorizer(mgr *EditorManager, authorizer aaa.Authorizer) http.HandlerFunc {
 	return HandleConfigDiscardWithAuthorizerAndAudit(mgr, authorizer, nil)
 }
 

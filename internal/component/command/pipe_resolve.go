@@ -129,11 +129,11 @@ func resolveJSON(v any) any {
 	return v
 }
 
-// ApplyResolve adds reverse DNS names for IP address string values in JSON.
+// applyResolve adds reverse DNS names for IP address string values in JSON.
 // For each string value that parses as an IP, a sibling "<key>-name" field
 // is added with the PTR result. Results are cached across invocations.
 // Handles both single JSON values and NDJSON (one object per line).
-func ApplyResolve(input string) string {
+func applyResolve(input string) string {
 	return applyJSONTransform(input, resolveJSON)
 }
 

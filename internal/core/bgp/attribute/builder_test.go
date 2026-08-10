@@ -178,7 +178,7 @@ func TestBuilderWirePassthrough(t *testing.T) {
 	t.Parallel()
 	original := []byte{0x40, 0x01, 0x01, 0x00}
 	b := NewBuilder()
-	b.SetWire(original)
+	b.setWire(original)
 
 	wire := b.Build()
 	assert.Equal(t, original, wire)
@@ -278,7 +278,7 @@ func TestBuilderLen(t *testing.T) {
 			b.AddExtendedCommunity(ExtendedCommunity{0x00, 0x02, 0xFD, 0xE8, 0, 0, 0, 100})
 		}},
 		{"wire_passthrough", func(b *Builder) {
-			b.SetWire([]byte{0x40, 0x01, 0x01, 0x00})
+			b.setWire([]byte{0x40, 0x01, 0x01, 0x00})
 		}},
 	}
 
@@ -351,7 +351,7 @@ func TestBuilderRawWirePassthrough(t *testing.T) {
 	t.Parallel()
 	wire := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
 	b := NewBuilder()
-	b.SetWire(wire)
+	b.setWire(wire)
 
 	assert.Equal(t, len(wire), b.Len())
 	assert.Equal(t, wire, b.Build())

@@ -392,7 +392,7 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 	}
 
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
@@ -435,7 +435,7 @@ func TestWriteAnnounceUpdateIPv6(t *testing.T) {
 	}
 
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, true, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, true, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
@@ -470,7 +470,7 @@ func TestWriteWithdrawUpdateIPv4(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 
 	buf := make([]byte, 4096)
-	n := WriteWithdrawUpdate(buf, 0, prefix, false)
+	n := writeWithdrawUpdate(buf, 0, prefix, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -495,7 +495,7 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 	prefix := netip.MustParsePrefix("2001:db8::/32")
 
 	buf := make([]byte, 4096)
-	n := WriteWithdrawUpdate(buf, 0, prefix, false)
+	n := writeWithdrawUpdate(buf, 0, prefix, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -531,11 +531,11 @@ func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
 
 	// With ADD-PATH enabled
 	bufAddPath := make([]byte, 4096)
-	nAddPath := WriteAnnounceUpdate(bufAddPath, 0, route, netip.Addr{}, 65000, false, true, true)
+	nAddPath := writeAnnounceUpdate(bufAddPath, 0, route, netip.Addr{}, 65000, false, true, true)
 
 	// Without ADD-PATH
 	bufNoAddPath := make([]byte, 4096)
-	nNoAddPath := WriteAnnounceUpdate(bufNoAddPath, 0, route, netip.Addr{}, 65000, false, true, false)
+	nNoAddPath := writeAnnounceUpdate(bufNoAddPath, 0, route, netip.Addr{}, 65000, false, true, false)
 
 	// RFC 7911: ADD-PATH adds 4-byte path identifier before each NLRI
 	// Message with ADD-PATH should be 4 bytes longer
@@ -560,11 +560,11 @@ func TestWriteAnnounceUpdateASN4False(t *testing.T) {
 
 	// With ASN4=true (4-byte AS)
 	bufASN4 := make([]byte, 4096)
-	nASN4 := WriteAnnounceUpdate(bufASN4, 0, route, netip.Addr{}, 65000, false, true, false)
+	nASN4 := writeAnnounceUpdate(bufASN4, 0, route, netip.Addr{}, 65000, false, true, false)
 
 	// With ASN4=false (2-byte AS)
 	bufASN2 := make([]byte, 4096)
-	nASN2 := WriteAnnounceUpdate(bufASN2, 0, route, netip.Addr{}, 65000, false, false, false)
+	nASN2 := writeAnnounceUpdate(bufASN2, 0, route, netip.Addr{}, 65000, false, false, false)
 
 	// RFC 6793: 2-byte AS encoding is shorter
 	// AS_PATH with single ASN: 4-byte = 3+4=7, 2-byte = 3+2=5, diff = 2
@@ -595,7 +595,7 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 	}
 
 	buf := make([]byte, 8192)
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
@@ -679,7 +679,7 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 	}
 
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
@@ -730,7 +730,7 @@ func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+		writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	}
 }
 
@@ -754,7 +754,7 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+		writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	}
 }
 
@@ -770,7 +770,7 @@ func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, true, true, false)
+		writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, true, true, false)
 	}
 }
 
@@ -2248,16 +2248,16 @@ func TestReactorPausePeer(t *testing.T) {
 
 	// Verify peer 1 is paused, peer 2 is not.
 	r.mu.RLock()
-	peer1 := r.peers[PeerKeyFromAddrPort(addr1, DefaultBGPPort)]
-	peer2 := r.peers[PeerKeyFromAddrPort(addr2, DefaultBGPPort)]
+	peer1 := r.peers[peerKeyFromAddrPort(addr1, DefaultBGPPort)]
+	peer2 := r.peers[peerKeyFromAddrPort(addr2, DefaultBGPPort)]
 	r.mu.RUnlock()
 
-	require.True(t, peer1.IsReadPaused(), "peer 1 should be paused")
-	require.False(t, peer2.IsReadPaused(), "peer 2 should not be paused")
+	require.True(t, peer1.isReadPaused(), "peer 1 should be paused")
+	require.False(t, peer2.isReadPaused(), "peer 2 should not be paused")
 
 	// Resume peer 1.
 	require.NoError(t, r.ResumePeer(addr1))
-	require.False(t, peer1.IsReadPaused(), "peer 1 should be resumed")
+	require.False(t, peer1.isReadPaused(), "peer 1 should be resumed")
 
 	// Pause unknown peer should return error.
 	unknown := mustParseAddr("10.0.0.99")
@@ -2294,7 +2294,7 @@ func TestReactorpauseAllReads(t *testing.T) {
 
 	// All peers should be paused.
 	for _, p := range r.Peers() {
-		require.True(t, p.IsReadPaused(), "peer %s should be paused", p.Settings().Address)
+		require.True(t, p.isReadPaused(), "peer %s should be paused", p.Settings().Address)
 	}
 
 	// Resume all reads.
@@ -2302,7 +2302,7 @@ func TestReactorpauseAllReads(t *testing.T) {
 
 	// All peers should be resumed.
 	for _, p := range r.Peers() {
-		require.False(t, p.IsReadPaused(), "peer %s should be resumed", p.Settings().Address)
+		require.False(t, p.isReadPaused(), "peer %s should be resumed", p.Settings().Address)
 	}
 }
 

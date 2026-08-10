@@ -32,7 +32,7 @@ func TestEVPNGenericRoundTripsByteForByte(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, rest)
 
-	g, ok := parsed.(*EVPNGeneric)
+	g, ok := parsed.(*eVPNGeneric)
 	require.True(t, ok, "route type 8 must fall through to EVPNGeneric")
 	assert.Equal(t, EVPNRouteType(8), g.RouteType())
 

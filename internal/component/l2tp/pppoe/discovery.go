@@ -255,9 +255,9 @@ func NewBuilder(buf []byte, srcMAC, dstMAC [EthALen]byte, code byte, sid uint16)
 	return Builder{buf: buf, tagOff: MinDiscFrame}
 }
 
-// AddTag appends a tag to the frame. Returns false if the tag would
+// addTag appends a tag to the frame. Returns false if the tag would
 // not fit in the buffer.
-func (b *Builder) AddTag(tagType uint16, value []byte) bool {
+func (b *Builder) addTag(tagType uint16, value []byte) bool {
 	needed := TagHdrLen + len(value)
 	if b.tagOff+needed > len(b.buf) {
 		b.truncated = true
@@ -274,7 +274,7 @@ func (b *Builder) AddTag(tagType uint16, value []byte) bool {
 
 // AddTagString is a convenience for string-valued tags.
 func (b *Builder) AddTagString(tagType uint16, s string) bool {
-	return b.AddTag(tagType, []byte(s))
+	return b.addTag(tagType, []byte(s))
 }
 
 // AddTagCopy copies a Tag from a parsed packet into the frame being
@@ -283,7 +283,7 @@ func (b *Builder) AddTagCopy(t *Tag) bool {
 	if t == nil {
 		return true
 	}
-	return b.AddTag(t.Type, t.Value)
+	return b.addTag(t.Type, t.Value)
 }
 
 // Finish writes the PPPoE payload length field and returns the
@@ -306,7 +306,7 @@ func BuildPADI(buf []byte, srcMAC [EthALen]byte, serviceName string, hostUniq []
 
 	b.AddTagString(TagServiceName, serviceName)
 	if len(hostUniq) > 0 {
-		b.AddTag(TagHostUniq, hostUniq)
+		b.addTag(TagHostUniq, hostUniq)
 	}
 
 	return b.Finish()
@@ -324,7 +324,7 @@ func BuildPADR(buf []byte, srcMAC [EthALen]byte, pado *Packet, serviceName strin
 	b.AddTagCopy(pado.FindTag(TagACCookie))
 	b.AddTagCopy(pado.FindTag(TagRelaySessionID))
 	if len(hostUniq) > 0 {
-		b.AddTag(TagHostUniq, hostUniq)
+		b.addTag(TagHostUniq, hostUniq)
 	}
 
 	return b.Finish()
@@ -345,7 +345,7 @@ func BuildPADO(buf []byte, acMAC [EthALen]byte, padi *Packet, acName string, ser
 		b.AddTagCopy(svcTag)
 	}
 
-	b.AddTag(TagACCookie, cookie)
+	b.addTag(TagACCookie, cookie)
 	b.AddTagCopy(padi.FindTag(TagHostUniq))
 	b.AddTagCopy(padi.FindTag(TagRelaySessionID))
 
@@ -375,7 +375,7 @@ func BuildPADSError(buf []byte, acMAC [EthALen]byte, padr *Packet, acName string
 	b := NewBuilder(buf, acMAC, padr.SrcMAC, CodePADS, 0)
 
 	b.AddTagString(TagACName, acName)
-	b.AddTag(errTag, nil)
+	b.addTag(errTag, nil)
 	b.AddTagCopy(padr.FindTag(TagHostUniq))
 	b.AddTagCopy(padr.FindTag(TagRelaySessionID))
 

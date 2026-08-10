@@ -18,9 +18,9 @@ type Backoff struct {
 	current time.Duration
 }
 
-// NewBackoff creates a backoff starting at initial, doubling up to max.
+// newBackoff creates a backoff starting at initial, doubling up to max.
 // jitter is the random fraction applied to each delay (0 = deterministic).
-func NewBackoff(initial, max time.Duration, jitter float64) *Backoff {
+func newBackoff(initial, max time.Duration, jitter float64) *Backoff {
 	return &Backoff{
 		initial: initial,
 		max:     max,

@@ -22,16 +22,16 @@ const (
 	ifCountersRecordHeaderSize = 8
 )
 
-// CounterSampleSize returns the total encoded size of one counters_sample
+// counterSampleSize returns the total encoded size of one counters_sample
 // containing a single if_counters record.
-func CounterSampleSize() int {
+func counterSampleSize() int {
 	return counterSampleHeaderSize + ifCountersRecordHeaderSize + flowexport.IfCountersSize
 }
 
-// WriteCounterSample writes a counters_sample record into buf at off.
+// writeCounterSample writes a counters_sample record into buf at off.
 // The sample contains a single if_counters record for the given interface.
 // Returns the new offset after the sample.
-func WriteCounterSample(buf []byte, off int, ifIndex, seqNum uint32, c *flowexport.InterfaceCounters) int {
+func writeCounterSample(buf []byte, off int, ifIndex, seqNum uint32, c *flowexport.InterfaceCounters) int {
 	// sFlow v5: counters_sample data_format = enterprise 0, format 2
 	binary.BigEndian.PutUint32(buf[off:], DataFormatCountersSample)
 	off += 4
@@ -54,7 +54,7 @@ func WriteCounterSample(buf []byte, off int, ifIndex, seqNum uint32, c *flowexpo
 	binary.BigEndian.PutUint32(buf[off:], 1)
 	off += 4
 
-	off = WriteIfCounters(buf, off, c)
+	off = writeIfCounters(buf, off, c)
 
 	// sFlow v5: backfill sample_length
 	sampleLength := uint32(off - sampleLengthOff - 4)
@@ -63,10 +63,10 @@ func WriteCounterSample(buf []byte, off int, ifIndex, seqNum uint32, c *flowexpo
 	return off
 }
 
-// WriteIfCounters writes the if_counters record (enterprise 0, format 1)
+// writeIfCounters writes the if_counters record (enterprise 0, format 1)
 // into buf at off. The record contains 19 fields matching the SNMP
 // ifTable/ifXTable MIB objects. Returns the new offset after the record.
-func WriteIfCounters(buf []byte, off int, c *flowexport.InterfaceCounters) int {
+func writeIfCounters(buf []byte, off int, c *flowexport.InterfaceCounters) int {
 	// sFlow v5: if_counters record_data_format = enterprise 0, format 1
 	binary.BigEndian.PutUint32(buf[off:], DataFormatIfCounters)
 	off += 4

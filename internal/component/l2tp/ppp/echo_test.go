@@ -27,7 +27,7 @@ func TestLCPEchoRoundTrip(t *testing.T) {
 	if pkt.Identifier != 0x42 {
 		t.Errorf("Identifier = 0x%02x, want 0x42", pkt.Identifier)
 	}
-	gotMagic, err := ParseLCPEchoMagic(pkt.Data)
+	gotMagic, err := parseLCPEchoMagic(pkt.Data)
 	if err != nil {
 		t.Fatalf("magic parse error: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestLCPBuildEchoReplyEchoesIDLocalMagic(t *testing.T) {
 	if pkt.Identifier != reqID {
 		t.Errorf("Identifier = 0x%02x, want 0x%02x", pkt.Identifier, reqID)
 	}
-	gotMagic, _ := ParseLCPEchoMagic(pkt.Data)
+	gotMagic, _ := parseLCPEchoMagic(pkt.Data)
 	if gotMagic != localMagic {
 		t.Errorf("magic = 0x%08x, want LOCAL 0x%08x (not peer 0x%08x)", gotMagic, localMagic, peerMagic)
 	}
@@ -72,7 +72,7 @@ func TestLCPBuildEchoReplyEchoesIDLocalMagic(t *testing.T) {
 // VALIDATES: ParseLCPEchoMagic rejects payloads shorter than 4 bytes.
 func TestLCPEchoMagicTooShort(t *testing.T) {
 	for _, n := range []int{0, 1, 2, 3} {
-		_, err := ParseLCPEchoMagic(make([]byte, n))
+		_, err := parseLCPEchoMagic(make([]byte, n))
 		if !errors.Is(err, errLCPEchoTooShort) {
 			t.Errorf("len=%d: err = %v, want errLCPEchoTooShort", n, err)
 		}
@@ -82,7 +82,7 @@ func TestLCPEchoMagicTooShort(t *testing.T) {
 // VALIDATES: ParseLCPEchoMagic ignores trailing payload bytes.
 func TestLCPEchoMagicIgnoresTrailing(t *testing.T) {
 	payload := []byte{0xAA, 0xBB, 0xCC, 0xDD, 0xFF, 0xEE, 0xDD}
-	got, err := ParseLCPEchoMagic(payload)
+	got, err := parseLCPEchoMagic(payload)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestIsLCPLoopback(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := IsLCPLoopback(tc.payload, ours)
+			got := isLCPLoopback(tc.payload, ours)
 			if got != tc.want {
 				t.Errorf("got %v, want %v", got, tc.want)
 			}
@@ -137,7 +137,7 @@ func TestLCPEchoReplyMirrorsRequestData(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 	// First 4 bytes of reply Data: ze's local magic, NOT peer's.
-	gotMagic, _ := ParseLCPEchoMagic(pkt.Data)
+	gotMagic, _ := parseLCPEchoMagic(pkt.Data)
 	if gotMagic != localMagic {
 		t.Errorf("magic = 0x%08x, want local 0x%08x", gotMagic, localMagic)
 	}

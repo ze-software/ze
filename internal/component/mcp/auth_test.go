@@ -73,12 +73,12 @@ func TestAuthModeZeroIsUnspecified(t *testing.T) {
 
 func TestIdentityAnonymous(t *testing.T) {
 	var id Identity
-	if !id.IsAnonymous() {
+	if !id.isAnonymous() {
 		t.Fatal("zero Identity.IsAnonymous() = false, want true")
 	}
 
 	named := Identity{Name: "alice"}
-	if named.IsAnonymous() {
+	if named.isAnonymous() {
 		t.Fatal("Identity{Name: alice}.IsAnonymous() = true, want false")
 	}
 }

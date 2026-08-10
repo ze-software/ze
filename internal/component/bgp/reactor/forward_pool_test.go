@@ -976,8 +976,8 @@ func TestFwdPool_OverflowUsesPool(t *testing.T) {
 		processed.Add(int32(len(items)))
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024) // 1MB budget
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024) // 1MB budget
+	pool.setOverflowMux(mux)
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
@@ -1028,8 +1028,8 @@ func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024)
+	pool.setOverflowMux(mux)
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
@@ -1082,8 +1082,8 @@ func TestFwdPool_PoolExhausted(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	// Tiny budget: only room for ~1 block of 4K buffers (16 buffers).
 	mux := newMixedBufMux()
-	mux.SetByteBudget(int64(message.MaxMsgLen) * 16)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(int64(message.MaxMsgLen) * 16)
+	pool.setOverflowMux(mux)
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
@@ -1127,8 +1127,8 @@ func TestFwdPool_DrainOverflowDirectProcessReleasesTokens(t *testing.T) {
 		processed.Add(int32(len(items)))
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024)
+	pool.setOverflowMux(mux)
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
@@ -1168,8 +1168,8 @@ func TestFwdPool_DispatchOverflowAfterStopWithMux(t *testing.T) {
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024)
+	pool.setOverflowMux(mux)
 	pool.Stop()
 
 	ok := pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{
@@ -1207,7 +1207,7 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}, fwdItem{done: func() {}})
 	}
 
-	depths := pool.OverflowDepths()
+	depths := pool.overflowDepths()
 	assert.Equal(t, 3, depths["10.0.0.1"], "peer 10.0.0.1 should have 3 overflow items")
 	assert.Equal(t, 0, depths["10.0.0.2"], "peer 10.0.0.2 should have 0 overflow items")
 
@@ -1215,7 +1215,7 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 	close(blocker)
 
 	require.Eventually(t, func() bool {
-		d := pool.OverflowDepths()
+		d := pool.overflowDepths()
 		return d["10.0.0.1"] == 0
 	}, time.Second, time.Millisecond, "overflow depth should return to 0 after drain")
 }
@@ -1235,8 +1235,8 @@ func TestFwdPool_PoolUsedRatio(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024) // 1MB budget
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024) // 1MB budget
+	pool.setOverflowMux(mux)
 	defer pool.Stop()
 
 	// No overflow items yet -- ratio should be 0.
@@ -1280,23 +1280,23 @@ func TestFwdPool_SourceOverflowRatios(t *testing.T) {
 
 	// Source A: 8 forwarded, 2 overflowed = 20% overflow ratio.
 	for range 8 {
-		pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
+		pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
 	}
 	for range 2 {
-		pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
+		pool.recordOverflowed(netip.MustParseAddr("10.0.0.1"))
 	}
 
 	// Source B: 0 forwarded, 5 overflowed = 100% overflow ratio.
 	for range 5 {
-		pool.RecordOverflowed(netip.MustParseAddr("10.0.0.2"))
+		pool.recordOverflowed(netip.MustParseAddr("10.0.0.2"))
 	}
 
 	// Source C: 10 forwarded, 0 overflowed = 0% overflow ratio.
 	for range 10 {
-		pool.RecordForwarded(netip.MustParseAddr("10.0.0.3"))
+		pool.recordForwarded(netip.MustParseAddr("10.0.0.3"))
 	}
 
-	ratios := pool.SourceOverflowRatios()
+	ratios := pool.sourceOverflowRatios()
 	assert.InDelta(t, 0.2, ratios["10.0.0.1"], 0.001, "source A: 2/10 = 0.2")
 	assert.InDelta(t, 1.0, ratios["10.0.0.2"], 0.001, "source B: 5/5 = 1.0")
 	assert.InDelta(t, 0.0, ratios["10.0.0.3"], 0.001, "source C: 0/10 = 0.0")
@@ -1320,14 +1320,14 @@ func TestFwdPool_SourceOverflowRatiosConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range iterations {
-				pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
-				pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
+				pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
+				pool.recordOverflowed(netip.MustParseAddr("10.0.0.1"))
 			}
 		}()
 	}
 	wg.Wait()
 
-	ratios := pool.SourceOverflowRatios()
+	ratios := pool.sourceOverflowRatios()
 	// Each goroutine does equal forwarded + overflowed, so ratio should be 0.5.
 	assert.InDelta(t, 0.5, ratios["10.0.0.1"], 0.001,
 		"equal forwarded and overflowed should give 0.5 ratio")
@@ -1421,8 +1421,8 @@ func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
 
 	// Budget = 32 blocks. First Get4K grows a chunk of 16 blocks -> ratio = 16/32 = 0.5.
 	mux := newMixedBufMux()
-	mux.SetByteBudget(32 * overflowBlockSize)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(32 * overflowBlockSize)
+	pool.setOverflowMux(mux)
 
 	// No allocations: ratio should be 0.
 	assert.Equal(t, 0.0, pool.PoolUsedRatio())
@@ -1447,8 +1447,8 @@ func TestFwdPool_OverflowExhaustedRejectsDispatch(t *testing.T) {
 	defer pool.Stop()
 
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1) // Tiny budget -- will exhaust immediately.
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1) // Tiny budget -- will exhaust immediately.
+	pool.setOverflowMux(mux)
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
@@ -1468,7 +1468,7 @@ func TestFwdPool_TryDispatchWithPeerPool(t *testing.T) {
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterOutgoingPool(key, 4096)
+	pool.registerOutgoingPool(key, 4096)
 
 	pool.mu.Lock()
 	pp := pool.outgoingPools[key]
@@ -1545,15 +1545,15 @@ func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024)
+	pool.setOverflowMux(mux)
 	defer func() {
 		close(blocker)
 		pool.Stop()
 	}()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterOutgoingPool(key, 65535) // ExtMsg buffer size
+	pool.registerOutgoingPool(key, 65535) // ExtMsg buffer size
 
 	// Block the worker so overflow items stay queued.
 	pool.Dispatch(key, fwdItem{})
@@ -1580,8 +1580,8 @@ func TestFwdPool_SupersedeReleasesOverflowBuf(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024)
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024)
+	pool.setOverflowMux(mux)
 	defer func() {
 		close(blocker)
 		pool.Stop()
@@ -1626,7 +1626,7 @@ func TestFwdPool_RegisterUnregisterOutgoingPool(t *testing.T) {
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
-	pool.RegisterOutgoingPool(key, 4096)
+	pool.registerOutgoingPool(key, 4096)
 	pool.mu.Lock()
 	pp := pool.outgoingPools[key]
 	pool.mu.Unlock()
@@ -1634,7 +1634,7 @@ func TestFwdPool_RegisterUnregisterOutgoingPool(t *testing.T) {
 	assert.Equal(t, 64, pp.size())
 	assert.Equal(t, 4096, pp.bufSize)
 
-	pool.UnregisterOutgoingPool(key)
+	pool.unregisterOutgoingPool(key)
 	pool.mu.Lock()
 	pp = pool.outgoingPools[key]
 	pool.mu.Unlock()
@@ -1662,15 +1662,15 @@ func TestFwdPool_DenialThroughDispatchOverflow(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	mux := newMixedBufMux()
-	mux.SetByteBudget(1024 * 1024) // Large budget -- not the exhaustion path.
-	pool.SetOverflowMux(mux)
+	mux.setByteBudget(1024 * 1024) // Large budget -- not the exhaustion path.
+	pool.setOverflowMux(mux)
 	defer func() {
 		close(blocker)
 		pool.Stop()
 	}()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterOutgoingPool(key, message.MaxMsgLen)
+	pool.registerOutgoingPool(key, message.MaxMsgLen)
 
 	// Wire a congestion controller that always denies this peer.
 	wt := newWeightTracker(nil)
@@ -1715,7 +1715,7 @@ func TestFwdPool_UnregisterWithInFlightItems(t *testing.T) {
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterOutgoingPool(key, message.MaxMsgLen)
+	pool.registerOutgoingPool(key, message.MaxMsgLen)
 
 	// Grab the pool reference before unregister.
 	pool.mu.Lock()
@@ -1730,7 +1730,7 @@ func TestFwdPool_UnregisterWithInFlightItems(t *testing.T) {
 	assert.Equal(t, 63, pp.available(), "one buffer should be out on loan")
 
 	// Unregister the pool (simulating session teardown).
-	pool.UnregisterOutgoingPool(key)
+	pool.unregisterOutgoingPool(key)
 
 	// The pool is removed from the map, but the peerPoolRef is still valid.
 	pool.mu.Lock()
@@ -1758,7 +1758,7 @@ func TestFwdPool_ReregisterExtMsg(t *testing.T) {
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
 	// Register with standard 4K.
-	pool.RegisterOutgoingPool(key, message.MaxMsgLen)
+	pool.registerOutgoingPool(key, message.MaxMsgLen)
 	pool.mu.Lock()
 	pp4K := pool.outgoingPools[key]
 	pool.mu.Unlock()
@@ -1770,7 +1770,7 @@ func TestFwdPool_ReregisterExtMsg(t *testing.T) {
 	assert.Equal(t, message.MaxMsgLen, len(buf4K))
 
 	// Re-register with ExtMsg 64K (simulating capability negotiation).
-	pool.RegisterOutgoingPool(key, message.ExtMsgLen)
+	pool.registerOutgoingPool(key, message.ExtMsgLen)
 	pool.mu.Lock()
 	pp64K := pool.outgoingPools[key]
 	pool.mu.Unlock()

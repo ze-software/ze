@@ -106,7 +106,7 @@ func cmdDecode(args []string) int {
 		familyStr = *nlriFamily
 	}
 
-	output, err := DecodeHexPacket(payload, msgType, familyStr, *outputJSON)
+	output, err := decodeHexPacket(payload, msgType, familyStr, *outputJSON)
 	if err != nil {
 		if *outputJSON {
 			// Return valid JSON error
@@ -127,9 +127,9 @@ func cmdDecode(args []string) int {
 	return 0
 }
 
-// DecodeHexPacket decodes a hex BGP packet and returns formatted output.
+// decodeHexPacket decodes a hex BGP packet and returns formatted output.
 // If outputJSON is true, returns JSON; otherwise returns human-readable format.
-func DecodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, error) {
+func decodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, error) {
 	// Normalize hex input - remove colons, spaces, uppercase
 	hexStr = strings.ReplaceAll(hexStr, ":", "")
 	hexStr = strings.ReplaceAll(hexStr, " ", "")

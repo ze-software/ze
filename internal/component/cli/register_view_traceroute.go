@@ -73,9 +73,9 @@ func (m *Model) activeTraceroutePiped() *traceroutePipedState {
 	return nil
 }
 
-// SetTracerouteFactory sets the factory used to run traceroute probes.
+// setTracerouteFactory sets the factory used to run traceroute probes.
 // Thin wrapper over the generic keyed factory store (view_registry.go).
-func (m *Model) SetTracerouteFactory(f TracerouteFactory) {
+func (m *Model) setTracerouteFactory(f TracerouteFactory) {
 	m.SetViewFactory(ViewKeyTraceroute, f)
 }
 

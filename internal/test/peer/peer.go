@@ -244,7 +244,7 @@ func New(config *Config) (*Peer, error) {
 	if output == nil {
 		output = os.Stdout
 	}
-	checker, err := NewChecker(config.Expect)
+	checker, err := newChecker(config.Expect)
 	if err != nil {
 		return nil, fmt.Errorf("invalid expect rules: %w", err)
 	}
@@ -509,7 +509,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	// Send default route if requested.
 	if p.config.SendDefaultRoute {
 		p.printf("sending default-route\n")
-		if _, err := conn.Write(DefaultRouteMsg()); err != nil {
+		if _, err := conn.Write(defaultRouteMsg()); err != nil {
 			return Result{Success: false, Error: fmt.Errorf("write default route: %w", err)}
 		}
 	}
@@ -531,7 +531,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	// oversize UPDATE and the daemon sees a single message, which is the input
 	// such a test exists to produce.
 	for i, spec := range p.config.SendBulk {
-		data, msgs, err := BuildUpdates(spec)
+		data, msgs, err := buildUpdates(spec)
 		if err != nil {
 			return Result{Success: false, Error: fmt.Errorf("build bulk %d (%s x%d): %w", i, spec.Prefix, spec.Count, err)}
 		}
@@ -543,13 +543,13 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 
 	// Check for close action after OPEN handshake.
 	// Close without NOTIFICATION — triggers GR activation in ze.
-	if p.checker.NextCloseAction() {
+	if p.checker.nextCloseAction() {
 		p.printf("\nclosing connection (action=close)\n")
 		return Result{Success: true}
 	}
 
 	// Check for notification action after OPEN handshake.
-	if ok, text := p.checker.NextNotificationAction(); ok {
+	if ok, text := p.checker.nextNotificationAction(); ok {
 		p.printf("\nsending notification: %q\n", text)
 		if _, err := conn.Write(NotificationMsg(text)); err != nil {
 			return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
@@ -564,7 +564,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 
 	// Check for send action after OPEN handshake.
 	for {
-		ok, hexData := p.checker.NextSendAction()
+		ok, hexData := p.checker.nextSendAction()
 		if !ok {
 			break
 		}
@@ -582,7 +582,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	}
 
 	// Check for close action after OPEN sends (send → close sequence).
-	if p.checker.NextCloseAction() {
+	if p.checker.nextCloseAction() {
 		p.printf("\nclosing connection (action=close)\n")
 		return Result{Success: true}
 	}
@@ -590,7 +590,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	// If the current connection's sequence is exhausted after sends
 	// (e.g., conn=1 had only send actions, conn=2 has the expects),
 	// return so the next connection can start reading.
-	if p.checker.SequenceEnded() {
+	if p.checker.sequenceEnded() {
 		return Result{Success: true}
 	}
 
@@ -616,7 +616,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 				// Connection closed (EOF) or reset (RST). Both mean the remote
 				// side is done. If all expectations are not yet met, check if
 				// a reconnection is expected (sighup reload, prefix teardown).
-				if p.checker.ExpectingClose() {
+				if p.checker.expectingClose() {
 					return Result{Success: true}
 				}
 				return Result{Success: false, Error: ErrConnectionClosed}
@@ -652,7 +652,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			// matched an expectation still owed is accepted the same way and said
 			// out loud, because a run that then TIMES OUT gets no other report
 			// (checker.go, TakeMisorderNote).
-			if note := p.checker.TakeMisorderNote(); note != "" {
+			if note := p.checker.takeMisorderNote(); note != "" {
 				p.printf("\n%s\n", note)
 			}
 			continue
@@ -663,12 +663,12 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		p.printPayload("msg  recv", header, body)
 
 		if !matched {
-			expected, received := p.checker.LastMismatch()
+			expected, received := p.checker.lastMismatch()
 			diff := decode.Diff(expected, received)
 			// Every marker accepted in silence that a remaining expectation
 			// matched is repeated here. When THIS mismatch is the consequence of
 			// one of them, the diff alone names two innocent frames.
-			return Result{Success: false, Error: fmt.Errorf("message mismatch%s%s", diff, p.checker.MisorderNotes())}
+			return Result{Success: false, Error: fmt.Errorf("message mismatch%s%s", diff, p.checker.misorderNotes())}
 		}
 
 		if p.checker.Completed() {
@@ -677,20 +677,20 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 
 		// Check if this message completed a sequence - connection should close
 		// and a new connection is expected.
-		if p.checker.SequenceEnded() {
+		if p.checker.sequenceEnded() {
 			// More sequences expected - let connection close and wait for reconnect.
 			return Result{Success: true}
 		}
 
 		// Check for close action after matched message.
 		// Close without NOTIFICATION — triggers GR activation in ze.
-		if p.checker.NextCloseAction() {
+		if p.checker.nextCloseAction() {
 			p.printf("\nclosing connection (action=close)\n")
 			return Result{Success: true}
 		}
 
 		// Check for notification action after matched message.
-		if ok, text := p.checker.NextNotificationAction(); ok {
+		if ok, text := p.checker.nextNotificationAction(); ok {
 			p.printf("\nsending notification: %q\n", text)
 			if _, err := conn.Write(NotificationMsg(text)); err != nil {
 				return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
@@ -705,7 +705,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		// Check for send action after matched message.
 		// Unlike notification, send doesn't close connection - continue loop.
 		for {
-			ok, hexData := p.checker.NextSendAction()
+			ok, hexData := p.checker.nextSendAction()
 			if !ok {
 				break
 			}
@@ -723,7 +723,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		}
 
 		// Check for close action after sends (send → close sequence).
-		if p.checker.NextCloseAction() {
+		if p.checker.nextCloseAction() {
 			p.printf("\nclosing connection (action=close)\n")
 			return Result{Success: true}
 		}
@@ -731,7 +731,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		// Check for rewrite action after matched message.
 		// Copies source file to dest in the peer's working directory (tmpfs).
 		for {
-			ok, source, dest := p.checker.NextRewriteAction()
+			ok, source, dest := p.checker.nextRewriteAction()
 			if !ok {
 				break
 			}
@@ -747,7 +747,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 
 		// Check for sighup action after matched message.
 		// Reads daemon PID from daemon.pid and sends SIGHUP.
-		if p.checker.NextSighupAction() {
+		if p.checker.nextSighupAction() {
 			pidData, err := os.ReadFile("daemon.pid")
 			if err != nil {
 				return Result{Success: false, Error: fmt.Errorf("read daemon.pid: %w", err)}
@@ -769,7 +769,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 
 		// Check for sigterm action after matched message.
 		// Reads daemon PID from daemon.pid and sends SIGTERM.
-		if p.checker.NextSigtermAction() {
+		if p.checker.nextSigtermAction() {
 			pidData, err := os.ReadFile("daemon.pid")
 			if err != nil {
 				return Result{Success: false, Error: fmt.Errorf("read daemon.pid: %w", err)}

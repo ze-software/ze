@@ -233,7 +233,7 @@ func TestGetRequiredPlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetRequiredPlugins(tt.families)
+			got := getRequiredPlugins(tt.families)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -40,7 +40,7 @@ func init() {
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
 		YANG:         fcyang.ZeFilterCommunityYANG,
-		RunEngine:    RunFilterCommunity,
+		RunEngine:    runFilterCommunity,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})
 }

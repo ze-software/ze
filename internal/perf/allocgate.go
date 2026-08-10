@@ -53,17 +53,17 @@ var AllocCeilings = map[string]int{
 	"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
 }
 
-// AllocResult is one parsed allocs/op sample from `go test -benchmem` output.
-type AllocResult struct {
+// allocResult is one parsed allocs/op sample from `go test -benchmem` output.
+type allocResult struct {
 	Name        string // bare benchmark name, "-N" GOMAXPROCS suffix stripped
 	AllocsPerOp int
 }
 
-// AllocViolation records a benchmark that broke its ceiling or a registered
+// allocViolation records a benchmark that broke its ceiling or a registered
 // benchmark absent from the benchmark output. Absence is a violation
 // (fail-closed): a masked build/run failure that emits no benchmark lines must
 // fail the gate, never pass silently.
-type AllocViolation struct {
+type allocViolation struct {
 	Name        string
 	AllocsPerOp int
 	Ceiling     int
@@ -71,11 +71,11 @@ type AllocViolation struct {
 	Message     string
 }
 
-// ParseAllocsPerOp extracts the allocs/op column for every benchmark line in
+// parseAllocsPerOp extracts the allocs/op column for every benchmark line in
 // `go test -benchmem` output. Lines without an allocs/op column (PASS, ok,
 // build errors, ns/op-only lines) are skipped.
-func ParseAllocsPerOp(text string) []AllocResult {
-	var out []AllocResult
+func parseAllocsPerOp(text string) []allocResult {
+	var out []allocResult
 	sc := bufio.NewScanner(strings.NewReader(text))
 	for sc.Scan() {
 		fields := strings.Fields(sc.Text())
@@ -86,7 +86,7 @@ func ParseAllocsPerOp(text string) []AllocResult {
 		if !ok {
 			continue
 		}
-		out = append(out, AllocResult{Name: stripProcSuffix(fields[0]), AllocsPerOp: allocs})
+		out = append(out, allocResult{Name: stripProcSuffix(fields[0]), AllocsPerOp: allocs})
 	}
 	return out
 }
@@ -125,10 +125,10 @@ func stripProcSuffix(name string) string {
 // benchmark MUST appear in the output; a missing one is reported as a
 // fail-closed violation. When a benchmark appears more than once (e.g.
 // `-count=N`), the worst (highest) allocs/op sample is used.
-func CheckAllocCeilings(text string, ceilings map[string]int) []AllocViolation {
+func CheckAllocCeilings(text string, ceilings map[string]int) []allocViolation {
 	worst := make(map[string]int, len(ceilings))
 	seen := make(map[string]bool, len(ceilings))
-	for _, r := range ParseAllocsPerOp(text) {
+	for _, r := range parseAllocsPerOp(text) {
 		if cur, ok := worst[r.Name]; !ok || r.AllocsPerOp > cur {
 			worst[r.Name] = r.AllocsPerOp
 		}
@@ -141,19 +141,19 @@ func CheckAllocCeilings(text string, ceilings map[string]int) []AllocViolation {
 	}
 	sort.Strings(names)
 
-	var viol []AllocViolation
+	var viol []allocViolation
 	for _, name := range names {
 		ceiling := ceilings[name]
 		if !seen[name] {
 			var tb textbuf.Buffer
 			msg := tb.Str(name).Str(": absent from benchmark output (expected allocs/op <= ").Int(int64(ceiling)).Str("; did the benchmark build and run?)").String()
-			viol = append(viol, AllocViolation{Name: name, Ceiling: ceiling, Missing: true, Message: msg})
+			viol = append(viol, allocViolation{Name: name, Ceiling: ceiling, Missing: true, Message: msg})
 			continue
 		}
 		if got := worst[name]; got > ceiling {
 			var tb textbuf.Buffer
 			msg := tb.Str(name).Str(": ").Int(int64(got)).Str(" allocs/op exceeds ceiling ").Int(int64(ceiling)).String()
-			viol = append(viol, AllocViolation{Name: name, AllocsPerOp: got, Ceiling: ceiling, Message: msg})
+			viol = append(viol, allocViolation{Name: name, AllocsPerOp: got, Ceiling: ceiling, Message: msg})
 		}
 	}
 	return viol

@@ -382,12 +382,12 @@ func TestModelRevalidatesOnDiscard(t *testing.T) {
 	assert.Empty(t, model.validationErrors, "initial config should be valid")
 
 	// Simulate editing to invalid (set working content)
-	ed.SetWorkingContent(`bgp { router-id invalid; }`)
+	ed.setWorkingContent(`bgp { router-id invalid; }`)
 	model.runValidation()
 	assert.NotEmpty(t, model.validationErrors, "edited config should have errors")
 
 	// Discard calls runValidation, but we test it directly
-	ed.SetWorkingContent(ed.OriginalContent())
+	ed.setWorkingContent(ed.OriginalContent())
 	model.runValidation()
 	assert.Empty(t, model.validationErrors, "after discard should be valid again")
 }
@@ -419,7 +419,7 @@ func TestModelValidationDebounce(t *testing.T) {
 
 	// Simulate receiving tick with matching ID
 	// First change content to something with errors
-	ed.SetWorkingContent(`bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 1; } } }`)
+	ed.setWorkingContent(`bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 1; } } }`)
 	currentID := model.validationID
 
 	// Update returns a new model - we need to use that
@@ -430,7 +430,7 @@ func TestModelValidationDebounce(t *testing.T) {
 
 	// Test stale tick: increment ID (simulating new keystroke), then send old ID
 	// Change content to valid - if validation runs, errors would clear
-	ed.SetWorkingContent(testValidBGPConfig)
+	ed.setWorkingContent(testValidBGPConfig)
 	// Keep errors from previous validation to detect if stale tick runs
 	errorsBeforeStale := len(updatedModel.validationErrors)
 	require.Greater(t, errorsBeforeStale, 0, "should still have errors before stale tick test")
@@ -1335,7 +1335,7 @@ func TestCtrlArrowPageScroll(t *testing.T) {
 // VALIDATES: AC-11 from spec-unified-cli: tab completion for plugin SDK methods.
 // PREVENTS: Plugin CLI having no completions or wrong completions.
 func TestPluginCommandCompleter(t *testing.T) {
-	pc := NewPluginCompleter()
+	pc := newPluginCompleter()
 
 	// Empty input should return all methods
 	all := pc.Complete("")

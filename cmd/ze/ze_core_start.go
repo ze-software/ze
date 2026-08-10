@@ -283,7 +283,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	writeConfigActiveHash(store, configName)
 
 	if applied {
-		hr := NewHealthRevert(store, configName)
+		hr := newHealthRevert(store, configName)
 		hr.Start(preChange)
 		hub.PeerLifecycleCallback = hr
 	}

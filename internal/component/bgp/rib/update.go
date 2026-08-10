@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 )
 
-// BuildGroupedUpdate creates an UPDATE message from a RouteGroup.
+// buildGroupedUpdate creates an UPDATE message from a RouteGroup.
 //
 // The UPDATE includes:
 //   - Path attributes from the group (including NEXT_HOP)
@@ -21,7 +21,7 @@ import (
 // RFC 4271 Section 4.3: An UPDATE message can advertise multiple routes
 // that share the same path attributes to a peer.
 // RFC 7911: addPath indicates if ADD-PATH is negotiated for NLRI encoding.
-func BuildGroupedUpdate(group *RouteGroup, addPath bool) (*message.Update, error) {
+func buildGroupedUpdate(group *RouteGroup, addPath bool) (*message.Update, error) {
 	if len(group.Routes) == 0 {
 		return &message.Update{}, nil
 	}
@@ -103,17 +103,17 @@ func buildNLRIBytes(group *RouteGroup, addPath bool) ([]byte, error) {
 	return buf, nil
 }
 
-// BuildGroupedUpdates creates UPDATE messages from multiple RouteGroups.
+// buildGroupedUpdates creates UPDATE messages from multiple RouteGroups.
 // Returns one UPDATE per group.
 // RFC 7911: addPath indicates if ADD-PATH is negotiated for NLRI encoding.
-func BuildGroupedUpdates(groups []RouteGroup, addPath bool) ([]*message.Update, error) {
+func buildGroupedUpdates(groups []RouteGroup, addPath bool) ([]*message.Update, error) {
 	if len(groups) == 0 {
 		return nil, nil
 	}
 
 	updates := make([]*message.Update, 0, len(groups))
 	for i := range groups {
-		update, err := BuildGroupedUpdate(&groups[i], addPath)
+		update, err := buildGroupedUpdate(&groups[i], addPath)
 		if err != nil {
 			return nil, err
 		}

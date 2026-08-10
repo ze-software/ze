@@ -176,7 +176,7 @@ func TestReactorForwardRSBasic(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(42, 1)
 
@@ -266,7 +266,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(50, 1)
 
@@ -361,7 +361,7 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(60, 1)
 
@@ -467,7 +467,7 @@ func TestReactorForwardRSTransparent(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(80, 1)
 
@@ -539,7 +539,7 @@ func TestReactorForwardRSBufferLifetime(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(70, 1)
 
@@ -608,7 +608,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(80, 1)
 
@@ -711,7 +711,7 @@ func TestReactorForwardRSCacheLifetime(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(90, 1)
 
@@ -976,7 +976,7 @@ func BenchmarkReactorForwardRS(b *testing.B) {
 		peers[p.Settings().PeerKey()] = p
 	}
 
-	cache := NewRecentUpdateCache(1000)
+	cache := newRecentUpdateCache(1000)
 	cache.Start()
 	defer cache.Stop()
 

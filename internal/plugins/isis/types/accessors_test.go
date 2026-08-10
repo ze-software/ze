@@ -67,7 +67,7 @@ func TestAreaIDAndNETAccessors(t *testing.T) {
 	}
 
 	raw := []byte{0x49, 0x00, 0x01, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00}
-	netA, err := NETFromBytes(raw)
+	netA, err := nETFromBytes(raw)
 	if err != nil {
 		t.Fatalf("NETFromBytes: %v", err)
 	}
@@ -77,13 +77,13 @@ func TestAreaIDAndNETAccessors(t *testing.T) {
 	if !bytes.Equal(netA.Bytes(), raw) {
 		t.Errorf("NET.Bytes() = %x, want %x", netA.Bytes(), raw)
 	}
-	netB, _ := NETFromBytes(raw)
+	netB, _ := nETFromBytes(raw)
 	if !netA.Equal(netB) {
 		t.Error("identical NETs must be Equal")
 	}
 	diff := append([]byte(nil), raw...)
 	diff[2] = 0x02
-	netC, _ := NETFromBytes(diff)
+	netC, _ := nETFromBytes(diff)
 	if netA.Equal(netC) {
 		t.Error("different NETs must not be Equal")
 	}

@@ -29,7 +29,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 	// (e.g., connection closed before ctx is canceled).
 	drainCtx, drainCancel := context.WithCancel(ctx)
 
-	buf := NewEventBuffer()
+	buf := newEventBuffer()
 	drainDone := make(chan struct{})
 	go func() {
 		defer close(drainDone)
@@ -86,7 +86,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 
 		// Track all message bytes (KEEPALIVE, UPDATE, etc.) for throughput display.
 		// Non-UPDATE bytes accumulate in the buffer and flush on the next UPDATE event.
-		buf.AddBytesRecv(int64(msgLen))
+		buf.addBytesRecv(int64(msgLen))
 
 		msgType := header[18]
 		if msgType != 2 { // Not UPDATE — skip (KEEPALIVE, etc.)
@@ -98,7 +98,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 		fullMsg := make([]byte, msgLen)
 		copy(fullMsg, header)
 		copy(fullMsg[message.HeaderLen:], body)
-		buf.SetBGPMessage(fullMsg)
+		buf.setBGPMessage(fullMsg)
 
 		// Parse IPv4/unicast UPDATE for announced and withdrawn prefixes.
 		parseUpdatePrefixes(body, peerIndex, buf)
@@ -109,7 +109,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 // UPDATE message body (after the 19-byte header). Handles both IPv4/unicast
 // NLRI (trailing field) and MP_REACH_NLRI / MP_UNREACH_NLRI attributes for
 // IPv6/unicast.
-func parseUpdatePrefixes(body []byte, peerIndex int, buf *EventBuffer) {
+func parseUpdatePrefixes(body []byte, peerIndex int, buf *eventBuffer) {
 	if len(body) < 4 {
 		return
 	}
@@ -220,7 +220,7 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 // For other families (VPN, EVPN, FlowSpec): emits one event per UPDATE
 // with the family tag. In the chaos simulator each UPDATE carries exactly
 // one non-unicast NLRI, so the count stays accurate.
-func parseMPReachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
+func parseMPReachNLRI(data []byte, peerIndex int, buf *eventBuffer) {
 	if len(data) < 5 { // AFI(2) + SAFI(1) + NH-len(1) + reserved(1) minimum
 		return
 	}
@@ -244,7 +244,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
 //
 // For IPv4/IPv6 unicast: parses individual prefixes.
 // For other families: emits one event per UPDATE with the family tag.
-func parseMPUnreachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
+func parseMPUnreachNLRI(data []byte, peerIndex int, buf *eventBuffer) {
 	if len(data) < 3 { // AFI(2) + SAFI(1) minimum
 		return
 	}
@@ -261,7 +261,7 @@ func parseMPUnreachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
 // For unicast families, individual prefixes are parsed. For others (VPN,
 // EVPN, FlowSpec), one event per UPDATE is emitted since the chaos
 // simulator sends exactly one NLRI per UPDATE for non-unicast families.
-func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, buf *EventBuffer) {
+func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, buf *eventBuffer) {
 	switch family {
 	case familyIPv4Unicast:
 		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, buf)
@@ -276,7 +276,7 @@ func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int,
 }
 
 // emitPrefixEvents parses consecutive unicast prefixes and emits an event for each.
-func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, buf *EventBuffer) {
+func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, buf *eventBuffer) {
 	off := 0
 	for off < len(data) {
 		prefix, n := parse(data[off:])
@@ -338,7 +338,7 @@ func parseIPv6Prefix(data []byte) (netip.Prefix, int) {
 
 // writeMsg serializes and sends a BGP message on a connection.
 func writeMsg(conn net.Conn, msg message.Message) error {
-	data := SerializeMessage(msg)
+	data := serializeMessage(msg)
 	_, err := conn.Write(data)
 	return err
 }

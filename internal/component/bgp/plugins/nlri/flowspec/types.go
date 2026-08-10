@@ -260,11 +260,11 @@ func (f *FlowSpec) AddComponent(c FlowComponent) {
 	f.components = append(f.components, c)
 }
 
-// ComponentBytes returns the wire-format encoding of components without length prefix.
+// componentBytes returns the wire-format encoding of components without length prefix.
 // This is used for FlowSpec VPN where the VPN wrapper provides its own length.
 // Components are sorted by type per RFC 8955 Section 4.2:
 // "Components MUST follow strict type ordering by increasing numerical order.".
-func (f *FlowSpec) ComponentBytes() []byte {
+func (f *FlowSpec) componentBytes() []byte {
 	// Sort components by type (RFC 8955 Section 4.2 requires strict ordering)
 	sorted := make([]FlowComponent, len(f.components))
 	copy(sorted, f.components)
@@ -330,9 +330,9 @@ func (f *FlowSpec) String() string {
 	return "flow " + textbuf.Join(parts, " ")
 }
 
-// ComponentString returns just the components without the "flow" prefix.
+// componentString returns just the components without the "flow" prefix.
 // Used by FlowSpecVPN to embed components after the RD.
-func (f *FlowSpec) ComponentString() string {
+func (f *FlowSpec) componentString() string {
 	if len(f.components) == 0 {
 		return ""
 	}

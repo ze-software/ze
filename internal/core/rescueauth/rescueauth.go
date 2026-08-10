@@ -100,7 +100,7 @@ func Validate(authValue string) error {
 // credential to publish. The token is shown to the operator once and never
 // stored; only the returned value is written to config or a kernel cmdline.
 func NewValue() (token, authValue string, err error) {
-	token, err = NewToken()
+	token, err = newToken()
 	if err != nil {
 		return "", "", err
 	}
@@ -111,10 +111,10 @@ func NewValue() (token, authValue string, err error) {
 	return token, Value(token, salt), nil
 }
 
-// NewToken returns a random rescue token in the operator-facing form
+// newToken returns a random rescue token in the operator-facing form
 // "xx-xx-...": tokenBytes of entropy, hex-encoded and grouped so it can be read
 // off a provisioning log and typed at a serial console.
-func NewToken() (string, error) {
+func newToken() (string, error) {
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("read rescue token: %w", err)

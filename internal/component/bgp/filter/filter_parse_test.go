@@ -54,7 +54,7 @@ func TestParseAttributeFilterValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseAttributeFilter(tt.input)
+			got, err := parseAttributeFilter(tt.input)
 			if err != nil {
 				t.Fatalf("ParseAttributeFilter(%q) error = %v", tt.input, err)
 			}
@@ -109,7 +109,7 @@ func TestParseAttributeFilterNumeric(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseAttributeFilter(tt.input)
+			got, err := parseAttributeFilter(tt.input)
 			if err != nil {
 				t.Fatalf("ParseAttributeFilter(%q) error = %v", tt.input, err)
 			}
@@ -146,7 +146,7 @@ func TestParseAttributeFilterInvalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseAttributeFilter(tt.input)
+			_, err := parseAttributeFilter(tt.input)
 			if err == nil {
 				t.Errorf("ParseAttributeFilter(%q) should return error", tt.input)
 			}
@@ -170,7 +170,7 @@ func TestParseAttributeFilterStructuralRejected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseAttributeFilter(tt.input)
+			_, err := parseAttributeFilter(tt.input)
 			if err == nil {
 				t.Errorf("ParseAttributeFilter(%q) should return error for structural attr", tt.input)
 			}
@@ -196,7 +196,7 @@ func TestParseAttributeFilterCaseInsensitive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, err := ParseAttributeFilter(tt.input)
+			got, err := parseAttributeFilter(tt.input)
 			if err != nil {
 				t.Fatalf("ParseAttributeFilter(%q) error = %v", tt.input, err)
 			}
@@ -217,7 +217,7 @@ func TestParseAttributeFilterCaseInsensitive(t *testing.T) {
 // VALIDATES: "as-path as-path" deduplicates silently.
 // PREVENTS: Duplicate entries in codes slice.
 func TestParseAttributeFilterDedupe(t *testing.T) {
-	got, err := ParseAttributeFilter("as-path as-path origin origin")
+	got, err := parseAttributeFilter("as-path as-path origin origin")
 	if err != nil {
 		t.Fatalf("ParseAttributeFilter() error = %v", err)
 	}
@@ -245,7 +245,7 @@ func TestParseAttributeFilterBothForms(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, err := ParseAttributeFilter(tt.input)
+			got, err := parseAttributeFilter(tt.input)
 			if err != nil {
 				t.Fatalf("ParseAttributeFilter(%q) error = %v", tt.input, err)
 			}

@@ -44,11 +44,11 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	// When the path ends at a list's key leaf keyword (e.g., "next-hop address"),
 	// the value is the key for a new list entry. Check BEFORE validateTokenPath
 	// because the keyword at end-of-path would be rejected as "missing key value".
-	isListKey := m.editor.IsListKeyLeafPath(path)
+	isListKey := m.editor.isListKeyLeafPath(path)
 	if isListKey {
 		listName := containerPath[len(containerPath)-1]
 		listParent := containerPath[:len(containerPath)-1]
-		if err := m.editor.EnsureListEntry(listParent, listName, value); err != nil {
+		if err := m.editor.ensureListEntry(listParent, listName, value); err != nil {
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
 		}
 	} else {
@@ -77,7 +77,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	}
 
 	// Detect conflicts with other users' change files after each edit.
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
 	msg := tb.String()
@@ -111,7 +111,7 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	tb.Str("Deleted ").Join(fullPath, " ")
 
 	// Detect conflicts with other users' change files after each edit.
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
 	msg := tb.String()
@@ -174,7 +174,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 			m.refreshCompleter()
 			var tb textbuf.Buffer
 			tb.Str(pastTense).Byte(' ').Str(value).Str(" in ").Str(leafListName)
-			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+			if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 				tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 			}
 			msg := tb.String()
@@ -223,7 +223,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	m.refreshCompleter()
 	var tb2 textbuf.Buffer
 	tb2.Str(pastTense).Byte(' ').Join(fullPath, " ")
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 		tb2.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
 	msg := tb2.String()
@@ -315,7 +315,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 		tb.Byte(' ').Str(ref)
 	}
 
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
 	msg := tb.String()
@@ -378,7 +378,7 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	tb8.Str("Renamed ").Str(listName).Byte(' ').Str(oldKey).Str(" to ").Str(newKey)
 
 	// Detect conflicts with other users' change files after each edit.
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 		tb8.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
 	msg := tb8.String()
@@ -439,7 +439,7 @@ func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	var tb9 textbuf.Buffer
 	tb9.Str("Copied ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey)
 
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
 		tb9.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
 	msg := tb9.String()

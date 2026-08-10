@@ -106,10 +106,10 @@ type Driver struct {
 	wg       sync.WaitGroup
 }
 
-// DriverConfig captures the dependencies the Driver needs.
+// driverConfig captures the dependencies the Driver needs.
 // Construction fails (panics on nil required fields) at NewDriver
 // to keep the start-time check explicit.
-type DriverConfig struct {
+type driverConfig struct {
 	// Logger is required. Use slogutil.Logger("ppp") in production.
 	Logger *slog.Logger
 
@@ -136,19 +136,19 @@ type DriverConfig struct {
 // Caller MUST call Start before sending on SessionsIn(). Caller MUST
 // call Stop before discarding the Driver.
 func NewProductionDriver(logger *slog.Logger, backend IfaceBackend) *Driver {
-	return NewDriver(DriverConfig{
+	return newDriver(driverConfig{
 		Logger:  logger,
 		Backend: backend,
 		Ops:     newPPPOps(),
 	})
 }
 
-// NewDriver constructs a Driver. Does NOT start the dispatch
+// newDriver constructs a Driver. Does NOT start the dispatch
 // goroutine; call Start when ready.
 //
 // Panics with "BUG: ..." if any required field is nil; these are
 // programmer errors caught at boot, not runtime conditions.
-func NewDriver(cfg DriverConfig) *Driver {
+func newDriver(cfg driverConfig) *Driver {
 	if cfg.Logger == nil {
 		panic("BUG: ppp.NewDriver: Logger is required")
 	}
@@ -387,15 +387,15 @@ func (d *Driver) StopSession(tunnelID, sessionID uint16) error {
 	return nil
 }
 
-// SessionByID returns a snapshot of a session's state, or false if
+// sessionByID returns a snapshot of a session's state, or false if
 // no such session exists. Used for `show l2tp session` and tests.
-func (d *Driver) SessionByID(tunnelID, sessionID uint16) (SessionInfo, bool) {
+func (d *Driver) sessionByID(tunnelID, sessionID uint16) (sessionInfo, bool) {
 	k := sessionKey{tunnelID, sessionID}
 	d.mu.Lock()
 	s, ok := d.sessions[k]
 	d.mu.Unlock()
 	if !ok {
-		return SessionInfo{}, false
+		return sessionInfo{}, false
 	}
 	s.mu.Lock()
 	info := s.snapshot()

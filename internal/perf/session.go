@@ -84,7 +84,7 @@ func BuildOpen(cfg SessionConfig) []byte {
 		OptionalParams: optParams,
 	}
 
-	return SerializeMsg(open)
+	return serializeMsg(open)
 }
 
 // packOptionalParams builds optional parameters from capabilities.
@@ -113,10 +113,10 @@ func packOptionalParams(caps []capability.Capability) []byte {
 	return buf
 }
 
-// BuildKeepalive constructs a serialized BGP KEEPALIVE message (19 bytes).
-func BuildKeepalive() []byte {
+// buildKeepalive constructs a serialized BGP KEEPALIVE message (19 bytes).
+func buildKeepalive() []byte {
 	ka := message.NewKeepalive()
-	return SerializeMsg(ka)
+	return serializeMsg(ka)
 }
 
 // BuildCeaseNotification constructs a NOTIFICATION Cease/AdminShutdown message.
@@ -125,11 +125,11 @@ func BuildCeaseNotification() []byte {
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseAdminShutdown,
 	}
-	return SerializeMsg(notif)
+	return serializeMsg(notif)
 }
 
-// SerializeMsg serializes any BGP message to wire bytes.
-func SerializeMsg(msg message.Message) []byte {
+// serializeMsg serializes any BGP message to wire bytes.
+func serializeMsg(msg message.Message) []byte {
 	size := msg.Len(nil)
 	buf := make([]byte, size)
 	msg.WriteTo(buf, 0, nil)
@@ -146,10 +146,10 @@ func ReadMessage(r io.Reader) (msgtype.MessageType, []byte, error) {
 	return readMessageWithHdr(r, hdr)
 }
 
-// ReadMessageBuf reads one complete BGP message using a caller-provided header
+// readMessageBuf reads one complete BGP message using a caller-provided header
 // buffer. The hdr buffer MUST be at least message.HeaderLen (19) bytes.
 // This avoids per-call header allocation in hot loops.
-func ReadMessageBuf(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, error) {
+func readMessageBuf(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, error) {
 	return readMessageWithHdr(r, hdr)
 }
 
@@ -197,11 +197,11 @@ func WriteMessage(conn net.Conn, msg []byte) error {
 	return nil
 }
 
-// DoHandshake performs the client side of a BGP OPEN/KEEPALIVE handshake.
+// doHandshake performs the client side of a BGP OPEN/KEEPALIVE handshake.
 // Sends OPEN, reads peer's OPEN, sends KEEPALIVE, reads peer's KEEPALIVE.
 // Returns the time taken for the handshake. The caller MUST set a deadline
 // on the connection before calling (e.g., connect timeout).
-func DoHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
+func doHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
 	start := time.Now()
 
 	if err := WriteMessage(conn, BuildOpen(cfg)); err != nil {
@@ -222,7 +222,7 @@ func DoHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
 		return 0, fmt.Errorf("expected OPEN, got type %d%s", msgType, detail)
 	}
 
-	if err := WriteMessage(conn, BuildKeepalive()); err != nil {
+	if err := WriteMessage(conn, buildKeepalive()); err != nil {
 		return 0, fmt.Errorf("sending KEEPALIVE: %w", err)
 	}
 

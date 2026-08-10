@@ -20,9 +20,9 @@ import (
 func newUnstartedReactor(t *testing.T) (*UDPListener, *L2TPReactor, func()) {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(&lockedBuffer{}, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
-	r := NewL2TPReactor(ln, logger, ReactorParams{
+	r := newL2TPReactor(ln, logger, reactorParams{
 		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
 		EnableIPCP:   true,
 		EnableIPv6CP: true,

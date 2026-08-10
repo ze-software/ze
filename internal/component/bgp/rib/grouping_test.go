@@ -34,7 +34,7 @@ func TestGroupByAttributes_SingleGroup(t *testing.T) {
 		testRouteWithAttrs("10.2.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 
 	if len(groups) != 1 {
 		t.Errorf("got %d groups, want 1", len(groups))
@@ -64,7 +64,7 @@ func TestGroupByAttributes_MultipleGroups(t *testing.T) {
 		testRouteWithAttrs("10.2.0.0/24", "5.6.7.8", attrsB), // Different next-hop and origin
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 
 	if len(groups) != 2 {
 		t.Errorf("got %d groups, want 2", len(groups))
@@ -87,13 +87,13 @@ func TestGroupByAttributes_MultipleGroups(t *testing.T) {
 //
 // PREVENTS: Panic or error on empty input.
 func TestGroupByAttributes_Empty(t *testing.T) {
-	groups := GroupByAttributes(nil)
+	groups := groupByAttributes(nil)
 
 	if len(groups) != 0 {
 		t.Errorf("got %d groups, want 0", len(groups))
 	}
 
-	groups = GroupByAttributes([]*Route{})
+	groups = groupByAttributes([]*Route{})
 
 	if len(groups) != 0 {
 		t.Errorf("got %d groups for empty slice, want 0", len(groups))
@@ -115,7 +115,7 @@ func TestGroupByAttributes_DifferentNextHop(t *testing.T) {
 		testRouteWithAttrs("10.1.0.0/24", "5.6.7.8", attrs), // Same attrs, different NH
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 
 	if len(groups) != 2 {
 		t.Errorf("got %d groups, want 2 (different next-hops)", len(groups))
@@ -139,7 +139,7 @@ func TestGroupByAttributes_DeterministicOrder(t *testing.T) {
 	// Run multiple times to verify determinism
 	var firstOrder []string
 	for i := range 10 {
-		groups := GroupByAttributes(routes)
+		groups := groupByAttributes(routes)
 		order := make([]string, len(groups))
 		for j, g := range groups {
 			order[j] = g.Key
@@ -167,7 +167,7 @@ func TestGroupByAttributes_PreservesFamily(t *testing.T) {
 		testRouteWithAttrs("10.0.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 
 	if len(groups) != 1 {
 		t.Fatalf("got %d groups, want 1", len(groups))
@@ -191,7 +191,7 @@ func TestRouteGroup_NLRIs(t *testing.T) {
 		testRouteWithAttrs("10.1.0.0/24", "1.2.3.4", attrs),
 	}
 
-	groups := GroupByAttributes(routes)
+	groups := groupByAttributes(routes)
 
 	if len(groups) != 1 {
 		t.Fatalf("got %d groups, want 1", len(groups))

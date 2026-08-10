@@ -115,7 +115,7 @@ func TestRingBufferEmpty(t *testing.T) {
 func TestActiveSetPromotion(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(40)
+	as := newActiveSet(40)
 	now := time.Now()
 
 	added := as.Promote(5, PriorityHigh, now)
@@ -146,7 +146,7 @@ func TestActiveSetPromotion(t *testing.T) {
 func TestActiveSetDecay(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(40)
+	as := newActiveSet(40)
 	now := time.Now()
 
 	// Add a peer. With <50% fill, TTL is 120s.
@@ -175,13 +175,13 @@ func TestActiveSetDecay(t *testing.T) {
 func TestActiveSetPinning(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(40)
+	as := newActiveSet(40)
 	now := time.Now()
 
 	as.Promote(7, PriorityMedium, now)
 	as.Pin(7, now)
 
-	if !as.IsPinned(7) {
+	if !as.isPinned(7) {
 		t.Fatal("IsPinned(7) should be true after Pin()")
 	}
 
@@ -196,7 +196,7 @@ func TestActiveSetPinning(t *testing.T) {
 
 	// Unpin and decay — should now be removed.
 	as.Unpin(7)
-	if as.IsPinned(7) {
+	if as.isPinned(7) {
 		t.Fatal("IsPinned(7) should be false after Unpin()")
 	}
 	removed = as.Decay(now.Add(300 * time.Second))
@@ -212,7 +212,7 @@ func TestActiveSetPinning(t *testing.T) {
 func TestActiveSetAdaptiveTTL(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(20)
+	as := newActiveSet(20)
 	now := time.Now()
 
 	// Empty (0%) — TTL should be 120s.
@@ -252,7 +252,7 @@ func TestActiveSetAdaptiveTTL(t *testing.T) {
 func TestActiveSetCapacity(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(10)
+	as := newActiveSet(10)
 	now := time.Now()
 
 	// Fill to capacity.
@@ -286,7 +286,7 @@ func TestActiveSetCapacity(t *testing.T) {
 func TestActiveSetStableOrder(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(40)
+	as := newActiveSet(40)
 	now := time.Now()
 
 	as.Promote(10, PriorityMedium, now)
@@ -321,14 +321,14 @@ func TestActiveSetStableOrder(t *testing.T) {
 func TestActiveSetPinNotInSet(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(40)
+	as := newActiveSet(40)
 	now := time.Now()
 
 	as.Pin(42, now)
 	if !as.Contains(42) {
 		t.Fatal("Pin(42) should promote peer into active set")
 	}
-	if !as.IsPinned(42) {
+	if !as.isPinned(42) {
 		t.Fatal("Peer 42 should be pinned after Pin()")
 	}
 }
@@ -341,7 +341,7 @@ func TestActiveSetPinNotInSet(t *testing.T) {
 func TestActiveSetAllPinnedNoEviction(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(10) // minimum clamped capacity
+	as := newActiveSet(10) // minimum clamped capacity
 	now := time.Now()
 
 	for i := range 10 {
@@ -364,7 +364,7 @@ func TestActiveSetAllPinnedNoEviction(t *testing.T) {
 func TestActiveSetMinCapacity(t *testing.T) {
 	t.Parallel()
 
-	as := NewActiveSet(5)
+	as := newActiveSet(5)
 	if as.MaxVisible != 10 {
 		t.Fatalf("MaxVisible = %d, want 10 (clamped)", as.MaxVisible)
 	}
@@ -395,7 +395,7 @@ func TestPromotionPriorityForEvent(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		prio, ok := PromotionPriorityForEvent(tt.evType)
+		prio, ok := promotionPriorityForEvent(tt.evType)
 		if prio != tt.wantPrio || ok != tt.wantOK {
 			t.Errorf("PromotionPriorityForEvent(%d) = (%d, %v), want (%d, %v)",
 				tt.evType, prio, ok, tt.wantPrio, tt.wantOK)
@@ -410,7 +410,7 @@ func TestPromotionPriorityForEvent(t *testing.T) {
 func TestPeerStateNewAndDefaults(t *testing.T) {
 	t.Parallel()
 
-	ps := NewPeerState(5, 100)
+	ps := newPeerState(5, 100)
 	if ps.Index != 5 {
 		t.Fatalf("Index = %d, want 5", ps.Index)
 	}
@@ -463,7 +463,7 @@ func TestDashboardStateDirtyFlags(t *testing.T) {
 	ds.MarkDirty(2)
 	ds.MarkDirty(4)
 
-	peers, promoted, global := ds.ConsumeDirty()
+	peers, promoted, global := ds.consumeDirty()
 	if !global {
 		t.Fatal("global dirty should be true")
 	}
@@ -475,7 +475,7 @@ func TestDashboardStateDirtyFlags(t *testing.T) {
 	}
 
 	// After consume, flags should be reset.
-	peers, promoted, global = ds.ConsumeDirty()
+	peers, promoted, global = ds.consumeDirty()
 	if global {
 		t.Fatal("global dirty should be false after consume")
 	}
@@ -523,7 +523,7 @@ func TestFormatDuration(t *testing.T) {
 func TestRouteMatrixPrefixEviction(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	now := time.Now()
 
 	// Fill up to the max. Use unique /32 prefixes from different addresses.
@@ -532,7 +532,7 @@ func TestRouteMatrixPrefixEviction(t *testing.T) {
 		b := uint8(i >> 8)
 		c := uint8(i)
 		addr := netip.AddrFrom4([4]byte{10, a, b, c})
-		m.RecordSent(i%4, netip.PrefixFrom(addr, 32), now)
+		m.recordSent(i%4, netip.PrefixFrom(addr, 32), now)
 	}
 
 	if len(m.routeOrigins) != maxPrefixTracking {
@@ -541,7 +541,7 @@ func TestRouteMatrixPrefixEviction(t *testing.T) {
 
 	// One more should trigger eviction — maps get cleared and only the new entry remains.
 	overflow := netip.MustParsePrefix("192.168.0.1/32")
-	m.RecordSent(0, overflow, now)
+	m.recordSent(0, overflow, now)
 
 	if len(m.routeOrigins) != 1 {
 		t.Fatalf("routeOrigins len after eviction = %d, want 1", len(m.routeOrigins))
@@ -557,7 +557,7 @@ func TestRouteMatrixPrefixEviction(t *testing.T) {
 
 	// Cumulative cell counters should be unaffected by eviction.
 	// Record a receive for the overflow prefix — should correlate correctly.
-	lat := m.RecordReceived(1, overflow, now.Add(time.Millisecond))
+	lat := m.recordReceived(1, overflow, now.Add(time.Millisecond))
 	if lat == 0 {
 		t.Fatal("RecordReceived should find overflow prefix after eviction")
 	}
@@ -577,21 +577,21 @@ func TestChaosRateEMA(t *testing.T) {
 	now := time.Now()
 
 	// First call initializes — no rate yet.
-	ds.UpdateThroughput(now)
+	ds.updateThroughput(now)
 	if ds.ChaosRate() != 0 {
 		t.Fatalf("initial chaos rate = %f, want 0", ds.ChaosRate())
 	}
 
 	// Simulate 10 chaos events over 1 second.
 	ds.TotalChaos = 10
-	ds.UpdateThroughput(now.Add(time.Second))
+	ds.updateThroughput(now.Add(time.Second))
 	// EMA with alpha=0.3: 0.3*10 + 0.7*0 = 3.0
 	if got := ds.ChaosRate(); got < 2.9 || got > 3.1 {
 		t.Fatalf("chaos rate after 10 events/1s = %f, want ~3.0", got)
 	}
 
 	// Another tick with same total (no new events): rate decays.
-	ds.UpdateThroughput(now.Add(2 * time.Second))
+	ds.updateThroughput(now.Add(2 * time.Second))
 	// EMA: 0.3*0 + 0.7*3.0 = 2.1
 	if got := ds.ChaosRate(); got < 2.0 || got > 2.2 {
 		t.Fatalf("chaos rate after decay = %f, want ~2.1", got)
@@ -608,9 +608,9 @@ func TestChaosRateEMAZero(t *testing.T) {
 	ds := NewDashboardState(5, 40, 100)
 	now := time.Now()
 
-	ds.UpdateThroughput(now)
-	ds.UpdateThroughput(now.Add(time.Second))
-	ds.UpdateThroughput(now.Add(2 * time.Second))
+	ds.updateThroughput(now)
+	ds.updateThroughput(now.Add(time.Second))
+	ds.updateThroughput(now.Add(2 * time.Second))
 
 	if got := ds.ChaosRate(); got != 0 {
 		t.Fatalf("chaos rate with no events = %f, want 0", got)
@@ -627,11 +627,11 @@ func TestChaosRateEMABurst(t *testing.T) {
 	ds := NewDashboardState(5, 40, 100)
 	now := time.Now()
 
-	ds.UpdateThroughput(now)
+	ds.updateThroughput(now)
 
 	// Burst: 100 events in 1 second.
 	ds.TotalChaos = 100
-	ds.UpdateThroughput(now.Add(time.Second))
+	ds.updateThroughput(now.Add(time.Second))
 	burstRate := ds.ChaosRate()
 	if burstRate < 25 {
 		t.Fatalf("burst rate = %f, want > 25", burstRate)
@@ -639,7 +639,7 @@ func TestChaosRateEMABurst(t *testing.T) {
 
 	// Let it decay for 5 ticks with no new events.
 	for i := 2; i < 7; i++ {
-		ds.UpdateThroughput(now.Add(time.Duration(i) * time.Second))
+		ds.updateThroughput(now.Add(time.Duration(i) * time.Second))
 	}
 	decayedRate := ds.ChaosRate()
 	if decayedRate >= burstRate {
@@ -673,7 +673,7 @@ func TestChaosRateColorClass(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := ChaosRateColorClass(tt.rate); got != tt.want {
+		if got := chaosRateColorClass(tt.rate); got != tt.want {
 			t.Errorf("ChaosRateColorClass(%f) = %q, want %q", tt.rate, got, tt.want)
 		}
 	}

@@ -143,7 +143,7 @@ func TestInitManagedFlag(t *testing.T) {
 func TestEncryptedInitCreatesMarker(t *testing.T) {
 	dir := initTestAppliance(t, "enc", []byte("my-passphrase"))
 
-	if !IsEncrypted(dir, "enc") {
+	if !isEncrypted(dir, "enc") {
 		t.Error("should have .encrypted marker")
 	}
 
@@ -169,7 +169,7 @@ func TestEncryptedInitCreatesMarker(t *testing.T) {
 func TestPlaintextInitNoMarker(t *testing.T) {
 	dir := initTestAppliance(t, "plain", nil)
 
-	if IsEncrypted(dir, "plain") {
+	if isEncrypted(dir, "plain") {
 		t.Error("should not have .encrypted marker")
 	}
 

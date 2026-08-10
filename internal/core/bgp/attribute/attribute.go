@@ -245,10 +245,10 @@ func AttrWireLen(attr Attribute) int {
 	return attrWireLenForValue(attr, attr.Len())
 }
 
-// AttrWireLenWithContext is AttrWireLen for a destination encoding context, so an
+// attrWireLenWithContext is AttrWireLen for a destination encoding context, so an
 // AS_PATH or AGGREGATOR sized here matches what WriteAttrToWithContext writes
 // (RFC 6793: two- versus four-octet AS numbers).
-func AttrWireLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
+func attrWireLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
 	return attrWireLenForValue(attr, ValueLenWithContext(attr, dstCtx))
 }
 

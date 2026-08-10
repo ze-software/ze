@@ -24,11 +24,11 @@ type FlowRecord struct {
 	LastSwitched  uint32 // sysUpTime in ms at last packet
 }
 
-// WriteFlowDataFlowSet writes a data FlowSet for per-flow records
+// writeFlowDataFlowSet writes a data FlowSet for per-flow records
 // into buf at the given offset. Returns (bytes written, record count).
 //
 // RFC 3954: Data FlowSet ID = template ID (257 for flow records).
-func WriteFlowDataFlowSet(buf []byte, off int, flows []FlowRecord) (int, uint16) {
+func writeFlowDataFlowSet(buf []byte, off int, flows []FlowRecord) (int, uint16) {
 	start := off
 	recSize := FlowRecordSize()
 
@@ -60,11 +60,11 @@ func WriteFlowDataFlowSet(buf []byte, off int, flows []FlowRecord) (int, uint16)
 	return totalLen, count
 }
 
-// WriteFlowDataFlowSet6 writes a data FlowSet for IPv6 per-flow records into
+// writeFlowDataFlowSet6 writes a data FlowSet for IPv6 per-flow records into
 // buf at the given offset. Returns (bytes written, record count).
 //
 // RFC 3954: Data FlowSet ID = template ID (258 for IPv6 flow records).
-func WriteFlowDataFlowSet6(buf []byte, off int, flows []FlowRecord) (int, uint16) {
+func writeFlowDataFlowSet6(buf []byte, off int, flows []FlowRecord) (int, uint16) {
 	start := off
 	recSize := FlowRecordSize6()
 

@@ -9,7 +9,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-func RegisterSetFD() {
+func registerSetFD() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-set:system-file-descriptors",

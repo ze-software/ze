@@ -284,7 +284,7 @@ func TestFakeTickerStopPreventsFire(t *testing.T) {
 // VALIDATES: Compile-time interface conformance.
 // PREVENTS: Missing methods on FakeDialer.
 func TestFakeDialerImplementsDialer(t *testing.T) {
-	var _ network.Dialer = &FakeDialer{}
+	var _ network.Dialer = &fakeDialer{}
 }
 
 // TestFakeDialerDelegates verifies FakeDialer calls DialFunc.
@@ -293,7 +293,7 @@ func TestFakeDialerImplementsDialer(t *testing.T) {
 // PREVENTS: DialFunc being ignored.
 func TestFakeDialerDelegates(t *testing.T) {
 	called := false
-	d := &FakeDialer{
+	d := &fakeDialer{
 		DialFunc: func(_ context.Context, nw, address string) (net.Conn, error) {
 			called = true
 			if nw != "tcp" {
@@ -323,7 +323,7 @@ func TestFakeDialerDelegates(t *testing.T) {
 // VALIDATES: Compile-time interface conformance.
 // PREVENTS: Missing methods on FakeListenerFactory.
 func TestFakeListenerFactoryImplementsListenerFactory(t *testing.T) {
-	var _ network.ListenerFactory = &FakeListenerFactory{}
+	var _ network.ListenerFactory = &fakeListenerFactory{}
 }
 
 // TestFakeListenerFactoryDelegates verifies FakeListenerFactory calls ListenFunc.
@@ -332,7 +332,7 @@ func TestFakeListenerFactoryImplementsListenerFactory(t *testing.T) {
 // PREVENTS: ListenFunc being ignored.
 func TestFakeListenerFactoryDelegates(t *testing.T) {
 	called := false
-	f := &FakeListenerFactory{
+	f := &fakeListenerFactory{
 		ListenFunc: func(_ context.Context, nw, address string) (net.Listener, error) {
 			called = true
 			if nw != "tcp" {

@@ -15,7 +15,7 @@ func init() {
 		Description:  "Route Reflector",
 		RFCs:         []string{"4456"},
 		Dependencies: []string{"bgp-adj-rib-in"},
-		RunEngine:    RunRouteReflector,
+		RunEngine:    runRouteReflector,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

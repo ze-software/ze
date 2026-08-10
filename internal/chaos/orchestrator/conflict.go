@@ -11,12 +11,12 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// ValidateChaosListenerConflicts checks for overlapping ip:port bindings among
+// validateChaosListenerConflicts checks for overlapping ip:port bindings among
 // ze-chaos single-port listeners. Range bases (--port, --listen-base) are excluded
 // because they allocate N ports per peer count.
 //
 // Flags with value 0 (int ports) or "" (addr:port) are disabled and excluded.
-func ValidateChaosListenerConflicts(sshPort, webUIPort, lgPort, zeMCPPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr, mcpAddr string) error {
+func validateChaosListenerConflicts(sshPort, webUIPort, lgPort, zeMCPPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr, mcpAddr string) error {
 	var endpoints []config.ListenerEndpoint
 
 	// Integer port flags bind on 127.0.0.1 (ze-chaos default local-addr).
@@ -137,7 +137,7 @@ func ValidateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPo
 // do not fall inside those ranges. RunOrchestrator calls it at entry so that
 // any programmatic caller that builds an OrchestratorConfig directly -- not
 // only the flag path -- is protected from the same port clash (AC-10).
-func ValidateConfigRangeConflicts(cfg *OrchestratorConfig) error {
+func ValidateConfigRangeConflicts(cfg *orchestratorConfig) error {
 	if len(cfg.Profiles) == 0 {
 		return nil
 	}

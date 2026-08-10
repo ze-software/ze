@@ -104,8 +104,8 @@ func (h hashableNLRI) FamilyKey() uint32 {
 	return uint32(f.AFI)<<16 | uint32(f.SAFI)
 }
 
-// NewRouteStore creates a new route store with the given buffer size.
-func NewRouteStore(bufferSize int) *RouteStore {
+// newRouteStore creates a new route store with the given buffer size.
+func newRouteStore(bufferSize int) *RouteStore {
 	return &RouteStore{
 		attrStores: make(map[attribute.AttributeCode]*attrStore),
 		nlriStore: &nlriStoreWrapper{
@@ -141,36 +141,36 @@ func (rs *RouteStore) getOrCreateAttrStore(code attribute.AttributeCode) *attrSt
 	return s
 }
 
-// InternAttribute deduplicates an attribute.
-func (rs *RouteStore) InternAttribute(attr attribute.Attribute) attribute.Attribute {
+// internAttribute deduplicates an attribute.
+func (rs *RouteStore) internAttribute(attr attribute.Attribute) attribute.Attribute {
 	s := rs.getOrCreateAttrStore(attr.Code())
 	result := s.store.Intern(hashableAttr{attr: attr})
 	return result.attr
 }
 
-// InternAttributes deduplicates a slice of attributes.
-func (rs *RouteStore) InternAttributes(attrs []attribute.Attribute) []attribute.Attribute {
+// internAttributes deduplicates a slice of attributes.
+func (rs *RouteStore) internAttributes(attrs []attribute.Attribute) []attribute.Attribute {
 	result := make([]attribute.Attribute, len(attrs))
 	for i, attr := range attrs {
-		result[i] = rs.InternAttribute(attr)
+		result[i] = rs.internAttribute(attr)
 	}
 	return result
 }
 
-// InternNLRI deduplicates an NLRI.
-func (rs *RouteStore) InternNLRI(n nlri.NLRI) nlri.NLRI {
+// internNLRI deduplicates an NLRI.
+func (rs *RouteStore) internNLRI(n nlri.NLRI) nlri.NLRI {
 	result := rs.nlriStore.store.Intern(hashableNLRI{n: n})
 	return result.n
 }
 
-// InternRoute deduplicates a route and its components.
+// internRoute deduplicates a route and its components.
 // Returns a potentially shared route instance.
-func (rs *RouteStore) InternRoute(route *Route) *Route {
+func (rs *RouteStore) internRoute(route *Route) *Route {
 	// Intern the NLRI
-	internedNLRI := rs.InternNLRI(route.nlri)
+	internedNLRI := rs.internNLRI(route.nlri)
 
 	// Intern attributes
-	internedAttrs := rs.InternAttributes(route.attributes)
+	internedAttrs := rs.internAttributes(route.attributes)
 
 	// Check if route already exists
 	idx := string(route.Index())
@@ -196,8 +196,8 @@ func (rs *RouteStore) InternRoute(route *Route) *Route {
 	return newRoute
 }
 
-// ReleaseRoute decrements the reference count and removes if zero.
-func (rs *RouteStore) ReleaseRoute(route *Route) {
+// releaseRoute decrements the reference count and removes if zero.
+func (rs *RouteStore) releaseRoute(route *Route) {
 	if route.Release() {
 		// Remove from store
 		idx := string(route.Index())

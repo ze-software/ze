@@ -57,16 +57,16 @@ type VRP struct {
 	ASN       uint32
 }
 
-// RTRHeader is the common 8-byte PDU header.
-type RTRHeader struct {
+// rTRHeader is the common 8-byte PDU header.
+type rTRHeader struct {
 	Version   uint8
 	Type      uint8
 	SessionID uint16
 	Length    uint32
 }
 
-// EndOfDataParams holds timing parameters from End of Data PDU.
-type EndOfDataParams struct {
+// endOfDataParams holds timing parameters from End of Data PDU.
+type endOfDataParams struct {
 	SessionID       uint16
 	SerialNumber    uint32
 	RefreshInterval uint32
@@ -75,11 +75,11 @@ type EndOfDataParams struct {
 }
 
 // parseHeader reads an 8-byte RTR header from buf.
-func parseHeader(buf []byte) (RTRHeader, error) {
+func parseHeader(buf []byte) (rTRHeader, error) {
 	if len(buf) < pduHeaderLen {
-		return RTRHeader{}, fmt.Errorf("rtr: header too short: %d bytes", len(buf))
+		return rTRHeader{}, fmt.Errorf("rtr: header too short: %d bytes", len(buf))
 	}
-	return RTRHeader{
+	return rTRHeader{
 		Version:   buf[0],
 		Type:      buf[1],
 		SessionID: binary.BigEndian.Uint16(buf[2:4]),
@@ -150,11 +150,11 @@ func parseIPv6Prefix(buf []byte) (VRP, bool, error) {
 }
 
 // parseEndOfData parses an End of Data PDU (Type 7) from 24 bytes.
-func parseEndOfData(buf []byte) (EndOfDataParams, error) {
+func parseEndOfData(buf []byte) (endOfDataParams, error) {
 	if len(buf) < pduEndOfDataLen {
-		return EndOfDataParams{}, fmt.Errorf("rtr: End of Data PDU too short: %d", len(buf))
+		return endOfDataParams{}, fmt.Errorf("rtr: End of Data PDU too short: %d", len(buf))
 	}
-	return EndOfDataParams{
+	return endOfDataParams{
 		SessionID:       binary.BigEndian.Uint16(buf[2:4]),
 		SerialNumber:    binary.BigEndian.Uint32(buf[8:12]),
 		RefreshInterval: binary.BigEndian.Uint32(buf[12:16]),

@@ -322,7 +322,7 @@ func TestInterfaceDetailData_Build(t *testing.T) {
 		},
 	}
 
-	detail := BuildInterfaceDetailData(info)
+	detail := buildInterfaceDetailData(info)
 	assert.Equal(t, "eth0", detail.Title)
 	assert.Equal(t, "/show/iface/", detail.CloseURL)
 	require.Len(t, detail.Tabs, 3)
@@ -357,14 +357,14 @@ func TestInterfaceDetailData_NilStats(t *testing.T) {
 		MTU:   1500,
 	}
 
-	detail := BuildInterfaceDetailData(info)
+	detail := buildInterfaceDetailData(info)
 	assert.Contains(t, string(detail.Tabs[2].Content), "not available")
 }
 
 // TestInterfaceTypeDropdown verifies interface type list is derived from iface
 // package and excludes loopback.
 func TestInterfaceTypeDropdown(t *testing.T) {
-	types := InterfaceTypes()
+	types := interfaceTypes()
 	assert.NotEmpty(t, types)
 	assert.Contains(t, types, "ethernet")
 	assert.Contains(t, types, "bridge")

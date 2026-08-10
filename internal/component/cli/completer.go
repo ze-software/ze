@@ -259,7 +259,7 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 		if tokensAdded > 0 && c.isListNeedingKey(currentPath) {
 			listPath := make([]string, len(currentPath))
 			copy(listPath, currentPath)
-			keyEntry := c.GetListKeyEntry(listPath)
+			keyEntry := c.getListKeyEntry(listPath)
 			if !validateLeafValue(keyEntry, token) {
 				listName := currentPath[len(currentPath)-1]
 				hint := c.TypeHint(keyEntry.Type)
@@ -585,7 +585,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		// User typed a value that doesn't match any existing key —
 		// validate against YANG key type before offering as completion.
 		listPath := append(append([]string{}, contextPath...), listName)
-		keyEntry := c.GetListKeyEntry(listPath)
+		keyEntry := c.getListKeyEntry(listPath)
 		var tb textbuf.Buffer
 		if validateLeafValue(keyEntry, prefix) {
 			completions = append(completions, Completion{

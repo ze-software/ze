@@ -108,7 +108,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		reg = metrics.NopRegistry{}
 	}
 	return &ManagedServer{
-		svc: NewManagedConfigService(cfg.ReadConfig),
+		svc: newManagedConfigService(cfg.ReadConfig),
 		lookup: func(name string) (string, bool) {
 			s, ok := secrets[name]
 			return s, ok

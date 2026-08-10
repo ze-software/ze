@@ -346,9 +346,9 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 // Component constructors
 // ============================================================================
 
-// NewFlowNumericComponent creates a numeric component with explicit matches.
+// newFlowNumericComponent creates a numeric component with explicit matches.
 // This is the general constructor for any numeric component type (3-12).
-func NewFlowNumericComponent(compType FlowComponentType, matches []FlowMatch) FlowComponent {
+func newFlowNumericComponent(compType FlowComponentType, matches []FlowMatch) FlowComponent {
 	return &numericComponent{compType: compType, matches: matches}
 }
 
@@ -419,11 +419,11 @@ func NewFlowICMPTypeComponent(types ...uint8) FlowComponent {
 	return &numericComponent{compType: FlowICMPType, matches: matches}
 }
 
-// NewFlowICMPCodeComponent creates an ICMP code component (Type 8).
+// newFlowICMPCodeComponent creates an ICMP code component (Type 8).
 // RFC 8955 Section 4.2.2.8: Matches the code field of an ICMP packet.
 // Values SHOULD be encoded as single octet (len=00).
 // Only ICMP packets (IP protocol=1) can match when this component is present.
-func NewFlowICMPCodeComponent(codes ...uint8) FlowComponent {
+func newFlowICMPCodeComponent(codes ...uint8) FlowComponent {
 	matches := make([]FlowMatch, len(codes))
 	for i, c := range codes {
 		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(c)}
@@ -443,9 +443,9 @@ func NewFlowTCPFlagsComponent(flags ...uint8) FlowComponent {
 	return &numericComponent{compType: FlowTCPFlags, matches: matches}
 }
 
-// NewFlowTCPFlagsMatchComponent creates a TCP flags component with explicit matches.
+// newFlowTCPFlagsMatchComponent creates a TCP flags component with explicit matches.
 // Allows specifying bitmask operator bits (NOT, Match) per RFC 8955 Section 4.2.1.2.
-func NewFlowTCPFlagsMatchComponent(matchList []FlowMatch) FlowComponent {
+func newFlowTCPFlagsMatchComponent(matchList []FlowMatch) FlowComponent {
 	return &numericComponent{compType: FlowTCPFlags, matches: matchList}
 }
 
@@ -490,9 +490,9 @@ func NewFlowFragmentComponent(flags ...FlowFragmentFlag) FlowComponent {
 	return &numericComponent{compType: FlowFragment, matches: matches}
 }
 
-// NewFlowFragmentMatchComponent creates a fragment component with explicit matches.
+// newFlowFragmentMatchComponent creates a fragment component with explicit matches.
 // Allows specifying bitmask operator bits (NOT, Match) per RFC 8955 Section 4.2.1.2.
-func NewFlowFragmentMatchComponent(matchList []FlowMatch) FlowComponent {
+func newFlowFragmentMatchComponent(matchList []FlowMatch) FlowComponent {
 	return &numericComponent{compType: FlowFragment, matches: matchList}
 }
 

@@ -359,7 +359,7 @@ func TestSplitMPReachNLRI_SmallFits(t *testing.T) {
 		NLRI:     []byte{0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00}, // 2001:db8:1::/64 (9 bytes)
 	}
 
-	chunks, err := SplitMPReachNLRI(mp, 500)
+	chunks, err := splitMPReachNLRI(mp, 500)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, mp.NLRI, chunks[0].NLRI)
@@ -388,7 +388,7 @@ func TestSplitMPReachNLRI_Overflow(t *testing.T) {
 	// Overhead: AFI(2) + SAFI(1) + NH_Len(1) + NH(16) + Reserved(1) = 21 bytes
 	// With maxAttrSize=100: 100 - 21 = 79 bytes for NLRI
 	// Each /64 = 9 bytes, so ~8 per chunk, need ~7 chunks
-	chunks, err := SplitMPReachNLRI(mp, 100)
+	chunks, err := splitMPReachNLRI(mp, 100)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -420,7 +420,7 @@ func TestSplitMPReachNLRI_OverheadTooLarge(t *testing.T) {
 	}
 
 	// Overhead = 21 bytes, maxAttrSize = 10
-	_, err := SplitMPReachNLRI(mp, 10)
+	_, err := splitMPReachNLRI(mp, 10)
 	require.Error(t, err)
 }
 
@@ -435,7 +435,7 @@ func TestSplitMPUnreachNLRI_SmallFits(t *testing.T) {
 		NLRI: []byte{0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00}, // 2001:db8:1::/64 (9 bytes)
 	}
 
-	chunks, err := SplitMPUnreachNLRI(mp, 500)
+	chunks, err := splitMPUnreachNLRI(mp, 500)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, mp.NLRI, chunks[0].NLRI)
@@ -460,7 +460,7 @@ func TestSplitMPUnreachNLRI_Overflow(t *testing.T) {
 
 	// Overhead: AFI(2) + SAFI(1) = 3 bytes
 	// With maxAttrSize=50: 50 - 3 = 47 bytes for NLRI
-	chunks, err := SplitMPUnreachNLRI(mp, 50)
+	chunks, err := splitMPUnreachNLRI(mp, 50)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -503,7 +503,7 @@ func TestSplitMPReachNLRI_VPN(t *testing.T) {
 		NLRI:     nlri,
 	}
 
-	chunks, err := SplitMPReachNLRI(mp, 100)
+	chunks, err := splitMPReachNLRI(mp, 100)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -1092,7 +1092,7 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 	assert.Equal(t, fsNLRI, reassembled)
 
 	// Also test via SplitMPReachNLRI
-	mpChunks, err := SplitMPReachNLRI(mp, 80)
+	mpChunks, err := splitMPReachNLRI(mp, 80)
 	require.NoError(t, err)
 	require.Greater(t, len(mpChunks), 1, "MP_REACH FlowSpec should split")
 }

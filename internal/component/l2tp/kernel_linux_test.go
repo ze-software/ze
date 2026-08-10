@@ -368,7 +368,7 @@ func TestKernelWorkerPartialFailurePPP(t *testing.T) {
 }
 
 func TestKernelWorkerTeardownAll(t *testing.T) {
-	// VALIDATES: AC-14 -- TeardownAll tears down every live session and
+	// VALIDATES: AC-14 -- teardownAll tears down every live session and
 	// tunnel before the worker stops.
 	// PREVENTS: leaked kernel resources on subsystem Stop().
 	fake := &fakeKernelOps{}
@@ -383,7 +383,7 @@ func TestKernelWorkerTeardownAll(t *testing.T) {
 		return len(fake.sessionAdded) == 3
 	}, "all sessions up")
 
-	w.TeardownAll()
+	w.teardownAll()
 
 	fake.mu.Lock()
 	defer fake.mu.Unlock()

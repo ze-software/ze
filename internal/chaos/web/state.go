@@ -166,8 +166,8 @@ type PeerState struct {
 	throughputIn  float64 // bytes per second (received from Ze)
 }
 
-// NewPeerState creates a PeerState with the given index and event buffer size.
-func NewPeerState(index, bufSize int) *PeerState {
+// newPeerState creates a PeerState with the given index and event buffer size.
+func newPeerState(index, bufSize int) *PeerState {
 	return &PeerState{
 		Index:      index,
 		Events:     NewRingBuffer[peer.Event](bufSize),
@@ -237,8 +237,8 @@ func (r *RingBuffer[T]) Latest() (T, bool) {
 	return r.items[idx], true
 }
 
-// ConvergenceBucket defines a latency bucket for the convergence histogram.
-type ConvergenceBucket struct {
+// convergenceBucket defines a latency bucket for the convergence histogram.
+type convergenceBucket struct {
 	Label string        // Human-readable label (e.g., "0-5ms").
 	Min   time.Duration // Inclusive lower bound.
 	Max   time.Duration // Exclusive upper bound (0 means unbounded).
@@ -271,7 +271,7 @@ const convergenceBucketCount = 13
 
 // ConvergenceHistogram tracks route propagation latency distribution.
 type ConvergenceHistogram struct {
-	Buckets   [convergenceBucketCount]ConvergenceBucket
+	Buckets   [convergenceBucketCount]convergenceBucket
 	Total     int
 	Sum       time.Duration // For computing average.
 	Min       time.Duration
@@ -279,11 +279,11 @@ type ConvergenceHistogram struct {
 	SlowCount int // Routes exceeding 1s.
 }
 
-// NewConvergenceHistogram creates an initialized histogram with the bucket definitions.
-func NewConvergenceHistogram() *ConvergenceHistogram {
+// newConvergenceHistogram creates an initialized histogram with the bucket definitions.
+func newConvergenceHistogram() *ConvergenceHistogram {
 	h := &ConvergenceHistogram{}
 	for i, def := range convergenceBucketDefs {
-		h.Buckets[i] = ConvergenceBucket{
+		h.Buckets[i] = convergenceBucket{
 			Label: def.Label,
 			Min:   def.Min,
 			Max:   def.Max,
@@ -324,8 +324,8 @@ func (h *ConvergenceHistogram) Avg() time.Duration {
 	return h.Sum / time.Duration(h.Total)
 }
 
-// MaxCount returns the highest count across all buckets (for scaling bar heights).
-func (h *ConvergenceHistogram) MaxCount() int {
+// maxCount returns the highest count across all buckets (for scaling bar heights).
+func (h *ConvergenceHistogram) maxCount() int {
 	max := 0
 	for _, b := range &h.Buckets {
 		if b.Count > max {
@@ -371,8 +371,8 @@ type PeerStateTransition struct {
 	Status PeerStatus
 }
 
-// ToastEntry holds data for a single toast notification.
-type ToastEntry struct {
+// toastEntry holds data for a single toast notification.
+type toastEntry struct {
 	PeerIndex int
 	Label     string // Event type label (e.g., "disconnected", "chaos").
 	Detail    string // Extra detail (e.g., chaos action name).
@@ -473,26 +473,26 @@ type DashboardState struct {
 
 	// pendingToasts accumulates toast-worthy events between broadcast ticks.
 	// Bounded at maxPendingToasts; oldest dropped when full.
-	pendingToasts []ToastEntry
+	pendingToasts []toastEntry
 }
 
 // NewDashboardState creates a new dashboard state.
 func NewDashboardState(peerCount, maxVisible, eventBufSize int) *DashboardState {
 	peers := make(map[int]*PeerState, peerCount)
 	for i := range peerCount {
-		peers[i] = NewPeerState(i, 100) // 100 events per peer ring buffer
+		peers[i] = newPeerState(i, 100) // 100 events per peer ring buffer
 	}
 	return &DashboardState{
 		Peers:            peers,
-		Active:           NewActiveSet(maxVisible),
+		Active:           newActiveSet(maxVisible),
 		StartTime:        time.Now(),
 		PeerCount:        peerCount,
 		EORSeen:          make([]bool, peerCount),
 		GlobalEvents:     NewRingBuffer[peer.Event](eventBufSize),
-		Convergence:      NewConvergenceHistogram(),
+		Convergence:      newConvergenceHistogram(),
 		ConvergenceTrend: NewRingBuffer[time.Duration](1000),
 		PeerTransitions:  make(map[int][]PeerStateTransition, peerCount),
-		RouteMatrix:      NewRouteMatrix(),
+		RouteMatrix:      newRouteMatrix(),
 		AllFamilies:      make(map[string]bool),
 		dirtyPeers:       make(map[int]bool),
 		newlyPromoted:    make(map[int]bool),
@@ -511,10 +511,10 @@ func (s *DashboardState) MarkDirty(peerIndex int) {
 	s.dirtyGlobal = true
 }
 
-// ConsumeDirty returns which peers are dirty, which were newly promoted,
+// consumeDirty returns which peers are dirty, which were newly promoted,
 // and whether global state changed. Resets all flags.
 // Must be called under write lock.
-func (s *DashboardState) ConsumeDirty() (peers, promoted map[int]bool, global bool) {
+func (s *DashboardState) consumeDirty() (peers, promoted map[int]bool, global bool) {
 	peers = s.dirtyPeers
 	promoted = s.newlyPromoted
 	global = s.dirtyGlobal
@@ -524,8 +524,8 @@ func (s *DashboardState) ConsumeDirty() (peers, promoted map[int]bool, global bo
 	return peers, promoted, global
 }
 
-// SortedFamilies returns AllFamilies as a sorted slice for deterministic rendering.
-func (s *DashboardState) SortedFamilies() []string {
+// sortedFamilies returns AllFamilies as a sorted slice for deterministic rendering.
+func (s *DashboardState) sortedFamilies() []string {
 	fams := make([]string, 0, len(s.AllFamilies))
 	for f := range s.AllFamilies {
 		fams = append(fams, f)
@@ -534,18 +534,18 @@ func (s *DashboardState) SortedFamilies() []string {
 	return fams
 }
 
-// QueueToast appends a toast entry, dropping the oldest if at capacity.
+// queueToast appends a toast entry, dropping the oldest if at capacity.
 // Must be called under write lock.
-func (s *DashboardState) QueueToast(t ToastEntry) {
+func (s *DashboardState) queueToast(t toastEntry) {
 	if len(s.pendingToasts) >= maxPendingToasts {
 		s.pendingToasts = s.pendingToasts[1:]
 	}
 	s.pendingToasts = append(s.pendingToasts, t)
 }
 
-// ConsumePendingToasts returns and clears the pending toast queue.
+// consumePendingToasts returns and clears the pending toast queue.
 // Must be called under write lock.
-func (s *DashboardState) ConsumePendingToasts() []ToastEntry {
+func (s *DashboardState) consumePendingToasts() []toastEntry {
 	if len(s.pendingToasts) == 0 {
 		return nil
 	}
@@ -554,9 +554,9 @@ func (s *DashboardState) ConsumePendingToasts() []ToastEntry {
 	return toasts
 }
 
-// StatusCounts returns the number of peers in each PeerStatus.
+// statusCounts returns the number of peers in each PeerStatus.
 // Must be called under at least a read lock.
-func (s *DashboardState) StatusCounts() [5]int {
+func (s *DashboardState) statusCounts() [5]int {
 	var counts [5]int
 	for _, ps := range s.Peers {
 		if ps != nil {
@@ -581,9 +581,9 @@ func FormatDuration(d time.Duration) string {
 	return d.Truncate(time.Millisecond).String()
 }
 
-// FormatElapsed formats a duration for "time ago" display.
+// formatElapsed formats a duration for "time ago" display.
 // Less precise than FormatDuration — sub-second precision is noise for elapsed times.
-func FormatElapsed(d time.Duration) string {
+func formatElapsed(d time.Duration) string {
 	if d < time.Second {
 		return textbuf.IntStr(d.Milliseconds(), "ms")
 	}
@@ -608,9 +608,9 @@ func FormatElapsed(d time.Duration) string {
 // 0.3 gives a time constant of ~3 ticks (600ms at 200ms interval), responsive but not jumpy.
 const throughputEMAAlpha = 0.3
 
-// UpdateThroughput computes per-peer throughput using exponential moving average.
+// updateThroughput computes per-peer throughput using exponential moving average.
 // Called from the broadcast loop under write lock.
-func (s *DashboardState) UpdateThroughput(now time.Time) {
+func (s *DashboardState) updateThroughput(now time.Time) {
 	if s.lastThroughputAt.IsZero() {
 		s.lastThroughputAt = now
 		// Initialize prev snapshots.
@@ -651,9 +651,9 @@ func (s *DashboardState) ChaosRate() float64 {
 	return s.chaosRate
 }
 
-// ChaosRateColorClass returns a CSS class based on chaos rate thresholds.
+// chaosRateColorClass returns a CSS class based on chaos rate thresholds.
 // Green (low) < 1/s, yellow (moderate) 1-5/s, red (high) > 5/s.
-func ChaosRateColorClass(rate float64) string {
+func chaosRateColorClass(rate float64) string {
 	switch {
 	case rate > 5.0:
 		return "rate-red"
@@ -679,8 +679,8 @@ func (s *DashboardState) AggregateThroughput(out bool) float64 {
 	return total
 }
 
-// FormatBytes formats a byte count in a compact human-readable form.
-func FormatBytes(n int64) string {
+// formatBytes formats a byte count in a compact human-readable form.
+func formatBytes(n int64) string {
 	switch {
 	case n < 1024:
 		return textbuf.IntStr(n, " B")

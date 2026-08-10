@@ -22,11 +22,11 @@ import (
 // after it, the service returns an error and no bytes, and the DHCPv6 server
 // loop logs the error and skips the send.
 func TestDHCPv6ReplyOversizedRejected(t *testing.T) {
-	svc := NewIPv6Service(IPv6ServiceConfig{})
+	svc := newIPv6Service(iPv6ServiceConfig{})
 
 	// A server DUID whose ID dwarfs the 512-byte reply buffer.
 	hugeServerID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: make([]byte, 600)}
-	msg := &DHCPv6Message{
+	msg := &dHCPv6Message{
 		Type:     DHCPv6Solicit,
 		ClientID: &DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{1, 2, 3, 4, 5, 6}},
 		IAPD:     &DHCPv6IAPD{IAID: 0x11223344},
@@ -44,7 +44,7 @@ func TestDHCPv6ReplyOversizedRejected(t *testing.T) {
 				didPanic = true
 			}
 		}()
-		resp, err = svc.HandleDHCPv6(msg, hugeServerID, alloc)
+		resp, err = svc.handleDHCPv6(msg, hugeServerID, alloc)
 	}()
 
 	if didPanic {
@@ -65,7 +65,7 @@ func TestDHCPv6ReplyOversizedRejected(t *testing.T) {
 // identical to the raw builders for fitting replies, and that the length
 // helpers match what the raw builders write (AC-3 + drift guard).
 func TestDHCPv6ReplyBytesUnchanged(t *testing.T) {
-	replyCfg := DHCPv6ReplyConfig{
+	replyCfg := dHCPv6ReplyConfig{
 		Type:          DHCPv6Reply,
 		TransactionID: [3]byte{0x01, 0x02, 0x03},
 		ServerID:      DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}},
@@ -79,9 +79,9 @@ func TestDHCPv6ReplyBytesUnchanged(t *testing.T) {
 	}
 
 	raw := make([]byte, 512)
-	nRaw := BuildDHCPv6Reply(raw, replyCfg)
+	nRaw := buildDHCPv6Reply(raw, replyCfg)
 	chk := make([]byte, 512)
-	nChk, err := CheckedBuildDHCPv6Reply(chk, replyCfg)
+	nChk, err := checkedBuildDHCPv6Reply(chk, replyCfg)
 	if err != nil {
 		t.Fatalf("CheckedBuildDHCPv6Reply on a fitting reply errored: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestDHCPv6ReplyBytesUnchanged(t *testing.T) {
 		t.Fatalf("dhcpv6ReplyLen=%d but BuildDHCPv6Reply wrote %d", got, nRaw)
 	}
 
-	statusCfg := DHCPv6StatusReplyConfig{
+	statusCfg := dHCPv6StatusReplyConfig{
 		TransactionID: [3]byte{0x09, 0x08, 0x07},
 		ServerID:      DHCPv6DUID{Type: DUIDTypeEN, EnterpriseNum: 0xdeadbeef, ID: []byte{1, 2, 3}},
 		ClientID:      &DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{4, 5, 6}},
@@ -101,9 +101,9 @@ func TestDHCPv6ReplyBytesUnchanged(t *testing.T) {
 	}
 
 	sRaw := make([]byte, 512)
-	snRaw := BuildDHCPv6StatusReply(sRaw, statusCfg)
+	snRaw := buildDHCPv6StatusReply(sRaw, statusCfg)
 	sChk := make([]byte, 512)
-	snChk, err := CheckedBuildDHCPv6StatusReply(sChk, statusCfg)
+	snChk, err := checkedBuildDHCPv6StatusReply(sChk, statusCfg)
 	if err != nil {
 		t.Fatalf("CheckedBuildDHCPv6StatusReply on a fitting reply errored: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestDHCPv6LenMatchesBuildAllDUIDTypes(t *testing.T) {
 	}
 	for name, duid := range duids {
 		t.Run(name, func(t *testing.T) {
-			cfg := DHCPv6ReplyConfig{
+			cfg := dHCPv6ReplyConfig{
 				Type:          DHCPv6Reply,
 				TransactionID: [3]byte{1, 2, 3},
 				ServerID:      duid,
@@ -136,7 +136,7 @@ func TestDHCPv6LenMatchesBuildAllDUIDTypes(t *testing.T) {
 				Prefix:        netip.MustParsePrefix("2001:db8::/48"),
 			}
 			buf := make([]byte, 1024)
-			if got, want := dhcpv6ReplyLen(cfg), BuildDHCPv6Reply(buf, cfg); got != want {
+			if got, want := dhcpv6ReplyLen(cfg), buildDHCPv6Reply(buf, cfg); got != want {
 				t.Fatalf("dhcpv6ReplyLen=%d but BuildDHCPv6Reply wrote %d", got, want)
 			}
 		})

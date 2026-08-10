@@ -86,7 +86,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 	// Create reactor with cache
 	r := &Reactor{
 		attrModHandlers: attrModHandlersWithDefaults(),
-		recentUpdates:   NewRecentUpdateCache(100),
+		recentUpdates:   newRecentUpdateCache(100),
 		peers:           make(map[netip.AddrPort]*Peer),
 	}
 	r.recentUpdates.Add(update)

@@ -81,7 +81,7 @@ func TestWeightTracker_EORTransition(t *testing.T) {
 		t.Fatalf("pre-EOR guaranteed = %d, want 5000", lastGuaranteed)
 	}
 
-	wt.PeerEORComplete("10.0.0.1") // postEOR: burstWeight=15000, 15000/20=750
+	wt.peerEORComplete("10.0.0.1") // postEOR: burstWeight=15000, 15000/20=750
 	if lastGuaranteed != 750 {
 		t.Errorf("post-EOR guaranteed = %d, want 750", lastGuaranteed)
 	}
@@ -103,7 +103,7 @@ func TestWeightTracker_EORReceivedIncremental(t *testing.T) {
 	if callCount != 0 {
 		t.Error("callback should not fire before all family EORs received")
 	}
-	if d := wt.PeerDemand("10.0.0.1"); d != 5000 {
+	if d := wt.peerDemand("10.0.0.1"); d != 5000 {
 		t.Errorf("still pre-EOR demand = %d, want 5000", d)
 	}
 
@@ -121,7 +121,7 @@ func TestWeightTracker_EORNonexistent(t *testing.T) {
 	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
 	callCount = 0
 
-	wt.PeerEORComplete("10.0.0.99") // does not exist
+	wt.peerEORComplete("10.0.0.99") // does not exist
 	if callCount != 0 {
 		t.Error("callback should not fire for nonexistent peer EOR")
 	}
@@ -132,10 +132,10 @@ func TestWeightTracker_EORAlreadyPostEOR(t *testing.T) {
 	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
 
 	wt.AddPeer("10.0.0.1", 1000, 1)
-	wt.PeerEORComplete("10.0.0.1")
+	wt.peerEORComplete("10.0.0.1")
 	callCount = 0
 
-	wt.PeerEORComplete("10.0.0.1") // already post-EOR
+	wt.peerEORComplete("10.0.0.1") // already post-EOR
 	if callCount != 0 {
 		t.Error("callback should not fire for redundant EOR")
 	}
@@ -164,10 +164,10 @@ func TestWeightTracker_MultiplePeers(t *testing.T) {
 	}
 
 	// Transition all to post-EOR.
-	wt.PeerEORComplete("10.0.0.1") // postEOR: burstWeight=200, 200/20=10
-	wt.PeerEORComplete("10.0.0.2") // postEOR: burstWeight=500, 500/20=25
-	wt.PeerEORComplete("10.0.0.3") // postEOR: burstWeight=3000, 3000/20=150
-	wt.PeerEORComplete("10.0.0.4") // postEOR: burstWeight=15000, 15000/20=750
+	wt.peerEORComplete("10.0.0.1") // postEOR: burstWeight=200, 200/20=10
+	wt.peerEORComplete("10.0.0.2") // postEOR: burstWeight=500, 500/20=25
+	wt.peerEORComplete("10.0.0.3") // postEOR: burstWeight=3000, 3000/20=150
+	wt.peerEORComplete("10.0.0.4") // postEOR: burstWeight=15000, 15000/20=750
 
 	// Guaranteed = 10+25+150+750 = 935
 	if lastGuaranteed != 935 {
@@ -184,18 +184,18 @@ func TestWeightTracker_PeerDemand(t *testing.T) {
 
 	wt.AddPeer("10.0.0.1", 100000, 1)
 	// Pre-EOR demand.
-	if d := wt.PeerDemand("10.0.0.1"); d != 5000 {
+	if d := wt.peerDemand("10.0.0.1"); d != 5000 {
 		t.Errorf("pre-EOR PeerDemand = %d, want 5000", d)
 	}
 
-	wt.PeerEORComplete("10.0.0.1")
+	wt.peerEORComplete("10.0.0.1")
 	// Post-EOR demand.
-	if d := wt.PeerDemand("10.0.0.1"); d != 750 {
+	if d := wt.peerDemand("10.0.0.1"); d != 750 {
 		t.Errorf("post-EOR PeerDemand = %d, want 750", d)
 	}
 
 	// Unknown peer returns 0.
-	if d := wt.PeerDemand("10.0.0.99"); d != 0 {
+	if d := wt.peerDemand("10.0.0.99"); d != 0 {
 		t.Errorf("unknown PeerDemand = %d, want 0", d)
 	}
 }
@@ -206,7 +206,7 @@ func TestWeightTracker_TotalBudget(t *testing.T) {
 	wt.AddPeer("10.0.0.1", 1000, 1)
 	wt.AddPeer("10.0.0.2", 10000, 1)
 
-	guaranteed, overflow := wt.TotalBudget()
+	guaranteed, overflow := wt.totalBudget()
 
 	// Peer 1: preEOR 1000/20=50; Peer 2: preEOR 10000/20=500.
 	// Guaranteed = 50+500 = 550. K=max(1,sqrt(2))=1, top 1 = 500.
@@ -225,13 +225,13 @@ func TestWeightTracker_AddPeerReregistration(t *testing.T) {
 	wt.PeerEORReceived("10.0.0.1")
 	wt.PeerEORReceived("10.0.0.1") // transition to post-EOR
 
-	if d := wt.PeerDemand("10.0.0.1"); d != 750 {
+	if d := wt.peerDemand("10.0.0.1"); d != 750 {
 		t.Fatalf("post-EOR demand = %d, want 750", d)
 	}
 
 	// Re-register with different prefix max: resets to pre-EOR.
 	wt.AddPeer("10.0.0.1", 50000, 1)
-	if d := wt.PeerDemand("10.0.0.1"); d != 2500 {
+	if d := wt.peerDemand("10.0.0.1"); d != 2500 {
 		t.Errorf("re-registered pre-EOR demand = %d, want 2500 (50000/20)", d)
 	}
 }
@@ -262,7 +262,7 @@ func TestWeightTracker_UsageToWeightRatios(t *testing.T) {
 		"10.0.0.3": 50,   // unknown peer, omitted
 	}
 
-	ratios := wt.UsageToWeightRatios(depths)
+	ratios := wt.usageToWeightRatios(depths)
 
 	if r, ok := ratios["10.0.0.1"]; !ok || r != 0.5 {
 		t.Errorf("10.0.0.1 ratio = %v, want 0.5", r)
@@ -276,7 +276,7 @@ func TestWeightTracker_UsageToWeightRatios(t *testing.T) {
 
 	// Zero depth peers are omitted.
 	depths["10.0.0.1"] = 0
-	ratios = wt.UsageToWeightRatios(depths)
+	ratios = wt.usageToWeightRatios(depths)
 	if _, ok := ratios["10.0.0.1"]; ok {
 		t.Error("zero-depth peer should be omitted")
 	}
@@ -286,7 +286,7 @@ func TestWeightTracker_NilCallback(t *testing.T) {
 	// nil callback should not panic.
 	wt := newWeightTracker(nil)
 	wt.AddPeer("10.0.0.1", 1000, 1)
-	wt.PeerEORComplete("10.0.0.1")
+	wt.peerEORComplete("10.0.0.1")
 	wt.RemovePeer("10.0.0.1")
 }
 
@@ -303,13 +303,13 @@ func TestWeightTracker_InvalidPeerAddress(t *testing.T) {
 	if callCount != 0 {
 		t.Error("callback should not fire for invalid peer address")
 	}
-	if d := wt.PeerDemand("not-an-ip"); d != 0 {
+	if d := wt.peerDemand("not-an-ip"); d != 0 {
 		t.Errorf("PeerDemand(invalid) = %d, want 0", d)
 	}
 
 	// Invalid keys in overflow depths are skipped, valid ones still resolve.
 	wt.AddPeer("10.0.0.1", 1000, 1) // preEOR demand = 50
-	ratios := wt.UsageToWeightRatios(map[string]int{"bogus": 10, "10.0.0.1": 100})
+	ratios := wt.usageToWeightRatios(map[string]int{"bogus": 10, "10.0.0.1": 100})
 	if _, ok := ratios["bogus"]; ok {
 		t.Error("invalid depth key should be omitted from ratios")
 	}
@@ -330,7 +330,7 @@ func TestOverflowPoolAutoResize(t *testing.T) {
 	var lastBudget int64
 	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		budget := int64(guaranteed+overflow) * 4096
-		mux.SetByteBudget(budget)
+		mux.setByteBudget(budget)
 		lastBudget = budget
 	})
 
@@ -341,7 +341,7 @@ func TestOverflowPoolAutoResize(t *testing.T) {
 	}
 	// ByteBudget() quantizes to 64K blocks, so it may be less than lastBudget.
 	// Verify it's positive and within one block of the requested value.
-	bb := mux.ByteBudget()
+	bb := mux.byteBudget()
 	if bb <= 0 {
 		t.Fatalf("MixedBufMux budget should be positive, got %d", bb)
 	}
@@ -363,14 +363,14 @@ func TestOverflowPoolEORShrink(t *testing.T) {
 	var lastBudget int64
 	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		budget := int64(guaranteed+overflow) * 4096
-		mux.SetByteBudget(budget)
+		mux.setByteBudget(budget)
 		lastBudget = budget
 	})
 
 	wt.AddPeer("10.0.0.1", 10000, 1) // pre-EOR
 	preEORBudget := lastBudget
 
-	wt.PeerEORComplete("10.0.0.1") // post-EOR
+	wt.peerEORComplete("10.0.0.1") // post-EOR
 	postEORBudget := lastBudget
 
 	if postEORBudget >= preEORBudget {
@@ -383,7 +383,7 @@ func TestOverflowPoolEnvOverride(t *testing.T) {
 	mux := newMixedBufMux()
 	// Use a value that's a clean multiple of 64K so quantization doesn't change it.
 	overrideBudget := int64(16 * overflowBlockSize) // 1MB, exactly 16 blocks
-	mux.SetByteBudget(overrideBudget)
+	mux.setByteBudget(overrideBudget)
 
 	// Simulate: callback does NOT update mux because env override is active.
 	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) {
@@ -392,8 +392,8 @@ func TestOverflowPoolEnvOverride(t *testing.T) {
 
 	wt.AddPeer("10.0.0.1", 10000, 1)
 	// Budget should remain at the override value.
-	if mux.ByteBudget() != overrideBudget {
-		t.Fatalf("budget = %d, want override %d", mux.ByteBudget(), overrideBudget)
+	if mux.byteBudget() != overrideBudget {
+		t.Fatalf("budget = %d, want override %d", mux.byteBudget(), overrideBudget)
 	}
 }
 
@@ -413,7 +413,7 @@ func TestWeightTracker_UpdateExtMsg(t *testing.T) {
 	initialBytes := lastOB.bytes
 
 	// Update to ExtMsg -- callback should fire with higher byte budget.
-	wt.UpdateExtMsg("10.0.0.1", true)
+	wt.updateExtMsg("10.0.0.1", true)
 	if callCount != initialCalls+1 {
 		t.Fatalf("UpdateExtMsg should fire callback, got %d calls (want %d)", callCount, initialCalls+1)
 	}
@@ -423,14 +423,14 @@ func TestWeightTracker_UpdateExtMsg(t *testing.T) {
 
 	// Update same value again -- callback should NOT fire (no change).
 	prevCalls := callCount
-	wt.UpdateExtMsg("10.0.0.1", true)
+	wt.updateExtMsg("10.0.0.1", true)
 	if callCount != prevCalls {
 		t.Fatalf("UpdateExtMsg(same value) should not fire callback, got %d calls (want %d)", callCount, prevCalls)
 	}
 
 	// Update unknown peer -- should not fire callback.
 	prevCalls = callCount
-	wt.UpdateExtMsg("10.0.0.99", true)
+	wt.updateExtMsg("10.0.0.99", true)
 	if callCount != prevCalls {
 		t.Fatalf("UpdateExtMsg(unknown peer) should not fire callback, got %d (want %d)", callCount, prevCalls)
 	}

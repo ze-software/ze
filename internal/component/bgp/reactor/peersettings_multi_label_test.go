@@ -79,8 +79,8 @@ func TestStaticRoute_MultiLabel(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.wantIsVPN, route.IsVPN(), "IsVPN mismatch")
-			assert.Equal(t, tt.wantIsLabeled, route.IsLabeledUnicast(), "IsLabeledUnicast mismatch")
-			assert.Equal(t, tt.wantSingleLabel, route.SingleLabel(), "SingleLabel mismatch")
+			assert.Equal(t, tt.wantIsLabeled, route.isLabeledUnicast(), "IsLabeledUnicast mismatch")
+			assert.Equal(t, tt.wantSingleLabel, route.singleLabel(), "SingleLabel mismatch")
 		})
 	}
 }
@@ -108,7 +108,7 @@ func TestStaticRoute_SingleLabel(t *testing.T) {
 				Prefix: netip.MustParsePrefix("10.0.0.0/8"),
 				Labels: tt.labels,
 			}
-			assert.Equal(t, tt.want, route.SingleLabel())
+			assert.Equal(t, tt.want, route.singleLabel())
 		})
 	}
 }

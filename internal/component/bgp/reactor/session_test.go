@@ -425,7 +425,7 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 	require.Equal(t, fsm.StateEstablished, session.State())
 
 	// Trigger hold timer expiry manually
-	session.TriggerHoldTimerExpiry()
+	session.triggerHoldTimerExpiry()
 	require.Equal(t, fsm.StateIdle, session.State())
 }
 
@@ -2161,7 +2161,7 @@ func TestSendRawUpdateBody(t *testing.T) {
 	}()
 
 	// Send raw UPDATE body
-	err = session.SendRawUpdateBody(rawBody)
+	err = session.sendRawUpdateBody(rawBody)
 	require.NoError(t, err)
 
 	// Wait for receive
@@ -2215,7 +2215,7 @@ func TestSendRawUpdateBodyNotEstablished(t *testing.T) {
 
 	// Try to send - should fail
 	rawBody := []byte{0x00, 0x00, 0x00, 0x00}
-	err := session.SendRawUpdateBody(rawBody)
+	err := session.sendRawUpdateBody(rawBody)
 	require.ErrorIs(t, err, ErrInvalidState)
 }
 
@@ -3167,7 +3167,7 @@ func TestSendUpdateConcurrentNoRace(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			for range sends {
-				if err := session.SendRawUpdateBody(rawBody); err != nil {
+				if err := session.sendRawUpdateBody(rawBody); err != nil {
 					errCount.Add(1)
 					return
 				}

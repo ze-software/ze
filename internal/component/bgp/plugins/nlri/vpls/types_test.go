@@ -11,7 +11,7 @@ import (
 // TestVPLSBasic verifies basic VPLS NLRI creation.
 func TestVPLSBasic(t *testing.T) {
 	t.Parallel()
-	vpls := NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
+	vpls := newVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
 
 	assert.Equal(t, uint16(100), vpls.VEBlockOffset())
 	assert.Equal(t, uint16(200), vpls.VEBlockSize())
@@ -20,7 +20,7 @@ func TestVPLSBasic(t *testing.T) {
 // TestVPLSFamily verifies VPLS address family.
 func TestVPLSFamily(t *testing.T) {
 	t.Parallel()
-	vpls := NewVPLS(RouteDistinguisher{}, 0, 0, nil)
+	vpls := newVPLS(RouteDistinguisher{}, 0, 0, nil)
 
 	assert.Equal(t, AFIL2VPN, vpls.Family().AFI)
 	assert.Equal(t, SAFIVPLS, vpls.Family().SAFI)
@@ -29,7 +29,7 @@ func TestVPLSFamily(t *testing.T) {
 // TestVPLSBytes verifies VPLS wire format.
 func TestVPLSBytes(t *testing.T) {
 	t.Parallel()
-	vpls := NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
+	vpls := newVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
 
 	data := vpls.Bytes()
 	require.NotEmpty(t, data)
@@ -44,7 +44,7 @@ func TestVPLSFull(t *testing.T) {
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 
-	vpls := NewVPLSFull(rd, 1, 10, 20, 16000)
+	vpls := newVPLSFull(rd, 1, 10, 20, 16000)
 
 	assert.Equal(t, rd, vpls.RD())
 	assert.Equal(t, uint16(1), vpls.VEID())
@@ -60,7 +60,7 @@ func TestVPLSRoundTrip(t *testing.T) {
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 
-	original := NewVPLSFull(rd, 5, 100, 200, 16000)
+	original := newVPLSFull(rd, 5, 100, 200, 16000)
 	data := original.Bytes()
 
 	parsed, remaining, err := ParseVPLS(data)
@@ -112,7 +112,7 @@ func TestVPLSStringCommandStyle(t *testing.T) {
 				rd := RouteDistinguisher{Type: RDType0}
 				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
-				return NewVPLSFull(rd, 5, 0, 0, 16000)
+				return newVPLSFull(rd, 5, 0, 0, 16000)
 			}(),
 			expected: "rd 0:65001:100 ve-id 5 label 16000",
 		},
@@ -122,7 +122,7 @@ func TestVPLSStringCommandStyle(t *testing.T) {
 				rd := RouteDistinguisher{Type: RDType1}
 				copy(rd.Value[:4], []byte{10, 0, 0, 1})
 				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
-				return NewVPLSFull(rd, 10, 0, 0, 500)
+				return newVPLSFull(rd, 10, 0, 0, 500)
 			}(),
 			expected: "rd 1:10.0.0.1:200 ve-id 10 label 500",
 		},
@@ -148,7 +148,7 @@ func TestVPLSWriteToMatchesBytes(t *testing.T) {
 	}{
 		{
 			name: "basic vpls",
-			vpls: NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3}),
+			vpls: newVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3}),
 		},
 		{
 			name: "full vpls",
@@ -156,7 +156,7 @@ func TestVPLSWriteToMatchesBytes(t *testing.T) {
 				rd := RouteDistinguisher{Type: RDType0}
 				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
-				return NewVPLSFull(rd, 5, 100, 200, 16000)
+				return newVPLSFull(rd, 5, 100, 200, 16000)
 			}(),
 		},
 	}

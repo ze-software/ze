@@ -51,9 +51,9 @@ type UpdateChecker struct {
 	done   chan struct{}
 }
 
-// NewUpdateChecker creates a checker. Call Start to begin periodic checks.
+// newUpdateChecker creates a checker. Call Start to begin periodic checks.
 // URL must use HTTPS; HTTP is accepted only for localhost (testing).
-func NewUpdateChecker(url string, intervalSecs uint32) *UpdateChecker {
+func newUpdateChecker(url string, intervalSecs uint32) *UpdateChecker {
 	return &UpdateChecker{
 		url:      url,
 		interval: time.Duration(intervalSecs) * time.Second,

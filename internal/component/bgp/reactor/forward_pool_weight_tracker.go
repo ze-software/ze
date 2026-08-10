@@ -135,11 +135,11 @@ func (wt *weightTracker) PeerEORReceived(peerAddr string) {
 	wt.fireCallback(g, o, ob)
 }
 
-// PeerEORComplete transitions a peer from pre-EOR to post-EOR demand
+// peerEORComplete transitions a peer from pre-EOR to post-EOR demand
 // immediately, regardless of EOR count. Used when all EORs are known
 // to be complete. Recalculates pool budget. No-op if peer is unknown
 // or already post-EOR.
-func (wt *weightTracker) PeerEORComplete(peerAddr string) {
+func (wt *weightTracker) peerEORComplete(peerAddr string) {
 	addr, ok := parseWeightPeerAddr(peerAddr)
 	if !ok {
 		return
@@ -156,11 +156,11 @@ func (wt *weightTracker) PeerEORComplete(peerAddr string) {
 	wt.fireCallback(g, o, ob)
 }
 
-// UpdateFamilyCount updates the expected EOR count for a peer based on
+// updateFamilyCount updates the expected EOR count for a peer based on
 // the actual negotiated family count (available after OPEN exchange).
 // This corrects the initial estimate from config-declared families.
 // No-op if peer is unknown or already post-EOR.
-func (wt *weightTracker) UpdateFamilyCount(peerAddr string, negotiatedFamilies int) {
+func (wt *weightTracker) updateFamilyCount(peerAddr string, negotiatedFamilies int) {
 	addr, ok := parseWeightPeerAddr(peerAddr)
 	if !ok {
 		return
@@ -191,9 +191,9 @@ func (wt *weightTracker) PeerCount() int {
 	return n
 }
 
-// PeerDemand returns the current buffer demand for a peer (pre-EOR or
+// peerDemand returns the current buffer demand for a peer (pre-EOR or
 // post-EOR based on state). Returns 0 for unknown peers.
-func (wt *weightTracker) PeerDemand(peerAddr string) int {
+func (wt *weightTracker) peerDemand(peerAddr string) int {
 	addr, ok := parseWeightPeerAddr(peerAddr)
 	if !ok {
 		return 0
@@ -209,20 +209,20 @@ func (wt *weightTracker) PeerDemand(peerAddr string) int {
 	return d
 }
 
-// TotalBudget returns the current (guaranteed, overflow) buffer counts.
-func (wt *weightTracker) TotalBudget() (guaranteed, overflow int) {
+// totalBudget returns the current (guaranteed, overflow) buffer counts.
+func (wt *weightTracker) totalBudget() (guaranteed, overflow int) {
 	wt.mu.Lock()
 	demands := wt.demandsLocked()
 	wt.mu.Unlock()
 	return calculatePoolBudget(demands)
 }
 
-// UsageToWeightRatios returns the overflow usage-to-weight ratio for each
+// usageToWeightRatios returns the overflow usage-to-weight ratio for each
 // peer that has both a tracked weight and overflow items. The ratio is
 // overflowItems / peerDemand (0.0 = no overflow pressure, >1.0 = over budget).
 // Peers with zero demand or no overflow items are omitted.
 // Used by Phase 5 buffer denial to identify the backpressure target (AC-19).
-func (wt *weightTracker) UsageToWeightRatios(overflowDepths map[string]int) map[string]float64 {
+func (wt *weightTracker) usageToWeightRatios(overflowDepths map[string]int) map[string]float64 {
 	wt.mu.Lock()
 	defer wt.mu.Unlock()
 
@@ -282,11 +282,11 @@ func (wt *weightTracker) WorstPeerRatio(overflowDepths map[string]int) (worstAdd
 	return worstAddr, worstRatio
 }
 
-// UpdateExtMsg updates the Extended Message flag for a peer after session
+// updateExtMsg updates the Extended Message flag for a peer after session
 // negotiation. When Extended Message (RFC 8654) is agreed, the peer's
 // overflow budget uses 64K buffers instead of 4K. Recalculates pool budget.
 // No-op if peer is unknown.
-func (wt *weightTracker) UpdateExtMsg(peerAddr string, extMsg bool) {
+func (wt *weightTracker) updateExtMsg(peerAddr string, extMsg bool) {
 	addr, ok := parseWeightPeerAddr(peerAddr)
 	if !ok {
 		return

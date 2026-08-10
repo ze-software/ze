@@ -228,9 +228,9 @@ const (
 	TLVIPReachabilityInfo uint16 = 265 // IP Reachability Information (RFC 7752 Section 3.2.3)
 )
 
-// BGPLSNLRI is the interface for BGP-LS NLRI types.
+// bGPLSNLRI is the interface for BGP-LS NLRI types.
 // RFC 7752 Section 3.2 defines the common NLRI header format.
-type BGPLSNLRI interface {
+type bGPLSNLRI interface {
 	NLRI
 	NLRIType() BGPLSNLRIType     // RFC 7752 Section 3.2 - NLRI Type (2 bytes)
 	ProtocolID() BGPLSProtocolID // RFC 7752 Section 3.2 - Protocol-ID (1 byte)
@@ -292,7 +292,7 @@ func (b *bgplsBase) cachedBytes() []byte { return b.cached }
 //	+------------------+
 //	| Descriptors      |  <- body[9:]
 //	+------------------+
-func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
+func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 	// RFC 7752 Section 3.2 - minimum 4 bytes for Type + Length header
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
@@ -443,10 +443,10 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 	return nil
 }
 
-// ParseBGPLSWithRest parses a single BGP-LS NLRI and returns the remaining data.
+// parseBGPLSWithRest parses a single BGP-LS NLRI and returns the remaining data.
 // This enables parsing multiple packed NLRIs from MP_REACH/MP_UNREACH.
 // RFC 7752 Section 3.2: NLRI format is Type(2) + Length(2) + Value(Length).
-func ParseBGPLSWithRest(data []byte) (BGPLSNLRI, []byte, error) {
+func parseBGPLSWithRest(data []byte) (bGPLSNLRI, []byte, error) {
 	// Need at least 4 bytes for Type + Length header
 	if len(data) < 4 {
 		return nil, nil, ErrBGPLSTruncated

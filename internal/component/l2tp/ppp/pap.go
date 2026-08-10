@@ -49,64 +49,64 @@ var (
 	errPAPPasswdOverflow = errors.New("ppp: PAP Passwd-Length exceeds packet")
 )
 
-// PAPRequest is a parsed PAP Authenticate-Request. Username and
+// pAPRequest is a parsed PAP Authenticate-Request. Username and
 // Password are fresh strings owned by the caller; the parser does not
 // retain the input buffer.
-type PAPRequest struct {
+type pAPRequest struct {
 	Identifier uint8
 	Username   string
 	Password   string //nolint:gosec // RFC 1334 Section 2.2 cleartext field name; wire-parsed, not stored at rest.
 }
 
-// ParsePAPRequest decodes a PAP Authenticate-Request payload (after
+// parsePAPRequest decodes a PAP Authenticate-Request payload (after
 // the 2-byte PPP protocol field has been stripped by ParseFrame).
 //
 // RFC 1334 Section 2.2 packet format:
 //
 //	Code (1) | Identifier (1) | Length (2) | Peer-ID Length (1)
 //	| Peer-ID (variable) | Passwd-Length (1) | Password (variable)
-func ParsePAPRequest(buf []byte) (PAPRequest, error) {
+func parsePAPRequest(buf []byte) (pAPRequest, error) {
 	if len(buf) < papHeaderLen {
-		return PAPRequest{}, errPAPTooShort
+		return pAPRequest{}, errPAPTooShort
 	}
 	if buf[0] != PAPAuthenticateRequest {
-		return PAPRequest{}, errPAPWrongCode
+		return pAPRequest{}, errPAPWrongCode
 	}
 	identifier := buf[1]
 	length := int(binary.BigEndian.Uint16(buf[2:4]))
 	if length < papHeaderLen {
-		return PAPRequest{}, errPAPLengthMismatch
+		return pAPRequest{}, errPAPLengthMismatch
 	}
 	if length > len(buf) {
-		return PAPRequest{}, errPAPLengthMismatch
+		return pAPRequest{}, errPAPLengthMismatch
 	}
 	if length > MaxFrameLen-2 {
-		return PAPRequest{}, errPAPLengthMismatch
+		return pAPRequest{}, errPAPLengthMismatch
 	}
 	body := buf[papHeaderLen:length]
 
 	// Peer-ID Length + Peer-ID.
 	if len(body) < 1 {
-		return PAPRequest{}, errPAPPeerIDOverflow
+		return pAPRequest{}, errPAPPeerIDOverflow
 	}
 	pidLen := int(body[0])
 	if 1+pidLen > len(body) {
-		return PAPRequest{}, errPAPPeerIDOverflow
+		return pAPRequest{}, errPAPPeerIDOverflow
 	}
 	peerID := string(body[1 : 1+pidLen])
 	body = body[1+pidLen:]
 
 	// Passwd-Length + Password.
 	if len(body) < 1 {
-		return PAPRequest{}, errPAPPasswdOverflow
+		return pAPRequest{}, errPAPPasswdOverflow
 	}
 	pwLen := int(body[0])
 	if 1+pwLen > len(body) {
-		return PAPRequest{}, errPAPPasswdOverflow
+		return pAPRequest{}, errPAPPasswdOverflow
 	}
 	password := string(body[1 : 1+pwLen])
 
-	return PAPRequest{
+	return pAPRequest{
 		Identifier: identifier,
 		Username:   peerID,
 		Password:   password,
@@ -161,7 +161,7 @@ func (s *pppSession) runPAPAuthPhase() bool {
 	deadline := time.NewTimer(papFirstRequestTimeout)
 	defer deadline.Stop()
 
-	var req PAPRequest
+	var req pAPRequest
 	for {
 		var frame []byte
 		select {
@@ -190,7 +190,7 @@ func (s *pppSession) runPAPAuthPhase() bool {
 			putFrameBuf(frame)
 			continue
 		}
-		parsed, perr := ParsePAPRequest(payload)
+		parsed, perr := parsePAPRequest(payload)
 		putFrameBuf(frame)
 		if perr != nil {
 			var tb textbuf.Buffer
@@ -228,7 +228,7 @@ func (s *pppSession) runPAPAuthPhase() bool {
 	}
 
 	if resp.accept {
-		s.sendAuthEvent(EventAuthSuccess{
+		s.sendAuthEvent(eventAuthSuccess{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 		})
@@ -236,7 +236,7 @@ func (s *pppSession) runPAPAuthPhase() bool {
 	}
 	var tb textbuf.Buffer
 	s.fail(tb.Str("pap: auth rejected: ").Str(resp.message).String())
-	s.sendAuthEvent(EventAuthFailure{
+	s.sendAuthEvent(eventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
 		Reason:    resp.message,

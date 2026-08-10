@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- reactor -> PPP driver dispatch
-// Related: reactor.go -- handleKernelSuccess, handlePPPEvent, SetPPPDriver
+// Related: reactor.go -- handleKernelSuccess, handlePPPEvent, setPPPDriver
 // Related: reactor_kernel_test.go -- collectKernelEventsLocked coverage
 
 package l2tp
@@ -26,7 +26,7 @@ func discardLoggerForTest() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// VALIDATES: ReactorParams.ReauthInterval flows through to StartSession.
+// VALIDATES: reactorParams.ReauthInterval flows through to StartSession.
 // The YANG range "0 | 5..86400" on reauth-interval rejects values 1-4
 // at config parse time (see TestConfig_ReauthIntervalBoundary).
 func TestReactorReauthIntervalFromParams(t *testing.T) {
@@ -41,11 +41,11 @@ func TestReactorReauthIntervalFromParams(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+			ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
 			require.NoError(t, ln.Start(context.Background()))
 			defer func() { _ = ln.Stop() }()
 
-			r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+			r := newL2TPReactor(ln, discardLoggerForTest(), reactorParams{
 				AuthTimeout:    DefaultAuthTimeoutSecs * time.Second,
 				ReauthInterval: tc.val,
 				EnableIPCP:     true,
@@ -54,7 +54,7 @@ func TestReactorReauthIntervalFromParams(t *testing.T) {
 				Defaults:       TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 			})
 			fake := newFakePPPDriver()
-			r.SetPPPDriver(fake)
+			r.setPPPDriver(fake)
 			mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
 			r.handleKernelSuccess(kernelSetupSucceeded{
@@ -113,7 +113,7 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	defer stop()
 
 	fake := newFakePPPDriver()
-	r.SetPPPDriver(fake)
+	r.setPPPDriver(fake)
 
 	peer := netip.MustParseAddrPort("10.0.0.7:1701")
 	mkTunnel(r, 100, 200, peer)
@@ -149,13 +149,13 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 }
 
 func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
-	// VALIDATES: ReactorParams.AuthTimeout is plumbed onto every new
+	// VALIDATES: reactorParams.AuthTimeout is plumbed onto every new
 	// StartSession. YANG leaf l2tp/authentication/timeout controls this.
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
 	require.NoError(t, ln.Start(context.Background()))
 	defer func() { _ = ln.Stop() }()
 
-	r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+	r := newL2TPReactor(ln, discardLoggerForTest(), reactorParams{
 		AuthTimeout:  45 * time.Second,
 		EnableIPCP:   true,
 		EnableIPv6CP: true,
@@ -163,7 +163,7 @@ func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
 		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
 	fake := newFakePPPDriver()
-	r.SetPPPDriver(fake)
+	r.setPPPDriver(fake)
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
@@ -181,13 +181,13 @@ func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
 }
 
 func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
-	// VALIDATES: ReactorParams.EnableIPCP/EnableIPv6CP are negated
+	// VALIDATES: reactorParams.EnableIPCP/EnableIPv6CP are negated
 	// and plumbed as DisableIPCP/DisableIPv6CP on StartSession.
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
 	require.NoError(t, ln.Start(context.Background()))
 	defer func() { _ = ln.Stop() }()
 
-	r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+	r := newL2TPReactor(ln, discardLoggerForTest(), reactorParams{
 		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
 		EnableIPCP:   false,
 		EnableIPv6CP: true,
@@ -195,7 +195,7 @@ func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
 		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
 	fake := newFakePPPDriver()
-	r.SetPPPDriver(fake)
+	r.setPPPDriver(fake)
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
@@ -214,13 +214,13 @@ func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
 }
 
 func TestL2TPReactorNCPTimeoutFromParams(t *testing.T) {
-	// VALIDATES: ReactorParams.NCPTimeout is plumbed onto
+	// VALIDATES: reactorParams.NCPTimeout is plumbed onto
 	// StartSession.IPTimeout. YANG leaf l2tp/ncp/timeout controls this.
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
 	require.NoError(t, ln.Start(context.Background()))
 	defer func() { _ = ln.Stop() }()
 
-	r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+	r := newL2TPReactor(ln, discardLoggerForTest(), reactorParams{
 		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
 		EnableIPCP:   true,
 		EnableIPv6CP: true,
@@ -228,7 +228,7 @@ func TestL2TPReactorNCPTimeoutFromParams(t *testing.T) {
 		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
 	fake := newFakePPPDriver()
-	r.SetPPPDriver(fake)
+	r.setPPPDriver(fake)
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
@@ -306,7 +306,7 @@ func TestL2TPReactorPPPEventSessionDownSendsCDN(t *testing.T) {
 	require.NoError(t, it.Err())
 	require.Equal(t, uint16(0), vendorID, "Message-Type AVP is vendor 0")
 	require.Equal(t, AVPMessageType, attrType, "first AVP must be Message-Type (RFC 2661 S4.1)")
-	mt, rerr := ReadAVPUint16(value)
+	mt, rerr := readAVPUint16(value)
 	require.NoError(t, rerr)
 	require.Equal(t, MsgCDN, MessageType(mt), "peer should receive a CDN message")
 }
@@ -343,9 +343,9 @@ func newUnstartedReactorWithLogs(t *testing.T) (*L2TPReactor, *lockedBuffer, fun
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
-	r := NewL2TPReactor(ln, logger, ReactorParams{
+	r := newL2TPReactor(ln, logger, reactorParams{
 		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
 		EnableIPCP:   true,
 		EnableIPv6CP: true,

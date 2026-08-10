@@ -37,7 +37,7 @@ func runRekey(args []string) int {
 	}
 
 	var oldPassphrase []byte
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		var err error
 		oldPassphrase, _, err = ResolvePassphrase(nil)
 		if err != nil {
@@ -51,11 +51,11 @@ func runRekey(args []string) int {
 	defer ZeroBytes(newPassphrase)
 
 	secretFiles := []string{"password.hash", "update.token"}
-	tlsKeyPath := filepath.Join(TLSDir(dir, name), "key.pem")
+	tlsKeyPath := filepath.Join(tLSDir(dir, name), "key.pem")
 
 	for _, f := range secretFiles {
 		path := secretFilePath(dir, name, f)
-		data, err := ReadSecret(path, oldPassphrase)
+		data, err := readSecret(path, oldPassphrase)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: read %s: %v\n", f, err)
 			return exitError
@@ -67,7 +67,7 @@ func runRekey(args []string) int {
 		ZeroBytes(data)
 	}
 
-	keyData, err := ReadSecret(tlsKeyPath, oldPassphrase)
+	keyData, err := readSecret(tlsKeyPath, oldPassphrase)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read TLS key: %v\n", err)
 		return exitError
@@ -80,7 +80,7 @@ func runRekey(args []string) int {
 
 	markerPath := filepath.Join(SecretsDir(dir, name), encryptedMarker)
 	if len(newPassphrase) > 0 {
-		if writeErr := WriteEncryptedMarker(dir, name); writeErr != nil {
+		if writeErr := writeEncryptedMarker(dir, name); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: write marker: %v\n", writeErr)
 			return exitError
 		}

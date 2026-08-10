@@ -8,14 +8,14 @@ import (
 	"net/netip"
 )
 
-// CountPrefixes counts the number of announced prefixes in a BGP UPDATE message
+// countPrefixes counts the number of announced prefixes in a BGP UPDATE message
 // body without constructing any netip.Prefix objects. This is used by receiveRaw
 // for convergence detection -- keeping allocations and parsing out of the timing
 // path while still knowing when all expected prefixes have arrived.
 //
 // Assumes ADD-PATH (RFC 7911) is not negotiated. If ADD-PATH is in use,
 // each NLRI has a 4-byte path ID prefix and counts will be incorrect.
-func CountPrefixes(body []byte) int {
+func countPrefixes(body []byte) int {
 	if len(body) < 4 {
 		return 0
 	}
@@ -135,7 +135,7 @@ func countMPReachPrefixes(data []byte) int {
 	return count
 }
 
-// ExtractPrefixes extracts all announced prefixes from a BGP UPDATE message
+// extractPrefixes extracts all announced prefixes from a BGP UPDATE message
 // body (everything after the 19-byte header). Returns both inline IPv4/unicast
 // NLRI and MP_REACH_NLRI prefixes (IPv4 and IPv6). Does NOT extract withdrawn
 // prefixes -- only announcements are needed for benchmarking receive rates.
@@ -146,7 +146,7 @@ func countMPReachPrefixes(data []byte) int {
 //  3. Total Path Attribute Length (2 bytes)
 //  4. Path Attributes (variable, scanned for type 14 = MP_REACH_NLRI)
 //  5. NLRI (remaining bytes, IPv4/unicast)
-func ExtractPrefixes(body []byte) []netip.Prefix {
+func extractPrefixes(body []byte) []netip.Prefix {
 	if len(body) < 4 {
 		return nil
 	}

@@ -42,7 +42,7 @@ func Run(_ []string) int {
 	}
 }
 
-func validateConfig(cfg InstallConfig) error {
+func validateConfig(cfg installConfig) error {
 	if err := validateSource(cfg.Source); err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func validateConfig(cfg InstallConfig) error {
 	return nil
 }
 
-func runHTTP(cfg InstallConfig) int {
+func runHTTP(cfg installConfig) int {
 	var tb textbuf.Buffer
 	baseURL := tb.Str("http://").Str(cfg.Server).Byte(':').Str(cfg.Port).String()
 
@@ -156,7 +156,7 @@ func runHTTP(cfg InstallConfig) int {
 	return 0
 }
 
-func runISO(cfg InstallConfig) int {
+func runISO(cfg installConfig) int {
 	media, err := findISOMedia(cfg.Image, cfg.MediaID)
 	if err != nil {
 		slog.Info("direct ISO not found, scanning Ventoy partitions")

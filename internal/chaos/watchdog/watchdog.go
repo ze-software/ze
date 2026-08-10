@@ -168,9 +168,9 @@ func (w *Watchdog) Problems() []Problem {
 	return result
 }
 
-// SetPropertyResult updates whether a property is passing. When a property
+// setPropertyResult updates whether a property is passing. When a property
 // transitions from pass to fail, a PROBLEM line is emitted.
-func (w *Watchdog) SetPropertyResult(name string, pass bool, firstViolation string, at time.Time) {
+func (w *Watchdog) setPropertyResult(name string, pass bool, firstViolation string, at time.Time) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 

@@ -21,7 +21,7 @@ func TestBuildDecisions_NotFoundEnforced(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rp := &RPKIPlugin{}
+			rp := &rPKIPlugin{}
 			rp.originNotFoundAction.Store(uint32(tc.action))
 			d := rp.buildDecisions([]validationRequest{{state: ValidationNotFound}})
 			require.Len(t, d, 1)
@@ -33,7 +33,7 @@ func TestBuildDecisions_NotFoundEnforced(t *testing.T) {
 // TestBuildDecisions_PerPeerAction verifies a per-peer override changes the outcome for that peer
 // only; a peer with no override uses the global action (AC-2).
 func TestBuildDecisions_PerPeerAction(t *testing.T) {
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	rp.originInvalidAction.Store(uint32(ASPAPolicyReject)) // global: reject Invalid
 
 	m := map[string]peerActionSet{
@@ -57,7 +57,7 @@ func TestBuildDecisions_PerPeerAction(t *testing.T) {
 
 // TestBuildDecisions_PerPeerNotFound verifies a per-peer not-found override is enforced.
 func TestBuildDecisions_PerPeerNotFound(t *testing.T) {
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	rp.originNotFoundAction.Store(uint32(ASPAPolicyAccept)) // global: accept NotFound
 
 	m := map[string]peerActionSet{

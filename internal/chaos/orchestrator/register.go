@@ -6,7 +6,7 @@ import "github.com/ze-software/ze/internal/component/command/registry"
 
 func init() {
 	registry.MustRegisterRootHandler("chaos", func(_ *registry.RuntimeContext, args []string) int {
-		return CLIRun(args)
+		return cLIRun(args)
 	}, registry.Meta{
 		Description: "Chaos monkey for BGP testing",
 		Mode:        "offline",

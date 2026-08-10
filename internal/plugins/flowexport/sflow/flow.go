@@ -22,7 +22,7 @@ const (
 	HeaderProtocolEthernet uint32 = 1
 )
 
-// WriteFlowSample writes a flow_sample record header into buf at off.
+// writeFlowSample writes a flow_sample record header into buf at off.
 // The caller must write flow records (sampled_header, extended_gateway, etc.)
 // immediately after, then call BackfillFlowSample to set sample_length and
 // flow_records count.
@@ -31,7 +31,7 @@ const (
 // numRecordsOff are positions for backfill.
 //
 // sFlow v5: flow_sample data_format = enterprise 0, format 1.
-func WriteFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, input, output uint32) (newOff, sampleLengthOff, numRecordsOff int) {
+func writeFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, input, output uint32) (newOff, sampleLengthOff, numRecordsOff int) {
 	// sFlow v5: flow_sample data_format
 	binary.BigEndian.PutUint32(buf[off:], DataFormatFlowSample)
 	off += 4
@@ -75,22 +75,22 @@ func WriteFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, i
 	return off, sampleLengthOff, numRecordsOff
 }
 
-// BackfillFlowSample fills in the sample_length and flow_records count
+// backfillFlowSample fills in the sample_length and flow_records count
 // after all flow records have been written.
-func BackfillFlowSample(buf []byte, sampleLengthOff, numRecordsOff, endOff int, numRecords uint32) {
+func backfillFlowSample(buf []byte, sampleLengthOff, numRecordsOff, endOff int, numRecords uint32) {
 	// sample_length = bytes from after the sample_length field to end
 	sampleLength := uint32(endOff - sampleLengthOff - 4)
 	binary.BigEndian.PutUint32(buf[sampleLengthOff:], sampleLength)
 	binary.BigEndian.PutUint32(buf[numRecordsOff:], numRecords)
 }
 
-// WriteSampledHeader writes a sampled_header flow record into buf at off.
+// writeSampledHeader writes a sampled_header flow record into buf at off.
 // This is the most common flow record: the first N bytes of the sampled packet.
 //
 // sFlow v5: sampled_header = enterprise 0, format 1.
 // XDR encoding: header bytes are prefixed with a 4-byte count and padded to
 // a 4-byte boundary.
-func WriteSampledHeader(buf []byte, off int, protocol, frameLength, stripped uint32, header []byte) int {
+func writeSampledHeader(buf []byte, off int, protocol, frameLength, stripped uint32, header []byte) int {
 	// Record data_format
 	binary.BigEndian.PutUint32(buf[off:], DataFormatSampledHeader)
 	off += 4
@@ -134,7 +134,7 @@ func WriteSampledHeader(buf []byte, off int, protocol, frameLength, stripped uin
 	return off
 }
 
-// WriteExtendedGateway writes an extended_gateway flow record into buf at off.
+// writeExtendedGateway writes an extended_gateway flow record into buf at off.
 // Contains BGP context: AS path, communities, local preference, next-hop.
 //
 // sFlow v5: extended_gateway = enterprise 0, format 1003.
@@ -145,7 +145,7 @@ func WriteSampledHeader(buf []byte, off int, protocol, frameLength, stripped uin
 // calls it, the caller MUST cap dstASPath/communities to the remaining datagram
 // space (see EncodeFlowSample's flowSampleOverhead pattern) before invoking it,
 // since the writes here are not individually bounds-checked.
-func WriteExtendedGateway(buf []byte, off int, nextHop netip.Addr, agentAS, srcAS, srcPeerAS uint32, dstASPath, communities []uint32, localPref uint32) int {
+func writeExtendedGateway(buf []byte, off int, nextHop netip.Addr, agentAS, srcAS, srcPeerAS uint32, dstASPath, communities []uint32, localPref uint32) int {
 	// Record data_format
 	binary.BigEndian.PutUint32(buf[off:], DataFormatExtendedGateway)
 	off += 4

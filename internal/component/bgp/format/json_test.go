@@ -158,7 +158,7 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 		PeerAS:       65001,
 	}
 
-	msg := enc.StateConnected(&peer)
+	msg := enc.stateConnected(&peer)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(msg), &result)
@@ -189,7 +189,7 @@ func TestJSONEncoderValidJSON(t *testing.T) {
 	messages := []string{
 		enc.StateUp(&peer),
 		enc.StateDown(&peer, "test reason"),
-		enc.StateConnected(&peer),
+		enc.stateConnected(&peer),
 		enc.StateDown(&peer, `reason with "quotes" and \backslashes`),
 	}
 

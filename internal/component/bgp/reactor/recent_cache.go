@@ -130,12 +130,12 @@ type RecentUpdateCache struct {
 	scanInterval time.Duration // Defaults to gapScanInterval; overridable for tests
 }
 
-// SetConsumerUnordered marks a registered consumer as non-FIFO (unordered).
+// setConsumerUnordered marks a registered consumer as non-FIFO (unordered).
 // Unordered consumers use per-entry acking: no cumulative ack loop,
 // and id <= lastAck acks are not skipped. This is required for consumers
 // like bgp-rs that process entries out of global message ID order
 // (e.g., per-source-peer worker pools).
-func (c *RecentUpdateCache) SetConsumerUnordered(name string) {
+func (c *RecentUpdateCache) setConsumerUnordered(name string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.assignUnorderedBitLocked(name)
@@ -217,10 +217,10 @@ func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked ui
 	return now.Sub(e.retainedAt) > valve
 }
 
-// NewRecentUpdateCache creates a cache with the given soft max size.
+// newRecentUpdateCache creates a cache with the given soft max size.
 // maxEntries: soft limit — warns when exceeded but never rejects (0 = unlimited).
 // Call Start() to launch the background gap scan goroutine.
-func NewRecentUpdateCache(maxEntries int) *RecentUpdateCache {
+func newRecentUpdateCache(maxEntries int) *RecentUpdateCache {
 	return &RecentUpdateCache{
 		clock:          clock.RealClock{},
 		entries:        seqmap.New[uint64, *cacheEntry](),
@@ -258,9 +258,9 @@ func (c *RecentUpdateCache) Stop() {
 	})
 }
 
-// SetGapScanInterval overrides the gap scan ticker interval.
+// setGapScanInterval overrides the gap scan ticker interval.
 // Must be called before Start(). Intended for tests that need fast ticking.
-func (c *RecentUpdateCache) SetGapScanInterval(d time.Duration) {
+func (c *RecentUpdateCache) setGapScanInterval(d time.Duration) {
 	c.scanInterval = d
 }
 
@@ -345,9 +345,9 @@ func (c *RecentUpdateCache) SetClock(clk clock.Clock) {
 	c.clock = clk
 }
 
-// SetSafetyValveDuration overrides the safety valve duration for gap-based eviction.
+// setSafetyValveDuration overrides the safety valve duration for gap-based eviction.
 // Zero or negative values are ignored (default 5 minutes is kept).
-func (c *RecentUpdateCache) SetSafetyValveDuration(d time.Duration) {
+func (c *RecentUpdateCache) setSafetyValveDuration(d time.Duration) {
 	if d <= 0 {
 		return
 	}
@@ -356,11 +356,11 @@ func (c *RecentUpdateCache) SetSafetyValveDuration(d time.Duration) {
 	c.safetyValve = d
 }
 
-// SetPressureHighWater sets the shared read-buffer pool utilization high-water mark
+// setPressureHighWater sets the shared read-buffer pool utilization high-water mark
 // (0.0..1.0) at or above which runGapScan applies the shortened pressureValve to
 // gap-evictable entries. A value of 0 (the default) disables load-aware reclamation
 // entirely, preserving legacy behavior. Values are clamped to [0.0, 1.0].
-func (c *RecentUpdateCache) SetPressureHighWater(ratio float64) {
+func (c *RecentUpdateCache) setPressureHighWater(ratio float64) {
 	if ratio < 0 {
 		ratio = 0
 	}
@@ -372,11 +372,11 @@ func (c *RecentUpdateCache) SetPressureHighWater(ratio float64) {
 	c.pressureHighWater = ratio
 }
 
-// SetPressureValve sets the shortened safety-valve duration applied to gap-evictable
+// setPressureValve sets the shortened safety-valve duration applied to gap-evictable
 // entries while pool utilization is at or above the high-water mark. Zero or negative
 // values are ignored (the default 30s is kept). Only shortens reclamation timing; the
 // eviction criteria in isGapEvictable are unchanged.
-func (c *RecentUpdateCache) SetPressureValve(d time.Duration) {
+func (c *RecentUpdateCache) setPressureValve(d time.Duration) {
 	if d <= 0 {
 		return
 	}
@@ -385,10 +385,10 @@ func (c *RecentUpdateCache) SetPressureValve(d time.Duration) {
 	c.pressureValve = d
 }
 
-// SetPressureSource overrides the pool-pressure signal used by load-aware reclamation.
+// setPressureSource overrides the pool-pressure signal used by load-aware reclamation.
 // Production wires CombinedBufMuxUsedRatio (set in the constructor); tests use this to
 // stub utilization deterministically. A nil source disables the pressure path.
-func (c *RecentUpdateCache) SetPressureSource(fn func() float64) {
+func (c *RecentUpdateCache) setPressureSource(fn func() float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.pressureSource = fn

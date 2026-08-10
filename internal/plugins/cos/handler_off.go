@@ -17,18 +17,18 @@ import (
 // dynamic handler drops with the BNG. Same dependent-feature shape as
 // authradius (ze_l2tp && ze_radius).
 
-// UpdateQoSFunc is the signature for updating VLAN QoS maps on an interface.
-type UpdateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) error
+// updateQoSFunc is the signature for updating VLAN QoS maps on an interface.
+type updateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) error
 
-// ResolveStaticFunc returns the static CoS maps for an interface from config.
-type ResolveStaticFunc func(ifaceName string) (ingress, egress map[uint32]uint32)
+// resolveStaticFunc returns the static CoS maps for an interface from config.
+type resolveStaticFunc func(ifaceName string) (ingress, egress map[uint32]uint32)
 
 type cosHandler struct{}
 
 // newCosHandler is the ze_l2tp-off no-op constructor: no event subscriptions,
 // no session state. register.go still stores and stops the handle, so both
 // paths stay identical in shape.
-func newCosHandler(ze.EventBus, UpdateQoSFunc, ResolveStaticFunc) *cosHandler { return &cosHandler{} }
+func newCosHandler(ze.EventBus, updateQoSFunc, resolveStaticFunc) *cosHandler { return &cosHandler{} }
 
 func (h *cosHandler) stop() {}
 

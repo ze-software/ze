@@ -122,7 +122,7 @@ func newModBufFixture(t *testing.T, sendCtx *bgpctx.EncodingContext, sendCtxID b
 	srcCtxID, err := bgpctx.Registry.Register(srcCtx)
 	require.NoError(t, err)
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	update, id := newLeakTestUpdate(t, cache, modBufTestPayload(), srcCtxID)
 
 	dst := makeNextHopSelfIBGPPeer(t, "10.0.0.2", sendCtx, sendCtxID)
@@ -131,8 +131,8 @@ func newModBufFixture(t *testing.T, sendCtx *bgpctx.EncodingContext, sendCtxID b
 	t.Cleanup(pool.Stop)
 
 	key := fwdKey{peerAddr: dst.Settings().PeerKey()}
-	pool.RegisterOutgoingPool(key, 4096)
-	pp := pool.OutgoingPool(key)
+	pool.registerOutgoingPool(key, 4096)
+	pp := pool.outgoingPool(key)
 	require.NotNil(t, pp, "setup: the destination must have an Outgoing Peer Pool, or the rebuild falls back to sync.Pool")
 
 	r := &Reactor{

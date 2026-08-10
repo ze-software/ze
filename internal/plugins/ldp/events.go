@@ -28,8 +28,8 @@ type SessionEvent struct {
 	Interface string `json:"interface"`
 }
 
-// LabelBindEvent carries label binding information on the event bus.
-type LabelBindEvent struct {
+// labelBindEvent carries label binding information on the event bus.
+type labelBindEvent struct {
 	FEC      string `json:"fec"`
 	Label    uint32 `json:"label"`
 	PeerAddr string `json:"peer-address"`
@@ -39,5 +39,5 @@ type LabelBindEvent struct {
 var (
 	SessionUp   = events.Register[*SessionEvent](Namespace, EventSessionUp)
 	SessionDown = events.Register[*SessionEvent](Namespace, EventSessionDown)
-	LabelBind   = events.Register[*LabelBindEvent](Namespace, EventLabelBind)
+	LabelBind   = events.Register[*labelBindEvent](Namespace, EventLabelBind)
 )

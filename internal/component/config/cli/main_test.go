@@ -30,7 +30,7 @@ func TestConfigFmtFormatsConfig(t *testing.T) {
 }
 `
 
-	output, hasChanges, err := ConfigFmtBytes([]byte(input))
+	output, hasChanges, err := configFmtBytes([]byte(input))
 	if err != nil {
 		t.Fatalf("ConfigFmtBytes failed: %v", err)
 	}
@@ -66,13 +66,13 @@ func TestConfigFmtIdempotent(t *testing.T) {
 `
 
 	// First pass
-	output1, hasChanges1, err := ConfigFmtBytes([]byte(input))
+	output1, hasChanges1, err := configFmtBytes([]byte(input))
 	if err != nil {
 		t.Fatalf("first ConfigFmtBytes failed: %v", err)
 	}
 
 	// Second pass on first output
-	output2, hasChanges2, err := ConfigFmtBytes([]byte(output1))
+	output2, hasChanges2, err := configFmtBytes([]byte(output1))
 	if err != nil {
 		t.Fatalf("second ConfigFmtBytes failed: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 }
 `
 
-	_, _, err := ConfigFmtBytes([]byte(input))
+	_, _, err := configFmtBytes([]byte(input))
 	if err == nil {
 		t.Fatal("expected error for old config")
 		return
@@ -123,7 +123,7 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 func TestConfigFmtComplexConfig(t *testing.T) {
 	input := `bgp{group defaults{timer{receive-hold-time 90;}peer upstream{connection{remote{ip 192.0.2.1;}}session{asn{remote 65001;local 65000;}family{ipv4/unicast;}}}}}`
 
-	output, hasChanges, err := ConfigFmtBytes([]byte(input))
+	output, hasChanges, err := configFmtBytes([]byte(input))
 	if err != nil {
 		t.Fatalf("ConfigFmtBytes failed: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestConfigFmtComplexConfig(t *testing.T) {
 	}
 
 	// Run again to verify idempotency
-	output2, hasChanges2, err := ConfigFmtBytes([]byte(output))
+	output2, hasChanges2, err := configFmtBytes([]byte(output))
 	if err != nil {
 		t.Fatalf("second pass failed: %v", err)
 	}

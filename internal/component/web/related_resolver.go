@@ -56,11 +56,11 @@ type RelatedResolver struct {
 	tree   *config.Tree
 }
 
-// NewRelatedResolver builds a resolver tied to the given schema and the
+// newRelatedResolver builds a resolver tied to the given schema and the
 // caller's working tree (typically the editor session's tree, not the
 // committed tree, so unsaved changes are visible to placeholder lookups
 // per the spec's Placeholder Sources note).
-func NewRelatedResolver(schema *config.Schema, tree *config.Tree) *RelatedResolver {
+func newRelatedResolver(schema *config.Schema, tree *config.Tree) *RelatedResolver {
 	return &RelatedResolver{schema: schema, tree: tree}
 }
 

@@ -61,8 +61,8 @@ func TestWriteAnnounceUpdateRefusesBeforeWriting(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(tc.nextHop),
 			}
 
-			n := WriteAnnounceUpdate(buf, 0, route, tc.linkLocal, 65000, false, true, false)
-			err := ValidateAnnounceNextHop(route, tc.linkLocal)
+			n := writeAnnounceUpdate(buf, 0, route, tc.linkLocal, 65000, false, true, false)
+			err := validateAnnounceNextHop(route, tc.linkLocal)
 
 			if !tc.wantErr {
 				require.NoError(t, err)

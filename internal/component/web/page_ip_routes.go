@@ -32,8 +32,8 @@ func routeFlag(route iface.KernelRoute) (string, string) {
 	}
 }
 
-// BuildRouteTableData constructs a WorkbenchTableData from kernel routes.
-func BuildRouteTableData(routes []iface.KernelRoute, filterProtocol string) WorkbenchTableData {
+// buildRouteTableData constructs a WorkbenchTableData from kernel routes.
+func buildRouteTableData(routes []iface.KernelRoute, filterProtocol string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "destination", Label: "Destination", Sortable: true},
 		{Key: "gateway", Label: "Gateway", Sortable: true},
@@ -91,10 +91,10 @@ func HandleRoutesPage(renderer *Renderer, r *http.Request) template.HTML {
 
 	routes, err := iface.ListKernelRoutes(filterPrefix, routeDisplayLimit)
 	if err != nil {
-		tableData := BuildRouteTableData(nil, filterProtocol)
+		tableData := buildRouteTableData(nil, filterProtocol)
 		return renderer.RenderFragment("workbench_table", tableData)
 	}
 
-	tableData := BuildRouteTableData(routes, filterProtocol)
+	tableData := buildRouteTableData(routes, filterProtocol)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

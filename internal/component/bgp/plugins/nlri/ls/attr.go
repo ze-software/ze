@@ -13,7 +13,7 @@ import (
 	"errors"
 )
 
-// LsAttrTLV is the interface for BGP-LS attribute TLV types.
+// lsAttrTLV is the interface for BGP-LS attribute TLV types.
 // RFC 7752 Section 3.3 defines the attribute TLV format:
 //
 //	+------------------+
@@ -25,7 +25,7 @@ import (
 //	+------------------+
 //
 // Each TLV type self-registers via init() using RegisterLsAttrTLV.
-type LsAttrTLV interface {
+type lsAttrTLV interface {
 	// Code returns the TLV type code (e.g., 1024 for Node Flag Bits).
 	Code() uint16
 	// Len returns the total wire length including TLV header (4 + value length).
@@ -37,44 +37,44 @@ type LsAttrTLV interface {
 	ToJSON() map[string]any
 }
 
-// LsAttrTLVDecoder decodes a TLV value (without header) into a typed struct.
+// lsAttrTLVDecoder decodes a TLV value (without header) into a typed struct.
 // The data slice contains only the value bytes; the TLV type and length have
 // already been parsed by the iterator.
-type LsAttrTLVDecoder func(data []byte) (LsAttrTLV, error)
+type lsAttrTLVDecoder func(data []byte) (lsAttrTLV, error)
 
 // lsAttrTLVRegistry maps TLV type codes to their decoders.
 // Populated by init() functions in attr_node.go, attr_link.go, attr_prefix.go, attr_srv6.go.
-var lsAttrTLVRegistry = map[uint16]LsAttrTLVDecoder{}
+var lsAttrTLVRegistry = map[uint16]lsAttrTLVDecoder{}
 
-// RegisterLsAttrTLV registers a decoder for a BGP-LS attribute TLV type code.
+// registerLsAttrTLV registers a decoder for a BGP-LS attribute TLV type code.
 // Called from init() in each attribute TLV file.
-func RegisterLsAttrTLV(code uint16, decoder LsAttrTLVDecoder) {
+func registerLsAttrTLV(code uint16, decoder lsAttrTLVDecoder) {
 	lsAttrTLVRegistry[code] = decoder
 }
 
-// LookupLsAttrTLVDecoder returns the registered decoder for a TLV type code,
+// lookupLsAttrTLVDecoder returns the registered decoder for a TLV type code,
 // or nil if no decoder is registered.
-func LookupLsAttrTLVDecoder(code uint16) LsAttrTLVDecoder {
+func lookupLsAttrTLVDecoder(code uint16) lsAttrTLVDecoder {
 	return lsAttrTLVRegistry[code]
 }
 
-// RegisteredLsAttrTLVCount returns the number of registered attribute TLV decoders.
-func RegisteredLsAttrTLVCount() int {
+// registeredLsAttrTLVCount returns the number of registered attribute TLV decoders.
+func registeredLsAttrTLVCount() int {
 	return len(lsAttrTLVRegistry)
 }
 
-// AttrTLVEntry represents a single TLV entry yielded by the iterator.
+// attrTLVEntry represents a single TLV entry yielded by the iterator.
 // It holds the raw type code and value bytes without copying.
-type AttrTLVEntry struct {
+type attrTLVEntry struct {
 	Type  uint16 // TLV type code
 	Value []byte // TLV value (slice into original data, no copy)
 }
 
-// IterateAttrTLVs iterates over BGP-LS attribute TLVs in raw wire bytes.
+// iterateAttrTLVs iterates over BGP-LS attribute TLVs in raw wire bytes.
 // RFC 7752 Section 3.3: attribute type 29 contains a sequence of TLVs.
 // The callback receives each TLV entry. Return false to stop iteration.
 // Returns error only on truncated data (TLV header present but value truncated).
-func IterateAttrTLVs(data []byte, fn func(AttrTLVEntry) bool) error {
+func iterateAttrTLVs(data []byte, fn func(attrTLVEntry) bool) error {
 	offset := 0
 	for offset+4 <= len(data) {
 		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
@@ -84,7 +84,7 @@ func IterateAttrTLVs(data []byte, fn func(AttrTLVEntry) bool) error {
 			return ErrBGPLSTruncated
 		}
 
-		entry := AttrTLVEntry{
+		entry := attrTLVEntry{
 			Type:  tlvType,
 			Value: data[offset+4 : offset+4+tlvLen],
 		}
@@ -102,9 +102,9 @@ func IterateAttrTLVs(data []byte, fn func(AttrTLVEntry) bool) error {
 // ErrUnknownAttrTLV is returned when no decoder is registered for a TLV type code.
 var ErrUnknownAttrTLV = errors.New("bgp-ls: unknown attribute TLV type")
 
-// DecodeAttrTLV decodes a single TLV entry using the registered decoder.
+// decodeAttrTLV decodes a single TLV entry using the registered decoder.
 // Returns ErrUnknownAttrTLV if no decoder is registered for the TLV type code.
-func DecodeAttrTLV(entry AttrTLVEntry) (LsAttrTLV, error) {
+func decodeAttrTLV(entry attrTLVEntry) (lsAttrTLV, error) {
 	decoder := lsAttrTLVRegistry[entry.Type]
 	if decoder == nil {
 		return nil, ErrUnknownAttrTLV
@@ -112,14 +112,14 @@ func DecodeAttrTLV(entry AttrTLVEntry) (LsAttrTLV, error) {
 	return decoder(entry.Value)
 }
 
-// DecodeAllAttrTLVs decodes all recognized TLVs from raw attribute bytes.
+// decodeAllAttrTLVs decodes all recognized TLVs from raw attribute bytes.
 // Unknown TLV types are silently skipped per RFC 7752 forward compatibility.
-func DecodeAllAttrTLVs(data []byte) ([]LsAttrTLV, error) {
-	var tlvs []LsAttrTLV
+func decodeAllAttrTLVs(data []byte) ([]lsAttrTLV, error) {
+	var tlvs []lsAttrTLV
 	var decErr error
 
-	err := IterateAttrTLVs(data, func(entry AttrTLVEntry) bool {
-		tlv, e := DecodeAttrTLV(entry)
+	err := iterateAttrTLVs(data, func(entry attrTLVEntry) bool {
+		tlv, e := decodeAttrTLV(entry)
 		// RFC 7752 Section 3.3: unrecognized TLVs are forwarded without decoding
 		if errors.Is(e, ErrUnknownAttrTLV) {
 			return true
@@ -144,8 +144,8 @@ func DecodeAllAttrTLVs(data []byte) ([]LsAttrTLV, error) {
 func AttrTLVsToJSON(data []byte) map[string]any {
 	result := make(map[string]any)
 
-	_ = IterateAttrTLVs(data, func(entry AttrTLVEntry) bool {
-		tlv, err := DecodeAttrTLV(entry)
+	_ = iterateAttrTLVs(data, func(entry attrTLVEntry) bool {
+		tlv, err := decodeAttrTLV(entry)
 		// RFC 7752 Section 3.3: unrecognized TLVs stored as generic hex
 		if errors.Is(err, ErrUnknownAttrTLV) {
 			result[genericTLVKey(entry.Type)] = []string{formatHex(entry.Value)}

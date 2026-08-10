@@ -13,7 +13,7 @@ import (
 // PREVENTS: Trace helper diverging from PolicyFilterChain semantics.
 func TestTracePolicyFilterChain(t *testing.T) {
 	t.Run("empty_chain_accepts", func(t *testing.T) {
-		action, text, trace := TracePolicyFilterChain(nil, "export", "10.0.0.1", 65001, "origin igp", nil)
+		action, text, trace := tracePolicyFilterChain(nil, "export", "10.0.0.1", 65001, "origin igp", nil)
 		if action != PolicyAccept {
 			t.Errorf("action = %v, want PolicyAccept", action)
 		}
@@ -29,7 +29,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 		call := func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
 			return PolicyResponse{Action: PolicyAccept}
 		}
-		action, text, trace := TracePolicyFilterChain(
+		action, text, trace := tracePolicyFilterChain(
 			frefs("plug:FILTER1"), "export", "10.0.0.1", 65001, "origin igp", call,
 		)
 		if action != PolicyAccept {
@@ -61,7 +61,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			}
 			return PolicyResponse{Action: PolicyAccept}
 		}
-		action, text, trace := TracePolicyFilterChain(
+		action, text, trace := tracePolicyFilterChain(
 			frefs("plug:DENY", "plug:AFTER"), "import", "10.0.0.1", 65001, "origin igp", call,
 		)
 		if action != PolicyReject {
@@ -85,7 +85,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 		call := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 			return PolicyResponse{Action: PolicyModify, Delta: "med 200"}
 		}
-		action, text, trace := TracePolicyFilterChain(
+		action, text, trace := tracePolicyFilterChain(
 			frefs("plug:SET_MED"), "export", "10.0.0.1", 65001, "origin igp med 100", call,
 		)
 		if action != PolicyAccept {
@@ -111,7 +111,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			callCount++
 			return PolicyResponse{Action: PolicyAccept}
 		}
-		action, _, trace := TracePolicyFilterChain(
+		action, _, trace := tracePolicyFilterChain(
 			frefs("inactive:plug:SKIP", "plug:KEEP"), "export", "10.0.0.1", 65001, "origin igp", call,
 		)
 		if action != PolicyAccept {
@@ -135,7 +135,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			}
 			return PolicyResponse{Action: PolicyAccept}
 		}
-		action, text, trace := TracePolicyFilterChain(
+		action, text, trace := tracePolicyFilterChain(
 			frefs("plug:PASS", "plug:SET_MED"), "export", "10.0.0.1", 65001, "origin igp med 100", call,
 		)
 		if action != PolicyAccept {

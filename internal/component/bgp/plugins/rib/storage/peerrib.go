@@ -90,7 +90,7 @@ func (r *PeerRIB) Lookup(fam family.Family, nlriBytes []byte) (RouteEntry, bool)
 	if !exists {
 		return RouteEntry{}, false
 	}
-	return rib.LookupEntry(nlriBytes)
+	return rib.lookupEntry(nlriBytes)
 }
 
 // Len returns the total number of NLRIs across all families.
@@ -143,7 +143,7 @@ func (r *PeerRIB) IterateSorted(fn func(fam family.Family, nlriBytes []byte, ent
 
 	for fam, rib := range r.families {
 		shouldContinue := true
-		rib.IterateEntrySorted(func(nlriBytes []byte, entry RouteEntry) bool {
+		rib.iterateEntrySorted(func(nlriBytes []byte, entry RouteEntry) bool {
 			shouldContinue = fn(fam, nlriBytes, entry)
 			return shouldContinue
 		})
@@ -175,7 +175,7 @@ func (r *PeerRIB) IterateFamilySorted(fam family.Family, fn func(nlriBytes []byt
 	if !exists {
 		return
 	}
-	rib.IterateEntrySorted(fn)
+	rib.iterateEntrySorted(fn)
 }
 
 // ModifyFamilyEntry calls fn with a pointer to the entry for the given NLRI in the given family.
@@ -188,7 +188,7 @@ func (r *PeerRIB) ModifyFamilyEntry(fam family.Family, nlriBytes []byte, fn func
 	if !exists {
 		return false
 	}
-	return rib.ModifyEntry(nlriBytes, fn)
+	return rib.modifyEntry(nlriBytes, fn)
 }
 
 // ModifyFamilyAll calls fn with a pointer to each entry in the given family.
@@ -245,9 +245,9 @@ func (r *PeerRIB) Families() []family.Family {
 	return result
 }
 
-// MarkFamilyStale marks all routes in a specific family at the given stale level.
+// markFamilyStale marks all routes in a specific family at the given stale level.
 // No-op if the family doesn't exist.
-func (r *PeerRIB) MarkFamilyStale(fam family.Family, level uint8) {
+func (r *PeerRIB) markFamilyStale(fam family.Family, level uint8) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -314,7 +314,7 @@ func (r *PeerRIB) SetLabelsIfRouteExists(fam family.Family, nlriBytes []byte, h 
 	defer r.mu.Unlock()
 
 	rib, exists := r.families[fam]
-	if !exists || !rib.IsLabeled() {
+	if !exists || !rib.isLabeled() {
 		return false
 	}
 	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
@@ -331,7 +331,7 @@ func (r *PeerRIB) RemoveLabels(fam family.Family, nlriBytes []byte) {
 	defer r.mu.Unlock()
 
 	rib, exists := r.families[fam]
-	if !exists || !rib.IsLabeled() {
+	if !exists || !rib.isLabeled() {
 		return
 	}
 	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
@@ -347,7 +347,7 @@ func (r *PeerRIB) LookupLabels(fam family.Family, nlriBytes []byte) attrpool.Han
 	defer r.mu.RUnlock()
 
 	rib, exists := r.families[fam]
-	if !exists || !rib.IsLabeled() {
+	if !exists || !rib.isLabeled() {
 		return attrpool.InvalidHandle
 	}
 	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
@@ -363,7 +363,7 @@ func (r *PeerRIB) getOrCreateFamily(fam family.Family) *FamilyRIB {
 	rib, exists := r.families[fam]
 	if !exists {
 		addPath := r.addPath[fam]
-		rib = NewFamilyRIB(fam, addPath)
+		rib = newFamilyRIB(fam, addPath)
 		r.families[fam] = rib
 	}
 	return rib

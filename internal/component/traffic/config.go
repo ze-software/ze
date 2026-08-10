@@ -31,11 +31,11 @@ func controlSubtree(root map[string]any) map[string]any {
 	return control
 }
 
-// ParseTrafficConfig parses the traffic control config section JSON into a map
+// parseTrafficConfig parses the traffic control config section JSON into a map
 // of interface name to InterfaceQoS. The JSON is wrapped:
 // {"traffic": {"control": {"interface": {...}}}}.
 // Returns nil, nil if no traffic/control section is present.
-func ParseTrafficConfig(data string) (map[string]InterfaceQoS, error) {
+func parseTrafficConfig(data string) (map[string]InterfaceQoS, error) {
 	var root map[string]any
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("traffic config: unmarshal: %w", err)
@@ -135,7 +135,7 @@ func parseTrafficClass(name string, m map[string]any) (TrafficClass, error) {
 			if !ok {
 				continue
 			}
-			ft, ok := ParseFilterType(ftName)
+			ft, ok := parseFilterType(ftName)
 			if !ok {
 				return TrafficClass{}, fmt.Errorf("unknown filter type %q", ftName)
 			}

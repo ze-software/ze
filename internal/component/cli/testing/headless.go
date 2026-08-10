@@ -12,17 +12,17 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 )
 
-// HeadlessModel wraps the editor Model for headless testing.
+// headlessModel wraps the editor Model for headless testing.
 // It provides direct access to model state without TTY rendering.
-type HeadlessModel struct {
+type headlessModel struct {
 	model   cli.Model
 	editor  *cli.Editor
 	pending []<-chan tea.Msg // timer commands that exceeded the processing deadline
 	tmpDir  string           // temp directory for file expectations
 }
 
-// NewHeadlessModel creates a headless model from a config file path.
-func NewHeadlessModel(configPath string) (*HeadlessModel, error) {
+// newHeadlessModel creates a headless model from a config file path.
+func newHeadlessModel(configPath string) (*headlessModel, error) {
 	ed, err := cli.NewEditor(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating editor: %w", err)
@@ -40,7 +40,7 @@ func NewHeadlessModel(configPath string) (*HeadlessModel, error) {
 		model = m
 	}
 
-	hm := &HeadlessModel{
+	hm := &headlessModel{
 		model:  model,
 		editor: ed,
 	}
@@ -51,8 +51,8 @@ func NewHeadlessModel(configPath string) (*HeadlessModel, error) {
 	return hm, nil
 }
 
-// NewHeadlessModelWithSession creates a headless model with session identity activated.
-func NewHeadlessModelWithSession(configPath, user, origin string) (*HeadlessModel, error) {
+// newHeadlessModelWithSession creates a headless model with session identity activated.
+func newHeadlessModelWithSession(configPath, user, origin string) (*headlessModel, error) {
 	ed, err := cli.NewEditor(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating editor: %w", err)
@@ -71,7 +71,7 @@ func NewHeadlessModelWithSession(configPath, user, origin string) (*HeadlessMode
 		model = m
 	}
 
-	hm := &HeadlessModel{
+	hm := &headlessModel{
 		model:  model,
 		editor: ed,
 	}
@@ -81,9 +81,9 @@ func NewHeadlessModelWithSession(configPath, user, origin string) (*HeadlessMode
 	return hm, nil
 }
 
-// NewHeadlessCommandModel creates a command-only headless model (no editor).
+// newHeadlessCommandModel creates a command-only headless model (no editor).
 // Used for testing ze cli behavior where no config file is loaded.
-func NewHeadlessCommandModel() *HeadlessModel {
+func newHeadlessCommandModel() *headlessModel {
 	model := cli.NewCommandModel()
 
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -91,7 +91,7 @@ func NewHeadlessCommandModel() *HeadlessModel {
 		model = m
 	}
 
-	hm := &HeadlessModel{
+	hm := &headlessModel{
 		model: model,
 	}
 
@@ -99,22 +99,22 @@ func NewHeadlessCommandModel() *HeadlessModel {
 }
 
 // TmpDir returns the temp directory for file expectations.
-func (hm *HeadlessModel) TmpDir() string {
+func (hm *headlessModel) TmpDir() string {
 	return hm.tmpDir
 }
 
-// SetTmpDir sets the temp directory for file expectations.
-func (hm *HeadlessModel) SetTmpDir(dir string) {
+// setTmpDir sets the temp directory for file expectations.
+func (hm *headlessModel) setTmpDir(dir string) {
 	hm.tmpDir = dir
 }
 
 // Model returns the underlying cli.Model.
-func (hm *HeadlessModel) Model() *cli.Model {
+func (hm *headlessModel) Model() *cli.Model {
 	return &hm.model
 }
 
-// SendMsg sends a tea.Msg to the model and processes it.
-func (hm *HeadlessModel) SendMsg(msg tea.Msg) error {
+// sendMsg sends a tea.Msg to the model and processes it.
+func (hm *headlessModel) sendMsg(msg tea.Msg) error {
 	// Drain completed pending timer commands before model.Update().
 	// Timer goroutines don't access editor/model state (they only sit in
 	// time.After), so draining them here is race-free.
@@ -134,7 +134,7 @@ func (hm *HeadlessModel) SendMsg(msg tea.Msg) error {
 }
 
 // processCmd processes commands that return messages, with depth limiting.
-func (hm *HeadlessModel) processCmd(cmd tea.Cmd) {
+func (hm *headlessModel) processCmd(cmd tea.Cmd) {
 	hm.processCmdWithDepth(cmd, 0)
 }
 
@@ -149,7 +149,7 @@ func (hm *HeadlessModel) processCmd(cmd tea.Cmd) {
 // so draining them later via SettleWait is race-free. State-mutating commands
 // (file I/O) complete within the slow-path deadline under normal conditions.
 // Virtual cursor is off by default (hardware cursor, no blink timers).
-func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
+func (hm *headlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 	if cmd == nil || depth > 5 {
 		return // Depth limit to prevent infinite recursion
 	}
@@ -194,7 +194,7 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 
 // settle non-blocking drains timer commands that have completed since they
 // were added to pending. Called before model.Update() in SendMsg.
-func (hm *HeadlessModel) settle() {
+func (hm *headlessModel) settle() {
 	if len(hm.pending) == 0 {
 		return
 	}
@@ -215,7 +215,7 @@ func (hm *HeadlessModel) settle() {
 	}
 }
 
-// SettleWait is the barrier that separates "commands issued" from "state
+// settleWait is the barrier that separates "commands issued" from "state
 // asserted". It blocks until every command that was in flight on entry has
 // completed and its message has been applied to the model, so an expectation
 // can never observe a half-applied edit.
@@ -242,7 +242,7 @@ func (hm *HeadlessModel) settle() {
 // schedule the next tick of a self-rescheduling chain (draft poll, monitor
 // poll); those land in hm.pending for a later call, so the barrier terminates
 // instead of chasing an endless chain.
-func (hm *HeadlessModel) SettleWait() {
+func (hm *headlessModel) settleWait() {
 	if len(hm.pending) == 0 {
 		return
 	}
@@ -260,15 +260,15 @@ func (hm *HeadlessModel) SettleWait() {
 	}
 }
 
-// HasPending reports whether any command is still in flight. The .et runner
+// hasPending reports whether any command is still in flight. The .et runner
 // uses it to tell "the expectation failed and more work could still change the
 // answer" apart from "the expectation failed and nothing is left to wait for".
-func (hm *HeadlessModel) HasPending() bool {
+func (hm *headlessModel) hasPending() bool {
 	return len(hm.pending) > 0
 }
 
 // processMsg processes a message from a command.
-func (hm *HeadlessModel) processMsg(msg tea.Msg, depth int) {
+func (hm *headlessModel) processMsg(msg tea.Msg, depth int) {
 	// Handle batch commands
 	if batch, ok := msg.(tea.BatchMsg); ok {
 		for _, c := range batch {
@@ -294,93 +294,93 @@ func (hm *HeadlessModel) processMsg(msg tea.Msg, depth int) {
 	}
 }
 
-// TypeText sends each character as a KeyPressMsg.
-func (hm *HeadlessModel) TypeText(text string) {
+// typeText sends each character as a KeyPressMsg.
+func (hm *headlessModel) typeText(text string) {
 	for _, r := range text {
-		_ = hm.SendMsg(tea.KeyPressMsg{Code: r, Text: string(r)})
+		_ = hm.sendMsg(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 }
 
-// PressEnter sends an Enter key message.
-func (hm *HeadlessModel) PressEnter() {
-	_ = hm.SendMsg(tea.KeyPressMsg{Code: tea.KeyEnter})
+// pressEnter sends an Enter key message.
+func (hm *headlessModel) pressEnter() {
+	_ = hm.sendMsg(tea.KeyPressMsg{Code: tea.KeyEnter})
 }
 
 // PressTab sends a Tab key message.
-func (hm *HeadlessModel) PressTab() {
-	_ = hm.SendMsg(tea.KeyPressMsg{Code: tea.KeyTab})
+func (hm *headlessModel) PressTab() {
+	_ = hm.sendMsg(tea.KeyPressMsg{Code: tea.KeyTab})
 }
 
 // PressEsc sends an Escape key message.
-func (hm *HeadlessModel) PressEsc() {
-	_ = hm.SendMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
+func (hm *headlessModel) PressEsc() {
+	_ = hm.sendMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
 }
 
 // ClearInput sends Ctrl+U to clear the input line.
-func (hm *HeadlessModel) ClearInput() {
-	_ = hm.SendMsg(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+func (hm *headlessModel) ClearInput() {
+	_ = hm.sendMsg(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 }
 
 // --- State Accessors ---
 
 // InputValue returns the current text input value.
-func (hm *HeadlessModel) InputValue() string {
+func (hm *headlessModel) InputValue() string {
 	return hm.model.InputValue()
 }
 
 // ContextPath returns the current context path.
-func (hm *HeadlessModel) ContextPath() []string {
+func (hm *headlessModel) ContextPath() []string {
 	return hm.model.ContextPath()
 }
 
 // Completions returns the current completion list.
-func (hm *HeadlessModel) Completions() []cli.Completion {
+func (hm *headlessModel) Completions() []cli.Completion {
 	return hm.model.Completions()
 }
 
 // GhostText returns the current ghost text suggestion.
-func (hm *HeadlessModel) GhostText() string {
+func (hm *headlessModel) GhostText() string {
 	return hm.model.GhostText()
 }
 
 // ValidationErrors returns the current validation errors.
-func (hm *HeadlessModel) ValidationErrors() []cli.ConfigValidationError {
+func (hm *headlessModel) ValidationErrors() []cli.ConfigValidationError {
 	return hm.model.ValidationErrors()
 }
 
 // ValidationWarnings returns the current validation warnings.
-func (hm *HeadlessModel) ValidationWarnings() []cli.ConfigValidationError {
+func (hm *headlessModel) ValidationWarnings() []cli.ConfigValidationError {
 	return hm.model.ValidationWarnings()
 }
 
 // Dirty returns true if there are unsaved changes.
-func (hm *HeadlessModel) Dirty() bool {
+func (hm *headlessModel) Dirty() bool {
 	return hm.model.Dirty()
 }
 
 // StatusMessage returns the current status message.
-func (hm *HeadlessModel) StatusMessage() string {
+func (hm *headlessModel) StatusMessage() string {
 	return hm.model.StatusMessage()
 }
 
 // Error returns the current command error.
-func (hm *HeadlessModel) Error() error {
+func (hm *headlessModel) Error() error {
 	return hm.model.Error()
 }
 
 // IsTemplate returns true if in template editing mode.
-func (hm *HeadlessModel) IsTemplate() bool {
+func (hm *headlessModel) IsTemplate() bool {
 	return hm.model.IsTemplate()
 }
 
 // ShowDropdown returns true if the completion dropdown is visible.
-func (hm *HeadlessModel) ShowDropdown() bool {
+func (hm *headlessModel) ShowDropdown() bool {
 	return hm.model.ShowDropdown()
 }
 
 // WorkingContent returns the current working config content.
 // Returns empty string for command-only models (no editor).
-func (hm *HeadlessModel) WorkingContent() string {
+func (hm *headlessModel) WorkingContent() string {
 	if hm.editor == nil {
 		return ""
 	}
@@ -388,34 +388,34 @@ func (hm *HeadlessModel) WorkingContent() string {
 }
 
 // SelectedIndex returns the currently selected dropdown index.
-func (hm *HeadlessModel) SelectedIndex() int {
+func (hm *headlessModel) SelectedIndex() int {
 	return hm.model.SelectedIndex()
 }
 
 // ViewportContent returns the content currently displayed in the viewport.
-func (hm *HeadlessModel) ViewportContent() string {
+func (hm *headlessModel) ViewportContent() string {
 	return hm.model.ViewportContent()
 }
 
 // ConfirmTimerActive returns true if a commit confirm timer is active.
-func (hm *HeadlessModel) ConfirmTimerActive() bool {
+func (hm *headlessModel) ConfirmTimerActive() bool {
 	return hm.model.ConfirmTimerActive()
 }
 
 // TriggerCompletions forces an update of the completion list.
-func (hm *HeadlessModel) TriggerCompletions() {
+func (hm *headlessModel) TriggerCompletions() {
 	hm.model.UpdateCompletions()
 }
 
 // Mode returns the current editor mode.
-func (hm *HeadlessModel) Mode() cli.EditorMode {
+func (hm *headlessModel) Mode() cli.EditorMode {
 	return hm.model.Mode()
 }
 
 // SetReloadNotifier configures a reload notifier on the underlying cli.
 // Used by the .et test runner to simulate daemon reload behavior.
 // No-op for command-only models (no editor).
-func (hm *HeadlessModel) SetReloadNotifier(fn cli.ReloadNotifier) {
+func (hm *headlessModel) SetReloadNotifier(fn cli.ReloadNotifier) {
 	if hm.editor == nil {
 		return
 	}
@@ -424,12 +424,12 @@ func (hm *HeadlessModel) SetReloadNotifier(fn cli.ReloadNotifier) {
 
 // SetShutdownFunc configures the shutdown callback on the model.
 // Used by the .et test runner to simulate daemon stop behavior.
-func (hm *HeadlessModel) SetShutdownFunc(fn func()) {
+func (hm *headlessModel) SetShutdownFunc(fn func()) {
 	hm.model.SetShutdownFunc(fn)
 }
 
 // SetRestartFunc configures the restart callback on the model.
 // Used by the .et test runner to simulate daemon restart behavior (GR marker write + stop).
-func (hm *HeadlessModel) SetRestartFunc(fn func()) {
+func (hm *headlessModel) SetRestartFunc(fn func()) {
 	hm.model.SetRestartFunc(fn)
 }

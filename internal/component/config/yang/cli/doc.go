@@ -11,8 +11,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
-// FormatDocCommand writes documentation for a specific command.
-func FormatDocCommand(w io.Writer, cliCommand string) error {
+// formatDocCommand writes documentation for a specific command.
+func formatDocCommand(w io.Writer, cliCommand string) error {
 	docs, err := AllRPCDocs()
 	if err != nil {
 		return err
@@ -28,8 +28,8 @@ func FormatDocCommand(w io.Writer, cliCommand string) error {
 	return fmt.Errorf("unknown command: %s", cliCommand)
 }
 
-// FormatDocList writes a list of all commands with descriptions.
-func FormatDocList(w io.Writer) error {
+// formatDocList writes a list of all commands with descriptions.
+func formatDocList(w io.Writer) error {
 	docs, err := AllRPCDocs()
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func FormatDocList(w io.Writer) error {
 	return nil
 }
 
-func writeDocEntry(w io.Writer, d RPCDoc) error {
+func writeDocEntry(w io.Writer, d rPCDoc) error {
 	mode := "read-write"
 	if d.ReadOnly {
 		mode = "read-only"

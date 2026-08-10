@@ -9,10 +9,10 @@ import (
 )
 
 func TestShowDebugEntries(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleFlag("bgp.reactor", "update")
-	p.ToggleModule("plugin.manager")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleFlag("bgp.reactor", "update")
+	p.toggleModule("plugin.manager")
 
 	entries := showEntries(p, "")
 	if len(entries) != 2 {
@@ -21,10 +21,10 @@ func TestShowDebugEntries(t *testing.T) {
 }
 
 func TestShowDebugSubtree(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleModule("bgp.server")
-	p.ToggleModule("plugin.manager")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleModule("bgp.server")
+	p.toggleModule("plugin.manager")
 
 	entries := showEntries(p, "bgp")
 	if len(entries) != 2 {
@@ -33,7 +33,7 @@ func TestShowDebugSubtree(t *testing.T) {
 }
 
 func TestShowDebugEmpty(t *testing.T) {
-	p := NewProfile()
+	p := newProfile()
 	entries := showEntries(p, "")
 	if len(entries) != 0 {
 		t.Fatalf("expected 0 entries, got %d", len(entries))
@@ -41,12 +41,12 @@ func TestShowDebugEmpty(t *testing.T) {
 }
 
 func TestShowDebugEntryFields(t *testing.T) {
-	p := NewProfile()
-	p.ToggleModule("bgp.reactor")
-	p.ToggleFlag("bgp.reactor", "update")
-	p.ToggleFlag("bgp.reactor", "open")
-	p.ToggleScope("bgp.reactor", "neighbor", "192.0.2.1")
-	p.ToggleScope("bgp.reactor", "direction", "receive")
+	p := newProfile()
+	p.toggleModule("bgp.reactor")
+	p.toggleFlag("bgp.reactor", "update")
+	p.toggleFlag("bgp.reactor", "open")
+	p.toggleScope("bgp.reactor", "neighbor", "192.0.2.1")
+	p.toggleScope("bgp.reactor", "direction", "receive")
 
 	entries := showEntries(p, "")
 	if len(entries) != 1 {

@@ -27,8 +27,8 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// RunLabeledPlugin runs the labeled unicast plugin using the SDK RPC protocol.
-func RunLabeledPlugin(conn net.Conn) int {
+// runLabeledPlugin runs the labeled unicast plugin using the SDK RPC protocol.
+func runLabeledPlugin(conn net.Conn) int {
 	logger.Debug("labeled plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-labeled", conn)

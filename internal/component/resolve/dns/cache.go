@@ -218,9 +218,9 @@ func (c *cache) Delete(name string, qtype uint16) bool {
 	return true
 }
 
-// DeleteByName removes all entries matching the given name regardless of record type.
+// deleteByName removes all entries matching the given name regardless of record type.
 // Returns the number of entries removed.
-func (c *cache) DeleteByName(name string) int {
+func (c *cache) deleteByName(name string) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var removed int
@@ -233,8 +233,8 @@ func (c *cache) DeleteByName(name string) int {
 	return removed
 }
 
-// ResetStats zeros all counters without removing cached entries.
-func (c *cache) ResetStats() {
+// resetStats zeros all counters without removing cached entries.
+func (c *cache) resetStats() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.hits = 0

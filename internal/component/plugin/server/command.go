@@ -63,8 +63,8 @@ func AllBuiltinRPCs() []RPCRegistration {
 	return registeredRPCs
 }
 
-// BuiltinCount returns the number of registered builtin handlers.
-func BuiltinCount() int {
+// builtinCount returns the number of registered builtin handlers.
+func builtinCount() int {
 	return len(AllBuiltinRPCs())
 }
 
@@ -446,7 +446,7 @@ func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		commands:   make(map[string]*Command),
 		registry:   NewCommandRegistry(),
-		pending:    NewPendingRequests(),
+		pending:    newPendingRequests(),
 		subsystems: NewSubsystemManager(),
 	}
 }
@@ -474,8 +474,8 @@ func (d *Dispatcher) Subsystems() *SubsystemManager {
 	return d.subsystems
 }
 
-// SetSubsystems sets the subsystem manager.
-func (d *Dispatcher) SetSubsystems(sm *SubsystemManager) {
+// setSubsystems sets the subsystem manager.
+func (d *Dispatcher) setSubsystems(sm *SubsystemManager) {
 	d.subsystems = sm
 }
 
@@ -1137,7 +1137,7 @@ func (d *Dispatcher) matchPluginCommand(lowerInput string) (*RegisteredCommand, 
 
 	// Fall back to deprecated aliases if no primary match found.
 	if matchedPlugin == nil {
-		matchedPlugin, matchedLen = d.registry.LookupDeprecatedPrefix(lowerInput)
+		matchedPlugin, matchedLen = d.registry.lookupDeprecatedPrefix(lowerInput)
 	}
 	return matchedPlugin, matchedLen
 }

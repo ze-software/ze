@@ -18,7 +18,7 @@ const testPeerID = "192.168.1.1"
 //
 // PREVENTS: Route loss on insert, incorrect indexing causing lookup failures.
 func TestIncomingRIBInsert(t *testing.T) {
-	rib := NewIncomingRIB()
+	rib := newIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -41,7 +41,7 @@ func TestIncomingRIBInsert(t *testing.T) {
 // PREVENTS: Stale route data persisting after update, memory leaks from
 // unreleased old routes.
 func TestIncomingRIBReplace(t *testing.T) {
-	rib := NewIncomingRIB()
+	rib := newIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -70,7 +70,7 @@ func TestIncomingRIBReplace(t *testing.T) {
 //
 // PREVENTS: Withdrawn routes persisting in RIB, memory leaks.
 func TestIncomingRIBRemove(t *testing.T) {
-	rib := NewIncomingRIB()
+	rib := newIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -90,7 +90,7 @@ func TestIncomingRIBRemove(t *testing.T) {
 //
 // PREVENTS: Stale routes persisting after peer disconnect, memory leaks.
 func TestIncomingRIBClearPeer(t *testing.T) {
-	rib := NewIncomingRIB()
+	rib := newIncomingRIB()
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
@@ -118,7 +118,7 @@ func TestIncomingRIBClearPeer(t *testing.T) {
 //
 // PREVENTS: Route collision across peers, peer A's routes affecting peer B.
 func TestIncomingRIBMultiplePeers(t *testing.T) {
-	rib := NewIncomingRIB()
+	rib := newIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -150,7 +150,7 @@ func TestIncomingRIBMultiplePeers(t *testing.T) {
 //
 // PREVENTS: Lost announcements, routes not being sent to peers.
 func TestOutgoingRIBQueue(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -161,7 +161,7 @@ func TestOutgoingRIBQueue(t *testing.T) {
 	rib.QueueAnnounce(route)
 
 	// Get pending routes
-	pending := rib.GetPending(family.IPv4Unicast)
+	pending := rib.getPending(family.IPv4Unicast)
 	require.Len(t, pending, 1, "must have 1 pending route")
 	require.Equal(t, route.NLRI(), pending[0].NLRI(), "pending route NLRI must match")
 }
@@ -172,7 +172,7 @@ func TestOutgoingRIBQueue(t *testing.T) {
 //
 // PREVENTS: Announcing routes that should be withdrawn, stale routes.
 func TestOutgoingRIBQueueWithdraw(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -184,11 +184,11 @@ func TestOutgoingRIBQueueWithdraw(t *testing.T) {
 	rib.QueueWithdraw(inet)
 
 	// Pending announcements should be empty (withdraw cancels announce)
-	pending := rib.GetPending(family.IPv4Unicast)
+	pending := rib.getPending(family.IPv4Unicast)
 	require.Len(t, pending, 0, "announce must be canceled by withdraw")
 
 	// Withdrawals should be queued
-	withdrawals := rib.GetWithdrawals(family.IPv4Unicast)
+	withdrawals := rib.getWithdrawals(family.IPv4Unicast)
 	require.Len(t, withdrawals, 1, "must have 1 pending withdrawal")
 }
 
@@ -198,7 +198,7 @@ func TestOutgoingRIBQueueWithdraw(t *testing.T) {
 //
 // PREVENTS: Routes being sent multiple times, memory leaks in pending queue.
 func TestOutgoingRIBFlush(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
@@ -208,11 +208,11 @@ func TestOutgoingRIBFlush(t *testing.T) {
 	rib.QueueAnnounce(route)
 
 	// Get pending (returns and clears)
-	pending := rib.FlushPending(family.IPv4Unicast)
+	pending := rib.flushPending(family.IPv4Unicast)
 	require.Len(t, pending, 1, "must return pending routes")
 
 	// Queue should be empty after flush
-	pending2 := rib.GetPending(family.IPv4Unicast)
+	pending2 := rib.getPending(family.IPv4Unicast)
 	require.Len(t, pending2, 0, "pending must be empty after flush")
 }
 
@@ -222,7 +222,7 @@ func TestOutgoingRIBFlush(t *testing.T) {
 //
 // PREVENTS: Incorrect stats leading to operational issues.
 func TestOutgoingRIBStats(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
@@ -243,7 +243,7 @@ func TestOutgoingRIBStats(t *testing.T) {
 //
 // PREVENTS: Stale routes persisting after RIB clear, memory leaks.
 func TestIncomingRIBClearAll(t *testing.T) {
-	rib := NewIncomingRIB()
+	rib := newIncomingRIB()
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
@@ -267,7 +267,7 @@ func TestIncomingRIBClearAll(t *testing.T) {
 	require.Equal(t, 2, stats.RouteCount, "must have 2 routes")
 
 	// Clear all
-	count := rib.ClearAll()
+	count := rib.clearAll()
 	require.Equal(t, 2, count, "must report 2 routes cleared")
 
 	// Verify all cleared
@@ -282,7 +282,7 @@ func TestIncomingRIBClearAll(t *testing.T) {
 //
 // PREVENTS: Orphaned routes in peers after admin clear.
 func TestOutgoingRIBClearSent(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
@@ -301,7 +301,7 @@ func TestOutgoingRIBClearSent(t *testing.T) {
 	require.Equal(t, 2, stats.SentRoutes, "must have 2 sent routes")
 
 	// Clear sent - should queue withdrawals
-	count := rib.ClearSent()
+	count := rib.clearSent()
 	require.Equal(t, 2, count, "must report 2 routes withdrawn")
 
 	// Verify sent is empty and withdrawals are queued
@@ -316,7 +316,7 @@ func TestOutgoingRIBClearSent(t *testing.T) {
 //
 // PREVENTS: Route sync failures after peer reconnection.
 func TestOutgoingRIBFlushSent(t *testing.T) {
-	rib := NewOutgoingRIB()
+	rib := newOutgoingRIB()
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
@@ -336,7 +336,7 @@ func TestOutgoingRIBFlushSent(t *testing.T) {
 	require.Equal(t, 0, stats.PendingAnnouncements, "must have 0 pending")
 
 	// Flush - should re-queue for announcement
-	count := rib.FlushSent()
+	count := rib.flushSent()
 	require.Equal(t, 2, count, "must report 2 routes flushed")
 
 	// Verify routes are now pending (sent should remain for tracking)

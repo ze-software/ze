@@ -17,7 +17,7 @@ func init() {
 		YANG:         decyang.ZeRPKIDecoratorYANG,
 		Dependencies: []string{"bgp", "bgp-rpki"},
 		EventTypes:   []string{eventTypeUpdateRPKI},
-		RunEngine:    RunDecorator,
+		RunEngine:    runDecorator,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

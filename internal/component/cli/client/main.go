@@ -317,7 +317,7 @@ func runBGP(args []string) int {
 		if tf := openTranscriptFile(); tf != nil {
 			tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), creds.Host+":"+creds.Port)
 			defer tw.Close() //nolint:errcheck // best-effort transcript
-			return client.ExecuteWithTranscript(*runCmd, *format, tw)
+			return client.executeWithTranscript(*runCmd, *format, tw)
 		}
 		return client.Execute(*runCmd, *format)
 	}
@@ -353,10 +353,10 @@ func (c *cliClient) Execute(command, format string) int {
 	return 0
 }
 
-// ExecuteWithTranscript is like Execute but also records the command and response
+// executeWithTranscript is like Execute but also records the command and response
 // to the given transcript writer. Records the original command (with pipe
 // operators) for transcript fidelity.
-func (c *cliClient) ExecuteWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
+func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
 	cmdStr, formatFn, pipeErr := cmd.ProcessPipesChecked(command)
 	if pipeErr != "" {
 		fmt.Fprintf(os.Stderr, "pipe error: %s\n", pipeErr)

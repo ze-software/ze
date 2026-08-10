@@ -13,7 +13,7 @@ func init() {
 		Dependencies: []string{"bgp"},
 		YANG:         cmyang.ZeFilterCommunityMatchYANG,
 		FilterTypes:  []string{"community-match"},
-		RunEngine:    RunFilterCommunityMatch,
+		RunEngine:    runFilterCommunityMatch,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})
 }

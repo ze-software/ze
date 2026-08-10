@@ -91,14 +91,14 @@ func TestPeerSettings_PeerKey_CustomPort(t *testing.T) {
 // TestPeerKeyFromAddrPort verifies standalone key builder.
 func TestPeerKeyFromAddrPort(t *testing.T) {
 	addr := netip.MustParseAddr("192.168.1.1")
-	assert.Equal(t, netip.MustParseAddrPort("192.168.1.1:179"), PeerKeyFromAddrPort(addr, 179))
-	assert.Equal(t, netip.MustParseAddrPort("192.168.1.1:1179"), PeerKeyFromAddrPort(addr, 1179))
+	assert.Equal(t, netip.MustParseAddrPort("192.168.1.1:179"), peerKeyFromAddrPort(addr, 179))
+	assert.Equal(t, netip.MustParseAddrPort("192.168.1.1:1179"), peerKeyFromAddrPort(addr, 1179))
 }
 
 // TestPeerKeyFromAddrPort_IPv6 verifies IPv6 address in key.
 func TestPeerKeyFromAddrPort_IPv6(t *testing.T) {
 	addr := netip.MustParseAddr("2001:db8::1")
-	assert.Equal(t, netip.MustParseAddrPort("[2001:db8::1]:179"), PeerKeyFromAddrPort(addr, 179))
+	assert.Equal(t, netip.MustParseAddrPort("[2001:db8::1]:179"), peerKeyFromAddrPort(addr, 179))
 }
 
 // TestPeerSettings_IsIBGP verifies iBGP detection (same AS).
@@ -124,15 +124,15 @@ func TestStaticRoute_IsVPN(t *testing.T) {
 // TestStaticRoute_IsLabeledUnicast verifies labeled unicast detection.
 // RFC 8277: Labeled routes have labels but no RD.
 func TestStaticRoute_IsLabeledUnicast(t *testing.T) {
-	assert.True(t, (&StaticRoute{Labels: []uint32{100}}).IsLabeledUnicast())
-	assert.False(t, (&StaticRoute{Labels: []uint32{100}, RD: "100:100"}).IsLabeledUnicast(), "VPN has labels but also RD")
-	assert.False(t, (&StaticRoute{}).IsLabeledUnicast())
+	assert.True(t, (&StaticRoute{Labels: []uint32{100}}).isLabeledUnicast())
+	assert.False(t, (&StaticRoute{Labels: []uint32{100}, RD: "100:100"}).isLabeledUnicast(), "VPN has labels but also RD")
+	assert.False(t, (&StaticRoute{}).isLabeledUnicast())
 }
 
 // TestStaticRoute_SingleLabel_Basic verifies first label extraction.
 func TestStaticRoute_SingleLabel_Basic(t *testing.T) {
-	assert.Equal(t, uint32(100), (&StaticRoute{Labels: []uint32{100, 200}}).SingleLabel())
-	assert.Equal(t, uint32(0), (&StaticRoute{}).SingleLabel())
+	assert.Equal(t, uint32(100), (&StaticRoute{Labels: []uint32{100, 200}}).singleLabel())
+	assert.Equal(t, uint32(0), (&StaticRoute{}).singleLabel())
 }
 
 // TestStaticRoute_RouteKey verifies route key format.

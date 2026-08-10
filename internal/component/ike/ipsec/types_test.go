@@ -75,7 +75,7 @@ func TestHashAlgoString(t *testing.T) {
 		if tt.algo == HashUnknown {
 			continue
 		}
-		parsed, ok := ParseHashAlgo(tt.want)
+		parsed, ok := parseHashAlgo(tt.want)
 		if !ok {
 			t.Errorf("ParseHashAlgo(%q) returned !ok", tt.want)
 		}
@@ -106,7 +106,7 @@ func TestDHGroupString(t *testing.T) {
 
 func TestPFSModeRoundTrip(t *testing.T) {
 	for _, name := range []string{"enable", "disable"} {
-		p, ok := ParsePFSMode(name)
+		p, ok := parsePFSMode(name)
 		if !ok {
 			t.Fatalf("ParsePFSMode(%q) !ok", name)
 		}
@@ -130,7 +130,7 @@ func TestAuthModeRoundTrip(t *testing.T) {
 
 func TestConnectionTypeRoundTrip(t *testing.T) {
 	for _, name := range []string{"initiate", "respond"} {
-		c, ok := ParseConnectionType(name)
+		c, ok := parseConnectionType(name)
 		if !ok {
 			t.Fatalf("ParseConnectionType(%q) !ok", name)
 		}
@@ -142,7 +142,7 @@ func TestConnectionTypeRoundTrip(t *testing.T) {
 
 func TestCloseActionRoundTrip(t *testing.T) {
 	for _, name := range []string{"none", "start", "restart"} {
-		a, ok := ParseCloseAction(name)
+		a, ok := parseCloseAction(name)
 		if !ok {
 			t.Fatalf("ParseCloseAction(%q) !ok", name)
 		}
@@ -154,7 +154,7 @@ func TestCloseActionRoundTrip(t *testing.T) {
 
 func TestDPDActionRoundTrip(t *testing.T) {
 	for _, name := range []string{"restart", "hold", "clear"} {
-		a, ok := ParseDPDAction(name)
+		a, ok := parseDPDAction(name)
 		if !ok {
 			t.Fatalf("ParseDPDAction(%q) !ok", name)
 		}
@@ -166,7 +166,7 @@ func TestDPDActionRoundTrip(t *testing.T) {
 
 func TestKeyExchangeRoundTrip(t *testing.T) {
 	for _, name := range []string{"ikev1", "ikev2"} {
-		k, ok := ParseKeyExchange(name)
+		k, ok := parseKeyExchange(name)
 		if !ok {
 			t.Fatalf("ParseKeyExchange(%q) !ok", name)
 		}

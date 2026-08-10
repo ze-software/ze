@@ -21,7 +21,7 @@ func TestMessageRoundTrip(t *testing.T) {
 	off += WriteAVPString(buf, off, true, AVPHostName, "lac-01")
 	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, 0xBEEF)
 	off += WriteAVPUint16(buf, off, true, AVPReceiveWindowSize, 16)
-	off += WriteAVPUint64(buf, off, false, AVPTieBreaker, 0xCAFEBABE12345678)
+	off += writeAVPUint64(buf, off, false, AVPTieBreaker, 0xCAFEBABE12345678)
 	total := off
 
 	// Now that length is known, write the header.
@@ -82,25 +82,25 @@ func TestMessageRoundTrip(t *testing.T) {
 	}
 
 	// Spot-check a few parsed values.
-	if mt, err := ReadAVPUint16(got[0].val); err != nil || MessageType(mt) != MsgSCCRQ {
+	if mt, err := readAVPUint16(got[0].val); err != nil || MessageType(mt) != MsgSCCRQ {
 		t.Fatalf("message type: %d (%v)", mt, err)
 	}
 	if !bytes.Equal(got[1].val, ProtocolVersionValue[:]) {
 		t.Fatalf("protocol version: %x", got[1].val)
 	}
-	if fc, err := ReadAVPUint32(got[2].val); err != nil || fc != 0x03 {
+	if fc, err := readAVPUint32(got[2].val); err != nil || fc != 0x03 {
 		t.Fatalf("framing cap: %x (%v)", fc, err)
 	}
 	if string(got[3].val) != "lac-01" {
 		t.Fatalf("host name: %q", got[3].val)
 	}
-	if tid, err := ReadAVPUint16(got[4].val); err != nil || tid != 0xBEEF {
+	if tid, err := readAVPUint16(got[4].val); err != nil || tid != 0xBEEF {
 		t.Fatalf("assigned TID: %x", tid)
 	}
-	if rws, err := ReadAVPUint16(got[5].val); err != nil || rws != 16 {
+	if rws, err := readAVPUint16(got[5].val); err != nil || rws != 16 {
 		t.Fatalf("recv window: %d", rws)
 	}
-	if tb, err := ReadAVPUint64(got[6].val); err != nil || tb != 0xCAFEBABE12345678 {
+	if tb, err := readAVPUint64(got[6].val); err != nil || tb != 0xCAFEBABE12345678 {
 		t.Fatalf("tie breaker: %x", tb)
 	}
 }

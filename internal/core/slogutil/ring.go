@@ -28,8 +28,8 @@ type LogRing struct {
 	count   int
 }
 
-// NewLogRing creates a ring with the given capacity.
-func NewLogRing(capacity int) *LogRing {
+// newLogRing creates a ring with the given capacity.
+func newLogRing(capacity int) *LogRing {
 	if capacity <= 0 {
 		capacity = defaultLogRingCapacity
 	}
@@ -139,7 +139,7 @@ func (h *ringHandler) WithGroup(name string) slog.Handler {
 }
 
 // globalLogRing is the singleton log ring for CLI queries.
-var globalLogRing = NewLogRing(defaultLogRingCapacity)
+var globalLogRing = newLogRing(defaultLogRingCapacity)
 
 // GlobalLogRing returns the global log ring buffer.
 func GlobalLogRing() *LogRing {

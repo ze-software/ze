@@ -110,7 +110,7 @@ func runInit(args []string) int {
 		return exitError
 	}
 
-	if err := os.MkdirAll(TLSDir(dir, name), secretsDirPerm); err != nil {
+	if err := os.MkdirAll(tLSDir(dir, name), secretsDirPerm); err != nil {
 		fmt.Fprintf(os.Stderr, "error: create directories: %v\n", err)
 		return exitError
 	}
@@ -180,7 +180,7 @@ func runInit(args []string) int {
 	}
 
 	if len(passphrase) > 0 {
-		if err := WriteEncryptedMarker(dir, name); err != nil {
+		if err := writeEncryptedMarker(dir, name); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write encryption marker: %v\n", err)
 			return exitError
 		}
@@ -270,8 +270,8 @@ func readPassphraseForInit(pw io.Writer) []byte {
 
 func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFile string, passphrase []byte) error {
 	var tb textbuf.Buffer
-	certPath := tb.Str(TLSDir(baseDir, name)).Str("/cert.pem").String()
-	keyPath := tb.Reset().Str(TLSDir(baseDir, name)).Str("/key.pem").String()
+	certPath := tb.Str(tLSDir(baseDir, name)).Str("/cert.pem").String()
+	keyPath := tb.Reset().Str(tLSDir(baseDir, name)).Str("/key.pem").String()
 
 	if certFile != "" && keyFile != "" {
 		certData, err := cliio.ReadFile(certFile) // "-" reads stdin
@@ -423,7 +423,7 @@ func initOneFromBatch(dir string, entry batchEntry, password string, passphrase 
 		return exitError
 	}
 
-	if err := os.MkdirAll(TLSDir(dir, name), secretsDirPerm); err != nil {
+	if err := os.MkdirAll(tLSDir(dir, name), secretsDirPerm); err != nil {
 		fmt.Fprintf(os.Stderr, "error: create directories for %s: %v\n", name, err)
 		return exitError
 	}
@@ -479,7 +479,7 @@ func initOneFromBatch(dir string, entry batchEntry, password string, passphrase 
 	}
 
 	if len(passphrase) > 0 {
-		if err := WriteEncryptedMarker(dir, name); err != nil {
+		if err := writeEncryptedMarker(dir, name); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write encryption marker for %s: %v\n", name, err)
 			return exitError
 		}

@@ -24,28 +24,28 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"bgp-ls/bgp-ls", "bgp-ls/bgp-ls-vpn"},
-		RunEngine:    RunBGPLSPlugin,
+		RunEngine:    runBGPLSPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetBGPLSLogger(slogutil.Logger(loggerName))
+			setBGPLSLogger(slogutil.Logger(loggerName))
 		},
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
-			return RunBGPLSDecode(input, output)
+			return runBGPLSDecode(input, output)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		var family *string
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = GetBGPLSYANG
+		cfg.GetYANG = getBGPLSYANG
 		cfg.ConfigLogger = func(level string) {
-			SetBGPLSLogger(slogutil.PluginLogger(reg.Name, level))
+			setBGPLSLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
 			family = fs.String("family", "bgp-ls/bgp-ls", "Address family (bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn)")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
-			return RunBGPLSCLIDecode(hex, *family, text, out, errOut)
+			return runBGPLSCLIDecode(hex, *family, text, out, errOut)
 		}
-		cfg.RunDecode = RunBGPLSDecode
+		cfg.RunDecode = runBGPLSDecode
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

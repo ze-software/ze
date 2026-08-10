@@ -103,9 +103,9 @@ func buildLogReactor(t *testing.T) (*UDPListener, *L2TPReactor, *lockedBuffer, f
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
-	r := NewL2TPReactor(ln, logger, ReactorParams{
+	r := newL2TPReactor(ln, logger, reactorParams{
 		Defaults: TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
 	require.NoError(t, r.Start())
@@ -405,7 +405,7 @@ func TestReactor_RememberPeerAddrPort(t *testing.T) {
 	defer clientA.Close()
 	clientA.Send(t, buildSCCRQ(t, 99, "peer-e"))
 	waitForLog(t, logs, "SCCRP sent")
-	tunnel := r.TunnelByLocalID(1)
+	tunnel := r.tunnelByLocalID(1)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	firstAddr := tunnel.peerAddr
@@ -437,10 +437,10 @@ func TestReactor_MaxTunnelsLimit(t *testing.T) {
 	// reactor with MaxTunnels=1 directly.
 	var buf lockedBuffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
 	defer ln.Stop() //nolint:errcheck // test cleanup
-	r := NewL2TPReactor(ln, logger, ReactorParams{
+	r := newL2TPReactor(ln, logger, reactorParams{
 		MaxTunnels: 1,
 		Defaults:   TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
@@ -475,9 +475,9 @@ func buildLogReactorSecret(t *testing.T, secret string) (*UDPListener, *L2TPReac
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
-	r := NewL2TPReactor(ln, logger, ReactorParams{
+	r := newL2TPReactor(ln, logger, reactorParams{
 		Defaults: TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
 	})
 	require.NoError(t, r.Start())
@@ -657,7 +657,7 @@ func TestTunnelFSM_SCCCNEstablishes(t *testing.T) {
 
 	waitForLog(t, logs, "tunnel now established")
 
-	tunnel := r.TunnelByLocalID(ourLocalTID)
+	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
@@ -704,7 +704,7 @@ func TestTunnelFSM_BadChallengeResponse_StopCCN(t *testing.T) {
 	require.Equal(t, uint16(4), uint16(rc[0])<<8|uint16(rc[1]), "Result Code must be 4 (Not Authorized)")
 
 	// Tunnel should be in closed state.
-	tunnel := r.TunnelByLocalID(ourLocalTID)
+	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
@@ -762,7 +762,7 @@ func TestTunnelFSM_AuthRequiredWhenSecretConfigured(t *testing.T) {
 	require.Equal(t, uint16(4), uint16(rc[0])<<8|uint16(rc[1]),
 		"Result Code must be 4 (Not Authorized)")
 
-	tunnel := r.TunnelByLocalID(ourLocalTID)
+	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
@@ -851,7 +851,7 @@ func TestReactor_ZeroLengthChallengeRejected(t *testing.T) {
 	off += WriteAVPString(buf, off, true, AVPHostName, "peer-empty-challenge")
 	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, 555)
 	off += WriteAVPUint16(buf, off, true, AVPReceiveWindowSize, 8)
-	off += WriteAVPEmpty(buf, off, true, 0, AVPChallenge)
+	off += writeAVPEmpty(buf, off, true, 0, AVPChallenge)
 
 	total := 12 + off
 	pkt := make([]byte, total)
@@ -927,7 +927,7 @@ func TestTunnelFSM_SCCCNMissingResponseWhenChallenged(t *testing.T) {
 	msgType := extractAVP(t, stopccn, AVPMessageType)
 	require.Equal(t, uint16(MsgStopCCN), uint16(msgType[0])<<8|uint16(msgType[1]))
 
-	tunnel := r.TunnelByLocalID(ourLocalTID)
+	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
@@ -968,7 +968,7 @@ func TestTunnelFSM_SCCCNIgnoredOnEstablished(t *testing.T) {
 	client.Send(t, buildSCCCN(t, ourLocalTID, 2, 1, resp[:]))
 	waitForLog(t, logs, "SCCCN on non-wait-ctl-conn tunnel ignored")
 
-	tunnel := r.TunnelByLocalID(ourLocalTID)
+	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
@@ -1005,7 +1005,7 @@ func TestTunnelFSM_SCCCNWithResponseUnchallenged(t *testing.T) {
 	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, spurious))
 
 	waitForLog(t, logs, "tunnel now established")
-	tunnel := r.TunnelByLocalID(ourLocalTID)
+	tunnel := r.tunnelByLocalID(ourLocalTID)
 	require.NotNil(t, tunnel)
 	r.tunnelsMu.Lock()
 	state := tunnel.state
@@ -1096,9 +1096,9 @@ func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterva
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
-	r := NewL2TPReactor(ln, logger, ReactorParams{
+	r := newL2TPReactor(ln, logger, reactorParams{
 		HelloInterval: helloInterval,
 		Defaults:      TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
 		Clock:         clk.now,
@@ -1156,7 +1156,7 @@ func buildStopCCN(t *testing.T, destTID, ns, nr, peerAssignedTID, resultCode uin
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, peerAssignedTID)
-	off += WriteAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
 	total := 12 + off
 	pkt := make([]byte, total)
 	WriteControlHeader(pkt, 0, uint16(total), destTID, 0, ns, nr)

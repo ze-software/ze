@@ -67,7 +67,7 @@ func TestMessageHandles1280Octets(t *testing.T) {
 		{Payload: nonceOf(256)},
 		{Payload: &PayloadVendorID{VendorIDData: make([]byte, 256)}},
 		{Payload: &PayloadAUTH{AuthMethod: 14, AuthData: make([]byte, 256)}},
-		{Payload: &PayloadRaw{PayloadType: PayloadTypeCERT, Data: make([]byte, 256)}},
+		{Payload: &payloadRaw{PayloadType: PayloadTypeCERT, Data: make([]byte, 256)}},
 	}
 	raw := buildChain(t, testHeader(), payloads)
 	if len(raw) < 1280 {
@@ -267,7 +267,7 @@ func TestReservedFieldsIgnoredOnReceipt(t *testing.T) {
 func TestUndefinedPayloadTypeSkipped(t *testing.T) {
 	const undefinedType uint8 = 200
 	raw := buildChain(t, testHeader(), []PayloadEntry{
-		{Payload: &PayloadRaw{PayloadType: undefinedType, Data: []byte{0xde, 0xad, 0xbe, 0xef}}},
+		{Payload: &payloadRaw{PayloadType: undefinedType, Data: []byte{0xde, 0xad, 0xbe, 0xef}}},
 		{Payload: nonceOf(32)},
 	})
 
@@ -278,7 +278,7 @@ func TestUndefinedPayloadTypeSkipped(t *testing.T) {
 	if len(got.Payloads) != 2 {
 		t.Fatalf("recovered %d payloads, want 2 (the undefined one is skipped, not fatal)", len(got.Payloads))
 	}
-	skipped, ok := got.Payloads[0].Payload.(*PayloadRaw)
+	skipped, ok := got.Payloads[0].Payload.(*payloadRaw)
 	if !ok {
 		t.Fatalf("undefined payload decoded to %T, want *PayloadRaw", got.Payloads[0].Payload)
 	}
@@ -296,7 +296,7 @@ func TestUndefinedPayloadTypeSkipped(t *testing.T) {
 	if err := known.ReadFrom(defined); err != nil {
 		t.Fatalf("ReadFrom: %v", err)
 	}
-	if _, isRaw := known.Payloads[0].Payload.(*PayloadRaw); isRaw {
+	if _, isRaw := known.Payloads[0].Payload.(*payloadRaw); isRaw {
 		t.Error("a defined payload type was stored as PayloadRaw; the skip path must not " +
 			"swallow types this version understands")
 	}
@@ -313,7 +313,7 @@ func TestCriticalUnrecognizedPayloadRejected(t *testing.T) {
 
 	// Positive: critical + unrecognized rejects.
 	raw := buildChain(t, testHeader(), []PayloadEntry{
-		{Payload: &PayloadRaw{PayloadType: undefinedType, Data: []byte{1, 2, 3, 4}}, Critical: true},
+		{Payload: &payloadRaw{PayloadType: undefinedType, Data: []byte{1, 2, 3, 4}}, Critical: true},
 	})
 	var got Message
 	if err := got.ReadFrom(raw); !errors.Is(err, ErrUnsupportedCrit) {
@@ -340,7 +340,7 @@ func TestNonCriticalUnsupportedPayloadIgnored(t *testing.T) {
 	body := []byte{9, 8, 7, 6}
 
 	raw := buildChain(t, testHeader(), []PayloadEntry{
-		{Payload: &PayloadRaw{PayloadType: undefinedType, Data: body}},
+		{Payload: &payloadRaw{PayloadType: undefinedType, Data: body}},
 		{Payload: nonceOf(16)},
 	})
 	var got Message
@@ -356,7 +356,7 @@ func TestNonCriticalUnsupportedPayloadIgnored(t *testing.T) {
 
 	// Negative: the same payload with the critical flag set is refused.
 	crit := buildChain(t, testHeader(), []PayloadEntry{
-		{Payload: &PayloadRaw{PayloadType: undefinedType, Data: body}, Critical: true},
+		{Payload: &payloadRaw{PayloadType: undefinedType, Data: body}, Critical: true},
 		{Payload: nonceOf(16)},
 	})
 	var refused Message
@@ -442,7 +442,7 @@ func TestCriticalBitIgnoredForKnownType(t *testing.T) {
 
 	// Negative: critical is honored for an unknown type.
 	unknown := buildChain(t, testHeader(), []PayloadEntry{
-		{Payload: &PayloadRaw{PayloadType: 203, Data: []byte{1, 2, 3, 4}}, Critical: true},
+		{Payload: &payloadRaw{PayloadType: 203, Data: []byte{1, 2, 3, 4}}, Critical: true},
 	})
 	var refused Message
 	if err := refused.ReadFrom(unknown); !errors.Is(err, ErrUnsupportedCrit) {
@@ -495,7 +495,7 @@ func TestAllDefinedPayloadTypesUnderstood(t *testing.T) {
 				"document defines must be understood", ty, err)
 			continue
 		}
-		if _, isRaw := p.(*PayloadRaw); isRaw {
+		if _, isRaw := p.(*payloadRaw); isRaw {
 			t.Errorf("decodePayload(%d) returned PayloadRaw; a defined type must decode to "+
 				"its own concrete type", ty)
 		}

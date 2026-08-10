@@ -66,7 +66,7 @@ func TestNlriKey(t *testing.T) {
 func TestHandleStateDown_BatchesByFamily(t *testing.T) {
 	t.Parallel()
 
-	rr := &RouteReflector{
+	rr := &routeReflector{
 		peers:       make(map[string]*peerState),
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}

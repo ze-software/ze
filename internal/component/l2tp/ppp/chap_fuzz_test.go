@@ -37,7 +37,7 @@ func FuzzParseCHAPResponse(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		resp, err := ParseCHAPResponse(data)
+		resp, err := parseCHAPResponse(data)
 		if err != nil {
 			return
 		}

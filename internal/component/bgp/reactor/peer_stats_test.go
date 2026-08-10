@@ -52,8 +52,8 @@ func TestPeerStatsIncrement(t *testing.T) {
 	peer.IncrKeepalivesReceived()
 	peer.IncrKeepalivesReceived()
 	peer.IncrKeepalivesReceived()
-	peer.IncrKeepalivesSent()
-	peer.IncrKeepalivesSent()
+	peer.incrKeepalivesSent()
+	peer.incrKeepalivesSent()
 	peer.IncrEORReceived()
 	peer.IncrEORSent()
 
@@ -92,7 +92,7 @@ func TestPeerStatsClearOnReset(t *testing.T) {
 	peer.IncrUpdatesReceived()
 	peer.IncrUpdatesSent()
 	peer.IncrKeepalivesReceived()
-	peer.IncrKeepalivesSent()
+	peer.incrKeepalivesSent()
 	peer.IncrEORReceived()
 	peer.IncrEORSent()
 	peer.SetEstablishedNow()
@@ -351,9 +351,9 @@ func TestPeerStatsOpens(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.IncrOpensReceived()
-	peer.IncrOpensSent()
-	peer.IncrOpensSent()
+	peer.incrOpensReceived()
+	peer.incrOpensSent()
+	peer.incrOpensSent()
 
 	stats := peer.Stats()
 	assert.Equal(t, uint32(1), stats.OpensReceived)
@@ -365,9 +365,9 @@ func TestPeerStatsRefresh(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.IncrRefreshReceived()
-	peer.IncrRefreshReceived()
-	peer.IncrRefreshSent()
+	peer.incrRefreshReceived()
+	peer.incrRefreshReceived()
+	peer.incrRefreshSent()
 
 	stats := peer.Stats()
 	assert.Equal(t, uint32(2), stats.RefreshReceived)
@@ -409,7 +409,7 @@ func TestPeerStatsConnectionCounts(t *testing.T) {
 	assert.Equal(t, uint32(2), stats.ConnectionsEstablished)
 	assert.Equal(t, uint32(0), stats.ConnectionsDropped)
 
-	peer.IncrConnectionsDropped()
+	peer.incrConnectionsDropped()
 	stats = peer.Stats()
 	assert.Equal(t, uint32(1), stats.ConnectionsDropped)
 }
@@ -423,8 +423,8 @@ func TestPeerStatsLastReadWrite(t *testing.T) {
 	assert.True(t, stats.LastReadTime.IsZero())
 	assert.True(t, stats.LastWriteTime.IsZero())
 
-	peer.TouchLastRead()
-	peer.TouchLastWrite()
+	peer.touchLastRead()
+	peer.touchLastWrite()
 
 	stats = peer.Stats()
 	assert.False(t, stats.LastReadTime.IsZero())
@@ -439,12 +439,12 @@ func TestPeerStatsClearPreservesLifetime(t *testing.T) {
 
 	peer, _ := newPeerWithMetrics()
 
-	peer.IncrOpensReceived()
-	peer.IncrRefreshSent()
+	peer.incrOpensReceived()
+	peer.incrRefreshSent()
 	peer.IncrNotificationSent(6, 2)
 	peer.SetEstablishedNow()
-	peer.IncrConnectionsDropped()
-	peer.TouchLastRead()
+	peer.incrConnectionsDropped()
+	peer.touchLastRead()
 
 	peer.ClearStats()
 

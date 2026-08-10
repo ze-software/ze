@@ -8,7 +8,7 @@ import (
 )
 
 func TestFormatQoSMapEmpty(t *testing.T) {
-	got := FormatQoSMap(nil)
+	got := formatQoSMap(nil)
 	if got != "No traffic control configured." {
 		t.Errorf("got %q, want empty message", got)
 	}

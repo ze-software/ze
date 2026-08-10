@@ -28,8 +28,8 @@ func FormatQoS(qos traffic.InterfaceQoS) string {
 	return b.String()
 }
 
-// FormatQoSMap formats a map of interface QoS configs for CLI output.
-func FormatQoSMap(m map[string]traffic.InterfaceQoS) string {
+// formatQoSMap formats a map of interface QoS configs for CLI output.
+func formatQoSMap(m map[string]traffic.InterfaceQoS) string {
 	if len(m) == 0 {
 		return "No traffic control configured."
 	}

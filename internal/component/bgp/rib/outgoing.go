@@ -43,15 +43,15 @@ type OutgoingRIB struct {
 	txWithdrawals map[family.Family]map[string]nlri.NLRI
 }
 
-// CommitStats holds statistics from a transaction commit.
-type CommitStats struct {
+// commitStats holds statistics from a transaction commit.
+type commitStats struct {
 	RoutesAnnounced int
 	RoutesWithdrawn int
 	RoutesDiscarded int // Only set on rollback
 }
 
-// NewOutgoingRIB creates a new Adj-RIB-Out.
-func NewOutgoingRIB() *OutgoingRIB {
+// newOutgoingRIB creates a new Adj-RIB-Out.
+func newOutgoingRIB() *OutgoingRIB {
 	return &OutgoingRIB{
 		pending:     make(map[family.Family]map[string]*Route),
 		withdrawals: make(map[family.Family]map[string]nlri.NLRI),
@@ -166,8 +166,8 @@ func matchesNLRI(routeIdx, nlriIdx string) bool {
 	return len(routeIdx) >= len(nlriIdx) && routeIdx[:len(nlriIdx)] == nlriIdx
 }
 
-// GetPending returns pending routes for a family without clearing them.
-func (r *OutgoingRIB) GetPending(fam family.Family) []*Route {
+// getPending returns pending routes for a family without clearing them.
+func (r *OutgoingRIB) getPending(fam family.Family) []*Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -184,8 +184,8 @@ func (r *OutgoingRIB) GetPending(fam family.Family) []*Route {
 	return routes
 }
 
-// FlushPending returns and clears pending routes for a family.
-func (r *OutgoingRIB) FlushPending(fam family.Family) []*Route {
+// flushPending returns and clears pending routes for a family.
+func (r *OutgoingRIB) flushPending(fam family.Family) []*Route {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -211,8 +211,8 @@ func (r *OutgoingRIB) FlushPending(fam family.Family) []*Route {
 	return routes
 }
 
-// GetWithdrawals returns pending withdrawals for a family.
-func (r *OutgoingRIB) GetWithdrawals(fam family.Family) []nlri.NLRI {
+// getWithdrawals returns pending withdrawals for a family.
+func (r *OutgoingRIB) getWithdrawals(fam family.Family) []nlri.NLRI {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -229,8 +229,8 @@ func (r *OutgoingRIB) GetWithdrawals(fam family.Family) []nlri.NLRI {
 	return nlris
 }
 
-// FlushAllPending returns and clears all pending routes across all families.
-func (r *OutgoingRIB) FlushAllPending() []*Route {
+// flushAllPending returns and clears all pending routes across all families.
+func (r *OutgoingRIB) flushAllPending() []*Route {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -259,8 +259,8 @@ func (r *OutgoingRIB) FlushAllPending() []*Route {
 	return routes
 }
 
-// FlushWithdrawals returns and clears pending withdrawals for a family.
-func (r *OutgoingRIB) FlushWithdrawals(fam family.Family) []nlri.NLRI {
+// flushWithdrawals returns and clears pending withdrawals for a family.
+func (r *OutgoingRIB) flushWithdrawals(fam family.Family) []nlri.NLRI {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -316,9 +316,9 @@ func (r *OutgoingRIB) Stats() OutgoingRIBStats {
 	return stats
 }
 
-// GetSentRoutes returns all previously sent routes for re-announcement.
+// getSentRoutes returns all previously sent routes for re-announcement.
 // Used when a session re-establishes to replay the RIB to the peer.
-func (r *OutgoingRIB) GetSentRoutes() []*Route {
+func (r *OutgoingRIB) getSentRoutes() []*Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -352,9 +352,9 @@ func (r *OutgoingRIB) MarkSent(route *Route) {
 	r.sent[fam][idx] = route
 }
 
-// RemoveFromSent removes a route from the sent cache by NLRI.
+// removeFromSent removes a route from the sent cache by NLRI.
 // Used when a withdrawal is queued to prevent re-announcement on reconnect.
-func (r *OutgoingRIB) RemoveFromSent(n nlri.NLRI) {
+func (r *OutgoingRIB) removeFromSent(n nlri.NLRI) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -373,9 +373,9 @@ func (r *OutgoingRIB) RemoveFromSent(n nlri.NLRI) {
 	}
 }
 
-// ClearSent queues withdrawals for all sent routes and clears the sent cache.
+// clearSent queues withdrawals for all sent routes and clears the sent cache.
 // Returns the number of routes withdrawn.
-func (r *OutgoingRIB) ClearSent() int {
+func (r *OutgoingRIB) clearSent() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -400,9 +400,9 @@ func (r *OutgoingRIB) ClearSent() int {
 	return count
 }
 
-// FlushSent re-queues all sent routes for re-announcement.
+// flushSent re-queues all sent routes for re-announcement.
 // Returns the number of routes flushed.
-func (r *OutgoingRIB) FlushSent() int {
+func (r *OutgoingRIB) flushSent() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -475,36 +475,36 @@ func (r *OutgoingRIB) TransactionID() string {
 // CommitTransaction commits the current transaction.
 // Moves all transaction-pending routes to the regular pending queue for sending.
 // Returns stats about committed routes.
-func (r *OutgoingRIB) CommitTransaction() (CommitStats, error) {
+func (r *OutgoingRIB) CommitTransaction() (commitStats, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if !r.inTransaction {
-		return CommitStats{}, ErrNoTransaction
+		return commitStats{}, ErrNoTransaction
 	}
 
 	return r.commitLocked(), nil
 }
 
-// CommitTransactionWithLabel commits the transaction, verifying the label matches.
-func (r *OutgoingRIB) CommitTransactionWithLabel(label string) (CommitStats, error) {
+// commitTransactionWithLabel commits the transaction, verifying the label matches.
+func (r *OutgoingRIB) commitTransactionWithLabel(label string) (commitStats, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if !r.inTransaction {
-		return CommitStats{}, ErrNoTransaction
+		return commitStats{}, ErrNoTransaction
 	}
 
 	if r.transactionID != label {
-		return CommitStats{}, ErrLabelMismatch
+		return commitStats{}, ErrLabelMismatch
 	}
 
 	return r.commitLocked(), nil
 }
 
 // commitLocked performs the actual commit (caller must hold lock).
-func (r *OutgoingRIB) commitLocked() CommitStats {
-	var stats CommitStats
+func (r *OutgoingRIB) commitLocked() commitStats {
+	var stats commitStats
 
 	// Count and move announced routes to pending
 	for fam, routes := range r.txPending {
@@ -539,15 +539,15 @@ func (r *OutgoingRIB) commitLocked() CommitStats {
 
 // RollbackTransaction discards all routes queued during the transaction.
 // Returns stats about discarded routes.
-func (r *OutgoingRIB) RollbackTransaction() (CommitStats, error) {
+func (r *OutgoingRIB) RollbackTransaction() (commitStats, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if !r.inTransaction {
-		return CommitStats{}, ErrNoTransaction
+		return commitStats{}, ErrNoTransaction
 	}
 
-	var stats CommitStats
+	var stats commitStats
 
 	// Count discarded routes
 	for _, routes := range r.txPending {
@@ -566,8 +566,8 @@ func (r *OutgoingRIB) RollbackTransaction() (CommitStats, error) {
 	return stats, nil
 }
 
-// GetTransactionPending returns routes queued in the current transaction for a family.
-func (r *OutgoingRIB) GetTransactionPending(fam family.Family) []*Route {
+// getTransactionPending returns routes queued in the current transaction for a family.
+func (r *OutgoingRIB) getTransactionPending(fam family.Family) []*Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

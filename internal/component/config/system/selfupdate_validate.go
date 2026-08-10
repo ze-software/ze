@@ -26,8 +26,8 @@ func parseHHMM(s string) (hhmm, error) {
 	return hhmm{hour: h, minute: m}, nil
 }
 
-// ValidateSelfUpdateConfig checks for config errors.
-func ValidateSelfUpdateConfig(cfg SelfUpdateConfig) error {
+// validateSelfUpdateConfig checks for config errors.
+func validateSelfUpdateConfig(cfg SelfUpdateConfig) error {
 	if cfg.RestartImmediate && cfg.RestartTime != "" {
 		return errors.New("restart { immediate } and restart { time } are mutually exclusive")
 	}
@@ -49,8 +49,8 @@ func ValidateSelfUpdateConfig(cfg SelfUpdateConfig) error {
 	return nil
 }
 
-// WarnConfigConflicts logs warnings for non-error config conflicts.
-func WarnConfigConflicts(cfg SelfUpdateConfig) {
+// warnConfigConflicts logs warnings for non-error config conflicts.
+func warnConfigConflicts(cfg SelfUpdateConfig) {
 	if cfg.RestartTime == "" || cfg.MaintenanceStart == "" || cfg.MaintenanceEnd == "" {
 		return
 	}

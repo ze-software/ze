@@ -135,7 +135,7 @@ func TestParseDHCPv6Solicit(t *testing.T) {
 	txn := [3]byte{0x12, 0x34, 0x56}
 	pkt := buildSolicit(txn, clientDUID, 1)
 
-	msg, err := ParseDHCPv6(pkt)
+	msg, err := parseDHCPv6(pkt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,14 +162,14 @@ func TestDHCPv6SolicitReply(t *testing.T) {
 	txn := [3]byte{0x12, 0x34, 0x56}
 
 	solicit := buildSolicit(txn, clientDUID, 1)
-	msg, err := ParseDHCPv6(solicit)
+	msg, err := parseDHCPv6(solicit)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	prefix := netip.MustParsePrefix("2001:db8:abcd::/48")
 	var buf [512]byte
-	n := BuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n := buildDHCPv6Reply(buf[:], dHCPv6ReplyConfig{
 		Type:          DHCPv6Advertise,
 		TransactionID: msg.TransactionID,
 		ServerID:      srv,
@@ -182,7 +182,7 @@ func TestDHCPv6SolicitReply(t *testing.T) {
 		T2:            483840,
 	})
 
-	reply, err := ParseDHCPv6(buf[:n])
+	reply, err := parseDHCPv6(buf[:n])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestDHCPv6NoPrefixAvail(t *testing.T) {
 	txn := [3]byte{0xab, 0xcd, 0xef}
 
 	var buf [512]byte
-	n := BuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
+	n := buildDHCPv6StatusReply(buf[:], dHCPv6StatusReplyConfig{
 		TransactionID: txn,
 		ServerID:      srv,
 		ClientID:      &clientDUID,
@@ -223,7 +223,7 @@ func TestDHCPv6NoPrefixAvail(t *testing.T) {
 		StatusMessage: "pool exhausted",
 	})
 
-	reply, err := ParseDHCPv6(buf[:n])
+	reply, err := parseDHCPv6(buf[:n])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func TestDHCPv6RenewReply(t *testing.T) {
 	txn := [3]byte{0x11, 0x22, 0x33}
 
 	renew := buildRenew(txn, clientDUID, srv, 1)
-	msg, err := ParseDHCPv6(renew)
+	msg, err := parseDHCPv6(renew)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +254,7 @@ func TestDHCPv6RenewReply(t *testing.T) {
 
 	prefix := netip.MustParsePrefix("2001:db8:abcd::/48")
 	var buf [512]byte
-	n := BuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n := buildDHCPv6Reply(buf[:], dHCPv6ReplyConfig{
 		Type:          DHCPv6Reply,
 		TransactionID: msg.TransactionID,
 		ServerID:      srv,
@@ -267,7 +267,7 @@ func TestDHCPv6RenewReply(t *testing.T) {
 		T2:            483840,
 	})
 
-	reply, err := ParseDHCPv6(buf[:n])
+	reply, err := parseDHCPv6(buf[:n])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +288,7 @@ func TestDHCPv6ReleaseHandling(t *testing.T) {
 	txn := [3]byte{0x44, 0x55, 0x66}
 
 	release := buildRelease(txn, clientDUID, srv, 1)
-	msg, err := ParseDHCPv6(release)
+	msg, err := parseDHCPv6(release)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestDHCPv6ReleaseHandling(t *testing.T) {
 }
 
 func TestParseDHCPv6TooShort(t *testing.T) {
-	_, err := ParseDHCPv6([]byte{1, 2})
+	_, err := parseDHCPv6([]byte{1, 2})
 	if err == nil {
 		t.Fatal("expected error for too-short packet")
 	}
@@ -313,7 +313,7 @@ func TestParseDHCPv6BadOptionLen(t *testing.T) {
 		DHCPv6Solicit, 0x00, 0x00, 0x01,
 		0x00, 0x01, 0xff, 0xff, // option 1, length 65535
 	}
-	_, err := ParseDHCPv6(pkt)
+	_, err := parseDHCPv6(pkt)
 	if err == nil {
 		t.Fatal("expected error for option overrun")
 	}

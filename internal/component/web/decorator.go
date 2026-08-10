@@ -39,11 +39,11 @@ func (r *DecoratorRegistry) Get(name string) Decorator {
 	return r.decorators[name]
 }
 
-// ResolveField resolves the decoration for a single FieldMeta. field MUST NOT be nil.
+// resolveField resolves the decoration for a single FieldMeta. field MUST NOT be nil.
 // If the field has a DecoratorName and the value is non-empty,
 // the matching decorator is called and Decoration is set.
 // Errors are silently ignored (graceful degradation).
-func (r *DecoratorRegistry) ResolveField(field *FieldMeta) {
+func (r *DecoratorRegistry) resolveField(field *FieldMeta) {
 	if field.DecoratorName == "" || field.Value == "" {
 		return
 	}

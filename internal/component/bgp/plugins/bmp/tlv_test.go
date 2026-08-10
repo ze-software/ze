@@ -34,7 +34,7 @@ func TestBMPTLVEncode(t *testing.T) {
 	// VALIDATES: AC-7 -- TLV serialization round-trip
 	original := TLV{Type: InitTLVSysDescr, Length: 3, Value: []byte("abc")}
 	buf := make([]byte, TLVHeaderSize+3)
-	n := WriteTLV(buf, 0, original)
+	n := writeTLV(buf, 0, original)
 	if n != 7 {
 		t.Errorf("wrote %d, want 7", n)
 	}
@@ -75,8 +75,8 @@ func TestBMPTLVsMultiple(t *testing.T) {
 	// VALIDATES: AC-7 -- multiple TLVs decoded in sequence
 	buf := make([]byte, 128)
 	off := 0
-	off += WriteTLV(buf, off, MakeStringTLV(InitTLVSysName, "router1"))
-	off += WriteTLV(buf, off, MakeStringTLV(InitTLVSysDescr, "ze v1"))
+	off += writeTLV(buf, off, makeStringTLV(InitTLVSysName, "router1"))
+	off += writeTLV(buf, off, makeStringTLV(InitTLVSysDescr, "ze v1"))
 
 	tlvs, err := DecodeTLVs(buf, 0, off)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestBMPTLVsMultiple(t *testing.T) {
 }
 
 func TestMakeStringTLV(t *testing.T) {
-	tlv := MakeStringTLV(InitTLVString, "test message")
+	tlv := makeStringTLV(InitTLVString, "test message")
 	if tlv.Type != InitTLVString {
 		t.Errorf("type = %d, want %d", tlv.Type, InitTLVString)
 	}

@@ -72,7 +72,7 @@ func TestSliceResponseData(t *testing.T) {
 }
 
 func TestNewErrorResponse(t *testing.T) {
-	resp := NewErrorResponse("connection refused")
+	resp := newErrorResponse("connection refused")
 	assert.Equal(t, StatusError, resp.Status)
 	assert.Equal(t, "connection refused", resp.Error)
 	assert.Nil(t, resp.Data)
@@ -142,7 +142,7 @@ func TestResponseMarshalFormat(t *testing.T) {
 }
 
 func TestCBOREncodingRemoved(t *testing.T) {
-	_, err := ParseWireEncoding("cbor")
+	_, err := parseWireEncoding("cbor")
 	require.Error(t, err, "CBOR encoding should not be accepted")
 	assert.Contains(t, err.Error(), "invalid wire encoding")
 }

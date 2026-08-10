@@ -56,7 +56,7 @@ func TestRFC9552UnorderedUnexpectedAttributeTLVs(t *testing.T) {
 	attr := descendingAttr()
 
 	var types []uint16
-	err := IterateAttrTLVs(attr, func(e AttrTLVEntry) bool {
+	err := iterateAttrTLVs(attr, func(e attrTLVEntry) bool {
 		types = append(types, e.Type)
 		return true
 	})
@@ -64,7 +64,7 @@ func TestRFC9552UnorderedUnexpectedAttributeTLVs(t *testing.T) {
 	assert.Equal(t, []uint16{unknownAttrTLVType, TLVAdminGroup, TLVNodeName, TLVNodeFlagBits}, types,
 		"every TLV is yielded in wire order, descending included")
 
-	tlvs, err := DecodeAllAttrTLVs(attr)
+	tlvs, err := decodeAllAttrTLVs(attr)
 	require.NoError(t, err, "an unordered, cross-context, partly unknown attribute decodes")
 	require.Len(t, tlvs, 3, "the three recognized TLVs are typed; the unknown one is skipped")
 
@@ -75,7 +75,7 @@ func TestRFC9552UnorderedUnexpectedAttributeTLVs(t *testing.T) {
 
 	// Node Flag Bits 0xFF sets every reserved bit RFC 9552 leaves undefined.
 	// A semantic check would reject it; ze decodes it.
-	flags, err := DecodeAttrTLV(AttrTLVEntry{Type: TLVNodeFlagBits, Value: []byte{0xFF}})
+	flags, err := decodeAttrTLV(attrTLVEntry{Type: TLVNodeFlagBits, Value: []byte{0xFF}})
 	require.NoError(t, err, "reserved flag bits set is not a decode error")
 	assert.Equal(t, TLVNodeFlagBits, flags.Code())
 }
@@ -96,14 +96,14 @@ func TestRFC9552AttributeSyntaxStillRejected(t *testing.T) {
 	// RFC requirement: RFC9552-8.2.2-3 negative -- syntactic validation is still performed, so the absence of semantic validation is not a blanket accept (§8.2.2)
 	overrun := append(descendingAttr(), 0x7F, 0xFE, 0x00, 0x10, 0xAA) // claims 16 octets, 1 present
 
-	err := IterateAttrTLVs(overrun, func(AttrTLVEntry) bool { return true })
+	err := iterateAttrTLVs(overrun, func(attrTLVEntry) bool { return true })
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a TLV length past the attribute end is refused")
 
-	_, err = DecodeAllAttrTLVs(overrun)
+	_, err = decodeAllAttrTLVs(overrun)
 	assert.ErrorIs(t, err, ErrBGPLSTruncated)
 
 	// Fixed-length TLV 1088 (Administrative Group) is 4 octets; 3 is malformed.
-	_, err = DecodeAttrTLV(AttrTLVEntry{Type: TLVAdminGroup, Value: []byte{0, 0, 7}})
+	_, err = decodeAttrTLV(attrTLVEntry{Type: TLVAdminGroup, Value: []byte{0, 0, 7}})
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a fixed-length TLV at the wrong size is refused")
 }
 
@@ -217,7 +217,7 @@ func TestRFC9552NLRIFramingErrorsRejected(t *testing.T) {
 func TestRFC9552ISISSmallMetricTwoMSBsZero(t *testing.T) {
 	// RFC requirement: RFC9552-5.3.2.3-2 positive -- the 1-octet IS-IS small metric is emitted with its two most significant bits zero (§5.3.2.3)
 	for _, metric := range []uint32{0, 1, 0x2A, 0x3F} {
-		tlv := &LsIGPMetric{Metric: metric}
+		tlv := &lsIGPMetric{Metric: metric}
 		buf := make([]byte, tlv.Len())
 		n := tlv.WriteTo(buf, 0)
 		require.Equal(t, 5, n, "4 octet header + 1 octet IS-IS small metric")
@@ -231,7 +231,7 @@ func TestRFC9552ISISSmallMetricTwoMSBsZero(t *testing.T) {
 	// cleared, so re-advertisement cannot reintroduce them.
 	decoded, err := decodeIGPMetric([]byte{0xFF})
 	require.NoError(t, err)
-	small, ok := decoded.(*LsIGPMetric)
+	small, ok := decoded.(*lsIGPMetric)
 	require.True(t, ok)
 	assert.Equal(t, uint32(0x3F), small.Metric, "the receiver ignores the two high bits")
 	buf := make([]byte, decoded.Len())
@@ -256,7 +256,7 @@ func TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating(t *testing.T) {
 	}{
 		{0x40, 2}, {0xFF, 2}, {0xFFFF, 2}, {0x10000, 3}, {0xFFFFFF, 3},
 	} {
-		tlv := &LsIGPMetric{Metric: tc.metric}
+		tlv := &lsIGPMetric{Metric: tc.metric}
 		buf := make([]byte, tlv.Len())
 		n := tlv.WriteTo(buf, 0)
 		require.Equal(t, 4+tc.valueLen, n, "metric %#x uses a %d octet value", tc.metric, tc.valueLen)

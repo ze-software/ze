@@ -53,7 +53,7 @@ func TestResponseJSON(t *testing.T) {
 		},
 		{
 			name:    "error message surfaces as go error",
-			resp:    NewErrorResponse("boom"),
+			resp:    newErrorResponse("boom"),
 			wantErr: "boom",
 		},
 		{
@@ -121,7 +121,7 @@ func TestCommandDispatcherJSON(t *testing.T) {
 // PREVENTS: error responses being rendered as command output on text surfaces.
 func TestCommandDispatcherJSONError(t *testing.T) {
 	d := CommandDispatcher(func(_ context.Context, _ CallerIdentity, _ string) (*Response, error) {
-		return NewErrorResponse("denied"), nil
+		return newErrorResponse("denied"), nil
 	})
 	out, err := d.JSON(context.Background(), CallerIdentity{}, "request reload")
 	if err == nil || err.Error() != "denied" {

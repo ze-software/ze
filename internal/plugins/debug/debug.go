@@ -50,7 +50,7 @@ func storeError(err error) {
 
 // saveAndApply persists the profile to the default slot and applies it live.
 func saveAndApply(storePath string, p *Profile) int {
-	if err := SaveProfile(storePath, defaultProfile, p); err != nil {
+	if err := saveProfile(storePath, defaultProfile, p); err != nil {
 		storeError(err)
 		return 2
 	}
@@ -74,7 +74,7 @@ func runSetModule(args []string) int {
 	storePath := debugStorePath()
 	p := loadOrNewProfile(storePath)
 	if !p.HasModule(module) {
-		p.ToggleModule(module)
+		p.toggleModule(module)
 	}
 	if len(args) > 1 {
 		if code := setModuleSetting(p, module, args[1:]); code != 0 {
@@ -124,7 +124,7 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 			return 1
 		}
 		if !p.HasFlag(module, flag) {
-			p.ToggleFlag(module, flag)
+			p.toggleFlag(module, flag)
 		}
 		return 0
 	}
@@ -140,7 +140,7 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 			return 1
 		}
 		if !p.HasScope(module, kind, args[2]) {
-			p.ToggleScope(module, kind, args[2])
+			p.toggleScope(module, kind, args[2])
 		}
 		return 0
 	}
@@ -168,7 +168,7 @@ func runDeleteModule(args []string) int {
 		return saveAndApply(storePath, p)
 	}
 	if len(args) == 1 {
-		p.ToggleModule(module) // present -> removes the whole module
+		p.toggleModule(module) // present -> removes the whole module
 		if code := saveAndApply(storePath, p); code != 0 {
 			return code
 		}
@@ -197,7 +197,7 @@ func deleteModuleSetting(p *Profile, module string, args []string) int {
 			return 1
 		}
 		if p.HasFlag(module, args[1]) {
-			p.ToggleFlag(module, args[1])
+			p.toggleFlag(module, args[1])
 		}
 		return 0
 	}
@@ -207,7 +207,7 @@ func deleteModuleSetting(p *Profile, module string, args []string) int {
 			return 1
 		}
 		if p.HasScope(module, args[1], args[2]) {
-			p.ToggleScope(module, args[1], args[2])
+			p.toggleScope(module, args[1], args[2])
 		}
 		return 0
 	}
@@ -236,7 +236,7 @@ func runSetTimeout(args []string) int {
 	storePath := debugStorePath()
 	p := loadOrNewProfile(storePath)
 	p.Timeout = minutes
-	if err := SaveProfile(storePath, defaultProfile, p); err != nil {
+	if err := saveProfile(storePath, defaultProfile, p); err != nil {
 		storeError(err)
 		return 2
 	}
@@ -290,7 +290,7 @@ func cmdShowSaved(name, subtree string) int {
 		printShowTable(entries)
 		return 0
 	}
-	p, err := LoadProfile(storePath, name)
+	p, err := loadProfile(storePath, name)
 	if err != nil {
 		storeError(err)
 		return 2
@@ -310,7 +310,7 @@ func runSaveProfile(args []string) int {
 	name := args[0]
 	storePath := debugStorePath()
 	p := loadOrNewProfile(storePath)
-	if err := SaveProfile(storePath, name, p); err != nil {
+	if err := saveProfile(storePath, name, p); err != nil {
 		storeError(err)
 		return 2
 	}
@@ -329,7 +329,7 @@ func runRestoreProfile(args []string) int {
 	}
 	name := args[0]
 	storePath := debugStorePath()
-	p, err := LoadProfile(storePath, name)
+	p, err := loadProfile(storePath, name)
 	if err != nil {
 		var tb textbuf.Buffer
 		stderrLine(tb.Str("error: load profile ").Str(name).Str(": ").Err(err).String())
@@ -349,7 +349,7 @@ func runDeleteProfileName(args []string) int {
 	}
 	name := args[0]
 	storePath := debugStorePath()
-	if err := DeleteProfile(storePath, name); err != nil {
+	if err := deleteProfile(storePath, name); err != nil {
 		storeError(err)
 		return 2
 	}
@@ -360,7 +360,7 @@ func runDeleteProfileName(args []string) int {
 
 func cmdProfileList() int {
 	storePath := debugStorePath()
-	names, err := ListProfiles(storePath)
+	names, err := listProfiles(storePath)
 	if err != nil {
 		storeError(err)
 		return 2
@@ -378,8 +378,8 @@ func cmdProfileList() int {
 // cmdClear handles `clear debug`: reset the default stored profile.
 func cmdClear() int {
 	storePath := debugStorePath()
-	p := NewProfile()
-	if err := SaveProfile(storePath, defaultProfile, p); err != nil {
+	p := newProfile()
+	if err := saveProfile(storePath, defaultProfile, p); err != nil {
 		storeError(err)
 		return 2
 	}
@@ -388,7 +388,7 @@ func cmdClear() int {
 	return 0
 }
 
-func printShowTable(entries []ShowEntry) {
+func printShowTable(entries []showEntry) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 	printRow(w, "MODULE", "LEVEL", "FLAGS", "SCOPES")
 	printRow(w, "------", "-----", "-----", "------")
@@ -434,9 +434,9 @@ func applyProfile(p *Profile) {
 }
 
 func loadOrNewProfile(storePath string) *Profile {
-	p, err := LoadProfile(storePath, defaultProfile)
+	p, err := loadProfile(storePath, defaultProfile)
 	if err != nil {
-		return NewProfile()
+		return newProfile()
 	}
 	return p
 }

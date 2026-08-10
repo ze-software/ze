@@ -191,7 +191,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		},
 	}
 
-	facts.clusterID = s.EffectiveClusterID()
+	facts.clusterID = s.effectiveClusterID()
 	binary.BigEndian.PutUint32(facts.clusterIDBytes[:], facts.clusterID)
 
 	if s.GlobalLocalAS != 0 && s.GlobalLocalAS != s.LocalAS &&

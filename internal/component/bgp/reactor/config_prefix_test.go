@@ -47,9 +47,9 @@ func TestPrefixTeardownPerFamilyDisagreement(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
-	assert.True(t, ps.PrefixTeardownFor("ipv4/unicast"),
+	assert.True(t, ps.prefixTeardownFor("ipv4/unicast"),
 		"ipv4/unicast asked for teardown and must keep it")
-	assert.False(t, ps.PrefixTeardownFor("ipv6/unicast"),
+	assert.False(t, ps.prefixTeardownFor("ipv6/unicast"),
 		"ipv6/unicast asked for warn-only and must keep it")
 }
 
@@ -71,9 +71,9 @@ func TestPrefixTeardownOmittedFamilyDoesNotOverwrite(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
-	assert.False(t, ps.PrefixTeardownFor("ipv4/unicast"),
+	assert.False(t, ps.prefixTeardownFor("ipv4/unicast"),
 		"the explicit warn-only choice survives a defaulted sibling")
-	assert.True(t, ps.PrefixTeardownFor("ipv6/unicast"))
+	assert.True(t, ps.prefixTeardownFor("ipv6/unicast"))
 }
 
 // TestPrefixTeardownSortOrderIndependent verifies neither key-sort position
@@ -102,8 +102,8 @@ func TestPrefixTeardownSortOrderIndependent(t *testing.T) {
 			)
 			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantIPv4, ps.PrefixTeardownFor("ipv4/unicast"))
-			assert.Equal(t, tt.wantIPv6, ps.PrefixTeardownFor("ipv6/unicast"))
+			assert.Equal(t, tt.wantIPv4, ps.prefixTeardownFor("ipv4/unicast"))
+			assert.Equal(t, tt.wantIPv6, ps.prefixTeardownFor("ipv6/unicast"))
 		})
 	}
 }
@@ -122,8 +122,8 @@ func TestPrefixIdleTimeoutPerFamilyParse(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
-	assert.Equal(t, uint16(30), ps.PrefixIdleTimeoutFor("ipv4/unicast"))
-	assert.Equal(t, uint16(7), ps.PrefixIdleTimeoutFor("ipv6/unicast"))
+	assert.Equal(t, uint16(30), ps.prefixIdleTimeoutFor("ipv4/unicast"))
+	assert.Equal(t, uint16(7), ps.prefixIdleTimeoutFor("ipv6/unicast"))
 }
 
 // TestPrefixIdleTimeoutBoundaryPerFamily verifies the uint16 edges of
@@ -141,8 +141,8 @@ func TestPrefixIdleTimeoutBoundaryPerFamily(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
-	assert.Equal(t, uint16(0), ps.PrefixIdleTimeoutFor("ipv4/unicast"))
-	assert.Equal(t, uint16(65535), ps.PrefixIdleTimeoutFor("ipv6/unicast"))
+	assert.Equal(t, uint16(0), ps.prefixIdleTimeoutFor("ipv4/unicast"))
+	assert.Equal(t, uint16(65535), ps.prefixIdleTimeoutFor("ipv6/unicast"))
 }
 
 // TestPrefixReconnectPerFamilyParse verifies each family keeps its own

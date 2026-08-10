@@ -20,7 +20,7 @@ import (
 type watchdogServer struct {
 	// peerPools holds per-peer route pools, keyed by peer address.
 	// Populated from config during OnConfigure.
-	peerPools map[string]*PoolSet
+	peerPools map[string]*poolSet
 
 	// peerUp tracks which peers currently have an established session.
 	peerUp map[string]bool
@@ -35,7 +35,7 @@ type watchdogServer struct {
 // newWatchdogServer creates a watchdog server with the given route sender.
 func newWatchdogServer(sendRoute func(peer, cmd string)) *watchdogServer {
 	return &watchdogServer{
-		peerPools: make(map[string]*PoolSet),
+		peerPools: make(map[string]*poolSet),
 		peerUp:    make(map[string]bool),
 		sendRoute: sendRoute,
 	}
@@ -170,7 +170,7 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 		return statusError, nil, fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
 	}
 
-	pool := pools.GetPool(name)
+	pool := pools.getPool(name)
 	if pool == nil {
 		return statusError, nil, fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
 	}
@@ -187,7 +187,7 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 	if announce {
 		entries = pools.AnnouncePool(name, peer)
 	} else {
-		entries = pools.WithdrawPool(name, peer)
+		entries = pools.withdrawPool(name, peer)
 	}
 
 	// Only send if peer is up
@@ -228,7 +228,7 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 // This covers the healthcheck race where probe success fires before
 // BGP finishes its OPEN handshake (regression surfaced by
 // test/plugin/healthcheck-cycle.ci with debounce=true).
-func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bool, name string, med *uint32) (string, any, error) {
+func (s *watchdogServer) handleMEDOverride(pool *routePool, peer string, isUp bool, name string, med *uint32) (string, any, error) {
 	// Clone routes and build commands under lock (#17: Route read must be under lock).
 	pool.mu.Lock()
 	var cmds []string
@@ -284,8 +284,8 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 
 	// For each pool, initialize state for initially-announced routes
 	// and send all routes that are in announced state.
-	for _, poolName := range pools.PoolNames() {
-		pool := pools.GetPool(poolName)
+	for _, poolName := range pools.poolNames() {
+		pool := pools.getPool(poolName)
 		if pool == nil {
 			continue
 		}

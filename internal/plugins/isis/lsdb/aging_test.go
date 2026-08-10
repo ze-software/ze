@@ -300,7 +300,7 @@ func TestISISLSDBEntryAccessorsAreRaceFree(t *testing.T) {
 						_ = e.Checksum()
 						_ = e.LSPID()
 						_ = e.IsOverloaded()
-						_ = e.IsOwn()
+						_ = e.isOwn()
 						_ = e.Raw()
 						if lsp, err := e.Decode(); err == nil {
 							packet.ReleaseTLVs(lsp.TLVs)

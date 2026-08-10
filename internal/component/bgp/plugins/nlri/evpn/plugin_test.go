@@ -45,7 +45,7 @@ func TestDecodeNLRIViaRunEVPNDecode(t *testing.T) {
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
-			code := RunEVPNDecode(input, output)
+			code := runEVPNDecode(input, output)
 			assert.Equal(t, 0, code)
 
 			out := output.String()
@@ -93,7 +93,7 @@ func TestRunEVPNDecode(t *testing.T) {
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
-			code := RunEVPNDecode(input, output)
+			code := runEVPNDecode(input, output)
 			assert.Equal(t, 0, code)
 
 			out := output.String()
@@ -192,11 +192,11 @@ func TestFormatEVPNText(t *testing.T) {
 func TestSetEVPNLogger(t *testing.T) {
 	t.Parallel()
 	// Should not panic with nil
-	SetEVPNLogger(nil)
+	setEVPNLogger(nil)
 
 	// Should accept valid logger
 	logger := slog.Default()
-	SetEVPNLogger(logger)
+	setEVPNLogger(logger)
 }
 
 // TestGetEVPNYANG verifies YANG schema getter.
@@ -205,7 +205,7 @@ func TestSetEVPNLogger(t *testing.T) {
 // PREVENTS: Unexpected YANG output.
 func TestGetEVPNYANG(t *testing.T) {
 	t.Parallel()
-	yang := GetEVPNYANG()
+	yang := getEVPNYANG()
 	assert.Empty(t, yang)
 }
 
@@ -215,7 +215,7 @@ func TestGetEVPNYANG(t *testing.T) {
 // PREVENTS: Plugin not handling expected family.
 func TestEVPNFamilies(t *testing.T) {
 	t.Parallel()
-	families := EVPNFamilies()
+	families := eVPNFamilies()
 	assert.Equal(t, []string{"l2vpn/evpn"}, families)
 }
 
@@ -283,7 +283,7 @@ func TestEvpnToJSON(t *testing.T) {
 		},
 		{
 			name: "type5",
-			evpn: NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("10.0.0.1"), []uint32{100}),
+			evpn: newEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.MustParseAddr("10.0.0.1"), []uint32{100}),
 			checks: map[string]any{
 				"code":   5,
 				"name":   "IP Prefix",
@@ -292,7 +292,7 @@ func TestEvpnToJSON(t *testing.T) {
 		},
 		{
 			name: "generic",
-			evpn: &EVPNGeneric{routeType: 99, data: []byte{1, 2, 3}},
+			evpn: &eVPNGeneric{routeType: 99, data: []byte{1, 2, 3}},
 			checks: map[string]any{
 				"code":   99,
 				"parsed": false,

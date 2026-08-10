@@ -23,9 +23,9 @@ type Input struct {
 	Key  string // Key name (for Kind="key" or "ctrl")
 }
 
-// ToInput converts an InputAction (from parser) to an Input (for runtime use).
+// toInput converts an InputAction (from parser) to an Input (for runtime use).
 // This bridges the flexible map-based parser output to the type-safe runtime type.
-func (ia InputAction) ToInput() Input {
+func (ia InputAction) toInput() Input {
 	inp := Input{Kind: ia.Action}
 
 	switch ia.Action {
@@ -44,16 +44,16 @@ func (ia InputAction) ToInput() Input {
 func InputActionsToInputs(actions []InputAction) []Input {
 	inputs := make([]Input, len(actions))
 	for i, a := range actions {
-		inputs[i] = a.ToInput()
+		inputs[i] = a.toInput()
 	}
 	return inputs
 }
 
-// ToMessages converts an Input action to one or more tea.Msg values.
+// toMessages converts an Input action to one or more tea.Msg values.
 // For "type" inputs, each character becomes a separate KeyPressMsg.
 // For "key" inputs, a single KeyPressMsg is returned.
 // For "ctrl" inputs, a KeyPressMsg with ModCtrl is returned.
-func (inp Input) ToMessages() ([]tea.Msg, error) {
+func (inp Input) toMessages() ([]tea.Msg, error) {
 	switch inp.Kind {
 	case inputKindType:
 		return inp.toTypeMessages(), nil
@@ -139,11 +139,11 @@ func isCtrlLetter(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
 
-// InputsToMessages converts a slice of Input actions to tea.Msg values.
-func InputsToMessages(inputs []Input) ([]tea.Msg, error) {
+// inputsToMessages converts a slice of Input actions to tea.Msg values.
+func inputsToMessages(inputs []Input) ([]tea.Msg, error) {
 	var all []tea.Msg
 	for i, inp := range inputs {
-		msgs, err := inp.ToMessages()
+		msgs, err := inp.toMessages()
 		if err != nil {
 			return nil, fmt.Errorf("input %d: %w", i, err)
 		}

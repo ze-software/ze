@@ -231,7 +231,7 @@ func TestWriteAnnounceUpdate_IPv4_iBGP(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	require.Greater(t, n, message.MarkerLen+2+1) // at minimum: marker + len + type
 
@@ -273,7 +273,7 @@ func TestWriteAnnounceUpdate_IPv4_eBGP(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, false, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, false, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	require.Greater(t, n, 0)
 
@@ -302,7 +302,7 @@ func TestWriteAnnounceUpdate_IPv6(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
+	n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
 	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	require.Greater(t, n, 0)
 
@@ -323,7 +323,7 @@ func TestWriteWithdrawUpdate_IPv4(t *testing.T) {
 	buf := make([]byte, 4096)
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	n := WriteWithdrawUpdate(buf, 0, prefix, false)
+	n := writeWithdrawUpdate(buf, 0, prefix, false)
 	require.Greater(t, n, 0)
 
 	// Verify marker
@@ -350,7 +350,7 @@ func TestWriteWithdrawUpdate_IPv6(t *testing.T) {
 	buf := make([]byte, 4096)
 
 	prefix := netip.MustParsePrefix("2001:db8::/32")
-	n := WriteWithdrawUpdate(buf, 0, prefix, false)
+	n := writeWithdrawUpdate(buf, 0, prefix, false)
 	require.Greater(t, n, 0)
 
 	// Verify withdrawn routes length = 0 (using MP_UNREACH instead)
@@ -384,7 +384,7 @@ func TestWriteWithdrawUpdate_MessageLength(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := make([]byte, 4096)
 			prefix := netip.MustParsePrefix(tt.prefix)
-			n := WriteWithdrawUpdate(buf, 0, prefix, tt.addPath)
+			n := writeWithdrawUpdate(buf, 0, prefix, tt.addPath)
 
 			headerLen := int(buf[message.MarkerLen])<<8 | int(buf[message.MarkerLen+1])
 			assert.Equal(t, n, headerLen, "header length must match bytes written")
@@ -415,7 +415,7 @@ func TestWriteAnnounceUpdate_MessageLength(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr(tt.nhop)),
 			}
 
-			n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, tt.isIBGP, true, tt.addPath)
+			n := writeAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, tt.isIBGP, true, tt.addPath)
 			require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 			headerLen := int(buf[message.MarkerLen])<<8 | int(buf[message.MarkerLen+1])
 			assert.Equal(t, n, headerLen, "header length must match bytes written")

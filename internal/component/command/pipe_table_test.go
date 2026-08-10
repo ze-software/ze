@@ -261,7 +261,7 @@ func TestApplyTableBGPCapabilities(t *testing.T) {
 // PREVENTS: box-drawing characters appearing in text output.
 func TestApplyTextRecord(t *testing.T) {
 	input := `{"count":3}`
-	result := ApplyText(input)
+	result := applyText(input)
 
 	if strings.Contains(result, "┌") || strings.Contains(result, "│") || strings.Contains(result, "─") {
 		t.Errorf("text mode should have no box-drawing characters:\n%s", result)
@@ -279,7 +279,7 @@ func TestApplyTextRecord(t *testing.T) {
 // PREVENTS: missing headers or misaligned columns in text mode.
 func TestApplyTextArray(t *testing.T) {
 	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
-	result := ApplyText(input)
+	result := applyText(input)
 
 	if strings.Contains(result, "┌") || strings.Contains(result, "│") {
 		t.Errorf("text mode should have no box-drawing:\n%s", result)
@@ -307,7 +307,7 @@ func TestApplyTextArray(t *testing.T) {
 // PREVENTS: crash on non-JSON input to text formatter.
 func TestApplyTextNonJSON(t *testing.T) {
 	input := "this is not json"
-	result := ApplyText(input)
+	result := applyText(input)
 	if result != input {
 		t.Errorf("non-JSON should pass through, got %q", result)
 	}

@@ -56,7 +56,7 @@ func fakePingFactory(ctx context.Context, _ string, _, _ time.Duration, _, _ int
 // deterministic resolvers used by | resolve and | origin. The resolvers are
 // process-global and intentionally left in place: tests run in parallel in
 // one process and the fakes are idempotent.
-func wireFakePingMonitor(hm *HeadlessModel) {
+func wireFakePingMonitor(hm *headlessModel) {
 	hm.Model().SetPingFactory(fakePingFactory)
 	command.SetPTRResolver(fakeMonitorPTRResolver{})
 	command.SetOriginResolver(fakeMonitorOriginResolver{})

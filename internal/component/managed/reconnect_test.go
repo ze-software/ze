@@ -14,7 +14,7 @@ import (
 func TestReconnectBackoff(t *testing.T) {
 	t.Parallel()
 
-	b := NewBackoff(1*time.Second, 60*time.Second, 0) // no jitter for deterministic test
+	b := newBackoff(1*time.Second, 60*time.Second, 0) // no jitter for deterministic test
 
 	assert.Equal(t, 1*time.Second, b.Next())
 	assert.Equal(t, 2*time.Second, b.Next())
@@ -31,7 +31,7 @@ func TestReconnectBackoff(t *testing.T) {
 func TestReconnectBackoffCap(t *testing.T) {
 	t.Parallel()
 
-	b := NewBackoff(1*time.Second, 60*time.Second, 0)
+	b := newBackoff(1*time.Second, 60*time.Second, 0)
 
 	// Advance past cap.
 	for range 10 {
@@ -50,7 +50,7 @@ func TestReconnectBackoffCap(t *testing.T) {
 func TestReconnectBackoffJitter(t *testing.T) {
 	t.Parallel()
 
-	b := NewBackoff(1*time.Second, 60*time.Second, 0.1)
+	b := newBackoff(1*time.Second, 60*time.Second, 0.1)
 
 	for range 20 {
 		delay := b.Next()
@@ -68,7 +68,7 @@ func TestReconnectBackoffJitter(t *testing.T) {
 func TestReconnectBackoffReset(t *testing.T) {
 	t.Parallel()
 
-	b := NewBackoff(1*time.Second, 60*time.Second, 0)
+	b := newBackoff(1*time.Second, 60*time.Second, 0)
 
 	b.Next() // 1s
 	b.Next() // 2s

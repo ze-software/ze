@@ -292,7 +292,7 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 	return crumbs
 }
 
-// BuildAdminCommandTree returns the static admin command tree derived from
+// buildAdminCommandTree returns the static admin command tree derived from
 // the ze-bgp-api YANG RPCs. The tree groups commands by category (peer,
 // route, cache, system) for web UI navigation.
 //
@@ -301,7 +301,7 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 // merged YANG command tree so plugin-contributed commands appear without
 // editing this file. Kept temporarily so existing call sites compile; new
 // code MUST use AdminTreeFromYANG.
-func BuildAdminCommandTree() map[string][]string {
+func buildAdminCommandTree() map[string][]string {
 	return map[string][]string{
 		"":       {"peer", "route", "cache", "system"},
 		"peer":   {"list", "show", "summary", "capabilities", "statistics", "add", "remove"},

@@ -13,7 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-func RegisterSetFD() {
+func registerSetFD() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-set:system-file-descriptors",

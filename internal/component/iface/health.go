@@ -46,13 +46,13 @@ func CheckAllInterfaceErrors() int {
 	for i := range ifaces {
 		names[i] = ifaces[i].Name
 	}
-	return CheckInterfaceErrors(names)
+	return checkInterfaceErrors(names)
 }
 
-// CheckInterfaceErrors polls error counters for the given interfaces
+// checkInterfaceErrors polls error counters for the given interfaces
 // and raises iface-errors warnings on the report bus when counters increase.
 // Returns the number of interfaces with increasing errors.
-func CheckInterfaceErrors(names []string) int {
+func checkInterfaceErrors(names []string) int {
 	backend := GetBackend()
 	if backend == nil {
 		return 0
@@ -101,8 +101,8 @@ func checkErrorsFromStats(current map[string]InterfaceStats) int {
 	return findings
 }
 
-// ResetErrorTracker clears stored snapshots. Test-only.
-func ResetErrorTracker() {
+// resetErrorTracker clears stored snapshots. Test-only.
+func resetErrorTracker() {
 	errorTracker.mu.Lock()
 	defer errorTracker.mu.Unlock()
 	errorTracker.prev = make(map[string]errorSnapshot)

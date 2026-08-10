@@ -148,12 +148,12 @@ func (r *Resolver) CacheDelete(name string, qtype uint16) bool {
 // CacheDeleteByName removes all entries matching the given name regardless of type.
 // Returns the number of entries removed.
 func (r *Resolver) CacheDeleteByName(name string) int {
-	return r.cache.DeleteByName(name)
+	return r.cache.deleteByName(name)
 }
 
 // CacheResetStats zeros all counters without removing cached entries.
 func (r *Resolver) CacheResetStats() {
-	r.cache.ResetStats()
+	r.cache.resetStats()
 }
 
 // CacheEntries returns a snapshot of all cached entries with remaining TTL

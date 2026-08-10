@@ -281,7 +281,7 @@ func TestBuilderParseAIGP(t *testing.T) {
 func TestBuilderAIGPWireRoundTrip(t *testing.T) {
 	b := NewBuilder()
 	b.SetOrigin(0)
-	b.SetAIGP(500)
+	b.setAIGP(500)
 	wireBytes := b.Build()
 	require.NotEmpty(t, wireBytes)
 
@@ -302,13 +302,13 @@ func TestBuilderAIGPWireRoundTrip(t *testing.T) {
 func TestBuilderAIGPIsEmpty(t *testing.T) {
 	b := NewBuilder()
 	assert.True(t, b.IsEmpty())
-	b.SetAIGP(100)
+	b.setAIGP(100)
 	assert.False(t, b.IsEmpty())
 }
 
 func TestBuilderAIGPReset(t *testing.T) {
 	b := NewBuilder()
-	b.SetAIGP(100)
+	b.setAIGP(100)
 	b.Reset()
 	assert.True(t, b.IsEmpty())
 	assert.Nil(t, b.aigp)
@@ -316,7 +316,7 @@ func TestBuilderAIGPReset(t *testing.T) {
 
 func TestBuilderAIGPToAttributes(t *testing.T) {
 	b := NewBuilder()
-	b.SetAIGP(42)
+	b.setAIGP(42)
 	attrs := b.ToAttributes()
 
 	var found *AIGP

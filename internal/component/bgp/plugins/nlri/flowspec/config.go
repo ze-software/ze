@@ -53,7 +53,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	forVPN := rd != ""
 	var body []byte
 	if forVPN {
-		body = fs.ComponentBytes()
+		body = fs.componentBytes()
 	} else {
 		body = fs.Bytes()
 	}

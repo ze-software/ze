@@ -68,7 +68,7 @@ const cmdAdjRIBInClaimReplay = "request bgp adj-rib-in claim-replay"
 // A nil clk means real time, so a RouteServer built as a struct literal (the
 // test helpers do) is usable without wiring one. Kept as a helper rather than a
 // clock.Clock accessor so the default path costs no interface dispatch.
-func (rs *RouteServer) now() time.Time {
+func (rs *routeServer) now() time.Time {
 	if rs.clk == nil {
 		return time.Now()
 	}
@@ -80,7 +80,7 @@ func (rs *RouteServer) now() time.Time {
 // Under a fake clock this returns immediately and time advances only where the
 // test says it does, which is what makes replayForPeer's catch-up budget
 // testable without a real wait.
-func (rs *RouteServer) sleep(d time.Duration) {
+func (rs *routeServer) sleep(d time.Duration) {
 	if rs.clk == nil {
 		time.Sleep(d)
 		return
@@ -102,7 +102,7 @@ func isDispatchUnknownCommand(err error) bool {
 
 // handleState processes peer state changes.
 // ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}.
-func (rs *RouteServer) handleState(event *Event) {
+func (rs *routeServer) handleState(event *Event) {
 	peerAddr := event.PeerAddr
 	state := event.State
 
@@ -151,7 +151,7 @@ const withdrawalBatchSize = 500
 // handleStateDown processes peer session teardown.
 // Sends withdrawals asynchronously -- per-lifecycle goroutine (not hot path).
 // Batches withdrawal RPCs by family to reduce GC pressure from text-RPC overhead.
-func (rs *RouteServer) handleStateDown(peerAddr string) {
+func (rs *routeServer) handleStateDown(peerAddr string) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
 	// PeerDown waits for all workers to finish, so after this call no more
 	// updates for this peer can occur.
@@ -187,7 +187,7 @@ type withdrawalGroup struct {
 // type as an opaque object, and that is exactly what the text form cannot
 // carry: sending it as text failed with route.ErrFamilyNotSupported and left
 // the departing peer's Link-State routes announced to every other client.
-func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]struct{}) {
+func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]struct{}) {
 	if len(entries) == 0 {
 		return
 	}
@@ -267,7 +267,7 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 //
 // A missing adj-rib-in is not an error -- it is an OptionalDependency, and with
 // it absent there is no self-replay to stand down.
-func (rs *RouteServer) claimReplayOwnership() {
+func (rs *routeServer) claimReplayOwnership() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	status, _, err := rs.dispatchCommand(ctx, cmdAdjRIBInClaimReplay)
@@ -290,7 +290,7 @@ func (rs *RouteServer) claimReplayOwnership() {
 // per-peer lifecycle goroutine (not blocking the event loop).
 // A convergent delta replay loop then covers routes that adj-rib-in may not
 // have stored yet at full-replay time (race between event delivery and replay).
-func (rs *RouteServer) handleStateUp(peerAddr string) {
+func (rs *routeServer) handleStateUp(peerAddr string) {
 	// Mark peer as replaying. This does NOT withhold it from selectForwardTargets
 	// (see cmdAdjRIBInClaimReplay above) -- the flag exists only so the replay
 	// goroutine's generation bookkeeping can tell sessions apart. Increment the
@@ -323,7 +323,7 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 // The gen parameter is the replay generation at the time handleStateUp was called.
 // If the peer's ReplayGen has changed (rapid reconnect), this goroutine is stale
 // and must not clear Replaying — the newer goroutine owns that transition.
-func (rs *RouteServer) replayForPeer(peerAddr string, gen, cut uint64) {
+func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -448,7 +448,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen, cut uint64) {
 
 // sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
 // Checks generation to avoid sending EOR from a stale replay goroutine.
-func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
+func (rs *routeServer) sendEOR(peerAddr string, gen uint64) {
 	rs.mu.RLock()
 	p := rs.peers[peerAddr]
 	if p == nil || p.ReplayGen != gen || len(p.Families) == 0 {
@@ -531,7 +531,7 @@ func parseReplayProgress(data json.RawMessage) replayProgress {
 // The cursor advances only on a call that delivered something: "last-index" is
 // the highest sequence DELIVERED, so an empty call reports 0, and adopting that
 // as the cursor would rewind the next call to the start of the store.
-func (rs *RouteServer) deltaReplay(ctx context.Context, peerAddr, cutArg string, prev replayProgress) (replayProgress, error) {
+func (rs *routeServer) deltaReplay(ctx context.Context, peerAddr, cutArg string, prev replayProgress) (replayProgress, error) {
 	args := []string{peerAddr, textbuf.StringUint(prev.cursor), cutArg}
 	_, data, err := rs.dispatchCommand(ctx, cmdAdjRIBInReplay, args...)
 	if err != nil {
@@ -546,7 +546,7 @@ func (rs *RouteServer) deltaReplay(ctx context.Context, peerAddr, cutArg string,
 
 // handleOpen processes OPEN events to capture peer capabilities.
 // Text format capabilities: "cap <code> <name> [<value>]" tokens parsed by parseTextOpen.
-func (rs *RouteServer) handleOpen(event *Event) {
+func (rs *routeServer) handleOpen(event *Event) {
 	peerAddr := event.PeerAddr
 	if peerAddr == "" {
 		return
@@ -593,7 +593,7 @@ func (rs *RouteServer) handleOpen(event *Event) {
 // Collects eligible peers under the lock, then sends refresh commands after
 // releasing — updateRoute does an SDK RPC with a 10 s timeout, so holding
 // the lock during network I/O would block all state updates.
-func (rs *RouteServer) handleRefresh(event *Event) {
+func (rs *routeServer) handleRefresh(event *Event) {
 	peerAddr := event.PeerAddr
 	if peerAddr == "" {
 		return
@@ -609,7 +609,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 		if !peer.Up {
 			continue
 		}
-		if !peer.HasCapability("route-refresh") {
+		if !peer.hasCapability("route-refresh") {
 			continue
 		}
 		if peer.Families != nil && !peer.SupportsFamily(fam) {
@@ -630,7 +630,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
-func (rs *RouteServer) handleCommand(command string) (string, any, error) {
+func (rs *routeServer) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "show bgp rs status":
 		return statusDone, map[string]any{"running": true}, nil
@@ -642,7 +642,7 @@ func (rs *RouteServer) handleCommand(command string) (string, any, error) {
 }
 
 // peerStatus returns peer state.
-func (rs *RouteServer) peerStatus() any {
+func (rs *routeServer) peerStatus() any {
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
 

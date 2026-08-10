@@ -440,14 +440,14 @@ func (d *LSDB) LSPIDs(level Level) []types.LSPID {
 	return out
 }
 
-// LSPEntries returns one packet.LSPEntry (TLV 9 record) per LSP at level, in
+// lSPEntries returns one packet.LSPEntry (TLV 9 record) per LSP at level, in
 // LSP-ID (CSNP range) order, built directly from the typed entry metadata under
 // a single read lock. It is the source for CSNP/PSNP build (isis-7): no string
 // round-trip (the old Snapshot-then-ParseLSPID path stringified every LSP ID and
 // reparsed it), and one lock acquisition for the whole set rather than a Lookup
 // per ID. LSPEntry is a small fixed value with no pointer into the store, so the
 // returned slice never exposes a live entry (ISO/IEC 10589 clause 9.10/9.14).
-func (d *LSDB) LSPEntries(level Level) []packet.LSPEntry {
+func (d *LSDB) lSPEntries(level Level) []packet.LSPEntry {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	store := d.dbFor(level)
@@ -533,9 +533,9 @@ func (d *LSDB) SRM(level Level, id types.LSPID, cid CircuitID) bool {
 	return false
 }
 
-// SetSSN arms the Send-Sequence-Number flag for (level, id) on circuit cid: a
+// setSSN arms the Send-Sequence-Number flag for (level, id) on circuit cid: a
 // PSNP acknowledging/requesting the LSP must be sent on that circuit.
-func (d *LSDB) SetSSN(level Level, id types.LSPID, cid CircuitID) {
+func (d *LSDB) setSSN(level Level, id types.LSPID, cid CircuitID) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if e := d.dbFor(level).entries[id]; e != nil {
@@ -543,8 +543,8 @@ func (d *LSDB) SetSSN(level Level, id types.LSPID, cid CircuitID) {
 	}
 }
 
-// ClearSSN clears the SSN flag for (level, id) on circuit cid.
-func (d *LSDB) ClearSSN(level Level, id types.LSPID, cid CircuitID) {
+// clearSSN clears the SSN flag for (level, id) on circuit cid.
+func (d *LSDB) clearSSN(level Level, id types.LSPID, cid CircuitID) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if e := d.dbFor(level).entries[id]; e != nil {
@@ -627,7 +627,7 @@ func (d *LSDB) Snapshot(level Level) []LSPSnapshot {
 			Lifetime: e.Lifetime().Seconds(),
 			Checksum: e.checksum,
 			Overload: e.IsOverloaded(),
-			Own:      e.IsOwn(),
+			Own:      e.isOwn(),
 			Purged:   e.IsPurged(),
 		})
 	}

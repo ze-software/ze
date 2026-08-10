@@ -10,7 +10,7 @@ import (
 // VALIDATES: AC-11 -- unified tree merges config and command domains.
 // PREVENTS: Tree build failure when loading real YANG + RPCs.
 func TestUnifiedTreeBuild(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err, "building unified tree should succeed")
 	require.NotNil(t, root)
 	assert.NotEmpty(t, root.Children, "root should have children")
@@ -19,7 +19,7 @@ func TestUnifiedTreeBuild(t *testing.T) {
 // VALIDATES: AC-11 -- config nodes present with correct types.
 // PREVENTS: Config entries missing from unified tree.
 func TestUnifiedTreeConfigNodes(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	// bgp container should exist as config
@@ -42,7 +42,7 @@ func TestUnifiedTreeConfigNodes(t *testing.T) {
 // VALIDATES: AC-11 -- command nodes present at correct paths.
 // PREVENTS: Command entries missing from unified tree.
 func TestUnifiedTreeCommandNodes(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	// "peer" from command tree should exist
@@ -62,7 +62,7 @@ func TestUnifiedTreeCommandNodes(t *testing.T) {
 // VALIDATES: AC-12 -- cross-domain nodes tagged as SourceBoth.
 // PREVENTS: Nodes present in both domains not being detected.
 func TestUnifiedTreeCrossDomain(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	// At top level, commands have "peer", "cache", "summary", "daemon", "system", etc.
@@ -87,10 +87,10 @@ func TestUnifiedTreeCrossDomain(t *testing.T) {
 // VALIDATES: AC-1, AC-10 -- detects known collisions.
 // PREVENTS: Known collisions going undetected.
 func TestUnifiedTreeCollisions(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
-	allGroups := CollectCollisions(root, 1)
+	allGroups := collectCollisions(root, 1)
 
 	// We know bgp > peer config children have collisions:
 	// local, link-local both start with "l"
@@ -128,25 +128,25 @@ func TestCollectCollisionsSingleChild(t *testing.T) {
 		Name:     "(root)",
 		Children: map[string]*AnalysisNode{"only": {Name: "only", Children: make(map[string]*AnalysisNode)}},
 	}
-	groups := CollectCollisions(root, 1)
+	groups := collectCollisions(root, 1)
 	assert.Empty(t, groups, "single child should produce no collisions")
 }
 
 // PREVENTS: Panic on nil AnalysisNode.
 func TestCollectCollisionsNil(t *testing.T) {
-	groups := CollectCollisions(nil, 1)
+	groups := collectCollisions(nil, 1)
 	assert.Empty(t, groups)
 }
 
 // PREVENTS: SortedChildren crash on nil Children map.
 func TestSortedChildrenNil(t *testing.T) {
 	node := &AnalysisNode{Name: "leaf"}
-	assert.Empty(t, node.SortedChildren())
+	assert.Empty(t, node.sortedChildren())
 }
 
 // PREVENTS: Config constraint fields not populated (mandatory, default, range).
 func TestUnifiedTreeConstraints(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	bgp := root.Children["bgp"]
@@ -169,7 +169,7 @@ func TestUnifiedTreeConstraints(t *testing.T) {
 
 // PREVENTS: List key not skipped, showing up as config child.
 func TestUnifiedTreeListKeySkipped(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	bgp := root.Children["bgp"]
@@ -225,7 +225,7 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 // - command: "plugin encoding" -> "plugin > encoding"
 // - config: ze-plugin-conf defines "plugin" container.
 func TestUnifiedTreeSourceBothMerge(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	plugin, ok := root.Children["plugin"]
@@ -236,7 +236,7 @@ func TestUnifiedTreeSourceBothMerge(t *testing.T) {
 
 // PREVENTS: Tree with SourceBoth parent correctly shows children from both domains.
 func TestUnifiedTreeBothDomainChildren(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	plugin, ok := root.Children["plugin"]
@@ -258,7 +258,7 @@ func TestUnifiedTreeBothDomainChildren(t *testing.T) {
 
 // PREVENTS: walkYANGEntry not enriching existing command node with config metadata.
 func TestUnifiedTreeMergeEnrichesDescription(t *testing.T) {
-	root, err := BuildUnifiedTree()
+	root, err := buildUnifiedTree()
 	require.NoError(t, err)
 
 	plugin, ok := root.Children["plugin"]

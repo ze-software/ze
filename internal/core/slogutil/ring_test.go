@@ -7,7 +7,7 @@ import (
 )
 
 func TestLogRingAppendAndSnapshot(t *testing.T) {
-	r := NewLogRing(10)
+	r := newLogRing(10)
 	r.append(LogEntry{Level: "ERROR", Component: "bgp", Message: "peer down"})
 	r.append(LogEntry{Level: "WARN", Component: "l2tp", Message: "echo loss"})
 	r.append(LogEntry{Level: "ERROR", Component: "l2tp", Message: "tunnel closed"})
@@ -22,7 +22,7 @@ func TestLogRingAppendAndSnapshot(t *testing.T) {
 }
 
 func TestLogRingFilterLevel(t *testing.T) {
-	r := NewLogRing(10)
+	r := newLogRing(10)
 	r.append(LogEntry{Level: "ERROR", Component: "bgp", Message: "a"})
 	r.append(LogEntry{Level: "WARN", Component: "bgp", Message: "b"})
 	r.append(LogEntry{Level: "ERROR", Component: "l2tp", Message: "c"})
@@ -39,7 +39,7 @@ func TestLogRingFilterLevel(t *testing.T) {
 }
 
 func TestLogRingFilterComponent(t *testing.T) {
-	r := NewLogRing(10)
+	r := newLogRing(10)
 	r.append(LogEntry{Level: "ERROR", Component: "bgp", Message: "a"})
 	r.append(LogEntry{Level: "WARN", Component: "l2tp", Message: "b"})
 
@@ -53,7 +53,7 @@ func TestLogRingFilterComponent(t *testing.T) {
 }
 
 func TestLogRingLimit(t *testing.T) {
-	r := NewLogRing(10)
+	r := newLogRing(10)
 	for range 8 {
 		r.append(LogEntry{Level: "INFO", Message: "x"})
 	}
@@ -64,7 +64,7 @@ func TestLogRingLimit(t *testing.T) {
 }
 
 func TestLogRingOverflow(t *testing.T) {
-	r := NewLogRing(3)
+	r := newLogRing(3)
 	for i := range 5 {
 		r.append(LogEntry{Level: "INFO", Message: string(rune('a' + i))})
 	}
@@ -78,7 +78,7 @@ func TestLogRingOverflow(t *testing.T) {
 }
 
 func TestRingHandlerCapturesSubsystem(t *testing.T) {
-	r := NewLogRing(10)
+	r := newLogRing(10)
 	inner := slog.NewTextHandler(discardWriter{}, &slog.HandlerOptions{Level: slog.LevelDebug})
 	h := newRingHandler(inner, r)
 	logger := slog.New(h).With("subsystem", "bgp.reactor")
@@ -101,7 +101,7 @@ func TestRingHandlerCapturesSubsystem(t *testing.T) {
 }
 
 func TestRingHandlerEnabled(t *testing.T) {
-	r := NewLogRing(10)
+	r := newLogRing(10)
 	inner := slog.NewTextHandler(discardWriter{}, &slog.HandlerOptions{Level: slog.LevelWarn})
 	h := newRingHandler(inner, r)
 

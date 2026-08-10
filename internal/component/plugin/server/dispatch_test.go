@@ -162,7 +162,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	}, "test command")
 
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    d,
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -231,7 +231,7 @@ func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 	}, "test command")
 
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    d,
 		ctx:           serverCtx,
 	}
@@ -283,7 +283,7 @@ func TestDispatchCommandNotFound(t *testing.T) {
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -340,7 +340,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	}, "failing command")
 
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    d,
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -393,7 +393,7 @@ func TestDispatchCommandEmptyCommand(t *testing.T) {
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -445,7 +445,7 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	}, "bridge test")
 
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    d,
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())

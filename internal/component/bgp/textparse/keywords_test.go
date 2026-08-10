@@ -88,7 +88,7 @@ func TestShortForm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.short, ShortForm(tt.canonical))
+			assert.Equal(t, tt.short, shortForm(tt.canonical))
 		})
 	}
 }
@@ -103,7 +103,7 @@ func TestIsAttributeKeyword(t *testing.T) {
 		KWClusterList, KWCommunity, KWLargeCommunity,
 		KWExtendedCommunity, KWNextHop,
 	} {
-		assert.True(t, IsAttributeKeyword(kw), "%s should be attribute keyword", kw)
+		assert.True(t, isAttributeKeyword(kw), "%s should be attribute keyword", kw)
 	}
 
 	// Non-attribute keywords.
@@ -111,7 +111,7 @@ func TestIsAttributeKeyword(t *testing.T) {
 		KWNLRI, KWRD, KWLabel, KWWatchdog, KWAttr,
 		KWAdd, KWDel, KWEOR, KWSelf,
 	} {
-		assert.False(t, IsAttributeKeyword(kw), "%s should NOT be attribute keyword", kw)
+		assert.False(t, isAttributeKeyword(kw), "%s should NOT be attribute keyword", kw)
 	}
 }
 
@@ -130,7 +130,7 @@ func TestIsTopLevelKeyword(t *testing.T) {
 
 	// nlri is top-level but not attribute.
 	assert.True(t, IsTopLevelKeyword(KWNLRI))
-	assert.False(t, IsAttributeKeyword(KWNLRI))
+	assert.False(t, isAttributeKeyword(KWNLRI))
 
 	// Non-top-level.
 	for _, kw := range []string{
@@ -163,7 +163,7 @@ func TestAliasRoundtrip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, input := range tt.inputs {
 				canonical := ResolveAlias(input)
-				short := ShortForm(canonical)
+				short := shortForm(canonical)
 				assert.Equal(t, tt.expected, short, "input %q -> canonical %q -> short %q", input, canonical, short)
 			}
 		})

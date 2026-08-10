@@ -19,10 +19,10 @@ type PluginServerAccessor interface {
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
 }
 
-// ProtocolReactorHandle provides lifecycle methods that any protocol reactor
+// protocolReactorHandle provides lifecycle methods that any protocol reactor
 // exposes to the plugin infrastructure. Protocol-specific handles (like
 // BGPReactorHandle) embed this and add protocol-specific methods.
-type ProtocolReactorHandle interface {
+type protocolReactorHandle interface {
 	SetEventBusAny(eventBus any)
 	SetPluginServerAny(server any)
 	StartWithContext(ctx context.Context) error
@@ -175,7 +175,7 @@ func GetPacketDecoder() PacketDecoderFunc {
 // BGPReactorHandle extends ProtocolReactorHandle with BGP-specific methods.
 // Provides reactor access without importing bgp/reactor (cycle avoidance).
 type BGPReactorHandle interface {
-	ProtocolReactorHandle
+	protocolReactorHandle
 	ConfiguredAutoLoad() (families, events, sendTypes []string)
 	SetRestartUntil(t time.Time)
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)

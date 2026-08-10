@@ -32,18 +32,18 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 
 	switch path[0] {
 	case "iface":
-		return HandleInterfacesPage(renderer, r, path[1:], viewTree), true
+		return handleInterfacesPage(renderer, r, path[1:], viewTree), true
 	case "ip":
 		if len(path) < 2 {
 			return "", false
 		}
 		switch path[1] {
 		case "addresses":
-			return HandleAddressesPage(renderer, r), true
+			return handleAddressesPage(renderer, r), true
 		case "routes":
 			return HandleRoutesPage(renderer, r), true
 		case "dns":
-			return HandleDNSPage(renderer, viewTree), true
+			return handleDNSPage(renderer, viewTree), true
 		}
 	case segBGP:
 		return renderBGPPageContent(renderer, r, path[1:], viewTree, schema, dispatch)
@@ -52,7 +52,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 	case segSystem:
 		return renderSystemPageContent(renderer, path[1:], viewTree)
 	case "users":
-		return HandleUsersPage(renderer, viewTree, powerUsers), true
+		return handleUsersPage(renderer, viewTree, powerUsers), true
 	case segL2TP:
 		return renderL2TPPageContent(renderer, path[1:], viewTree)
 	case segSSH, segWeb, segTelemetry, segTACACS, segMCP, segLG, segAPI:
@@ -64,9 +64,9 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 	case segLogs:
 		return renderLogPageContent(renderer, r, path[1:], dispatch, broker)
 	case segHealth:
-		return HandleDashboardHealthPage(renderer, viewTree, r, dispatch), true
+		return handleDashboardHealthPage(renderer, viewTree, r, dispatch), true
 	case segEvents:
-		return HandleDashboardEventsPage(renderer, r, dispatch), true
+		return handleDashboardEventsPage(renderer, r, dispatch), true
 	}
 
 	return "", false
@@ -89,27 +89,27 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 		// peer row "Edit" link re-rendered the whole table instead of the peer.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
 			filterGroup := r.URL.Query().Get(bgpGroupSegment)
-			return HandleBGPPeersPage(renderer, r, viewTree, filterGroup, dispatch), true
+			return handleBGPPeersPage(renderer, r, viewTree, filterGroup, dispatch), true
 		}
 		return "", false
 	case bgpGroupSegment:
 		// /show/bgp/group/ shows the groups table.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleBGPGroupsPage(renderer, viewTree), true
+			return handleBGPGroupsPage(renderer, viewTree), true
 		}
 		// /show/bgp/group/<name>/peer/ shows the peer table scoped to the group.
 		if len(path) >= 3 && path[2] == bgpPeerSegment {
-			return HandleBGPPeersPage(renderer, r, viewTree, path[1], dispatch), true
+			return handleBGPPeersPage(renderer, r, viewTree, path[1], dispatch), true
 		}
 		return "", false
 	case "summary":
-		return HandleBGPSummaryPage(renderer, r, viewTree, dispatch), true
+		return handleBGPSummaryPage(renderer, r, viewTree, dispatch), true
 	case "family":
-		return HandleBGPFamiliesPage(renderer, viewTree), true
+		return handleBGPFamiliesPage(renderer, viewTree), true
 	case "policy":
 		// /show/bgp/policy/ shows the filters table; deeper paths fall through.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleBGPPolicyPage(renderer, viewTree, schema), true
+			return handleBGPPolicyPage(renderer, viewTree, schema), true
 		}
 		return "", false
 	}

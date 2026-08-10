@@ -9,7 +9,7 @@ import (
 type fsmCase struct {
 	name        string
 	state       LCPState
-	event       LCPEvent
+	event       lCPEvent
 	wantState   LCPState
 	wantActions []LCPAction
 }

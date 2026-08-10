@@ -134,7 +134,7 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 				GroupName: s.GroupName,
 			}
 		}
-		out.ctxID = srcPeer.RecvContextID()
+		out.ctxID = srcPeer.recvContextID()
 		out.srcID = srcPeer.SourceID()
 		out.strAdr = srcPeer.addrString
 		out.ok = true

@@ -61,8 +61,8 @@ func (id SourceID) IsValid() bool {
 	return id != InvalidSourceID
 }
 
-// IsPeer returns true if this ID is in the peer range.
-func (id SourceID) IsPeer() bool {
+// isPeer returns true if this ID is in the peer range.
+func (id SourceID) isPeer() bool {
 	return id >= SourceIDPeerMin && id <= SourceIDPeerMax
 }
 
@@ -71,8 +71,8 @@ func (id SourceID) IsAPI() bool {
 	return id >= SourceIDAPIMin && id < InvalidSourceID
 }
 
-// IsConfig returns true if this is the config source ID.
-func (id SourceID) IsConfig() bool {
+// isConfig returns true if this is the config source ID.
+func (id SourceID) isConfig() bool {
 	return id == SourceIDConfig
 }
 
@@ -83,7 +83,7 @@ func (id SourceID) String() string {
 	switch {
 	case id == SourceIDConfig:
 		n = 1
-	case id.IsPeer():
+	case id.isPeer():
 		n = uint32(id) // peer IDs already start at 1
 	case id.IsAPI():
 		n = uint32(id) - uint32(SourceIDAPIMin) + 1 // 100001->1, 100002->2

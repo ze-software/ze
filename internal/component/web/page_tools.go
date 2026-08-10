@@ -23,9 +23,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ToolPageData is the template payload for tool page forms. The form renders
+// toolPageData is the template payload for tool page forms. The form renders
 // on GET; Error and Output populate on POST after command dispatch.
-type ToolPageData struct {
+type toolPageData struct {
 	Error  string
 	Output string
 }
@@ -45,18 +45,18 @@ const maxMetricNameLen = 256
 func renderToolPageContent(renderer *Renderer, r *http.Request, path []string, dispatch CommandDispatcher) (template.HTML, bool) {
 	if len(path) == 0 {
 		// /show/tools/ defaults to ping.
-		return HandleToolPingPage(renderer, r, dispatch), true
+		return handleToolPingPage(renderer, r, dispatch), true
 	}
 
 	switch path[0] {
 	case "ping":
-		return HandleToolPingPage(renderer, r, dispatch), true
+		return handleToolPingPage(renderer, r, dispatch), true
 	case "bgp-decode":
-		return HandleToolBGPDecodePage(renderer, r, dispatch), true
+		return handleToolBGPDecodePage(renderer, r, dispatch), true
 	case "metrics":
-		return HandleToolMetricsPage(renderer, r, dispatch), true
+		return handleToolMetricsPage(renderer, r, dispatch), true
 	case "capture":
-		return HandleToolCapturePage(renderer, r, dispatch), true
+		return handleToolCapturePage(renderer, r, dispatch), true
 	}
 
 	return "", false
@@ -64,10 +64,10 @@ func renderToolPageContent(renderer *Renderer, r *http.Request, path []string, d
 
 // --- Ping ---
 
-// HandleToolPingPage returns the rendered HTML for the Ping tool page.
+// handleToolPingPage returns the rendered HTML for the Ping tool page.
 // GET renders the empty form. POST validates, dispatches, and renders results.
-func HandleToolPingPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
-	data := ToolPageData{}
+func handleToolPingPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+	data := toolPageData{}
 
 	if r.Method == http.MethodPost {
 		data = handlePingSubmit(r, dispatch)
@@ -77,19 +77,19 @@ func HandleToolPingPage(renderer *Renderer, r *http.Request, dispatch CommandDis
 }
 
 // handlePingSubmit validates ping form params and dispatches the command.
-func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData {
+func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return ToolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: "Invalid form data."}
 	}
 
 	dest := strings.TrimSpace(r.PostFormValue("destination"))
 	if dest == "" {
-		return ToolPageData{Error: "Destination is required."}
+		return toolPageData{Error: "Destination is required."}
 	}
 
 	if _, err := netip.ParseAddr(dest); err != nil {
 		var tb textbuf.Buffer
-		return ToolPageData{Error: tb.Str("Invalid IP address: ").Str(dest).String()}
+		return toolPageData{Error: tb.Str("Invalid IP address: ").Str(dest).String()}
 	}
 
 	countStr := strings.TrimSpace(r.PostFormValue("count"))
@@ -97,7 +97,7 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 	if countStr != "" {
 		v, err := strconv.Atoi(countStr)
 		if err != nil || v < 1 || v > 100 {
-			return ToolPageData{Error: "Count must be between 1 and 100."}
+			return toolPageData{Error: "Count must be between 1 and 100."}
 		}
 		count = v
 	}
@@ -110,7 +110,7 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 	if sizeStr != "" {
 		v, err := strconv.Atoi(sizeStr)
 		if err != nil || v < 1 || v > 65507 {
-			return ToolPageData{Error: "Packet size must be between 1 and 65507 bytes."}
+			return toolPageData{Error: "Packet size must be between 1 and 65507 bytes."}
 		}
 		size = v
 	}
@@ -120,7 +120,7 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 	if timeoutStr != "" {
 		v, err := strconv.Atoi(timeoutStr)
 		if err != nil || v < 1 || v > 30 {
-			return ToolPageData{Error: "Timeout must be between 1 and 30 seconds."}
+			return toolPageData{Error: "Timeout must be between 1 and 30 seconds."}
 		}
 		timeout = v
 	}
@@ -137,9 +137,9 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 
 // --- BGP Decode ---
 
-// HandleToolBGPDecodePage returns the rendered HTML for the BGP Decode tool page.
-func HandleToolBGPDecodePage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
-	data := ToolPageData{}
+// handleToolBGPDecodePage returns the rendered HTML for the BGP Decode tool page.
+func handleToolBGPDecodePage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+	data := toolPageData{}
 
 	if r.Method == http.MethodPost {
 		data = handleBGPDecodeSubmit(r, dispatch)
@@ -149,24 +149,24 @@ func HandleToolBGPDecodePage(renderer *Renderer, r *http.Request, dispatch Comma
 }
 
 // handleBGPDecodeSubmit validates hex input and dispatches the decode command.
-func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData {
+func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return ToolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: "Invalid form data."}
 	}
 
 	hex := strings.TrimSpace(r.PostFormValue("hex"))
 	if hex == "" {
-		return ToolPageData{Error: "Hex input is required."}
+		return toolPageData{Error: "Hex input is required."}
 	}
 
 	if !validHexPattern.MatchString(hex) {
-		return ToolPageData{Error: "Input must contain only hexadecimal characters and whitespace."}
+		return toolPageData{Error: "Input must contain only hexadecimal characters and whitespace."}
 	}
 
 	// Collapse whitespace for the command.
 	compact := textbuf.Join(strings.Fields(hex), "")
 	if len(compact) > 65535*2 {
-		return ToolPageData{Error: "Hex input exceeds maximum length (65535 bytes)."}
+		return toolPageData{Error: "Hex input exceeds maximum length (65535 bytes)."}
 	}
 
 	var tb textbuf.Buffer
@@ -177,9 +177,9 @@ func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) ToolPage
 
 // --- Metrics Query ---
 
-// HandleToolMetricsPage returns the rendered HTML for the Metrics Query tool page.
-func HandleToolMetricsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
-	data := ToolPageData{}
+// handleToolMetricsPage returns the rendered HTML for the Metrics Query tool page.
+func handleToolMetricsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+	data := toolPageData{}
 
 	if r.Method == http.MethodPost {
 		data = handleMetricsSubmit(r, dispatch)
@@ -189,23 +189,23 @@ func HandleToolMetricsPage(renderer *Renderer, r *http.Request, dispatch Command
 }
 
 // handleMetricsSubmit validates metric name and dispatches the query command.
-func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData {
+func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return ToolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: "Invalid form data."}
 	}
 
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	if name == "" {
-		return ToolPageData{Error: "Metric name is required."}
+		return toolPageData{Error: "Metric name is required."}
 	}
 
 	if len(name) > maxMetricNameLen {
 		var bErr textbuf.Buffer
-		return ToolPageData{Error: bErr.Reset().Str("Metric name exceeds maximum length (").Int(int64(maxMetricNameLen)).Str(" characters).").String()}
+		return toolPageData{Error: bErr.Reset().Str("Metric name exceeds maximum length (").Int(int64(maxMetricNameLen)).Str(" characters).").String()}
 	}
 
 	if !validMetricNamePattern.MatchString(name) {
-		return ToolPageData{Error: "Metric name must be alphanumeric with underscores or colons."}
+		return toolPageData{Error: "Metric name must be alphanumeric with underscores or colons."}
 	}
 
 	label := strings.TrimSpace(r.PostFormValue("label"))
@@ -221,9 +221,9 @@ func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 
 // --- Capture ---
 
-// HandleToolCapturePage returns the rendered HTML for the Capture tool page.
-func HandleToolCapturePage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
-	data := ToolPageData{}
+// handleToolCapturePage returns the rendered HTML for the Capture tool page.
+func handleToolCapturePage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
+	data := toolPageData{}
 
 	if r.Method == http.MethodPost {
 		data = handleCaptureSubmit(r, dispatch)
@@ -233,9 +233,9 @@ func HandleToolCapturePage(renderer *Renderer, r *http.Request, dispatch Command
 }
 
 // handleCaptureSubmit validates capture filters and dispatches the command.
-func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData {
+func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return ToolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: "Invalid form data."}
 	}
 
 	var parts []string
@@ -245,7 +245,7 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	if tunnelIDStr != "" {
 		v, err := strconv.Atoi(tunnelIDStr)
 		if err != nil || v < 0 || v > 65535 {
-			return ToolPageData{Error: "Tunnel ID must be between 0 and 65535."}
+			return toolPageData{Error: "Tunnel ID must be between 0 and 65535."}
 		}
 		if v > 0 {
 			var bTun textbuf.Buffer
@@ -257,7 +257,7 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	if peer != "" {
 		if _, err := netip.ParseAddr(peer); err != nil {
 			var tb textbuf.Buffer
-			return ToolPageData{Error: tb.Str("Invalid peer IP address: ").Str(peer).String()}
+			return toolPageData{Error: tb.Str("Invalid peer IP address: ").Str(peer).String()}
 		}
 		parts = append(parts, "peer "+peer)
 	}
@@ -267,7 +267,7 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	if countStr != "" {
 		v, err := strconv.Atoi(countStr)
 		if err != nil || v < 1 || v > 10000 {
-			return ToolPageData{Error: "Count must be between 1 and 10000."}
+			return toolPageData{Error: "Count must be between 1 and 10000."}
 		}
 		captureCount = v
 	}
@@ -283,9 +283,9 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 
 // dispatchToolCommand sends a command through the CommandDispatcher and returns
 // the result as ToolPageData. Output is ANSI-stripped, HTML-escaped, and capped.
-func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string) ToolPageData {
+func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string) toolPageData {
 	if dispatch == nil {
-		return ToolPageData{Error: "Command dispatch not available."}
+		return toolPageData{Error: "Command dispatch not available."}
 	}
 
 	username := GetUsernameFromRequest(r)
@@ -295,7 +295,7 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 		if output != "" {
 			errMsg = output
 		}
-		return ToolPageData{Error: errMsg}
+		return toolPageData{Error: errMsg}
 	}
 
 	cleaned, truncated := normalizeOutput(output)
@@ -304,5 +304,5 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 		result += "\n\n[Output truncated at 4 MiB]"
 	}
 
-	return ToolPageData{Output: result}
+	return toolPageData{Output: result}
 }

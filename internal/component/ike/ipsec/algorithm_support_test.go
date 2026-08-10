@@ -149,7 +149,7 @@ func TestSupportedHashNamesExcludesAHalfImplementedName(t *testing.T) {
 	integrityNames = func() []string { return []string{"integrity-only", "sha256"} }
 	prfNames = func() []string { return []string{"prf-only", "sha256"} }
 
-	got := SupportedHashNames()
+	got := supportedHashNames()
 	for _, odd := range []string{"integrity-only", "prf-only"} {
 		if slices.Contains(got, odd) {
 			t.Errorf("SupportedHashNames = %v, and %q is in one registry only", got, odd)
@@ -165,8 +165,8 @@ func TestSupportedHashNamesExcludesAHalfImplementedName(t *testing.T) {
 // PREVENTS: the two drifting apart. HashImplemented decides what ParseIPsecConfig
 // accepts, and SupportedHashNames writes what its error offers instead.
 func TestSupportedHashNamesMatchesHashImplemented(t *testing.T) {
-	advertised := make(map[string]bool, len(SupportedHashNames()))
-	for _, name := range SupportedHashNames() {
+	advertised := make(map[string]bool, len(supportedHashNames()))
+	for _, name := range supportedHashNames() {
 		advertised[name] = true
 	}
 	for hash, name := range hashNames {

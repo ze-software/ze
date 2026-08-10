@@ -30,7 +30,7 @@ func TestManagedSourceAddress(t *testing.T) {
 		Token:         "0123456789abcdef0123456789abcdef",
 		SourceAddress: "192.0.2.9", // not a local address -> bind fails
 	}
-	backoff := NewBackoff(time.Millisecond, time.Second, 0)
+	backoff := newBackoff(time.Millisecond, time.Second, 0)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

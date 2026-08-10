@@ -54,7 +54,7 @@ func (t *LsIGPFlags) ToJSON() map[string]any {
 	}
 }
 
-func decodeIGPFlags(data []byte) (LsAttrTLV, error) {
+func decodeIGPFlags(data []byte) (lsAttrTLV, error) {
 	if len(data) < 1 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -82,7 +82,7 @@ func (t *LsPrefixMetric) ToJSON() map[string]any {
 	return map[string]any{"prefix-metric": t.Metric}
 }
 
-func decodePrefixMetric(data []byte) (LsAttrTLV, error) {
+func decodePrefixMetric(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -91,27 +91,27 @@ func decodePrefixMetric(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1157: Opaque Prefix Attribute ---
 
-// LsOpaquePrefixAttr represents BGP-LS Opaque Prefix Attribute (TLV 1157).
+// lsOpaquePrefixAttr represents BGP-LS Opaque Prefix Attribute (TLV 1157).
 // RFC 7752 Section 3.3.3.6: variable-length opaque data.
-type LsOpaquePrefixAttr struct {
+type lsOpaquePrefixAttr struct {
 	Data []byte
 }
 
-func (t *LsOpaquePrefixAttr) Code() uint16 { return TLVOpaquePrefixAttr }
-func (t *LsOpaquePrefixAttr) Len() int     { return 4 + len(t.Data) }
+func (t *lsOpaquePrefixAttr) Code() uint16 { return TLVOpaquePrefixAttr }
+func (t *lsOpaquePrefixAttr) Len() int     { return 4 + len(t.Data) }
 
-func (t *LsOpaquePrefixAttr) WriteTo(buf []byte, off int) int {
+func (t *lsOpaquePrefixAttr) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVOpaquePrefixAttr, t.Data)
 }
 
-func (t *LsOpaquePrefixAttr) ToJSON() map[string]any {
+func (t *lsOpaquePrefixAttr) ToJSON() map[string]any {
 	return map[string]any{"opaque-prefix-attr": "0x" + strings.ToUpper(textbuf.StringHex(t.Data))}
 }
 
-func decodeOpaquePrefixAttr(data []byte) (LsAttrTLV, error) {
+func decodeOpaquePrefixAttr(data []byte) (lsAttrTLV, error) {
 	cp := make([]byte, len(data))
 	copy(cp, data)
-	return &LsOpaquePrefixAttr{Data: cp}, nil
+	return &lsOpaquePrefixAttr{Data: cp}, nil
 }
 
 // --- Phase 2: SR-MPLS Prefix Attribute TLVs (RFC 9085) ---
@@ -126,9 +126,9 @@ const (
 
 // --- TLV 1158: Prefix SID ---
 
-// LsPrefixSID represents BGP-LS Prefix SID (TLV 1158).
+// lsPrefixSID represents BGP-LS Prefix SID (TLV 1158).
 // RFC 9085 Section 2.3.1: Flags(1) + Algorithm(1) + Reserved(2) + SID (3 or 4 bytes).
-type LsPrefixSID struct {
+type lsPrefixSID struct {
 	Flags     uint8
 	Algorithm uint8
 	SID       uint32
@@ -136,16 +136,16 @@ type LsPrefixSID struct {
 	wireLen int
 }
 
-func (t *LsPrefixSID) Code() uint16 { return TLVPrefixSID }
+func (t *lsPrefixSID) Code() uint16 { return TLVPrefixSID }
 
-func (t *LsPrefixSID) Len() int {
+func (t *lsPrefixSID) Len() int {
 	if t.wireLen > 0 {
 		return 4 + t.wireLen
 	}
 	return 4 + 8 // default: flags(1) + algo(1) + reserved(2) + SID(4)
 }
 
-func (t *LsPrefixSID) WriteTo(buf []byte, off int) int {
+func (t *lsPrefixSID) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, TLVPrefixSID, valueLen)
 	vOff := off + 4
@@ -164,7 +164,7 @@ func (t *LsPrefixSID) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsPrefixSID) ToJSON() map[string]any {
+func (t *lsPrefixSID) ToJSON() map[string]any {
 	return map[string]any{
 		"prefix-sid": map[string]any{
 			"flags":     int(t.Flags),
@@ -174,12 +174,12 @@ func (t *LsPrefixSID) ToJSON() map[string]any {
 	}
 }
 
-func decodePrefixSID(data []byte) (LsAttrTLV, error) {
+func decodePrefixSID(data []byte) (lsAttrTLV, error) {
 	// RFC 9085 Section 2.3.1: 7 or 8 bytes
 	if len(data) != 7 && len(data) != 8 {
 		return nil, ErrBGPLSTruncated
 	}
-	ps := &LsPrefixSID{
+	ps := &lsPrefixSID{
 		Flags:     data[0],
 		Algorithm: data[1],
 		wireLen:   len(data),
@@ -197,24 +197,24 @@ func decodePrefixSID(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1161: SID/Label ---
 
-// LsSIDLabel represents BGP-LS SID/Label (TLV 1161).
+// lsSIDLabel represents BGP-LS SID/Label (TLV 1161).
 // RFC 9085 Section 2.1.1: 3-byte label (20 bits) or 4-byte SID index.
-type LsSIDLabel struct {
+type lsSIDLabel struct {
 	SID uint32
 	// wireLen preserves 3 vs 4 byte encoding for round-trip.
 	wireLen int
 }
 
-func (t *LsSIDLabel) Code() uint16 { return TLVSIDLabel }
+func (t *lsSIDLabel) Code() uint16 { return TLVSIDLabel }
 
-func (t *LsSIDLabel) Len() int {
+func (t *lsSIDLabel) Len() int {
 	if t.wireLen > 0 {
 		return 4 + t.wireLen
 	}
 	return 4 + 4
 }
 
-func (t *LsSIDLabel) WriteTo(buf []byte, off int) int {
+func (t *lsSIDLabel) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, TLVSIDLabel, valueLen)
 	if valueLen == 3 {
@@ -227,11 +227,11 @@ func (t *LsSIDLabel) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsSIDLabel) ToJSON() map[string]any {
+func (t *lsSIDLabel) ToJSON() map[string]any {
 	return map[string]any{"sid-label": t.SID}
 }
 
-func decodeSIDLabel(data []byte) (LsAttrTLV, error) {
+func decodeSIDLabel(data []byte) (lsAttrTLV, error) {
 	if len(data) != 3 && len(data) != 4 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -241,31 +241,31 @@ func decodeSIDLabel(data []byte) (LsAttrTLV, error) {
 	} else {
 		sid = (uint32(data[0])<<16 | uint32(data[1])<<8 | uint32(data[2])) & 0xFFFFF
 	}
-	return &LsSIDLabel{SID: sid, wireLen: len(data)}, nil
+	return &lsSIDLabel{SID: sid, wireLen: len(data)}, nil
 }
 
 // --- TLV 1170: SR Prefix Attribute Flags ---
 
-// LsSRPrefixFlags represents BGP-LS SR Prefix Attribute Flags (TLV 1170).
+// lsSRPrefixFlags represents BGP-LS SR Prefix Attribute Flags (TLV 1170).
 // RFC 9085 Section 2.3.2: 1 byte of flags.
 //
 //	+--+--+--+--+--+--+--+--+
 //	|X |R |N |    Reserved   |
 //	+--+--+--+--+--+--+--+--+
-type LsSRPrefixFlags struct {
+type lsSRPrefixFlags struct {
 	Flags uint8
 }
 
-func (t *LsSRPrefixFlags) Code() uint16 { return TLVSRPrefixFlags }
-func (t *LsSRPrefixFlags) Len() int     { return 4 + 1 }
+func (t *lsSRPrefixFlags) Code() uint16 { return TLVSRPrefixFlags }
+func (t *lsSRPrefixFlags) Len() int     { return 4 + 1 }
 
-func (t *LsSRPrefixFlags) WriteTo(buf []byte, off int) int {
+func (t *lsSRPrefixFlags) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVSRPrefixFlags, 1)
 	buf[off+4] = t.Flags
 	return n
 }
 
-func (t *LsSRPrefixFlags) ToJSON() map[string]any {
+func (t *lsSRPrefixFlags) ToJSON() map[string]any {
 	return map[string]any{
 		"sr-prefix-flags": map[string]any{
 			"X":   int((t.Flags >> 7) & 1),
@@ -276,29 +276,29 @@ func (t *LsSRPrefixFlags) ToJSON() map[string]any {
 	}
 }
 
-func decodeSRPrefixFlags(data []byte) (LsAttrTLV, error) {
+func decodeSRPrefixFlags(data []byte) (lsAttrTLV, error) {
 	if len(data) < 1 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsSRPrefixFlags{Flags: data[0]}, nil
+	return &lsSRPrefixFlags{Flags: data[0]}, nil
 }
 
 // --- TLV 1171: Source Router ID ---
 
-// LsSourceRouterID represents BGP-LS Source Router ID (TLV 1171).
+// lsSourceRouterID represents BGP-LS Source Router ID (TLV 1171).
 // RFC 9085 Section 2.3.3: 4-byte (IPv4) or 16-byte (IPv6) router ID.
-type LsSourceRouterID struct {
+type lsSourceRouterID struct {
 	ID []byte // 4 or 16 bytes
 }
 
-func (t *LsSourceRouterID) Code() uint16 { return TLVSourceRouterID }
-func (t *LsSourceRouterID) Len() int     { return 4 + len(t.ID) }
+func (t *lsSourceRouterID) Code() uint16 { return TLVSourceRouterID }
+func (t *lsSourceRouterID) Len() int     { return 4 + len(t.ID) }
 
-func (t *LsSourceRouterID) WriteTo(buf []byte, off int) int {
+func (t *lsSourceRouterID) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVSourceRouterID, t.ID)
 }
 
-func (t *LsSourceRouterID) ToJSON() map[string]any {
+func (t *lsSourceRouterID) ToJSON() map[string]any {
 	switch len(t.ID) {
 	case 4:
 		addr := netip.AddrFrom4([4]byte(t.ID[:4]))
@@ -310,11 +310,11 @@ func (t *LsSourceRouterID) ToJSON() map[string]any {
 	return map[string]any{"source-router-id": "0x" + strings.ToUpper(textbuf.StringHex(t.ID))}
 }
 
-func decodeSourceRouterID(data []byte) (LsAttrTLV, error) {
+func decodeSourceRouterID(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 && len(data) != 16 {
 		return nil, ErrBGPLSTruncated
 	}
 	cp := make([]byte, len(data))
 	copy(cp, data)
-	return &LsSourceRouterID{ID: cp}, nil
+	return &lsSourceRouterID{ID: cp}, nil
 }

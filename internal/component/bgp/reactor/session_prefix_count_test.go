@@ -653,7 +653,7 @@ func TestParsePrefixCountMode(t *testing.T) {
 		{"received", PrefixCountOffered, false},
 	}
 	for _, tc := range tests {
-		mode, ok := ParsePrefixCountMode(tc.input)
+		mode, ok := parsePrefixCountMode(tc.input)
 		assert.Equal(t, tc.ok, ok, "input %q", tc.input)
 		assert.Equal(t, tc.want, mode, "input %q", tc.input)
 	}

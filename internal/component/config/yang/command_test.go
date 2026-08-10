@@ -86,7 +86,7 @@ module test-cmd {
 	listEntry := peerEntry.Dir["list"]
 	require.NotNil(t, listEntry)
 	assert.Equal(t, "ze-bgp:peer-list", GetCommandExtension(listEntry))
-	assert.True(t, HasCommandExtension(listEntry))
+	assert.True(t, hasCommandExtension(listEntry))
 
 	addEntry := peerEntry.Dir["add"]
 	require.NotNil(t, addEntry)
@@ -95,7 +95,7 @@ module test-cmd {
 
 	statusEntry := peerEntry.Dir["status"]
 	require.NotNil(t, statusEntry)
-	assert.False(t, HasCommandExtension(statusEntry), "status has no ze:command")
+	assert.False(t, hasCommandExtension(statusEntry), "status has no ze:command")
 }
 
 // TestEditShortcutExtension verifies ze:edit-shortcut extension is parsed from YANG.
@@ -148,16 +148,16 @@ module test-shortcut {
 	commitEntry := entry.Dir["commit"]
 	require.NotNil(t, commitEntry)
 	assert.Equal(t, "ze-bgp:commit", GetCommandExtension(commitEntry))
-	assert.True(t, HasEditShortcutExtension(commitEntry), "commit should have ze:edit-shortcut")
+	assert.True(t, hasEditShortcutExtension(commitEntry), "commit should have ze:edit-shortcut")
 
 	saveEntry := entry.Dir["save"]
 	require.NotNil(t, saveEntry)
-	assert.True(t, HasEditShortcutExtension(saveEntry), "save should have ze:edit-shortcut")
+	assert.True(t, hasEditShortcutExtension(saveEntry), "save should have ze:edit-shortcut")
 
 	summaryEntry := entry.Dir["summary"]
 	require.NotNil(t, summaryEntry)
 	assert.Equal(t, "ze-bgp:summary", GetCommandExtension(summaryEntry))
-	assert.False(t, HasEditShortcutExtension(summaryEntry), "summary should NOT have ze:edit-shortcut")
+	assert.False(t, hasEditShortcutExtension(summaryEntry), "summary should NOT have ze:edit-shortcut")
 }
 
 // TestExtensionNilEntry verifies extension functions handle nil safely.
@@ -166,8 +166,8 @@ module test-shortcut {
 // PREVENTS: NPE in tree walker when entry is nil.
 func TestExtensionNilEntry(t *testing.T) {
 	assert.Equal(t, "", GetCommandExtension(nil))
-	assert.False(t, HasCommandExtension(nil))
-	assert.False(t, HasEditShortcutExtension(nil))
+	assert.False(t, hasCommandExtension(nil))
+	assert.False(t, hasEditShortcutExtension(nil))
 }
 
 // cmdPluginBase is the relative path from this test package to the BGP plugins directory.
@@ -362,7 +362,7 @@ func TestCommitNoEditShortcut(t *testing.T) {
 
 	entry := loader.GetEntry("ze-cli-commit-cmd")
 	require.NotNil(t, entry)
-	assert.False(t, HasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
+	assert.False(t, hasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
 }
 
 // TestLogCmdModule verifies the bare anchor and relocated log command module.

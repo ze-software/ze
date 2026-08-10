@@ -90,9 +90,9 @@ func DecodeTLV(buf []byte, off int) (TLV, int, error) {
 	return t, TLVHeaderSize + int(t.Length), nil
 }
 
-// WriteTLV writes a TLV into buf at off.
+// writeTLV writes a TLV into buf at off.
 // Returns bytes written.
-func WriteTLV(buf []byte, off int, t TLV) int {
+func writeTLV(buf []byte, off int, t TLV) int {
 	binary.BigEndian.PutUint16(buf[off:off+2], t.Type)
 	binary.BigEndian.PutUint16(buf[off+2:off+4], t.Length)
 	copy(buf[off+TLVHeaderSize:], t.Value)
@@ -113,12 +113,12 @@ func DecodeTLVs(buf []byte, off, end int) ([]TLV, error) {
 	return tlvs, nil
 }
 
-// WriteTLVs writes multiple TLVs into buf at off.
+// writeTLVs writes multiple TLVs into buf at off.
 // Returns total bytes written.
-func WriteTLVs(buf []byte, off int, tlvs []TLV) int {
+func writeTLVs(buf []byte, off int, tlvs []TLV) int {
 	total := 0
 	for i := range tlvs {
-		n := WriteTLV(buf, off, tlvs[i])
+		n := writeTLV(buf, off, tlvs[i])
 		off += n
 		total += n
 	}
@@ -128,9 +128,9 @@ func WriteTLVs(buf []byte, off int, tlvs []TLV) int {
 // maxTLVValueLen is the maximum value length a TLV can encode (uint16).
 const maxTLVValueLen = 65535
 
-// MakeStringTLV creates a TLV with a string value.
+// makeStringTLV creates a TLV with a string value.
 // Strings longer than 65535 bytes are truncated to fit the uint16 length field.
-func MakeStringTLV(typ uint16, s string) TLV {
+func makeStringTLV(typ uint16, s string) TLV {
 	if len(s) > maxTLVValueLen {
 		s = s[:maxTLVValueLen]
 	}

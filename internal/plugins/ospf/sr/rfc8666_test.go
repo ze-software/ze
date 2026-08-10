@@ -202,14 +202,14 @@ func TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive(t *testing.T) {
 	if clean[2] != 0 || clean[3] != 0 {
 		t.Fatalf("LAN Adj-SID Reserved field must be zero on transmission: %#02x%02x", clean[2], clean[3])
 	}
-	want, err := DecodeLANAdjSIDValueV6(clean)
+	want, err := decodeLANAdjSIDValueV6(clean)
 	if err != nil {
 		t.Fatalf("clean decode: %v", err)
 	}
 	dirty := make([]byte, len(clean))
 	copy(dirty, clean)
 	dirty[2], dirty[3] = 0xFF, 0xFF
-	got, err := DecodeLANAdjSIDValueV6(dirty)
+	got, err := decodeLANAdjSIDValueV6(dirty)
 	if err != nil {
 		t.Fatalf("decode with Reserved=0xFFFF: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestRFC8666LANAdjSIDNeighborIDNotIgnored(t *testing.T) {
 	dirty := make([]byte, len(clean))
 	copy(dirty, clean)
 	dirty[7] = 42
-	got, err := DecodeLANAdjSIDValueV6(dirty)
+	got, err := decodeLANAdjSIDValueV6(dirty)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}

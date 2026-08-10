@@ -43,7 +43,7 @@ func runShow(args []string) int {
 	}
 	fmt.Printf("arch:       %s\n", cfg.Image.Arch)
 	fmt.Printf("image-size: %d bytes\n", cfg.Image.SizeBytes)
-	fmt.Printf("encrypted:  %v\n", IsEncrypted(dir, name))
+	fmt.Printf("encrypted:  %v\n", isEncrypted(dir, name))
 
 	if cfg.Managed {
 		fmt.Printf("managed:    yes (fleet mode: accepts remote config push, reports to hub)\n")
@@ -59,7 +59,7 @@ func runShow(args []string) int {
 		fmt.Printf("config-base: %s\n", cfg.ConfigBase)
 	}
 
-	certPath := filepath.Join(TLSDir(dir, name), "cert.pem")
+	certPath := filepath.Join(tLSDir(dir, name), "cert.pem")
 	if expiry, certErr := certExpiry(certPath); certErr == nil {
 		remaining := time.Until(expiry).Truncate(24 * time.Hour)
 		fmt.Printf("expires:    %s (%s remaining)\n", expiry.Format("2006-01-02"), remaining)

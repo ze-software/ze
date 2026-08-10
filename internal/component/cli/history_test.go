@@ -297,7 +297,7 @@ func TestHistoryResetBrowsing(t *testing.T) {
 	h.Up("")
 
 	// Reset (simulates user typing).
-	h.ResetBrowsing()
+	h.resetBrowsing()
 
 	// Next Up should start fresh from most recent.
 	val, ok := h.Up("y")

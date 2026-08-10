@@ -1,6 +1,6 @@
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-4 operator-initiated outgoing call
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 7.9 (OCRQ), Section 10.4 (LNS outgoing call)
-// Related: reactor_dial.go -- PlaceOutgoingCallSync drives the dial + OCRQ
+// Related: reactor_dial.go -- placeOutgoingCallSync drives the dial + OCRQ
 // Related: cmd/l2tp.go -- the request l2tp outgoing-call RPC handler
 
 package l2tp
@@ -70,7 +70,7 @@ func (s *Subsystem) PlaceOutgoingCall(remoteName, calledNumber string) (Outgoing
 
 	target := DialTarget{Remote: rem.Address, SharedSecret: rem.SharedSecret}
 	params := callParams{calledNumber: calledNumber}
-	outcome, err := reactor.PlaceOutgoingCallSync(target, params, outgoingCallTimeout)
+	outcome, err := reactor.placeOutgoingCallSync(target, params, outgoingCallTimeout)
 	if err != nil {
 		// Transport-level failure (timeout, reactor stopped, dial rejected):
 		// no call outcome was produced.

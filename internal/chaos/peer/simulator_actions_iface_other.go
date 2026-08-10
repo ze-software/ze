@@ -14,18 +14,18 @@ import (
 	"github.com/ze-software/ze/internal/chaos/engine"
 )
 
-func executeIfaceLinkFlap(action engine.ChaosAction, emit func(Event)) ChaosResult {
+func executeIfaceLinkFlap(action engine.ChaosAction, emit func(Event)) chaosResult {
 	params := engine.ParseIfaceFaultParams(action.Params)
 	if params.Iface != "" {
 		emit(Event{Type: EventError, Err: fmt.Errorf("iface-link-flap %s: interface faults require linux", params.Iface)})
 	}
-	return ChaosResult{Disconnected: false}
+	return chaosResult{Disconnected: false}
 }
 
-func executeIfaceAddrRemove(action engine.ChaosAction, emit func(Event)) ChaosResult {
+func executeIfaceAddrRemove(action engine.ChaosAction, emit func(Event)) chaosResult {
 	params := engine.ParseIfaceFaultParams(action.Params)
 	if params.Iface != "" {
 		emit(Event{Type: EventError, Err: fmt.Errorf("iface-addr-remove %s: interface faults require linux", params.Iface)})
 	}
-	return ChaosResult{Disconnected: false}
+	return chaosResult{Disconnected: false}
 }

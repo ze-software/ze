@@ -163,7 +163,7 @@ func buildOne(name string) int {
 	}
 
 	var passphrase []byte
-	if IsEncrypted(dir, name) {
+	if isEncrypted(dir, name) {
 		var resolveErr error
 		passphrase, _, resolveErr = ResolvePassphrase(nil)
 		if resolveErr != nil {
@@ -182,14 +182,14 @@ func buildOne(name string) int {
 		return exitError
 	}
 
-	dbPath := DatabasePath(dir, name)
+	dbPath := databasePath(dir, name)
 	if code := assembleZeFS(dir, name, cfg, passphrase, dbPath); code != exitOK {
 		return code
 	}
 	defer os.Remove(dbPath) //nolint:errcheck // cleanup after build
 
-	ts := ImageTimestamp()
-	imgName := ImageFileName(ts)
+	ts := imageTimestamp()
+	imgName := imageFileName(ts)
 	imgPath := filepath.Join(AppliancePath(dir, name), imgName)
 
 	if code := runGokBuild(cfg, imgPath); code != exitOK {
@@ -202,12 +202,12 @@ func buildOne(name string) int {
 	// build.json below carries the full checksum for integrity.
 	seedConfig, _ := resolveSeedConfig(dir, name, cfg)
 	bakedPath := filepath.Join(AppliancePath(dir, name), ".build.json.baked")
-	if writeErr := WriteManifest(bakedPath, &BuildManifest{
+	if writeErr := writeManifest(bakedPath, &BuildManifest{
 		Appliance:  name,
 		Timestamp:  ts,
 		ZeVersion:  "dev",
 		Arch:       cfg.Image.Arch,
-		ConfigHash: ConfigHash(seedConfig),
+		ConfigHash: configHash(seedConfig),
 		Image:      imgName,
 	}); writeErr != nil {
 		slog.Warn("prepare baked build manifest failed (non-fatal)", "error", writeErr)
@@ -223,7 +223,7 @@ func buildOne(name string) int {
 
 	var tbChk textbuf.Buffer
 	checksumPath := tbChk.Str(imgPath).Str(".sha256").String()
-	imgHash, hashErr := WriteImageChecksum(imgPath, checksumPath)
+	imgHash, hashErr := writeImageChecksum(imgPath, checksumPath)
 	if hashErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: checksum: %v\n", hashErr)
 	}
@@ -233,13 +233,13 @@ func buildOne(name string) int {
 		Timestamp:   ts,
 		ZeVersion:   "dev",
 		Arch:        cfg.Image.Arch,
-		ConfigHash:  ConfigHash(seedConfig),
+		ConfigHash:  configHash(seedConfig),
 		Image:       imgName,
 		ImageSHA256: imgHash,
 	}
 
 	manifestPath := filepath.Join(AppliancePath(dir, name), "build.json")
-	if writeErr := WriteManifest(manifestPath, manifest); writeErr != nil {
+	if writeErr := writeManifest(manifestPath, manifest); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: write manifest: %v\n", writeErr)
 	}
 

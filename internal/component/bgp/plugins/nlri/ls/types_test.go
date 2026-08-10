@@ -296,7 +296,7 @@ func TestBGPLSRoundTrip(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name string
-		nlri BGPLSNLRI
+		nlri bGPLSNLRI
 	}{
 		{
 			name: "node",
@@ -338,7 +338,7 @@ func TestBGPLSSRv6SID(t *testing.T) {
 		SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	}
 
-	srv6 := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
+	srv6 := newBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
 
 	assert.Equal(t, BGPLSSRv6SIDNLRI, srv6.NLRIType())
 	assert.Equal(t, ProtoSegment, srv6.ProtocolID())
@@ -356,7 +356,7 @@ func TestBGPLSSRv6SIDBytes(t *testing.T) {
 		SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	}
 
-	srv6 := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
+	srv6 := newBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
 	data := srv6.Bytes()
 
 	require.NotEmpty(t, data)
@@ -374,7 +374,7 @@ func TestBGPLSSRv6SIDRoundTrip(t *testing.T) {
 		SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	}
 
-	original := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
+	original := newBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
 	data := original.Bytes()
 
 	parsed, err := ParseBGPLS(data)
@@ -519,7 +519,7 @@ func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
 	}{
 		{
 			name: "basic srv6 sid",
-			srv6: NewBGPLSSRv6SID(ProtoSegment, 0x200, NodeDescriptor{
+			srv6: newBGPLSSRv6SID(ProtoSegment, 0x200, NodeDescriptor{
 				ASN:         65001,
 				IGPRouterID: []byte{1, 1, 1, 1},
 			}, SRv6SIDDescriptor{
@@ -529,7 +529,7 @@ func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
 		},
 		{
 			name: "srv6 sid different asn",
-			srv6: NewBGPLSSRv6SID(ProtoISISL1, 0x300, NodeDescriptor{
+			srv6: newBGPLSSRv6SID(ProtoISISL1, 0x300, NodeDescriptor{
 				ASN: 65500,
 			}, SRv6SIDDescriptor{}),
 			expected: "srv6-sid protocol isis-l1 asn 65500",
@@ -687,14 +687,14 @@ func TestBGPLSSRv6SIDLen(t *testing.T) {
 	}{
 		{
 			name: "with_sid",
-			srv6: NewBGPLSSRv6SID(ProtoSegment, 0x200,
+			srv6: newBGPLSSRv6SID(ProtoSegment, 0x200,
 				NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 				SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
 			),
 		},
 		{
 			name: "without_sid",
-			srv6: NewBGPLSSRv6SID(ProtoISISL1, 0x300,
+			srv6: newBGPLSSRv6SID(ProtoISISL1, 0x300,
 				NodeDescriptor{ASN: 65500},
 				SRv6SIDDescriptor{},
 			),
@@ -844,7 +844,7 @@ func TestBGPLSPrefixWriteToMatchesBytes(t *testing.T) {
 // PREVENTS: SID encoding errors, TLV 518 format issues.
 func TestBGPLSSRv6SIDWriteToMatchesBytes(t *testing.T) {
 	t.Parallel()
-	srv6 := NewBGPLSSRv6SID(ProtoSegment, 0x200,
+	srv6 := newBGPLSSRv6SID(ProtoSegment, 0x200,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 		SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
 	)

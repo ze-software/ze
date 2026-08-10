@@ -77,7 +77,7 @@ func deduplicateASPath(path []uint32) []uint32 {
 //
 // Walk from neighbor toward origin. For each adjacent pair (path[i], path[i+1]),
 // path[i+1] is the customer, path[i] is the provider candidate.
-func verifyASPA(cache *ASPACache, path []uint32) uint8 {
+func verifyASPA(cache *aSPACache, path []uint32) uint8 {
 	if len(path) <= 1 {
 		return ASPAValid
 	}
@@ -88,7 +88,7 @@ func verifyASPA(cache *ASPACache, path []uint32) uint8 {
 		providerCandidate := path[i]
 		customerAS := path[i+1]
 
-		switch cache.CheckPair(providerCandidate, customerAS) {
+		switch cache.checkPair(providerCandidate, customerAS) {
 		case HopProviderPlus:
 			// Authorized, continue.
 		case HopNotProviderPlus:
@@ -110,7 +110,7 @@ func verifyASPA(cache *ASPACache, path []uint32) uint8 {
 // through the upstream verification algorithm. This is the entry point handleStructuredUpdate
 // uses to verify received customer and lateral-peer routes. Returns the state and the
 // normalized path (retained by the caller for re-validation tracking).
-func aspaStateForPath(cache *ASPACache, segments []attribute.ASPathSegment) (uint8, []uint32) {
+func aspaStateForPath(cache *aSPACache, segments []attribute.ASPathSegment) (uint8, []uint32) {
 	normalizedPath, hasASSet := normalizeASPath(segments)
 	if hasASSet {
 		return ASPAUnknown, normalizedPath

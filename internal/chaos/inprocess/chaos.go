@@ -209,11 +209,11 @@ func (c *chaosProgress) Quiet() bool {
 	return true
 }
 
-// AwaitingFirstFall reports whether chaos has been applied to the peer and has
+// awaitingFirstFall reports whether chaos has been applied to the peer and has
 // not yet knocked it down. The run must read such a peer as up before it ends,
 // because the session CAN be dying at that instant. After the peer has fallen
 // and recovered it owes nothing, and its state at the end carries no meaning.
-func (c *chaosProgress) AwaitingFirstFall(idx int) bool {
+func (c *chaosProgress) awaitingFirstFall(idx int) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if idx < 0 || idx >= len(c.perturbed) {

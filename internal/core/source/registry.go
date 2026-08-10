@@ -76,10 +76,10 @@ func (r *Registry) RegisterPeer(ip netip.Addr, as uint32) SourceID {
 	return id
 }
 
-// RegisterAPI registers an API process and returns its SourceID.
+// registerAPI registers an API process and returns its SourceID.
 // If the API name is already registered, reactivates it.
 // Returns InvalidSourceID if name is empty or ID space exhausted.
-func (r *Registry) RegisterAPI(name string) SourceID {
+func (r *Registry) registerAPI(name string) SourceID {
 	if name == "" {
 		return InvalidSourceID
 	}
@@ -111,8 +111,8 @@ func (r *Registry) RegisterAPI(name string) SourceID {
 	return id
 }
 
-// ConfigID returns the singleton config source ID.
-func (r *Registry) ConfigID() SourceID {
+// configID returns the singleton config source ID.
+func (r *Registry) configID() SourceID {
 	return SourceIDConfig
 }
 
@@ -133,9 +133,9 @@ func (r *Registry) Get(id SourceID) (Source, bool) {
 	return *src, true
 }
 
-// GetByPeerIP looks up a peer by IP address.
+// getByPeerIP looks up a peer by IP address.
 // Returns (InvalidSourceID, false) if not found.
-func (r *Registry) GetByPeerIP(ip netip.Addr) (SourceID, bool) {
+func (r *Registry) getByPeerIP(ip netip.Addr) (SourceID, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -143,9 +143,9 @@ func (r *Registry) GetByPeerIP(ip netip.Addr) (SourceID, bool) {
 	return id, ok
 }
 
-// GetByAPIName looks up an API by name.
+// getByAPIName looks up an API by name.
 // Returns (InvalidSourceID, false) if not found.
-func (r *Registry) GetByAPIName(name string) (SourceID, bool) {
+func (r *Registry) getByAPIName(name string) (SourceID, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

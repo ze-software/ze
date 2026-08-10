@@ -99,7 +99,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 	assert.True(t, done1Called.Load(), "superseded item's done() must be called")
 
 	// Verify: overflow depth is 1 (not 2).
-	depths := fp.OverflowDepths()
+	depths := fp.overflowDepths()
 	assert.Equal(t, 1, depths[key.peerAddr.Addr().String()])
 }
 
@@ -145,7 +145,7 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 		supersedeKey: fwdSupersedeKey([][]byte{body2}),
 	})
 
-	depths := fp.OverflowDepths()
+	depths := fp.overflowDepths()
 	assert.Equal(t, 2, depths[key.peerAddr.Addr().String()])
 }
 

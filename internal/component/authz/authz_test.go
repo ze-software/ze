@@ -604,14 +604,14 @@ func TestStoreHasProfiles(t *testing.T) {
 
 func TestStoreHasProfile(t *testing.T) {
 	s := NewStore()
-	if s.HasProfile("test") {
+	if s.hasProfile("test") {
 		t.Error("empty store should not have profile 'test'")
 	}
 	s.AddProfile(Profile{Name: "test", Run: Section{Default: Allow}, Edit: Section{Default: Allow}})
-	if !s.HasProfile("test") {
+	if !s.hasProfile("test") {
 		t.Error("store should have profile 'test' after adding it")
 	}
-	if s.HasProfile("other") {
+	if s.hasProfile("other") {
 		t.Error("store should not have profile 'other'")
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 func newTestIPv6Service() (*IPv6Service, *fakeBackend) {
 	fb := &fakeBackend{}
-	svc := NewIPv6Service(IPv6ServiceConfig{
+	svc := newIPv6Service(iPv6ServiceConfig{
 		Ifname:          "ppp0",
 		TunnelID:        1,
 		SessionID:       2,
@@ -19,7 +19,7 @@ func newTestIPv6Service() (*IPv6Service, *fakeBackend) {
 }
 
 func newTestIPv6ServiceWithRelease(released *atomic.Value) *IPv6Service {
-	return NewIPv6Service(IPv6ServiceConfig{
+	return newIPv6Service(iPv6ServiceConfig{
 		Ifname:          "ppp0",
 		TunnelID:        1,
 		SessionID:       2,
@@ -55,12 +55,12 @@ func TestHandleDHCPv6SolicitAllocatesPrefix(t *testing.T) {
 
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 	solicit := buildSolicit([3]byte{0x12, 0x34, 0x56}, clientDUID, 1)
-	msg, err := ParseDHCPv6(solicit)
+	msg, err := parseDHCPv6(solicit)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resp, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix))
+	resp, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestHandleDHCPv6SolicitAllocatesPrefix(t *testing.T) {
 		t.Fatal("expected response")
 	}
 
-	reply, err := ParseDHCPv6(resp)
+	reply, err := parseDHCPv6(resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,12 +89,12 @@ func TestHandleDHCPv6SolicitNilAllocator(t *testing.T) {
 
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 	solicit := buildSolicit([3]byte{0x12, 0x34, 0x56}, clientDUID, 1)
-	msg, err := ParseDHCPv6(solicit)
+	msg, err := parseDHCPv6(solicit)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resp, err := svc.HandleDHCPv6(msg, srv, nil)
+	resp, err := svc.handleDHCPv6(msg, srv, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestHandleDHCPv6SolicitNilAllocator(t *testing.T) {
 		t.Fatal("expected NoPrefixAvail response")
 	}
 
-	reply, err := ParseDHCPv6(resp)
+	reply, err := parseDHCPv6(resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,16 +119,16 @@ func TestHandleDHCPv6RequestInstallsRoute(t *testing.T) {
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 
 	solicit := buildSolicit([3]byte{0x12, 0x34, 0x56}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
-	if _, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
+	msg, _ := parseDHCPv6(solicit)
+	if _, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
 		t.Fatal(err)
 	}
 
 	req := buildRenew([3]byte{0x12, 0x34, 0x57}, clientDUID, srv, 1)
 	req[0] = DHCPv6Request
-	msg, _ = ParseDHCPv6(req)
+	msg, _ = parseDHCPv6(req)
 
-	resp, err := svc.HandleDHCPv6(msg, srv, nil)
+	resp, err := svc.handleDHCPv6(msg, srv, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestHandleDHCPv6RequestInstallsRoute(t *testing.T) {
 		t.Fatal("expected response")
 	}
 
-	reply, _ := ParseDHCPv6(resp)
+	reply, _ := parseDHCPv6(resp)
 	if reply.Type != DHCPv6Reply {
 		t.Errorf("type = %d, want %d (Reply)", reply.Type, DHCPv6Reply)
 	}
@@ -162,17 +162,17 @@ func TestHandleDHCPv6RequestWrongServerID(t *testing.T) {
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 
 	solicit := buildSolicit([3]byte{0x12, 0x34, 0x56}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
-	if _, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
+	msg, _ := parseDHCPv6(solicit)
+	if _, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
 		t.Fatal(err)
 	}
 
 	wrongServer := DHCPv6DUID{Type: DUIDTypeEN, EnterpriseNum: 99999, ID: []byte{0xff}}
 	req := buildRenew([3]byte{0x12, 0x34, 0x57}, clientDUID, wrongServer, 1)
 	req[0] = DHCPv6Request
-	msg, _ = ParseDHCPv6(req)
+	msg, _ = parseDHCPv6(req)
 
-	resp, err := svc.HandleDHCPv6(msg, srv, nil)
+	resp, err := svc.handleDHCPv6(msg, srv, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,21 +189,21 @@ func TestHandleDHCPv6ReleaseRemovesRoute(t *testing.T) {
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 
 	solicit := buildSolicit([3]byte{0x01, 0x02, 0x03}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
-	if _, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
+	msg, _ := parseDHCPv6(solicit)
+	if _, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
 		t.Fatal(err)
 	}
 
 	reqBuf := buildRenew([3]byte{0x01, 0x02, 0x04}, clientDUID, srv, 1)
 	reqBuf[0] = DHCPv6Request
-	msg, _ = ParseDHCPv6(reqBuf)
-	if _, err := svc.HandleDHCPv6(msg, srv, nil); err != nil {
+	msg, _ = parseDHCPv6(reqBuf)
+	if _, err := svc.handleDHCPv6(msg, srv, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	relBuf := buildRelease([3]byte{0x01, 0x02, 0x05}, clientDUID, srv, 1)
-	msg, _ = ParseDHCPv6(relBuf)
-	resp, err := svc.HandleDHCPv6(msg, srv, nil)
+	msg, _ = parseDHCPv6(relBuf)
+	resp, err := svc.handleDHCPv6(msg, srv, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,21 +229,21 @@ func TestHandleDHCPv6ReleaseCallsReleasePrefix(t *testing.T) {
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 
 	solicit := buildSolicit([3]byte{0x01, 0x02, 0x03}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
-	if _, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
+	msg, _ := parseDHCPv6(solicit)
+	if _, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
 		t.Fatal(err)
 	}
 
 	reqBuf := buildRenew([3]byte{0x01, 0x02, 0x04}, clientDUID, srv, 1)
 	reqBuf[0] = DHCPv6Request
-	msg, _ = ParseDHCPv6(reqBuf)
-	if _, err := svc.HandleDHCPv6(msg, srv, nil); err != nil {
+	msg, _ = parseDHCPv6(reqBuf)
+	if _, err := svc.handleDHCPv6(msg, srv, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	relBuf := buildRelease([3]byte{0x01, 0x02, 0x05}, clientDUID, srv, 1)
-	msg, _ = ParseDHCPv6(relBuf)
-	if _, err := svc.HandleDHCPv6(msg, srv, nil); err != nil {
+	msg, _ = parseDHCPv6(relBuf)
+	if _, err := svc.handleDHCPv6(msg, srv, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -262,9 +262,9 @@ func TestHandleDHCPv6PoolExhaustedReturnsNoPrefixAvail(t *testing.T) {
 
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 	solicit := buildSolicit([3]byte{0xab, 0xcd, 0xef}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
+	msg, _ := parseDHCPv6(solicit)
 
-	resp, err := svc.HandleDHCPv6(msg, srv, testExhaustedAllocator())
+	resp, err := svc.handleDHCPv6(msg, srv, testExhaustedAllocator())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +272,7 @@ func TestHandleDHCPv6PoolExhaustedReturnsNoPrefixAvail(t *testing.T) {
 		t.Fatal("expected NoPrefixAvail response")
 	}
 
-	reply, _ := ParseDHCPv6(resp)
+	reply, _ := parseDHCPv6(resp)
 	if reply.Type != DHCPv6Reply {
 		t.Errorf("type = %d, want %d", reply.Type, DHCPv6Reply)
 	}
@@ -289,15 +289,15 @@ func TestHandleDHCPv6StopCleansUpRoute(t *testing.T) {
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 
 	solicit := buildSolicit([3]byte{0x01, 0x02, 0x03}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
-	if _, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
+	msg, _ := parseDHCPv6(solicit)
+	if _, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
 		t.Fatal(err)
 	}
 
 	reqBuf := buildRenew([3]byte{0x01, 0x02, 0x04}, clientDUID, srv, 1)
 	reqBuf[0] = DHCPv6Request
-	msg, _ = ParseDHCPv6(reqBuf)
-	if _, err := svc.HandleDHCPv6(msg, srv, nil); err != nil {
+	msg, _ = parseDHCPv6(reqBuf)
+	if _, err := svc.handleDHCPv6(msg, srv, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -318,8 +318,8 @@ func TestHandleDHCPv6StopReleasesPrefixToPool(t *testing.T) {
 	clientDUID := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}
 
 	solicit := buildSolicit([3]byte{0x01, 0x02, 0x03}, clientDUID, 1)
-	msg, _ := ParseDHCPv6(solicit)
-	if _, err := svc.HandleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
+	msg, _ := parseDHCPv6(solicit)
+	if _, err := svc.handleDHCPv6(msg, srv, testAllocator(prefix)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -335,7 +335,7 @@ func TestHandleDHCPv6StopReleasesPrefixToPool(t *testing.T) {
 }
 
 func TestHandleDHCPv6LifetimeDefaults(t *testing.T) {
-	svc := NewIPv6Service(IPv6ServiceConfig{
+	svc := newIPv6Service(iPv6ServiceConfig{
 		Ifname:          "ppp0",
 		PeerInterfaceID: [8]byte{},
 		Backend:         &fakeBackend{},
@@ -347,7 +347,7 @@ func TestHandleDHCPv6LifetimeDefaults(t *testing.T) {
 		t.Errorf("ValidLifetime = %d, want 2592000", svc.lifetimes.ValidLifetime)
 	}
 
-	svc2 := NewIPv6Service(IPv6ServiceConfig{
+	svc2 := newIPv6Service(iPv6ServiceConfig{
 		Ifname:          "ppp0",
 		PeerInterfaceID: [8]byte{},
 		Backend:         &fakeBackend{},

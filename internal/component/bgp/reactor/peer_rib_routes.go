@@ -265,7 +265,7 @@ func logRIBRouteTooLarge(n nlri.NLRI, bufLen int, stage string) {
 }
 
 // buildWithdrawNLRI builds an UPDATE message to withdraw an NLRI.
-// buf is a caller-provided buffer (from buildBufPool).
+// buf is a caller-provided buffer (from getBuildBuf, session.go).
 // For IPv4 unicast, NLRI is written at buf[0:]. For MP families, NLRI is
 // written at a high offset to avoid overlap with the MP_UNREACH_NLRI header.
 // RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.

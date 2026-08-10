@@ -74,7 +74,7 @@ func TestFromBytesRejectsWrongLength(t *testing.T) {
 	systemID := func(b []byte) error { _, err := SystemIDFromBytes(b); return err }
 	sourceID := func(b []byte) error { _, err := SourceIDFromBytes(b); return err }
 	lspID := func(b []byte) error { _, err := LSPIDFromBytes(b); return err }
-	net := func(b []byte) error { _, err := NETFromBytes(b); return err }
+	net := func(b []byte) error { _, err := nETFromBytes(b); return err }
 	metric := func(b []byte) error { _, err := MetricFromBytes(b); return err }
 	pmetric := func(b []byte) error { _, err := PrefixMetricFromBytes(b); return err }
 	seq := func(b []byte) error { _, err := SequenceNumberFromBytes(b); return err }

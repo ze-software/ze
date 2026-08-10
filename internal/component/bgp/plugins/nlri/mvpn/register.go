@@ -37,7 +37,7 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"ipv4/mvpn", "ipv6/mvpn"},
-		RunEngine:    RunMVPNPlugin,
+		RunEngine:    runMVPNPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
 		},

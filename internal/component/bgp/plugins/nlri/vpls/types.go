@@ -50,8 +50,8 @@ type VPLS struct {
 	labelBase     uint32 // 20-bit MPLS label base
 }
 
-// NewVPLS creates a new VPLS NLRI.
-func NewVPLS(rd RouteDistinguisher, veBlockOffset, veBlockSize uint16, labelBase []byte) *VPLS {
+// newVPLS creates a new VPLS NLRI.
+func newVPLS(rd RouteDistinguisher, veBlockOffset, veBlockSize uint16, labelBase []byte) *VPLS {
 	var label uint32
 	if len(labelBase) >= 3 {
 		label = uint32(labelBase[0])<<12 | uint32(labelBase[1])<<4 | uint32(labelBase[2]>>4)
@@ -64,8 +64,8 @@ func NewVPLS(rd RouteDistinguisher, veBlockOffset, veBlockSize uint16, labelBase
 	}
 }
 
-// NewVPLSFull creates a VPLS NLRI with all fields.
-func NewVPLSFull(rd RouteDistinguisher, veID, veBlockOffset, veBlockSize uint16, labelBase uint32) *VPLS {
+// newVPLSFull creates a VPLS NLRI with all fields.
+func newVPLSFull(rd RouteDistinguisher, veID, veBlockOffset, veBlockSize uint16, labelBase uint32) *VPLS {
 	return &VPLS{
 		rd:            rd,
 		veID:          veID,

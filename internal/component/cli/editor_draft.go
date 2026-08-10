@@ -623,8 +623,8 @@ func (e *Editor) LoadDraft() bool {
 	return true
 }
 
-// DetectConflicts scans pending changes from other sessions and reports live overlaps.
-func (e *Editor) DetectConflicts() []Conflict {
+// detectConflicts scans pending changes from other sessions and reports live overlaps.
+func (e *Editor) detectConflicts() []Conflict {
 	if e.session == nil || e.meta == nil {
 		return nil
 	}
@@ -890,11 +890,11 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 	return nil
 }
 
-// CheckDraftChanged checks if the draft file has been modified by another session.
+// checkDraftChanged checks if the draft file has been modified by another session.
 // Uses Storage.Stat for both filesystem (OS mtime) and blob (tracked mtime).
 // Returns true if the draft mtime is newer than the last known mtime.
 // Also re-reads and re-parses the draft on change to update in-memory state.
-func (e *Editor) CheckDraftChanged() (changed bool, notification string) {
+func (e *Editor) checkDraftChanged() (changed bool, notification string) {
 	if e.session == nil {
 		return false, ""
 	}

@@ -14,7 +14,7 @@ import (
 // newTestDashboard creates a minimal Dashboard for handler tests.
 func newTestDashboard(peerCount int) *Dashboard {
 	state := NewDashboardState(peerCount, 40, 100)
-	broker := NewSSEBroker(200 * time.Millisecond)
+	broker := newSSEBroker(200 * time.Millisecond)
 	cfg := Config{Logger: nil}
 	cfg.defaults()
 	return &Dashboard{
@@ -227,7 +227,7 @@ func TestHandlePeerPin(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("pin status = %d, want 200", w.Code)
 	}
-	if !d.state.Active.IsPinned(1) {
+	if !d.state.Active.isPinned(1) {
 		t.Error("peer 1 should be pinned after POST")
 	}
 
@@ -238,7 +238,7 @@ func TestHandlePeerPin(t *testing.T) {
 
 	d.handlePeerPin(w, req)
 
-	if d.state.Active.IsPinned(1) {
+	if d.state.Active.isPinned(1) {
 		t.Error("peer 1 should be unpinned after second POST")
 	}
 }

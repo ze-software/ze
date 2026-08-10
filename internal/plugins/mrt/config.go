@@ -22,14 +22,14 @@ type Config struct {
 	Direction  string   // "received", "sent", or "" for both
 }
 
-// HasUpdates reports whether the update stream is configured.
-func (c *Config) HasUpdates() bool { return c.UpdatesPath != "" }
+// hasUpdates reports whether the update stream is configured.
+func (c *Config) hasUpdates() bool { return c.UpdatesPath != "" }
 
-// HasAll reports whether the all-messages stream is configured.
-func (c *Config) HasAll() bool { return c.AllPath != "" }
+// hasAll reports whether the all-messages stream is configured.
+func (c *Config) hasAll() bool { return c.AllPath != "" }
 
-// HasRoutes reports whether periodic RIB dumps are configured.
-func (c *Config) HasRoutes() bool { return c.RoutesPath != "" && c.RoutesInterval > 0 }
+// hasRoutes reports whether periodic RIB dumps are configured.
+func (c *Config) hasRoutes() bool { return c.RoutesPath != "" && c.RoutesInterval > 0 }
 
 // IsEmpty reports whether no dump streams are configured.
-func (c *Config) IsEmpty() bool { return !c.HasUpdates() && !c.HasAll() && !c.HasRoutes() }
+func (c *Config) IsEmpty() bool { return !c.hasUpdates() && !c.hasAll() && !c.hasRoutes() }

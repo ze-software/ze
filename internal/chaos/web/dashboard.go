@@ -123,7 +123,7 @@ const (
 // for live updates.
 type Dashboard struct {
 	state   *DashboardState
-	broker  *SSEBroker
+	broker  *sSEBroker
 	server  *http.Server
 	logger  *slog.Logger
 	cancel  context.CancelFunc
@@ -168,9 +168,9 @@ func (d *Dashboard) StepDelay() time.Duration {
 	return time.Duration(n)
 }
 
-// SetSpeedFactor updates the time acceleration factor and the corresponding step delay.
+// setSpeedFactor updates the time acceleration factor and the corresponding step delay.
 // Valid factors: 1, 10, 100, 1000. Returns false for invalid factors.
-func (d *Dashboard) SetSpeedFactor(factor int) bool {
+func (d *Dashboard) setSpeedFactor(factor int) bool {
 	switch factor {
 	case 1, 10, 100, 1000:
 	default:
@@ -194,7 +194,7 @@ func New(cfg Config) (*Dashboard, error) {
 			ps.FamilySentTarget = targets
 		}
 	}
-	broker := NewSSEBroker(cfg.DebounceInterval)
+	broker := newSSEBroker(cfg.DebounceInterval)
 
 	mux := cfg.Mux
 	ownServer := mux == nil
@@ -349,9 +349,9 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			ps.FamilySent[ev.Family]++
 		}
 		if ev.Prefix.IsValid() {
-			d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time)
+			d.state.RouteMatrix.recordSent(ev.PeerIndex, ev.Prefix, ev.Time)
 		} else if ev.Family != "" {
-			d.state.RouteMatrix.RecordNonUnicastSent(ev.PeerIndex, ev.Family)
+			d.state.RouteMatrix.recordNonUnicastSent(ev.PeerIndex, ev.Family)
 		}
 	case peer.EventRouteReceived:
 		ps.RoutesRecv++
@@ -364,12 +364,12 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			ps.FamilyRecv[prefixFamily(ev.Prefix)]++
 		}
 		if ev.Prefix.IsValid() {
-			if latency := d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time); latency > 0 {
+			if latency := d.state.RouteMatrix.recordReceived(ev.PeerIndex, ev.Prefix, ev.Time); latency > 0 {
 				d.state.Convergence.Record(latency)
 				d.state.ConvergenceTrend.Push(latency)
 			}
 		} else if ev.Family != "" {
-			d.state.RouteMatrix.RecordNonUnicastReceived(ev.PeerIndex, ev.Family)
+			d.state.RouteMatrix.recordNonUnicastReceived(ev.PeerIndex, ev.Family)
 		}
 	case peer.EventRouteWithdrawn:
 		d.state.TotalWithdrawn++
@@ -447,7 +447,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 
 	// Queue toast for toast-worthy events.
 	if toast, ok := toastForEvent(ev); ok {
-		d.state.QueueToast(toast)
+		d.state.queueToast(toast)
 	}
 
 	ps.LastEvent = ev.Type
@@ -461,7 +461,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 	}
 
 	// Auto-promote to active set on noteworthy events.
-	if prio, ok := PromotionPriorityForEvent(ev.Type); ok {
+	if prio, ok := promotionPriorityForEvent(ev.Type); ok {
 		if d.state.Active.Promote(ev.PeerIndex, prio, ev.Time) {
 			d.state.newlyPromoted[ev.PeerIndex] = true
 		}
@@ -492,7 +492,7 @@ func (d *Dashboard) State() *DashboardState {
 }
 
 // Broker returns the SSE broker.
-func (d *Dashboard) Broker() *SSEBroker {
+func (d *Dashboard) Broker() *sSEBroker {
 	return d.broker
 }
 
@@ -523,11 +523,11 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 	now := time.Now()
 
 	d.state.mu.Lock()
-	dirtyPeers, promotedPeers, dirtyGlobal := d.state.ConsumeDirty()
-	pendingToasts := d.state.ConsumePendingToasts()
+	dirtyPeers, promotedPeers, dirtyGlobal := d.state.consumeDirty()
+	pendingToasts := d.state.consumePendingToasts()
 
 	// Update per-peer throughput EMA.
-	d.state.UpdateThroughput(now)
+	d.state.updateThroughput(now)
 
 	// Run active set decay — skip for small deployments where all peers fit.
 	var removed []int
@@ -609,7 +609,7 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 // Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
 func (d *Dashboard) renderStats() string {
 	var b textbuf.Buffer
-	counts := d.state.StatusCounts()
+	counts := d.state.statusCounts()
 	writeDonut(&b, counts, d.state.PeerCount)
 	writeDonutLegend(&b, counts)
 	writeDonutEnd(&b)
@@ -618,13 +618,13 @@ func (d *Dashboard) renderStats() string {
 	b.Str(`<div class="stat-grid">`)
 	b.Str(`<span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>`)
 	b.Str(`<span class="stat-label">Msgs</span><span class="stat-value">`).Str(itoa(d.state.TotalAnnounced)).Str(`</span><span class="stat-value">`).Str(itoa(d.state.TotalReceived)).Str(`</span>`)
-	b.Str(`<span class="stat-label">Bytes</span><span class="stat-value">`).Str(FormatBytes(d.state.TotalBytesSent)).Str(`</span><span class="stat-value">`).Str(FormatBytes(d.state.TotalBytesRecv)).Str(`</span>`)
+	b.Str(`<span class="stat-label">Bytes</span><span class="stat-value">`).Str(formatBytes(d.state.TotalBytesSent)).Str(`</span><span class="stat-value">`).Str(formatBytes(d.state.TotalBytesRecv)).Str(`</span>`)
 	b.Str(`<span class="stat-label">Rate</span><span class="stat-value">`).Str(FormatBitRate(d.state.AggregateThroughput(true))).Str(`</span><span class="stat-value">`).Str(FormatBitRate(d.state.AggregateThroughput(false))).Str(`</span>`)
 	b.Str(`<span class="stat-label">Wdraw</span><span class="stat-value">`).Str(itoa(d.state.TotalWithdrawn)).Str(`</span><span class="stat-value">`).Str(itoa(d.state.TotalWdrawSent)).Str(`</span>`)
 	b.Str(`</div>`)
 	b.Str(`<span class="stat"><span class="stat-label">Churn </span><span class="stat-value">`).Str(itoa(d.state.TotalRouteActions)).Str(`</span></span>`)
 	b.Str(`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">`).Str(itoa(d.state.TotalChaos)).Str(`</span></span> `)
-	b.Str(`<span class="stat"><span class="stat-value `).Str(ChaosRateColorClass(d.state.ChaosRate())).Str(`">`).Float(d.state.ChaosRate(), 1).Str(`/s</span></span> `)
+	b.Str(`<span class="stat"><span class="stat-value `).Str(chaosRateColorClass(d.state.ChaosRate())).Str(`">`).Float(d.state.ChaosRate(), 1).Str(`/s</span></span> `)
 	b.Str(`<span class="stat"><span class="stat-label">Reconn </span><span class="stat-value">`).Str(itoa(d.state.TotalReconnects)).Str(`</span></span>`)
 	b.Str(droppedStat(d.state.TotalDropped))
 	b.Str(syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration))
@@ -658,7 +658,7 @@ func (d *Dashboard) renderPeerRow(idx int) string {
 	if ps == nil {
 		return ""
 	}
-	pinned := d.state.Active.IsPinned(idx)
+	pinned := d.state.Active.isPinned(idx)
 	pinClass := cssPinDefault
 	if pinned {
 		pinClass = cssPinPinned
@@ -671,8 +671,8 @@ func (d *Dashboard) renderPeerRow(idx int) string {
 	b.Str(`<td><span class="dot `).Str(ps.Status.CSSClass()).Str(`"></span> `).Str(ps.Status.String()).Str(`</td>`)
 	b.Str(`<td>`).Str(itoa(ps.RoutesSent)).Str(`</td>`)
 	b.Str(`<td>`).Str(itoa(ps.RoutesRecv)).Str(`</td>`)
-	b.Str(`<td>`).Str(FormatBytes(ps.BytesSent)).Str(`</td>`)
-	b.Str(`<td>`).Str(FormatBytes(ps.BytesRecv)).Str(`</td>`)
+	b.Str(`<td>`).Str(formatBytes(ps.BytesSent)).Str(`</td>`)
+	b.Str(`<td>`).Str(formatBytes(ps.BytesRecv)).Str(`</td>`)
 	b.Str(`<td>`).Str(FormatBitRate(ps.throughputOut)).Str(`</td>`)
 	b.Str(`<td>`).Str(FormatBitRate(ps.throughputIn)).Str(`</td>`)
 	b.Str(`<td>`).Str(itoa(ps.ChaosCount)).Str(`</td>`)
@@ -688,7 +688,7 @@ func (d *Dashboard) renderPeerRowInsert(idx int) string {
 	if ps == nil {
 		return ""
 	}
-	pinned := d.state.Active.IsPinned(idx)
+	pinned := d.state.Active.isPinned(idx)
 	pinClass := cssPinDefault
 	if pinned {
 		pinClass = cssPinPinned
@@ -701,8 +701,8 @@ func (d *Dashboard) renderPeerRowInsert(idx int) string {
 	b.Str(`<td><span class="dot `).Str(ps.Status.CSSClass()).Str(`"></span> `).Str(ps.Status.String()).Str(`</td>`)
 	b.Str(`<td>`).Str(itoa(ps.RoutesSent)).Str(`</td>`)
 	b.Str(`<td>`).Str(itoa(ps.RoutesRecv)).Str(`</td>`)
-	b.Str(`<td>`).Str(FormatBytes(ps.BytesSent)).Str(`</td>`)
-	b.Str(`<td>`).Str(FormatBytes(ps.BytesRecv)).Str(`</td>`)
+	b.Str(`<td>`).Str(formatBytes(ps.BytesSent)).Str(`</td>`)
+	b.Str(`<td>`).Str(formatBytes(ps.BytesRecv)).Str(`</td>`)
 	b.Str(`<td>`).Str(FormatBitRate(ps.throughputOut)).Str(`</td>`)
 	b.Str(`<td>`).Str(FormatBitRate(ps.throughputIn)).Str(`</td>`)
 	b.Str(`<td>`).Str(itoa(ps.ChaosCount)).Str(`</td>`)

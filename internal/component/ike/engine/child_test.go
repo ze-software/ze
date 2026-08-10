@@ -244,7 +244,7 @@ func TestChildSANoIKEKeys(t *testing.T) {
 func TestGenerateESPSPI(t *testing.T) {
 	seen := make(map[uint32]bool)
 	for range 100 {
-		spi, err := GenerateESPSPI()
+		spi, err := generateESPSPI()
 		if err != nil {
 			t.Fatalf("GenerateESPSPI: %v", err)
 		}

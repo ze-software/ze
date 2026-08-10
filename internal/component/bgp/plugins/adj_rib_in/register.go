@@ -16,7 +16,7 @@ func init() {
 		RFCs:        []string{"4271"},
 		Features:    "yang",
 		YANG:        getYANG(),
-		RunEngine:   RunAdjRIBInPlugin,
+		RunEngine:   runAdjRIBInPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

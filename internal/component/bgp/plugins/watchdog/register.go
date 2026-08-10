@@ -20,7 +20,7 @@ func pluginSetup() {
 		Description:  "Watchdog route management plugin",
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
-		RunEngine:    RunWatchdogPlugin,
+		RunEngine:    runWatchdogPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return 0
 		},
@@ -36,7 +36,7 @@ func pluginSetup() {
 		cfg.ConfigLogger = func(level string) {
 			setLogger(slogutil.PluginLogger(reg.Name, level))
 		}
-		cfg.RunEngine = RunWatchdogPlugin
+		cfg.RunEngine = runWatchdogPlugin
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

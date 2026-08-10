@@ -495,7 +495,7 @@ func ListLevels() map[string]string {
 		if !ok {
 			return true
 		}
-		result[name] = LevelString(lv.Level())
+		result[name] = levelString(lv.Level())
 		return true
 	})
 	return result
@@ -528,8 +528,8 @@ func SetLevel(subsystem, level string) error {
 	return nil
 }
 
-// LevelString converts a slog.Level to a human-readable string.
-func LevelString(level slog.Level) string {
+// levelString converts a slog.Level to a human-readable string.
+func levelString(level slog.Level) string {
 	switch level {
 	case slog.LevelDebug:
 		return levelDebug

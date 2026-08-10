@@ -320,7 +320,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	if err != nil {
 		return nil, nil, err
 	}
-	inSPI, err := GenerateESPSPI()
+	inSPI, err := generateESPSPI()
 	if err != nil {
 		return nil, nil, err
 	}

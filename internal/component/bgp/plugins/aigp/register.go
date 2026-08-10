@@ -28,15 +28,15 @@ func init() {
 		Name:        "bgp-aigp",
 		Description: "Accumulated IGP Metric (RFC 7311)",
 		RFCs:        []string{"7311"},
-		RunEngine:   RunAIGPPlugin,
+		RunEngine:   runAIGPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetAIGPLogger(slogutil.Logger(loggerName))
+			setAIGPLogger(slogutil.Logger(loggerName))
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
 		cfg.ConfigLogger = func(level string) {
-			SetAIGPLogger(slogutil.PluginLogger(reg.Name, level))
+			setAIGPLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		return cli.RunPlugin(cfg, args)
 	}

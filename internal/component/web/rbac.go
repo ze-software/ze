@@ -16,13 +16,13 @@ import (
 // command, while an admin (or an unassigned single-admin deployment) is allowed.
 const webCommandConfigEdit = webCommandConfigCommit
 
-// CanEdit reports whether the request's authenticated user may perform
+// canEdit reports whether the request's authenticated user may perform
 // configuration edits. It consults the same aaa.Authorizer the config-mutation
 // handlers use, so page/nav gating and mutation enforcement never diverge. A
 // nil authorizer allows all, and an authorizer with no assignments fails open
 // (R-1), preserving single-admin deployments. Used by both the route gate and
 // nav rendering (to hide gated entries).
-func CanEdit(r *http.Request, authorizer aaa.Authorizer) bool {
+func canEdit(r *http.Request, authorizer aaa.Authorizer) bool {
 	if authorizer == nil {
 		return true
 	}
@@ -35,7 +35,7 @@ func CanEdit(r *http.Request, authorizer aaa.Authorizer) bool {
 // semantics (nil authorizer or no assignments) are inherited from CanEdit (R-1).
 func RequireEditAuthz(authorizer aaa.Authorizer, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if CanEdit(r, authorizer) {
+		if canEdit(r, authorizer) {
 			next.ServeHTTP(w, r)
 			return
 		}

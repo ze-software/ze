@@ -617,7 +617,7 @@ func TestPerPluginTokenNameBinding(t *testing.T) {
 			return
 		}
 		// Expect name "bgp-rib" but client will send "bgp-gr".
-		name, authErr := AuthenticateWithName(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib")
+		name, authErr := authenticateWithName(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib")
 		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
 	}()
 
@@ -654,7 +654,7 @@ func TestPerPluginTokenWrongToken(t *testing.T) {
 			resultCh <- authResult{Err: acceptErr}
 			return
 		}
-		name, authErr := AuthenticateWithName(ctx, conn, "correct-token-at-least-32-chars!", "bgp-rib")
+		name, authErr := authenticateWithName(ctx, conn, "correct-token-at-least-32-chars!", "bgp-rib")
 		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
 	}()
 
@@ -692,7 +692,7 @@ func TestPerPluginTokenNameBindingSuccess(t *testing.T) {
 			resultCh <- authResult{Err: acceptErr}
 			return
 		}
-		name, authErr := AuthenticateWithName(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib")
+		name, authErr := authenticateWithName(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib")
 		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
 	}()
 

@@ -27,7 +27,7 @@ func TestClientHandleConfigChanged(t *testing.T) {
 		},
 	}
 
-	h.HandleConfigChanged(fleet.ConfigChanged{Version: "abcdef0123456789"})
+	h.handleConfigChanged(fleet.ConfigChanged{Version: "abcdef0123456789"})
 	assert.True(t, fetchCalled, "fetch should be triggered")
 	assert.Equal(t, "abcdef0123456789", fetchVersion)
 }
@@ -128,6 +128,6 @@ func TestClientHandleConfigChangedNilFetch(t *testing.T) {
 
 	h := &Handler{}
 	require.NotPanics(t, func() {
-		h.HandleConfigChanged(fleet.ConfigChanged{Version: "abc"})
+		h.handleConfigChanged(fleet.ConfigChanged{Version: "abc"})
 	})
 }

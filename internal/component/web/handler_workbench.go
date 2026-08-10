@@ -83,14 +83,14 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		// Hide edit controls from read-only users (AC-1). Enforcement is at the
 		// route/mutation layer; this is the matching UI gate so we never show a
 		// button that would 403 on click. Fail-open when no authorizer (R-1).
-		readOnly := !CanEdit(r, cfg.authorizer)
+		readOnly := !canEdit(r, cfg.authorizer)
 		if mgr != nil && username != "" {
 			if userTree := mgr.Tree(username); userTree != nil {
 				viewTree = userTree
 			}
 		}
 
-		routerIdentity := ResolveRouterIdentity(viewTree)
+		routerIdentity := resolveRouterIdentity(viewTree)
 		fleetPeers := CollectFleetPeers(viewTree, routerIdentity)
 		changeCount := 0
 		if mgr != nil && username != "" {
@@ -116,7 +116,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			data.ReadOnly = readOnly
 			pathBar := renderer.RenderFragment("path_bar_inner", data)
 
-			wb := WorkbenchData{
+			wb := workbenchData{
 				LayoutData: LayoutData{
 					Title:          func() string { var tb textbuf.Buffer; return tb.Str("Ze: /").Join(path, "/").String() }(),
 					Content:        pageContent,
@@ -133,7 +133,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 					ChangeCount:    changeCount,
 					ReadOnly:       readOnly,
 				},
-				Sections: WorkbenchSections(path),
+				Sections: workbenchSections(path),
 			}
 
 			if renderErr := renderer.RenderWorkbench(w, wb); renderErr != nil {
@@ -172,7 +172,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		// unchanged.
 		var pendingPaths []string
 		if mgr != nil && username != "" {
-			pendingPaths = mgr.PendingChangePaths(username)
+			pendingPaths = mgr.pendingChangePaths(username)
 		}
 		enrichWorkbenchTable(data, schema, viewTree, path, pendingPaths)
 
@@ -189,7 +189,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		// all other paths render the existing detail fragment.
 		var content template.HTML
 		if len(path) == 0 {
-			dashData := BuildDashboardData(viewTree, schema)
+			dashData := buildDashboardData(viewTree, schema)
 			content = renderer.RenderFragment("workbench_dashboard", dashData)
 		} else {
 			content = renderer.RenderFragment("detail", data)
@@ -197,7 +197,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		pathBar := renderer.RenderFragment("path_bar_inner", data)
 
 		var tb2 textbuf.Buffer
-		wb := WorkbenchData{
+		wb := workbenchData{
 			LayoutData: LayoutData{
 				Title:          tb2.Str("Ze: /").Str(data.CurrentPath).String(),
 				Content:        content,
@@ -214,7 +214,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				ChangeCount:    changeCount,
 				ReadOnly:       readOnly,
 			},
-			Sections: WorkbenchSections(path),
+			Sections: workbenchSections(path),
 		}
 
 		if err := renderer.RenderWorkbench(w, wb); err != nil {

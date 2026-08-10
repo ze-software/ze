@@ -197,7 +197,7 @@ func TestSenderBatchInline(t *testing.T) {
 		netip.MustParsePrefix("192.0.2.0/24"),
 	}
 
-	data := sender.BuildBatch(prefixes)
+	data := sender.buildBatch(prefixes)
 	if data == nil {
 		t.Fatal("BuildBatch returned nil")
 	}
@@ -209,14 +209,14 @@ func TestSenderBatchInline(t *testing.T) {
 
 	// Extract prefixes using the receiver's parser -- round-trip validation.
 	body := data[19:] // Skip BGP header.
-	got := ExtractPrefixes(body)
+	got := extractPrefixes(body)
 
 	if len(got) != len(prefixes) {
 		t.Fatalf("ExtractPrefixes: got %d prefixes, want %d", len(got), len(prefixes))
 	}
 
 	// CountPrefixes must agree.
-	counted := CountPrefixes(body)
+	counted := countPrefixes(body)
 	if counted != len(prefixes) {
 		t.Fatalf("CountPrefixes: got %d, want %d", counted, len(prefixes))
 	}
@@ -248,19 +248,19 @@ func TestSenderBatchForceMP(t *testing.T) {
 		netip.MustParsePrefix("10.0.2.0/24"),
 	}
 
-	data := sender.BuildBatch(prefixes)
+	data := sender.buildBatch(prefixes)
 	if data == nil {
 		t.Fatal("BuildBatch returned nil")
 	}
 
 	body := data[19:]
-	got := ExtractPrefixes(body)
+	got := extractPrefixes(body)
 
 	if len(got) != len(prefixes) {
 		t.Fatalf("ExtractPrefixes: got %d, want %d", len(got), len(prefixes))
 	}
 
-	if CountPrefixes(body) != len(prefixes) {
+	if countPrefixes(body) != len(prefixes) {
 		t.Fatalf("CountPrefixes mismatch")
 	}
 }
@@ -284,19 +284,19 @@ func TestSenderBatchIPv6(t *testing.T) {
 		netip.MustParsePrefix("2001:db8:4::/48"),
 	}
 
-	data := sender.BuildBatch(prefixes)
+	data := sender.buildBatch(prefixes)
 	if data == nil {
 		t.Fatal("BuildBatch returned nil")
 	}
 
 	body := data[19:]
-	got := ExtractPrefixes(body)
+	got := extractPrefixes(body)
 
 	if len(got) != len(prefixes) {
 		t.Fatalf("ExtractPrefixes: got %d, want %d", len(got), len(prefixes))
 	}
 
-	if CountPrefixes(body) != len(prefixes) {
+	if countPrefixes(body) != len(prefixes) {
 		t.Fatalf("CountPrefixes mismatch")
 	}
 
@@ -325,14 +325,14 @@ func TestSenderBatchIBGP(t *testing.T) {
 		netip.MustParsePrefix("10.0.2.0/24"),
 	}
 
-	data := sender.BuildBatch(prefixes)
+	data := sender.buildBatch(prefixes)
 	if data == nil {
 		t.Fatal("BuildBatch returned nil")
 	}
 
 	// Round-trip: all prefixes recoverable.
 	body := data[19:]
-	got := ExtractPrefixes(body)
+	got := extractPrefixes(body)
 
 	if len(got) != len(prefixes) {
 		t.Fatalf("ExtractPrefixes: got %d, want %d", len(got), len(prefixes))
@@ -384,18 +384,18 @@ func TestSenderBatchEdgeCases(t *testing.T) {
 	})
 
 	// Empty slice returns nil.
-	if got := sender.BuildBatch(nil); got != nil {
+	if got := sender.buildBatch(nil); got != nil {
 		t.Errorf("BuildBatch(nil): got %d bytes, want nil", len(got))
 	}
 
-	if got := sender.BuildBatch([]netip.Prefix{}); got != nil {
+	if got := sender.buildBatch([]netip.Prefix{}); got != nil {
 		t.Errorf("BuildBatch(empty): got %d bytes, want nil", len(got))
 	}
 
 	// Single-element produces same output as BuildRoute.
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	single := sender.BuildRoute(prefix)
-	batched := sender.BuildBatch([]netip.Prefix{prefix})
+	batched := sender.buildBatch([]netip.Prefix{prefix})
 
 	if len(single) != len(batched) {
 		t.Fatalf("single=%d bytes, batched=%d bytes", len(single), len(batched))
@@ -437,7 +437,7 @@ func TestSenderBatchRespects4096(t *testing.T) {
 	// Build a batch at the computed max size.
 	batchCount := min(maxBatch, len(prefixes))
 
-	data := sender.BuildBatch(prefixes[:batchCount])
+	data := sender.buildBatch(prefixes[:batchCount])
 	if data == nil {
 		t.Fatal("BuildBatch returned nil")
 	}
@@ -448,7 +448,7 @@ func TestSenderBatchRespects4096(t *testing.T) {
 
 	// Verify all prefixes round-trip.
 	body := data[19:]
-	got := ExtractPrefixes(body)
+	got := extractPrefixes(body)
 
 	if len(got) != batchCount {
 		t.Errorf("ExtractPrefixes: got %d, want %d", len(got), batchCount)

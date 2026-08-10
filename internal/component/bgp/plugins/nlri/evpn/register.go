@@ -30,12 +30,12 @@ func init() {
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"l2vpn/evpn"},
-		RunEngine:    RunEVPNPlugin,
+		RunEngine:    runEVPNPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			SetEVPNLogger(slogutil.Logger(loggerName))
+			setEVPNLogger(slogutil.Logger(loggerName))
 		},
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
-			return RunEVPNDecode(input, output)
+			return runEVPNDecode(input, output)
 		},
 		InProcessNLRIDecoder:  DecodeNLRIHex,
 		InProcessNLRIEncoder:  EncodeNLRIHex,
@@ -44,9 +44,9 @@ func init() {
 	reg.CLIHandler = func(args []string) int {
 		var family *string
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = GetEVPNYANG
+		cfg.GetYANG = getEVPNYANG
 		cfg.ConfigLogger = func(level string) {
-			SetEVPNLogger(slogutil.PluginLogger(reg.Name, level))
+			setEVPNLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
 			family = fs.String("family", "l2vpn/evpn", "Address family (l2vpn/evpn)")
@@ -54,7 +54,7 @@ func init() {
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)
 		}
-		cfg.RunDecode = RunEVPNDecode
+		cfg.RunDecode = runEVPNDecode
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

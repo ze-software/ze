@@ -165,7 +165,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// the per-subsystem route observer. The observer is installed
 	// into every reactor below so session IP-up / session-down
 	// transitions drive subscriber route inject / withdraw.
-	RegisterL2TPSources()
+	registerL2TPSources()
 	s.routeObserver = newSubscriberRouteObserver(s.logger, bus)
 
 	// Redistribute late-join replay: on a ReplayRequest re-emit the current
@@ -185,7 +185,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		if maxSess == 0 {
 			maxSess = 1000
 		}
-		s.observer = NewObserver(ObserverConfig{
+		s.observer = newObserver(observerConfig{
 			MaxSessions:   maxSess,
 			EventRingSize: s.params.EventRingSizePerSession,
 			MaxLogins:     s.params.MaxLogins,
@@ -223,12 +223,12 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// + kernel worker for each. On any bind failure, unwind the partial
 	// state so a retry is safe.
 	for _, addr := range s.params.ListenAddrs {
-		ln := NewUDPListener(addr, s.logger)
+		ln := newUDPListener(addr, s.logger)
 		if err := ln.Start(ctx); err != nil {
 			s.unwindLocked()
 			return fmt.Errorf("l2tp: bind %s: %w", addr, err)
 		}
-		reactor := NewL2TPReactor(ln, s.logger, ReactorParams{
+		reactor := newL2TPReactor(ln, s.logger, reactorParams{
 			MaxTunnels:      s.params.MaxTunnels,
 			MaxSessions:     s.params.MaxSessions,
 			AuthMethod:      s.params.AuthMethod,
@@ -307,7 +307,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 		if backend := ifaceBackendFn(); backend != nil {
 			pppDriver = ppp.NewProductionDriver(s.logger.With("component", "ppp"), backend)
-			reactor.SetPPPDriver(pppDriver)
+			reactor.setPPPDriver(pppDriver)
 		}
 
 		// Start ordering: PPP driver before the kernel worker so any
@@ -436,18 +436,18 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 // other thread in futex_wait), so test/plugin/show-l2tp-{sessions,history,
 // session-detail}.ci timed out instead of asserting.
 //
-// SignalStop comes first for all workers so an in-flight setupSession is broken
-// out of its successCh/errCh send select BEFORE TeardownAll acquires w.mu;
-// otherwise a blocked report holds w.mu and TeardownAll deadlocks.
+// signalStop comes first for all workers so an in-flight setupSession is broken
+// out of its successCh/errCh send select BEFORE teardownAll acquires w.mu;
+// otherwise a blocked report holds w.mu and teardownAll deadlocks.
 func (s *Subsystem) stopKernelWorkersLocked() {
 	for _, kw := range s.kernelWorkers {
 		if kw != nil {
-			kw.SignalStop()
+			kw.signalStop()
 		}
 	}
 	for _, kw := range s.kernelWorkers {
 		if kw != nil {
-			kw.TeardownAll()
+			kw.teardownAll()
 			kw.Stop()
 		}
 	}
@@ -542,7 +542,7 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	var errs []error
 	// Same order as unwindLocked. Reactors stop before the kernel workers and
 	// the PPP drivers so no new kernelSetupEvents / ppp.StartSession
-	// dispatches land after TeardownAll, satisfying AC-14: every kernel
+	// dispatches land after teardownAll, satisfying AC-14: every kernel
 	// resource is torn down before Stop() returns.
 	for _, t := range s.timers {
 		t.Stop()

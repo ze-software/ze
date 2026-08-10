@@ -25,7 +25,7 @@ func TestBuildWritesManifest(t *testing.T) {
 	}
 
 	path := filepath.Join(dir, "build.json")
-	if err := WriteManifest(path, m); err != nil {
+	if err := writeManifest(path, m); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 
@@ -57,7 +57,7 @@ func TestBuildWritesChecksum(t *testing.T) {
 	os.WriteFile(imgPath, imgData, 0o644) //nolint:errcheck,gosec // test
 
 	checksumPath := imgPath + ".sha256"
-	sum, err := WriteImageChecksum(imgPath, checksumPath)
+	sum, err := writeImageChecksum(imgPath, checksumPath)
 	if err != nil {
 		t.Fatalf("write checksum: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestBuildWritesChecksum(t *testing.T) {
 
 func TestConfigHash(t *testing.T) {
 	config := "set environment log level info\n"
-	hash := ConfigHash(config)
+	hash := configHash(config)
 	if !strings.HasPrefix(hash, "sha256:") {
 		t.Errorf("hash = %q, want sha256: prefix", hash)
 	}
@@ -89,7 +89,7 @@ func TestConfigHash(t *testing.T) {
 }
 
 func TestImageFileName(t *testing.T) {
-	name := ImageFileName("20260427-143022")
+	name := imageFileName("20260427-143022")
 	if name != "ze-20260427-143022.img" {
 		t.Errorf("name = %q", name)
 	}

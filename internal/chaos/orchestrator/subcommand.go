@@ -19,8 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// RunReplay opens an event log file and replays it through the validation model.
-func RunReplay(path string) int {
+// runReplay opens an event log file and replays it through the validation model.
+func runReplay(path string) int {
 	f, err := cliio.OpenReader(path) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening replay file: %v\n", err)
@@ -34,9 +34,9 @@ func RunReplay(path string) int {
 	return replay.Run(f, os.Stderr)
 }
 
-// RunShrink reads a failing event log and minimizes it to the smallest
+// runShrink reads a failing event log and minimizes it to the smallest
 // subsequence that still triggers the same property violation.
-func RunShrink(path string, deadline time.Duration, verbose bool) int {
+func runShrink(path string, deadline time.Duration, verbose bool) int {
 	f, err := cliio.OpenReader(path) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening shrink file: %v\n", err)
@@ -83,8 +83,8 @@ func RunShrink(path string, deadline time.Duration, verbose bool) int {
 	return 0
 }
 
-// RunDiff opens two event log files and reports the first divergence.
-func RunDiff(path1, path2 string) int {
+// runDiff opens two event log files and reports the first divergence.
+func runDiff(path1, path2 string) int {
 	f1, err := cliio.OpenReader(path1) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening diff file 1: %v\n", err)
@@ -110,8 +110,8 @@ func RunDiff(path1, path2 string) int {
 	return replay.Diff(f1, f2, os.Stderr)
 }
 
-// DashboardURL converts a listen address to a clickable URL.
-func DashboardURL(addr string) string {
+// dashboardURL converts a listen address to a clickable URL.
+func dashboardURL(addr string) string {
 	var tb textbuf.Buffer
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -123,8 +123,8 @@ func DashboardURL(addr string) string {
 	return tb.Str("http://").HostPort(host, port).String()
 }
 
-// CheckPortFree verifies that nothing is listening on addr.
-func CheckPortFree(addr string) error {
+// checkPortFree verifies that nothing is listening on addr.
+func checkPortFree(addr string) error {
 	dialer := net.Dialer{Timeout: 500 * time.Millisecond}
 	conn, err := dialer.DialContext(context.Background(), "tcp", addr)
 	if err == nil {
@@ -147,8 +147,8 @@ func CheckPortFree(addr string) error {
 	return fmt.Errorf("checking port %s: %w", addr, err)
 }
 
-// AllocatePort binds a TCP listener on addr:0 and returns the kernel-assigned port.
-func AllocatePort(ctx context.Context, addr string) (int, error) {
+// allocatePort binds a TCP listener on addr:0 and returns the kernel-assigned port.
+func allocatePort(ctx context.Context, addr string) (int, error) {
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", net.JoinHostPort(addr, "0"))
 	if err != nil {
@@ -167,8 +167,8 @@ func AllocatePort(ctx context.Context, addr string) (int, error) {
 	return tcpAddr.Port, nil
 }
 
-// WaitForZe waits for Ze to start listening on addr.
-func WaitForZe(ctx context.Context, addr string, pipeline bool) error {
+// waitForZe waits for Ze to start listening on addr.
+func waitForZe(ctx context.Context, addr string, pipeline bool) error {
 	maxAttempts := 1
 	if pipeline {
 		maxAttempts = 15

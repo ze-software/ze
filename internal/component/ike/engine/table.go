@@ -17,7 +17,7 @@ func NewSATable() *SATable {
 
 // Insert adds an SA to the table. Returns false if the SPI pair already exists.
 func (t *SATable) Insert(sa *SA) bool {
-	key := SPIPairKey(sa.InitiatorSPI, sa.ResponderSPI)
+	key := sPIPairKey(sa.InitiatorSPI, sa.ResponderSPI)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if _, exists := t.bySPI[key]; exists {
@@ -29,15 +29,15 @@ func (t *SATable) Insert(sa *SA) bool {
 
 // Lookup returns the SA for the given SPI pair, or nil if not found.
 func (t *SATable) Lookup(initiator, responder [8]byte) *SA {
-	key := SPIPairKey(initiator, responder)
+	key := sPIPairKey(initiator, responder)
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.bySPI[key]
 }
 
-// LookupByInitiatorSPI returns the first SA matching the initiator SPI.
+// lookupByInitiatorSPI returns the first SA matching the initiator SPI.
 // Used for IKE_SA_INIT responses where the responder SPI is not yet known.
-func (t *SATable) LookupByInitiatorSPI(initiator [8]byte) *SA {
+func (t *SATable) lookupByInitiatorSPI(initiator [8]byte) *SA {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	for _, sa := range t.bySPI {
@@ -50,7 +50,7 @@ func (t *SATable) LookupByInitiatorSPI(initiator [8]byte) *SA {
 
 // Remove deletes the SA from the table and returns it.
 func (t *SATable) Remove(initiator, responder [8]byte) *SA {
-	key := SPIPairKey(initiator, responder)
+	key := sPIPairKey(initiator, responder)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	sa := t.bySPI[key]
@@ -58,7 +58,7 @@ func (t *SATable) Remove(initiator, responder [8]byte) *SA {
 	return sa
 }
 
-// RemoveByPeer deletes every SA of one peer session, and returns how many it
+// removeByPeer deletes every SA of one peer session, and returns how many it
 // removed. A session that ends removes what it owns, whatever SPI pair its SA
 // carries by then. The responder SPI arrives after the handshake starts, and an IKE
 // rekey replaces the SA with a different one under a new pair.
@@ -68,7 +68,7 @@ func (t *SATable) Remove(initiator, responder [8]byte) *SA {
 //
 // A responder session can hold a second, parallel SA of the same name while it
 // supersedes the first. A responder removes by SPI pair, and never calls this.
-func (t *SATable) RemoveByPeer(peerName string) int {
+func (t *SATable) removeByPeer(peerName string) int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	removed := 0
@@ -84,8 +84,8 @@ func (t *SATable) RemoveByPeer(peerName string) int {
 // UpdateKey re-indexes an SA after the responder SPI becomes known.
 // Removes the old key (with zero responder SPI) and inserts with the full pair.
 func (t *SATable) UpdateKey(oldResponder, newResponder [8]byte, sa *SA) {
-	oldKey := SPIPairKey(sa.InitiatorSPI, oldResponder)
-	newKey := SPIPairKey(sa.InitiatorSPI, newResponder)
+	oldKey := sPIPairKey(sa.InitiatorSPI, oldResponder)
+	newKey := sPIPairKey(sa.InitiatorSPI, newResponder)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	delete(t.bySPI, oldKey)

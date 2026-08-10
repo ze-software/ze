@@ -97,8 +97,8 @@ func extractFamiliesFromPeer(name string, peerTree *config.Tree) []familyEntry {
 	return result
 }
 
-// BuildBGPFamiliesTableData constructs a WorkbenchTableData for the families view.
-func BuildBGPFamiliesTableData(entries []familyEntry) WorkbenchTableData {
+// buildBGPFamiliesTableData constructs a WorkbenchTableData for the families view.
+func buildBGPFamiliesTableData(entries []familyEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "family", Label: "Family", Sortable: true},
 		{Key: "peer", Label: "Peer / Group", Sortable: true},
@@ -134,9 +134,9 @@ func BuildBGPFamiliesTableData(entries []familyEntry) WorkbenchTableData {
 	}
 }
 
-// HandleBGPFamiliesPage renders the BGP families table within the workbench.
-func HandleBGPFamiliesPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+// handleBGPFamiliesPage renders the BGP families table within the workbench.
+func handleBGPFamiliesPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	entries := collectFamilies(viewTree)
-	tableData := BuildBGPFamiliesTableData(entries)
+	tableData := buildBGPFamiliesTableData(entries)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

@@ -26,12 +26,12 @@ import (
 
 var errEmptyAddressFamily = errors.New("empty address family")
 
-// PluginMode represents how a plugin should be invoked.
-type PluginMode int
+// pluginMode represents how a plugin should be invoked.
+type pluginMode int
 
 const (
 	// ModeFork spawns a subprocess via exec.
-	ModeFork PluginMode = iota
+	ModeFork pluginMode = iota
 	// ModeInternal runs the plugin in a goroutine with pipes.
 	ModeInternal
 	// ModeDirect calls the decode function synchronously.
@@ -46,7 +46,7 @@ const (
 //   - "ze-name" → (name, ModeDirect, "", nil) - sync in-process
 //   - "/path/to/prog" → ("", ModeFork, path, nil) - execute path directly
 //   - "/path/to/prog --arg" → ("", ModeFork, path, ["--arg"]) - path with args
-func parsePluginName(input string) (name string, mode PluginMode, path string, args []string) {
+func parsePluginName(input string) (name string, mode pluginMode, path string, args []string) {
 	if after, ok := strings.CutPrefix(input, "ze."); ok {
 		return after, ModeInternal, "", nil
 	}

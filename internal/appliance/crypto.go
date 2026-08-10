@@ -103,18 +103,18 @@ func Decrypt(envelope, passphrase []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func IsEncrypted(baseDir, name string) bool {
+func isEncrypted(baseDir, name string) bool {
 	marker := filepath.Join(SecretsDir(baseDir, name), encryptedMarker)
 	_, err := os.Stat(marker)
 	return err == nil
 }
 
-func WriteEncryptedMarker(baseDir, name string) error {
+func writeEncryptedMarker(baseDir, name string) error {
 	marker := filepath.Join(SecretsDir(baseDir, name), encryptedMarker)
 	return os.WriteFile(marker, nil, 0o600)
 }
 
-func ReadSecret(path string, passphrase []byte) ([]byte, error) {
+func readSecret(path string, passphrase []byte) ([]byte, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // user-provided path
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
@@ -158,7 +158,7 @@ func ZeroBytes(b []byte) {
 
 const agentSocketName = "ze-appliance-agent.sock"
 
-func AgentSocketPath() string {
+func agentSocketPath() string {
 	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
 		return filepath.Join(dir, agentSocketName)
 	}
@@ -187,7 +187,7 @@ func ResolvePassphrase(prompt func() ([]byte, error)) ([]byte, string, error) {
 }
 
 func requestKeyFromAgent() ([]byte, error) {
-	sockPath := AgentSocketPath()
+	sockPath := agentSocketPath()
 	var d net.Dialer
 	conn, err := d.Dial("unix", sockPath)
 	if err != nil {

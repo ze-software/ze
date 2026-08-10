@@ -303,7 +303,7 @@ func TestForwardAdoptedHandleHeldUntilLastWrite(t *testing.T) {
 
 	_, before := bufMuxStd.Stats()
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	update, id := newLeakTestUpdate(t, cache, payload, src4CtxID)
 
 	first := makeASN2IBGPPeer(t, "10.0.0.2", asn2Ctx, asn2CtxID)
@@ -331,7 +331,7 @@ func TestForwardAdoptedHandleHeldUntilLastWrite(t *testing.T) {
 		fwdPool: pool,
 		// ON, so the body cache hands the second destination the first's
 		// sections: ONE adopted handle backing TWO async writes.
-		updateGroups: NewUpdateGroupIndex(true),
+		updateGroups: newUpdateGroupIndex(true),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -440,7 +440,7 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 	t.Run("forwardUpdateCore_site2", func(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
 
 		dst := makeDualASPeer(t, "10.0.0.2", ctx, ctxID)
@@ -476,7 +476,7 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 	t.Run("reactorForwardRS_site5", func(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
 
 		src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
@@ -533,7 +533,7 @@ func TestForwardRSTranscodePoolBalance(t *testing.T) {
 	t.Run("reactorForwardRS_site5_and_site6", func(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		update, id := newLeakTestUpdate(t, cache, payload, src4CtxID)
 
 		src := makeRSPeer(t, "10.0.0.1", 65001, src4Ctx, src4CtxID)
@@ -573,7 +573,7 @@ func TestForwardRSTranscodePoolBalance(t *testing.T) {
 	t.Run("forwardUpdateCore_site4", func(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		update, id := newLeakTestUpdate(t, cache, payload, src4CtxID)
 
 		dstRS := makeASN2RSClientPeer(t, "10.0.0.3", asn2Ctx, asn2CtxID) // site 4
@@ -621,7 +621,7 @@ func TestForwardBufferReturnAfterDispatch(t *testing.T) {
 
 	_, before := bufMuxStd.Stats()
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	update, id := newLeakTestUpdate(t, cache, payload, ctxID)
 
 	dst := makeDualASPeer(t, "10.0.0.2", ctx, ctxID)

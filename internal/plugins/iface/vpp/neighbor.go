@@ -70,7 +70,7 @@ func (b *vppBackendImpl) ListNeighbors(family int) ([]iface.NeighborInfo, error)
 			if last {
 				break
 			}
-			entry, ok := neighborToInfo(&details.Neighbor, b.names.LookupName)
+			entry, ok := neighborToInfo(&details.Neighbor, b.names.lookupName)
 			if !ok {
 				continue
 			}

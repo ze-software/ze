@@ -27,7 +27,7 @@ func TestBuildUpdatesV4Exact(t *testing.T) {
 		ASN:      65100,
 		EndOfRIB: true,
 	}
-	got, nMsgs, err := BuildUpdates(spec)
+	got, nMsgs, err := buildUpdates(spec)
 	if err != nil {
 		t.Fatalf("BuildUpdates: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestBuildUpdatesV6Exact(t *testing.T) {
 		ASN:      65100,
 		EndOfRIB: true,
 	}
-	got, nMsgs, err := BuildUpdates(spec)
+	got, nMsgs, err := buildUpdates(spec)
 	if err != nil {
 		t.Fatalf("BuildUpdates: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestBuildUpdatesLarge(t *testing.T) {
 		ASN:      65100,
 		EndOfRIB: true,
 	}
-	buf, nMsgs, err := BuildUpdates(spec)
+	buf, nMsgs, err := buildUpdates(spec)
 	if err != nil {
 		t.Fatalf("BuildUpdates: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestBuildUpdatesZero(t *testing.T) {
 		ASN:      65100,
 		EndOfRIB: true,
 	}
-	buf, nMsgs, err := BuildUpdates(spec)
+	buf, nMsgs, err := buildUpdates(spec)
 	if err != nil {
 		t.Fatalf("BuildUpdates: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestBuildUpdatesFamilyMismatch(t *testing.T) {
 		NextHop: netip.MustParseAddr("2001:db8::1"),
 		ASN:     65100,
 	}
-	_, _, err := BuildUpdates(spec)
+	_, _, err := buildUpdates(spec)
 	if err == nil {
 		t.Fatal("expected error for family mismatch, got nil")
 	}
@@ -219,7 +219,7 @@ func TestInjectEndToEnd(t *testing.T) {
 		t.Fatalf("write KEEPALIVE: %v", err)
 	}
 
-	want, _, err := BuildUpdates(*spec)
+	want, _, err := buildUpdates(*spec)
 	if err != nil {
 		t.Fatalf("BuildUpdates: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestInjectActiveMode(t *testing.T) {
 			return
 		}
 		// Drain the injected stream.
-		want, _, berr := BuildUpdates(*spec)
+		want, _, berr := buildUpdates(*spec)
 		if berr != nil {
 			errCh <- fmt.Errorf("build want: %w", berr)
 			return
@@ -338,7 +338,7 @@ func TestInjectActiveMode(t *testing.T) {
 
 	select {
 	case got := <-streamCh:
-		want, _, berr := BuildUpdates(*spec)
+		want, _, berr := buildUpdates(*spec)
 		if berr != nil {
 			t.Fatalf("build want: %v", berr)
 		}

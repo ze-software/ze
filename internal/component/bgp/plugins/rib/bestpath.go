@@ -219,7 +219,7 @@ func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 	return true
 }
 
-// BestPathExplanation captures the step-by-step decision trail of a
+// bestPathExplanation captures the step-by-step decision trail of a
 // SelectBestExplain call. Steps[i] describes the pairwise comparison between
 // Candidates[i+1] and the "running best" that prevailed through step i. The
 // final Winner is the last running best.
@@ -227,7 +227,7 @@ func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 // Because SelectBest is a linear reduction (N-1 comparisons for N candidates),
 // the explanation is likewise linear: there is no combinatorial blowup even
 // for prefixes with dozens of candidates.
-type BestPathExplanation struct {
+type bestPathExplanation struct {
 	Candidates []*Candidate   // candidates in original (gatherCandidates) order
 	Steps      []PairwiseStep // N-1 entries for N candidates
 	Winner     *Candidate     // final running best after all steps
@@ -250,11 +250,11 @@ type PairwiseStep struct {
 // use SelectBest which skips the bookkeeping.
 //
 // Returns nil if candidates is empty.
-func SelectBestExplain(candidates []*Candidate) *BestPathExplanation {
+func SelectBestExplain(candidates []*Candidate) *bestPathExplanation {
 	if len(candidates) == 0 {
 		return nil
 	}
-	exp := &BestPathExplanation{
+	exp := &bestPathExplanation{
 		Candidates: candidates,
 		Steps:      make([]PairwiseStep, 0, max(0, len(candidates)-1)),
 	}

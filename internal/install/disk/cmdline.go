@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// InstallConfig holds parsed kernel cmdline parameters for the installer.
-type InstallConfig struct {
+// installConfig holds parsed kernel cmdline parameters for the installer.
+type installConfig struct {
 	Source     string // http or iso
 	Server     string // ze-install server IP (http mode)
 	Image      string // image filename
@@ -20,8 +20,8 @@ type InstallConfig struct {
 	RescueAuth string // salted argon2id of the rescue token (ze.rescue-auth)
 }
 
-func defaultConfig() InstallConfig {
-	return InstallConfig{
+func defaultConfig() installConfig {
+	return installConfig{
 		Source: "http",
 		Image:  "ze.img",
 		Port:   "80",
@@ -30,7 +30,7 @@ func defaultConfig() InstallConfig {
 }
 
 // parseCmdlineString parses ze.* parameters from a kernel cmdline string.
-func parseCmdlineString(line string) InstallConfig {
+func parseCmdlineString(line string) installConfig {
 	cfg := defaultConfig()
 	for param := range strings.FieldsSeq(line) {
 		k, v, ok := strings.Cut(param, "=")
@@ -62,7 +62,7 @@ func parseCmdlineString(line string) InstallConfig {
 }
 
 // parseCmdline reads /proc/cmdline and parses ze.* parameters.
-func parseCmdline() InstallConfig {
+func parseCmdline() installConfig {
 	data, err := os.ReadFile("/proc/cmdline")
 	if err != nil {
 		return defaultConfig()

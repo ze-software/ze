@@ -459,7 +459,7 @@ func (s *pppSession) evalIPv6CPRequest(pkt LCPPacket) bool {
 	if ipv6cpHasUnknownOption(pkt.Data) {
 		return true
 	}
-	opts, err := ParseIPv6CPOptions(pkt.Data)
+	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
 		return true
 	}
@@ -477,7 +477,7 @@ func (s *pppSession) evalIPv6CPRequest(pkt LCPPacket) bool {
 
 // absorbIPv6CPNak applies peer's Nak-suggested Interface-Identifier.
 func (s *pppSession) absorbIPv6CPNak(pkt LCPPacket) {
-	opts, err := ParseIPv6CPOptions(pkt.Data)
+	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
 		return
 	}
@@ -489,7 +489,7 @@ func (s *pppSession) absorbIPv6CPNak(pkt LCPPacket) {
 // absorbIPv6CPReject: Interface-Identifier is mandatory; peer rejecting
 // it is fatal.
 func (s *pppSession) absorbIPv6CPReject(pkt LCPPacket) bool {
-	opts, err := ParseIPv6CPOptions(pkt.Data)
+	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
 		return true
 	}
@@ -543,17 +543,17 @@ func (s *pppSession) writeNCPOptions(family AddressFamily, buf []byte, off int) 
 	case AddressFamilyIPv4:
 		// RFC 1332: ConfReq carries only our own IP-Address.
 		// DNS is communicated via Nak to the peer's ConfReq (RFC 1877).
-		opts := IPCPOptions{
+		opts := iPCPOptions{
 			IPAddress:    s.localIPv4,
 			HasIPAddress: s.localIPv4.IsValid(),
 		}
 		return WriteIPCPOptions(buf, off, opts)
 	case AddressFamilyIPv6:
-		opts := IPv6CPOptions{
+		opts := iPv6CPOptions{
 			InterfaceID:    s.localInterfaceID,
 			HasInterfaceID: true,
 		}
-		return WriteIPv6CPOptions(buf, off, opts)
+		return writeIPv6CPOptions(buf, off, opts)
 	}
 	return 0
 }
@@ -590,7 +590,7 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 			dataLen := copyUnknownOptions(req.Data, isKnownIPCPOption, buf, off)
 			return LCPConfigureReject, dataLen
 		}
-		nak := IPCPOptions{
+		nak := iPCPOptions{
 			IPAddress:    s.peerIPv4,
 			HasIPAddress: s.peerIPv4.IsValid(),
 			PrimaryDNS:   s.dnsPrimary,
@@ -604,11 +604,11 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 			dataLen := copyUnknownOptions(req.Data, isKnownIPv6CPOption, buf, off)
 			return LCPConfigureReject, dataLen
 		}
-		nak := IPv6CPOptions{
+		nak := iPv6CPOptions{
 			InterfaceID:    s.peerInterfaceID,
 			HasInterfaceID: true,
 		}
-		return LCPConfigureNak, WriteIPv6CPOptions(buf, off, nak)
+		return LCPConfigureNak, writeIPv6CPOptions(buf, off, nak)
 	}
 	return LCPConfigureReject, 0
 }

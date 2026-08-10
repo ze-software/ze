@@ -73,7 +73,7 @@ type L2TPTunnel struct {
 	// initiatorSecret is the per-remote CHAP-MD5 shared secret this tunnel
 	// dials with (empty for answering tunnels and for dials with no secret).
 	// The answering path authenticates every peer with a single global
-	// secret (ReactorParams.Defaults.SharedSecret), but an initiator may
+	// secret (reactorParams.Defaults.SharedSecret), but an initiator may
 	// dial many remotes each with its own secret, so handleSCCRP prefers
 	// this field over the global default when non-empty.
 	//
@@ -137,7 +137,7 @@ type L2TPTunnel struct {
 
 	// pendingCall is a call the reactor must originate the moment this
 	// initiated tunnel reaches established (a dial issued via
-	// PlaceIncomingCall / PlaceOutgoingCall). Nil for answering tunnels and
+	// placeIncomingCall / PlaceOutgoingCall). Nil for answering tunnels and
 	// for a bare Dial. Consumed once by the reactor's establishment hook.
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu. Set at dial time.

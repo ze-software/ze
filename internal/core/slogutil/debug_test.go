@@ -28,7 +28,7 @@ func TestValidateSubsystem(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := ValidateSubsystem(tt.name)
+		got := validateSubsystem(tt.name)
 		if got != tt.valid {
 			t.Errorf("ValidateSubsystem(%q) = %v, want %v", tt.name, got, tt.valid)
 		}
@@ -94,7 +94,7 @@ func TestSubsystemsMatchingNone(t *testing.T) {
 
 func TestValidateSubsystemAll(t *testing.T) {
 	ResetLevelRegistry()
-	if !ValidateSubsystem("all") {
+	if !validateSubsystem("all") {
 		t.Error("expected 'all' to be valid")
 	}
 }

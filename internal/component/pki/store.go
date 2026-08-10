@@ -148,8 +148,8 @@ func IntermediatePool() *x509.CertPool {
 	return pool
 }
 
-// ListCACerts returns all loaded CA certificate entries.
-func ListCACerts() []*CACertEntry {
+// listCACerts returns all loaded CA certificate entries.
+func listCACerts() []*CACertEntry {
 	s := get()
 	out := make([]*CACertEntry, 0, len(s.caCerts))
 	for _, ca := range s.caCerts {
@@ -158,8 +158,8 @@ func ListCACerts() []*CACertEntry {
 	return out
 }
 
-// ListCertificates returns all loaded device certificate entries.
-func ListCertificates() []*CertificateEntry {
+// listCertificates returns all loaded device certificate entries.
+func listCertificates() []*CertificateEntry {
 	s := get()
 	out := make([]*CertificateEntry, 0, len(s.certificates))
 	for _, entry := range s.certificates {

@@ -37,7 +37,7 @@ func (s *BGPLSSRv6SID) AppendJSON(buf []byte) []byte { return appendBGPLSJSON(bu
 // appendBGPLSJSON streams the BGP-LS JSON representation of n into buf in
 // alphabetical key order (matches json.Marshal(bgplsToJSON(...))).
 // Mirrors bgplsToJSON (plugin.go) -- update both if the shape changes.
-func appendBGPLSJSON(buf []byte, n BGPLSNLRI) []byte {
+func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 	data := bgplsRawBytes(n)
 
 	buf = append(buf, '{')
@@ -127,19 +127,19 @@ func appendBGPLSJSON(buf []byte, n BGPLSNLRI) []byte {
 }
 
 // appendType writes `"ls-nlri-type":"<name>"` (no leading comma).
-func appendType(buf []byte, n BGPLSNLRI) []byte {
+func appendType(buf []byte, n bGPLSNLRI) []byte {
 	buf = append(buf, `"ls-nlri-type":`...)
 	return appendJSONQuoted(buf, bgplsNLRITypeString(uint16(n.NLRIType())))
 }
 
 // appendTopology writes `"l3-routing-topology":<identifier>` (no leading comma).
-func appendTopology(buf []byte, n BGPLSNLRI) []byte {
+func appendTopology(buf []byte, n bGPLSNLRI) []byte {
 	buf = append(buf, `"l3-routing-topology":`...)
 	return strconv.AppendUint(buf, n.Identifier(), 10)
 }
 
 // appendProtocol writes `"protocol-id":<proto>` (no leading comma).
-func appendProtocol(buf []byte, n BGPLSNLRI) []byte {
+func appendProtocol(buf []byte, n bGPLSNLRI) []byte {
 	buf = append(buf, `"protocol-id":`...)
 	return strconv.AppendInt(buf, int64(n.ProtocolID()), 10)
 }
@@ -147,7 +147,7 @@ func appendProtocol(buf []byte, n BGPLSNLRI) []byte {
 // bgplsRawBytes returns the wire bytes for n, preferring the cached slice set
 // by ParseBGPLS so wire-parsed NLRIs skip a fresh WriteTo allocation on every
 // AppendJSON call. Returns n.Bytes() for programmatically-constructed NLRIs.
-func bgplsRawBytes(n BGPLSNLRI) []byte {
+func bgplsRawBytes(n bGPLSNLRI) []byte {
 	type cacher interface{ cachedBytes() []byte }
 	if c, ok := n.(cacher); ok {
 		if b := c.cachedBytes(); b != nil {

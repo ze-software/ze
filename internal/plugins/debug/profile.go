@@ -38,8 +38,8 @@ type Profile struct {
 	Timeout int                     `json:"timeout,omitempty"`
 }
 
-// NewProfile creates an empty debug profile.
-func NewProfile() *Profile {
+// newProfile creates an empty debug profile.
+func newProfile() *Profile {
 	return &Profile{Modules: make(map[string]*ModuleEntry)}
 }
 
@@ -54,8 +54,8 @@ func (p *Profile) Module(name string) *ModuleEntry {
 	return p.Modules[name]
 }
 
-// ToggleModule adds a module entry if absent, removes it if present.
-func (p *Profile) ToggleModule(name string) bool {
+// toggleModule adds a module entry if absent, removes it if present.
+func (p *Profile) toggleModule(name string) bool {
 	if _, ok := p.Modules[name]; ok {
 		delete(p.Modules, name)
 		return false
@@ -75,8 +75,8 @@ func (p *Profile) SetLevel(name, level string) {
 	entry.Level = level
 }
 
-// ToggleFlag adds or removes a flag entry for a module.
-func (p *Profile) ToggleFlag(module, flag string) {
+// toggleFlag adds or removes a flag entry for a module.
+func (p *Profile) toggleFlag(module, flag string) {
 	entry := p.Modules[module]
 	if entry == nil {
 		return
@@ -90,8 +90,8 @@ func (p *Profile) ToggleFlag(module, flag string) {
 	entry.Flags = append(entry.Flags, FlagEntry{Name: flag})
 }
 
-// ToggleScope adds or removes a scope entry for a module.
-func (p *Profile) ToggleScope(module, kind, value string) {
+// toggleScope adds or removes a scope entry for a module.
+func (p *Profile) toggleScope(module, kind, value string) {
 	entry := p.Modules[module]
 	if entry == nil {
 		return
@@ -155,8 +155,8 @@ func (p *Profile) ModuleNames() []string {
 	return names
 }
 
-// SaveProfile writes a profile to debug.zefs under the given name.
-func SaveProfile(storePath, name string, p *Profile) error {
+// saveProfile writes a profile to debug.zefs under the given name.
+func saveProfile(storePath, name string, p *Profile) error {
 	if name == "" || len(name) > 64 || strings.ContainsAny(name, "/\x00 \t\n") {
 		return fmt.Errorf("invalid profile name: %q (must be 1-64 chars, no whitespace or /)", name)
 	}
@@ -179,8 +179,8 @@ func SaveProfile(storePath, name string, p *Profile) error {
 	return nil
 }
 
-// LoadProfile reads a profile from debug.zefs.
-func LoadProfile(storePath, name string) (*Profile, error) {
+// loadProfile reads a profile from debug.zefs.
+func loadProfile(storePath, name string) (*Profile, error) {
 	store, err := openDebugStore(storePath)
 	if err != nil {
 		return nil, err
@@ -203,8 +203,8 @@ func LoadProfile(storePath, name string) (*Profile, error) {
 	return &p, nil
 }
 
-// ListProfiles returns the names of all saved profiles.
-func ListProfiles(storePath string) ([]string, error) {
+// listProfiles returns the names of all saved profiles.
+func listProfiles(storePath string) ([]string, error) {
 	store, err := openDebugStore(storePath)
 	if err != nil {
 		return nil, err
@@ -226,8 +226,8 @@ func ListProfiles(storePath string) ([]string, error) {
 	return names, nil
 }
 
-// DeleteProfile removes a named profile from debug.zefs.
-func DeleteProfile(storePath, name string) error {
+// deleteProfile removes a named profile from debug.zefs.
+func deleteProfile(storePath, name string) error {
 	store, err := openDebugStore(storePath)
 	if err != nil {
 		return err

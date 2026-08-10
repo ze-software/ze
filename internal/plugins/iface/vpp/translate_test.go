@@ -17,17 +17,17 @@ func TestNameMapAddLookup(t *testing.T) {
 	m := newNameMap()
 	m.Add("xe0", 1, "TenGigabitEthernet3/0/0")
 
-	idx, ok := m.LookupIndex("xe0")
+	idx, ok := m.lookupIndex("xe0")
 	if !ok || idx != 1 {
 		t.Errorf("LookupIndex(xe0) = %d, %v", idx, ok)
 	}
 
-	name, ok := m.LookupName(1)
+	name, ok := m.lookupName(1)
 	if !ok || name != "xe0" {
 		t.Errorf("LookupName(1) = %q, %v", name, ok)
 	}
 
-	vppName, ok := m.LookupVPPName(1)
+	vppName, ok := m.lookupVPPName(1)
 	if !ok || vppName != "TenGigabitEthernet3/0/0" {
 		t.Errorf("LookupVPPName(1) = %q, %v", vppName, ok)
 	}
@@ -40,10 +40,10 @@ func TestNameMapRemove(t *testing.T) {
 	m.Add("xe0", 1, "TenGigabitEthernet3/0/0")
 	m.Remove("xe0")
 
-	if _, ok := m.LookupIndex("xe0"); ok {
+	if _, ok := m.lookupIndex("xe0"); ok {
 		t.Error("xe0 should be removed")
 	}
-	if _, ok := m.LookupName(1); ok {
+	if _, ok := m.lookupName(1); ok {
 		t.Error("index 1 should be removed")
 	}
 }
@@ -53,10 +53,10 @@ func TestNameMapNotFound(t *testing.T) {
 	// PREVENTS: zero-value confusion
 	m := newNameMap()
 
-	if _, ok := m.LookupIndex("nonexistent"); ok {
+	if _, ok := m.lookupIndex("nonexistent"); ok {
 		t.Error("should not find nonexistent name")
 	}
-	if _, ok := m.LookupName(999); ok {
+	if _, ok := m.lookupName(999); ok {
 		t.Error("should not find nonexistent index")
 	}
 }

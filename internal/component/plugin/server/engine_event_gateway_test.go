@@ -14,7 +14,7 @@ import (
 // PREVENTS: silent namespace drift (e.g., emitting in "bgp" or "" by mistake).
 func TestConfigEventGatewayEmit(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	var got string
 	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(p any) {
@@ -45,7 +45,7 @@ func TestConfigEventGatewayEmit(t *testing.T) {
 // the config namespace, or the handler being passed the wrong type.
 func TestConfigEventGatewaySubscribe(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	var got []byte
 	unsub := g.SubscribeConfigEvent("apply-ok", func(payload []byte) {
@@ -69,7 +69,7 @@ func TestConfigEventGatewaySubscribe(t *testing.T) {
 // adapter must not bypass it).
 func TestConfigEventGatewayNilHandler(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	unsub := g.SubscribeConfigEvent("verify-ok", nil)
 	if unsub == nil {
@@ -91,7 +91,7 @@ func TestConfigEventGatewayNilHandler(t *testing.T) {
 // conversion or trimmed the slice).
 func TestConfigEventGatewayPayloadRoundTrip(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	var received []byte
 	unsub := g.SubscribeConfigEvent("verify-ok", func(payload []byte) {
@@ -117,7 +117,7 @@ func TestConfigEventGatewayPayloadRoundTrip(t *testing.T) {
 // failing the transaction.
 func TestConfigEventGatewayRejectsUnknownEvent(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	_, err := g.EmitConfigEvent("not-a-real-event", []byte(`{}`))
 	if err == nil {
@@ -135,7 +135,7 @@ func TestConfigEventGatewayRejectsUnknownEvent(t *testing.T) {
 // downstream subscribers cannot decode.
 func TestConfigEventGatewayRejectsEmptyPayload(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	for _, payload := range [][]byte{nil, {}} {
 		_, err := g.EmitConfigEvent("verify-ok", payload)
@@ -150,7 +150,7 @@ func TestConfigEventGatewayRejectsEmptyPayload(t *testing.T) {
 // receive late acks from prior transactions.
 func TestConfigEventGatewayUnsubscribe(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
-	g := NewConfigEventGateway(s)
+	g := newConfigEventGateway(s)
 
 	var calls int
 	unsub := g.SubscribeConfigEvent("verify-ok", func(_ []byte) { calls++ })

@@ -244,7 +244,7 @@ func TestHandlerPeerRemove(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := HandleBgpPeerRemove(ctx, nil)
+	resp, err := handleBgpPeerRemove(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -260,7 +260,7 @@ func TestHandlerPeerRemoveWildcardPeer(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "*"
 
-	resp, err := HandleBgpPeerRemove(ctx, nil)
+	resp, err := handleBgpPeerRemove(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }

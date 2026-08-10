@@ -162,7 +162,7 @@ func TestVPNDecodeMode(t *testing.T) {
 	input := "decode nlri ipv4/mpls-vpn " + hexData + "\n"
 	output := &bytes.Buffer{}
 
-	code := RunVPNDecode(strings.NewReader(input), output)
+	code := runVPNDecode(strings.NewReader(input), output)
 	assert.Equal(t, 0, code)
 
 	result := output.String()
@@ -390,11 +390,11 @@ func TestParseVPNShortData(t *testing.T) {
 func TestSetVPNLogger(t *testing.T) {
 	t.Parallel()
 	// Should not panic with nil
-	SetVPNLogger(nil)
+	setVPNLogger(nil)
 
 	// Should accept valid logger
 	logger := slog.Default()
-	SetVPNLogger(logger)
+	setVPNLogger(logger)
 }
 
 // TestGetVPNYANG verifies YANG schema getter.
@@ -403,7 +403,7 @@ func TestSetVPNLogger(t *testing.T) {
 // PREVENTS: Unexpected YANG output.
 func TestGetVPNYANG(t *testing.T) {
 	t.Parallel()
-	yang := GetVPNYANG()
+	yang := getVPNYANG()
 	assert.Empty(t, yang)
 }
 
@@ -413,7 +413,7 @@ func TestGetVPNYANG(t *testing.T) {
 // PREVENTS: Missing family support.
 func TestVPNFamilies(t *testing.T) {
 	t.Parallel()
-	families := VPNFamilies()
+	families := vPNFamilies()
 	assert.Contains(t, families, "ipv4/mpls-vpn")
 	assert.Contains(t, families, "ipv6/mpls-vpn")
 	assert.Len(t, families, 2)

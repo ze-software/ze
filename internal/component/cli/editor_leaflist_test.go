@@ -175,7 +175,7 @@ system {
 `
 	ed, configPath := newLeafListSessionEditor(t, seed)
 
-	require.NoError(t, ed.DeleteLeafListValue([]string{"system"}, "name-server", "8.8.8.8"))
+	require.NoError(t, ed.deleteLeafListValue([]string{"system"}, "name-server", "8.8.8.8"))
 
 	result, err := ed.CommitSession()
 	require.NoError(t, err)
@@ -229,8 +229,8 @@ func TestLeafListConflictDetection(t *testing.T) {
 	// Non-overlapping members: no conflict in either direction.
 	require.NoError(t, edA.SetValue([]string{"system"}, "name-server", "8.8.8.8"))
 	require.NoError(t, edB.SetValue([]string{"system"}, "name-server", "1.1.1.1"))
-	assert.Empty(t, edA.DetectConflicts(), "different members must not conflict")
-	assert.Empty(t, edB.DetectConflicts(), "different members must not conflict")
+	assert.Empty(t, edA.detectConflicts(), "different members must not conflict")
+	assert.Empty(t, edB.detectConflicts(), "different members must not conflict")
 
 	resultA, err := edA.CommitSession()
 	require.NoError(t, err)
@@ -247,8 +247,8 @@ func TestLeafListConflictDetection(t *testing.T) {
 	// Same member, opposing intents on a committed member: live conflict.
 	// Bob re-asserts the seed member while Alice deletes it.
 	require.NoError(t, edB.SetValue([]string{"system"}, "name-server", "9.9.9.9"))
-	require.NoError(t, edA.DeleteLeafListValue([]string{"system"}, "name-server", "9.9.9.9"))
-	assert.NotEmpty(t, edA.DetectConflicts(), "set vs delete of the same member must conflict")
+	require.NoError(t, edA.deleteLeafListValue([]string{"system"}, "name-server", "9.9.9.9"))
+	assert.NotEmpty(t, edA.detectConflicts(), "set vs delete of the same member must conflict")
 }
 
 // TestDiscardPathPreservesOtherSessionMembers: a partial discard of one

@@ -18,7 +18,7 @@ func TestBGPLSAppendJSON(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		nlri        BGPLSNLRI
+		nlri        bGPLSNLRI
 		wantType    string
 		wantFields  []string // keys that must appear in the parsed object
 		extraChecks func(t *testing.T, parsed map[string]any)
@@ -109,7 +109,7 @@ func TestBGPLSAppendJSON(t *testing.T) {
 func TestBGPLSAppendJSONSRv6SID(t *testing.T) {
 	t.Parallel()
 
-	sid := NewBGPLSSRv6SID(
+	sid := newBGPLSSRv6SID(
 		ProtoOSPFv3, 0x300,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 		SRv6SIDDescriptor{SRv6SID: []byte{
@@ -158,7 +158,7 @@ func TestBGPLSAppendJSONPrefixEmpty(t *testing.T) {
 func TestBGPLSAppendJSONMatchesRPCDecode(t *testing.T) {
 	t.Parallel()
 
-	cases := []BGPLSNLRI{
+	cases := []bGPLSNLRI{
 		NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 			ASN: 65001, BGPLSIdentifier: 0x12345678, IGPRouterID: []byte{1, 1, 1, 1},
 		}),
@@ -178,7 +178,7 @@ func TestBGPLSAppendJSONMatchesRPCDecode(t *testing.T) {
 			NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 			PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
 		),
-		NewBGPLSSRv6SID(
+		newBGPLSSRv6SID(
 			ProtoOSPFv3, 0x300,
 			NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 			SRv6SIDDescriptor{SRv6SID: []byte{

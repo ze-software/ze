@@ -240,8 +240,8 @@ func runLDPEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("ldp", conn)
 	defer func() { _ = p.Close() }()
 
-	lib := NewLIB()
-	adjTable := NewAdjacencyTable()
+	lib := newLIB()
+	adjTable := newAdjacencyTable()
 
 	var activeCfg ldpConfig
 	var pendingCfg ldpConfig
@@ -373,7 +373,7 @@ func runLDPEngine(conn net.Conn) int {
 	// Withdraw the egress pop entries this LSR programmed for its local FECs so
 	// fib-kernel does not retain stale AF_MPLS state after the engine exits.
 	if fib != nil {
-		for _, lb := range lib.LocalBindings() {
+		for _, lb := range lib.localBindings() {
 			fib.RemovePop(lb.FEC, lb.Label)
 		}
 	}
@@ -405,7 +405,7 @@ func emitSessionEvent(eb ze.EventBus, log *slog.Logger, handle *events.Event[*Se
 	}
 }
 
-func emitLabelEvent(eb ze.EventBus, log *slog.Logger, evt *LabelBindEvent) {
+func emitLabelEvent(eb ze.EventBus, log *slog.Logger, evt *labelBindEvent) {
 	if eb == nil {
 		return
 	}
@@ -483,7 +483,7 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 			Interface:     ifName,
 		})
 		for _, b := range removed {
-			emitLabelEvent(eb, log, &LabelBindEvent{
+			emitLabelEvent(eb, log, &labelBindEvent{
 				FEC:      b.FEC.String(),
 				Label:    b.Label,
 				PeerAddr: b.PeerAddr.String(),
@@ -667,7 +667,7 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjT
 		return
 	}
 
-	pdu, err := DecodePDUHeader(data)
+	pdu, err := decodePDUHeader(data)
 	if err != nil {
 		log.Debug("ldp: invalid PDU header", "error", err)
 		return
@@ -682,7 +682,7 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjT
 		return
 	}
 
-	msgHdr, err := DecodeMessageHeader(data[bodyStart:])
+	msgHdr, err := decodeMessageHeader(data[bodyStart:])
 	if err != nil {
 		return
 	}
@@ -717,7 +717,7 @@ func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfi
 		TransportAddr: cfg.TransportAddr,
 	})
 	pduLen := uint16(bodyLen + 6)
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  pduLen,
 		LSRID:      lsrID,
@@ -774,13 +774,13 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 	localPrefixes := allConnectedPrefixes()
 
 	err := sess.ReadLoop(
-		func(lm LabelMappingMessage, _ [4]byte) {
+		func(lm labelMappingMessage, _ [4]byte) {
 			// AC-4: resolve the data-plane next hop from the peer's advertised
 			// interface addresses (Address message) when a label is imposed;
 			// implicit-null forwards as plain IP and needs no next hop.
 			var nextHop netip.Addr
 			if lm.Label != ImplicitNull {
-				nextHop = pickNextHop(sess.PeerAddr(), sess.PeerAddresses(), localPrefixes)
+				nextHop = pickNextHop(sess.PeerAddr(), sess.peerAddresses(), localPrefixes)
 			}
 			// Record the binding and reconcile the FEC's forwarding atomically so a
 			// concurrent update for the same FEC cannot interleave (reconcileFEC
@@ -793,14 +793,14 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 				m.bindingsTotal.Inc()
 				m.bindingsActive.Set(float64(lib.Len()))
 			}
-			emitLabelEvent(eb, log, &LabelBindEvent{
+			emitLabelEvent(eb, log, &labelBindEvent{
 				FEC:      lm.FEC.Prefix.String(),
 				Label:    lm.Label,
 				PeerAddr: sess.PeerAddr().String(),
 				Action:   "add",
 			})
 		},
-		func(lw LabelWithdrawMessage, _ [4]byte) {
+		func(lw labelWithdrawMessage, _ [4]byte) {
 			// AC-5: drop the LIB entry and reconcile the kernel forwarding for the
 			// FEC (re-point to a surviving peer, or withdraw the push) atomically.
 			fib.withReconcileLock(func() {
@@ -809,7 +809,7 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 			if m := ldpMetricsPtr.Load(); m != nil {
 				m.bindingsActive.Set(float64(lib.Len()))
 			}
-			emitLabelEvent(eb, log, &LabelBindEvent{
+			emitLabelEvent(eb, log, &labelBindEvent{
 				FEC:      lw.FEC.Prefix.String(),
 				Label:    lw.Label,
 				PeerAddr: sess.PeerAddr().String(),
@@ -819,13 +819,13 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 		func() {
 			// AC-3: session reached operational -- advertise our local FEC
 			// bindings downstream-unsolicited (RFC 5036 Section 2.3).
-			locals := lib.LocalBindings()
+			locals := lib.localBindings()
 			for _, lb := range locals {
 				if err := sess.SendLabelMapping(lb.FEC, lb.Label); err != nil {
 					log.Warn("ldp: local label mapping send failed", "fec", lb.FEC, "error", err)
 					return
 				}
-				emitLabelEvent(eb, log, &LabelBindEvent{
+				emitLabelEvent(eb, log, &labelBindEvent{
 					FEC:      lb.FEC.String(),
 					Label:    lb.Label,
 					PeerAddr: sess.PeerAddr().String(),
@@ -914,8 +914,8 @@ func showBindings(lib *LIB) any {
 		PeerAddr  string `json:"peer-address,omitempty"`
 	}
 
-	locals := lib.LocalBindings()
-	remotes := lib.AllBindings()
+	locals := lib.localBindings()
+	remotes := lib.allBindings()
 	out := make([]bindingInfo, 0, len(locals)+len(remotes))
 	for _, b := range locals {
 		out = append(out, bindingInfo{

@@ -37,9 +37,9 @@ func dhcpv6LifetimeDefaults(l DHCPv6Lifetimes) DHCPv6Lifetimes {
 	return l
 }
 
-// IPv6ServiceConfig holds the parameters needed to start RA and DHCPv6
+// iPv6ServiceConfig holds the parameters needed to start RA and DHCPv6
 // services on a PPP session's interface.
-type IPv6ServiceConfig struct {
+type iPv6ServiceConfig struct {
 	Ifname           string
 	TunnelID         uint16
 	SessionID        uint16
@@ -54,7 +54,7 @@ type IPv6ServiceConfig struct {
 // PPP session. Created by startIPv6Service (platform-specific); stopped
 // by Stop(). The session goroutine owns the lifecycle.
 type IPv6Service struct {
-	cfg       IPv6ServiceConfig
+	cfg       iPv6ServiceConfig
 	lifetimes DHCPv6Lifetimes
 	stop      func()
 
@@ -63,7 +63,7 @@ type IPv6Service struct {
 	routeInstalled  bool
 }
 
-func NewIPv6Service(cfg IPv6ServiceConfig) *IPv6Service {
+func newIPv6Service(cfg iPv6ServiceConfig) *IPv6Service {
 	return &IPv6Service{
 		cfg:       cfg,
 		lifetimes: dhcpv6LifetimeDefaults(cfg.Lifetimes),
@@ -108,9 +108,9 @@ func (s *IPv6Service) installRoute(prefix netip.Prefix) error {
 	return nil
 }
 
-// HandleDHCPv6 processes a parsed DHCPv6 message and returns response
+// handleDHCPv6 processes a parsed DHCPv6 message and returns response
 // bytes (or nil if no response needed).
-func (s *IPv6Service) HandleDHCPv6(msg *DHCPv6Message, serverID DHCPv6DUID, prefixHandler func() (netip.Prefix, bool)) ([]byte, error) {
+func (s *IPv6Service) handleDHCPv6(msg *dHCPv6Message, serverID DHCPv6DUID, prefixHandler func() (netip.Prefix, bool)) ([]byte, error) {
 	switch msg.Type {
 	case DHCPv6Solicit:
 		return s.handleSolicit(msg, serverID, prefixHandler)
@@ -124,7 +124,7 @@ func (s *IPv6Service) HandleDHCPv6(msg *DHCPv6Message, serverID DHCPv6DUID, pref
 	return nil, nil
 }
 
-func (s *IPv6Service) handleSolicit(msg *DHCPv6Message, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool)) ([]byte, error) {
+func (s *IPv6Service) handleSolicit(msg *dHCPv6Message, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool)) ([]byte, error) {
 	if msg.ClientID == nil || msg.IAPD == nil {
 		return nil, nil
 	}
@@ -143,7 +143,7 @@ func (s *IPv6Service) handleSolicit(msg *DHCPv6Message, serverID DHCPv6DUID, all
 	s.mu.Unlock()
 
 	var buf [512]byte
-	n, err := CheckedBuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n, err := checkedBuildDHCPv6Reply(buf[:], dHCPv6ReplyConfig{
 		Type:          DHCPv6Advertise,
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
@@ -161,7 +161,7 @@ func (s *IPv6Service) handleSolicit(msg *DHCPv6Message, serverID DHCPv6DUID, all
 	return buf[:n], nil
 }
 
-func (s *IPv6Service) handleRequest(msg *DHCPv6Message, serverID DHCPv6DUID) ([]byte, error) {
+func (s *IPv6Service) handleRequest(msg *dHCPv6Message, serverID DHCPv6DUID) ([]byte, error) {
 	if msg.ClientID == nil || msg.IAPD == nil {
 		return nil, nil
 	}
@@ -182,7 +182,7 @@ func (s *IPv6Service) handleRequest(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 	}
 
 	var buf [512]byte
-	n, err := CheckedBuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n, err := checkedBuildDHCPv6Reply(buf[:], dHCPv6ReplyConfig{
 		Type:          DHCPv6Reply,
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
@@ -200,7 +200,7 @@ func (s *IPv6Service) handleRequest(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 	return buf[:n], nil
 }
 
-func (s *IPv6Service) handleRenew(msg *DHCPv6Message, serverID DHCPv6DUID) ([]byte, error) {
+func (s *IPv6Service) handleRenew(msg *dHCPv6Message, serverID DHCPv6DUID) ([]byte, error) {
 	if msg.ClientID == nil || msg.IAPD == nil {
 		return nil, nil
 	}
@@ -217,7 +217,7 @@ func (s *IPv6Service) handleRenew(msg *DHCPv6Message, serverID DHCPv6DUID) ([]by
 	}
 
 	var buf [512]byte
-	n, err := CheckedBuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n, err := checkedBuildDHCPv6Reply(buf[:], dHCPv6ReplyConfig{
 		Type:          DHCPv6Reply,
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
@@ -235,7 +235,7 @@ func (s *IPv6Service) handleRenew(msg *DHCPv6Message, serverID DHCPv6DUID) ([]by
 	return buf[:n], nil
 }
 
-func (s *IPv6Service) handleRelease(msg *DHCPv6Message, serverID DHCPv6DUID) ([]byte, error) {
+func (s *IPv6Service) handleRelease(msg *dHCPv6Message, serverID DHCPv6DUID) ([]byte, error) {
 	if msg.ClientID == nil {
 		return nil, nil
 	}
@@ -245,7 +245,7 @@ func (s *IPv6Service) handleRelease(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 	s.cleanupPrefix()
 
 	var buf [512]byte
-	n, err := CheckedBuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
+	n, err := checkedBuildDHCPv6StatusReply(buf[:], dHCPv6StatusReplyConfig{
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
 		ClientID:      msg.ClientID,
@@ -258,9 +258,9 @@ func (s *IPv6Service) handleRelease(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 	return buf[:n], nil
 }
 
-func (s *IPv6Service) noPrefixAvailReply(msg *DHCPv6Message, serverID DHCPv6DUID, reason string) ([]byte, error) {
+func (s *IPv6Service) noPrefixAvailReply(msg *dHCPv6Message, serverID DHCPv6DUID, reason string) ([]byte, error) {
 	var buf [512]byte
-	n, err := CheckedBuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
+	n, err := checkedBuildDHCPv6StatusReply(buf[:], dHCPv6StatusReplyConfig{
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
 		ClientID:      msg.ClientID,

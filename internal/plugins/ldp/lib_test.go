@@ -6,7 +6,7 @@ import (
 )
 
 func TestLIBAddAndLookup(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 	peerKey := "10.0.0.1:0"
 	peerAddr := netip.MustParseAddr("10.0.0.1")
@@ -29,13 +29,13 @@ func TestLIBAddAndLookup(t *testing.T) {
 }
 
 func TestLIBRemoveRemote(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 	peerKey := "10.0.0.1:0"
 
 	lib.AddRemote(fec, 1000, peerKey, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.1"))
 
-	removed := lib.RemoveRemote(fec, peerKey)
+	removed := lib.removeRemote(fec, peerKey)
 	if removed == nil {
 		t.Fatal("RemoveRemote returned nil")
 	}
@@ -53,7 +53,7 @@ func TestLIBRemoveRemote(t *testing.T) {
 }
 
 func TestLIBRemoveAllForPeer(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	peer := "10.0.0.1:0"
 	addr := netip.MustParseAddr("10.0.0.1")
 
@@ -61,7 +61,7 @@ func TestLIBRemoveAllForPeer(t *testing.T) {
 	lib.AddRemote(netip.MustParsePrefix("10.2.0.0/24"), 1001, peer, addr, addr)
 	lib.AddRemote(netip.MustParsePrefix("10.3.0.0/24"), 2000, "10.0.0.2:0", netip.MustParseAddr("10.0.0.2"), netip.MustParseAddr("10.0.0.2"))
 
-	removed := lib.RemoveAllForPeer(peer)
+	removed := lib.removeAllForPeer(peer)
 	if len(removed) != 2 {
 		t.Fatalf("RemoveAllForPeer returned %d, want 2", len(removed))
 	}
@@ -71,7 +71,7 @@ func TestLIBRemoveAllForPeer(t *testing.T) {
 }
 
 func TestLIBAllocateLabel(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	l1 := lib.AllocateLabel()
 	l2 := lib.AllocateLabel()
 	if l1 < 16 {
@@ -83,19 +83,19 @@ func TestLIBAllocateLabel(t *testing.T) {
 }
 
 func TestLIBAllBindings(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	lib.AddRemote(netip.MustParsePrefix("10.1.0.0/24"), 1000, "peer1", netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.1"))
 	lib.AddRemote(netip.MustParsePrefix("10.2.0.0/24"), 1001, "peer1", netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.1"))
 	lib.AddRemote(netip.MustParsePrefix("10.1.0.0/24"), 2000, "peer2", netip.MustParseAddr("10.0.0.2"), netip.MustParseAddr("10.0.0.2"))
 
-	all := lib.AllBindings()
+	all := lib.allBindings()
 	if len(all) != 3 {
 		t.Errorf("AllBindings returned %d, want 3", len(all))
 	}
 }
 
 func TestLIBMultiplePeersSameFEC(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 
 	lib.AddRemote(fec, 1000, "peer1", netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.1"))
@@ -112,10 +112,10 @@ func TestLIBMultiplePeersSameFEC(t *testing.T) {
 }
 
 func TestLIBRemoveNonExistent(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 
-	removed := lib.RemoveRemote(fec, "nonexistent")
+	removed := lib.removeRemote(fec, "nonexistent")
 	if removed != nil {
 		t.Error("RemoveRemote should return nil for non-existent")
 	}
@@ -124,7 +124,7 @@ func TestLIBRemoveNonExistent(t *testing.T) {
 // VALIDATES: AC-3 -- EnsureLocal allocates a local label on first use and is
 // idempotent, so a FEC keeps one stable label across repeated calls.
 func TestLIBEnsureLocalIdempotent(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 
 	first := lib.EnsureLocal(fec)
@@ -144,22 +144,22 @@ func TestLIBEnsureLocalIdempotent(t *testing.T) {
 // VALIDATES: AC-3 -- distinct FECs get distinct local labels and all surface in
 // the LocalBindings snapshot (feeds `show ldp binding`, AC-8).
 func TestLIBEnsureLocalDistinct(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	a := lib.EnsureLocal(netip.MustParsePrefix("10.1.0.0/24"))
 	b := lib.EnsureLocal(netip.MustParsePrefix("10.2.0.0/24"))
 	if a.Label == b.Label {
 		t.Errorf("distinct FECs share label %d", a.Label)
 	}
 
-	locals := lib.LocalBindings()
+	locals := lib.localBindings()
 	if len(locals) != 2 {
 		t.Fatalf("LocalBindings returned %d, want 2", len(locals))
 	}
 }
 
 func TestLIBLocalBindingsEmpty(t *testing.T) {
-	lib := NewLIB()
-	if got := lib.LocalBindings(); len(got) != 0 {
+	lib := newLIB()
+	if got := lib.localBindings(); len(got) != 0 {
 		t.Errorf("LocalBindings on empty LIB returned %d, want 0", len(got))
 	}
 }
@@ -167,7 +167,7 @@ func TestLIBLocalBindingsEmpty(t *testing.T) {
 // VALIDATES: label allocation skips labels already in use, so the wrap from
 // MaxLabel back to 16 cannot hand out a duplicate local label.
 func TestLIBAllocateSkipsUsed(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	// Simulate 16 and 17 already allocated (e.g. after a wraparound).
 	lib.usedLabels[16] = true
 	lib.usedLabels[17] = true

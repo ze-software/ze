@@ -76,11 +76,11 @@ func (s InjectSpec) msgLen() int {
 	return min(max(s.MaxMsgLen, bgpEORLen), bgpExtMsgLen)
 }
 
-// BuildUpdates constructs the complete byte image for the inject stream.
+// buildUpdates constructs the complete byte image for the inject stream.
 // A single slice is allocated up-front at the exact final size; the hot
 // loop performs offset writes only. Returns the bytes and the message
 // count (UPDATEs + optional EOR) for telemetry.
-func BuildUpdates(spec InjectSpec) ([]byte, int, error) {
+func buildUpdates(spec InjectSpec) ([]byte, int, error) {
 	if spec.Count < 0 {
 		return nil, 0, errors.New("count must be >= 0")
 	}
@@ -486,7 +486,7 @@ func (p *Peer) doInject(ctx context.Context, conn net.Conn) Result {
 	}
 
 	t0 := time.Now()
-	buf, nMsgs, err := BuildUpdates(spec)
+	buf, nMsgs, err := buildUpdates(spec)
 	if err != nil {
 		return Result{Error: fmt.Errorf("build updates: %w", err)}
 	}

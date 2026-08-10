@@ -17,7 +17,7 @@ func TestHubConfigFetch(t *testing.T) {
 	t.Parallel()
 
 	configData := []byte("bgp { peer 10.0.0.1 { peer-as 65001; } }")
-	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+	svc := newManagedConfigService(func(name string) ([]byte, error) {
 		if name == "edge-01" {
 			return configData, nil
 		}
@@ -43,7 +43,7 @@ func TestHubConfigFetchCurrent(t *testing.T) {
 	configData := []byte("bgp { peer 10.0.0.1 { peer-as 65001; } }")
 	currentVersion := fleet.VersionHash(configData)
 
-	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+	svc := newManagedConfigService(func(name string) ([]byte, error) {
 		return configData, nil
 	})
 
@@ -61,7 +61,7 @@ func TestHubConfigFetchCurrent(t *testing.T) {
 func TestHubConfigFetchMissing(t *testing.T) {
 	t.Parallel()
 
-	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+	svc := newManagedConfigService(func(name string) ([]byte, error) {
 		return nil, ErrClientConfigNotFound
 	})
 
@@ -79,7 +79,7 @@ func TestHubConfigChanged(t *testing.T) {
 
 	newConfig := []byte("bgp { peer 10.0.0.2 { peer-as 65002; } }")
 
-	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+	svc := newManagedConfigService(func(name string) ([]byte, error) {
 		return newConfig, nil
 	})
 
@@ -98,7 +98,7 @@ func TestHubConfigFetchUpdated(t *testing.T) {
 	t.Parallel()
 
 	newConfig := []byte("bgp { peer 10.0.0.2 { peer-as 65002; } }")
-	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+	svc := newManagedConfigService(func(name string) ([]byte, error) {
 		return newConfig, nil
 	})
 
@@ -117,7 +117,7 @@ func TestHubConfigFetchUpdated(t *testing.T) {
 func TestHubDuplicateClientRejected(t *testing.T) {
 	t.Parallel()
 
-	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+	svc := newManagedConfigService(func(name string) ([]byte, error) {
 		return []byte("config"), nil
 	})
 

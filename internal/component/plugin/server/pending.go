@@ -33,8 +33,8 @@ type PendingRequests struct {
 	byProcess map[*process.Process]map[string]bool // process → serials (for limit)
 }
 
-// NewPendingRequests creates a new pending requests tracker.
-func NewPendingRequests() *PendingRequests {
+// newPendingRequests creates a new pending requests tracker.
+func newPendingRequests() *PendingRequests {
 	return &PendingRequests{
 		requests:  make(map[string]*PendingRequest),
 		byProcess: make(map[*process.Process]map[string]bool),

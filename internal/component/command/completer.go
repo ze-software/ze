@@ -70,9 +70,9 @@ func CompletePipe(partial string) []Suggestion {
 	return completePipe(partial, nil)
 }
 
-// CompletePipeForCommand returns global pipe completions plus filters registered
+// completePipeForCommand returns global pipe completions plus filters registered
 // by the resolved command.
-func CompletePipeForCommand(command, partial string) []Suggestion {
+func completePipeForCommand(command, partial string) []Suggestion {
 	return completePipe(partial, filterSuggestions(command))
 }
 
@@ -137,7 +137,7 @@ func (c *TreeCompleter) Complete(input string) []Suggestion {
 	// After a pipe character, complete pipe operators.
 	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
 		base, _, _ := strings.Cut(input, "|")
-		return CompletePipeForCommand(base, input[pipeIdx+1:])
+		return completePipeForCommand(base, input[pipeIdx+1:])
 	}
 
 	if c.root == nil || c.root.Children == nil {

@@ -37,7 +37,7 @@ func rfcTestSession(conn net.Conn) *Session {
 		[4]byte{10, 0, 0, 1}, 0,
 		[4]byte{10, 0, 0, 2}, 0,
 		netip.MustParseAddr("10.0.0.2"),
-		NewLIB(),
+		newLIB(),
 		slogutil.DiscardLogger(),
 	)
 }
@@ -57,7 +57,7 @@ func readLDPPDU(t *testing.T, conn net.Conn) (PDUHeader, MessageHeader, []byte) 
 	if _, err := io.ReadFull(conn, hdr[:]); err != nil {
 		t.Fatalf("read PDU header: %v", err)
 	}
-	pdu, err := DecodePDUHeader(hdr[:])
+	pdu, err := decodePDUHeader(hdr[:])
 	if err != nil {
 		t.Fatalf("DecodePDUHeader: %v", err)
 	}
@@ -65,7 +65,7 @@ func readLDPPDU(t *testing.T, conn net.Conn) (PDUHeader, MessageHeader, []byte) 
 	if _, err := io.ReadFull(conn, body); err != nil {
 		t.Fatalf("read PDU body: %v", err)
 	}
-	msgHdr, err := DecodeMessageHeader(body)
+	msgHdr, err := decodeMessageHeader(body)
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -76,13 +76,13 @@ func readLDPPDU(t *testing.T, conn net.Conn) (PDUHeader, MessageHeader, []byte) 
 // Parameters protocol version and keepalive time.
 func encodeInitPDU(version, keepalive uint16) []byte {
 	var buf [256]byte
-	bodyLen := EncodeInit(buf[ldpHeaderLen:], InitMessage{
+	bodyLen := EncodeInit(buf[ldpHeaderLen:], initMessage{
 		MessageID:       7,
 		ProtocolVersion: version,
 		KeepaliveTime:   keepalive,
 		MaxPDULength:    4096,
 	})
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  uint16(bodyLen + 6),
 		LSRID:      [4]byte{10, 0, 0, 2},
@@ -100,11 +100,11 @@ func encodeHelloPDU(lsrID [4]byte, holdTime, flags uint16) []byte {
 
 	var buf [128]byte
 	off := ldpHeaderLen
-	off += EncodeMessageHeader(buf[off:], MessageHeader{Type: MsgTypeHello, MessageID: 1})
+	off += encodeMessageHeader(buf[off:], MessageHeader{Type: MsgTypeHello, MessageID: 1})
 	off += EncodeTLV(buf[off:], TLV{Type: TLVTypeCommonHello, Length: 4, Value: value[:]})
 	bodyLen := off - ldpHeaderLen
 	binary.BigEndian.PutUint16(buf[ldpHeaderLen+2:ldpHeaderLen+4], uint16(bodyLen-ldpTLVHdrLen))
-	EncodePDUHeader(buf[:], PDUHeader{
+	encodePDUHeader(buf[:], PDUHeader{
 		Version:    ldpVersion,
 		PDULength:  uint16(bodyLen + 6),
 		LSRID:      lsrID,
@@ -134,8 +134,8 @@ func TestRFC5036PDUVersionOneAccepted(t *testing.T) {
 
 	// And the receive side accepts that same header.
 	var hdr [ldpHeaderLen]byte
-	EncodePDUHeader(hdr[:], PDUHeader{Version: 1, PDULength: 14, LSRID: [4]byte{10, 0, 0, 2}})
-	got, err := DecodePDUHeader(hdr[:])
+	encodePDUHeader(hdr[:], PDUHeader{Version: 1, PDULength: 14, LSRID: [4]byte{10, 0, 0, 2}})
+	got, err := decodePDUHeader(hdr[:])
 	if err != nil {
 		t.Fatalf("DecodePDUHeader(version 1): %v", err)
 	}
@@ -149,14 +149,14 @@ func TestRFC5036PDUVersionOneAccepted(t *testing.T) {
 func TestRFC5036PDUVersionOtherRejected(t *testing.T) {
 	for _, version := range []uint16{0, 2, 65535} {
 		var hdr [ldpHeaderLen]byte
-		EncodePDUHeader(hdr[:], PDUHeader{Version: version, PDULength: 14})
-		if _, err := DecodePDUHeader(hdr[:]); !errors.Is(err, errBadVersion) {
+		encodePDUHeader(hdr[:], PDUHeader{Version: version, PDULength: 14})
+		if _, err := decodePDUHeader(hdr[:]); !errors.Is(err, errBadVersion) {
 			t.Errorf("DecodePDUHeader(version %d) error = %v, want errBadVersion", version, err)
 		}
 	}
 
 	// Production path: processDiscoveryPacket must drop the Hello, not adjacency it.
-	table := NewAdjacencyTable()
+	table := newAdjacencyTable()
 	pkt := encodeHelloPDU([4]byte{10, 0, 0, 2}, 15, 0)
 	binary.BigEndian.PutUint16(pkt[0:2], 2) // corrupt the version
 	processDiscoveryPacket(pkt, [4]byte{10, 0, 0, 1}, "eth0", table, nil, slogutil.DiscardLogger())
@@ -338,7 +338,7 @@ func TestRFC5036KeepaliveNegotiationAdoptsLower(t *testing.T) {
 
 	sess := rfcTestSession(local)
 	sess.keepaliveTime = 60 * time.Second
-	sess.handleInit(InitMessage{ProtocolVersion: 1, KeepaliveTime: 20}, [4]byte{10, 0, 0, 2})
+	sess.handleInit(initMessage{ProtocolVersion: 1, KeepaliveTime: 20}, [4]byte{10, 0, 0, 2})
 
 	if got := sess.currentKeepalive(); got != 20*time.Second {
 		t.Errorf("keepalive = %v, want 20s (the lower of 60 and 20)", got)
@@ -355,7 +355,7 @@ func TestRFC5036KeepaliveNegotiationRefusesHigher(t *testing.T) {
 
 	sess := rfcTestSession(local)
 	sess.keepaliveTime = 30 * time.Second
-	sess.handleInit(InitMessage{ProtocolVersion: 1, KeepaliveTime: 180}, [4]byte{10, 0, 0, 2})
+	sess.handleInit(initMessage{ProtocolVersion: 1, KeepaliveTime: 180}, [4]byte{10, 0, 0, 2})
 
 	if got := sess.currentKeepalive(); got != 30*time.Second {
 		t.Errorf("keepalive = %v, want 30s (the peer's higher 180s must not be adopted)", got)
@@ -463,7 +463,7 @@ func TestRFC5036HelloHoldTimeZeroUsesDefault(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			table := NewAdjacencyTable()
+			table := newAdjacencyTable()
 			pdu := PDUHeader{Version: ldpVersion, LSRID: [4]byte{10, 0, 0, 2}}
 			hello := HelloMessage{
 				HoldTime:      0,
@@ -505,7 +505,7 @@ func TestRFC5036HelloHoldTimeNonZeroNotDefaulted(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			table := NewAdjacencyTable()
+			table := newAdjacencyTable()
 			pdu := PDUHeader{Version: ldpVersion, LSRID: [4]byte{10, 0, 0, 3}}
 			hello := HelloMessage{
 				HoldTime:      tt.holdTime,

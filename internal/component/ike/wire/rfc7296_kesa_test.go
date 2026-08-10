@@ -165,7 +165,7 @@ func TestKesaSpecifiesDHGroup(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := c.sa.SpecifiesDHGroup(); got != c.want {
+			if got := c.sa.specifiesDHGroup(); got != c.want {
 				t.Fatalf("SpecifiesDHGroup() = %v, want %v", got, c.want)
 			}
 		})

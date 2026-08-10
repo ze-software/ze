@@ -11,7 +11,7 @@ type testValue struct {
 }
 
 func (t testValue) Hash() uint64 {
-	return HashString(t.data)
+	return hashString(t.data)
 }
 
 func (t testValue) Equal(other any) bool {
@@ -161,14 +161,14 @@ func TestAttributeStore_InternDirect(t *testing.T) {
 
 	// Use InternDirect for synchronous interning
 	v1 := testValue{data: "direct"}
-	r1 := store.InternDirect(v1)
+	r1 := store.internDirect(v1)
 	if r1.data != "direct" {
 		t.Errorf("expected 'direct', got %q", r1.data)
 	}
 
 	// Second intern should return same
 	v2 := testValue{data: "direct"}
-	r2 := store.InternDirect(v2)
+	r2 := store.internDirect(v2)
 	if r2.data != "direct" {
 		t.Errorf("expected 'direct', got %q", r2.data)
 	}
@@ -192,9 +192,9 @@ func TestHashHelpers(t *testing.T) {
 	}
 
 	// Test HashUint32
-	h4 := HashUint32(12345)
-	h5 := HashUint32(12345)
-	h6 := HashUint32(54321)
+	h4 := hashUint32(12345)
+	h5 := hashUint32(12345)
+	h6 := hashUint32(54321)
 
 	if h4 != h5 {
 		t.Error("same uint32 should produce same hash")
@@ -204,9 +204,9 @@ func TestHashHelpers(t *testing.T) {
 	}
 
 	// Test HashString
-	h7 := HashString("hello")
-	h8 := HashString("hello")
-	h9 := HashString("world")
+	h7 := hashString("hello")
+	h8 := hashString("hello")
+	h9 := hashString("world")
 
 	if h7 != h8 {
 		t.Error("same string should produce same hash")
@@ -216,9 +216,9 @@ func TestHashHelpers(t *testing.T) {
 	}
 
 	// Test CombineHashes
-	c1 := CombineHashes(h1, h4, h7)
-	c2 := CombineHashes(h1, h4, h7)
-	c3 := CombineHashes(h1, h4, h9)
+	c1 := combineHashes(h1, h4, h7)
+	c2 := combineHashes(h1, h4, h7)
+	c3 := combineHashes(h1, h4, h9)
 
 	if c1 != c2 {
 		t.Error("same combined hashes should be equal")
@@ -246,7 +246,7 @@ func BenchmarkAttributeStore_InternDirect(b *testing.B) {
 	value := testValue{data: "benchmark"}
 
 	for b.Loop() {
-		store.InternDirect(value)
+		store.internDirect(value)
 	}
 }
 

@@ -309,7 +309,7 @@ func (s *Server) opUnsubscribeEvents(proc *process.Process, _ json.RawMessage) (
 	if s.subscriptions == nil {
 		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
 	}
-	s.subscriptions.ClearProcess(proc)
+	s.subscriptions.clearProcess(proc)
 	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
 }
 

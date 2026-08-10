@@ -33,17 +33,17 @@ var (
 // evpnLogger is the package-level logger, disabled by default.
 var evpnLogger = slogutil.DiscardLogger()
 
-// SetEVPNLogger sets the package-level logger.
+// setEVPNLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_evpn.go with slogutil.PluginLogger().
-func SetEVPNLogger(l *slog.Logger) {
+func setEVPNLogger(l *slog.Logger) {
 	if l != nil {
 		evpnLogger = l
 	}
 }
 
-// RunEVPNPlugin runs the EVPN plugin using the SDK RPC protocol.
+// runEVPNPlugin runs the EVPN plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunEVPNPlugin(conn net.Conn) int {
+func runEVPNPlugin(conn net.Conn) int {
 	evpnLogger.Debug("evpn plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-evpn", conn)
@@ -234,7 +234,7 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 	case "type3":
 		return NewEVPNType3(p.rd, p.ethernetTag, p.ip), nil
 	case "type5":
-		return NewEVPNType5(p.rd, p.esi, p.ethernetTag, p.prefix, p.gateway, p.labels), nil
+		return newEVPNType5(p.rd, p.esi, p.ethernetTag, p.prefix, p.gateway, p.labels), nil
 	}
 	return nil, fmt.Errorf("unsupported EVPN route type: %s", routeType)
 }
@@ -266,9 +266,9 @@ const (
 	respDecodedJSON = "decoded json "
 )
 
-// GetEVPNYANG returns the embedded YANG schema for the evpn plugin.
+// getEVPNYANG returns the embedded YANG schema for the evpn plugin.
 // EVPN plugin doesn't augment config schema, returns empty.
-func GetEVPNYANG() string {
+func getEVPNYANG() string {
 	return ""
 }
 
@@ -320,8 +320,8 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	return 0
 }
 
-// RunEVPNDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
-func RunEVPNDecode(input io.Reader, output io.Writer) int {
+// runEVPNDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
+func runEVPNDecode(input io.Reader, output io.Writer) int {
 	writeUnknown := func() {
 		if _, err := fmt.Fprintln(output, "decoded unknown"); err != nil { //nolint:errcheck // output
 			evpnLogger.Debug("write error", "err", err)
@@ -465,7 +465,7 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 	result := make(map[string]any)
 
 	// For unparsed routes (EVPNGeneric), only output code, parsed, raw
-	if _, ok := e.(*EVPNGeneric); ok {
+	if _, ok := e.(*eVPNGeneric); ok {
 		result["code"] = int(e.RouteType())
 		result["parsed"] = false
 		result["raw"] = textbuf.StringHexUpper(rawData)

@@ -27,9 +27,9 @@ type Handler struct {
 	Cache func(data []byte) error
 }
 
-// HandleConfigChanged processes a config-changed notification from the hub.
+// handleConfigChanged processes a config-changed notification from the hub.
 // Triggers OnFetch if set.
-func (h *Handler) HandleConfigChanged(n fleet.ConfigChanged) {
+func (h *Handler) handleConfigChanged(n fleet.ConfigChanged) {
 	if h.OnFetch != nil {
 		h.OnFetch(n.Version)
 	}

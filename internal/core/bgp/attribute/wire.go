@@ -314,7 +314,7 @@ func init() {
 	knownAttrParsers[AttrNextHop] = func(d []byte, _ bool) (Attribute, error) { return ParseNextHop(d) }
 	knownAttrParsers[AttrMED] = func(d []byte, _ bool) (Attribute, error) { return ParseMED(d) }
 	knownAttrParsers[AttrLocalPref] = func(d []byte, _ bool) (Attribute, error) { return ParseLocalPref(d) }
-	knownAttrParsers[AttrAtomicAggregate] = func(d []byte, _ bool) (Attribute, error) { return ParseAtomicAggregate(d) }
+	knownAttrParsers[AttrAtomicAggregate] = func(d []byte, _ bool) (Attribute, error) { return parseAtomicAggregate(d) }
 	knownAttrParsers[AttrAggregator] = func(d []byte, asn4 bool) (Attribute, error) { return ParseAggregator(d, asn4) }
 	knownAttrParsers[AttrCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseCommunities(d) }
 	knownAttrParsers[AttrOriginatorID] = func(d []byte, _ bool) (Attribute, error) { return ParseOriginatorID(d) }

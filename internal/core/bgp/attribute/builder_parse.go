@@ -147,7 +147,7 @@ func parseSingleCommunity(s string) (uint32, error) {
 	// Check well-known communities first, against the one registry. A private
 	// table here accepted 5 names while the package parser accepted 31, so the
 	// same community name resolved or failed depending on the entry point.
-	if v, ok := CommunityValue(s); ok {
+	if v, ok := communityValue(s); ok {
 		return uint32(v), nil
 	}
 
@@ -206,7 +206,7 @@ func (b *Builder) ParseAIGP(s string) error {
 	if err != nil {
 		return fmt.Errorf("invalid aigp: %s", s)
 	}
-	b.SetAIGP(metric)
+	b.setAIGP(metric)
 	return nil
 }
 

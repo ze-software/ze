@@ -43,7 +43,7 @@ func TestISISNeighborsJSON(t *testing.T) {
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[{"system-id":"0000.0000.0002","state":"up"}]`, &got)}
 	req := httptest.NewRequest("GET", "/isis?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
-	h.HandleISISNeighbors()(rec, req)
+	h.handleISISNeighbors()(rec, req)
 
 	if got != "show isis neighbor" {
 		t.Errorf("dispatched %q, want 'show isis neighbor'", got)
@@ -62,7 +62,7 @@ func TestISISDatabaseJSON(t *testing.T) {
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[{"lsp-id":"0000.0000.0001.00-00","sequence":1}]`, &got)}
 	req := httptest.NewRequest("GET", "/isis/database?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
-	h.HandleISISDatabase()(rec, req)
+	h.handleISISDatabase()(rec, req)
 
 	if got != "show isis database" {
 		t.Errorf("dispatched %q, want 'show isis database'", got)
@@ -78,7 +78,7 @@ func TestISISNeighborsHTML(t *testing.T) {
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[]`, nil)}
 	req := httptest.NewRequest("GET", "/isis", http.NoBody)
 	rec := httptest.NewRecorder()
-	h.HandleISISNeighbors()(rec, req)
+	h.handleISISNeighbors()(rec, req)
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "IS-IS Neighbors") {
@@ -95,7 +95,7 @@ func TestISISNoDispatch(t *testing.T) {
 	h := &ISISHandlers{}
 	req := httptest.NewRequest("GET", "/isis?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
-	h.HandleISISNeighbors()(rec, req)
+	h.handleISISNeighbors()(rec, req)
 	if rec.Code != 503 {
 		t.Errorf("status = %d, want 503 when dispatch unavailable", rec.Code)
 	}
@@ -112,7 +112,7 @@ func TestISISSSEEmitsAndCloses(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		h.HandleISISNeighborsSSE()(rec, req)
+		h.handleISISNeighborsSSE()(rec, req)
 		close(done)
 	}()
 

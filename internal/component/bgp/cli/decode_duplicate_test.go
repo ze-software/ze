@@ -27,7 +27,7 @@ const dupOriginUpdateHex = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000016400101
 // VALIDATES: decode keeps the first ORIGIN (igp) for a duplicate-ORIGIN UPDATE.
 // PREVENTS: decode diagnostics diverging from the session's keep-first policy.
 func TestDecodeUpdateDuplicateOriginKeepFirst(t *testing.T) {
-	out, err := DecodeHexPacket(dupOriginUpdateHex, msgTypeUpdate, "", true)
+	out, err := decodeHexPacket(dupOriginUpdateHex, msgTypeUpdate, "", true)
 	require.NoError(t, err, "a duplicate-but-valid ORIGIN must decode, not error")
 
 	var env map[string]any

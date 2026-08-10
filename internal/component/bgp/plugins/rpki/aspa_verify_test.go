@@ -16,7 +16,7 @@ func TestASPAVerifyValid(t *testing.T) {
 	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 negative -- a path with no AS_SET
 	// runs the normal upstream verification algorithm (here yielding Valid), rather than being
 	// short-circuited to Unknown.
-	c := NewASPACache()
+	c := newASPACache()
 	// Path: 100 -> 200 -> 300 (neighbor=100, origin=300)
 	// 200 authorizes 100 as provider, 300 authorizes 200 as provider.
 	c.Set(200, []uint32{100})
@@ -31,7 +31,7 @@ func TestASPAVerifyValid(t *testing.T) {
 // VALIDATES: AC-3 — route with unauthorized provider -> Invalid.
 // PREVENTS: Unauthorized hops accepted as valid.
 func TestASPAVerifyInvalid(t *testing.T) {
-	c := NewASPACache()
+	c := newASPACache()
 	// Path: 100 -> 200 -> 300
 	// 200 authorizes 100, but 300 has ASPA and does NOT authorize 200.
 	c.Set(200, []uint32{100})
@@ -46,7 +46,7 @@ func TestASPAVerifyInvalid(t *testing.T) {
 // VALIDATES: AC-4 — route with no ASPA coverage -> Unknown.
 // PREVENTS: Routes without ASPA data incorrectly marked Valid or Invalid.
 func TestASPAVerifyUnknown(t *testing.T) {
-	c := NewASPACache()
+	c := newASPACache()
 	// Path: 100 -> 200 -> 300
 	// No ASPA records at all.
 
@@ -75,7 +75,7 @@ func TestASPAVerifyASSet(t *testing.T) {
 // VALIDATES: Single-hop = nothing to verify -> Valid.
 // PREVENTS: False Invalid on direct peering.
 func TestASPAVerifySingleHop(t *testing.T) {
-	c := NewASPACache()
+	c := newASPACache()
 
 	state := verifyASPA(c, []uint32{100})
 	assert.Equal(t, ASPAValid, state)
@@ -86,7 +86,7 @@ func TestASPAVerifySingleHop(t *testing.T) {
 // VALIDATES: Empty AS_PATH (IBGP/local) -> Valid.
 // PREVENTS: Panic on nil/empty path.
 func TestASPAVerifyEmptyPath(t *testing.T) {
-	c := NewASPACache()
+	c := newASPACache()
 
 	assert.Equal(t, ASPAValid, verifyASPA(c, nil))
 	assert.Equal(t, ASPAValid, verifyASPA(c, []uint32{}))
@@ -145,7 +145,7 @@ func TestASPANormalizeConfed(t *testing.T) {
 // VALIDATES: One "No Attestation" + all others "Provider+" -> Unknown.
 // PREVENTS: Unknown hops overridden by valid ones.
 func TestASPAVerifyMixedHops(t *testing.T) {
-	c := NewASPACache()
+	c := newASPACache()
 	// Path: 100 -> 200 -> 300
 	// 200 has ASPA: 100 is provider (Provider+).
 	// 300 has no ASPA (No Attestation).
@@ -160,7 +160,7 @@ func TestASPAVerifyMixedHops(t *testing.T) {
 // VALIDATES: Algorithm short-circuits on first "Not Provider+".
 // PREVENTS: Continuing verification past a known-bad hop.
 func TestASPAVerifyInvalidStopsEarly(t *testing.T) {
-	c := NewASPACache()
+	c := newASPACache()
 	// Path: 100 -> 200 -> 300 -> 400
 	// 200 has ASPA but does NOT authorize 100. (Not Provider+)
 	// 300 and 400 also have ASPA records.
@@ -223,7 +223,7 @@ func TestASPAStateForPath(t *testing.T) {
 	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-1 positive -- ASPA verification is run
 	// for a received route's AS_PATH: a customer/lateral-peer path with authorized providers
 	// resolves to Valid via the same entry point handleStructuredUpdate uses.
-	c := NewASPACache()
+	c := newASPACache()
 	// Path 100 -> 200 -> 300: 200 authorizes 100, 300 authorizes 200.
 	c.Set(200, []uint32{100})
 	c.Set(300, []uint32{200})
@@ -236,7 +236,7 @@ func TestASPAStateForPath(t *testing.T) {
 	assert.Equal(t, []uint32{100, 200, 300}, normalized)
 
 	// An unauthorized hop on a received path resolves to Invalid (verification actually runs).
-	badCache := NewASPACache()
+	badCache := newASPACache()
 	badCache.Set(200, []uint32{100})
 	badCache.Set(300, []uint32{999}) // 200 not authorized
 	state, _ = aspaStateForPath(badCache, segments)

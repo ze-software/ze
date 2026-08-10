@@ -30,7 +30,7 @@ var kmsgLevelNames = [8]string{
 	"emerg", "alert", "crit", "err", "warning", "notice", "info", "debug",
 }
 
-func RegisterShowKernelLog() {
+func registerShowKernelLog() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-show:system-kernel-log", Handler: handleShowSystemKernelLog},
 	)

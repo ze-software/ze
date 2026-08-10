@@ -284,7 +284,7 @@ func TestWinDeleteDefersWhileProbeOutstanding(t *testing.T) {
 
 	// The make-before-break Delete at inbound.go:131 finds it held as well. The rekey
 	// itself still completes, so the window costs the exchange nothing.
-	newSPI, err := GenerateESPSPI()
+	newSPI, err := generateESPSPI()
 	if err != nil {
 		t.Fatalf("GenerateESPSPI: %v", err)
 	}

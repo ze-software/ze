@@ -145,7 +145,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			ifIndex:       ifindex,
 			hwAddr:        hwaddr,
 			mtu:           mtu,
-			sessions:      NewSessionTable(ic.Name, ic.MaxSessions),
+			sessions:      newSessionTable(ic.Name, ic.MaxSessions),
 			cookieKey:     cookieKey,
 			limiter:       NewPADILimiter(s.params.PADIRateLimit),
 			cookieTimeout: s.params.CookieTimeout,

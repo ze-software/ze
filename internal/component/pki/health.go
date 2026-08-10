@@ -29,9 +29,9 @@ type pkiMetrics struct {
 
 var pkiMetricsPtr atomic.Pointer[pkiMetrics]
 
-// RegisterHealth registers the PKI certificate expiry health check.
+// registerHealth registers the PKI certificate expiry health check.
 // Called once at startup from the component wiring path.
-func RegisterHealth() {
+func registerHealth() {
 	health.Register("pki", checkHealth)
 }
 

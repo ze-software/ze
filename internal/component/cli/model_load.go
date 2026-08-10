@@ -70,7 +70,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	}
 
 	// Write trial config to .live.conf (audit trail + pending indicator)
-	if err := m.editor.SaveLive(); err != nil {
+	if err := m.editor.saveLive(); err != nil {
 		return commandResult{}, err
 	}
 
@@ -79,11 +79,11 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	if m.editor.HasSession() {
 		commitResult, err := m.editor.CommitSession()
 		if err != nil {
-			m.editor.DeleteLive()
+			m.editor.deleteLive()
 			return commandResult{}, err
 		}
 		if len(commitResult.Conflicts) > 0 {
-			m.editor.DeleteLive()
+			m.editor.deleteLive()
 			var b textbuf.Buffer
 			b.Str("Commit blocked by conflicts:\n")
 			for _, c := range commitResult.Conflicts {
@@ -93,7 +93,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 		}
 	} else {
 		if err := m.editor.Save(); err != nil {
-			m.editor.DeleteLive()
+			m.editor.deleteLive()
 			return commandResult{}, err
 		}
 	}
@@ -133,7 +133,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 	}
 
 	// Clean up .live.conf — .conf already has the confirmed content
-	m.editor.DeleteLive()
+	m.editor.deleteLive()
 	m.searchCache = "" // tree finalized, invalidate cached set-view
 
 	msg := "Configuration confirmed and saved permanently."
@@ -174,7 +174,7 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 	}
 
 	// Clean up .live.conf
-	m.editor.DeleteLive()
+	m.editor.deleteLive()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	msg := "Changes rolled back to previous configuration."
@@ -231,7 +231,7 @@ func (m *Model) cmdLoad(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("cannot read %s: %w", args[0], err)
 	}
 
-	m.editor.SetWorkingContent(string(data))
+	m.editor.setWorkingContent(string(data))
 	m.editor.MarkDirty()
 
 	var tb textbuf.Buffer
@@ -261,7 +261,7 @@ func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 
 	merged := mergeConfigs(currentContent, mergeContent)
 
-	m.editor.SetWorkingContent(merged)
+	m.editor.setWorkingContent(merged)
 	m.editor.MarkDirty()
 
 	var tb textbuf.Buffer
@@ -366,7 +366,7 @@ func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
 func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, error) {
 	var tb textbuf.Buffer
 	if action == loadActionReplace {
-		m.editor.SetWorkingContent(content)
+		m.editor.setWorkingContent(content)
 		m.editor.MarkDirty()
 		return commandResult{
 			statusMessage: tb.Str("Configuration loaded from ").Str(path).String(),
@@ -378,7 +378,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 	// action == "merge"
 	currentContent := m.editor.WorkingContent()
 	merged := mergeConfigs(currentContent, content)
-	m.editor.SetWorkingContent(merged)
+	m.editor.setWorkingContent(merged)
 	m.editor.MarkDirty()
 	return commandResult{
 		statusMessage: tb.Reset().Str("Configuration merged from ").Str(path).String(),
@@ -404,7 +404,7 @@ func (m *Model) applyLoadRelative(action, content, path string) (commandResult, 
 		newContent = mergeAtContext(currentContent, m.contextPath, content)
 	}
 
-	m.editor.SetWorkingContent(newContent)
+	m.editor.setWorkingContent(newContent)
 	m.editor.MarkDirty()
 
 	verb := "loaded"

@@ -11,10 +11,10 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
-// SetConfigCapabilityGetter sets the callback buildOpen uses to read the
+// setConfigCapabilityGetter sets the callback buildOpen uses to read the
 // configured capabilities under the Peer's lock. Called by Peer at session
 // creation (peer_run.go). See the configCapGetter field on Session.
-func (s *Session) SetConfigCapabilityGetter(getter func() []capability.Capability) {
+func (s *Session) setConfigCapabilityGetter(getter func() []capability.Capability) {
 	s.configCapGetter = getter
 }
 

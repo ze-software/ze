@@ -129,9 +129,9 @@ func (h *Hub) ProcessConfig(ctx context.Context, blocks []ConfigBlock) error {
 	return nil
 }
 
-// RouteRollback sends a rollback command to a plugin.
+// routeRollback sends a rollback command to a plugin.
 // Format: <namespace> rollback.
-func (h *Hub) RouteRollback(ctx context.Context, namespace string) error {
+func (h *Hub) routeRollback(ctx context.Context, namespace string) error {
 	return h.routeTransaction(ctx, namespace, "rollback")
 }
 
@@ -173,11 +173,11 @@ func splitHandler(handler string) (namespace, path string) {
 	return before, after
 }
 
-// ParseCommand parses a namespace command.
+// parseCommand parses a namespace command.
 // Format: <namespace> <path> <action> {json}.
 // Or: <namespace> <action> {json} (for namespace-level config).
 // Or: <namespace> commit|rollback|diff.
-func ParseCommand(line string) (*ConfigBlock, error) {
+func parseCommand(line string) (*ConfigBlock, error) {
 	// Find JSON start.
 	jsonIdx := strings.Index(line, "{")
 	if jsonIdx < 0 {

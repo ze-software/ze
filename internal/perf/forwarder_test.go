@@ -30,7 +30,7 @@ func doBGPHandshake(t *testing.T, conn net.Conn, cfg SessionConfig) {
 		t.Fatalf("set deadline: %v", err)
 	}
 
-	if _, err := DoHandshake(conn, cfg); err != nil {
+	if _, err := doHandshake(conn, cfg); err != nil {
 		t.Fatalf("handshake: %v", err)
 	}
 
@@ -211,7 +211,7 @@ func (f *testForwarder) doHandshake(conn net.Conn) error {
 	}
 
 	// Send our KEEPALIVE.
-	if err := WriteMessage(conn, BuildKeepalive()); err != nil {
+	if err := WriteMessage(conn, buildKeepalive()); err != nil {
 		return fmt.Errorf("sending KEEPALIVE: %w", err)
 	}
 
@@ -228,7 +228,7 @@ func (f *testForwarder) keepaliveLoop(ctx context.Context, conn net.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	ka := BuildKeepalive()
+	ka := buildKeepalive()
 
 	for {
 		select {
@@ -407,7 +407,7 @@ func (f *testSinkForwarder) doHandshake(conn net.Conn) error {
 		return fmt.Errorf("expected KEEPALIVE, got type %d", msgType)
 	}
 
-	if err := WriteMessage(conn, BuildKeepalive()); err != nil {
+	if err := WriteMessage(conn, buildKeepalive()); err != nil {
 		return fmt.Errorf("sending KEEPALIVE: %w", err)
 	}
 
@@ -423,7 +423,7 @@ func (f *testSinkForwarder) sinkLoop(ctx context.Context, conn net.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	ka := BuildKeepalive()
+	ka := buildKeepalive()
 
 	for {
 		select {

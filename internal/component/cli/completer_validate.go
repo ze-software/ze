@@ -85,9 +85,9 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 	return entry, nil
 }
 
-// GetListKeyEntry returns the YANG entry for a list's key leaf.
+// getListKeyEntry returns the YANG entry for a list's key leaf.
 // For example, peer list with key "address" returns the address leaf entry.
-func (c *Completer) GetListKeyEntry(listPath []string) *gyang.Entry {
+func (c *Completer) getListKeyEntry(listPath []string) *gyang.Entry {
 	listEntry := c.getEntry(listPath)
 	if listEntry == nil || !listEntry.IsList() || listEntry.Key == "" {
 		return nil

@@ -97,7 +97,7 @@ func (e *FlowEncoder) sendDataMessage(sender *flowexport.Sender, recs []FlowReco
 	var n int
 	var count uint32
 	if v6 {
-		n, count = WriteFlowDataSet6(b, off, recs, FlowTemplateID6)
+		n, count = writeFlowDataSet6(b, off, recs, FlowTemplateID6)
 	} else {
 		n, count = WriteFlowDataSet(b, off, recs, FlowTemplateID)
 	}

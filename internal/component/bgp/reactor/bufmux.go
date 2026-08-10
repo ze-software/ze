@@ -168,8 +168,8 @@ func (cb *combinedBudget) releaseBytes(blockBytes int) {
 	cb.allocated.Add(-int64(blockBytes))
 }
 
-// AllocatedBytes returns the current total across all muxes.
-func (cb *combinedBudget) AllocatedBytes() int64 {
+// allocatedBytes returns the current total across all muxes.
+func (cb *combinedBudget) allocatedBytes() int64 {
 	return cb.allocated.Load()
 }
 
@@ -207,22 +207,22 @@ func newBufMux(bufSize, blockSize int) *BufMux {
 	}
 }
 
-// SetMaxBlocks limits the number of blocks. 0 = unlimited.
+// setMaxBlocks limits the number of blocks. 0 = unlimited.
 // Must be called before concurrent use.
-func (m *BufMux) SetMaxBlocks(n int) {
+func (m *BufMux) setMaxBlocks(n int) {
 	m.mu.Lock()
 	m.maxBlocks = n
 	m.mu.Unlock()
 }
 
-// SetBudget sets a shared budget that limits combined allocated bytes
+// setBudget sets a shared budget that limits combined allocated bytes
 // across multiple BufMux instances. The budget is an atomic counter --
 // safe to check from growLocked without cross-mux deadlock.
 // Nil = unlimited growth (default). Safe for concurrent use.
 //
 // If blocks already exist (budget set after initial growth), their bytes
 // are added to the budget counter so accounting stays consistent.
-func (m *BufMux) SetBudget(cb *combinedBudget) {
+func (m *BufMux) setBudget(cb *combinedBudget) {
 	m.mu.Lock()
 	m.budget = cb
 	if cb != nil {
@@ -409,17 +409,17 @@ func (p *probedPool) Return(h BufHandle) {
 	p.mux.Return(h)
 }
 
-// SetProbe sets the function fired on every Get(). The probe target owns
+// setProbe sets the function fired on every Get(). The probe target owns
 // the counter and decides when to check. Must be called before concurrent use.
-func (p *probedPool) SetProbe(fn func()) {
+func (p *probedPool) setProbe(fn func()) {
 	p.probe = fn
 }
 
-// AddProbe chains an additional probe callback. The new probe fires after
+// addProbe chains an additional probe callback. The new probe fires after
 // any existing probe on every Get(). Use this to add overflow/backpressure
 // monitoring without replacing the collapse probe.
 // Must be called before concurrent use.
-func (p *probedPool) AddProbe(fn func()) {
+func (p *probedPool) addProbe(fn func()) {
 	old := p.probe
 	if old == nil {
 		p.probe = fn
@@ -433,16 +433,16 @@ func (p *probedPool) Stats() (allocated, inUse int) {
 	return p.mux.Stats()
 }
 
-// SetMaxBlocks limits the number of blocks in the underlying BufMux.
+// setMaxBlocks limits the number of blocks in the underlying BufMux.
 // Must be called before concurrent use.
-func (p *probedPool) SetMaxBlocks(n int) {
-	p.mux.SetMaxBlocks(n)
+func (p *probedPool) setMaxBlocks(n int) {
+	p.mux.setMaxBlocks(n)
 }
 
-// SetBudget sets the shared budget on the underlying BufMux.
+// setBudget sets the shared budget on the underlying BufMux.
 // Must be called before concurrent use.
-func (p *probedPool) SetBudget(cb *combinedBudget) {
-	p.mux.SetBudget(cb)
+func (p *probedPool) setBudget(cb *combinedBudget) {
+	p.mux.setBudget(cb)
 }
 
 // tryCollapse triggers a collapse check on the underlying BufMux.
@@ -593,9 +593,9 @@ func newMixedBufMux() *MixedBufMux {
 	}
 }
 
-// SetByteBudget sets the byte budget by converting to a max block count.
+// setByteBudget sets the byte budget by converting to a max block count.
 // maxBlocks = maxBytes / 64K. 0 = unlimited.
-func (m *MixedBufMux) SetByteBudget(maxBytes int64) {
+func (m *MixedBufMux) setByteBudget(maxBytes int64) {
 	m.mu.Lock()
 	if maxBytes <= 0 {
 		m.maxBlocks = 0
@@ -605,8 +605,8 @@ func (m *MixedBufMux) SetByteBudget(maxBytes int64) {
 	m.mu.Unlock()
 }
 
-// ByteBudget returns the current byte budget (maxBlocks * 64K). 0 = unlimited.
-func (m *MixedBufMux) ByteBudget() int64 {
+// byteBudget returns the current byte budget (maxBlocks * 64K). 0 = unlimited.
+func (m *MixedBufMux) byteBudget() int64 {
 	m.mu.Lock()
 	n := m.maxBlocks
 	m.mu.Unlock()
@@ -719,12 +719,12 @@ func (m *MixedBufMux) Stats() (totalBytes, usedBytes int64) {
 	return total, used
 }
 
-// UsedRatio returns liveBlocks / maxBlocks (0.0 to 1.0).
+// usedRatio returns liveBlocks / maxBlocks (0.0 to 1.0).
 // This reflects real memory pressure -- live blocks (active + free, all
 // holding backing memory) against the hard ceiling. The congestion
 // controller uses this for 80% denial and 95% teardown. Returns 0.0
 // when unlimited.
-func (m *MixedBufMux) UsedRatio() float64 {
+func (m *MixedBufMux) usedRatio() float64 {
 	m.mu.Lock()
 	maxB := m.maxBlocks
 	live := m.liveBlocks
@@ -827,7 +827,7 @@ func (m *MixedBufMux) acquireBlockLocked() *overflowBlock {
 func withCollapseProbe(pp *probedPool, interval int) *probedPool {
 	var count atomic.Int64
 	every := int64(interval)
-	pp.SetProbe(func() {
+	pp.setProbe(func() {
 		if n := count.Add(1); n%every == 0 {
 			pp.tryCollapse()
 		}

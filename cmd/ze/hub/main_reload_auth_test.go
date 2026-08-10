@@ -49,11 +49,11 @@ func TestRunReloadUndoesCredentialsWhenCertificateRotationFails(t *testing.T) {
 		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
 		token:                   "original",
 	}
-	lm := NewListenerMigrator(nil)
+	lm := newListenerMigrator(nil)
 	lm.SetWebTLS(failingTLS)
 	lm.SetREST(rest)
-	lm.MarkAuthenticated("rest")
-	lm.SetAuthReloader("rest", staticAuth(false, ""))
+	lm.markAuthenticated("rest")
+	lm.setAuthReloader("rest", staticAuth(false, ""))
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return tree, treeFromMap(tree), nil
@@ -88,11 +88,11 @@ func TestRunReloadKeepsCredentialsWhenReloadSucceeds(t *testing.T) {
 		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
 		token:                   "original",
 	}
-	lm := NewListenerMigrator(nil)
+	lm := newListenerMigrator(nil)
 	lm.SetWebTLS(&fakeTLSUpdatable{})
 	lm.SetREST(rest)
-	lm.MarkAuthenticated("rest")
-	lm.SetAuthReloader("rest", staticAuth(true, "reloaded"))
+	lm.markAuthenticated("rest")
+	lm.setAuthReloader("rest", staticAuth(true, "reloaded"))
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return tree, treeFromMap(tree), nil

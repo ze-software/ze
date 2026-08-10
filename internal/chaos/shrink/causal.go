@@ -10,11 +10,11 @@ import (
 	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
-// RemoveWithDependents returns a copy of events with the event at removeIdx
+// removeWithDependents returns a copy of events with the event at removeIdx
 // removed, along with any subsequent events whose preconditions are broken
 // by the removal. This preserves causal consistency: route events require
 // an established peer, withdrawals require a prior announcement, etc.
-func RemoveWithDependents(events []peer.Event, removeIdx int) []peer.Event {
+func removeWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 	if removeIdx < 0 || removeIdx >= len(events) {
 		return events
 	}

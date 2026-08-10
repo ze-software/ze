@@ -7,15 +7,15 @@ import (
 	"testing"
 )
 
-func testCommandTree() *CommandNode {
-	return &CommandNode{
-		Children: map[string]*CommandNode{
+func testCommandTree() *commandNode {
+	return &commandNode{
+		Children: map[string]*commandNode{
 			"peer": {
 				Name:        "peer",
 				Description: "Peer operations",
-				Children: map[string]*CommandNode{
+				Children: map[string]*commandNode{
 					"list": {Name: "list", Description: "List all peers"},
-					"show": {Name: "show", Description: "Show peer details", Children: map[string]*CommandNode{
+					"show": {Name: "show", Description: "Show peer details", Children: map[string]*commandNode{
 						"capabilities": {Name: "capabilities", Description: "Show peer capabilities"},
 						"statistics":   {Name: "statistics", Description: "Show peer statistics"},
 					}},
@@ -24,14 +24,14 @@ func testCommandTree() *CommandNode {
 			"daemon": {
 				Name:        "daemon",
 				Description: "Daemon operations",
-				Children: map[string]*CommandNode{
+				Children: map[string]*commandNode{
 					"status": {Name: "status", Description: "Show daemon status"},
 				},
 			},
 			"rib": {
 				Name:        "rib",
 				Description: "RIB operations",
-				Children: map[string]*CommandNode{
+				Children: map[string]*commandNode{
 					"show": {Name: "show", Description: "Show RIB entries"},
 				},
 			},

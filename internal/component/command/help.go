@@ -47,10 +47,10 @@ func FindNode(root *Node, path []string) *Node {
 	return current
 }
 
-// WriteHelp writes formatted help for the node at the given path.
+// writeHelp writes formatted help for the node at the given path.
 // If path is nil/empty, writes top-level help (lists children of root).
 // Returns true if the path was found, false if the path does not exist or root is nil.
-func WriteHelp(w io.Writer, root *Node, path []string) bool {
+func writeHelp(w io.Writer, root *Node, path []string) bool {
 	if root == nil {
 		return false
 	}

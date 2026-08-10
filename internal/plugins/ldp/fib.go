@@ -46,7 +46,7 @@ func applyRemoteBinding(fib *ldpFIB, fec netip.Prefix, label uint32, nextHop net
 // the kernel forwarding. Returns the removed binding (nil if none). The caller
 // must hold the reconcile lock (withReconcileLock).
 func withdrawRemoteBinding(fib *ldpFIB, lib *LIB, fec netip.Prefix, peerKey string, log *slog.Logger) *LabelBinding {
-	removed := lib.RemoveRemote(fec, peerKey)
+	removed := lib.removeRemote(fec, peerKey)
 	reconcileFEC(fib, lib, fec, log)
 	return removed
 }
@@ -76,7 +76,7 @@ func reconcileFEC(fib *ldpFIB, lib *LIB, fec netip.Prefix, log *slog.Logger) {
 func reconcilePeerDown(fib *ldpFIB, lib *LIB, peerKey string, log *slog.Logger) []*LabelBinding {
 	var removed []*LabelBinding
 	fib.withReconcileLock(func() {
-		removed = lib.RemoveAllForPeer(peerKey)
+		removed = lib.removeAllForPeer(peerKey)
 	})
 	for _, b := range removed {
 		fib.withReconcileLock(func() {

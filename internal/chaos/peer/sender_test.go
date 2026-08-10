@@ -94,7 +94,7 @@ func TestMultipleRoutesDifferent(t *testing.T) {
 // VALIDATES: Withdrawal UPDATE contains the prefix in WithdrawnRoutes section.
 // PREVENTS: Withdrawal encoded as announcement instead of withdrawal.
 func TestBuildWithdrawalSingle(t *testing.T) {
-	data := BuildWithdrawal([]netip.Prefix{netip.MustParsePrefix("10.0.1.0/24")})
+	data := buildWithdrawal([]netip.Prefix{netip.MustParsePrefix("10.0.1.0/24")})
 
 	require.NotNil(t, data)
 	assert.Equal(t, byte(2), data[18], "message type should be UPDATE")
@@ -124,7 +124,7 @@ func TestBuildWithdrawalMultiple(t *testing.T) {
 		netip.MustParsePrefix("10.0.2.0/24"),
 		netip.MustParsePrefix("10.0.3.0/24"),
 	}
-	data := BuildWithdrawal(prefixes)
+	data := buildWithdrawal(prefixes)
 
 	require.NotNil(t, data)
 	// 3 x /24 = 3 x 4 bytes = 12 bytes withdrawn.
@@ -140,10 +140,10 @@ func TestBuildWithdrawalMultiple(t *testing.T) {
 // VALIDATES: No UPDATE produced for zero withdrawals.
 // PREVENTS: Sending empty UPDATEs that confuse Ze.
 func TestBuildWithdrawalEmpty(t *testing.T) {
-	data := BuildWithdrawal(nil)
+	data := buildWithdrawal(nil)
 	assert.Nil(t, data)
 
-	data = BuildWithdrawal([]netip.Prefix{})
+	data = buildWithdrawal([]netip.Prefix{})
 	assert.Nil(t, data)
 }
 
@@ -152,7 +152,7 @@ func TestBuildWithdrawalEmpty(t *testing.T) {
 // VALIDATES: Malformed UPDATE has valid BGP framing but invalid ORIGIN value.
 // PREVENTS: Malformed message rejected by Ze before reaching error handling.
 func TestBuildMalformedUpdate(t *testing.T) {
-	data := BuildMalformedUpdate()
+	data := buildMalformedUpdate()
 
 	require.NotNil(t, data)
 	require.Greater(t, len(data), 19, "must be larger than header")
@@ -196,7 +196,7 @@ func TestBuildVPNRoute(t *testing.T) {
 		Key:     "vpn-test",
 	}
 
-	data := sender.BuildVPNRoute(route)
+	data := sender.buildVPNRoute(route)
 
 	require.NotNil(t, data)
 	assert.Greater(t, len(data), 19, "VPN UPDATE must be larger than header")
@@ -223,7 +223,7 @@ func TestBuildEVPNRoute(t *testing.T) {
 		Key:         "evpn-test",
 	}
 
-	data := sender.BuildEVPNRoute(route)
+	data := sender.buildEVPNRoute(route)
 
 	require.NotNil(t, data)
 	assert.Greater(t, len(data), 19, "EVPN UPDATE must be larger than header")
@@ -248,7 +248,7 @@ func TestBuildFlowSpecRoute(t *testing.T) {
 		Key:          "flow-test",
 	}
 
-	data := sender.BuildFlowSpecRoute(route)
+	data := sender.buildFlowSpecRoute(route)
 
 	require.NotNil(t, data)
 	assert.Greater(t, len(data), 19, "FlowSpec UPDATE must be larger than header")
@@ -294,7 +294,7 @@ func TestBuildWithdrawalRoundTrip(t *testing.T) {
 		netip.MustParsePrefix("10.0.1.0/24"),
 		netip.MustParsePrefix("172.16.0.0/16"),
 	}
-	data := BuildWithdrawal(original)
+	data := buildWithdrawal(original)
 	require.NotNil(t, data)
 
 	// Parse the withdrawn routes section.

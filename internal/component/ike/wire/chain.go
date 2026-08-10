@@ -57,9 +57,9 @@ func ParsePayloadChain(data []byte, firstType uint8) ([]PayloadEntry, error) {
 			if gh.Critical {
 				// RFC 7296 Section 2.5: the answering Notify carries the one-octet
 				// payload type, so the error carries it too.
-				return nil, &UnsupportedCritError{PayloadType: nextType}
+				return nil, &unsupportedCritError{PayloadType: nextType}
 			}
-			payload = &PayloadRaw{PayloadType: nextType, Data: bodyData}
+			payload = &payloadRaw{PayloadType: nextType, Data: bodyData}
 		default:
 			return nil, err
 		}

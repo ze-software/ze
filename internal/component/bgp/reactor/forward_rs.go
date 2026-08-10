@@ -378,7 +378,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		if mods.IsWithdraw() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := r.fwdPool.OutgoingPool(peerKey)
+			modPool := r.fwdPool.outgoingPool(peerKey)
 			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
 				modBufIdx = bufIdx
@@ -390,7 +390,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := r.fwdPool.OutgoingPool(peerKey)
+			modPool := r.fwdPool.outgoingPool(peerKey)
 
 			// The same dedup as the general rail, from the same implementation.
 			// This is the rail where it matters most: a route server fans every
@@ -508,7 +508,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				}
 				if written {
 					delivered++
-					r.fwdPool.RecordForwarded(sourcePeerAddr)
+					r.fwdPool.recordForwarded(sourcePeerAddr)
 				} else {
 					// Consumed but NOT delivered: the peer left Established, or a
 					// write failed partway. Name it -- this is the peer's route
@@ -522,10 +522,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				}
 			case r.fwdPool.TryDispatch(pending[i].key, pending[i].item):
 				delivered++
-				r.fwdPool.RecordForwarded(sourcePeerAddr)
+				r.fwdPool.recordForwarded(sourcePeerAddr)
 			case r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item):
 				delivered++
-				r.fwdPool.RecordOverflowed(sourcePeerAddr)
+				r.fwdPool.recordOverflowed(sourcePeerAddr)
 			default:
 				// Neither rail took it. Without this arm the item vanished with no
 				// trace and no accounting.

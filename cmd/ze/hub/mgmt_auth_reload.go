@@ -81,7 +81,7 @@ func markMgmtAuth(lm *ListenerMigrator, classified map[string]bool) {
 	// Map order is irrelevant: each name writes its own key.
 	for name, authenticated := range classified {
 		if authenticated {
-			lm.MarkAuthenticated(name)
+			lm.markAuthenticated(name)
 			continue
 		}
 		lm.MarkUnauthenticated(name)
@@ -96,13 +96,13 @@ func markMgmtAuth(lm *ListenerMigrator, classified map[string]bool) {
 // so the reload guard has no record of it and leaves it alone, which is the
 // same answer boot gives.
 func registerMgmtAuthReloaders(lm *ListenerMigrator, in mgmtAuthInputs) {
-	lm.SetAuthReloader(svcWeb, webAuthReloader(in))
-	lm.SetAuthReloader(svcMCP, mcpAuthReloader(in))
+	lm.setAuthReloader(svcWeb, webAuthReloader(in))
+	lm.setAuthReloader(svcMCP, mcpAuthReloader(in))
 
 	// REST and gRPC read one api-server block, so they share one answer.
 	api := apiAuthReloader(in)
-	lm.SetAuthReloader(svcREST, api)
-	lm.SetAuthReloader(svcGRPC, api)
+	lm.setAuthReloader(svcREST, api)
+	lm.setAuthReloader(svcGRPC, api)
 }
 
 // webAuthReloader resolves whether the web server the reloaded config describes

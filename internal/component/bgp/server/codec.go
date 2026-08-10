@@ -18,9 +18,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// CodecRPCHandlers returns the map of BGP codec RPC method handlers.
+// codecRPCHandlers returns the map of BGP codec RPC method handlers.
 // Registered with the plugin registry via bgp/server/register.go init().
-func CodecRPCHandlers() map[string]func(json.RawMessage) (any, error) {
+func codecRPCHandlers() map[string]func(json.RawMessage) (any, error) {
 	return map[string]func(json.RawMessage) (any, error){
 		"ze-plugin-engine:decode-nlri":       handleDecodeNLRI,
 		"ze-plugin-engine:encode-nlri":       handleEncodeNLRI,

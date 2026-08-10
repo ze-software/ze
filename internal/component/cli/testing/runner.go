@@ -32,14 +32,14 @@ type TestResult struct {
 	Steps    []trace.StepResult
 }
 
-// RunETTest parses and executes an .et test from content string.
+// runETTest parses and executes an .et test from content string.
 // Returns a TestResult with pass/fail status and any error message.
-func RunETTest(content string) *TestResult {
+func runETTest(content string) *TestResult {
 	start := time.Now()
 	result := &TestResult{}
 
 	// Parse the .et content
-	tc, err := ParseETFile(content)
+	tc, err := parseETFile(content)
 	if err != nil {
 		result.Error = fmt.Sprintf("parse error: %v", err)
 		return result
@@ -61,7 +61,7 @@ func RunETFile(path string) *TestResult {
 	if err != nil {
 		return &TestResult{Error: fmt.Sprintf("reading file: %v", err)}
 	}
-	return RunETTest(string(content))
+	return runETTest(string(content))
 }
 
 // runTestCase executes a parsed test case.
@@ -193,9 +193,9 @@ func runTestCase(tc *TestCase) *TestResult {
 	}
 
 	// createModel builds a HeadlessModel based on the current mode.
-	createModel := func() (*HeadlessModel, error) {
+	createModel := func() (*headlessModel, error) {
 		if editorMode == "operational" || editorMode == "command" {
-			return NewHeadlessCommandModel(), nil
+			return newHeadlessCommandModel(), nil
 		}
 		if configPath == "" {
 			return nil, errNoConfigFileSpecifiedUseOption
@@ -204,13 +204,13 @@ func runTestCase(tc *TestCase) *TestResult {
 			return nil, fmt.Errorf("config file not found: %s", configPath)
 		}
 		if sessionUser != "" {
-			return NewHeadlessModelWithSession(configPath, sessionUser, sessionOrigin)
+			return newHeadlessModelWithSession(configPath, sessionUser, sessionOrigin)
 		}
-		return NewHeadlessModel(configPath)
+		return newHeadlessModel(configPath)
 	}
 
 	// wireHistory sets up history persistence on the model.
-	wireHistory := func(hm *HeadlessModel) {
+	wireHistory := func(hm *headlessModel) {
 		if historyStore != nil {
 			hm.Model().SetHistory(cli.NewHistory(historyStore, "testuser"))
 		}
@@ -221,12 +221,12 @@ func runTestCase(tc *TestCase) *TestResult {
 		result.Error = fmt.Sprintf("creating editor: %v", hmErr)
 		return result
 	}
-	hm.SetTmpDir(tmpDir)
+	hm.setTmpDir(tmpDir)
 	wireHistory(hm)
 
 	// Multi-session map: session name -> headless model.
 	// SEQUENTIAL: test steps run serially; no concurrent map access.
-	sessions := map[string]*HeadlessModel{}
+	sessions := map[string]*headlessModel{}
 
 	// Configure mock reload notifier if requested
 	switch reloadMode {
@@ -261,7 +261,7 @@ func runTestCase(tc *TestCase) *TestResult {
 		case StepSession:
 			sa := tc.Sessions[step.SessionIndex]
 			if sa.User != "" {
-				newHM, sessionErr := NewHeadlessModelWithSession(configPath, sa.User, sa.Origin)
+				newHM, sessionErr := newHeadlessModelWithSession(configPath, sa.User, sa.Origin)
 				result.Steps = append(result.Steps, trace.StepResult{
 					Step: stepNum, Kind: "session", Assert: sa.Name,
 					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
@@ -271,7 +271,7 @@ func runTestCase(tc *TestCase) *TestResult {
 					result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (session ").Str(sa.Name).Str("): ").Err(sessionErr).String()
 					return result
 				}
-				newHM.SetTmpDir(tmpDir)
+				newHM.setTmpDir(tmpDir)
 				sessions[sa.Name] = newHM
 				hm = newHM
 			} else {
@@ -294,7 +294,7 @@ func runTestCase(tc *TestCase) *TestResult {
 		case StepRestart:
 			// Drain pending commands on the old model before replacing it,
 			// so timer goroutines don't outlive the model.
-			hm.SettleWait()
+			hm.settleWait()
 			newHM, restartErr := createModel()
 			result.Steps = append(result.Steps, trace.StepResult{
 				Step: stepNum, Kind: "restart",
@@ -305,14 +305,14 @@ func runTestCase(tc *TestCase) *TestResult {
 				result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (restart): ").Err(restartErr).String()
 				return result
 			}
-			newHM.SetTmpDir(tmpDir)
+			newHM.setTmpDir(tmpDir)
 			wireHistory(newHM)
 			hm = newHM
 
 		case StepInput:
 			inp := tc.Inputs[step.InputIndex]
-			input := inp.ToInput()
-			msgs, err := input.ToMessages()
+			input := inp.toInput()
+			msgs, err := input.toMessages()
 			if err != nil {
 				result.Steps = append(result.Steps, trace.StepResult{
 					Step: stepNum, Kind: "input", Assert: inp.Action,
@@ -324,7 +324,7 @@ func runTestCase(tc *TestCase) *TestResult {
 			}
 			var sendErr error
 			for _, msg := range msgs {
-				if sendErr = hm.SendMsg(msg); sendErr != nil {
+				if sendErr = hm.sendMsg(msg); sendErr != nil {
 					break
 				}
 			}
@@ -356,9 +356,9 @@ func runTestCase(tc *TestCase) *TestResult {
 			exp := tc.Expects[step.ExpectIndex]
 			var lastErr error
 			for range 5 {
-				hm.SettleWait()
-				lastErr = CheckExpectation(exp, hm)
-				if lastErr == nil || !hm.HasPending() {
+				hm.settleWait()
+				lastErr = checkExpectation(exp, hm)
+				if lastErr == nil || !hm.hasPending() {
 					break
 				}
 			}

@@ -34,11 +34,11 @@ var (
 	errIPCPNotIPv4      = errors.New("ppp: IPCP option address is not IPv4")
 )
 
-// IPCPOptions carries the parsed option set for one IPCP packet. Zero-
+// iPCPOptions carries the parsed option set for one IPCP packet. Zero-
 // valued fields mean "option not present". Address fields are
 // netip.Addr for allocation-free comparisons against
 // netip.IPv4Unspecified().
-type IPCPOptions struct {
+type iPCPOptions struct {
 	IPAddress    netip.Addr
 	PrimaryDNS   netip.Addr
 	SecondaryDNS netip.Addr
@@ -60,17 +60,17 @@ func isKnownIPCPOption(t uint8) bool {
 // via ipcpHasUnknownOption.
 //
 // Returns an error only when the wire shape is structurally malformed.
-func ParseIPCPOptions(buf []byte) (IPCPOptions, error) {
-	var out IPCPOptions
+func ParseIPCPOptions(buf []byte) (iPCPOptions, error) {
+	var out iPCPOptions
 	off := 0
 	for off < len(buf) {
 		if len(buf)-off < 2 {
-			return IPCPOptions{}, errOptionTooShort
+			return iPCPOptions{}, errOptionTooShort
 		}
 		t := buf[off]
 		l := int(buf[off+1])
 		if l < 2 || off+l > len(buf) {
-			return IPCPOptions{}, errOptionLengthMismatch
+			return iPCPOptions{}, errOptionLengthMismatch
 		}
 		data := buf[off+2 : off+l]
 		if !isKnownIPCPOption(t) {
@@ -79,7 +79,7 @@ func ParseIPCPOptions(buf []byte) (IPCPOptions, error) {
 		}
 		addr, err := parseIPCPv4Option(l, data)
 		if err != nil {
-			return IPCPOptions{}, err
+			return iPCPOptions{}, err
 		}
 		switch t {
 		case IPCPOptIPAddress:
@@ -112,7 +112,7 @@ func parseIPCPv4Option(optLen int, data []byte) (netip.Addr, error) {
 // offset off and returns the number of bytes written. Only options
 // marked Has* are serialized. Caller MUST ensure buf has capacity
 // >= ipcpMaxOptionsWireLen.
-func WriteIPCPOptions(buf []byte, off int, opts IPCPOptions) int {
+func WriteIPCPOptions(buf []byte, off int, opts iPCPOptions) int {
 	start := off
 	if opts.HasIPAddress {
 		off += writeIPCPv4Option(buf, off, IPCPOptIPAddress, opts.IPAddress)

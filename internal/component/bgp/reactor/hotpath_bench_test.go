@@ -62,7 +62,7 @@ func newBenchUpdate(id uint64) *ReceivedUpdate {
 // on the same cache entry. This simulates ForwardUpdate dispatching to N peers
 // where each peer retains and releases the cached update.
 func BenchmarkCacheRetainRelease(b *testing.B) {
-	cache := NewRecentUpdateCache(0)
+	cache := newRecentUpdateCache(0)
 	cache.Start()
 	defer cache.Stop()
 
@@ -81,7 +81,7 @@ func BenchmarkCacheRetainRelease(b *testing.B) {
 // BenchmarkCacheRetainReleaseParallel measures Retain+Release under parallel
 // contention, simulating multiple ForwardUpdate calls from concurrent goroutines.
 func BenchmarkCacheRetainReleaseParallel(b *testing.B) {
-	cache := NewRecentUpdateCache(0)
+	cache := newRecentUpdateCache(0)
 	cache.Start()
 	defer cache.Stop()
 
@@ -102,7 +102,7 @@ func BenchmarkCacheRetainReleaseParallel(b *testing.B) {
 // BenchmarkCacheAddGetAck measures the full cache lifecycle for a single entry:
 // Add, Get, Ack. Uses a unique message ID per iteration to avoid eviction conflicts.
 func BenchmarkCacheAddGetAck(b *testing.B) {
-	cache := NewRecentUpdateCache(0)
+	cache := newRecentUpdateCache(0)
 	cache.Start()
 	defer cache.Stop()
 

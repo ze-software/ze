@@ -162,7 +162,7 @@ func (ps *PeerSession) runInitiator(
 	// This session owns every entry of its peer name. A removal by name ends the
 	// cycle with nothing of its own left behind. ps.sa stays, because reconnectDelay
 	// reads its retransmit count.
-	defer table.RemoveByPeer(sa.PeerName)
+	defer table.removeByPeer(sa.PeerName)
 
 	remote, err := net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))
 	if err != nil {

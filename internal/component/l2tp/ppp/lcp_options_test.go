@@ -58,7 +58,7 @@ func TestParseLCPOptionsTruncated(t *testing.T) {
 // VALIDATES: WriteLCPOption emits Type, Length (total), then Data.
 func TestWriteLCPOption(t *testing.T) {
 	buf := make([]byte, 16)
-	n := WriteLCPOption(buf, 0, LCPOptMagic, []byte{0xDE, 0xAD, 0xBE, 0xEF})
+	n := writeLCPOption(buf, 0, LCPOptMagic, []byte{0xDE, 0xAD, 0xBE, 0xEF})
 	if n != 6 {
 		t.Errorf("n = %d, want 6", n)
 	}
@@ -107,7 +107,7 @@ func TestNegotiatePeerMRUTooLarge(t *testing.T) {
 	mruData := make([]byte, 2)
 	binary.BigEndian.PutUint16(mruData, 2000)
 	opts := []LCPOption{{Type: LCPOptMRU, Data: mruData}}
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 
 	acks, naks, rejects := NegotiatePeerOptions(opts, policy)
 	if len(acks) != 0 {
@@ -129,7 +129,7 @@ func TestNegotiatePeerMRUOK(t *testing.T) {
 	mruData := make([]byte, 2)
 	binary.BigEndian.PutUint16(mruData, 1460)
 	opts := []LCPOption{{Type: LCPOptMRU, Data: mruData}}
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 
 	acks, naks, rejects := NegotiatePeerOptions(opts, policy)
 	if len(naks) != 0 || len(rejects) != 0 || len(acks) != 1 {
@@ -144,7 +144,7 @@ func TestNegotiatePeerMRUTooSmall(t *testing.T) {
 	mruData := make([]byte, 2)
 	binary.BigEndian.PutUint16(mruData, 32)
 	opts := []LCPOption{{Type: LCPOptMRU, Data: mruData}}
-	policy := LCPNegPolicy{MaxMRU: 1500}
+	policy := lCPNegPolicy{MaxMRU: 1500}
 	_, naks, _ := NegotiatePeerOptions(opts, policy)
 	if len(naks) != 1 {
 		t.Fatalf("want 1 nak, got %d", len(naks))
@@ -157,7 +157,7 @@ func TestNegotiatePeerMRUTooSmall(t *testing.T) {
 // VALIDATES: Wrong-length MRU option is rejected.
 func TestNegotiatePeerMRUWrongLength(t *testing.T) {
 	opts := []LCPOption{{Type: LCPOptMRU, Data: []byte{0x05}}}
-	_, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+	_, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 	if len(rejects) != 1 {
 		t.Errorf("expected 1 reject, got %d", len(rejects))
 	}
@@ -171,7 +171,7 @@ func TestNegotiatePeerMRUWrongLength(t *testing.T) {
 // option negotiation rather than aborting the exchange.
 func TestNegotiatePeerAuthProtoRejected(t *testing.T) {
 	opts := []LCPOption{{Type: LCPOptAuthProto, Data: []byte{0xC0, 0x23}}} // PAP
-	policy := LCPNegPolicy{AcceptAuthProto: false}
+	policy := lCPNegPolicy{AcceptAuthProto: false}
 	_, _, rejects := NegotiatePeerOptions(opts, policy)
 	if len(rejects) != 1 {
 		t.Errorf("expected reject when AcceptAuthProto=false, got %d rejects", len(rejects))
@@ -188,7 +188,7 @@ func TestNegotiatePeerAuthProtoRejected(t *testing.T) {
 // negotiate successfully.
 func TestNegotiatePeerAuthProtoAccepted(t *testing.T) {
 	opts := []LCPOption{{Type: LCPOptAuthProto, Data: []byte{0xC0, 0x23}}}
-	policy := LCPNegPolicy{AcceptAuthProto: true}
+	policy := lCPNegPolicy{AcceptAuthProto: true}
 	acks, _, _ := NegotiatePeerOptions(opts, policy)
 	if len(acks) != 1 {
 		t.Errorf("expected 1 ack, got %d", len(acks))
@@ -198,7 +198,7 @@ func TestNegotiatePeerAuthProtoAccepted(t *testing.T) {
 // VALIDATES: Magic-Number = 0 is rejected (reserved per RFC 1661 §6.4).
 func TestNegotiatePeerMagicZeroRejected(t *testing.T) {
 	opts := []LCPOption{{Type: LCPOptMagic, Data: []byte{0, 0, 0, 0}}}
-	_, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+	_, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 	if len(rejects) != 1 {
 		t.Errorf("expected reject for zero magic, got %d", len(rejects))
 	}
@@ -207,7 +207,7 @@ func TestNegotiatePeerMagicZeroRejected(t *testing.T) {
 // VALIDATES: Unknown option types are rejected.
 func TestNegotiatePeerUnknownRejected(t *testing.T) {
 	opts := []LCPOption{{Type: 99, Data: []byte{0xAA}}}
-	_, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+	_, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 	if len(rejects) != 1 {
 		t.Errorf("expected reject for unknown type, got %d", len(rejects))
 	}
@@ -219,7 +219,7 @@ func TestNegotiatePeerPFCBadLength(t *testing.T) {
 		{Type: LCPOptPFC, Data: []byte{0xAA}},
 		{Type: LCPOptACFC, Data: []byte{0xBB, 0xCC}},
 	}
-	_, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
+	_, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
 	if len(rejects) != 2 {
 		t.Errorf("expected 2 rejects for non-empty PFC/ACFC, got %d", len(rejects))
 	}

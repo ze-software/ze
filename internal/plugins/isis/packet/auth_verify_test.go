@@ -756,7 +756,7 @@ func authValueOf(t *testing.T, pdu []byte) AuthTLV {
 	if idx < 0 {
 		t.Fatal("no TLV 10 in signed PDU")
 	}
-	at, err := DecodeAuthTLV(tlvs[idx].Value)
+	at, err := decodeAuthTLV(tlvs[idx].Value)
 	if err != nil {
 		t.Fatalf("DecodeAuthTLV: %v", err)
 	}

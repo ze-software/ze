@@ -10,7 +10,7 @@ import (
 
 func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	browser := NewBrowser("https://127.0.0.1:1234")
+	browser := newBrowser("https://127.0.0.1:1234")
 
 	if err := browser.Open("/first"); err != nil {
 		t.Fatalf("first open: %v", err)
@@ -38,12 +38,12 @@ func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
 // self-signed web cert.
 func TestBrowserViewportBeforeOpenStartsDaemonWithHTTPSIgnore(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	browser := NewBrowser("https://127.0.0.1:1234")
+	browser := newBrowser("https://127.0.0.1:1234")
 
-	if err := browser.SetViewport(390, 844); err != nil {
+	if err := browser.setViewport(390, 844); err != nil {
 		t.Fatalf("set viewport: %v", err)
 	}
-	if err := browser.SetLocale("fr"); err != nil {
+	if err := browser.setLocale("fr"); err != nil {
 		t.Fatalf("set locale: %v", err)
 	}
 	if err := browser.Open("/"); err != nil {
@@ -60,7 +60,7 @@ func TestBrowserViewportBeforeOpenStartsDaemonWithHTTPSIgnore(t *testing.T) {
 
 func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	browser := NewBrowser("https://127.0.0.1:1234")
+	browser := newBrowser("https://127.0.0.1:1234")
 
 	if err := browser.Open("/first"); err != nil {
 		t.Fatalf("first open: %v", err)
@@ -129,7 +129,7 @@ func TestBrowserCloseOwnSession(t *testing.T) {
 
 func TestBrowserNoSessionClosesAll(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	browser := NewBrowser("https://127.0.0.1:5678")
+	browser := newBrowser("https://127.0.0.1:5678")
 
 	if err := browser.Open("/page"); err != nil {
 		t.Fatalf("open: %v", err)

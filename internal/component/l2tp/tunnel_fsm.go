@@ -351,7 +351,7 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			if attrType != AVPMessageType {
 				return sccrqInfo{}, errors.New("l2tp: first AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return sccrqInfo{}, fmt.Errorf("l2tp: read message type: %w", rerr)
 			}
@@ -370,14 +370,14 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			continue
 		}
 		if attrType == AVPFramingCapabilities {
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.FramingCapabilities = v
 			}
 			continue
 		}
 		if attrType == AVPBearerCapabilities {
-			v, rerr := ReadAVPUint32(value)
+			v, rerr := readAVPUint32(value)
 			if rerr == nil {
 				info.BearerCapabilities = v
 			}
@@ -388,7 +388,7 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			continue
 		}
 		if attrType == AVPAssignedTunnelID {
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return sccrqInfo{}, fmt.Errorf("l2tp: read assigned tunnel id: %w", rerr)
 			}
@@ -399,7 +399,7 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			continue
 		}
 		if attrType == AVPReceiveWindowSize {
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr == nil {
 				info.RecvWindow = v
 			}
@@ -487,7 +487,7 @@ func writeStopCCNBody(buf []byte, localTID, resultCode uint16) int {
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, localTID)
-	off += WriteAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
 	return off
 }
 
@@ -536,7 +536,7 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 			if attrType != AVPMessageType {
 				return scccnInfo{}, errors.New("l2tp: first SCCCN AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return scccnInfo{}, fmt.Errorf("l2tp: read SCCCN message type: %w", rerr)
 			}
@@ -649,7 +649,7 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 			if attrType != AVPMessageType {
 				return stopCCNInfo{}, errors.New("l2tp: first StopCCN AVP must be Message Type (RFC 2661 S4.1)")
 			}
-			mt, rerr := ReadAVPUint16(value)
+			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return stopCCNInfo{}, fmt.Errorf("l2tp: read StopCCN message type: %w", rerr)
 			}
@@ -660,7 +660,7 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 			continue
 		}
 		if attrType == AVPAssignedTunnelID {
-			v, rerr := ReadAVPUint16(value)
+			v, rerr := readAVPUint16(value)
 			if rerr != nil {
 				return stopCCNInfo{}, fmt.Errorf("l2tp: read StopCCN assigned tunnel id: %w", rerr)
 			}
@@ -668,7 +668,7 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 			continue
 		}
 		if attrType == AVPResultCode {
-			rc, rerr := ReadResultCode(value)
+			rc, rerr := readResultCode(value)
 			if rerr != nil {
 				return stopCCNInfo{}, fmt.Errorf("l2tp: read StopCCN result code: %w", rerr)
 			}

@@ -20,7 +20,7 @@ import (
 // PREVENTS: Chaos wrapper altering behavior when rate=0 (disabled).
 func TestChaosClockPassthrough(t *testing.T) {
 	inner := clock.RealClock{}
-	cc := NewChaosClock(inner, ChaosConfig{Seed: 1, Rate: 0.0})
+	cc := newChaosClock(inner, ChaosConfig{Seed: 1, Rate: 0.0})
 
 	before := inner.Now()
 	got := cc.Now()
@@ -50,7 +50,7 @@ func TestChaosClockPassthrough(t *testing.T) {
 // PREVENTS: Jitter producing durations outside the valid range.
 func TestChaosClockJitter(t *testing.T) {
 	inner := clock.RealClock{}
-	cc := NewChaosClock(inner, ChaosConfig{Seed: 42, Rate: 1.0})
+	cc := newChaosClock(inner, ChaosConfig{Seed: 42, Rate: 1.0})
 
 	baseDuration := 100 * time.Millisecond
 	minExpected := time.Duration(float64(baseDuration) * 0.8)
@@ -85,8 +85,8 @@ func TestChaosClockJitter(t *testing.T) {
 // PREVENTS: Non-deterministic behavior that would make chaos unreproducible.
 func TestChaosClockDeterministic(t *testing.T) {
 	inner := clock.RealClock{}
-	cc1 := NewChaosClock(inner, ChaosConfig{Seed: 99, Rate: 1.0})
-	cc2 := NewChaosClock(inner, ChaosConfig{Seed: 99, Rate: 1.0})
+	cc1 := newChaosClock(inner, ChaosConfig{Seed: 99, Rate: 1.0})
+	cc2 := newChaosClock(inner, ChaosConfig{Seed: 99, Rate: 1.0})
 
 	baseDuration := 100 * time.Millisecond
 	for i := range 10 {
@@ -115,7 +115,7 @@ func TestChaosDialerPassthrough(t *testing.T) {
 	})
 
 	inner := &network.RealDialer{}
-	cd := NewChaosDialer(inner, ChaosConfig{Seed: 1, Rate: 0.0})
+	cd := newChaosDialer(inner, ChaosConfig{Seed: 1, Rate: 0.0})
 
 	for i := range 10 {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -148,7 +148,7 @@ func TestChaosDialerFault(t *testing.T) {
 	})
 
 	inner := &network.RealDialer{}
-	cd := NewChaosDialer(inner, ChaosConfig{Seed: 42, Rate: 1.0})
+	cd := newChaosDialer(inner, ChaosConfig{Seed: 42, Rate: 1.0})
 
 	var faults int
 	for range 10 {
@@ -178,8 +178,8 @@ func TestChaosDialerFault(t *testing.T) {
 // VALIDATES: ChaosDialer fault decisions are deterministic for a given seed.
 // PREVENTS: Non-reproducible fault sequences.
 func TestChaosDialerDeterministic(t *testing.T) {
-	cd1 := NewChaosDialer(&network.RealDialer{}, ChaosConfig{Seed: 77, Rate: 0.5})
-	cd2 := NewChaosDialer(&network.RealDialer{}, ChaosConfig{Seed: 77, Rate: 0.5})
+	cd1 := newChaosDialer(&network.RealDialer{}, ChaosConfig{Seed: 77, Rate: 0.5})
+	cd2 := newChaosDialer(&network.RealDialer{}, ChaosConfig{Seed: 77, Rate: 0.5})
 
 	for i := range 10 {
 		f1 := cd1.shouldFault()
@@ -196,7 +196,7 @@ func TestChaosDialerDeterministic(t *testing.T) {
 // PREVENTS: Listener chaos when rate=0.
 func TestChaosListenerPassthrough(t *testing.T) {
 	inner := network.RealListenerFactory{}
-	clf := NewChaosListenerFactory(inner, ChaosConfig{Seed: 1, Rate: 0.0})
+	clf := newChaosListenerFactory(inner, ChaosConfig{Seed: 1, Rate: 0.0})
 
 	ctx := context.Background()
 	ln, err := clf.Listen(ctx, "tcp", "127.0.0.1:0")
@@ -216,7 +216,7 @@ func TestChaosListenerPassthrough(t *testing.T) {
 // PREVENTS: Missing fault injection on listener creation.
 func TestChaosListenerFault(t *testing.T) {
 	inner := network.RealListenerFactory{}
-	clf := NewChaosListenerFactory(inner, ChaosConfig{Seed: 42, Rate: 1.0})
+	clf := newChaosListenerFactory(inner, ChaosConfig{Seed: 42, Rate: 1.0})
 
 	ctx := context.Background()
 	var faults int
@@ -242,7 +242,7 @@ func TestChaosListenerFault(t *testing.T) {
 // PREVENTS: chaosListener.Accept() delay path being dead code (untested).
 func TestChaosListenerAcceptDelay(t *testing.T) {
 	inner := network.RealListenerFactory{}
-	clf := NewChaosListenerFactory(inner, ChaosConfig{Seed: 7, Rate: 0.5})
+	clf := newChaosListenerFactory(inner, ChaosConfig{Seed: 7, Rate: 0.5})
 
 	ctx := context.Background()
 	var ln net.Listener
@@ -298,7 +298,7 @@ func TestChaosListenerAcceptDelay(t *testing.T) {
 // PREVENTS: Data races in shared PRNG state.
 func TestChaosConcurrency(t *testing.T) {
 	inner := clock.RealClock{}
-	cc := NewChaosClock(inner, ChaosConfig{Seed: 42, Rate: 0.5})
+	cc := newChaosClock(inner, ChaosConfig{Seed: 42, Rate: 0.5})
 
 	var wg sync.WaitGroup
 	for range 50 {
@@ -321,7 +321,7 @@ func TestChaosLogging(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	inner := clock.RealClock{}
-	cc := NewChaosClock(inner, ChaosConfig{Seed: 42, Rate: 1.0, Logger: logger})
+	cc := newChaosClock(inner, ChaosConfig{Seed: 42, Rate: 1.0, Logger: logger})
 
 	cc.Now()
 	cc.Now()
@@ -370,7 +370,7 @@ func TestChaosRateBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cc := NewChaosClock(clock.RealClock{}, ChaosConfig{Seed: 1, Rate: tt.rate})
+			cc := newChaosClock(clock.RealClock{}, ChaosConfig{Seed: 1, Rate: tt.rate})
 			got := cc.effectiveRate()
 			if got != tt.wantRate {
 				t.Errorf("rate=%v: effectiveRate()=%v, want %v", tt.rate, got, tt.wantRate)
@@ -385,7 +385,7 @@ func TestChaosRateBoundary(t *testing.T) {
 // PREVENTS: Seed=0 accidentally enabling chaos with default PRNG.
 func TestChaosSeedBoundary(t *testing.T) {
 	inner := clock.RealClock{}
-	cc := NewChaosClock(inner, ChaosConfig{Seed: 0, Rate: 1.0})
+	cc := newChaosClock(inner, ChaosConfig{Seed: 0, Rate: 1.0})
 
 	before := inner.Now()
 	got := cc.Now()
@@ -401,7 +401,7 @@ func TestChaosSeedBoundary(t *testing.T) {
 // VALIDATES: NewTimer durations are modified when rate=1.
 // PREVENTS: Only AfterFunc being jittered while NewTimer passes through.
 func TestChaosClockNewTimerJitter(t *testing.T) {
-	cc := NewChaosClock(clock.RealClock{}, ChaosConfig{Seed: 42, Rate: 1.0})
+	cc := newChaosClock(clock.RealClock{}, ChaosConfig{Seed: 42, Rate: 1.0})
 
 	baseDuration := 100 * time.Millisecond
 	start := time.Now()
@@ -431,8 +431,8 @@ func TestChaosClockNewTimerJitter(t *testing.T) {
 // PREVENTS: Missing methods on chaos wrapper types.
 func TestChaosInterfaceSatisfied(t *testing.T) {
 	var _ clock.Clock = &ChaosClock{}
-	var _ network.Dialer = &ChaosDialer{}
-	var _ network.ListenerFactory = &ChaosListenerFactory{}
+	var _ network.Dialer = &chaosDialer{}
+	var _ network.ListenerFactory = &chaosListenerFactory{}
 }
 
 // TestResolveSeed verifies that seed=-1 produces a time-based seed and other values pass through.

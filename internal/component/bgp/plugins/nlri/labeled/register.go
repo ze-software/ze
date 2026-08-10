@@ -24,7 +24,7 @@ func init() {
 		Features:              "nlri",
 		SupportsNLRI:          true,
 		Families:              []string{"ipv4/mpls-label", "ipv6/mpls-label"},
-		RunEngine:             RunLabeledPlugin,
+		RunEngine:             runLabeledPlugin,
 		InProcessNLRIDecoder:  DecodeNLRIHex,
 		InProcessNLRIEncoder:  EncodeNLRIHex,
 		InProcessRouteEncoder: EncodeRoute,

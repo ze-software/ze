@@ -68,14 +68,14 @@ func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	return nil
 }
 
-// SendWithdraw sends a BGP UPDATE message for withdrawing a route.
+// sendWithdraw sends a BGP UPDATE message for withdrawing a route.
 // Eliminates large buffer allocations by writing directly to session buffer.
 // Returns ErrNotConnected if no session is active.
 //
 // RFC 4271 Section 4.3 - UPDATE Message Format (Withdrawn Routes for IPv4).
 // RFC 4760 Section 4 - MP_UNREACH_NLRI for IPv6 withdrawals.
 // RFC 7911 - ADD-PATH encoding based on negotiated capabilities.
-func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
+func (p *Peer) sendWithdraw(prefix netip.Prefix) error {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
@@ -90,16 +90,16 @@ func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
 	}
 	addPath := p.addPathFor(fam)
 
-	if err := session.SendWithdraw(prefix, addPath); err != nil {
+	if err := session.sendWithdraw(prefix, addPath); err != nil {
 		return err
 	}
 	return nil
 }
 
-// SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
+// sendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
 // Used for zero-copy forwarding when encoding contexts match.
 // Returns ErrNotConnected if no session is active.
-func (p *Peer) SendRawUpdateBody(body []byte) error {
+func (p *Peer) sendRawUpdateBody(body []byte) error {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
@@ -108,7 +108,7 @@ func (p *Peer) SendRawUpdateBody(body []byte) error {
 		return ErrNotConnected
 	}
 
-	return session.SendRawUpdateBody(body)
+	return session.sendRawUpdateBody(body)
 }
 
 // SendRawMessage sends raw bytes to the peer.
@@ -192,9 +192,9 @@ func (p *Peer) sendBodyWithSplit(body []byte, maxSize int, addPath bool) error {
 	return p.sendUpdateWithSplit(u, maxSize, addPath)
 }
 
-// PauseReading pauses reading from this peer's session.
+// pauseReading pauses reading from this peer's session.
 // If no active session exists, this is a no-op.
-func (p *Peer) PauseReading() {
+func (p *Peer) pauseReading() {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
@@ -207,9 +207,9 @@ func (p *Peer) PauseReading() {
 	peerLogger().Debug("read paused", "peer", p.settings.Address)
 }
 
-// ResumeReading resumes reading from this peer's session.
+// resumeReading resumes reading from this peer's session.
 // If no active session exists, this is a no-op.
-func (p *Peer) ResumeReading() {
+func (p *Peer) resumeReading() {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
@@ -222,9 +222,9 @@ func (p *Peer) ResumeReading() {
 	peerLogger().Debug("read resumed", "peer", p.settings.Address)
 }
 
-// IsReadPaused reports whether this peer's session read loop is paused.
+// isReadPaused reports whether this peer's session read loop is paused.
 // Returns false if no active session exists.
-func (p *Peer) IsReadPaused() bool {
+func (p *Peer) isReadPaused() bool {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()

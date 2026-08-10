@@ -29,15 +29,15 @@ var (
 	errSessionId0IsReserved = errors.New("session ID 0 is reserved")
 )
 
-// L2TPHandlers holds the dependencies for L2TP web UI handlers.
-type L2TPHandlers struct {
+// l2TPHandlers holds the dependencies for L2TP web UI handlers.
+type l2TPHandlers struct {
 	Renderer *Renderer
 	Dispatch CommandDispatcher
 }
 
-// HandleL2TPList returns a handler for GET /l2tp that renders the
+// handleL2TPList returns a handler for GET /l2tp that renders the
 // session/tunnel list page.
-func (h *L2TPHandlers) HandleL2TPList() http.HandlerFunc {
+func (h *l2TPHandlers) handleL2TPList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		svc := l2tp.LookupService()
 		if svc == nil {
@@ -103,9 +103,9 @@ func (h *L2TPHandlers) HandleL2TPList() http.HandlerFunc {
 	}
 }
 
-// HandleL2TPDetail returns a handler for GET /l2tp/{sid} that renders
+// handleL2TPDetail returns a handler for GET /l2tp/{sid} that renders
 // the session detail page with chart container and event timeline.
-func (h *L2TPHandlers) HandleL2TPDetail() http.HandlerFunc {
+func (h *l2TPHandlers) handleL2TPDetail() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sid, err := parseL2TPID(r)
 		if err != nil {
@@ -153,9 +153,9 @@ func (h *L2TPHandlers) HandleL2TPDetail() http.HandlerFunc {
 	}
 }
 
-// HandleL2TPSamplesJSON returns a handler for GET /l2tp/{login}/samples
+// handleL2TPSamplesJSON returns a handler for GET /l2tp/{login}/samples
 // that returns CQM buckets as columnar JSON matching uPlot's data shape.
-func HandleL2TPSamplesJSON() http.HandlerFunc {
+func handleL2TPSamplesJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		login := extractLogin(r)
 		if login == "" {
@@ -181,9 +181,9 @@ func HandleL2TPSamplesJSON() http.HandlerFunc {
 	}
 }
 
-// HandleL2TPSamplesCSV returns a handler for GET /l2tp/{login}/samples.csv
+// handleL2TPSamplesCSV returns a handler for GET /l2tp/{login}/samples.csv
 // that returns CQM buckets as CSV.
-func HandleL2TPSamplesCSV() http.HandlerFunc {
+func handleL2TPSamplesCSV() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		login := extractLogin(r)
 		if login == "" {
@@ -307,9 +307,9 @@ const (
 	maxCauseVal  = 65535
 )
 
-// HandleL2TPDisconnect returns a handler for POST /l2tp/{sid}/disconnect
+// handleL2TPDisconnect returns a handler for POST /l2tp/{sid}/disconnect
 // that dispatches a session teardown through the CLI.
-func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
+func (h *l2TPHandlers) handleL2TPDisconnect() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

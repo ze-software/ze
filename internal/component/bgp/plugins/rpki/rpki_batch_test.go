@@ -11,16 +11,16 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-func newTestBatchPlugin(t *testing.T) *RPKIPlugin {
+func newTestBatchPlugin(t *testing.T) *rPKIPlugin {
 	t.Helper()
 	pluginEnd, remoteEnd := net.Pipe()
 	require.NoError(t, remoteEnd.Close())
 	p := sdk.NewWithConn("rpki-test", pluginEnd)
 	t.Cleanup(func() { _ = p.Close() })
-	return &RPKIPlugin{
+	return &rPKIPlugin{
 		plugin:     p,
-		cache:      NewROACache(),
-		aspaCache:  NewASPACache(),
+		cache:      newROACache(),
+		aspaCache:  newASPACache(),
 		validateCh: make(chan validationRequest, 4096),
 		stopCh:     make(chan struct{}),
 	}
@@ -71,9 +71,9 @@ func TestDrainAndDispatchChunks(t *testing.T) {
 // TestBuildDecisionsASPAOverride verifies that ASPA reject policy
 // flips an origin-valid accept into a reject in the typed decisions.
 func TestBuildDecisionsASPAOverride(t *testing.T) {
-	rp := &RPKIPlugin{
-		cache:     NewROACache(),
-		aspaCache: NewASPACache(),
+	rp := &rPKIPlugin{
+		cache:     newROACache(),
+		aspaCache: newASPACache(),
 		stopCh:    make(chan struct{}),
 	}
 	rp.aspaInvalidAction.Store(uint32(ASPAPolicyReject))
@@ -113,8 +113,8 @@ func TestBuildDecisionsASPAOverride(t *testing.T) {
 // RFC requirement: RFC6811-3-1 negative -- the action is state-specific, not a blanket rule: a
 // Valid route is accepted regardless of the invalid-action, so the policy is keyed on the state.
 func TestBuildDecisionsOriginInvalidAction(t *testing.T) {
-	newRP := func(action uint8) *RPKIPlugin {
-		rp := &RPKIPlugin{cache: NewROACache(), aspaCache: NewASPACache(), stopCh: make(chan struct{})}
+	newRP := func(action uint8) *rPKIPlugin {
+		rp := &rPKIPlugin{cache: newROACache(), aspaCache: newASPACache(), stopCh: make(chan struct{})}
 		rp.originInvalidAction.Store(uint32(action))
 		return rp
 	}
@@ -149,9 +149,9 @@ func TestBatchWaitBound(t *testing.T) {
 
 // TestDispatchBatchEmpty verifies dispatchBatch is a no-op for empty batch.
 func TestDispatchBatchEmpty(t *testing.T) {
-	rp := &RPKIPlugin{
-		cache:     NewROACache(),
-		aspaCache: NewASPACache(),
+	rp := &rPKIPlugin{
+		cache:     newROACache(),
+		aspaCache: newASPACache(),
 		stopCh:    make(chan struct{}),
 	}
 	rp.dispatchBatch(nil)

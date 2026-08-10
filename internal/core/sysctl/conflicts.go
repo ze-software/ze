@@ -23,16 +23,16 @@ var (
 	conflictRules []ConflictRule
 )
 
-// RegisterConflict adds a conflict rule to the table.
-func RegisterConflict(r ConflictRule) {
+// registerConflict adds a conflict rule to the table.
+func registerConflict(r ConflictRule) {
 	conflictMu.Lock()
 	defer conflictMu.Unlock()
 
 	conflictRules = append(conflictRules, r)
 }
 
-// AllConflicts returns a copy of all registered conflict rules.
-func AllConflicts() []ConflictRule {
+// allConflicts returns a copy of all registered conflict rules.
+func allConflicts() []ConflictRule {
 	conflictMu.RLock()
 	defer conflictMu.RUnlock()
 
@@ -67,8 +67,8 @@ func CheckConflicts(active map[string]string) []ConflictRule {
 	return matches
 }
 
-// ResetConflicts clears all conflict rules. Only for use in tests.
-func ResetConflicts() {
+// resetConflicts clears all conflict rules. Only for use in tests.
+func resetConflicts() {
 	conflictMu.Lock()
 	defer conflictMu.Unlock()
 	conflictRules = nil

@@ -134,7 +134,7 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 	if aspAttrOff == -1 {
 		// No AS_PATH found -- insert one.
 		n := rewriteInsertASPath(dst, payload, asns, dstASN4, attrLen, attrLenOff, nlriStart)
-		ClearTombstoneTransitiveInBody(dst, n)
+		clearTombstoneTransitiveInBody(dst, n)
 		return n, nil
 	}
 
@@ -142,7 +142,7 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 	// No AGGREGATOR scan needed since encoding matches.
 	if n, ok := tryDirectPrepend(dst, payload, asns, srcASN4, dstASN4,
 		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen); ok {
-		ClearTombstoneTransitiveInBody(dst, n)
+		clearTombstoneTransitiveInBody(dst, n)
 		return n, nil
 	}
 

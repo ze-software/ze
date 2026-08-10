@@ -36,9 +36,9 @@ func ApplyTable(input string) string {
 	return applyTableStyled(input, tableStyle{})
 }
 
-// ApplyText parses JSON input and renders it as space-aligned columns.
+// applyText parses JSON input and renders it as space-aligned columns.
 // Non-JSON input passes through unchanged.
-func ApplyText(input string) string {
+func applyText(input string) string {
 	return applyTableStyled(input, tableStyle{plain: true})
 }
 
@@ -90,7 +90,7 @@ func (s tableStyle) renderValue(v any) string {
 		return s.renderPrimitiveList(val)
 	}
 	var tb textbuf.Buffer
-	return tb.Str(fmt.Sprint(FormatNumber(v))).Byte('\n').String()
+	return tb.Str(fmt.Sprint(formatNumber(v))).Byte('\n').String()
 }
 
 // homogeneousMapOfMapsKeys returns the shared child keys if every value in m is a map
@@ -329,7 +329,7 @@ func (s tableStyle) cellFromValue(v any) tableCell {
 		// Inline array of primitives.
 		parts := make([]string, len(val))
 		for i, item := range val {
-			parts[i] = fmt.Sprint(FormatNumber(item))
+			parts[i] = fmt.Sprint(formatNumber(item))
 		}
 		var tb textbuf.Buffer
 		return cellFromString(tb.Byte('[').Join(parts, ", ").Byte(']').String())
@@ -338,7 +338,7 @@ func (s tableStyle) cellFromValue(v any) tableCell {
 	case nil:
 		return cellFromString("")
 	}
-	return cellFromString(fmt.Sprint(FormatNumber(v)))
+	return cellFromString(fmt.Sprint(formatNumber(v)))
 }
 
 // cellFromString wraps a string (possibly multi-line) into a tableCell.

@@ -219,7 +219,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// Typing clears transient completion hint and resets history browsing.
 		m.completionHint = ""
 		m.completionHintDim = false
-		m.history.ResetBrowsing()
+		m.history.resetBrowsing()
 		// Pass to text input
 		m.textInput, cmd = m.textInput.Update(msg)
 		m.updateCompletions()
@@ -229,7 +229,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// All other key types (including Backspace): forward to text input for processing
 	m.completionHint = ""
 	m.completionHintDim = false
-	m.history.ResetBrowsing()
+	m.history.resetBrowsing()
 	m.textInput, cmd = m.textInput.Update(msg)
 	m.updateCompletions()
 	return m, tea.Batch(cmd, m.scheduleValidation())

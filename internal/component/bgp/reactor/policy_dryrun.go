@@ -19,11 +19,11 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
-// TracePolicyFilterChain runs a chain of named filters on an update text and
+// tracePolicyFilterChain runs a chain of named filters on an update text and
 // records per-filter trace entries. It reuses the same PolicyFilterFunc and
 // semantics as PolicyFilterChain (reject short-circuits, default accept,
 // inactive filters skipped) but captures each filter's decision.
-func TracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string, []plugin.PolicyTraceEntry) {
+func tracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string, []plugin.PolicyTraceEntry) {
 	if len(filterRefs) == 0 {
 		return PolicyAccept, updateText, nil
 	}
@@ -167,7 +167,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 
 	// Run the trace chain using the real filter function (calls plugins via IPC).
 	callFilter := r.policyFilterFunc(updateBody)
-	action, textAfter, trace := TracePolicyFilterChain(
+	action, textAfter, trace := tracePolicyFilterChain(
 		filterRefs, direction, peerAddr, peerAS, textBefore, callFilter,
 	)
 

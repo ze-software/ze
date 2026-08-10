@@ -228,7 +228,7 @@ func decodeBMPStream(t *testing.T, raw []byte) []any {
 	t.Helper()
 	var out []any
 	for off := 0; off+CommonHeaderSize <= len(raw); {
-		ch, _, err := DecodeCommonHeader(raw[off:], 0)
+		ch, _, err := decodeCommonHeader(raw[off:], 0)
 		if err != nil || int(ch.Length) < CommonHeaderSize {
 			t.Fatalf("collector stream is not framed BMP at offset %d: %v", off, err)
 		}

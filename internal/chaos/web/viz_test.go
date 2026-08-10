@@ -18,20 +18,20 @@ import (
 func TestRouteMatrixRecordAndGet(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	p1 := netip.MustParsePrefix("10.0.0.0/24")
 	p2 := netip.MustParsePrefix("10.0.1.0/24")
 
 	now := time.Now()
-	m.RecordSent(0, p1, now) // peer 0 announces 10.0.0.0/24
-	m.RecordSent(0, p2, now) // peer 0 announces 10.0.1.0/24
+	m.recordSent(0, p1, now) // peer 0 announces 10.0.0.0/24
+	m.recordSent(0, p2, now) // peer 0 announces 10.0.1.0/24
 
 	// peer 1 receives both prefixes from peer 0
 	recvTime := now.Add(5 * time.Millisecond)
-	if lat := m.RecordReceived(1, p1, recvTime); lat == 0 {
+	if lat := m.recordReceived(1, p1, recvTime); lat == 0 {
 		t.Error("RecordReceived should return non-zero latency for known prefix")
 	}
-	if lat := m.RecordReceived(1, p2, recvTime); lat == 0 {
+	if lat := m.recordReceived(1, p2, recvTime); lat == 0 {
 		t.Error("RecordReceived should return non-zero latency for known prefix")
 	}
 
@@ -50,10 +50,10 @@ func TestRouteMatrixRecordAndGet(t *testing.T) {
 func TestRouteMatrixUnknownPrefix(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	p := netip.MustParsePrefix("10.0.0.0/24")
 
-	if lat := m.RecordReceived(1, p, time.Now()); lat != 0 {
+	if lat := m.recordReceived(1, p, time.Now()); lat != 0 {
 		t.Error("RecordReceived should return zero for unknown prefix")
 	}
 	if m.Len() != 0 {
@@ -71,17 +71,17 @@ func TestRouteMatrixUnknownPrefix(t *testing.T) {
 func TestRouteMatrixCreditFallback(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	now := time.Now()
 
 	// p0 sends 3 IPv4 prefixes — tracked in both routeOrigins and familySent.
 	for i := range 3 {
 		p := netip.MustParsePrefix("10.0." + itoa(i) + ".0/24")
-		m.RecordSent(0, p, now)
+		m.recordSent(0, p, now)
 	}
 
 	// p1 receives a prefix that IS in routeOrigins → direct match.
-	lat := m.RecordReceived(1, netip.MustParsePrefix("10.0.0.0/24"), now.Add(5*time.Millisecond))
+	lat := m.recordReceived(1, netip.MustParsePrefix("10.0.0.0/24"), now.Add(5*time.Millisecond))
 	if lat == 0 {
 		t.Error("direct match should return non-zero latency")
 	}
@@ -91,7 +91,7 @@ func TestRouteMatrixCreditFallback(t *testing.T) {
 
 	// p2 receives a prefix NOT in routeOrigins → credit fallback.
 	unknown := netip.MustParsePrefix("10.99.0.0/24")
-	lat = m.RecordReceived(2, unknown, now.Add(10*time.Millisecond))
+	lat = m.recordReceived(2, unknown, now.Add(10*time.Millisecond))
 	// Credit match returns 0 latency (no timing info).
 	if lat != 0 {
 		t.Errorf("credit match should return 0 latency, got %v", lat)
@@ -112,20 +112,20 @@ func TestRouteMatrixCreditFallback(t *testing.T) {
 func TestRouteMatrixDirectMatchConsumesCredit(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	now := time.Now()
 
 	// p0 sends 3 prefixes — budget: familySent["ipv4/unicast"][0] = 3.
 	p1 := netip.MustParsePrefix("10.0.0.0/24")
 	p2 := netip.MustParsePrefix("10.0.1.0/24")
 	p3 := netip.MustParsePrefix("10.0.2.0/24")
-	m.RecordSent(0, p1, now)
-	m.RecordSent(0, p2, now)
-	m.RecordSent(0, p3, now)
+	m.recordSent(0, p1, now)
+	m.recordSent(0, p2, now)
+	m.recordSent(0, p3, now)
 
 	// p1 receives 2 via direct prefix match — should consume 2 credits.
-	m.RecordReceived(1, p1, now.Add(time.Millisecond))
-	m.RecordReceived(1, p2, now.Add(time.Millisecond))
+	m.recordReceived(1, p1, now.Add(time.Millisecond))
+	m.recordReceived(1, p2, now.Add(time.Millisecond))
 
 	if got := m.Get(0, 1); got != 2 {
 		t.Fatalf("Get(0,1) after direct = %d, want 2", got)
@@ -134,14 +134,14 @@ func TestRouteMatrixDirectMatchConsumesCredit(t *testing.T) {
 	// Now receive an unknown prefix — credit fallback should only have
 	// 1 remaining credit (3 sent - 2 consumed by direct matches).
 	unknown1 := netip.MustParsePrefix("10.99.0.0/24")
-	m.RecordReceived(1, unknown1, now.Add(2*time.Millisecond))
+	m.recordReceived(1, unknown1, now.Add(2*time.Millisecond))
 	if got := m.Get(0, 1); got != 3 {
 		t.Errorf("Get(0,1) after 1 credit = %d, want 3", got)
 	}
 
 	// Budget exhausted: another unknown should NOT credit.
 	unknown2 := netip.MustParsePrefix("10.99.1.0/24")
-	m.RecordReceived(1, unknown2, now.Add(3*time.Millisecond))
+	m.recordReceived(1, unknown2, now.Add(3*time.Millisecond))
 	if got := m.Get(0, 1); got != 3 {
 		t.Errorf("Get(0,1) after exhaustion = %d, want 3 (no more credits)", got)
 	}
@@ -166,26 +166,26 @@ func TestRouteMatrixDirectMatchConsumesCredit(t *testing.T) {
 func TestRouteMatrixTopNPeers(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	// peer 0 sends 10 prefixes, peer 1 sends 2, peer 2 sends 5
 	now := time.Now()
 	for i := range 10 {
 		p := netip.MustParsePrefix("10.0." + itoa(i) + ".0/24")
-		m.RecordSent(0, p, now)
-		m.RecordReceived(3, p, now) // peer 3 receives all from peer 0
+		m.recordSent(0, p, now)
+		m.recordReceived(3, p, now) // peer 3 receives all from peer 0
 	}
 	for i := range 2 {
 		p := netip.MustParsePrefix("10.1." + itoa(i) + ".0/24")
-		m.RecordSent(1, p, now)
-		m.RecordReceived(3, p, now)
+		m.recordSent(1, p, now)
+		m.recordReceived(3, p, now)
 	}
 	for i := range 5 {
 		p := netip.MustParsePrefix("10.2." + itoa(i) + ".0/24")
-		m.RecordSent(2, p, now)
-		m.RecordReceived(3, p, now)
+		m.recordSent(2, p, now)
+		m.recordReceived(3, p, now)
 	}
 
-	top := m.TopNPeers(3)
+	top := m.topNPeers(3)
 	if len(top) != 3 {
 		t.Fatalf("TopNPeers(3) len = %d, want 3", len(top))
 	}
@@ -208,18 +208,18 @@ func TestRouteMatrixTopNPeers(t *testing.T) {
 func TestRouteMatrixMaxCell(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	p1 := netip.MustParsePrefix("10.0.0.0/24")
 	p2 := netip.MustParsePrefix("10.0.1.0/24")
 
 	now := time.Now()
-	m.RecordSent(0, p1, now)
-	m.RecordSent(0, p2, now)
-	m.RecordReceived(1, p1, now)
-	m.RecordReceived(1, p2, now)
-	m.RecordReceived(1, p1, now) // duplicate receive
+	m.recordSent(0, p1, now)
+	m.recordSent(0, p2, now)
+	m.recordReceived(1, p1, now)
+	m.recordReceived(1, p2, now)
+	m.recordReceived(1, p1, now) // duplicate receive
 
-	if got := m.MaxCell(); got != 3 {
+	if got := m.maxCell(); got != 3 {
 		t.Errorf("MaxCell() = %d, want 3", got)
 	}
 }
@@ -432,18 +432,18 @@ func TestHandleVizRouteMatrixCustomPeers(t *testing.T) {
 func TestRouteMatrixFamilyTracking(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	now := time.Now()
 
 	// IPv4 route.
 	p4 := netip.MustParsePrefix("10.0.0.0/24")
-	m.RecordSent(0, p4, now)
-	m.RecordReceived(1, p4, now)
+	m.recordSent(0, p4, now)
+	m.recordReceived(1, p4, now)
 
 	// IPv6 route.
 	p6 := netip.MustParsePrefix("2001:db8::/32")
-	m.RecordSent(0, p6, now)
-	m.RecordReceived(1, p6, now)
+	m.recordSent(0, p6, now)
+	m.recordReceived(1, p6, now)
 
 	// Total should be 2.
 	if got := m.Get(0, 1); got != 2 {
@@ -451,17 +451,17 @@ func TestRouteMatrixFamilyTracking(t *testing.T) {
 	}
 
 	// IPv4 only should be 1.
-	if got := m.GetByFamily(0, 1, "ipv4/unicast"); got != 1 {
+	if got := m.getByFamily(0, 1, "ipv4/unicast"); got != 1 {
 		t.Errorf("GetByFamily(0,1,ipv4) = %d, want 1", got)
 	}
 
 	// IPv6 only should be 1.
-	if got := m.GetByFamily(0, 1, "ipv6/unicast"); got != 1 {
+	if got := m.getByFamily(0, 1, "ipv6/unicast"); got != 1 {
 		t.Errorf("GetByFamily(0,1,ipv6) = %d, want 1", got)
 	}
 
 	// Empty family = total.
-	if got := m.GetByFamily(0, 1, ""); got != 2 {
+	if got := m.getByFamily(0, 1, ""); got != 2 {
 		t.Errorf("GetByFamily(0,1,'') = %d, want 2", got)
 	}
 
@@ -479,7 +479,7 @@ func TestRouteMatrixFamilyTracking(t *testing.T) {
 func TestConvergenceHistogramBuckets(t *testing.T) {
 	t.Parallel()
 
-	h := NewConvergenceHistogram()
+	h := newConvergenceHistogram()
 
 	// Record one value per bucket.
 	latencies := []time.Duration{
@@ -520,7 +520,7 @@ func TestConvergenceHistogramBuckets(t *testing.T) {
 func TestConvergenceHistogramBoundary(t *testing.T) {
 	t.Parallel()
 
-	h := NewConvergenceHistogram()
+	h := newConvergenceHistogram()
 
 	// 5ms exactly should go to "5-10ms" bucket (index 1), not "0-5ms" (index 0).
 	h.Record(5 * time.Millisecond)
@@ -552,7 +552,7 @@ func TestConvergenceHistogramBoundary(t *testing.T) {
 func TestConvergenceHistogramStats(t *testing.T) {
 	t.Parallel()
 
-	h := NewConvergenceHistogram()
+	h := newConvergenceHistogram()
 	h.Record(10 * time.Millisecond)
 	h.Record(20 * time.Millisecond)
 	h.Record(30 * time.Millisecond)
@@ -583,7 +583,7 @@ func TestConvergenceHistogramStats(t *testing.T) {
 func TestConvergenceHistogramMaxCount(t *testing.T) {
 	t.Parallel()
 
-	h := NewConvergenceHistogram()
+	h := newConvergenceHistogram()
 	// Put 5 values in the 0-5ms bucket.
 	for range 5 {
 		h.Record(1 * time.Millisecond)
@@ -593,8 +593,8 @@ func TestConvergenceHistogramMaxCount(t *testing.T) {
 		h.Record(75 * time.Millisecond)
 	}
 
-	if h.MaxCount() != 5 {
-		t.Errorf("MaxCount() = %d, want 5", h.MaxCount())
+	if h.maxCount() != 5 {
+		t.Errorf("MaxCount() = %d, want 5", h.maxCount())
 	}
 }
 
@@ -960,7 +960,7 @@ func TestPctOfDuration(t *testing.T) {
 func TestRouteMatrixCellPlacement(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	now := time.Now()
 
 	// p0 sends 3 prefixes, reflected (received) by p1, p2, p3.
@@ -970,10 +970,10 @@ func TestRouteMatrixCellPlacement(t *testing.T) {
 		netip.MustParsePrefix("10.0.2.0/24"),
 	}
 	for _, p := range prefixes0 {
-		m.RecordSent(0, p, now)
-		m.RecordReceived(1, p, now)
-		m.RecordReceived(2, p, now)
-		m.RecordReceived(3, p, now)
+		m.recordSent(0, p, now)
+		m.recordReceived(1, p, now)
+		m.recordReceived(2, p, now)
+		m.recordReceived(3, p, now)
 	}
 
 	// p3 sends 2 prefixes, reflected (received) by p0, p1, p2.
@@ -982,10 +982,10 @@ func TestRouteMatrixCellPlacement(t *testing.T) {
 		netip.MustParsePrefix("10.3.1.0/24"),
 	}
 	for _, p := range prefixes3 {
-		m.RecordSent(3, p, now)
-		m.RecordReceived(0, p, now)
-		m.RecordReceived(1, p, now)
-		m.RecordReceived(2, p, now)
+		m.recordSent(3, p, now)
+		m.recordReceived(0, p, now)
+		m.recordReceived(1, p, now)
+		m.recordReceived(2, p, now)
 	}
 
 	// Verify exact cell values. Row = source, Col = dest.
@@ -1015,21 +1015,21 @@ func TestRouteMatrixCellPlacement(t *testing.T) {
 func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 
 	// Only ONE sender to eliminate Go map iteration non-determinism.
 	// p0 sends 3 VPN routes.
 	for range 3 {
-		m.RecordNonUnicastSent(0, "ipv4/mpls-vpn")
+		m.recordNonUnicastSent(0, "ipv4/mpls-vpn")
 	}
 
 	// p1 receives 2 VPN routes → should credit p0→p1.
 	for range 2 {
-		m.RecordNonUnicastReceived(1, "ipv4/mpls-vpn")
+		m.recordNonUnicastReceived(1, "ipv4/mpls-vpn")
 	}
 
 	// p2 receives 1 VPN route → should credit p0→p2.
-	m.RecordNonUnicastReceived(2, "ipv4/mpls-vpn")
+	m.recordNonUnicastReceived(2, "ipv4/mpls-vpn")
 
 	if got := m.Get(0, 1); got != 2 {
 		t.Errorf("Get(0,1) = %d, want 2 (p0→p1)", got)
@@ -1039,7 +1039,7 @@ func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
 	}
 
 	// Self-credit prevention: p0 receiving should not credit p0→p0.
-	m.RecordNonUnicastReceived(0, "ipv4/mpls-vpn")
+	m.recordNonUnicastReceived(0, "ipv4/mpls-vpn")
 	if got := m.Get(0, 0); got != 0 {
 		t.Errorf("Get(0,0) = %d, want 0 (self-credit prevented)", got)
 	}
@@ -1047,29 +1047,29 @@ func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
 	// Credits are per (sender, receiver) pair: p0 sent 3, so each receiver
 	// can independently receive up to 3 from p0 (RR reflects to each peer).
 	// p3 receives should credit p0→p3 (p0 still has capacity for p3).
-	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
+	m.recordNonUnicastReceived(3, "ipv4/mpls-vpn")
 	if got := m.Get(0, 3); got != 1 {
 		t.Errorf("Get(0,3) = %d, want 1 (p0→p3 credited)", got)
 	}
 
 	// Exhaust p0→p3: send 2 more receives for p3.
-	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
-	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
+	m.recordNonUnicastReceived(3, "ipv4/mpls-vpn")
+	m.recordNonUnicastReceived(3, "ipv4/mpls-vpn")
 	if got := m.Get(0, 3); got != 3 {
 		t.Errorf("Get(0,3) = %d, want 3 (all p0 credits used for p3)", got)
 	}
 
 	// Now p0→p3 is exhausted (3/3). One more receive should not credit.
-	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
+	m.recordNonUnicastReceived(3, "ipv4/mpls-vpn")
 	if got := m.Get(0, 3); got != 3 {
 		t.Errorf("Get(0,3) = %d, want 3 (no more credits from p0)", got)
 	}
 
 	// Family tracking: non-unicast routes should appear in GetByFamily.
-	if got := m.GetByFamily(0, 1, "ipv4/mpls-vpn"); got != 2 {
+	if got := m.getByFamily(0, 1, "ipv4/mpls-vpn"); got != 2 {
 		t.Errorf("GetByFamily(0,1,ipv4/mpls-vpn) = %d, want 2", got)
 	}
-	if got := m.GetByFamily(0, 2, "ipv4/mpls-vpn"); got != 1 {
+	if got := m.getByFamily(0, 2, "ipv4/mpls-vpn"); got != 1 {
 		t.Errorf("GetByFamily(0,2,ipv4/mpls-vpn) = %d, want 1", got)
 	}
 
@@ -1147,18 +1147,18 @@ func TestRouteMatrixRenderedCellTitles(t *testing.T) {
 func TestRouteMatrixCreditCellPlacement(t *testing.T) {
 	t.Parallel()
 
-	m := NewRouteMatrix()
+	m := newRouteMatrix()
 	now := time.Now()
 
 	// p0 sends 3 prefixes (tracked in routeOrigins + familySent).
 	for i := range 3 {
 		p := netip.MustParsePrefix("10.0." + itoa(i) + ".0/24")
-		m.RecordSent(0, p, now)
+		m.recordSent(0, p, now)
 	}
 
 	// p1 and p2 receive unknown prefixes → credit fallback to p0.
-	m.RecordReceived(1, netip.MustParsePrefix("10.99.0.0/24"), now)
-	m.RecordReceived(2, netip.MustParsePrefix("10.99.1.0/24"), now)
+	m.recordReceived(1, netip.MustParsePrefix("10.99.0.0/24"), now)
+	m.recordReceived(2, netip.MustParsePrefix("10.99.1.0/24"), now)
 
 	// Cells should be p0→p1 and p0→p2 (source=p0, not dest=p0).
 	if got := m.Get(0, 1); got != 1 {

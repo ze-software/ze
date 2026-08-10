@@ -239,12 +239,12 @@ func ParseEVPN(data []byte, addpath bool) (EVPN, []byte, error) {
 	case EVPNRouteType5:
 		evpn, err = parseEVPNType5(nlriData, pathID, addpath)
 	case 0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15: // Reserved/unknown route types
-		evpn = &EVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
+		evpn = &eVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
 	}
 
 	// Handle any other route type as generic
 	if evpn == nil && err == nil {
-		evpn = &EVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
+		evpn = &eVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
 	}
 
 	if err != nil {
@@ -901,32 +901,32 @@ func (e *EVPNType5) String() string {
 	return b.String()
 }
 
-// EVPNGeneric holds unparsed EVPN routes.
-type EVPNGeneric struct {
+// eVPNGeneric holds unparsed EVPN routes.
+type eVPNGeneric struct {
 	routeType EVPNRouteType
 	data      []byte
 	pathID    uint32
 	hasPath   bool
 }
 
-func (e *EVPNGeneric) Family() Family           { return L2VPNEVPN }
-func (e *EVPNGeneric) RouteType() EVPNRouteType { return e.routeType }
-func (e *EVPNGeneric) RD() RouteDistinguisher   { return RouteDistinguisher{} }
-func (e *EVPNGeneric) PathID() uint32           { return e.pathID }
-func (e *EVPNGeneric) HasPathID() bool          { return e.hasPath }
-func (e *EVPNGeneric) SupportsAddPath() bool    { return true }
-func (e *EVPNGeneric) String() string           { return textbuf.StrInt("evpn-type", int64(e.routeType)) }
+func (e *eVPNGeneric) Family() Family           { return L2VPNEVPN }
+func (e *eVPNGeneric) RouteType() EVPNRouteType { return e.routeType }
+func (e *eVPNGeneric) RD() RouteDistinguisher   { return RouteDistinguisher{} }
+func (e *eVPNGeneric) PathID() uint32           { return e.pathID }
+func (e *eVPNGeneric) HasPathID() bool          { return e.hasPath }
+func (e *eVPNGeneric) SupportsAddPath() bool    { return true }
+func (e *eVPNGeneric) String() string           { return textbuf.StrInt("evpn-type", int64(e.routeType)) }
 
 // Bytes returns a standalone wire encoding, header included, matching every other EVPN
 // route type. It used to return the bare body, so a caller that round-trips an
 // unrecognized route through encode.go emitted an NLRI with no [type][length] header.
-func (e *EVPNGeneric) Bytes() []byte {
+func (e *eVPNGeneric) Bytes() []byte {
 	buf := make([]byte, e.Len())
 	e.WriteTo(buf, 0)
 	return buf
 }
 
-func (e *EVPNGeneric) Len() int { return len(e.data) + evpnHeaderLen }
+func (e *eVPNGeneric) Len() int { return len(e.data) + evpnHeaderLen }
 
 // WriteTo writes the full [route-type][length][body] encoding, like every other EVPN type,
 // and returns the total written.
@@ -937,7 +937,7 @@ func (e *EVPNGeneric) Len() int { return len(e.data) + evpnHeaderLen }
 // drop the header, so the JSON "raw" field lost the first two octets of the body instead.
 //
 // e.data comes from ParseEVPN, where the length is a single octet, so it cannot exceed 255.
-func (e *EVPNGeneric) WriteTo(buf []byte, off int) int {
+func (e *eVPNGeneric) WriteTo(buf []byte, off int) int {
 	buf[off] = byte(e.routeType)
 	buf[off+1] = byte(len(e.data))
 	pos := off + evpnHeaderLen
@@ -967,12 +967,12 @@ func NewEVPNType4(rd RouteDistinguisher, esi [10]byte, originatorIP netip.Addr) 
 	return &EVPNType4{rd: rd, esi: esi, originatorIP: originatorIP}
 }
 
-// NewEVPNType5 creates an IP Prefix route (Type 5).
-func NewEVPNType5(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, prefix netip.Prefix, gateway netip.Addr, labels []uint32) *EVPNType5 {
+// newEVPNType5 creates an IP Prefix route (Type 5).
+func newEVPNType5(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, prefix netip.Prefix, gateway netip.Addr, labels []uint32) *EVPNType5 {
 	return &EVPNType5{rd: rd, esi: esi, ethernetTag: ethernetTag, prefix: prefix, gateway: gateway, labels: labels}
 }
 
-// EVPNFamilies returns the address families this plugin can decode.
-func EVPNFamilies() []string {
+// eVPNFamilies returns the address families this plugin can decode.
+func eVPNFamilies() []string {
 	return []string{"l2vpn/evpn"}
 }

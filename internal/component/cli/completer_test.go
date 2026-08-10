@@ -232,13 +232,13 @@ bgp {
 	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// hop address: "address" is hop's key leaf
-	assert.True(t, ed.IsListKeyLeafPath([]string{"static", "table", "default", "route", "0.0.0.0/0", "next", "hop", "address"}))
+	assert.True(t, ed.isListKeyLeafPath([]string{"static", "table", "default", "route", "0.0.0.0/0", "next", "hop", "address"}))
 
 	// peer name: "name" is peer's key leaf
-	assert.True(t, ed.IsListKeyLeafPath([]string{"bgp", "peer", "name"}))
+	assert.True(t, ed.isListKeyLeafPath([]string{"bgp", "peer", "name"}))
 
 	// peer description: NOT a key leaf
-	assert.False(t, ed.IsListKeyLeafPath([]string{"bgp", "peer", "description"}))
+	assert.False(t, ed.isListKeyLeafPath([]string{"bgp", "peer", "description"}))
 }
 
 // TestCompleterListKeysInContext verifies that list key completions work

@@ -55,7 +55,7 @@ func TestParseTableFamily(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, ok := ParseTableFamily(tt.input)
+			got, ok := parseTableFamily(tt.input)
 			if got != tt.want || ok != tt.ok {
 				t.Errorf("ParseTableFamily(%q) = (%v, %v), want (%v, %v)", tt.input, got, ok, tt.want, tt.ok)
 			}

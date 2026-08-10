@@ -9,10 +9,10 @@
 // constants from the iface component.
 package ifacedhcp
 
-// DHCPConfig holds optional DHCP client parameters parsed from config.
+// dHCPConfig holds optional DHCP client parameters parsed from config.
 // Defined in this platform-independent file so register.go (no build tag)
 // can reference it when compiling on non-Linux (e.g., macOS build host).
-type DHCPConfig struct {
+type dHCPConfig struct {
 	Hostname             string // DHCPv4 option 12
 	ClientID             string // DHCPv4 option 61
 	PDLength             int    // DHCPv6 requested prefix delegation length (0 = server decides)

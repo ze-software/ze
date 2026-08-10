@@ -20,9 +20,9 @@ var (
 	ErrIntegrityFailed  = errors.New("integrity verification failed")
 )
 
-// EncryptAESGCM encrypts plaintext using AES-GCM with a 16-byte authentication tag.
+// encryptAESGCM encrypts plaintext using AES-GCM with a 16-byte authentication tag.
 // Returns nonce || ciphertext || tag.
-func EncryptAESGCM(key, plaintext, aad []byte) ([]byte, error) {
+func encryptAESGCM(key, plaintext, aad []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -39,8 +39,8 @@ func EncryptAESGCM(key, plaintext, aad []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// DecryptAESGCM decrypts data produced by EncryptAESGCM (nonce || ciphertext || tag).
-func DecryptAESGCM(key, data, aad []byte) ([]byte, error) {
+// decryptAESGCM decrypts data produced by EncryptAESGCM (nonce || ciphertext || tag).
+func decryptAESGCM(key, data, aad []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -61,10 +61,10 @@ func DecryptAESGCM(key, data, aad []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// EncryptIKEAEAD encrypts using the IKEv2 AEAD construction (RFC 5282).
+// encryptIKEAEAD encrypts using the IKEv2 AEAD construction (RFC 5282).
 // keyWithSalt is the AEAD key material: AES key || 4-byte salt.
 // Returns IV(8) || ciphertext || tag(16) for the wire.
-func EncryptIKEAEAD(keyWithSalt, plaintext, aad []byte) ([]byte, error) {
+func encryptIKEAEAD(keyWithSalt, plaintext, aad []byte) ([]byte, error) {
 	if len(keyWithSalt) < 4 {
 		return nil, ErrInvalidKeyLength
 	}
@@ -129,9 +129,9 @@ func DecryptIKEAEAD(keyWithSalt, data, aad []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// EncryptAESCBC encrypts plaintext using AES-CBC with PKCS#7 padding.
+// encryptAESCBC encrypts plaintext using AES-CBC with PKCS#7 padding.
 // Returns iv || ciphertext.
-func EncryptAESCBC(key, plaintext []byte) ([]byte, error) {
+func encryptAESCBC(key, plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -147,8 +147,8 @@ func EncryptAESCBC(key, plaintext []byte) ([]byte, error) {
 	return append(iv, ct...), nil
 }
 
-// DecryptAESCBC decrypts data produced by EncryptAESCBC (iv || ciphertext).
-func DecryptAESCBC(key, data []byte) ([]byte, error) {
+// decryptAESCBC decrypts data produced by EncryptAESCBC (iv || ciphertext).
+func decryptAESCBC(key, data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

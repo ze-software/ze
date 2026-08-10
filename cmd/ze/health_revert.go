@@ -32,7 +32,7 @@ var _ registry.PeerLifecycleCallback = (*HealthRevert)(nil)
 
 func (h *HealthRevert) OnPeerEstablished(_ any) {}
 
-func NewHealthRevert(store storage.Storage, configName string) *HealthRevert {
+func newHealthRevert(store storage.Storage, configName string) *HealthRevert {
 	return &HealthRevert{
 		store:      store,
 		configName: configName,

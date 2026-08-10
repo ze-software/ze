@@ -966,7 +966,7 @@ func emitLSPUp(log *slog.Logger, lsp *LSP, activeCount int) {
 	lsp.mu.Lock()
 	bandwidth := lsp.Bandwidth
 	lsp.mu.Unlock()
-	evt := &LSPEvent{
+	evt := &lSPEvent{
 		TunnelEndpoint: lsp.Key.TunnelEndpoint.String(),
 		TunnelID:       lsp.Key.TunnelID,
 		LSPID:          lsp.Key.LSPID,
@@ -992,7 +992,7 @@ func emitLSPDown(log *slog.Logger, lsp *LSP, activeCount int) {
 	lsp.mu.Lock()
 	bandwidth := lsp.Bandwidth
 	lsp.mu.Unlock()
-	evt := &LSPEvent{
+	evt := &lSPEvent{
 		TunnelEndpoint: lsp.Key.TunnelEndpoint.String(),
 		TunnelID:       lsp.Key.TunnelID,
 		LSPID:          lsp.Key.LSPID,

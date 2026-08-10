@@ -9,9 +9,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ValidateSubsystem checks if a name matches a registered subsystem or is a valid
+// validateSubsystem checks if a name matches a registered subsystem or is a valid
 // hierarchical prefix of one. Returns true if the name is valid for debug toggle.
-func ValidateSubsystem(name string) bool {
+func validateSubsystem(name string) bool {
 	if name == "all" {
 		return true
 	}
@@ -63,5 +63,5 @@ func RestoreLevel(subsystem string) {
 	if !enabled {
 		return
 	}
-	_ = SetLevel(subsystem, LevelString(lvl))
+	_ = SetLevel(subsystem, levelString(lvl))
 }

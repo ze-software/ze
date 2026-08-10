@@ -11,7 +11,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-func RegisterShowHost() {
+func registerShowHost() {
 	names := host.SectionNames()
 	regs := make([]pluginserver.RPCRegistration, 0, len(names))
 	for _, name := range names {

@@ -18,9 +18,9 @@ import (
 // ErrOldConfig is returned when fmt is called on an old config.
 var ErrOldConfig = errors.New("config needs migration")
 
-// ConfigFmtBytes formats config bytes and returns formatted output and whether changes were made.
+// configFmtBytes formats config bytes and returns formatted output and whether changes were made.
 // Exported for testing.
-func ConfigFmtBytes(input []byte) (string, bool, error) {
+func configFmtBytes(input []byte) (string, bool, error) {
 	schema, err := config.YANGSchema()
 	if err != nil {
 		return "", false, fmt.Errorf("YANG schema: %w", err)

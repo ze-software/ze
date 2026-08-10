@@ -75,10 +75,10 @@ func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flo
 	// the uint32 field and report a misleadingly small pool to the collector.
 	pool := uint32(min(uint64(seq)*uint64(sample.Rate), uint64(^uint32(0))))
 
-	fsOff, sampleLengthOff, numRecordsOff := WriteFlowSample(
+	fsOff, sampleLengthOff, numRecordsOff := writeFlowSample(
 		b, off, seq, sample.IfIndex, sample.Rate, pool, 0, sample.IfIndex, sample.Output)
-	off = WriteSampledHeader(b, fsOff, HeaderProtocolEthernet, sample.OrigSize, 0, hdr)
-	BackfillFlowSample(b, sampleLengthOff, numRecordsOff, off, 1)
+	off = writeSampledHeader(b, fsOff, HeaderProtocolEthernet, sample.OrigSize, 0, hdr)
+	backfillFlowSample(b, sampleLengthOff, numRecordsOff, off, 1)
 
 	e.datagramSeq++
 	return sender.Send(b[:off])

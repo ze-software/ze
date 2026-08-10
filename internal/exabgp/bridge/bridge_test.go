@@ -531,9 +531,9 @@ func TestRoundTrip(t *testing.T) {
 func TestStartupProtocol(t *testing.T) {
 	t.Run("sends_declarations", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 
-		sp.SendDeclarations()
+		sp.sendDeclarations()
 
 		output := out.String()
 		// Must contain declare done
@@ -546,16 +546,16 @@ func TestStartupProtocol(t *testing.T) {
 
 	t.Run("sends_capability_done", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		assert.Equal(t, "capability done\n", out.String())
 	})
 
 	t.Run("sends_ready", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 
 		sp.SendReady()
 
@@ -565,9 +565,9 @@ func TestStartupProtocol(t *testing.T) {
 	t.Run("waits_for_config_done", func(t *testing.T) {
 		input := strings.NewReader("config peer 10.0.0.1 local-as 65001\nconfig done\n")
 		scanner := bufio.NewScanner(input)
-		sp := NewStartupProtocol(scanner, nil)
+		sp := newStartupProtocol(scanner, nil)
 
-		err := sp.WaitForConfigDone()
+		err := sp.waitForConfigDone()
 
 		assert.NoError(t, err)
 	})
@@ -575,9 +575,9 @@ func TestStartupProtocol(t *testing.T) {
 	t.Run("waits_for_registry_done", func(t *testing.T) {
 		input := strings.NewReader("registry name exabgp-compat\nregistry done\n")
 		scanner := bufio.NewScanner(input)
-		sp := NewStartupProtocol(scanner, nil)
+		sp := newStartupProtocol(scanner, nil)
 
-		err := sp.WaitForRegistryDone()
+		err := sp.waitForRegistryDone()
 
 		assert.NoError(t, err)
 	})
@@ -587,7 +587,7 @@ func TestStartupProtocol(t *testing.T) {
 		input := strings.NewReader("config peer 10.0.0.1\nconfig done\nregistry name test\nregistry done\n")
 		scanner := bufio.NewScanner(input)
 		var out strings.Builder
-		sp := NewStartupProtocol(scanner, &out)
+		sp := newStartupProtocol(scanner, &out)
 
 		err := sp.Run()
 
@@ -603,10 +603,10 @@ func TestStartupProtocol(t *testing.T) {
 
 	t.Run("custom_families", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast", "ipv6/unicast"}
 
-		sp.SendDeclarations()
+		sp.sendDeclarations()
 
 		output := out.String()
 		assert.Contains(t, output, "declare family ipv4 unicast\n")
@@ -618,7 +618,7 @@ func TestStartupProtocol(t *testing.T) {
 		// PREVENTS: Buffered data lost when creating new scanner.
 		input := strings.NewReader("config done\nregistry done\n{\"json\":\"event\"}\n")
 		scanner := bufio.NewScanner(input)
-		sp := NewStartupProtocol(scanner, io.Discard)
+		sp := newStartupProtocol(scanner, io.Discard)
 
 		err := sp.Run()
 		require.NoError(t, err)
@@ -632,10 +632,10 @@ func TestStartupProtocol(t *testing.T) {
 		// VALIDATES: Empty families slice falls back to default.
 		// PREVENTS: ZeBGP rejecting plugin with no families declared.
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{} // Empty!
 
-		sp.SendDeclarations()
+		sp.sendDeclarations()
 
 		output := out.String()
 		// Should still declare default family
@@ -651,10 +651,10 @@ func TestStartupProtocol(t *testing.T) {
 func TestCapabilityOutput(t *testing.T) {
 	t.Run("route_refresh_capability", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.RouteRefresh = true
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// Route-refresh is code 2, no payload (RFC 2918: 0-length value).
@@ -664,11 +664,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_receive", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast"}
 		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// ADD-PATH is code 69, payload is AFI(2) + SAFI(1) + Mode(1)
@@ -680,11 +680,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_send", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast"}
 		sp.AddPathMode = "send"
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// Send mode = 2, so payload ends with 02
@@ -693,11 +693,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_both", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast"}
 		sp.AddPathMode = "both" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// Both mode = 3, so payload ends with 03
@@ -706,11 +706,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_multiple_families", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast", "ipv6/unicast"}
 		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// ipv4/unicast: 00 01 01 01
@@ -721,12 +721,12 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("both_capabilities", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.RouteRefresh = true
 		sp.Families = []string{"ipv4/unicast"}
 		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// Both capabilities should be present
@@ -737,10 +737,10 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("no_capabilities_default", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		// No RouteRefresh, no AddPathMode
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// Should only have capability done, no capability lines
@@ -749,11 +749,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_ignored_without_mode", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast", "ipv6/unicast"}
 		// AddPathMode not set
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// No ADD-PATH capability without mode
@@ -763,11 +763,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_evpn", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"l2vpn/evpn"}
 		sp.AddPathMode = "both" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// l2vpn/evpn: AFI 25 (0x0019), SAFI 70 (0x46), mode 3
@@ -777,11 +777,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_vpn", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/mpls-vpn"}
 		sp.AddPathMode = "send" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// ipv4/mpls-vpn: AFI 1, SAFI 128 (0x80), mode 2
@@ -791,11 +791,11 @@ func TestCapabilityOutput(t *testing.T) {
 
 	t.Run("add_path_flow_vpn", func(t *testing.T) {
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/flow-vpn"}
 		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// ipv4/flow-vpn: AFI 1, SAFI 134 (0x86), mode 1
@@ -808,11 +808,11 @@ func TestCapabilityOutput(t *testing.T) {
 		// PREVENTS: Single bad family breaking entire ADD-PATH capability.
 		// Note: slog.Warn is called for unknown family (defense-in-depth logging).
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"ipv4/unicast", "invalid/family", "ipv6/unicast"}
 		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// Only valid families encoded: ipv4/unicast + ipv6/unicast
@@ -824,11 +824,11 @@ func TestCapabilityOutput(t *testing.T) {
 		// VALIDATES: All invalid families results in no ADD-PATH capability.
 		// PREVENTS: Empty capability payload being sent.
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = []string{"invalid/family", "bad/safi"}
 		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		// No ADD-PATH capability since all families invalid
@@ -938,12 +938,12 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 
 		// Simulate what Bridge.Run() does: create StartupProtocol with Bridge's values
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = bridge.Families
 		sp.RouteRefresh = bridge.RouteRefresh
 		sp.AddPathMode = bridge.AddPathMode
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		assert.Contains(t, output, "capability hex 2\n", "route-refresh capability should be output")
@@ -956,12 +956,12 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 		bridge.AddPathMode = "receive" //nolint:goconst // CLI test value.
 
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = bridge.Families
 		sp.RouteRefresh = bridge.RouteRefresh
 		sp.AddPathMode = bridge.AddPathMode
 
-		sp.SendCapabilityDone()
+		sp.sendCapabilityDone()
 
 		output := out.String()
 		assert.Contains(t, output, "capability hex 69", "ADD-PATH capability should be output")
@@ -973,10 +973,10 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 		bridge.Families = []string{"ipv4/unicast", "ipv6/unicast"}
 
 		var out strings.Builder
-		sp := NewStartupProtocol(nil, &out)
+		sp := newStartupProtocol(nil, &out)
 		sp.Families = bridge.Families
 
-		sp.SendDeclarations()
+		sp.sendDeclarations()
 
 		output := out.String()
 		assert.Contains(t, output, "declare family ipv4 unicast\n")

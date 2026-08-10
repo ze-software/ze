@@ -23,13 +23,13 @@ import (
 // imported `cmdutil.LocalHandler` continue to compile.
 type LocalHandler = registry.LocalHandler
 
-// RegisterLocalCommand is a thin passthrough to the registry package.
+// registerLocalCommand is a thin passthrough to the registry package.
 // cmdutil historically owned this registry but cannot own it now because
 // cmdutil imports cli (for BuildCommandTree), which would create an
 // import cycle when each subcommand package's register.go registers
 // itself. The canonical owner is the registry (leaf package, no cmd/ze
 // deps); cmdutil forwards for source-compatibility with old callers.
-func RegisterLocalCommand(path string, handler LocalHandler) error {
+func registerLocalCommand(path string, handler LocalHandler) error {
 	return registry.RegisterLocal(path, handler)
 }
 
@@ -83,7 +83,7 @@ type Resolution struct {
 	Declared bool
 }
 
-// Dispatchable reports whether anything will answer Path.
+// dispatchable reports whether anything will answer Path.
 //
 // Two things can: a registered command that declares the path exactly, or an
 // offline fallback covering it. The second kind is the reason this is not just
@@ -104,7 +104,7 @@ type Resolution struct {
 // The fallback lookup is longest-prefix, matching registry.LookupLocal: a
 // fallback at `show host` also answers `show host cpu`, which is what lets an
 // operator read hardware inventory with no daemon running.
-func (r Resolution) Dispatchable() bool {
+func (r Resolution) dispatchable() bool {
 	if r.Declared {
 		return true
 	}
@@ -148,7 +148,7 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 	// Extract the output format keyword (yaml/json/table) from the end of the
 	// command. Done after Local so format keywords are not silently stripped
 	// from commands that do not support them.
-	verbWords, res.Format = ExtractOutputFormat(verbWords)
+	verbWords, res.Format = extractOutputFormat(verbWords)
 	if len(verbWords) == 0 {
 		return res, false // every word was the format keyword
 	}
@@ -158,7 +158,7 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 	return res, true
 }
 
-// DispatchString is the command line the daemon is asked to run: the absolute
+// dispatchString is the command line the daemon is asked to run: the absolute
 // path with the positional values put back after it.
 //
 // RunCommand is the production caller. It is a method rather than four lines
@@ -170,7 +170,7 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 // (`show pki certificate name web`) comes back in the position it was typed. An
 // inline selector (`show bgp peer edge1 detail`) is REORDERED to sit after the
 // action word, which is the form the daemon is keyed on.
-func (r Resolution) DispatchString() string {
+func (r Resolution) dispatchString() string {
 	var tb textbuf.Buffer
 	tb.Join(r.Path, " ")
 	for _, value := range r.Values {
@@ -216,7 +216,7 @@ func RunCommand(args []string, cmdName string) int {
 	// host). Route those to the daemon path below: cli.Run serves them from the
 	// daemon when reachable and from the in-process fallback when not, so they
 	// are never rejected as unknown and the fallback never shadows the daemon.
-	dispatchable := res.Dispatchable()
+	dispatchable := res.dispatchable()
 	if !res.Valid && !dispatchable {
 		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", textbuf.Join(args, " "))
 		if suggestion := SuggestFromTree(res.Relative[0], res.Tree); suggestion != "" {
@@ -232,14 +232,14 @@ func RunCommand(args []string, cmdName string) int {
 	if !dispatchable {
 		if node := FindNode(res.Relative, res.Tree); node != nil && len(node.Children) > 0 {
 			fmt.Fprintf(os.Stderr, "%s subcommands:\n", textbuf.Join(res.Path, " "))
-			PrintChildren(node)
+			printChildren(node)
 			return 1
 		}
 	}
 
 	// The CLI resolves the structural command path, then passes the extracted
 	// values as regular handler arguments.
-	runCmd := res.DispatchString()
+	runCmd := res.dispatchString()
 
 	var cliArgs []string
 	if res.Format != "" {
@@ -250,8 +250,8 @@ func RunCommand(args []string, cmdName string) int {
 	return cli.Run(cliArgs)
 }
 
-// ExtractOutputFormat removes a trailing format keyword (yaml/json/table) from command words.
-func ExtractOutputFormat(words []string) ([]string, string) {
+// extractOutputFormat removes a trailing format keyword (yaml/json/table) from command words.
+func extractOutputFormat(words []string) ([]string, string) {
 	if len(words) == 0 {
 		return words, ""
 	}
@@ -302,8 +302,8 @@ type CommandEntry struct {
 	Desc string
 }
 
-// CommandList returns sorted top-level commands from the tree.
-func CommandList(tree *cli.Command) []CommandEntry {
+// commandList returns sorted top-level commands from the tree.
+func commandList(tree *cli.Command) []CommandEntry {
 	if tree.Children == nil {
 		return nil
 	}
@@ -541,9 +541,9 @@ func FindNode(words []string, tree *cli.Command) *cli.Command {
 	return current
 }
 
-// PrintChildren prints the children of a command node to stderr.
-func PrintChildren(node *cli.Command) {
-	entries := CommandList(node)
+// printChildren prints the children of a command node to stderr.
+func printChildren(node *cli.Command) {
+	entries := commandList(node)
 	for _, e := range entries {
 		fmt.Fprintf(os.Stderr, "  %-20s %s\n", e.Name, e.Desc)
 	}
@@ -567,9 +567,9 @@ func DescribeCommand(cmd *cli.Command) string {
 	return tb.Str("subcommands: ").Join(subs, ", ").String()
 }
 
-// PrintCommandList writes the formatted command list to stderr.
-func PrintCommandList(tree *cli.Command) {
-	entries := CommandList(tree)
+// printCommandList writes the formatted command list to stderr.
+func printCommandList(tree *cli.Command) {
+	entries := commandList(tree)
 	for _, e := range entries {
 		fmt.Fprintf(os.Stderr, "  %-16s %s\n", e.Name, e.Desc)
 	}

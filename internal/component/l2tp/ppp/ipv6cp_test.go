@@ -11,7 +11,7 @@ import (
 //	(type 1, length 10, 8-byte value).
 func TestIPv6CPParseOptions(t *testing.T) {
 	buf := []byte{1, 10, 0x02, 0x00, 0x5E, 0xFF, 0xFE, 0x00, 0x12, 0x34}
-	opts, err := ParseIPv6CPOptions(buf)
+	opts, err := parseIPv6CPOptions(buf)
 	if err != nil {
 		t.Fatalf("ParseIPv6CPOptions: %v", err)
 	}
@@ -28,16 +28,16 @@ func TestIPv6CPParseOptions(t *testing.T) {
 //
 //	preserves the 8-byte identifier.
 func TestIPv6CPRoundtrip(t *testing.T) {
-	src := IPv6CPOptions{
+	src := iPv6CPOptions{
 		InterfaceID:    [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		HasInterfaceID: true,
 	}
 	buf := make([]byte, 16)
-	n := WriteIPv6CPOptions(buf, 0, src)
+	n := writeIPv6CPOptions(buf, 0, src)
 	if n != 10 {
 		t.Fatalf("wrote %d bytes, want 10", n)
 	}
-	got, err := ParseIPv6CPOptions(buf[:n])
+	got, err := parseIPv6CPOptions(buf[:n])
 	if err != nil {
 		t.Fatalf("ParseIPv6CPOptions: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestIPv6CPParseRejects(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseIPv6CPOptions(tc.buf)
+			_, err := parseIPv6CPOptions(tc.buf)
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -130,7 +130,7 @@ func TestIPv6CPProposesInterfaceID(t *testing.T) {
 	if pkt.Code != LCPConfigureRequest {
 		t.Fatalf("first IPv6CP code = %d, want CR", pkt.Code)
 	}
-	opts, err := ParseIPv6CPOptions(pkt.Data)
+	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
 		t.Fatalf("ParseIPv6CPOptions: %v", err)
 	}

@@ -16,7 +16,7 @@ import (
 // RFC requirement: RFC6811-2-1 positive -- the validation state is set to reflect the result of
 // the lookup: a route whose origin AS and prefix length are authorized by a covering VRP is Valid.
 func TestValidateValid(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
 	state := c.Validate("10.0.1.0/24", 65001)
@@ -32,7 +32,7 @@ func TestValidateValid(t *testing.T) {
 // to Valid: the same prefix with a non-authorized origin AS (covered by a VRP that does not match)
 // is Invalid, not Valid, so the state is derived from the lookup result.
 func TestValidateInvalid(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
 	state := c.Validate("10.0.1.0/24", 65999)
@@ -44,7 +44,7 @@ func TestValidateInvalid(t *testing.T) {
 // VALIDATES: Route with no covering VRP is NotFound.
 // PREVENTS: Non-covered routes being marked Invalid.
 func TestValidateNotFound(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
 	state := c.Validate("192.168.0.0/24", 65001)
@@ -56,7 +56,7 @@ func TestValidateNotFound(t *testing.T) {
 // VALIDATES: Route /25 is Invalid when VRP maxLength is /24.
 // PREVENTS: Over-specific prefixes being accepted.
 func TestValidateMaxLengthExceeded(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
 	state := c.Validate("10.0.1.0/25", 65001) // /25 > maxLen /24
@@ -68,7 +68,7 @@ func TestValidateMaxLengthExceeded(t *testing.T) {
 // VALIDATES: VRP with ASN=0 causes Invalid for any origin AS.
 // PREVENTS: AS0 ROAs being treated as valid authorization.
 func TestValidateAS0(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 0)) // AS0 = no AS authorized
 
 	state := c.Validate("10.0.1.0/24", 65001)
@@ -80,7 +80,7 @@ func TestValidateAS0(t *testing.T) {
 // VALIDATES: OriginNone (from AS_SET) yields Invalid when VRPs exist.
 // PREVENTS: AS_SET routes being accepted as Valid.
 func TestValidateOriginNone(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
 	state := c.Validate("10.0.1.0/24", OriginNone)
@@ -95,7 +95,7 @@ func TestValidateOriginNone(t *testing.T) {
 // 16 bits (same low 16) is Invalid, so the ASN is compared as a full uint32 and not truncated to
 // 16 bits: 4200000000 (0xFA56EA00) authorizes, 4200065536 (0xFA57EA00, same low 16) does not.
 func TestValidateFourOctetAS(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 4200000000)) // 32-bit ASN authorizes 10.0.0.0/8
 
 	assert.Equal(t, ValidationValid, c.Validate("10.0.1.0/24", 4200000000))
@@ -107,7 +107,7 @@ func TestValidateFourOctetAS(t *testing.T) {
 // VALIDATES: Multiple covering VRPs -- Valid if ANY matches.
 // PREVENTS: First-VRP-only evaluation.
 func TestValidateMultipleVRPsOneMatch(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 	c.Add(makeVRP("10.0.0.0/8", 24, 65002))
 

@@ -22,7 +22,7 @@ import (
 func TestFamilyRIB_OpaqueNonCIDR(t *testing.T) {
 	// AFI=L2VPN, SAFI=EVPN is the canonical non-CIDR family.
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
-	rib := NewFamilyRIB(fam, false)
+	rib := newFamilyRIB(fam, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
@@ -36,9 +36,9 @@ func TestFamilyRIB_OpaqueNonCIDR(t *testing.T) {
 	rib.Insert(attrs, nlri2, true)
 	assert.Equal(t, 2, rib.Len(), "two distinct opaque NLRIs stored")
 
-	_, ok := rib.LookupEntry(nlri1)
+	_, ok := rib.lookupEntry(nlri1)
 	assert.True(t, ok)
-	_, ok = rib.LookupEntry(nlri2)
+	_, ok = rib.lookupEntry(nlri2)
 	assert.True(t, ok)
 
 	// Iterate yields both entries.
@@ -66,21 +66,21 @@ func TestFamilyRIB_OpaqueNonCIDR(t *testing.T) {
 // clears the stale flag; different attrs release the old entry.
 func TestFamilyRIB_OpaqueImplicitWithdraw(t *testing.T) {
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
-	rib := NewFamilyRIB(fam, false)
+	rib := newFamilyRIB(fam, false)
 	defer rib.Release()
 
 	attrs1 := concat(wireOriginIGP, wireASPath65001, wireNextHop)
 	nlri := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
 
 	rib.Insert(attrs1, nlri, true)
-	entry1, _ := rib.LookupEntry(nlri)
+	entry1, _ := rib.lookupEntry(nlri)
 	originSlot := entry1.GetBundle().Origin.Slot()
 
 	// Mark stale, then re-insert with identical attrs -- stale flag clears,
 	// handles stay the same.
 	rib.MarkStale(1)
 	rib.Insert(attrs1, nlri, true)
-	entry2, ok := rib.LookupEntry(nlri)
+	entry2, ok := rib.lookupEntry(nlri)
 	require.True(t, ok)
 	assert.Equal(t, StaleLevelFresh, entry2.StaleLevel, "stale flag cleared on re-insert")
 	assert.Equal(t, originSlot, entry2.GetBundle().Origin.Slot(), "handles reused on identical attrs")
@@ -92,7 +92,7 @@ func TestFamilyRIB_OpaqueImplicitWithdraw(t *testing.T) {
 // VALIDATES: Routes with same ORIGIN/LOCAL_PREF but different MED share common attrs.
 // PREVENTS: Full blob duplication when only one attribute differs.
 func TestFamilyRIB_PerAttrDedup(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	// Two routes with same ORIGIN and LOCAL_PREF but different MED.
@@ -109,10 +109,10 @@ func TestFamilyRIB_PerAttrDedup(t *testing.T) {
 	rib.Insert(attrs2, nlri2, true)
 
 	// Lookup both routes.
-	entry1, ok := rib.LookupEntry(nlri1)
+	entry1, ok := rib.lookupEntry(nlri1)
 	require.True(t, ok, "route 1 should exist")
 
-	entry2, ok := rib.LookupEntry(nlri2)
+	entry2, ok := rib.lookupEntry(nlri2)
 	require.True(t, ok, "route 2 should exist")
 
 	// ORIGIN and LOCAL_PREF should share pool slots (same values).
@@ -131,7 +131,7 @@ func TestFamilyRIB_PerAttrDedup(t *testing.T) {
 // VALIDATES: Insert parses attributes and stores RouteEntry.
 // PREVENTS: Insert failing or not using per-attr pools.
 func TestFamilyRIB_Insert(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
@@ -141,7 +141,7 @@ func TestFamilyRIB_Insert(t *testing.T) {
 
 	assert.Equal(t, 1, rib.Len(), "should have 1 route")
 
-	entry, ok := rib.LookupEntry(nlriBytes)
+	entry, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
 	assert.True(t, entry.GetBundle().HasOrigin())
 	assert.True(t, entry.HasASPath())
@@ -153,7 +153,7 @@ func TestFamilyRIB_Insert(t *testing.T) {
 // VALIDATES: Insert drops updates whose path attribute list cannot be parsed completely.
 // PREVENTS: Remote malformed UPDATE bytes from creating routes with missing attributes.
 func TestFamilyRIB_InsertRejectsMalformedAttributes(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := []byte{0x40, 0x01, 0x64, 0x00, 0x00} // ORIGIN length says 100, only 2 bytes present.
@@ -162,7 +162,7 @@ func TestFamilyRIB_InsertRejectsMalformedAttributes(t *testing.T) {
 	rib.Insert(attrs, nlriBytes, true)
 
 	assert.Equal(t, 0, rib.Len())
-	_, ok := rib.LookupEntry(nlriBytes)
+	_, ok := rib.lookupEntry(nlriBytes)
 	assert.False(t, ok)
 }
 
@@ -171,7 +171,7 @@ func TestFamilyRIB_InsertRejectsMalformedAttributes(t *testing.T) {
 // VALIDATES: Same NLRI with new attrs releases old entry.
 // PREVENTS: Memory leak from unreleased old RouteEntry.
 func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	nlriBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
@@ -180,7 +180,7 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 	attrs1 := concat(wireOriginIGP, wireMED100)
 	rib.Insert(attrs1, nlriBytes, true)
 
-	entry1, ok := rib.LookupEntry(nlriBytes)
+	entry1, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
 	// Save slot values before implicit withdraw releases the entry.
 	origin1Slot := entry1.GetBundle().Origin.Slot()
@@ -191,7 +191,7 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 	attrs2 := concat(wireOriginIGP, wireMED20)
 	rib.Insert(attrs2, nlriBytes, true)
 
-	entry2, ok := rib.LookupEntry(nlriBytes)
+	entry2, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
 
 	// ORIGIN should share pool slot (same value interned twice).
@@ -211,7 +211,7 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 // VALIDATES: Remove releases RouteEntry handles.
 // PREVENTS: Memory leak from unreleased handles on remove.
 func TestFamilyRIB_Remove(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -224,7 +224,7 @@ func TestFamilyRIB_Remove(t *testing.T) {
 	assert.True(t, removed)
 	assert.Equal(t, 0, rib.Len())
 
-	_, ok := rib.LookupEntry(nlriBytes)
+	_, ok := rib.lookupEntry(nlriBytes)
 	assert.False(t, ok, "route should not exist after remove")
 }
 
@@ -233,7 +233,7 @@ func TestFamilyRIB_Remove(t *testing.T) {
 // VALIDATES: IterateEntry visits all routes with their RouteEntry.
 // PREVENTS: Missing routes during iteration.
 func TestFamilyRIB_IterateEntry(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -259,7 +259,7 @@ func TestFamilyRIB_IterateEntry(t *testing.T) {
 // VALIDATES: Same NLRI+attrs = no-op (no extra pool refs).
 // PREVENTS: Pool ref leaks from redundant updates.
 func TestFamilyRIB_NoOpUpdate(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -267,11 +267,11 @@ func TestFamilyRIB_NoOpUpdate(t *testing.T) {
 
 	// Insert twice with same data.
 	rib.Insert(attrs, nlriBytes, true)
-	entry1, _ := rib.LookupEntry(nlriBytes)
+	entry1, _ := rib.lookupEntry(nlriBytes)
 	originSlot1 := entry1.GetBundle().Origin.Slot()
 
 	rib.Insert(attrs, nlriBytes, true)
-	entry2, _ := rib.LookupEntry(nlriBytes)
+	entry2, _ := rib.lookupEntry(nlriBytes)
 
 	// Should be same entry (or at least same slots).
 	assert.Equal(t, originSlot1, entry2.GetBundle().Origin.Slot())
@@ -283,7 +283,7 @@ func TestFamilyRIB_NoOpUpdate(t *testing.T) {
 // VALIDATES: RouteEntry can be reconstructed to valid wire format.
 // PREVENTS: Data loss during storage/reconstruction cycle.
 func TestFamilyRIB_ToWireBytes(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	// Insert with known attributes.
@@ -292,7 +292,7 @@ func TestFamilyRIB_ToWireBytes(t *testing.T) {
 
 	rib.Insert(attrs, nlriBytes, true)
 
-	entry, ok := rib.LookupEntry(nlriBytes)
+	entry, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
 
 	// Reconstruct wire bytes.
@@ -328,14 +328,14 @@ func TestFamilyRIB_InsertEntry_CIDR(t *testing.T) {
 	nlri3 := []byte{24, 10, 0, 2}
 
 	// Insert via old path.
-	ribOld := NewFamilyRIB(family.IPv4Unicast, false)
+	ribOld := newFamilyRIB(family.IPv4Unicast, false)
 	defer ribOld.Release()
 	ribOld.Insert(attrs, nlri1, true)
 	ribOld.Insert(attrs, nlri2, true)
 	ribOld.Insert(attrs, nlri3, true)
 
 	// Insert via new parse-once path.
-	ribNew := NewFamilyRIB(family.IPv4Unicast, false)
+	ribNew := newFamilyRIB(family.IPv4Unicast, false)
 	defer ribNew.Release()
 	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
 	require.NoError(t, err)
@@ -348,7 +348,7 @@ func TestFamilyRIB_InsertEntry_CIDR(t *testing.T) {
 
 	// Both RIBs should have identical entries.
 	ribOld.IterateEntry(func(nlri []byte, oldE RouteEntry) bool {
-		newE, ok := ribNew.LookupEntry(nlri)
+		newE, ok := ribNew.lookupEntry(nlri)
 		require.True(t, ok, "NLRI %x missing from InsertEntry RIB", nlri)
 		assert.True(t, entriesEqual(oldE, newE), "entries should have same handles for NLRI %x", nlri)
 		assert.Equal(t, oldE.AttrFingerprint, newE.AttrFingerprint)
@@ -363,7 +363,7 @@ func TestFamilyRIB_InsertEntry_NoOpFingerprint(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
 	nlri := []byte{24, 10, 0, 0}
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	// First insert.
@@ -372,7 +372,7 @@ func TestFamilyRIB_InsertEntry_NoOpFingerprint(t *testing.T) {
 	rib.InsertEntry(nlri, entry1, fp1, al1)
 	entry1.Release()
 
-	e1, ok := rib.LookupEntry(nlri)
+	e1, ok := rib.lookupEntry(nlri)
 	require.True(t, ok)
 	bundle1 := e1.Bundle
 
@@ -382,7 +382,7 @@ func TestFamilyRIB_InsertEntry_NoOpFingerprint(t *testing.T) {
 	rib.InsertEntry(nlri, entry2, fp2, al2)
 	entry2.Release()
 
-	e2, ok := rib.LookupEntry(nlri)
+	e2, ok := rib.lookupEntry(nlri)
 	require.True(t, ok)
 	assert.Equal(t, bundle1, e2.Bundle, "no-op insert should preserve original entry")
 }
@@ -394,7 +394,7 @@ func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
 	attrsB := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireMED100)
 	nlri := []byte{24, 10, 0, 0}
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	entryA, fpA, alA, err := ParseRouteEntry(attrsA, true)
@@ -402,7 +402,7 @@ func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
 	rib.InsertEntry(nlri, entryA, fpA, alA)
 	entryA.Release()
 
-	e1, _ := rib.LookupEntry(nlri)
+	e1, _ := rib.lookupEntry(nlri)
 	bundleA := e1.Bundle
 
 	entryB, fpB, alB, err := ParseRouteEntry(attrsB, true)
@@ -410,7 +410,7 @@ func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
 	rib.InsertEntry(nlri, entryB, fpB, alB)
 	entryB.Release()
 
-	e2, ok := rib.LookupEntry(nlri)
+	e2, ok := rib.lookupEntry(nlri)
 	require.True(t, ok)
 	assert.NotEqual(t, bundleA, e2.Bundle, "different attrs should replace entry")
 }
@@ -418,7 +418,7 @@ func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
 // TestFamilyRIB_InsertEntry_Opaque verifies InsertEntry works for non-CIDR families.
 func TestFamilyRIB_InsertEntry_Opaque(t *testing.T) {
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
-	rib := NewFamilyRIB(fam, false)
+	rib := newFamilyRIB(fam, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
@@ -432,8 +432,8 @@ func TestFamilyRIB_InsertEntry_Opaque(t *testing.T) {
 	entry.Release()
 
 	assert.Equal(t, 2, rib.Len())
-	_, ok := rib.LookupEntry(nlri1)
+	_, ok := rib.lookupEntry(nlri1)
 	assert.True(t, ok)
-	_, ok = rib.LookupEntry(nlri2)
+	_, ok = rib.lookupEntry(nlri2)
 	assert.True(t, ok)
 }

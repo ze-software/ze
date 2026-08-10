@@ -223,8 +223,8 @@ func IsInternalPlugin(name string) bool {
 	return registry.Has(name)
 }
 
-// InternalPluginCommand returns the command to run an internal plugin.
+// internalPluginCommand returns the command to run an internal plugin.
 // For internal plugins, this is "ze plugin <name>".
-func InternalPluginCommand(name string) []string {
+func internalPluginCommand(name string) []string {
 	return []string{"ze", cmdPlugin, name}
 }

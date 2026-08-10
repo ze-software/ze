@@ -5,5 +5,5 @@ package server
 import "github.com/ze-software/ze/internal/component/plugin/registry"
 
 func init() {
-	registry.AddRPCHandlers(CodecRPCHandlers())
+	registry.AddRPCHandlers(codecRPCHandlers())
 }

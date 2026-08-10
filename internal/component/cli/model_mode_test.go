@@ -101,8 +101,8 @@ func TestModeScreenRestore(t *testing.T) {
 func TestCommandModeCompletionsWired(t *testing.T) {
 	// VALIDATES: AC-3 — Tab in command mode shows operational commands via Model
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
 			"peer":   {Name: "peer", Description: "Peer operations"},
 			"daemon": {Name: "daemon", Description: "Daemon operations"},
 		},
@@ -156,8 +156,8 @@ func TestCommandModeCompletionsWired(t *testing.T) {
 
 func TestOperationalModeDedupsConfigCompletions(t *testing.T) {
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
 			"show": {Name: "show", Description: "Operational show"},
 		},
 	}))
@@ -185,9 +185,9 @@ func TestOperationalModeDedupsConfigCompletions(t *testing.T) {
 func TestCommandModeDispatch(t *testing.T) {
 	// VALIDATES: AC-5 — Enter in command mode sends to executor, response shown in viewport
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
-			"peer": {Name: "peer", Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
+			"peer": {Name: "peer", Children: map[string]*commandNode{
 				"list": {Name: "list", Description: "List peers"},
 			}},
 		},
@@ -244,8 +244,8 @@ func TestCommandModeDispatchNoExecutor(t *testing.T) {
 func TestCommandModeGhostTextWired(t *testing.T) {
 	// VALIDATES: ghost text works through Model in command mode
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
 			"peer":   {Name: "peer", Description: "Peer operations"},
 			"daemon": {Name: "daemon", Description: "Daemon operations"},
 		},
@@ -376,10 +376,10 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	// PREVENTS: Tab completing "peer detail 12" to "127.0.0. " (with space) and no dropdown,
 	//           leaving user with an invalid partial token and no way to pick between matches.
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
-			"peer": {Name: "peer", Children: map[string]*CommandNode{
-				"detail": {Name: "detail", Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
+			"peer": {Name: "peer", Children: map[string]*commandNode{
+				"detail": {Name: "detail", Children: map[string]*commandNode{
 					"127.0.0.1": {Name: "127.0.0.1", Description: "Peer 1"},
 					"127.0.0.2": {Name: "127.0.0.2", Description: "Peer 2"},
 				}},
@@ -424,8 +424,8 @@ func TestCrossModeCompletionsRunPrefix(t *testing.T) {
 	// VALIDATES: edit mode with "run " prefix gets operational command completions
 	// PREVENTS: dead completions when typing "run peer" in edit mode
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
 			"peer":   {Name: "peer", Description: "Peer operations"},
 			"daemon": {Name: "daemon", Description: "Daemon operations"},
 		},
@@ -458,8 +458,8 @@ func TestCrossModeCompletionsConfigInOperationalMode(t *testing.T) {
 	// VALIDATES: operational mode with config command prefix routes to YANG completions
 	// PREVENTS: trying to match "set bgp" against operational command tree
 	m := newTestModel(t)
-	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
-		Children: map[string]*CommandNode{
+	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
+		Children: map[string]*commandNode{
 			"peer": {Name: "peer", Description: "Peer operations"},
 		},
 	}))

@@ -35,8 +35,8 @@ func init() {
 
 func logger() *slog.Logger { return loggerPtr.Load() }
 
-// SetVPPLogger sets the package-level logger for the VPP component.
-func SetVPPLogger(l *slog.Logger) {
+// setVPPLogger sets the package-level logger for the VPP component.
+func setVPPLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
 		setGovppLoggers(l)
@@ -49,9 +49,9 @@ var (
 	eventBusRef ze.EventBus
 )
 
-// SetVPPEventBus sets the package-level EventBus reference.
+// setVPPEventBus sets the package-level EventBus reference.
 // MUST be called before VPPManager.Run starts.
-func SetVPPEventBus(eb ze.EventBus) {
+func setVPPEventBus(eb ze.EventBus) {
 	eventBusMu.Lock()
 	defer eventBusMu.Unlock()
 	eventBusRef = eb
@@ -153,7 +153,7 @@ type VPPManager struct {
 func NewVPPManager(settings *VPPSettings, confDir, vppBinary string) *VPPManager {
 	return &VPPManager{
 		settings:  settings,
-		dpdk:      NewDPDKBinder(),
+		dpdk:      newDPDKBinder(),
 		connector: NewConnector(settings.APISocket),
 		confDir:   confDir,
 		vppBinary: vppBinary,

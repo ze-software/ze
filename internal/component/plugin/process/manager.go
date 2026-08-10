@@ -279,8 +279,8 @@ func (pm *ProcessManager) AllProcesses() []*Process {
 	return result
 }
 
-// ProcessCount returns the number of running processes.
-func (pm *ProcessManager) ProcessCount() int {
+// processCount returns the number of running processes.
+func (pm *ProcessManager) processCount() int {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -293,8 +293,8 @@ func (pm *ProcessManager) ProcessCount() int {
 	return count
 }
 
-// IsRunning returns true if the named process is running.
-func (pm *ProcessManager) IsRunning(name string) bool {
+// isRunning returns true if the named process is running.
+func (pm *ProcessManager) isRunning(name string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -305,8 +305,8 @@ func (pm *ProcessManager) IsRunning(name string) bool {
 	return proc.Running()
 }
 
-// IsDisabled returns true if the named process is disabled due to respawn limit.
-func (pm *ProcessManager) IsDisabled(name string) bool {
+// isDisabled returns true if the named process is disabled due to respawn limit.
+func (pm *ProcessManager) isDisabled(name string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	return pm.disabled[name]

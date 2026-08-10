@@ -204,7 +204,7 @@ func TestAVPCatalogRoundTrip(t *testing.T) {
 			attr AVPType
 			size int
 		}{AVPFramingCapabilities, 10}},
-		{"TieBreaker u64", func(b []byte, o int) int { return WriteAVPUint64(b, o, false, AVPTieBreaker, 0xdeadbeefcafef00d) }, struct {
+		{"TieBreaker u64", func(b []byte, o int) int { return writeAVPUint64(b, o, false, AVPTieBreaker, 0xdeadbeefcafef00d) }, struct {
 			attr AVPType
 			size int
 		}{AVPTieBreaker, 14}},
@@ -216,12 +216,12 @@ func TestAVPCatalogRoundTrip(t *testing.T) {
 			attr AVPType
 			size int
 		}{AVPAssignedTunnelID, 8}},
-		{"SequencingRequired empty", func(b []byte, o int) int { return WriteAVPEmpty(b, o, true, 0, AVPSequencingRequired) }, struct {
+		{"SequencingRequired empty", func(b []byte, o int) int { return writeAVPEmpty(b, o, true, 0, AVPSequencingRequired) }, struct {
 			attr AVPType
 			size int
 		}{AVPSequencingRequired, 6}},
 		{"ProxyAuthenID", func(b []byte, o int) int {
-			return WriteAVPProxyAuthenID(b, o, false, ProxyAuthenIDValue{ChapID: 7})
+			return writeAVPProxyAuthenID(b, o, false, ProxyAuthenIDValue{ChapID: 7})
 		}, struct {
 			attr AVPType
 			size int
@@ -259,13 +259,13 @@ func TestResultCodeRoundTrip(t *testing.T) {
 	}
 	for _, tc := range cases {
 		buf := make([]byte, 64)
-		n := WriteAVPResultCode(buf, 0, true, tc)
+		n := writeAVPResultCode(buf, 0, true, tc)
 		it := NewAVPIterator(buf[:n])
 		_, at, _, v, ok := it.Next()
 		if !ok || at != AVPResultCode {
 			t.Fatalf("iter err: %v at=%d", it.Err(), at)
 		}
-		got, err := ReadResultCode(v)
+		got, err := readResultCode(v)
 		if err != nil {
 			t.Fatalf("ReadResultCode: %v", err)
 		}
@@ -279,13 +279,13 @@ func TestResultCodeRoundTrip(t *testing.T) {
 func TestQ931CauseRoundTrip(t *testing.T) {
 	v := Q931CauseValue{Cause: 17, Msg: 0x88, Advisory: "busy", AdvisoryPresent: true}
 	buf := make([]byte, 32)
-	n := WriteAVPQ931Cause(buf, 0, true, v)
+	n := writeAVPQ931Cause(buf, 0, true, v)
 	it := NewAVPIterator(buf[:n])
 	_, at, _, val, ok := it.Next()
 	if !ok || at != AVPQ931CauseCode {
 		t.Fatalf("iter err: %v at=%d", it.Err(), at)
 	}
-	got, err := ReadQ931Cause(val)
+	got, err := readQ931Cause(val)
 	if err != nil {
 		t.Fatalf("ReadQ931Cause: %v", err)
 	}
@@ -301,7 +301,7 @@ func TestCallErrorsRoundTrip(t *testing.T) {
 		BufferOverruns: 4, TimeoutErrors: 5, AlignmentErrors: 6,
 	}
 	buf := make([]byte, 40)
-	n := WriteAVPCallErrors(buf, 0, true, v)
+	n := writeAVPCallErrors(buf, 0, true, v)
 	if n != 32 { // 6 header + 26 value
 		t.Fatalf("n=%d want 32", n)
 	}
@@ -310,7 +310,7 @@ func TestCallErrorsRoundTrip(t *testing.T) {
 	if !ok || at != AVPCallErrors {
 		t.Fatalf("at=%d ok=%v err=%v", at, ok, it.Err())
 	}
-	got, err := ReadCallErrors(val)
+	got, err := readCallErrors(val)
 	if err != nil {
 		t.Fatalf("ReadCallErrors: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestCallErrorsRoundTrip(t *testing.T) {
 func TestACCMRoundTrip(t *testing.T) {
 	v := ACCMValue{SendACCM: 0xAABBCCDD, RecvACCM: 0x11223344}
 	buf := make([]byte, 32)
-	n := WriteAVPACCM(buf, 0, true, v)
+	n := writeAVPACCM(buf, 0, true, v)
 	if n != 16 {
 		t.Fatalf("n=%d want 16", n)
 	}
@@ -332,7 +332,7 @@ func TestACCMRoundTrip(t *testing.T) {
 	if !ok || at != AVPACCM {
 		t.Fatalf("at=%d ok=%v err=%v", at, ok, it.Err())
 	}
-	got, err := ReadACCM(val)
+	got, err := readACCM(val)
 	if err != nil {
 		t.Fatalf("ReadACCM: %v", err)
 	}

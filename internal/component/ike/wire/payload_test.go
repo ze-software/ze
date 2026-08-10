@@ -52,7 +52,7 @@ func TestDecodeUnknownPayloadSkip(t *testing.T) {
 	}
 
 	// First payload should be raw (unknown skipped)
-	if _, ok := msg.Payloads[0].Payload.(*PayloadRaw); !ok {
+	if _, ok := msg.Payloads[0].Payload.(*payloadRaw); !ok {
 		t.Errorf("payload[0] type = %T, want *PayloadRaw", msg.Payloads[0].Payload)
 	}
 	// Second should be nonce

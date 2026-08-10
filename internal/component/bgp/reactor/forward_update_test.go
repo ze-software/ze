@@ -89,7 +89,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	}
 
 	// Create cache and add update
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(42, 1) // 1 consumer (the plugin doing the forward)
 
@@ -188,7 +188,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	// 1 consumer plugin — Ack will decrement pendingConsumers to 0
 	// but Retain keeps the entry alive while workers are in flight
@@ -298,7 +298,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(200, 1)
 
@@ -383,7 +383,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(300, 1)
 
@@ -507,7 +507,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(301, 1)
 
@@ -609,7 +609,7 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(302, 1)
 
@@ -754,7 +754,7 @@ func reflectionFixture(t *testing.T) *reflectionEnv {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
-	env.cache = NewRecentUpdateCache(100)
+	env.cache = newRecentUpdateCache(100)
 	t.Cleanup(env.cache.Stop)
 
 	env.r = &Reactor{
@@ -931,7 +931,7 @@ func TestForwardUpdateRefusesUnestablishedSource(t *testing.T) {
 func TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved(t *testing.T) {
 	env := reflectionFixture(t)
 	env.cache.RegisterConsumer("rs")
-	env.cache.SetConsumerUnordered("rs")
+	env.cache.setConsumerUnordered("rs")
 
 	dests := []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("10.0.0.2"), 0)}
 
@@ -991,9 +991,9 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 		ReceivedAt:   time.Now(),
 	}
 
-	cache = NewRecentUpdateCache(100)
+	cache = newRecentUpdateCache(100)
 	cache.RegisterConsumer("rs")
-	cache.SetConsumerUnordered("rs")
+	cache.setConsumerUnordered("rs")
 	cache.Add(update)
 	cache.Activate(msgID, 1)
 
@@ -1110,10 +1110,10 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rs")
-	cache.SetConsumerUnordered("rs")
+	cache.setConsumerUnordered("rs")
 	cache.Add(update)
 	cache.Activate(msgID, 1)
 
@@ -1340,7 +1340,7 @@ func TestFwdBodyCacheHoistsSupersedeAndWithdrawal(t *testing.T) {
 	defer cache.Stop()
 
 	// Enable group forwarding so fwdBodyCache is active.
-	adapter.r.updateGroups = NewUpdateGroupIndex(true)
+	adapter.r.updateGroups = newUpdateGroupIndex(true)
 
 	var mu sync.Mutex
 	items := make([]fwdItem, 0, 2)
@@ -1444,10 +1444,10 @@ func TestForwardUpdateDirectAllMissingReturnsError(t *testing.T) {
 // TestReleaseUpdatesAcksBatch verifies ReleaseUpdates acks each id for the
 // plugin and frees the cache entry when the last consumer acks.
 func TestReleaseUpdatesAcksBatch(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rs")
-	cache.SetConsumerUnordered("rs")
+	cache.setConsumerUnordered("rs")
 
 	for _, id := range []uint64{1, 2, 3} {
 		wu := wireu.NewWireUpdate([]byte{0, 0, 0, 0}, bgpctx.ContextID(1))
@@ -1732,7 +1732,7 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := NewRecentUpdateCache(100)
+	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 
 	src := makeForwardSourcePeer(t, ctx, ctxID)

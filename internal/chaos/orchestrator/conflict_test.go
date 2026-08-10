@@ -11,7 +11,7 @@ import (
 )
 
 func TestValidateConfigRangeConflicts_MetricsInsideBGP(t *testing.T) {
-	cfg := &OrchestratorConfig{
+	cfg := &orchestratorConfig{
 		Profiles: []scenario.PeerProfile{
 			{Index: 0, ZePort: 1790, Port: 1890},
 			{Index: 1, ZePort: 1791, Port: 1891},
@@ -29,7 +29,7 @@ func TestValidateConfigRangeConflicts_MetricsInsideBGP(t *testing.T) {
 }
 
 func TestValidateConfigRangeConflicts_NoConflict(t *testing.T) {
-	cfg := &OrchestratorConfig{
+	cfg := &orchestratorConfig{
 		Profiles: []scenario.PeerProfile{
 			{Index: 0, ZePort: 1790, Port: 1890},
 			{Index: 1, ZePort: 1791, Port: 1891},
@@ -44,13 +44,13 @@ func TestValidateConfigRangeConflicts_NoConflict(t *testing.T) {
 
 func TestValidateConfigRangeConflicts_EmptyProfiles(t *testing.T) {
 	// No profiles => no derivable range => nothing to validate.
-	if err := ValidateConfigRangeConflicts(&OrchestratorConfig{MetricsAddr: "127.0.0.1:1790"}); err != nil {
+	if err := ValidateConfigRangeConflicts(&orchestratorConfig{MetricsAddr: "127.0.0.1:1790"}); err != nil {
 		t.Errorf("empty profiles must not error, got: %v", err)
 	}
 }
 
 func TestChaosListenConflict_SamePort(t *testing.T) {
-	err := ValidateChaosListenerConflicts(0, 8443, 8443, 0, "", "", "", "", "")
+	err := validateChaosListenerConflicts(0, 8443, 8443, 0, "", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected conflict error, got nil")
 	}
@@ -60,21 +60,21 @@ func TestChaosListenConflict_SamePort(t *testing.T) {
 }
 
 func TestChaosListenConflict_NoConflict(t *testing.T) {
-	err := ValidateChaosListenerConflicts(2222, 3443, 8443, 0, ":8000", ":6060", ":9090", ":6061", "")
+	err := validateChaosListenerConflicts(2222, 3443, 8443, 0, ":8000", ":6060", ":9090", ":6061", "")
 	if err != nil {
 		t.Errorf("expected no conflict, got: %v", err)
 	}
 }
 
 func TestChaosListenConflict_DisabledExcluded(t *testing.T) {
-	err := ValidateChaosListenerConflicts(0, 0, 8443, 0, "", "", "", "", "")
+	err := validateChaosListenerConflicts(0, 0, 8443, 0, "", "", "", "", "")
 	if err != nil {
 		t.Errorf("expected no conflict with disabled ports, got: %v", err)
 	}
 }
 
 func TestChaosListenConflict_AddrVsInt(t *testing.T) {
-	err := ValidateChaosListenerConflicts(0, 0, 8443, 0, "", "", "", ":8443", "")
+	err := validateChaosListenerConflicts(0, 0, 8443, 0, "", "", "", ":8443", "")
 	if err == nil {
 		t.Fatal("expected conflict between addr:port and int port, got nil")
 	}

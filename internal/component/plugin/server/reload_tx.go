@@ -47,7 +47,7 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 		return fmt.Errorf("build transaction inputs: %w", err)
 	}
 
-	gateway := NewConfigEventGateway(s)
+	gateway := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gateway, participantNames(participants), verifySections)
 	if err := bridge.Subscribe(ctx); err != nil {
 		return fmt.Errorf("config tx bridge subscribe: %w", err)

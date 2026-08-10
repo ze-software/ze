@@ -34,16 +34,16 @@ var IPv4RTC = family.MustRegister(AFIIPv4, SAFIRTC, "ipv4", "rtc")
 // Errors for RTC parsing.
 var ErrRTCTruncated = errors.New("rtc: truncated data")
 
-// RouteTarget represents a Route Target extended community.
+// routeTarget represents a Route Target extended community.
 //
 // RFC 4360 defines extended communities as 8-octet values.
-type RouteTarget struct {
+type routeTarget struct {
 	Type  uint16  // Extended community type (2 bytes)
 	Value [6]byte // Extended community value (6 bytes)
 }
 
 // Bytes returns the wire format of the route target (8 bytes).
-func (rt RouteTarget) Bytes() []byte {
+func (rt routeTarget) Bytes() []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint16(buf[:2], rt.Type)
 	copy(buf[2:], rt.Value[:])
@@ -53,7 +53,7 @@ func (rt RouteTarget) Bytes() []byte {
 // String returns a human-readable route target.
 //
 // RFC 4360 Section 3 defines extended community types.
-func (rt RouteTarget) String() string {
+func (rt routeTarget) String() string {
 	var b textbuf.Buffer
 	switch rt.Type >> 8 {
 	case 0x00: // 2-byte ASN (RFC 4360 Section 3.1)
@@ -79,22 +79,22 @@ func (rt RouteTarget) String() string {
 // with specific Route Targets.
 type RTC struct {
 	originAS    uint32      // Origin AS number (4 bytes)
-	routeTarget RouteTarget // Route Target extended community (8 bytes)
+	routeTarget routeTarget // Route Target extended community (8 bytes)
 }
 
-// NewRTC creates a new RTC NLRI.
-func NewRTC(originAS uint32, rt RouteTarget) *RTC {
+// newRTC creates a new RTC NLRI.
+func newRTC(originAS uint32, rt routeTarget) *RTC {
 	return &RTC{
 		originAS:    originAS,
 		routeTarget: rt,
 	}
 }
 
-// ParseRTC parses an RTC NLRI from wire format.
+// parseRTC parses an RTC NLRI from wire format.
 //
 // RFC 4684 Section 4: prefix of 0 to 96 bits.
 // A prefix-length of 0 = default route target.
-func ParseRTC(data []byte) (*RTC, []byte, error) {
+func parseRTC(data []byte) (*RTC, []byte, error) {
 	if len(data) < 1 {
 		return nil, nil, ErrRTCTruncated
 	}
@@ -136,13 +136,13 @@ func (r *RTC) Family() Family {
 // OriginAS returns the origin AS number.
 func (r *RTC) OriginAS() uint32 { return r.originAS }
 
-// RouteTargetValue returns the route target.
-func (r *RTC) RouteTargetValue() RouteTarget { return r.routeTarget }
+// routeTargetValue returns the route target.
+func (r *RTC) routeTargetValue() routeTarget { return r.routeTarget }
 
-// IsDefault returns true if this is the default RTC (matches all RTs).
+// isDefault returns true if this is the default RTC (matches all RTs).
 //
 // RFC 4684 Section 4: A zero-length prefix = default route target.
-func (r *RTC) IsDefault() bool {
+func (r *RTC) isDefault() bool {
 	return r.originAS == 0 && r.routeTarget.Type == 0 && r.routeTarget.Value == [6]byte{}
 }
 
@@ -158,7 +158,7 @@ func (r *RTC) Bytes() []byte {
 // Len returns the length in bytes.
 // RFC 4684 Section 4: 1 byte for default, 13 bytes otherwise.
 func (r *RTC) Len() int {
-	if r.IsDefault() {
+	if r.isDefault() {
 		return 1
 	}
 	return 13
@@ -175,7 +175,7 @@ func (r *RTC) SupportsAddPath() bool { return false }
 
 // String returns command-style format for API round-trip compatibility.
 func (r *RTC) String() string {
-	if r.IsDefault() {
+	if r.isDefault() {
 		return "default"
 	}
 	var b textbuf.Buffer
@@ -184,7 +184,7 @@ func (r *RTC) String() string {
 
 // WriteTo writes the RTC NLRI directly to buf at offset.
 func (r *RTC) WriteTo(buf []byte, off int) int {
-	if r.IsDefault() {
+	if r.isDefault() {
 		buf[off] = 0
 		return 1
 	}

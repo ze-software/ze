@@ -102,7 +102,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		return "", errRdRequiredForVpls
 	}
 
-	v := NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
+	v := newVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
 	return textbuf.StringHexUpper(v.Bytes()), nil
 }
 
@@ -131,7 +131,7 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 	}
 
 	// Build the VPLS NLRI (RFC 4761). VE-ID matches the block offset.
-	vplsNLRI := NewVPLSFull(rd, parsed.VEBlockOffset, parsed.VEBlockOffset, parsed.VEBlockSize, parsed.LabelBase)
+	vplsNLRI := newVPLSFull(rd, parsed.VEBlockOffset, parsed.VEBlockOffset, parsed.VEBlockSize, parsed.LabelBase)
 	nlriBytes := vplsNLRI.Bytes()
 
 	// Build UPDATE via the generic plugin builder (L2VPN AFI 25, SAFI 65).

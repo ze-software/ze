@@ -50,24 +50,24 @@ func (m *nameMap) Remove(zeName string) {
 	delete(m.vppNames, idx)
 }
 
-// LookupIndex returns the SwIfIndex for a ze name, or false if not found.
-func (m *nameMap) LookupIndex(zeName string) (uint32, bool) {
+// lookupIndex returns the SwIfIndex for a ze name, or false if not found.
+func (m *nameMap) lookupIndex(zeName string) (uint32, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	idx, ok := m.toIndex[zeName]
 	return idx, ok
 }
 
-// LookupName returns the ze name for a SwIfIndex, or false if not found.
-func (m *nameMap) LookupName(swIfIndex uint32) (string, bool) {
+// lookupName returns the ze name for a SwIfIndex, or false if not found.
+func (m *nameMap) lookupName(swIfIndex uint32) (string, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	name, ok := m.toName[swIfIndex]
 	return name, ok
 }
 
-// LookupVPPName returns the VPP long name for a SwIfIndex.
-func (m *nameMap) LookupVPPName(swIfIndex uint32) (string, bool) {
+// lookupVPPName returns the VPP long name for a SwIfIndex.
+func (m *nameMap) lookupVPPName(swIfIndex uint32) (string, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	name, ok := m.vppNames[swIfIndex]

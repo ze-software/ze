@@ -66,7 +66,7 @@ func TestMTUMismatch(t *testing.T) {
 
 	var gotLocal, gotNeighbor int
 	var fired bool
-	tr.OnMTUMismatch(func(name string, localMTU, neighborMTU int) {
+	tr.onMTUMismatch(func(name string, localMTU, neighborMTU int) {
 		fired = true
 		gotLocal, gotNeighbor = localMTU, neighborMTU
 	})
@@ -91,7 +91,7 @@ func TestMTUNoMismatchWhenEqual(t *testing.T) {
 	_ = tr.HandleLinkUp("eth0")
 
 	fired := false
-	tr.OnMTUMismatch(func(string, int, int) { fired = true })
+	tr.onMTUMismatch(func(string, int, int) { fired = true })
 	tr.ObserveNeighborFrame("eth0", FrameHeaderLen+(1500-LLCHeaderLen))
 	if fired {
 		t.Error("MTU mismatch fired for equal MTUs")

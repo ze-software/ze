@@ -64,8 +64,8 @@ func NewRouteEntry() RouteEntry {
 // HasASPath returns true if AS_PATH attribute is present.
 func (e *RouteEntry) HasASPath() bool { return e.ASPath.IsValid() }
 
-// HasBundle returns true if Bundle handle is present.
-func (e *RouteEntry) HasBundle() bool { return e.Bundle.IsValid() }
+// hasBundle returns true if Bundle handle is present.
+func (e *RouteEntry) hasBundle() bool { return e.Bundle.IsValid() }
 
 // GetBundle returns the Bundle from BundlePool. Returns an empty Bundle
 // if the handle is invalid.

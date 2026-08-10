@@ -114,7 +114,7 @@ func TestInnerChainIgnoresNonCriticalUnsupported(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("recovered %d payloads, want 2; the parser must resume after an ignored payload", len(got))
 	}
-	rawPayload, ok := got[0].Payload.(*PayloadRaw)
+	rawPayload, ok := got[0].Payload.(*payloadRaw)
 	if !ok {
 		t.Fatalf("payload 0 = %T, want *PayloadRaw", got[0].Payload)
 	}
@@ -162,7 +162,7 @@ func TestInnerChainSkipsUndefinedType(t *testing.T) {
 	if _, ok := got[0].Payload.(*PayloadNonce); !ok {
 		t.Errorf("payload 0 = %T, want *PayloadNonce; a defined type must not be demoted", got[0].Payload)
 	}
-	skipped, ok := got[1].Payload.(*PayloadRaw)
+	skipped, ok := got[1].Payload.(*payloadRaw)
 	if !ok {
 		t.Fatalf("payload 1 = %T, want *PayloadRaw", got[1].Payload)
 	}

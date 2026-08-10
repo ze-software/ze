@@ -92,10 +92,10 @@ type SelfUpdater struct {
 	identityFunc func() string
 }
 
-// NewSelfUpdater creates a self-updater. Call Start to begin.
+// newSelfUpdater creates a self-updater. Call Start to begin.
 // The store parameter is used for persisting machine identity in zefs;
 // nil is safe (falls back to filesystem sources).
-func NewSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store identity.Storage) *SelfUpdater {
+func newSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store identity.Storage) *SelfUpdater {
 	return &SelfUpdater{
 		url:      url,
 		interval: time.Duration(intervalSecs) * time.Second,
@@ -141,8 +141,8 @@ func (su *SelfUpdater) Status() UpdateStatus {
 	return su.status
 }
 
-// ExtendedStatus returns the full self-update status.
-func (su *SelfUpdater) ExtendedStatus() ExtendedUpdateStatus {
+// extendedStatus returns the full self-update status.
+func (su *SelfUpdater) extendedStatus() ExtendedUpdateStatus {
 	su.mu.RLock()
 	defer su.mu.RUnlock()
 	return ExtendedUpdateStatus{
@@ -505,13 +505,13 @@ func (su *SelfUpdater) waitForRestartTime(ctx context.Context, newVer string) {
 	}
 }
 
-// ManualCheck triggers an immediate check.
-func (su *SelfUpdater) ManualCheck(ctx context.Context) {
+// manualCheck triggers an immediate check.
+func (su *SelfUpdater) manualCheck(ctx context.Context) {
 	su.check(ctx)
 }
 
-// ManualDownload triggers an immediate download bypassing spread and maintenance window.
-func (su *SelfUpdater) ManualDownload(ctx context.Context) (string, error) {
+// manualDownload triggers an immediate download bypassing spread and maintenance window.
+func (su *SelfUpdater) manualDownload(ctx context.Context) (string, error) {
 	logger := slogutil.Logger("self-update")
 	running := su.runningVersion()
 	manifest, err := su.fetchManifest(ctx)
@@ -563,8 +563,8 @@ func (su *SelfUpdater) ManualDownload(ctx context.Context) (string, error) {
 	return manifest.Ver, nil
 }
 
-// ManualApply triggers the full update cycle bypassing all scheduling.
-func (su *SelfUpdater) ManualApply(ctx context.Context) (string, error) {
+// manualApply triggers the full update cycle bypassing all scheduling.
+func (su *SelfUpdater) manualApply(ctx context.Context) (string, error) {
 	logger := slogutil.Logger("self-update")
 	running := su.runningVersion()
 	manifest, err := su.fetchManifest(ctx)
@@ -639,8 +639,8 @@ func (su *SelfUpdater) ManualApply(ctx context.Context) (string, error) {
 	return manifest.Ver, nil
 }
 
-// ManualRestart restarts into a staged version.
-func (su *SelfUpdater) ManualRestart() error {
+// manualRestart restarts into a staged version.
+func (su *SelfUpdater) manualRestart() error {
 	su.mu.RLock()
 	staged := su.stagedVersion
 	su.mu.RUnlock()

@@ -46,7 +46,7 @@ func TestAutoRevertOnRuntimeFailure(t *testing.T) {
 
 	prevConfig := []byte("set environment log level info\n")
 
-	hr := NewHealthRevert(store, "ze.conf")
+	hr := newHealthRevert(store, "ze.conf")
 	hr.Start(prevConfig)
 
 	// Start persists the pre-change snapshot into the shared zefs store.
@@ -83,7 +83,7 @@ func TestHealthCheckPassesWithoutFlap(t *testing.T) {
 		t.Fatalf("write new config: %v", err)
 	}
 
-	hr := NewHealthRevert(store, "ze.conf")
+	hr := newHealthRevert(store, "ze.conf")
 	hr.Start([]byte("set environment log level info\n"))
 
 	hr.timer.Reset(10 * time.Millisecond)
@@ -117,7 +117,7 @@ func TestRevertFallsBackToSeedConfig(t *testing.T) {
 		t.Fatalf("write new config: %v", err)
 	}
 
-	hr := NewHealthRevert(store, "ze.conf")
+	hr := newHealthRevert(store, "ze.conf")
 	hr.Start([]byte("set environment log level info\n"))
 
 	// Drop the previous-config snapshot so revert must fall back to the seed

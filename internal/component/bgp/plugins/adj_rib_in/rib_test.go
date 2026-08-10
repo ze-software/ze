@@ -53,8 +53,8 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 		plugin:         p,
 		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[netip.Addr]bool),
-		pending:        make(map[compactPendingKey]*PendingRoute),
-		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
+		pending:        make(map[compactPendingKey]*pendingRoute),
+		earlyDecisions: make(map[compactPendingKey]*earlyDecision),
 	}
 }
 

@@ -84,26 +84,26 @@ type EventAuthRequest struct {
 
 func (EventAuthRequest) isAuthEvent() {}
 
-// EventAuthSuccess is emitted after the per-session goroutine consumes
+// eventAuthSuccess is emitted after the per-session goroutine consumes
 // an accept response. Informational -- the session transitions to
 // EventSessionUp on Event (lifecycle) channel immediately after.
-type EventAuthSuccess struct {
+type eventAuthSuccess struct {
 	TunnelID  uint16
 	SessionID uint16
 }
 
-func (EventAuthSuccess) isAuthEvent() {}
+func (eventAuthSuccess) isAuthEvent() {}
 
-// EventAuthFailure is emitted after the per-session goroutine consumes
+// eventAuthFailure is emitted after the per-session goroutine consumes
 // a reject response or an auth-timeout fires. Reason is human-readable
 // for logs; consumers MUST NOT parse it for control flow.
-type EventAuthFailure struct {
+type eventAuthFailure struct {
 	TunnelID  uint16
 	SessionID uint16
 	Reason    string
 }
 
-func (EventAuthFailure) isAuthEvent() {}
+func (eventAuthFailure) isAuthEvent() {}
 
 // authResponseMsg carries the consumer's decision from
 // Driver.AuthResponse into the per-session goroutine via authRespCh.
@@ -121,6 +121,6 @@ type authResponseMsg struct {
 // AuthEvent appears at least once in this file.
 var _ = [3]AuthEvent{
 	EventAuthRequest{},
-	EventAuthSuccess{},
-	EventAuthFailure{},
+	eventAuthSuccess{},
+	eventAuthFailure{},
 }

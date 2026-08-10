@@ -1457,7 +1457,7 @@ func TestConfigTxBridgeDispatchesOperationApply(t *testing.T) {
 		{name: "bgp", roots: []string{"bgp"}},
 	}
 	s := newTestReloadServer(t, reactor, plugins)
-	gw := NewConfigEventGateway(s)
+	gw := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gw, []string{"bgp"}, map[string][]rpc.ConfigSection{})
 	require.NoError(t, bridge.Subscribe(context.Background()))
 	defer bridge.Close()
@@ -1529,7 +1529,7 @@ func TestConfigTxBridgeDispatchesOperationRollback(t *testing.T) {
 		{name: "iface", roots: []string{"interface"}},
 	}
 	s := newTestReloadServer(t, reactor, plugins)
-	gw := NewConfigEventGateway(s)
+	gw := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gw, []string{"iface"}, map[string][]rpc.ConfigSection{})
 	require.NoError(t, bridge.Subscribe(context.Background()))
 	defer bridge.Close()
@@ -1599,7 +1599,7 @@ func TestConfigTxBridgeDispatchesOperationDecompose(t *testing.T) {
 	reactor := &mockReloadReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}}
 	plugins := []pluginDef{{name: "bgp", roots: []string{"bgp"}}}
 	s := newTestReloadServer(t, reactor, plugins)
-	gw := NewConfigEventGateway(s)
+	gw := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gw, []string{"bgp"}, map[string][]rpc.ConfigSection{})
 	require.NoError(t, bridge.Subscribe(context.Background()))
 	defer bridge.Close()
@@ -1662,7 +1662,7 @@ func TestConfigTxBridgeDispatchesOperationVerifyAndCommit(t *testing.T) {
 	reactor := &mockReloadReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}}
 	plugins := []pluginDef{{name: "bgp", roots: []string{"bgp"}}}
 	s := newTestReloadServer(t, reactor, plugins)
-	gw := NewConfigEventGateway(s)
+	gw := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gw, []string{"bgp"}, map[string][]rpc.ConfigSection{})
 	require.NoError(t, bridge.Subscribe(context.Background()))
 	defer bridge.Close()

@@ -16,15 +16,15 @@ type patternCacheEntry struct {
 	err error
 }
 
-// CompilePattern compiles the YANG/XSD pattern subset Ze supports into a Go
+// compilePattern compiles the YANG/XSD pattern subset Ze supports into a Go
 // regexp. Results are cached so repeated calls with the same pattern (common
 // when validating many list entries) avoid redundant compilation.
-func CompilePattern(pattern string) (*regexp.Regexp, error) {
+func compilePattern(pattern string) (*regexp.Regexp, error) {
 	if v, ok := patternCache.Load(pattern); ok {
 		entry, _ := v.(*patternCacheEntry)
 		return entry.re, entry.err
 	}
-	goPattern, err := PatternToGoRegexp(pattern)
+	goPattern, err := patternToGoRegexp(pattern)
 	if err != nil {
 		patternCache.Store(pattern, &patternCacheEntry{err: err})
 		return nil, err
@@ -42,17 +42,17 @@ func CompilePattern(pattern string) (*regexp.Regexp, error) {
 // MatchPattern reports whether value satisfies pattern using the supported
 // YANG/XSD regex subset. YANG patterns are anchored to the full value.
 func MatchPattern(pattern, value string) (bool, error) {
-	re, err := CompilePattern(pattern)
+	re, err := compilePattern(pattern)
 	if err != nil {
 		return false, err
 	}
 	return re.MatchString(value), nil
 }
 
-// PatternToGoRegexp converts the supported YANG/XSD pattern subset to a Go
+// patternToGoRegexp converts the supported YANG/XSD pattern subset to a Go
 // regexp. The supported subset is intentionally conservative: constructs whose
 // XSD semantics differ from Go's regexp engine are rejected at schema-use time.
-func PatternToGoRegexp(pattern string) (string, error) {
+func patternToGoRegexp(pattern string) (string, error) {
 	if err := rejectUnsupportedPattern(pattern); err != nil {
 		return "", err
 	}

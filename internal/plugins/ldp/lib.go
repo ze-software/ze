@@ -25,10 +25,10 @@ type LabelBinding struct {
 	NextHop netip.Addr
 }
 
-// LocalBinding is a FEC-to-label binding this LSR originates. In downstream
+// localBinding is a FEC-to-label binding this LSR originates. In downstream
 // unsolicited mode the same local label is advertised to every peer (per-platform
 // label space, RFC 5036 Section 2.3), so a local binding is keyed by FEC only.
-type LocalBinding struct {
+type localBinding struct {
 	FEC   netip.Prefix
 	Label uint32
 }
@@ -37,17 +37,17 @@ type LocalBinding struct {
 type LIB struct {
 	mu         sync.RWMutex
 	bindings   map[string]map[string]*LabelBinding // FEC prefix string -> peer key -> binding
-	local      map[string]*LocalBinding            // FEC prefix string -> local binding
+	local      map[string]*localBinding            // FEC prefix string -> local binding
 	usedLabels map[uint32]bool                     // local labels currently allocated
 	nextLabel  uint32
 }
 
-// NewLIB creates an empty Label Information Base.
+// newLIB creates an empty Label Information Base.
 // Local labels start at 16 (0-15 are reserved per RFC 3032).
-func NewLIB() *LIB {
+func newLIB() *LIB {
 	return &LIB{
 		bindings:   make(map[string]map[string]*LabelBinding),
-		local:      make(map[string]*LocalBinding),
+		local:      make(map[string]*localBinding),
 		usedLabels: make(map[uint32]bool),
 		nextLabel:  16,
 	}
@@ -82,23 +82,23 @@ func (l *LIB) AllocateLabel() uint32 {
 // EnsureLocal returns the local binding for fec, allocating a local label on
 // first use. Idempotent: repeated calls for the same FEC return the same label,
 // so a FEC keeps one stable local label across all sessions and reloads.
-func (l *LIB) EnsureLocal(fec netip.Prefix) LocalBinding {
+func (l *LIB) EnsureLocal(fec netip.Prefix) localBinding {
 	key := fec.String()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if b, ok := l.local[key]; ok {
 		return *b
 	}
-	b := &LocalBinding{FEC: fec, Label: l.allocateLabelLocked()}
+	b := &localBinding{FEC: fec, Label: l.allocateLabelLocked()}
 	l.local[key] = b
 	return *b
 }
 
-// LocalBindings returns a snapshot of all local bindings.
-func (l *LIB) LocalBindings() []LocalBinding {
+// localBindings returns a snapshot of all local bindings.
+func (l *LIB) localBindings() []localBinding {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	out := make([]LocalBinding, 0, len(l.local))
+	out := make([]localBinding, 0, len(l.local))
 	for _, b := range l.local {
 		out = append(out, *b)
 	}
@@ -126,9 +126,9 @@ func (l *LIB) AddRemote(fec netip.Prefix, label uint32, peerKey string, peerAddr
 	}
 }
 
-// RemoveRemote removes a label binding from a peer.
+// removeRemote removes a label binding from a peer.
 // Returns the removed binding, or nil if not found.
-func (l *LIB) RemoveRemote(fec netip.Prefix, peerKey string) *LabelBinding {
+func (l *LIB) removeRemote(fec netip.Prefix, peerKey string) *LabelBinding {
 	key := fec.String()
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -145,9 +145,9 @@ func (l *LIB) RemoveRemote(fec netip.Prefix, peerKey string) *LabelBinding {
 	return binding
 }
 
-// RemoveAllForPeer removes all bindings from a specific peer.
+// removeAllForPeer removes all bindings from a specific peer.
 // Returns the removed bindings.
-func (l *LIB) RemoveAllForPeer(peerKey string) []*LabelBinding {
+func (l *LIB) removeAllForPeer(peerKey string) []*LabelBinding {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -205,8 +205,8 @@ func (l *LIB) RemainingForFEC(fec netip.Prefix) (LabelBinding, bool) {
 	return *best, true
 }
 
-// AllBindings returns a snapshot of all remote bindings.
-func (l *LIB) AllBindings() []LabelBinding {
+// allBindings returns a snapshot of all remote bindings.
+func (l *LIB) allBindings() []LabelBinding {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 

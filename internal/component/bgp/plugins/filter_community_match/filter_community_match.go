@@ -39,8 +39,8 @@ var logger = slogutil.LazyLogger("bgp.filter.community.match")
 // Updated atomically on every OnConfigure delivery.
 var listsByName atomic.Pointer[map[string]*communityList]
 
-// RunFilterCommunityMatch runs the community match filter plugin using the SDK RPC protocol.
-func RunFilterCommunityMatch(conn net.Conn) int {
+// runFilterCommunityMatch runs the community match filter plugin using the SDK RPC protocol.
+func runFilterCommunityMatch(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-community-match", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 

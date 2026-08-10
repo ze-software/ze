@@ -54,18 +54,18 @@ var attributeNameToCode = map[string]attribute.AttributeCode{
 	"large-communities":    attribute.AttrLargeCommunity, // Plural (both accepted)
 }
 
-// ParseAttributeFilter parses an attribute filter from config string.
+// parseAttributeFilter parses an attribute filter from config string.
 // Accepts: "all", "none", or space-separated attribute names.
 // Names: origin, as-path, next-hop, med, local-pref, community/communities, etc.
 // Numeric: attr-N for any attribute code (0-255).
 // Returns error for unknown names or structural attributes (attr-14, attr-15).
-func ParseAttributeFilter(s string) (AttributeFilter, error) {
+func parseAttributeFilter(s string) (AttributeFilter, error) {
 	s = strings.TrimSpace(s)
 	if s == filterAll || s == "" {
 		return NewFilterAll(), nil
 	}
 	if s == filterNone {
-		return NewFilterNone(), nil
+		return newFilterNone(), nil
 	}
 
 	names := strings.Fields(s)
@@ -106,7 +106,7 @@ func ParseAttributeFilter(s string) (AttributeFilter, error) {
 			codes = append(codes, code)
 		}
 	}
-	return NewFilterSelective(codes), nil
+	return newFilterSelective(codes), nil
 }
 
 // validAttributeNames returns a sorted list of valid attribute names.
@@ -194,8 +194,8 @@ func NewNLRIFilterSelective(families map[family.Family]bool) NLRIFilter {
 	}
 }
 
-// IncludesFamily returns true if the given family should be included.
-func (f NLRIFilter) IncludesFamily(fam family.Family) bool {
+// includesFamily returns true if the given family should be included.
+func (f NLRIFilter) includesFamily(fam family.Family) bool {
 	switch f.Mode {
 	case FilterModeNone:
 		return false
@@ -317,16 +317,16 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 	return result
 }
 
-// HasAnnouncements returns true if there are any announced prefixes.
-func (r FilterResult) HasAnnouncements() bool {
+// hasAnnouncements returns true if there are any announced prefixes.
+func (r FilterResult) hasAnnouncements() bool {
 	if len(r.MPReach) > 0 {
 		return true
 	}
 	return r.IPv4Announced != nil && len(r.IPv4Announced.NLRISlice()) > 0
 }
 
-// HasWithdrawals returns true if there are any withdrawn prefixes.
-func (r FilterResult) HasWithdrawals() bool {
+// hasWithdrawals returns true if there are any withdrawn prefixes.
+func (r FilterResult) hasWithdrawals() bool {
 	if len(r.MPUnreach) > 0 {
 		return true
 	}
@@ -335,7 +335,7 @@ func (r FilterResult) HasWithdrawals() bool {
 
 // IsEOR returns true if this is an End-of-RIB marker (no NLRI).
 func (r FilterResult) IsEOR() bool {
-	return !r.HasAnnouncements() && !r.HasWithdrawals()
+	return !r.hasAnnouncements() && !r.hasWithdrawals()
 }
 
 // NewFilterAll returns a filter that includes all attributes.
@@ -343,14 +343,14 @@ func NewFilterAll() AttributeFilter {
 	return AttributeFilter{Mode: FilterModeAll}
 }
 
-// NewFilterNone returns a filter that excludes all attributes.
-func NewFilterNone() AttributeFilter {
+// newFilterNone returns a filter that excludes all attributes.
+func newFilterNone() AttributeFilter {
 	return AttributeFilter{Mode: FilterModeNone}
 }
 
-// NewFilterSelective returns a filter for specific attribute codes.
+// newFilterSelective returns a filter for specific attribute codes.
 // Creates both slice (for GetMultiple) and map (for O(1) Includes).
-func NewFilterSelective(codes []attribute.AttributeCode) AttributeFilter {
+func newFilterSelective(codes []attribute.AttributeCode) AttributeFilter {
 	if len(codes) == 0 {
 		return AttributeFilter{Mode: FilterModeSelective}
 	}
@@ -451,7 +451,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 	result := FilterResult{}
 
 	// Extract IPv4 unicast NLRI if included
-	if nlriFilter.IncludesFamily(family.IPv4Unicast) {
+	if nlriFilter.includesFamily(family.IPv4Unicast) {
 		ipv4Reach, ipv4Withdraw := extractIPv4SlicesFromBody(body)
 		if ipv4Reach != nil {
 			result.IPv4Announced = ipv4Reach
@@ -466,7 +466,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		// Zero-copy wireu.MPReachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPReachNLRI); err == nil && mpRaw != nil {
 			mpw := wireu.MPReachWire(mpRaw)
-			if nlriFilter.IncludesFamily(mpw.Family()) {
+			if nlriFilter.includesFamily(mpw.Family()) {
 				result.MPReach = append(result.MPReach, mpw)
 			}
 		}
@@ -474,7 +474,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		// Zero-copy wireu.MPUnreachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPUnreachNLRI); err == nil && mpRaw != nil {
 			mpw := wireu.MPUnreachWire(mpRaw)
-			if nlriFilter.IncludesFamily(mpw.Family()) {
+			if nlriFilter.includesFamily(mpw.Family()) {
 				result.MPUnreach = append(result.MPUnreach, mpw)
 			}
 		}

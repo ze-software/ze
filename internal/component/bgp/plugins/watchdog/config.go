@@ -27,7 +27,7 @@ import (
 //
 // Returns a map from peer address to PoolSet containing watchdog route definitions.
 // Update blocks without a watchdog container are skipped.
-func parseConfig(jsonData string) (map[string]*PoolSet, error) {
+func parseConfig(jsonData string) (map[string]*poolSet, error) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(jsonData), &tree); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
@@ -36,10 +36,10 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 	// Navigate the "bgp" wrapper — ExtractConfigSubtree wraps data as {"bgp": {...}}
 	bgpTree, ok := getMap(tree, "bgp")
 	if !ok {
-		return make(map[string]*PoolSet), nil
+		return make(map[string]*poolSet), nil
 	}
 
-	result := make(map[string]*PoolSet)
+	result := make(map[string]*poolSet)
 
 	// Standalone peers: bgp.peer.<addr>
 	if peerMap, ok := getMap(bgpTree, "peer"); ok {
@@ -60,7 +60,7 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 	}
 
 	if len(result) == 0 {
-		return make(map[string]*PoolSet), nil
+		return make(map[string]*poolSet), nil
 	}
 
 	return result, nil
@@ -73,7 +73,7 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 //
 // The result map is keyed by peer IP address (from remote.ip), not by peer name,
 // because state events and the engine identify peers by IP address.
-func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*PoolSet) {
+func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*poolSet) {
 	for _, peerData := range peerMap {
 		peerTree, ok := peerData.(map[string]any)
 		if !ok {
@@ -87,7 +87,7 @@ func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*Poo
 			continue
 		}
 
-		var pools *PoolSet
+		var pools *poolSet
 
 		// Layer 1: group-level update blocks (defaults).
 		if groupMap != nil {
@@ -124,7 +124,7 @@ func extractRemoteIP(peerTree map[string]any) string {
 
 // collectWatchdogRoutes scans update blocks for watchdog containers and adds
 // their routes to pools. Creates a new PoolSet if pools is nil and routes are found.
-func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *PoolSet) *PoolSet {
+func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *poolSet) *poolSet {
 	for _, updateData := range updateMap {
 		updateTree, ok := updateData.(map[string]any)
 		if !ok {
@@ -160,7 +160,7 @@ func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *Poo
 		}
 
 		if pools == nil {
-			pools = NewPoolSet()
+			pools = newPoolSet()
 		}
 
 		for _, entry := range entries {
@@ -283,7 +283,7 @@ func parseNLRIEntries(nlriMap map[string]any, base *bgp.Route, initiallyWithdraw
 			route.RD = rd
 			route.Labels = labels
 
-			entry := NewPoolEntry(
+			entry := newPoolEntry(
 				watchdogRouteKey(route.Prefix, route.RD, route.PathID),
 				bgp.FormatAnnounceCommand(&route),
 				bgp.FormatWithdrawCommand(&route),

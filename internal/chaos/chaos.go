@@ -110,9 +110,9 @@ type ChaosClock struct {
 	rng   *chaosRNG
 }
 
-// NewChaosClock creates a ChaosClock wrapping the given inner clock.
+// newChaosClock creates a ChaosClock wrapping the given inner clock.
 // If cfg.Seed is 0, all calls pass through without modification.
-func NewChaosClock(inner clock.Clock, cfg ChaosConfig) *ChaosClock {
+func newChaosClock(inner clock.Clock, cfg ChaosConfig) *ChaosClock {
 	return &ChaosClock{
 		inner: inner,
 		rng:   newChaosRNG(cfg),
@@ -195,23 +195,23 @@ func (c *ChaosClock) NewTicker(d time.Duration) clock.Ticker {
 // ChaosDialer
 // =============================================================================
 
-// ChaosDialer wraps a network.Dialer with seed-driven fault injection.
+// chaosDialer wraps a network.Dialer with seed-driven fault injection.
 // Fault types: connection refused, slow connect, connection reset after N bytes.
-type ChaosDialer struct {
+type chaosDialer struct {
 	inner network.Dialer
 	rng   *chaosRNG
 }
 
-// NewChaosDialer creates a ChaosDialer wrapping the given inner dialer.
-func NewChaosDialer(inner network.Dialer, cfg ChaosConfig) *ChaosDialer {
-	return &ChaosDialer{
+// newChaosDialer creates a ChaosDialer wrapping the given inner dialer.
+func newChaosDialer(inner network.Dialer, cfg ChaosConfig) *chaosDialer {
+	return &chaosDialer{
 		inner: inner,
 		rng:   newChaosRNG(cfg),
 	}
 }
 
 // shouldFault exposes the fault decision for testing determinism.
-func (d *ChaosDialer) shouldFault() bool {
+func (d *chaosDialer) shouldFault() bool {
 	return d.rng.shouldFault()
 }
 
@@ -220,7 +220,7 @@ func (d *ChaosDialer) shouldFault() bool {
 //   - 50% connection refused (immediate error)
 //   - 25% slow connect (1-5s delay then proceed)
 //   - 25% connection reset (connect succeeds, conn closes after 0-100 bytes written)
-func (d *ChaosDialer) DialContext(ctx context.Context, nw, address string) (net.Conn, error) {
+func (d *chaosDialer) DialContext(ctx context.Context, nw, address string) (net.Conn, error) {
 	if !d.rng.shouldFault() {
 		return d.inner.DialContext(ctx, nw, address)
 	}
@@ -322,16 +322,16 @@ func (c *chaosConn) Close() error {
 // ChaosListenerFactory
 // =============================================================================
 
-// ChaosListenerFactory wraps a network.ListenerFactory with seed-driven fault injection.
+// chaosListenerFactory wraps a network.ListenerFactory with seed-driven fault injection.
 // Fault types: bind failure, accept delay.
-type ChaosListenerFactory struct {
+type chaosListenerFactory struct {
 	inner network.ListenerFactory
 	rng   *chaosRNG
 }
 
-// NewChaosListenerFactory creates a ChaosListenerFactory wrapping the given factory.
-func NewChaosListenerFactory(inner network.ListenerFactory, cfg ChaosConfig) *ChaosListenerFactory {
-	return &ChaosListenerFactory{
+// newChaosListenerFactory creates a ChaosListenerFactory wrapping the given factory.
+func newChaosListenerFactory(inner network.ListenerFactory, cfg ChaosConfig) *chaosListenerFactory {
+	return &chaosListenerFactory{
 		inner: inner,
 		rng:   newChaosRNG(cfg),
 	}
@@ -339,7 +339,7 @@ func NewChaosListenerFactory(inner network.ListenerFactory, cfg ChaosConfig) *Ch
 
 // Listen creates a listener, possibly injecting a bind failure.
 // When not faulting on Listen, may still return a chaosListener that delays Accept.
-func (f *ChaosListenerFactory) Listen(ctx context.Context, nw, address string) (net.Listener, error) {
+func (f *chaosListenerFactory) Listen(ctx context.Context, nw, address string) (net.Listener, error) {
 	if f.rng.shouldFault() {
 		// Bind failure
 		f.rng.logger.Debug("chaos: listen bind failure",
@@ -385,7 +385,7 @@ func (l *chaosListener) Accept() (net.Conn, error) {
 // Returns the wrapped Clock, Dialer, and ListenerFactory.
 // If cfg.Seed is 0, all wrappers are pure passthrough.
 func NewChaosWrappers(clk clock.Clock, d network.Dialer, lf network.ListenerFactory, cfg ChaosConfig) (clock.Clock, network.Dialer, network.ListenerFactory) {
-	return NewChaosClock(clk, cfg),
-		NewChaosDialer(d, cfg),
-		NewChaosListenerFactory(lf, cfg)
+	return newChaosClock(clk, cfg),
+		newChaosDialer(d, cfg),
+		newChaosListenerFactory(lf, cfg)
 }

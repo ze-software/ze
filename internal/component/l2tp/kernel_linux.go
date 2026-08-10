@@ -137,8 +137,8 @@ type kernelWorker struct {
 
 	// adoptSocket / releaseSocket hand the per-tunnel connected socket to the
 	// listener so it keeps receiving that peer's CONTROL frames after the kernel
-	// takes over the tunnel. Set once by SetSocketHooks before Start; nil in
-	// tests that do not exercise the transport. See UDPListener.AdoptTunnelSocket
+	// takes over the tunnel. Set once by setSocketHooks before Start; nil in
+	// tests that do not exercise the transport. See UDPListener.adoptTunnelSocket
 	// for why this is required rather than optional.
 	adoptSocket   func(tid uint16, fd int) error
 	releaseSocket func(tid uint16)
@@ -147,7 +147,7 @@ type kernelWorker struct {
 	errCh     chan<- kernelSetupFailed
 	successCh chan<- kernelSetupSucceeded
 
-	// stopped is an atomic flag so SignalStop can close w.stop without
+	// stopped is an atomic flag so signalStop can close w.stop without
 	// acquiring w.mu. Locking would deadlock when setupSession holds
 	// w.mu across a blocked successCh send after the reactor exited
 	// (reactor drained before the worker, no reader for successCh).
@@ -180,10 +180,10 @@ func newKernelWorker(ops kernelOps, errCh chan<- kernelSetupFailed, successCh ch
 	}
 }
 
-// SetSocketHooks installs the listener callbacks used to keep receiving a
+// setSocketHooks installs the listener callbacks used to keep receiving a
 // tunnel's control frames once its connected socket belongs to the kernel.
 // MUST be called before Start. Passing nil for either hook disables it.
-func (w *kernelWorker) SetSocketHooks(adopt func(tid uint16, fd int) error, release func(tid uint16)) {
+func (w *kernelWorker) setSocketHooks(adopt func(tid uint16, fd int) error, release func(tid uint16)) {
 	w.adoptSocket = adopt
 	w.releaseSocket = release
 }
@@ -197,19 +197,19 @@ func (w *kernelWorker) Start() {
 
 // Stop signals the worker to exit and waits. Idempotent.
 func (w *kernelWorker) Stop() {
-	w.SignalStop()
+	w.signalStop()
 	w.wg.Wait()
 }
 
-// SignalStop closes the worker's stop channel without waiting for the
+// signalStop closes the worker's stop channel without waiting for the
 // run goroutine. Idempotent. Separated from Stop so the subsystem can
 // break reportSuccess/reportError out of their channel-send selects
-// BEFORE TeardownAll grabs w.mu -- otherwise a setupSession that was
+// BEFORE teardownAll grabs w.mu -- otherwise a setupSession that was
 // blocked on successCh (because the reactor already exited) would
-// keep w.mu held indefinitely and deadlock TeardownAll.
+// keep w.mu held indefinitely and deadlock teardownAll.
 //
 // Caller MUST still call Stop (or Wait) to reap the goroutine.
-func (w *kernelWorker) SignalStop() {
+func (w *kernelWorker) signalStop() {
 	if !w.stopped.CompareAndSwap(false, true) {
 		return
 	}
@@ -225,9 +225,9 @@ func (w *kernelWorker) Enqueue(ev any) {
 	}
 }
 
-// TeardownAll cleans up all kernel resources. Called by the subsystem
+// teardownAll cleans up all kernel resources. Called by the subsystem
 // during Stop() before the reactor shuts down.
-func (w *kernelWorker) TeardownAll() {
+func (w *kernelWorker) teardownAll() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -295,7 +295,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 			"peer-addr", ev.peerAddr.String())
 
 		// The connected socket now outranks the listener for every datagram from
-		// this peer (see UDPListener.AdoptTunnelSocket), so the listener must read
+		// this peer (see UDPListener.adoptTunnelSocket), so the listener must read
 		// this socket or the tunnel's remaining control messages are lost. Fail
 		// the setup if it cannot: a tunnel whose control plane is deaf is worse
 		// than one that never came up, and rolling back here keeps the userspace

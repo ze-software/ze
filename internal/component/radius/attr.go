@@ -145,8 +145,8 @@ func AttrString(s string) []byte {
 	return []byte(s)
 }
 
-// DecodeUint32 decodes a 4-byte attribute value as uint32.
-func DecodeUint32(data []byte) (uint32, error) {
+// decodeUint32 decodes a 4-byte attribute value as uint32.
+func decodeUint32(data []byte) (uint32, error) {
 	if len(data) != 4 {
 		return 0, fmt.Errorf("radius: expected 4 bytes for uint32, got %d", len(data))
 	}

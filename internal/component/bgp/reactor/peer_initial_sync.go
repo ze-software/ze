@@ -423,7 +423,7 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	if session != nil {
-		session.ReleaseWrites()
+		session.releaseWrites()
 	}
 
 	// Drain any commands that were queued while EOR was being sent.
@@ -554,7 +554,7 @@ func pluginRouteGroupKey(r *PluginRoute) string {
 	b.Sep()
 	b.Addr(r.NextHop)
 	b.Sep()
-	b.Uint32Slice(r.ASPath)
+	b.uint32Slice(r.ASPath)
 	b.Sep()
 	b.Uint(uint64(r.LocalPreference))
 	for _, raw := range r.RawAttrs {

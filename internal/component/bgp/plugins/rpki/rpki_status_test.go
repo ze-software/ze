@@ -23,7 +23,7 @@ func TestActionString(t *testing.T) {
 // VALIDATES: appendGlobalActions emits the four effective actions from the atomics.
 // PREVENTS: status omitting global actions or reading a different source than enforcement.
 func TestStatusCommand_GlobalActions(t *testing.T) {
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	rp.originInvalidAction.Store(uint32(ASPAPolicyReject))
 	rp.originNotFoundAction.Store(uint32(ASPAPolicyAccept))
 	rp.aspaInvalidAction.Store(uint32(ASPAPolicyLogOnly))
@@ -44,7 +44,7 @@ func TestStatusCommand_GlobalActions(t *testing.T) {
 // VALIDATES: appendPeerActions emits one entry per peer with action + source per leaf, sorted.
 // PREVENTS: status hiding which config level supplied each action.
 func TestStatusCommand_PerPeerActions(t *testing.T) {
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	m := map[string]peerActionSet{
 		"192.0.2.1": {
 			OriginInvalid:  resolvedAction{Action: ASPAPolicyAccept, Source: sourcePeer},
@@ -85,7 +85,7 @@ func TestStatusCommand_PerPeerActions(t *testing.T) {
 // VALIDATES: appendPeerActions emits an empty array (not null) with a nil map.
 // PREVENTS: JSON shape drift breaking consumers on the no-override case.
 func TestStatusCommand_PerPeerActions_Empty(t *testing.T) {
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	b := textbuf.Get()
 	defer b.Release()
 	rp.appendPeerActions(b)

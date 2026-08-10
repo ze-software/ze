@@ -366,7 +366,7 @@ func TestCommandContextAccessors(t *testing.T) {
 	reactor := &mockReactor{}
 	dispatcher := NewDispatcher()
 	cm := transaction.NewCommitManager()
-	subs := NewSubscriptionManager()
+	subs := newSubscriptionManager()
 
 	srv := &Server{
 		reactor:       reactor,

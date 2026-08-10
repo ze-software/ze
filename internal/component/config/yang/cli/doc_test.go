@@ -12,7 +12,7 @@ import (
 // PREVENTS: Missing command documentation.
 func TestDocCommand(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "show bgp peer list")
+	err := formatDocCommand(&buf, "show bgp peer list")
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -24,7 +24,7 @@ func TestDocCommand(t *testing.T) {
 // PREVENTS: Silent failure on typos.
 func TestDocCommandUnknown(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "nonexistent command")
+	err := formatDocCommand(&buf, "nonexistent command")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown command")
 }
@@ -33,7 +33,7 @@ func TestDocCommandUnknown(t *testing.T) {
 // PREVENTS: Missing commands from listing.
 func TestDocList(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocList(&buf)
+	err := formatDocList(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -47,7 +47,7 @@ func TestDocCommandWithOutputParams(t *testing.T) {
 	var buf bytes.Buffer
 	// "summary" canonicalises to "show bgp summary" (the
 	// lexicographically smallest alias of ze-bgp:summary).
-	err := FormatDocCommand(&buf, "show bgp summary")
+	err := formatDocCommand(&buf, "show bgp summary")
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -58,7 +58,7 @@ func TestDocCommandWithOutputParams(t *testing.T) {
 // PREVENTS: Doc output not showing commands with no parameters.
 func TestDocCommandNoParams(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "request shutdown")
+	err := formatDocCommand(&buf, "request shutdown")
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -69,7 +69,7 @@ func TestDocCommandNoParams(t *testing.T) {
 // PREVENTS: Case-insensitive matching failure.
 func TestDocCommandCaseInsensitive(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "SHOW BGP PEER LIST")
+	err := formatDocCommand(&buf, "SHOW BGP PEER LIST")
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "show bgp peer list")
 }
@@ -77,6 +77,6 @@ func TestDocCommandCaseInsensitive(t *testing.T) {
 // PREVENTS: Empty command string treated as valid.
 func TestDocCommandEmpty(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "")
+	err := formatDocCommand(&buf, "")
 	assert.Error(t, err)
 }

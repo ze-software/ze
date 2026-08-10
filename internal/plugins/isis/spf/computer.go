@@ -439,8 +439,8 @@ func (c *Computer) SnapshotV6() []RouteSnapshotEntry {
 	return Snapshot(routes)
 }
 
-// RoutesV6 returns a copy of the currently installed IPv6 route set (isis-12).
-func (c *Computer) RoutesV6() []RouteEntry {
+// routesV6 returns a copy of the currently installed IPv6 route set (isis-12).
+func (c *Computer) routesV6() []RouteEntry {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]RouteEntry(nil), c.lastV6...)

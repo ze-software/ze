@@ -32,7 +32,7 @@ func TestISISTLVAuthCodec(t *testing.T) {
 			if !ok || typ != TLVAuthentication {
 				t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 			}
-			out, err := DecodeAuthTLV(value)
+			out, err := decodeAuthTLV(value)
 			if err != nil {
 				t.Fatalf("DecodeAuthTLV: %v", err)
 			}
@@ -74,7 +74,7 @@ func TestISISTLVAuthIndexReported(t *testing.T) {
 // rather than silently accepted (security review: must not silently accept a
 // malformed auth TLV structure).
 func TestISISTLVAuthEmpty(t *testing.T) {
-	if _, err := DecodeAuthTLV(nil); err == nil {
+	if _, err := decodeAuthTLV(nil); err == nil {
 		t.Fatal("expected ErrLength for empty TLV 10 value")
 	}
 }

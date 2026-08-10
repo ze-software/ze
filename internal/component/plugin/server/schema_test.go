@@ -37,7 +37,7 @@ func TestSchemaRegistry_Register(t *testing.T) {
 	assert.Equal(t, schema, got)
 
 	// Verify handler lookup
-	got, err = reg.GetByHandler("bgp/peer")
+	got, err = reg.getByHandler("bgp/peer")
 	require.NoError(t, err)
 	assert.Equal(t, schema, got)
 }
@@ -190,7 +190,7 @@ func TestSchemaRegistry_GetByModule_NotFound(t *testing.T) {
 func TestSchemaRegistry_GetByHandler_NotFound(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	_, err := reg.GetByHandler("nonexistent")
+	_, err := reg.getByHandler("nonexistent")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrSchemaNotFound)
 }
@@ -343,7 +343,7 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 	require.NoError(t, err)
 
 	// Lookup by wire method (ze-bgp, not ze-bgp-api)
-	rpc, err := reg.FindRPC("ze-bgp:peer-list")
+	rpc, err := reg.findRPC("ze-bgp:peer-list")
 	require.NoError(t, err)
 	assert.Equal(t, "ze-bgp-api", rpc.Module)
 	assert.Equal(t, "peer-list", rpc.Name)
@@ -353,12 +353,12 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 	assert.Equal(t, "selector", rpc.Input[0].Name)
 
 	// Second RPC
-	rpc, err = reg.FindRPC("ze-bgp:peer-detail")
+	rpc, err = reg.findRPC("ze-bgp:peer-detail")
 	require.NoError(t, err)
 	assert.Equal(t, "peer-detail", rpc.Name)
 
 	// Unknown wire method
-	_, err = reg.FindRPC("ze-bgp:nonexistent")
+	_, err = reg.findRPC("ze-bgp:nonexistent")
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrRPCNotFound)
 }
@@ -395,22 +395,22 @@ func TestSchemaRegistry_FindRPCByCommand(t *testing.T) {
 	require.NoError(t, reg.RegisterRPCs("ze-bgp-api", rpcs))
 
 	// Register CLI command mappings
-	require.NoError(t, reg.RegisterCLICommand("peer list", "ze-bgp:peer-list"))
-	require.NoError(t, reg.RegisterCLICommand("peer teardown", "ze-bgp:peer-teardown"))
+	require.NoError(t, reg.registerCLICommand("peer list", "ze-bgp:peer-list"))
+	require.NoError(t, reg.registerCLICommand("peer teardown", "ze-bgp:peer-teardown"))
 
 	// Lookup by CLI command
-	rpc, err := reg.FindRPCByCommand("peer list")
+	rpc, err := reg.findRPCByCommand("peer list")
 	require.NoError(t, err)
 	assert.Equal(t, "peer-list", rpc.Name)
 	assert.Equal(t, "peer list", rpc.CLICommand)
 
 	// Second command
-	rpc, err = reg.FindRPCByCommand("peer teardown")
+	rpc, err = reg.findRPCByCommand("peer teardown")
 	require.NoError(t, err)
 	assert.Equal(t, "peer-teardown", rpc.Name)
 
 	// Unknown command
-	_, err = reg.FindRPCByCommand("peer nonexistent")
+	_, err = reg.findRPCByCommand("peer nonexistent")
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrRPCNotFound)
 }
@@ -422,7 +422,7 @@ func TestSchemaRegistry_FindRPCByCommand(t *testing.T) {
 func TestSchemaRegistry_RegisterCLICommand_UnknownMethod(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	err := reg.RegisterCLICommand("peer list", "ze-bgp:peer-list")
+	err := reg.registerCLICommand("peer list", "ze-bgp:peer-list")
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrRPCNotFound)
 }

@@ -89,12 +89,12 @@ func (m *Machine) CheckDetection(now time.Time) bool {
 // scheduled (passive role waiting for first packet).
 func (m *Machine) NextTxDeadline() time.Time { return m.nextTxAt }
 
-// AdvanceTx records that a periodic TX just happened at now. The next-TX
+// advanceTx records that a periodic TX just happened at now. The next-TX
 // deadline moves forward by TransmitInterval().
 //
-// RFC 5880 Section 6.8.7 jitter is applied by the caller. AdvanceTx is
+// RFC 5880 Section 6.8.7 jitter is applied by the caller. advanceTx is
 // jitter-free; the engine adds jitter when it schedules the next fire.
-func (m *Machine) AdvanceTx(now time.Time) {
+func (m *Machine) advanceTx(now time.Time) {
 	m.nextTxAt = now.Add(m.TransmitInterval())
 }
 

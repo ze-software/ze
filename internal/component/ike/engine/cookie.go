@@ -81,8 +81,8 @@ const maxPreStatePayloads = 32
 // Written by the ike plugin's OnConfigure callback, read on the dispatch goroutine.
 var cookieThreshold atomic.Uint32
 
-// SetCookieThreshold publishes the configured half-open tolerance.
-func SetCookieThreshold(n uint32) { cookieThreshold.Store(n) }
+// setCookieThreshold publishes the configured half-open tolerance.
+func setCookieThreshold(n uint32) { cookieThreshold.Store(n) }
 
 // CookieThreshold reports the half-open tolerance currently in force.
 func CookieThreshold() uint32 { return cookieThreshold.Load() }

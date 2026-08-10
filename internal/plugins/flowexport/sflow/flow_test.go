@@ -10,7 +10,7 @@ import (
 func TestSFlowFlowSample(t *testing.T) {
 	buf := make([]byte, 256)
 
-	off, slOff, nrOff := WriteFlowSample(buf, 0,
+	off, slOff, nrOff := writeFlowSample(buf, 0,
 		42,   // seqNum
 		100,  // sourceID (ifIndex)
 		2048, // rate
@@ -19,7 +19,7 @@ func TestSFlowFlowSample(t *testing.T) {
 		100,  // input ifIndex
 		200,  // output ifIndex
 	)
-	BackfillFlowSample(buf, slOff, nrOff, off, 0)
+	backfillFlowSample(buf, slOff, nrOff, off, 0)
 
 	// data_format = flow_sample (enterprise 0, format 1)
 	if got := binary.BigEndian.Uint32(buf[0:]); got != 0x00000001 {
@@ -77,7 +77,7 @@ func TestSFlowSampledHeader(t *testing.T) {
 		0x08, 0x00, // ethertype IPv4
 	}
 
-	off := WriteSampledHeader(buf, 0, HeaderProtocolEthernet, 128, 0, ethHdr)
+	off := writeSampledHeader(buf, 0, HeaderProtocolEthernet, 128, 0, ethHdr)
 
 	// data_format = sampled_header (enterprise 0, format 1)
 	if got := binary.BigEndian.Uint32(buf[0:]); got != 0x00000001 {
@@ -132,7 +132,7 @@ func TestSFlowSampledHeaderAligned(t *testing.T) {
 		hdr[i] = byte(i)
 	}
 
-	off := WriteSampledHeader(buf, 0, HeaderProtocolEthernet, 64, 4, hdr)
+	off := writeSampledHeader(buf, 0, HeaderProtocolEthernet, 64, 4, hdr)
 
 	// Total: 4 + 4 + 4 + 4 + 4 + 4 + 16 + 0(no pad) = 40
 	if off != 40 {
@@ -146,7 +146,7 @@ func TestSFlowExtendedGateway(t *testing.T) {
 	asPath := []uint32{65001, 65002, 65003}
 	communities := []uint32{0xFFFF0001, 0xFFFF0002}
 
-	off := WriteExtendedGateway(buf, 0, nextHop, 65000, 65001, 65001, asPath, communities, 100)
+	off := writeExtendedGateway(buf, 0, nextHop, 65000, 65001, 65001, asPath, communities, 100)
 
 	// data_format = extended_gateway (enterprise 0, format 1003)
 	if got := binary.BigEndian.Uint32(buf[0:]); got != 0x000003EB {
@@ -229,7 +229,7 @@ func TestSFlowExtendedGatewayEmptyASPath(t *testing.T) {
 	buf := make([]byte, 256)
 	nextHop := netip.MustParseAddr("10.0.0.1")
 
-	off := WriteExtendedGateway(buf, 0, nextHop, 65000, 0, 0, nil, nil, 200)
+	off := writeExtendedGateway(buf, 0, nextHop, 65000, 0, 0, nil, nil, 200)
 
 	// num_segments = 0 at offset 28
 	if got := binary.BigEndian.Uint32(buf[28:]); got != 0 {
@@ -257,7 +257,7 @@ func TestSFlowExtendedGatewayIPv6(t *testing.T) {
 	buf := make([]byte, 512)
 	nextHop := netip.MustParseAddr("2001:db8::1")
 
-	off := WriteExtendedGateway(buf, 0, nextHop, 65000, 0, 0, nil, nil, 100)
+	off := writeExtendedGateway(buf, 0, nextHop, 65000, 0, 0, nil, nil, 100)
 
 	// address_type = 2 (IPv6) at offset 8
 	if got := binary.BigEndian.Uint32(buf[8:]); got != 2 {

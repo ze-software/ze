@@ -41,14 +41,14 @@ func TestPeerSendAnnounce_NoSession(t *testing.T) {
 // TestPeerSendWithdraw_NoSession verifies SendWithdraw returns ErrNotConnected.
 func TestPeerSendWithdraw_NoSession(t *testing.T) {
 	peer := newTestPeer()
-	err := peer.SendWithdraw(netip.MustParsePrefix("10.0.0.0/24"))
+	err := peer.sendWithdraw(netip.MustParsePrefix("10.0.0.0/24"))
 	require.ErrorIs(t, err, ErrNotConnected)
 }
 
 // TestPeerSendRawUpdateBody_NoSession verifies SendRawUpdateBody returns ErrNotConnected.
 func TestPeerSendRawUpdateBody_NoSession(t *testing.T) {
 	peer := newTestPeer()
-	err := peer.SendRawUpdateBody([]byte{0x00, 0x00, 0x00, 0x00})
+	err := peer.sendRawUpdateBody([]byte{0x00, 0x00, 0x00, 0x00})
 	require.ErrorIs(t, err, ErrNotConnected)
 }
 
@@ -73,7 +73,7 @@ func TestPeerSendAnnounce_IPv6NoSession(t *testing.T) {
 // TestPeerSendWithdraw_IPv6NoSession verifies IPv6 withdrawal also returns ErrNotConnected.
 func TestPeerSendWithdraw_IPv6NoSession(t *testing.T) {
 	peer := newTestPeer()
-	err := peer.SendWithdraw(netip.MustParsePrefix("2001:db8::/32"))
+	err := peer.sendWithdraw(netip.MustParsePrefix("2001:db8::/32"))
 	require.ErrorIs(t, err, ErrNotConnected)
 }
 

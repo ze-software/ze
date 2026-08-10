@@ -64,7 +64,7 @@ func TestPAPParseRequest(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := ParsePAPRequest(tc.buf)
+			req, err := parsePAPRequest(tc.buf)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -103,7 +103,7 @@ func TestPAPParseRequestBoundary(t *testing.T) {
 	buf[5+255] = 0xFF
 	copy(buf[5+255+1:], pass)
 
-	req, err := ParsePAPRequest(buf)
+	req, err := parsePAPRequest(buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestPAPParseRequestInvalid(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParsePAPRequest(tc.buf)
+			_, err := parsePAPRequest(tc.buf)
 			if !errors.Is(err, tc.want) {
 				t.Errorf("err = %v, want %v", err, tc.want)
 			}
@@ -383,7 +383,7 @@ func TestPAPRequestEmitsEvent(t *testing.T) {
 	// Drain EventAuthSuccess so the goroutine does not block.
 	select {
 	case ev := <-authEventsOut:
-		if _, ok := ev.(EventAuthSuccess); !ok {
+		if _, ok := ev.(eventAuthSuccess); !ok {
 			t.Errorf("second auth event %T, want EventAuthSuccess", ev)
 		}
 	case <-time.After(1 * time.Second):
@@ -463,7 +463,7 @@ func TestPAPRejectWritesNak(t *testing.T) {
 	// Drain EventAuthFailure.
 	select {
 	case ev := <-authEventsOut:
-		if _, ok := ev.(EventAuthFailure); !ok {
+		if _, ok := ev.(eventAuthFailure); !ok {
 			t.Errorf("second auth event %T, want EventAuthFailure", ev)
 		}
 	case <-time.After(1 * time.Second):
@@ -522,7 +522,7 @@ func TestPAPTimeoutEmitsFailure(t *testing.T) {
 	// authRespCh intentionally unfed; the 80 ms authTimeout fires.
 	select {
 	case ev := <-authEventsOut:
-		fail, ok := ev.(EventAuthFailure)
+		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("second auth event %T, want EventAuthFailure", ev)
 		}

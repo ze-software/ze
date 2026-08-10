@@ -37,7 +37,7 @@ func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexp
 	// sFlow v5: uptime = milliseconds since agent start, recomputed each cycle
 	uptime := uint32(snap.Time.Sub(e.StartTime).Milliseconds())
 
-	datagrams, nextSeq := WriteCounterDatagrams(
+	datagrams, nextSeq := writeCounterDatagrams(
 		*buf, e.AgentAddr, e.SubAgentID,
 		e.datagramSeq, uptime,
 		snap.Interfaces, e.seqNums,

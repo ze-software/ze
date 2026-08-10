@@ -27,7 +27,7 @@ func TestIPFIXFlowData6(t *testing.T) {
 		},
 	}
 
-	written, count := WriteFlowDataSet6(buf, 0, flows, FlowTemplateID6)
+	written, count := writeFlowDataSet6(buf, 0, flows, FlowTemplateID6)
 	if count != 1 {
 		t.Fatalf("record count = %d, want 1", count)
 	}

@@ -42,9 +42,9 @@ const (
 	FamilyIPv6Multicast = "ipv6/multicast"
 )
 
-// ValidFamilyConfigNames returns a sorted list of valid config family names.
+// validFamilyConfigNames returns a sorted list of valid config family names.
 // Queries the nlri registry for all registered family names.
-func ValidFamilyConfigNames() string {
+func validFamilyConfigNames() string {
 	names := family.RegisteredFamilyNames()
 	sort.Strings(names)
 	var b textbuf.Buffer
@@ -57,8 +57,8 @@ func ValidFamilyConfigNames() string {
 	return b.String()
 }
 
-// AFISAFIToFamily converts AFI/SAFI to canonical family string.
+// aFISAFIToFamily converts AFI/SAFI to canonical family string.
 // Returns strings like "ipv4/unicast", "ipv6/flow", "l2vpn/evpn".
-func AFISAFIToFamily(afi AFI, safi SAFI) string {
+func aFISAFIToFamily(afi AFI, safi SAFI) string {
 	return family.Family{AFI: afi, SAFI: safi}.String()
 }

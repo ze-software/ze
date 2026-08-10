@@ -32,11 +32,11 @@ func TestDriverStartStop(t *testing.T) {
 func TestDriverNewDriverPanics(t *testing.T) {
 	cases := []struct {
 		name    string
-		mutator func(*DriverConfig)
+		mutator func(*driverConfig)
 	}{
-		{"nil Logger", func(c *DriverConfig) { c.Logger = nil }},
-		{"nil Backend", func(c *DriverConfig) { c.Backend = nil }},
-		{"nil Ops.setMRU", func(c *DriverConfig) { c.Ops = pppOps{} }},
+		{"nil Logger", func(c *driverConfig) { c.Logger = nil }},
+		{"nil Backend", func(c *driverConfig) { c.Backend = nil }},
+		{"nil Ops.setMRU", func(c *driverConfig) { c.Ops = pppOps{} }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -46,13 +46,13 @@ func TestDriverNewDriverPanics(t *testing.T) {
 				}
 			}()
 			ops, _, _ := newFakeOps()
-			cfg := DriverConfig{
+			cfg := driverConfig{
 				Logger:  discardLogger(),
 				Backend: &fakeBackend{},
 				Ops:     ops,
 			}
 			tc.mutator(&cfg)
-			NewDriver(cfg)
+			newDriver(cfg)
 		})
 	}
 }
@@ -158,7 +158,7 @@ func TestDriverSessionByID(t *testing.T) {
 	// Wait for SessionUp so we know the goroutine has settled.
 	drainTwoEvents(t, d.EventsOut(), time.Second)
 
-	info, ok := d.SessionByID(5, 77)
+	info, ok := d.sessionByID(5, 77)
 	if !ok {
 		t.Fatalf("SessionByID returned not found")
 	}
@@ -175,7 +175,7 @@ func TestDriverSessionByID(t *testing.T) {
 		t.Errorf("unit = %d, want 3", info.UnitNum)
 	}
 
-	if _, ok := d.SessionByID(99, 99); ok {
+	if _, ok := d.sessionByID(99, 99); ok {
 		t.Errorf("SessionByID(99,99) returned ok; expected not found")
 	}
 }
@@ -423,7 +423,7 @@ func TestDriverRejectsDuplicate(t *testing.T) {
 	}
 
 	// Original session is still present.
-	if _, present := d.SessionByID(7, 8); !present {
+	if _, present := d.sessionByID(7, 8); !present {
 		t.Errorf("original session removed after duplicate rejected")
 	}
 }

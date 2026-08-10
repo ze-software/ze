@@ -156,7 +156,7 @@ func TestModelAbortRollsBack(t *testing.T) {
 	require.NoError(t, err)
 
 	// Modify content
-	ed.SetWorkingContent(originalContent + "\n  # added line")
+	ed.setWorkingContent(originalContent + "\n  # added line")
 	ed.MarkDirty()
 
 	// Start commit confirm (this saves with backup)

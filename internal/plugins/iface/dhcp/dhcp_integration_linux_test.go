@@ -18,9 +18,9 @@ func TestDHCPClientStartStopLifecycle(t *testing.T) {
 	bus := &recordingBus{}
 	// Loopback always exists; there is no DHCP server on it, so the worker will
 	// loop on retry and must exit cleanly the moment Stop closes the stop channel.
-	c, err := NewDHCPClient("lo", "0", bus, true, false, DHCPConfig{})
+	c, err := newDHCPClient("lo", "0", bus, true, false, dHCPConfig{})
 	if err != nil {
-		t.Fatalf("NewDHCPClient: %v", err)
+		t.Fatalf("newDHCPClient: %v", err)
 	}
 	if err := c.Start(); err != nil {
 		t.Fatalf("Start: %v", err)

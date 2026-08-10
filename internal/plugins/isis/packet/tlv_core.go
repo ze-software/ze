@@ -195,20 +195,20 @@ func writeLSPEntriesTLV(buf []byte, off int, t LSPEntriesTLV) int {
 //
 // Value is a flat list of 1-octet NLPID values (0xCC IPv4, 0x8E IPv6).
 
-// ProtocolsSupportedTLV is the decoded TLV 129.
-type ProtocolsSupportedTLV struct {
+// protocolsSupportedTLV is the decoded TLV 129.
+type protocolsSupportedTLV struct {
 	NLPIDs []uint8
 }
 
 // DecodeProtocolsSupportedTLV parses a TLV 129 value (one NLPID per octet).
-func DecodeProtocolsSupportedTLV(value []byte) ProtocolsSupportedTLV {
-	out := ProtocolsSupportedTLV{NLPIDs: make([]uint8, len(value))}
+func DecodeProtocolsSupportedTLV(value []byte) protocolsSupportedTLV {
+	out := protocolsSupportedTLV{NLPIDs: make([]uint8, len(value))}
 	copy(out.NLPIDs, value)
 	return out
 }
 
 // writeProtocolsSupportedTLV emits TLV 129 into buf at off.
-func writeProtocolsSupportedTLV(buf []byte, off int, t ProtocolsSupportedTLV) int {
+func writeProtocolsSupportedTLV(buf []byte, off int, t protocolsSupportedTLV) int {
 	return writeTLV(buf, off, TLVProtocolsSupported, t.NLPIDs)
 }
 

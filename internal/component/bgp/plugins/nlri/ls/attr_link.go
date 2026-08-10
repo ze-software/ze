@@ -52,7 +52,7 @@ func (t *LsIPv4RouterIDRemote) ToJSON() map[string]any {
 	}
 }
 
-func decodeIPv4RouterIDRemote(data []byte) (LsAttrTLV, error) {
+func decodeIPv4RouterIDRemote(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -61,131 +61,131 @@ func decodeIPv4RouterIDRemote(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1031: IPv6 Router-ID (Remote) ---
 
-// LsIPv6RouterIDRemote represents BGP-LS IPv6 Remote Router-ID (TLV 1031).
+// lsIPv6RouterIDRemote represents BGP-LS IPv6 Remote Router-ID (TLV 1031).
 // RFC 7752 Section 3.3.2.1: 16-byte IPv6 address.
-type LsIPv6RouterIDRemote struct {
+type lsIPv6RouterIDRemote struct {
 	Addr netip.Addr
 }
 
-func (t *LsIPv6RouterIDRemote) Code() uint16 { return TLVIPv6RouterIDRemote }
-func (t *LsIPv6RouterIDRemote) Len() int     { return 4 + 16 }
+func (t *lsIPv6RouterIDRemote) Code() uint16 { return TLVIPv6RouterIDRemote }
+func (t *lsIPv6RouterIDRemote) Len() int     { return 4 + 16 }
 
-func (t *LsIPv6RouterIDRemote) WriteTo(buf []byte, off int) int {
+func (t *lsIPv6RouterIDRemote) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVIPv6RouterIDRemote, 16)
 	b := t.Addr.As16()
 	copy(buf[off+4:], b[:])
 	return n
 }
 
-func (t *LsIPv6RouterIDRemote) ToJSON() map[string]any {
+func (t *lsIPv6RouterIDRemote) ToJSON() map[string]any {
 	return map[string]any{
 		"remote-router-ids": []string{t.Addr.String()},
 	}
 }
 
-func decodeIPv6RouterIDRemote(data []byte) (LsAttrTLV, error) {
+func decodeIPv6RouterIDRemote(data []byte) (lsAttrTLV, error) {
 	if len(data) != 16 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsIPv6RouterIDRemote{Addr: netip.AddrFrom16([16]byte(data[:16]))}, nil
+	return &lsIPv6RouterIDRemote{Addr: netip.AddrFrom16([16]byte(data[:16]))}, nil
 }
 
 // --- TLV 1088: Administrative Group ---
 
-// LsAdminGroup represents BGP-LS Administrative Group (TLV 1088).
+// lsAdminGroup represents BGP-LS Administrative Group (TLV 1088).
 // RFC 7752 Section 3.3.2.5: 4-byte bit mask.
-type LsAdminGroup struct {
+type lsAdminGroup struct {
 	Mask uint32
 }
 
-func (t *LsAdminGroup) Code() uint16 { return TLVAdminGroup }
-func (t *LsAdminGroup) Len() int     { return 4 + 4 }
+func (t *lsAdminGroup) Code() uint16 { return TLVAdminGroup }
+func (t *lsAdminGroup) Len() int     { return 4 + 4 }
 
-func (t *LsAdminGroup) WriteTo(buf []byte, off int) int {
+func (t *lsAdminGroup) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVAdminGroup, 4)
 	binary.BigEndian.PutUint32(buf[off+4:], t.Mask)
 	return n
 }
 
-func (t *LsAdminGroup) ToJSON() map[string]any {
+func (t *lsAdminGroup) ToJSON() map[string]any {
 	return map[string]any{"admin-group": t.Mask}
 }
 
-func decodeAdminGroup(data []byte) (LsAttrTLV, error) {
+func decodeAdminGroup(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsAdminGroup{Mask: binary.BigEndian.Uint32(data)}, nil
+	return &lsAdminGroup{Mask: binary.BigEndian.Uint32(data)}, nil
 }
 
 // --- TLV 1089: Maximum Link Bandwidth ---
 
-// LsMaxLinkBandwidth represents BGP-LS Max Link Bandwidth (TLV 1089).
+// lsMaxLinkBandwidth represents BGP-LS Max Link Bandwidth (TLV 1089).
 // RFC 7752 Section 3.3.2.3: 4-byte IEEE 754 float32 (bytes/sec).
-type LsMaxLinkBandwidth struct {
+type lsMaxLinkBandwidth struct {
 	Bandwidth float32
 }
 
-func (t *LsMaxLinkBandwidth) Code() uint16 { return TLVMaxLinkBandwidth }
-func (t *LsMaxLinkBandwidth) Len() int     { return 4 + 4 }
+func (t *lsMaxLinkBandwidth) Code() uint16 { return TLVMaxLinkBandwidth }
+func (t *lsMaxLinkBandwidth) Len() int     { return 4 + 4 }
 
-func (t *LsMaxLinkBandwidth) WriteTo(buf []byte, off int) int {
+func (t *lsMaxLinkBandwidth) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVMaxLinkBandwidth, 4)
 	binary.BigEndian.PutUint32(buf[off+4:], math.Float32bits(t.Bandwidth))
 	return n
 }
 
-func (t *LsMaxLinkBandwidth) ToJSON() map[string]any {
+func (t *lsMaxLinkBandwidth) ToJSON() map[string]any {
 	return map[string]any{"max-link-bandwidth": float64(t.Bandwidth)}
 }
 
-func decodeMaxLinkBandwidth(data []byte) (LsAttrTLV, error) {
+func decodeMaxLinkBandwidth(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsMaxLinkBandwidth{Bandwidth: math.Float32frombits(binary.BigEndian.Uint32(data))}, nil
+	return &lsMaxLinkBandwidth{Bandwidth: math.Float32frombits(binary.BigEndian.Uint32(data))}, nil
 }
 
 // --- TLV 1090: Maximum Reservable Link Bandwidth ---
 
-// LsMaxReservableBW represents BGP-LS Max Reservable Bandwidth (TLV 1090).
+// lsMaxReservableBW represents BGP-LS Max Reservable Bandwidth (TLV 1090).
 // RFC 7752 Section 3.3.2.4: 4-byte IEEE 754 float32 (bytes/sec).
-type LsMaxReservableBW struct {
+type lsMaxReservableBW struct {
 	Bandwidth float32
 }
 
-func (t *LsMaxReservableBW) Code() uint16 { return TLVMaxReservableBW }
-func (t *LsMaxReservableBW) Len() int     { return 4 + 4 }
+func (t *lsMaxReservableBW) Code() uint16 { return TLVMaxReservableBW }
+func (t *lsMaxReservableBW) Len() int     { return 4 + 4 }
 
-func (t *LsMaxReservableBW) WriteTo(buf []byte, off int) int {
+func (t *lsMaxReservableBW) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVMaxReservableBW, 4)
 	binary.BigEndian.PutUint32(buf[off+4:], math.Float32bits(t.Bandwidth))
 	return n
 }
 
-func (t *LsMaxReservableBW) ToJSON() map[string]any {
+func (t *lsMaxReservableBW) ToJSON() map[string]any {
 	return map[string]any{"max-reservable-bandwidth": float64(t.Bandwidth)}
 }
 
-func decodeMaxReservableBW(data []byte) (LsAttrTLV, error) {
+func decodeMaxReservableBW(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsMaxReservableBW{Bandwidth: math.Float32frombits(binary.BigEndian.Uint32(data))}, nil
+	return &lsMaxReservableBW{Bandwidth: math.Float32frombits(binary.BigEndian.Uint32(data))}, nil
 }
 
 // --- TLV 1091: Unreserved Bandwidth ---
 
-// LsUnreservedBW represents BGP-LS Unreserved Bandwidth (TLV 1091).
+// lsUnreservedBW represents BGP-LS Unreserved Bandwidth (TLV 1091).
 // RFC 7752 Section 3.3.2.4: 8 x IEEE 754 float32 (one per priority level).
-type LsUnreservedBW struct {
+type lsUnreservedBW struct {
 	Bandwidth [8]float32
 }
 
-func (t *LsUnreservedBW) Code() uint16 { return TLVUnreservedBW }
-func (t *LsUnreservedBW) Len() int     { return 4 + 32 }
+func (t *lsUnreservedBW) Code() uint16 { return TLVUnreservedBW }
+func (t *lsUnreservedBW) Len() int     { return 4 + 32 }
 
-func (t *LsUnreservedBW) WriteTo(buf []byte, off int) int {
+func (t *lsUnreservedBW) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVUnreservedBW, 32)
 	for i := range 8 {
 		binary.BigEndian.PutUint32(buf[off+4+i*4:], math.Float32bits(t.Bandwidth[i]))
@@ -193,7 +193,7 @@ func (t *LsUnreservedBW) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsUnreservedBW) ToJSON() map[string]any {
+func (t *lsUnreservedBW) ToJSON() map[string]any {
 	bws := make([]float64, 8)
 	for i := range 8 {
 		bws[i] = float64(t.Bandwidth[i])
@@ -201,7 +201,7 @@ func (t *LsUnreservedBW) ToJSON() map[string]any {
 	return map[string]any{"unreserved-bandwidth": bws}
 }
 
-func decodeUnreservedBW(data []byte) (LsAttrTLV, error) {
+func decodeUnreservedBW(data []byte) (lsAttrTLV, error) {
 	if len(data) < 32 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -209,7 +209,7 @@ func decodeUnreservedBW(data []byte) (LsAttrTLV, error) {
 	for i := range 8 {
 		bw[i] = math.Float32frombits(binary.BigEndian.Uint32(data[i*4:]))
 	}
-	return &LsUnreservedBW{Bandwidth: bw}, nil
+	return &lsUnreservedBW{Bandwidth: bw}, nil
 }
 
 // --- TLV 1092: TE Default Metric ---
@@ -233,7 +233,7 @@ func (t *LsTEDefaultMetric) ToJSON() map[string]any {
 	return map[string]any{"te-metric": t.Metric}
 }
 
-func decodeTEDefaultMetric(data []byte) (LsAttrTLV, error) {
+func decodeTEDefaultMetric(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -242,18 +242,18 @@ func decodeTEDefaultMetric(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1095: IGP Metric ---
 
-// LsIGPMetric represents BGP-LS IGP Metric (TLV 1095).
+// lsIGPMetric represents BGP-LS IGP Metric (TLV 1095).
 // RFC 7752 Section 3.3.2.4: variable-length (1-4 bytes).
 // IS-IS small metric: 1 byte (6 bits), OSPF: 2 bytes, IS-IS wide: 3 bytes, generic: 4 bytes.
-type LsIGPMetric struct {
+type lsIGPMetric struct {
 	Metric uint32
 	// wireLen preserves original encoding length for round-trip fidelity.
 	wireLen int
 }
 
-func (t *LsIGPMetric) Code() uint16 { return TLVIGPMetric }
+func (t *lsIGPMetric) Code() uint16 { return TLVIGPMetric }
 
-func (t *LsIGPMetric) Len() int {
+func (t *lsIGPMetric) Len() int {
 	if t.wireLen > 0 {
 		return 4 + t.wireLen
 	}
@@ -272,7 +272,7 @@ func igpMetricValueLen(metric uint32) int {
 	return 3 // IS-IS wide metric (max 24 bits)
 }
 
-func (t *LsIGPMetric) WriteTo(buf []byte, off int) int {
+func (t *lsIGPMetric) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, TLVIGPMetric, valueLen)
 	writeIGPMetricValue(buf, off+4, t.Metric, valueLen)
@@ -295,11 +295,11 @@ func writeIGPMetricValue(buf []byte, off int, metric uint32, valueLen int) {
 	}
 }
 
-func (t *LsIGPMetric) ToJSON() map[string]any {
+func (t *lsIGPMetric) ToJSON() map[string]any {
 	return map[string]any{"igp-metric": int(t.Metric)}
 }
 
-func decodeIGPMetric(data []byte) (LsAttrTLV, error) {
+func decodeIGPMetric(data []byte) (lsAttrTLV, error) {
 	// RFC 7752 Section 3.3.2.4: 1 byte (IS-IS small), 2 bytes (OSPF), or 3 bytes (IS-IS wide)
 	if len(data) == 0 || len(data) > 3 {
 		return nil, ErrBGPLSTruncated
@@ -313,21 +313,21 @@ func decodeIGPMetric(data []byte) (LsAttrTLV, error) {
 	case 3:
 		metric = uint32(data[0])<<16 | uint32(data[1])<<8 | uint32(data[2])
 	}
-	return &LsIGPMetric{Metric: metric, wireLen: len(data)}, nil
+	return &lsIGPMetric{Metric: metric, wireLen: len(data)}, nil
 }
 
 // --- TLV 1096: SRLG ---
 
-// LsSRLG represents BGP-LS Shared Risk Link Group (TLV 1096).
+// lsSRLG represents BGP-LS Shared Risk Link Group (TLV 1096).
 // RFC 7752 Section 3.3.2.6: array of 4-byte uint32 values.
-type LsSRLG struct {
+type lsSRLG struct {
 	Values []uint32
 }
 
-func (t *LsSRLG) Code() uint16 { return TLVSRLG }
-func (t *LsSRLG) Len() int     { return 4 + len(t.Values)*4 }
+func (t *lsSRLG) Code() uint16 { return TLVSRLG }
+func (t *lsSRLG) Len() int     { return 4 + len(t.Values)*4 }
 
-func (t *LsSRLG) WriteTo(buf []byte, off int) int {
+func (t *lsSRLG) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVSRLG, len(t.Values)*4)
 	for i, v := range t.Values {
 		binary.BigEndian.PutUint32(buf[off+4+i*4:], v)
@@ -335,11 +335,11 @@ func (t *LsSRLG) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsSRLG) ToJSON() map[string]any {
+func (t *lsSRLG) ToJSON() map[string]any {
 	return map[string]any{"srlgs": t.Values}
 }
 
-func decodeSRLG(data []byte) (LsAttrTLV, error) {
+func decodeSRLG(data []byte) (lsAttrTLV, error) {
 	if len(data)%4 != 0 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -347,55 +347,55 @@ func decodeSRLG(data []byte) (LsAttrTLV, error) {
 	for i := range values {
 		values[i] = binary.BigEndian.Uint32(data[i*4:])
 	}
-	return &LsSRLG{Values: values}, nil
+	return &lsSRLG{Values: values}, nil
 }
 
 // --- TLV 1097: Opaque Link Attribute ---
 
-// LsOpaqueLinkAttr represents BGP-LS Opaque Link Attribute (TLV 1097).
+// lsOpaqueLinkAttr represents BGP-LS Opaque Link Attribute (TLV 1097).
 // RFC 7752 Section 3.3.2.10: variable-length opaque data.
-type LsOpaqueLinkAttr struct {
+type lsOpaqueLinkAttr struct {
 	Data []byte
 }
 
-func (t *LsOpaqueLinkAttr) Code() uint16 { return TLVOpaqueLinkAttr }
-func (t *LsOpaqueLinkAttr) Len() int     { return 4 + len(t.Data) }
+func (t *lsOpaqueLinkAttr) Code() uint16 { return TLVOpaqueLinkAttr }
+func (t *lsOpaqueLinkAttr) Len() int     { return 4 + len(t.Data) }
 
-func (t *LsOpaqueLinkAttr) WriteTo(buf []byte, off int) int {
+func (t *lsOpaqueLinkAttr) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVOpaqueLinkAttr, t.Data)
 }
 
-func (t *LsOpaqueLinkAttr) ToJSON() map[string]any {
+func (t *lsOpaqueLinkAttr) ToJSON() map[string]any {
 	return map[string]any{"opaque-link-attr": formatHex(t.Data)}
 }
 
-func decodeOpaqueLinkAttr(data []byte) (LsAttrTLV, error) {
+func decodeOpaqueLinkAttr(data []byte) (lsAttrTLV, error) {
 	cp := make([]byte, len(data))
 	copy(cp, data)
-	return &LsOpaqueLinkAttr{Data: cp}, nil
+	return &lsOpaqueLinkAttr{Data: cp}, nil
 }
 
 // --- TLV 1098: Link Name ---
 
-// LsLinkName represents BGP-LS Link Name (TLV 1098).
+// lsLinkName represents BGP-LS Link Name (TLV 1098).
 // RFC 7752 Section 3.3.2.7: variable-length UTF-8 string.
-type LsLinkName struct {
+type lsLinkName struct {
 	Name string
 }
 
-func (t *LsLinkName) Code() uint16 { return TLVLinkName }
-func (t *LsLinkName) Len() int     { return 4 + len(t.Name) }
+func (t *lsLinkName) Code() uint16 { return TLVLinkName }
+func (t *lsLinkName) Len() int     { return 4 + len(t.Name) }
 
-func (t *LsLinkName) WriteTo(buf []byte, off int) int {
+func (t *lsLinkName) WriteTo(buf []byte, off int) int {
 	return writeTLVBytes(buf, off, TLVLinkName, []byte(t.Name))
 }
 
-func (t *LsLinkName) ToJSON() map[string]any {
+func (t *lsLinkName) ToJSON() map[string]any {
 	return map[string]any{"link-name": t.Name}
 }
 
-func decodeLinkName(data []byte) (LsAttrTLV, error) {
-	return &LsLinkName{Name: string(data)}, nil
+func decodeLinkName(data []byte) (lsAttrTLV, error) {
+	return &lsLinkName{Name: string(data)}, nil
 }
 
 // --- Phase 2: SR-MPLS Link Attribute TLV (RFC 9085) ---
@@ -407,10 +407,10 @@ const (
 
 // --- TLV 1099: Adjacency SID ---
 
-// LsAdjacencySID represents BGP-LS Adjacency SID (TLV 1099).
+// lsAdjacencySID represents BGP-LS Adjacency SID (TLV 1099).
 // RFC 9085 Section 2.2.1: Flags(1) + Weight(1) + Reserved(2) + SID (3 or 4 bytes).
 // V=1,L=1: 3-byte label (20 bits). V=0,L=0: 4-byte index.
-type LsAdjacencySID struct {
+type lsAdjacencySID struct {
 	Flags  uint8
 	Weight uint8
 	SID    uint32
@@ -418,16 +418,16 @@ type LsAdjacencySID struct {
 	wireLen int
 }
 
-func (t *LsAdjacencySID) Code() uint16 { return TLVAdjacencySID }
+func (t *lsAdjacencySID) Code() uint16 { return TLVAdjacencySID }
 
-func (t *LsAdjacencySID) Len() int {
+func (t *lsAdjacencySID) Len() int {
 	if t.wireLen > 0 {
 		return 4 + t.wireLen
 	}
 	return 4 + 8 // flags(1) + weight(1) + reserved(2) + SID(4)
 }
 
-func (t *LsAdjacencySID) WriteTo(buf []byte, off int) int {
+func (t *lsAdjacencySID) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, TLVAdjacencySID, valueLen)
 	vOff := off + 4
@@ -446,7 +446,7 @@ func (t *LsAdjacencySID) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsAdjacencySID) ToJSON() map[string]any {
+func (t *lsAdjacencySID) ToJSON() map[string]any {
 	return map[string]any{
 		"adj-sids": []map[string]any{{
 			"flags": map[string]any{
@@ -465,12 +465,12 @@ func (t *LsAdjacencySID) ToJSON() map[string]any {
 	}
 }
 
-func decodeAdjacencySID(data []byte) (LsAttrTLV, error) {
+func decodeAdjacencySID(data []byte) (lsAttrTLV, error) {
 	// RFC 9085 Section 2.2.1: 7 or 8 bytes
 	if len(data) != 7 && len(data) != 8 {
 		return nil, ErrBGPLSTruncated
 	}
-	adj := &LsAdjacencySID{
+	adj := &lsAdjacencySID{
 		Flags:   data[0],
 		Weight:  data[1],
 		wireLen: len(data),
@@ -494,10 +494,10 @@ const (
 	TLVPeerSetSID  uint16 = 1103 // RFC 9086 Section 5
 )
 
-// LsPeerSID represents a BGP-EPE Peer SID (TLVs 1101-1103).
+// lsPeerSID represents a BGP-EPE Peer SID (TLVs 1101-1103).
 // RFC 9086 Section 5: Flags(1) + Weight(1) + Reserved(2) + SID (3 or 4 bytes).
 // Same wire format as Adjacency SID but different TLV codes and JSON keys.
-type LsPeerSID struct {
+type lsPeerSID struct {
 	TLVCode uint16
 	Flags   uint8
 	Weight  uint8
@@ -505,16 +505,16 @@ type LsPeerSID struct {
 	wireLen int
 }
 
-func (t *LsPeerSID) Code() uint16 { return t.TLVCode }
+func (t *lsPeerSID) Code() uint16 { return t.TLVCode }
 
-func (t *LsPeerSID) Len() int {
+func (t *lsPeerSID) Len() int {
 	if t.wireLen > 0 {
 		return 4 + t.wireLen
 	}
 	return 4 + 8
 }
 
-func (t *LsPeerSID) WriteTo(buf []byte, off int) int {
+func (t *lsPeerSID) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, t.TLVCode, valueLen)
 	vOff := off + 4
@@ -540,7 +540,7 @@ var peerSIDKeys = map[uint16]string{
 	TLVPeerSetSID:  "peer-set-sid",
 }
 
-func (t *LsPeerSID) ToJSON() map[string]any {
+func (t *lsPeerSID) ToJSON() map[string]any {
 	key := peerSIDKeys[t.TLVCode]
 	return map[string]any{
 		key: map[string]any{
@@ -551,12 +551,12 @@ func (t *LsPeerSID) ToJSON() map[string]any {
 	}
 }
 
-func decodePeerSID(code uint16) LsAttrTLVDecoder {
-	return func(data []byte) (LsAttrTLV, error) {
+func decodePeerSID(code uint16) lsAttrTLVDecoder {
+	return func(data []byte) (lsAttrTLV, error) {
 		if len(data) != 7 && len(data) != 8 {
 			return nil, ErrBGPLSTruncated
 		}
-		ps := &LsPeerSID{
+		ps := &lsPeerSID{
 			TLVCode: code,
 			Flags:   data[0],
 			Weight:  data[1],
@@ -673,8 +673,8 @@ func (t *LsSRv6EndXSID) ToJSON() map[string]any {
 	return map[string]any{key: []map[string]any{entry}}
 }
 
-func decodeSRv6EndXSID(code uint16, neighborIDLen int) LsAttrTLVDecoder {
-	return func(data []byte) (LsAttrTLV, error) {
+func decodeSRv6EndXSID(code uint16, neighborIDLen int) lsAttrTLVDecoder {
+	return func(data []byte) (lsAttrTLV, error) {
 		minLen := 6 + neighborIDLen + 16
 		if len(data) < minLen {
 			return nil, ErrBGPLSTruncated
@@ -719,17 +719,17 @@ const (
 	TLVDelayVariation      uint16 = 1116 // RFC 8571 Section 5
 )
 
-// LsUnidirectionalDelay represents unidirectional link delay (TLV 1114).
+// lsUnidirectionalDelay represents unidirectional link delay (TLV 1114).
 // RFC 8571 Section 3: A-flag(1 bit) + Reserved(7 bits) + Delay(24 bits, microseconds).
-type LsUnidirectionalDelay struct {
+type lsUnidirectionalDelay struct {
 	Anomalous bool
 	Delay     uint32 // microseconds, 24 bits
 }
 
-func (t *LsUnidirectionalDelay) Code() uint16 { return TLVUnidirectionalDelay }
-func (t *LsUnidirectionalDelay) Len() int     { return 4 + 4 }
+func (t *lsUnidirectionalDelay) Code() uint16 { return TLVUnidirectionalDelay }
+func (t *lsUnidirectionalDelay) Len() int     { return 4 + 4 }
 
-func (t *LsUnidirectionalDelay) WriteTo(buf []byte, off int) int {
+func (t *lsUnidirectionalDelay) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVUnidirectionalDelay, 4)
 	vOff := off + 4
 	var flagByte uint8
@@ -743,7 +743,7 @@ func (t *LsUnidirectionalDelay) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsUnidirectionalDelay) ToJSON() map[string]any {
+func (t *lsUnidirectionalDelay) ToJSON() map[string]any {
 	return map[string]any{
 		"link-delay": map[string]any{
 			"anomalous": t.Anomalous,
@@ -752,28 +752,28 @@ func (t *LsUnidirectionalDelay) ToJSON() map[string]any {
 	}
 }
 
-func decodeUnidirectionalDelay(data []byte) (LsAttrTLV, error) {
+func decodeUnidirectionalDelay(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsUnidirectionalDelay{
+	return &lsUnidirectionalDelay{
 		Anomalous: data[0]&0x80 != 0,
 		Delay:     uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3]),
 	}, nil
 }
 
-// LsMinMaxDelay represents min/max unidirectional link delay (TLV 1115).
+// lsMinMaxDelay represents min/max unidirectional link delay (TLV 1115).
 // RFC 8571 Section 4: A-flag + Reserved + MinDelay(24) + Reserved(8) + MaxDelay(24).
-type LsMinMaxDelay struct {
+type lsMinMaxDelay struct {
 	Anomalous bool
 	MinDelay  uint32
 	MaxDelay  uint32
 }
 
-func (t *LsMinMaxDelay) Code() uint16 { return TLVMinMaxDelay }
-func (t *LsMinMaxDelay) Len() int     { return 4 + 8 }
+func (t *lsMinMaxDelay) Code() uint16 { return TLVMinMaxDelay }
+func (t *lsMinMaxDelay) Len() int     { return 4 + 8 }
 
-func (t *LsMinMaxDelay) WriteTo(buf []byte, off int) int {
+func (t *lsMinMaxDelay) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVMinMaxDelay, 8)
 	vOff := off + 4
 	var flagByte uint8
@@ -791,7 +791,7 @@ func (t *LsMinMaxDelay) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsMinMaxDelay) ToJSON() map[string]any {
+func (t *lsMinMaxDelay) ToJSON() map[string]any {
 	return map[string]any{
 		"link-delay-minmax": map[string]any{
 			"anomalous": t.Anomalous,
@@ -801,27 +801,27 @@ func (t *LsMinMaxDelay) ToJSON() map[string]any {
 	}
 }
 
-func decodeMinMaxDelay(data []byte) (LsAttrTLV, error) {
+func decodeMinMaxDelay(data []byte) (lsAttrTLV, error) {
 	if len(data) != 8 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsMinMaxDelay{
+	return &lsMinMaxDelay{
 		Anomalous: data[0]&0x80 != 0,
 		MinDelay:  uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3]),
 		MaxDelay:  uint32(data[5])<<16 | uint32(data[6])<<8 | uint32(data[7]),
 	}, nil
 }
 
-// LsDelayVariation represents unidirectional delay variation (TLV 1116).
+// lsDelayVariation represents unidirectional delay variation (TLV 1116).
 // RFC 8571 Section 5: Reserved(8) + Variation(24 bits, microseconds).
-type LsDelayVariation struct {
+type lsDelayVariation struct {
 	Variation uint32
 }
 
-func (t *LsDelayVariation) Code() uint16 { return TLVDelayVariation }
-func (t *LsDelayVariation) Len() int     { return 4 + 4 }
+func (t *lsDelayVariation) Code() uint16 { return TLVDelayVariation }
+func (t *lsDelayVariation) Len() int     { return 4 + 4 }
 
-func (t *LsDelayVariation) WriteTo(buf []byte, off int) int {
+func (t *lsDelayVariation) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVDelayVariation, 4)
 	vOff := off + 4
 	buf[vOff] = 0 // reserved
@@ -831,15 +831,15 @@ func (t *LsDelayVariation) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsDelayVariation) ToJSON() map[string]any {
+func (t *lsDelayVariation) ToJSON() map[string]any {
 	return map[string]any{"delay-variation": t.Variation}
 }
 
-func decodeDelayVariation(data []byte) (LsAttrTLV, error) {
+func decodeDelayVariation(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsDelayVariation{
+	return &lsDelayVariation{
 		Variation: uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3]),
 	}, nil
 }

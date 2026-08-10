@@ -21,7 +21,7 @@ func TestRTRSessionStartsAtV2(t *testing.T) {
 	// RFC requirement: RFC9582-7-1 positive -- a fresh session's negotiated version is rtrVersionMax
 	// (2) and the first query it writes (a Reset Query, since serial==0) carries version byte 2.
 	stopCh := make(chan struct{})
-	session := NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+	session := newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 
 	assert.Equal(t, rtrVersionMax, session.version, "fresh session negotiates the max version")
 	assert.Equal(t, uint8(2), session.version, "RFC 9582 v2 session")
@@ -43,7 +43,7 @@ func TestRTRSessionStartsAtV2(t *testing.T) {
 func TestHandlePDUVersionDowngrade(t *testing.T) {
 	newSession := func() *RTRSession {
 		stopCh := make(chan struct{})
-		return NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 	}
 
 	t.Run("unsupported version downgrades and reconnects", func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestHandlePDUVersionDowngrade(t *testing.T) {
 		s := newSession()
 		require.Equal(t, rtrVersionMax, s.version)
 
-		hdr := RTRHeader{Version: rtrVersionMax, Type: pduErrorRpt, SessionID: errUnsupportedVersion, Length: pduHeaderLen}
+		hdr := rTRHeader{Version: rtrVersionMax, Type: pduErrorRpt, SessionID: errUnsupportedVersion, Length: pduHeaderLen}
 		done, err := s.handlePDU(hdr, make([]byte, pduHeaderLen))
 
 		require.ErrorIs(t, err, errRtrVersionDowngrade, "reconnect must be signaled")
@@ -66,7 +66,7 @@ func TestHandlePDUVersionDowngrade(t *testing.T) {
 		s := newSession()
 		require.Equal(t, rtrVersionMax, s.version)
 
-		hdr := RTRHeader{Version: rtrVersionMax, Type: pduErrorRpt, SessionID: errNoDataAvail, Length: pduHeaderLen}
+		hdr := rTRHeader{Version: rtrVersionMax, Type: pduErrorRpt, SessionID: errNoDataAvail, Length: pduHeaderLen}
 		done, err := s.handlePDU(hdr, make([]byte, pduHeaderLen))
 
 		require.NoError(t, err, "a non-fatal, non-version error is tolerated")
@@ -90,7 +90,7 @@ func TestPollingCadenceAtLeastHourly(t *testing.T) {
 	// a Serial Query or Reset Query periodically under v1; the seeded interval is finite and short, so
 	// polling recurs rather than stopping after the first sync.
 	stopCh := make(chan struct{})
-	s := NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+	s := newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 
 	assert.LessOrEqual(t, s.retryInterval, time.Hour, "default re-query cadence is at least hourly")
 }
@@ -106,7 +106,7 @@ func TestPollingCadenceAtLeastHourly(t *testing.T) {
 func TestCacheResetTriggersResetQuery(t *testing.T) {
 	newSession := func() *RTRSession {
 		stopCh := make(chan struct{})
-		return NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 	}
 
 	t.Run("cache reset clears serial for a reset query", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 		s := newSession()
 		s.serial = 42 // pretend a prior incremental sync
 
-		done, err := s.handlePDU(RTRHeader{Type: pduCacheReset}, make([]byte, pduHeaderLen))
+		done, err := s.handlePDU(rTRHeader{Type: pduCacheReset}, make([]byte, pduHeaderLen))
 
 		require.ErrorIs(t, err, errRtrCacheResetReceivedWillDo, "cache reset signals a full re-sync")
 		assert.True(t, done, "the current sync attempt ends")
@@ -134,7 +134,7 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 		s := newSession()
 		s.serial = 42
 
-		done, err := s.handlePDU(RTRHeader{Type: pduSerialNotify}, make([]byte, pduHeaderLen))
+		done, err := s.handlePDU(rTRHeader{Type: pduSerialNotify}, make([]byte, pduHeaderLen))
 
 		require.NoError(t, err)
 		assert.False(t, done)
@@ -154,7 +154,7 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 	newSession := func() *RTRSession {
 		stopCh := make(chan struct{})
-		return NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 	}
 
 	t.Run("no data available is non-fatal and keeps serial at zero", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 		s := newSession()
 		require.Equal(t, uint32(0), s.serial)
 
-		hdr := RTRHeader{Type: pduErrorRpt, SessionID: errNoDataAvail, Length: pduHeaderLen}
+		hdr := rTRHeader{Type: pduErrorRpt, SessionID: errNoDataAvail, Length: pduHeaderLen}
 		done, err := s.handlePDU(hdr, make([]byte, pduHeaderLen))
 
 		require.NoError(t, err, "No Data Available must not be fatal")
@@ -190,7 +190,7 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 		binary.BigEndian.PutUint32(buf[4:8], pduEndOfDataLen)
 		binary.BigEndian.PutUint32(buf[8:12], 77) // serial number
 
-		done, err := s.handlePDU(RTRHeader{Type: pduEndOfData, Length: pduEndOfDataLen}, buf)
+		done, err := s.handlePDU(rTRHeader{Type: pduEndOfData, Length: pduEndOfDataLen}, buf)
 
 		require.NoError(t, err)
 		assert.True(t, done, "End of Data completes the sync")
@@ -210,7 +210,7 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
 	newSession := func() *RTRSession {
 		stopCh := make(chan struct{})
-		return NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 	}
 
 	t.Run("serial notify in the startup window is ignored", func(t *testing.T) {
@@ -229,7 +229,7 @@ func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
 		binary.BigEndian.PutUint32(buf[4:8], 12)
 		binary.BigEndian.PutUint32(buf[8:12], 999) // serial offered by the notify
 
-		done, err := s.handlePDU(RTRHeader{Version: rtrVersionMax, Type: pduSerialNotify, SessionID: 0xBEEF, Length: 12}, buf)
+		done, err := s.handlePDU(rTRHeader{Version: rtrVersionMax, Type: pduSerialNotify, SessionID: 0xBEEF, Length: 12}, buf)
 
 		require.NoError(t, err, "a startup Serial Notify must not error the session")
 		assert.False(t, done, "it does not complete or abort the startup exchange")
@@ -248,7 +248,7 @@ func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
 		// not extend to the PDU that carries the negotiated Session ID.
 		s := newSession()
 
-		done, err := s.handlePDU(RTRHeader{Version: rtrVersionMax, Type: pduCacheResp, SessionID: 0xBEEF, Length: pduHeaderLen}, make([]byte, pduHeaderLen))
+		done, err := s.handlePDU(rTRHeader{Version: rtrVersionMax, Type: pduCacheResp, SessionID: 0xBEEF, Length: pduHeaderLen}, make([]byte, pduHeaderLen))
 
 		require.NoError(t, err)
 		assert.False(t, done)
@@ -279,7 +279,7 @@ func TestFirstPDUOnConnectionIsAQuery(t *testing.T) {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 
-		s := NewRTRSession("127.0.0.1", uint16(port), 100, "", NewROACache(), NewASPACache(), stopCh) //nolint:gosec // listener port fits uint16
+		s := newRTRSession("127.0.0.1", uint16(port), 100, "", newROACache(), newASPACache(), stopCh) //nolint:gosec // listener port fits uint16
 		prepare(s)
 
 		done := make(chan error, 1)

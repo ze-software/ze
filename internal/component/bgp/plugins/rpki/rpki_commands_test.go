@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestPlugin() *RPKIPlugin {
-	return &RPKIPlugin{
-		cache:      NewROACache(),
-		aspaCache:  NewASPACache(),
+func newTestPlugin() *rPKIPlugin {
+	return &rPKIPlugin{
+		cache:      newROACache(),
+		aspaCache:  newASPACache(),
 		validateCh: make(chan validationRequest, 64),
 		stopCh:     make(chan struct{}),
 	}
@@ -63,7 +63,7 @@ func TestStatusCommandEmpty(t *testing.T) {
 
 func TestStatusCommandWithSessions(t *testing.T) {
 	rp := newTestPlugin()
-	sess := NewRTRSession("192.0.2.1", 323, 100, "", rp.cache, rp.aspaCache, rp.stopCh)
+	sess := newRTRSession("192.0.2.1", 323, 100, "", rp.cache, rp.aspaCache, rp.stopCh)
 	rp.sessions = append(rp.sessions, sess)
 
 	status, data, err := rp.statusCommand()
@@ -95,7 +95,7 @@ func TestCacheCommandEmpty(t *testing.T) {
 
 func TestCacheCommandWithSession(t *testing.T) {
 	rp := newTestPlugin()
-	sess := NewRTRSession("198.51.100.1", 8282, 50, "", rp.cache, rp.aspaCache, rp.stopCh)
+	sess := newRTRSession("198.51.100.1", 8282, 50, "", rp.cache, rp.aspaCache, rp.stopCh)
 	rp.sessions = append(rp.sessions, sess)
 
 	status, data, err := rp.cacheCommand()
@@ -183,7 +183,7 @@ func TestSummaryCommand(t *testing.T) {
 	rp.aspaCache.Set(65001, []uint32{65000})
 	rp.aspaEnabled.Store(true)
 
-	sess := NewRTRSession("192.0.2.1", 323, 100, "", rp.cache, rp.aspaCache, rp.stopCh)
+	sess := newRTRSession("192.0.2.1", 323, 100, "", rp.cache, rp.aspaCache, rp.stopCh)
 	rp.sessions = append(rp.sessions, sess)
 
 	status, data, err := rp.summaryCommand()

@@ -126,7 +126,7 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 		}
 
 		evClass := eventTypeClass(ev.Type)
-		elapsed := FormatElapsed(time.Since(ev.Time))
+		elapsed := formatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
 		detailStyle := chaosDetailStyle(ev)
@@ -147,7 +147,7 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 <h3>Convergence Histogram</h3>
 <div class="histogram" style="position:relative">`)
 
-	maxCount := ch.MaxCount()
+	maxCount := ch.maxCount()
 	bucketColors := []string{
 		"#3fb950", "#3fb950", "#7cc647", // green (fast)
 		"#b8cc3e", "#d29922", "#db8928", // yellow (moderate)

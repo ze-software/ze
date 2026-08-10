@@ -32,8 +32,8 @@ type ManagedConfigService struct {
 	connected  map[string]struct{} // connected client names
 }
 
-// NewManagedConfigService creates a service that reads client configs via reader.
-func NewManagedConfigService(reader ConfigReader) *ManagedConfigService {
+// newManagedConfigService creates a service that reads client configs via reader.
+func newManagedConfigService(reader ConfigReader) *ManagedConfigService {
 	return &ManagedConfigService{
 		readConfig: reader,
 		connected:  make(map[string]struct{}),

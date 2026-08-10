@@ -38,17 +38,17 @@ var (
 // vpnLogger is the package-level logger, disabled by default.
 var vpnLogger = slogutil.DiscardLogger()
 
-// SetVPNLogger sets the package-level logger.
+// setVPNLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_vpn.go with slogutil.PluginLogger().
-func SetVPNLogger(l *slog.Logger) {
+func setVPNLogger(l *slog.Logger) {
 	if l != nil {
 		vpnLogger = l
 	}
 }
 
-// RunVPNPlugin runs the VPN plugin using the SDK RPC protocol.
+// runVPNPlugin runs the VPN plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunVPNPlugin(conn net.Conn) int {
+func runVPNPlugin(conn net.Conn) int {
 	vpnLogger.Debug("vpn plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-nlri-vpn", conn)
@@ -187,9 +187,9 @@ const (
 	respDecodedJSON = "decoded json "
 )
 
-// GetVPNYANG returns the embedded YANG schema for the vpn plugin.
+// getVPNYANG returns the embedded YANG schema for the vpn plugin.
 // VPN plugin doesn't augment config schema, returns empty.
-func GetVPNYANG() string {
+func getVPNYANG() string {
 	return ""
 }
 
@@ -249,8 +249,8 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	return 0
 }
 
-// RunVPNDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
-func RunVPNDecode(input io.Reader, output io.Writer) int {
+// runVPNDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
+func runVPNDecode(input io.Reader, output io.Writer) int {
 	writeUnknown := func() {
 		_, err := fmt.Fprintln(output, "decoded unknown") //nolint:errcheck // output
 		if err != nil {

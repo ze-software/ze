@@ -124,7 +124,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 		attrDouble := tb.Str("id=\"").Str(id).Byte('"').String()
 		attrSingle := tb.Reset().Str("id='").Str(id).Byte('\'').String()
 		if err := retryPositive(func() error {
-			html, htmlErr := b.GetHTML()
+			html, htmlErr := b.getHTML()
 			if htmlErr != nil {
 				return fmt.Errorf("html: %w", htmlErr)
 			}
@@ -142,7 +142,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if id, ok := e.Values["not-id"]; ok {
-		html, htmlErr := retryFetch(b.GetHTML)
+		html, htmlErr := retryFetch(b.getHTML)
 		if htmlErr != nil {
 			return fmt.Errorf("html: %w", htmlErr)
 		}
@@ -154,7 +154,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	if text, ok := e.Values["text"]; ok {
 		want := strings.ToLower(text)
 		if err := retryPositive(func() error {
-			fullSnap, textErr := b.FullSnapshot()
+			fullSnap, textErr := b.fullSnapshot()
 			if textErr != nil {
 				return fmt.Errorf("full snapshot: %w", textErr)
 			}
@@ -168,7 +168,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if text, ok := e.Values["not-text"]; ok {
-		fullSnap, textErr := retryFetch(b.FullSnapshot)
+		fullSnap, textErr := retryFetch(b.fullSnapshot)
 		if textErr != nil {
 			return fmt.Errorf("full snapshot: %w", textErr)
 		}
@@ -181,13 +181,13 @@ func checkElement(b *Browser, e *WBExpectation) error {
 }
 
 func checkHTML(b *Browser, e *WBExpectation) error {
-	html, err := retryFetch(b.GetHTML)
+	html, err := retryFetch(b.getHTML)
 	if err != nil {
 		return fmt.Errorf("html: %w", err)
 	}
 	if sub, ok := e.Values["contains"]; ok {
 		if err := retryPositive(func() error {
-			current, htmlErr := b.GetHTML()
+			current, htmlErr := b.getHTML()
 			if htmlErr != nil {
 				return fmt.Errorf("html: %w", htmlErr)
 			}
@@ -253,7 +253,7 @@ func checkURL(b *Browser, e *WBExpectation) error {
 }
 
 func checkTitle(b *Browser, e *WBExpectation) error {
-	text, err := b.FullSnapshot()
+	text, err := b.fullSnapshot()
 	if err != nil {
 		return fmt.Errorf("full snapshot: %w", err)
 	}

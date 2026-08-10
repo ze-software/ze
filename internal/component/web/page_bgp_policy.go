@@ -82,8 +82,8 @@ func countRules(filterTree *config.Tree) int {
 	return 0
 }
 
-// BuildBGPPolicyTableData constructs a WorkbenchTableData for the policy page.
-func BuildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTableAddAction) WorkbenchTableData {
+// buildBGPPolicyTableData constructs a WorkbenchTableData for the policy page.
+func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTableAddAction) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
@@ -146,9 +146,9 @@ func titleFromSchemaName(name string) string {
 	return out.String()
 }
 
-// HandleBGPPolicyPage renders the BGP policy/filters table within the workbench.
-func HandleBGPPolicyPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
+// handleBGPPolicyPage renders the BGP policy/filters table within the workbench.
+func handleBGPPolicyPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
 	entries := collectPolicies(viewTree, schema)
-	tableData := BuildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
+	tableData := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

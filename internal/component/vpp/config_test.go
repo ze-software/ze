@@ -570,7 +570,7 @@ func TestValidatePCIAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.addr, func(t *testing.T) {
-			err := ValidatePCIAddress(tt.addr)
+			err := validatePCIAddress(tt.addr)
 			if tt.wantErr && err == nil {
 				t.Errorf("expected error for %q", tt.addr)
 			}

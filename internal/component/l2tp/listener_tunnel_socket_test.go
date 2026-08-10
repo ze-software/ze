@@ -47,7 +47,7 @@ func connectedPair(t *testing.T) (tunnelFD int, tunnelAddr netip.AddrPort, peer 
 // VALIDATES: the premise the adopt path depends on -- a datagram the peer sends
 // to the connected tunnel socket is delivered to THAT socket and readable from
 // it. Asserted with a raw recvfrom on the caller's own fd, so a failure here
-// means the harness (or the platform) is wrong, not AdoptTunnelSocket.
+// means the harness (or the platform) is wrong, not adoptTunnelSocket.
 // PREVENTS: chasing a delivery bug in the adopt path when the socket pair itself
 // never carried the datagram.
 func TestListener_connectedTunnelSocketReceives(t *testing.T) {
@@ -87,12 +87,12 @@ func TestListener_connectedTunnelSocketReceives(t *testing.T) {
 // reading that socket, ze went deaf to the peer's control plane: a second ICRQ,
 // CDN, HELLO, or StopCCN was silently dropped once the first session came up.
 func TestListener_AdoptedTunnelSocketDeliversToRX(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 	t.Cleanup(func() { _ = ln.Stop() })
 
 	fd, tunnelAddr, peer := connectedPair(t)
-	require.NoError(t, ln.AdoptTunnelSocket(7, fd))
+	require.NoError(t, ln.adoptTunnelSocket(7, fd))
 
 	payload := []byte("control-frame")
 	_, err := peer.WriteToUDP(payload, &net.UDPAddr{
@@ -113,21 +113,21 @@ func TestListener_AdoptedTunnelSocketDeliversToRX(t *testing.T) {
 	}
 }
 
-// VALIDATES: ReleaseTunnelSocket stops the reader and is idempotent, and the
+// VALIDATES: releaseTunnelSocket stops the reader and is idempotent, and the
 // caller's own fd stays valid afterwards (the listener only ever closes its dup).
 // PREVENTS: a double close of the kernel worker's connFD, and a reader goroutine
 // left running on a tunnel that was torn down.
 func TestListener_ReleaseTunnelSocketKeepsCallerFD(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 	t.Cleanup(func() { _ = ln.Stop() })
 
 	fd, _, _ := connectedPair(t)
-	require.NoError(t, ln.AdoptTunnelSocket(9, fd))
+	require.NoError(t, ln.adoptTunnelSocket(9, fd))
 
-	ln.ReleaseTunnelSocket(9)
-	ln.ReleaseTunnelSocket(9) // idempotent
-	ln.ReleaseTunnelSocket(4242)
+	ln.releaseTunnelSocket(9)
+	ln.releaseTunnelSocket(9) // idempotent
+	ln.releaseTunnelSocket(4242)
 
 	// The caller's descriptor is untouched: the listener closed only its dup.
 	_, err := unix.Getsockname(fd)
@@ -139,12 +139,12 @@ func TestListener_ReleaseTunnelSocketKeepsCallerFD(t *testing.T) {
 // PREVENTS: duplicate delivery of every control frame (one per reader), and a
 // goroutine started against a listener that is already shutting down.
 func TestListener_AdoptTunnelSocketGuards(t *testing.T) {
-	ln := NewUDPListener(ephemeralBind(t), nil)
+	ln := newUDPListener(ephemeralBind(t), nil)
 	require.NoError(t, ln.Start(context.Background()))
 
 	fd, tunnelAddr, peer := connectedPair(t)
-	require.NoError(t, ln.AdoptTunnelSocket(3, fd))
-	require.NoError(t, ln.AdoptTunnelSocket(3, fd), "re-adopting the same tid must be a no-op")
+	require.NoError(t, ln.adoptTunnelSocket(3, fd))
+	require.NoError(t, ln.adoptTunnelSocket(3, fd), "re-adopting the same tid must be a no-op")
 
 	_, err := peer.WriteToUDP([]byte("once"), &net.UDPAddr{
 		IP: net.IPv4(127, 0, 0, 1), Port: int(tunnelAddr.Port()),
@@ -167,6 +167,6 @@ func TestListener_AdoptTunnelSocketGuards(t *testing.T) {
 	}
 
 	require.NoError(t, ln.Stop())
-	assert.ErrorIs(t, ln.AdoptTunnelSocket(5, fd), errListenerNotStarted,
+	assert.ErrorIs(t, ln.adoptTunnelSocket(5, fd), errListenerNotStarted,
 		"adopting on a stopped listener must be refused")
 }

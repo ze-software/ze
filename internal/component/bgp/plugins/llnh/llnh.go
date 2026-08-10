@@ -43,17 +43,17 @@ func init() {
 
 func logger() *slog.Logger { return loggerPtr.Load() }
 
-// SetLLNHLogger sets the package-level logger.
-func SetLLNHLogger(l *slog.Logger) {
+// setLLNHLogger sets the package-level logger.
+func setLLNHLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
 	}
 }
 
-// RunLLNHPlugin runs the link-local-nexthop plugin using the SDK RPC protocol.
+// runLLNHPlugin runs the link-local-nexthop plugin using the SDK RPC protocol.
 // It receives per-peer config during Stage 2 and registers capability 77
 // for peers that have link-local-nexthop enabled during Stage 3.
-func RunLLNHPlugin(conn net.Conn) int {
+func runLLNHPlugin(conn net.Conn) int {
 	logger().Debug("llnh plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-llnh", conn)
@@ -144,21 +144,21 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	return caps
 }
 
-// GetLLNHYANG returns the embedded YANG for the llnh plugin.
-func GetLLNHYANG() string {
+// getLLNHYANG returns the embedded YANG for the llnh plugin.
+func getLLNHYANG() string {
 	return yang.ZeLinkLocalNexthopYANG
 }
 
-// LLNHDecodableCapabilities returns the capability codes this plugin can decode.
-func LLNHDecodableCapabilities() []uint8 {
+// lLNHDecodableCapabilities returns the capability codes this plugin can decode.
+func lLNHDecodableCapabilities() []uint8 {
 	return []uint8{llnhCapCode}
 }
 
-// RunLLNHDecodeMode runs the plugin in decode mode for ze bgp decode.
+// runLLNHDecodeMode runs the plugin in decode mode for ze bgp decode.
 // Reads decode requests from stdin, writes responses to stdout.
 //
 // Capability 77 has no payload, so decoding always succeeds with the same output.
-func RunLLNHDecodeMode(input io.Reader, output io.Writer) int {
+func runLLNHDecodeMode(input io.Reader, output io.Writer) int {
 	writeResponse := func(s string) {
 		_, err := io.WriteString(output, s)
 		_ = err // Protocol writes - pipe failure causes exit
@@ -220,9 +220,9 @@ func RunLLNHDecodeMode(input io.Reader, output io.Writer) int {
 	return 0
 }
 
-// RunLLNHCLIDecode decodes hex capability data directly from CLI arguments.
+// runLLNHCLIDecode decodes hex capability data directly from CLI arguments.
 // For capability 77, the payload is always empty — this just confirms the capability.
-func RunLLNHCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+func runLLNHCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
 	write := func(w io.Writer, s string) {
 		_, err := io.WriteString(w, s)
 		_ = err // CLI output - pipe failure causes exit

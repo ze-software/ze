@@ -18,8 +18,8 @@ import (
 
 const reconnectBackoff = 2 * time.Second
 
-// RunPeerLoop runs a peer simulator with reconnection after chaos disconnects.
-func RunPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, events chan<- peer.Event) {
+// runPeerLoop runs a peer simulator with reconnection after chaos disconnects.
+func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, events chan<- peer.Event) {
 	for {
 		peer.RunSimulator(ctx, cfg)
 
@@ -41,8 +41,8 @@ func RunPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 	}
 }
 
-// RunScheduler runs the chaos scheduler goroutine.
-func RunScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *EstablishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
+// runScheduler runs the chaos scheduler goroutine.
+func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := engine.NewScheduler(engine.SchedulerConfig{
 		Seed:           seed,
 		PeerCount:      peerCount,
@@ -101,7 +101,7 @@ func RunScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			}
 		case "trigger":
 			if cmd.Trigger != nil {
-				HandleManualTrigger(cmd.Trigger, peerCount, es, guard, channels, quiet)
+				handleManualTrigger(cmd.Trigger, peerCount, es, guard, channels, quiet)
 			}
 		case "stop":
 			if !quiet {
@@ -135,8 +135,8 @@ func RunScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 	}
 }
 
-// HandleManualTrigger dispatches a manually-triggered chaos action.
-func HandleManualTrigger(t *web.ManualTrigger, peerCount int, es *EstablishedState, guard *guard.Guard, channels []chan engine.ChaosAction, quiet bool) {
+// handleManualTrigger dispatches a manually-triggered chaos action.
+func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, quiet bool) {
 	actionType, ok := engine.ActionTypeFromString(t.ActionType)
 	if !ok {
 		if !quiet {
@@ -189,8 +189,8 @@ func HandleManualTrigger(t *web.ManualTrigger, peerCount int, es *EstablishedSta
 	}
 }
 
-// RunRouteScheduler runs the route dynamics scheduler in a goroutine.
-func RunRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *EstablishedState, guard *guard.Guard, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
+// runRouteScheduler runs the route dynamics scheduler in a goroutine.
+func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := route.NewScheduler(route.SchedulerConfig{
 		Seed:       seed + 1,
 		PeerCount:  peerCount,

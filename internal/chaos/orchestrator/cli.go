@@ -54,11 +54,11 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: "int", Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
-// CLIRun is the ze-chaos root handler body. Production entry is the registry
+// cLIRun is the ze-chaos root handler body. Production entry is the registry
 // closure in register.go (root command "chaos", blank-imported by
 // cmd/ze/ze_chaos_run.go); exported because the ze_chaos-tagged cmd/ze tests
 // drive the full CLI through it directly (same convention as env.Run).
-func CLIRun(args []string) int {
+func cLIRun(args []string) int {
 	fs := flag.NewFlagSet("ze-chaos", flag.ContinueOnError)
 
 	// Scenario flags
@@ -342,12 +342,12 @@ Control:
 
 	// Shrink mode: minimize a failing event log.
 	if *shrinkFile != "" {
-		return RunShrink(*shrinkFile, *convergenceDeadline, *verbose)
+		return runShrink(*shrinkFile, *convergenceDeadline, *verbose)
 	}
 
 	// Replay mode: feed recorded event log through validation model.
 	if *replayFile != "" {
-		return RunReplay(*replayFile)
+		return runReplay(*replayFile)
 	}
 
 	// Validate --diff2 requires --diff.
@@ -362,7 +362,7 @@ Control:
 			fmt.Fprintf(os.Stderr, "error: --diff requires --diff2\n")
 			return 1
 		}
-		return RunDiff(*diffFile1, *diffFile2)
+		return runDiff(*diffFile1, *diffFile2)
 	}
 
 	// Validate peer count.
@@ -414,7 +414,7 @@ Control:
 	}
 
 	// Check for listener port conflicts among single-port flags.
-	if err := ValidateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
+	if err := validateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -479,7 +479,7 @@ Control:
 
 	// Port auto-allocation: --port 0 asks the kernel for a free port.
 	if *port == 0 {
-		allocated, allocErr := AllocatePort(context.Background(), *localAddr)
+		allocated, allocErr := allocatePort(context.Background(), *localAddr)
 		if allocErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", allocErr)
 			return 1
@@ -571,7 +571,7 @@ Control:
 	// Catches conflicts early instead of producing confusing BGP errors later.
 	zeAddr := fmt.Sprintf("%s:%d", *localAddr, *port)
 	if !*inProcess {
-		if err := CheckPortFree(zeAddr); err != nil {
+		if err := checkPortFree(zeAddr); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -610,7 +610,7 @@ Control:
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
 				return 1
 			}
-			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", DashboardURL(*webAddr))
+			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
 			defer func() { _ = wd.Close() }()
 		}
 
@@ -697,7 +697,7 @@ Control:
 		// When web dashboard is active, keep serving until Ctrl-C
 		// so the user can explore the final state.
 		if wd != nil {
-			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", DashboardURL(*webAddr))
+			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			<-sigCh
@@ -706,13 +706,13 @@ Control:
 	}
 
 	// Fork mode (default): start the daemon as a child process.
-	var child *ZeChild
+	var child *zeChild
 	if !*pipe && *configOut == "" {
 		var forkErr error
 		if target == scenario.TargetZe {
-			child, forkErr = ForkZe(context.Background(), daemonConfig, *daemonBinary)
+			child, forkErr = forkZe(context.Background(), daemonConfig, *daemonBinary)
 		} else {
-			child, forkErr = ForkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr)
+			child, forkErr = forkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr)
 		}
 		if forkErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", forkErr)
@@ -767,13 +767,13 @@ Control:
 	// while Ze is still initializing. The HTTP server starts once
 	// setupReporting runs inside runOrchestrator.
 	if *webAddr != "" {
-		fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", DashboardURL(*webAddr))
+		fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
 	}
 
 	// Wait for Ze to start listening. In pipeline mode, Ze is reading
 	// piped config and needs time to initialize — retry with backoff.
 	pipeline := *configOut == ""
-	if err := WaitForZe(parentCtx, zeAddr, pipeline); err != nil {
+	if err := waitForZe(parentCtx, zeAddr, pipeline); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -809,7 +809,7 @@ Control:
 		}
 
 		start := time.Now()
-		orchCfg := OrchestratorConfig{
+		orchCfg := orchestratorConfig{
 			Profiles:            profiles,
 			Target:              target,
 			Seed:                *seed,

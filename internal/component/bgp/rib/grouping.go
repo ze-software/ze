@@ -53,12 +53,12 @@ func (g *RouteGroup) NLRIs() []nlri.NLRI {
 	return nlris
 }
 
-// GroupByAttributes groups routes by their attribute set.
+// groupByAttributes groups routes by their attribute set.
 // Routes with identical attributes (including next-hop) can share a single UPDATE.
 //
 // The grouping key is: Family + NextHop + sorted attribute bytes.
 // This ensures routes with the same attributes are grouped together.
-func GroupByAttributes(routes []*Route) []RouteGroup {
+func groupByAttributes(routes []*Route) []RouteGroup {
 	if len(routes) == 0 {
 		return nil
 	}

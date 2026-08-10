@@ -25,8 +25,8 @@ type DPDKBinder struct {
 	addedNewIDs map[string]bool
 }
 
-// NewDPDKBinder creates a new DPDK NIC binder.
-func NewDPDKBinder() *DPDKBinder {
+// newDPDKBinder creates a new DPDK NIC binder.
+func newDPDKBinder() *DPDKBinder {
 	return &DPDKBinder{
 		savedDrivers: make(map[string]string),
 		addedNewIDs:  make(map[string]bool),
@@ -51,7 +51,7 @@ func (d *DPDKBinder) BindAll(interfaces []DPDKInterface) error {
 	}
 
 	for _, iface := range interfaces {
-		if err := ValidatePCIAddress(iface.PCIAddress); err != nil {
+		if err := validatePCIAddress(iface.PCIAddress); err != nil {
 			_ = d.UnbindAll() // rollback already-bound NICs
 			return fmt.Errorf("dpdk: %w", err)
 		}

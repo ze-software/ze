@@ -70,7 +70,7 @@ func ParseLCPOptions(buf []byte) ([]LCPOption, error) {
 // option, derived from the uint8 Length field minus the 2-byte header.
 const MaxLCPOptionDataLen = 255 - lcpOptHeaderLen
 
-// WriteLCPOption encodes a single option into buf at offset off.
+// writeLCPOption encodes a single option into buf at offset off.
 // Returns total bytes written (2 + len(data)). Caller MUST ensure
 // buf[off:] has cap >= 2 + len(data).
 //
@@ -79,7 +79,7 @@ const MaxLCPOptionDataLen = 255 - lcpOptHeaderLen
 // in the Length field). LCP option data is always small in practice
 // (MRU=2, Magic=4, Auth-Proto=2-5, etc.); a caller asking for >253
 // bytes is a programmer error, not a runtime condition.
-func WriteLCPOption(buf []byte, off int, optType uint8, data []byte) int {
+func writeLCPOption(buf []byte, off int, optType uint8, data []byte) int {
 	if len(data) > MaxLCPOptionDataLen {
 		panic("BUG: LCP option data exceeds 253 bytes; uint8 Length would overflow")
 	}
@@ -116,10 +116,10 @@ const (
 	negReject                   // option not understood or refused entirely
 )
 
-// LCPNegPolicy expresses what ze accepts FROM the peer in a peer-sent
+// lCPNegPolicy expresses what ze accepts FROM the peer in a peer-sent
 // Configure-Request. The local Configure-Request is built separately
 // from this struct (see BuildLocalConfigRequest).
-type LCPNegPolicy struct {
+type lCPNegPolicy struct {
 	// MaxMRU is the largest MRU ze accepts. Peer requests above this
 	// are NAKd with MaxMRU as the suggested value. Zero defaults to
 	// MaxFrameLen (1500).
@@ -134,7 +134,7 @@ type LCPNegPolicy struct {
 // negotiatePeerOption decides ack/nak/reject for one peer-sent option
 // against the local policy. On NAK or REJECT, suggestData is the
 // option's data that should be echoed back in the Nak/Reject reply.
-func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, suggestData []byte) {
+func negotiatePeerOption(opt LCPOption, policy lCPNegPolicy) (out negOutcome, suggestData []byte) {
 	switch opt.Type {
 	case LCPOptMRU:
 		if len(opt.Data) != 2 {
@@ -222,7 +222,7 @@ func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, su
 // The caller decides which reply to actually emit; this function does
 // not. Each returned LCPOption's Data points into freshly-allocated
 // memory (NAK suggestions) or into the input slice (ACK echoes).
-func NegotiatePeerOptions(opts []LCPOption, policy LCPNegPolicy) (acks, naks, rejects []LCPOption) {
+func NegotiatePeerOptions(opts []LCPOption, policy lCPNegPolicy) (acks, naks, rejects []LCPOption) {
 	for _, opt := range opts {
 		out, data := negotiatePeerOption(opt, policy)
 		entry := LCPOption{Type: opt.Type, Data: data}
@@ -243,7 +243,7 @@ func NegotiatePeerOptions(opts []LCPOption, policy LCPNegPolicy) (acks, naks, re
 func WriteLCPOptions(buf []byte, off int, opts []LCPOption) int {
 	written := 0
 	for _, opt := range opts {
-		n := WriteLCPOption(buf, off+written, opt.Type, opt.Data)
+		n := writeLCPOption(buf, off+written, opt.Type, opt.Data)
 		written += n
 	}
 	return written

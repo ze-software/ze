@@ -49,7 +49,7 @@ func HandleConfigDownload(mgr *EditorManager, recorder audit.Recorder) http.Hand
 			return
 		}
 
-		data, err := mgr.CommittedConfig()
+		data, err := mgr.committedConfig()
 		if err != nil {
 			http.Error(w, "read config", http.StatusInternalServerError)
 			return
@@ -104,7 +104,7 @@ func HandleConfigUpload(mgr *EditorManager, validate func(content, path string) 
 			}
 		}
 
-		if applyErr := mgr.ApplyCommittedContent(content); applyErr != nil {
+		if applyErr := mgr.applyCommittedContent(content); applyErr != nil {
 			var tb textbuf.Buffer
 			http.Error(w, tb.Str("applying config: ").Err(applyErr).String(), http.StatusInternalServerError)
 			return

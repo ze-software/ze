@@ -127,11 +127,11 @@ type ListenerMigrator struct {
 	authReloaders map[string]authReloader
 }
 
-// MarkAuthenticated records that the boot guard classified the named service as
+// markAuthenticated records that the boot guard classified the named service as
 // gating every request. Recording the positive matters as much as the negative:
 // a service the reload guard has no record for is outside the guard's scope,
 // not inside it and authenticated.
-func (m *ListenerMigrator) MarkAuthenticated(name string) { m.markAuth(name, true) }
+func (m *ListenerMigrator) markAuthenticated(name string) { m.markAuth(name, true) }
 
 // MarkUnauthenticated records that the named service was built without
 // authentication, so ReloadListeners refuses any migration that would move it
@@ -167,9 +167,9 @@ func (m *ListenerMigrator) hasService(name string) bool {
 	}
 }
 
-// SetAuthReloader registers how the named service's configured authentication
+// setAuthReloader registers how the named service's configured authentication
 // is resolved from a reloaded config tree.
-func (m *ListenerMigrator) SetAuthReloader(name string, r authReloader) {
+func (m *ListenerMigrator) setAuthReloader(name string, r authReloader) {
 	if m.authReloaders == nil {
 		m.authReloaders = make(map[string]authReloader)
 	}
@@ -210,8 +210,8 @@ func (m *ListenerMigrator) runningAuth(name string) (authenticated, known bool) 
 	return v, ok
 }
 
-// NewListenerMigrator creates a migrator. Pass nil for services that are not running.
-func NewListenerMigrator(web Reconfigurable) *ListenerMigrator {
+// newListenerMigrator creates a migrator. Pass nil for services that are not running.
+func newListenerMigrator(web Reconfigurable) *ListenerMigrator {
 	return &ListenerMigrator{
 		web:    web,
 		logger: slogutil.Logger("hub.listener"),

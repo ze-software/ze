@@ -480,7 +480,7 @@ func (s *pppSession) afterLCPOpen() bool {
 	}
 
 	if s.ipv6cpState == LCPStateOpened {
-		svc, err := startIPv6Service(IPv6ServiceConfig{
+		svc, err := startIPv6Service(iPv6ServiceConfig{
 			Ifname:           ifname,
 			TunnelID:         s.tunnelID,
 			SessionID:        s.sessionID,
@@ -526,7 +526,7 @@ func (s *pppSession) runAuthPhase() bool {
 			reason := "no negotiated authentication method"
 			var tb textbuf.Buffer
 			s.fail(tb.Str("auth: ").Str(reason).String())
-			s.sendAuthEvent(EventAuthFailure{
+			s.sendAuthEvent(eventAuthFailure{
 				TunnelID:  s.tunnelID,
 				SessionID: s.sessionID,
 				Reason:    reason,
@@ -568,14 +568,14 @@ func (s *pppSession) runNoAuthPhase() bool {
 	if !decision.accept {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("auth rejected: ").Str(decision.message).String())
-		s.sendAuthEvent(EventAuthFailure{
+		s.sendAuthEvent(eventAuthFailure{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
 			Reason:    decision.message,
 		})
 		return false
 	}
-	s.sendAuthEvent(EventAuthSuccess{
+	s.sendAuthEvent(eventAuthSuccess{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
 	})
@@ -685,7 +685,7 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 
 // codeToEvent maps an LCP code to the FSM event for a "received"
 // packet. Maps unknown codes to RUC.
-func codeToEvent(code uint8, optsBad bool) LCPEvent {
+func codeToEvent(code uint8, optsBad bool) lCPEvent {
 	switch code {
 	case LCPConfigureRequest:
 		if optsBad {
@@ -736,7 +736,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			optsBad = true
 		} else {
 			peerOpts = opts
-			policy := LCPNegPolicy{MaxMRU: s.maxMRU}
+			policy := lCPNegPolicy{MaxMRU: s.maxMRU}
 			_, naks, rejects := NegotiatePeerOptions(opts, policy)
 			if len(rejects) > 0 || len(naks) > 0 {
 				optsBad = true
@@ -851,7 +851,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 // Guarded by an Enabled() check so the sample buffer + hex encoding
 // are only computed when debug-level logging is actually on. FSM
 // no-ops should be rare but a hostile peer could spam them.
-func (s *pppSession) logFSMNoOp(state LCPState, ev LCPEvent, pkt LCPPacket) {
+func (s *pppSession) logFSMNoOp(state LCPState, ev lCPEvent, pkt LCPPacket) {
 	if !s.logger.Enabled(context.Background(), slog.LevelDebug) {
 		return
 	}
@@ -933,7 +933,7 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 	if perr != nil {
 		return s.sendCodeReject(req)
 	}
-	policy := LCPNegPolicy{MaxMRU: s.maxMRU}
+	policy := lCPNegPolicy{MaxMRU: s.maxMRU}
 	_, naks, rejects := NegotiatePeerOptions(opts, policy)
 
 	buf := getFrameBuf()

@@ -12,8 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// DNSFormData holds the DNS resolver configuration for the form.
-type DNSFormData struct {
+// dNSFormData holds the DNS resolver configuration for the form.
+type dNSFormData struct {
 	Servers        []string
 	ResolvConfPath string
 	Timeout        string
@@ -21,10 +21,10 @@ type DNSFormData struct {
 	CacheTTL       string
 }
 
-// BuildDNSFormData reads DNS resolver configuration from the config tree.
+// buildDNSFormData reads DNS resolver configuration from the config tree.
 // Returns sensible defaults when the tree has no DNS section.
-func BuildDNSFormData(tree *config.Tree) DNSFormData {
-	data := DNSFormData{
+func buildDNSFormData(tree *config.Tree) dNSFormData {
+	data := dNSFormData{
 		CacheSize: 10000, // must match system DNS YANG default
 	}
 
@@ -55,8 +55,8 @@ func BuildDNSFormData(tree *config.Tree) DNSFormData {
 	return data
 }
 
-// BuildDNSWorkbenchForm constructs a WorkbenchFormData for DNS configuration.
-func BuildDNSWorkbenchForm(data DNSFormData) WorkbenchFormData {
+// buildDNSWorkbenchForm constructs a WorkbenchFormData for DNS configuration.
+func buildDNSWorkbenchForm(data dNSFormData) WorkbenchFormData {
 	fields := []WorkbenchFormField{
 		{
 			Name:        "resolv-conf-path",
@@ -107,9 +107,9 @@ func BuildDNSWorkbenchForm(data DNSFormData) WorkbenchFormData {
 	}
 }
 
-// HandleDNSPage renders the DNS configuration form content for the workbench.
-func HandleDNSPage(renderer *Renderer, tree *config.Tree) template.HTML {
-	data := BuildDNSFormData(tree)
-	formData := BuildDNSWorkbenchForm(data)
+// handleDNSPage renders the DNS configuration form content for the workbench.
+func handleDNSPage(renderer *Renderer, tree *config.Tree) template.HTML {
+	data := buildDNSFormData(tree)
+	formData := buildDNSWorkbenchForm(data)
 	return renderer.RenderFragment("workbench_form", formData)
 }

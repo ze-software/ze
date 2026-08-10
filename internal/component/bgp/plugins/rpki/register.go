@@ -20,7 +20,7 @@ func init() {
 		YANG:         rpkiyang.ZeRPKIYANG,
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp", "bgp-adj-rib-in"},
-		RunEngine:    RunRPKIPlugin,
+		RunEngine:    runRPKIPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

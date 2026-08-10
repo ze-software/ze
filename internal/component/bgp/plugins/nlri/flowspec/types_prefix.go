@@ -33,15 +33,15 @@ func NewFlowSourcePrefixComponent(prefix netip.Prefix) FlowComponent {
 	return &prefixComponent{compType: FlowSourcePrefix, prefix: prefix}
 }
 
-// NewFlowDestPrefixComponentWithOffset creates an IPv6 destination prefix with offset.
+// newFlowDestPrefixComponentWithOffset creates an IPv6 destination prefix with offset.
 // The offset field is defined in RFC 8956 for IPv6 FlowSpec.
-func NewFlowDestPrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
+func newFlowDestPrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
 	return &prefixComponent{compType: FlowDestPrefix, prefix: prefix, offset: offset}
 }
 
-// NewFlowSourcePrefixComponentWithOffset creates an IPv6 source prefix with offset.
+// newFlowSourcePrefixComponentWithOffset creates an IPv6 source prefix with offset.
 // The offset field is defined in RFC 8956 for IPv6 FlowSpec.
-func NewFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
+func newFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
 	return &prefixComponent{compType: FlowSourcePrefix, prefix: prefix, offset: offset}
 }
 
@@ -185,13 +185,13 @@ func parsePrefixComponent(t FlowComponentType, data []byte, fam Family) (FlowCom
 	var comp FlowComponent
 	if t == FlowDestPrefix {
 		if offset > 0 {
-			comp = NewFlowDestPrefixComponentWithOffset(prefix, offset)
+			comp = newFlowDestPrefixComponentWithOffset(prefix, offset)
 		} else {
 			comp = NewFlowDestPrefixComponent(prefix)
 		}
 	} else {
 		if offset > 0 {
-			comp = NewFlowSourcePrefixComponentWithOffset(prefix, offset)
+			comp = newFlowSourcePrefixComponentWithOffset(prefix, offset)
 		} else {
 			comp = NewFlowSourcePrefixComponent(prefix)
 		}

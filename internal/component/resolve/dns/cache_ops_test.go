@@ -60,7 +60,7 @@ func TestCacheDeleteByName(t *testing.T) {
 	c.put("a.com", 28, []string{"::1"}, 300)
 	c.put("b.com", 1, []string{"2.2.2.2"}, 300)
 
-	removed := c.DeleteByName("a.com")
+	removed := c.deleteByName("a.com")
 	assert.Equal(t, 2, removed, "should remove both A and AAAA entries")
 
 	_, ok := c.get("a.com", 1)
@@ -71,7 +71,7 @@ func TestCacheDeleteByName(t *testing.T) {
 	_, ok = c.get("b.com", 1)
 	assert.True(t, ok, "other name should survive")
 
-	removed = c.DeleteByName("nonexistent.com")
+	removed = c.deleteByName("nonexistent.com")
 	assert.Equal(t, 0, removed)
 }
 
@@ -81,7 +81,7 @@ func TestCacheResetStats(t *testing.T) {
 	c.get("a.com", 1)
 	c.get("missing.com", 1)
 
-	c.ResetStats()
+	c.resetStats()
 
 	stats := c.Stats()
 	assert.Equal(t, 1, stats.Entries, "entries preserved after stats reset")
@@ -156,10 +156,10 @@ func TestCacheClearConcurrent(t *testing.T) {
 				c.Delete(key, 1)
 			}
 			if n%4 == 0 {
-				c.DeleteByName(key)
+				c.deleteByName(key)
 			}
 			c.Entries()
-			c.ResetStats()
+			c.resetStats()
 		}(i)
 	}
 	wg.Wait()

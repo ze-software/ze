@@ -497,7 +497,7 @@ func TestWriteUsage(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := WriteUsage(&buf); err != nil {
+	if err := writeUsage(&buf); err != nil {
 		t.Fatal(err)
 	}
 
@@ -525,7 +525,7 @@ func TestWriteUsageEmpty(t *testing.T) {
 	t.Cleanup(func() { Reset() })
 
 	var buf bytes.Buffer
-	if err := WriteUsage(&buf); err != nil {
+	if err := writeUsage(&buf); err != nil {
 		t.Fatal(err)
 	}
 	if buf.Len() != 0 {

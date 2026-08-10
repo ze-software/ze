@@ -147,7 +147,7 @@ func TestRunDecodeModeJSON(t *testing.T) {
 	input := "decode capability 77 \n"
 	var stdout bytes.Buffer
 
-	code := RunLLNHDecodeMode(strings.NewReader(input), &stdout)
+	code := runLLNHDecodeMode(strings.NewReader(input), &stdout)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
@@ -169,7 +169,7 @@ func TestRunDecodeModeText(t *testing.T) {
 	input := "decode text capability 77 \n"
 	var stdout bytes.Buffer
 
-	code := RunLLNHDecodeMode(strings.NewReader(input), &stdout)
+	code := runLLNHDecodeMode(strings.NewReader(input), &stdout)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
@@ -191,7 +191,7 @@ func TestRunDecodeModeUnknownCode(t *testing.T) {
 	input := "decode capability 73 AABB\n"
 	var stdout bytes.Buffer
 
-	RunLLNHDecodeMode(strings.NewReader(input), &stdout)
+	runLLNHDecodeMode(strings.NewReader(input), &stdout)
 
 	out := stdout.String()
 	if !strings.Contains(out, "decoded unknown") {
@@ -207,7 +207,7 @@ func TestRunCLIDecode(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
 	// Empty hex (capability 77 has no payload)
-	code := RunLLNHCLIDecode("", false, &stdout, &stderr)
+	code := runLLNHCLIDecode("", false, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d; stderr: %s", code, stderr.String())
 	}
@@ -225,7 +225,7 @@ func TestRunCLIDecode(t *testing.T) {
 func TestRunCLIDecodeText(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
-	code := RunLLNHCLIDecode("", true, &stdout, &stderr)
+	code := runLLNHCLIDecode("", true, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
@@ -241,7 +241,7 @@ func TestRunCLIDecodeText(t *testing.T) {
 // VALIDATES: GetYANG returns non-empty schema with correct module name.
 // PREVENTS: Missing or corrupt YANG embed.
 func TestLLNHPluginYANG(t *testing.T) {
-	yang := GetLLNHYANG()
+	yang := getLLNHYANG()
 	if yang == "" {
 		t.Fatal("GetYANG returned empty string")
 	}
@@ -258,7 +258,7 @@ func TestLLNHPluginYANG(t *testing.T) {
 // VALIDATES: DecodableCapabilities returns exactly [77].
 // PREVENTS: Plugin registered for wrong capability codes.
 func TestDecodableCapabilities(t *testing.T) {
-	caps := LLNHDecodableCapabilities()
+	caps := lLNHDecodableCapabilities()
 	if len(caps) != 1 || caps[0] != 77 {
 		t.Errorf("expected [77], got %v", caps)
 	}

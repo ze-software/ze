@@ -114,7 +114,7 @@ func (b *vppBackendImpl) ListKernelRoutes(filterPrefix string, limit int) ([]ifa
 			if last {
 				break
 			}
-			entry, ok := routeV2ToKernelRoute(&details.Route, b.names.LookupName)
+			entry, ok := routeV2ToKernelRoute(&details.Route, b.names.lookupName)
 			if !ok {
 				continue
 			}
@@ -153,7 +153,7 @@ func (b *vppBackendImpl) RouteLookup(dest netip.Addr) (map[string]any, error) {
 		return nil, fmt.Errorf("ifacevpp: route lookup for %s: no route (retval=%d)", dest, reply.Retval)
 	}
 
-	entry, ok := routeV2ToKernelRoute(&reply.Route, b.names.LookupName)
+	entry, ok := routeV2ToKernelRoute(&reply.Route, b.names.lookupName)
 	if !ok {
 		return nil, fmt.Errorf("ifacevpp: route lookup for %s: malformed reply", dest)
 	}

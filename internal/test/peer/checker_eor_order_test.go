@@ -27,7 +27,7 @@ func mkFrame(t *testing.T, frameHex string) *Message {
 
 func mkOrderedChecker(t *testing.T) *Checker {
 	t.Helper()
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:hex=" + orderAnnounceHex,
 		"expect=bgp:conn=1:seq=2:hex=" + orderEORHex,
 		"expect=bgp:conn=1:seq=3:hex=" + orderWithdrawHex,
@@ -66,7 +66,7 @@ func TestCheckerEORExpectedInALaterGroupIsNamedByTheFailure(t *testing.T) {
 	assert.False(t, matched, "the marker does not satisfy the seq-1 announce expectation")
 	assert.True(t, silent, "the marker is accepted: a second identical one can still fill seq 2")
 
-	note := c.TakeMisorderNote()
+	note := c.takeMisorderNote()
 	assert.Contains(t, note, orderEORHex,
 		"the marker must be recorded where it landed, so a run that ends in a timeout still names it")
 
@@ -78,10 +78,10 @@ func TestCheckerEORExpectedInALaterGroupIsNamedByTheFailure(t *testing.T) {
 	assert.False(t, matched, "the withdraw does not satisfy the seq-2 marker expectation")
 	assert.False(t, silent, "a withdraw is no marker and is never accepted in silence")
 
-	expected, received := c.LastMismatch()
+	expected, received := c.lastMismatch()
 	assert.Equal(t, orderEORHex, expected)
 	assert.Equal(t, orderWithdrawHex, received)
-	assert.Contains(t, c.MisorderNotes(), orderEORHex,
+	assert.Contains(t, c.misorderNotes(), orderEORHex,
 		"the report must name the frame that arrived out of order beside the two innocent ones")
 }
 
@@ -94,7 +94,7 @@ func TestCheckerEORExpectedInALaterGroupIsNamedByTheFailure(t *testing.T) {
 // declared", which would red every fixture that negotiates a family it does not
 // assert on.
 func TestCheckerEORUnexpectedIsStillSwallowed(t *testing.T) {
-	c, err := NewChecker([]string{
+	c, err := newChecker([]string{
 		"expect=bgp:conn=1:seq=1:hex=" + orderAnnounceHex,
 		"expect=bgp:conn=1:seq=2:hex=" + orderWithdrawHex,
 	})
@@ -105,7 +105,7 @@ func TestCheckerEORUnexpectedIsStillSwallowed(t *testing.T) {
 
 	assert.False(t, matched)
 	assert.True(t, silent, "a marker no expectation asks for is noise and stays silent")
-	assert.Empty(t, c.TakeMisorderNote(), "noise is not an out-of-order arrival and earns no note")
+	assert.Empty(t, c.takeMisorderNote(), "noise is not an out-of-order arrival and earns no note")
 }
 
 // TestCheckerEORInOrderMatchesAcrossGroups proves the refusal is about ORDER and
@@ -123,5 +123,5 @@ func TestCheckerEORInOrderMatchesAcrossGroups(t *testing.T) {
 		assert.False(t, silent, "a matched frame is never a silent accept")
 	}
 	assert.True(t, c.Completed(), "all three expectations must be satisfied")
-	assert.Empty(t, c.MisorderNotes(), "the declared order records nothing out of order")
+	assert.Empty(t, c.misorderNotes(), "the declared order records nothing out of order")
 }

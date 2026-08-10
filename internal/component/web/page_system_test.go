@@ -12,7 +12,7 @@ import (
 // TestResourcesUptime verifies the System Resources page reports a real uptime
 // and current time instead of the "-" placeholders (F12/AC-13).
 func TestResourcesUptime(t *testing.T) {
-	data := BuildResourcesData()
+	data := buildResourcesData()
 	assert.NotEqual(t, "-", data.Uptime, "uptime must be populated")
 	assert.NotEmpty(t, data.Uptime)
 	assert.NotEqual(t, "-", data.CurrentTime, "current time must be populated")
@@ -27,7 +27,7 @@ func TestBuildSystemIdentityFormData_WithValues(t *testing.T) {
 	bgp := tree.GetOrCreateContainer("bgp")
 	bgp.Set("router-id", "10.0.0.1")
 
-	form := BuildSystemIdentityFormData(tree)
+	form := buildSystemIdentityFormData(tree)
 	assert.Equal(t, "System Identity", form.Title)
 	require.Len(t, form.Fields, 3)
 	assert.Equal(t, "router01", form.Fields[0].Value)
@@ -37,7 +37,7 @@ func TestBuildSystemIdentityFormData_WithValues(t *testing.T) {
 }
 
 func TestBuildSystemIdentityFormData_NilTree(t *testing.T) {
-	form := BuildSystemIdentityFormData(nil)
+	form := buildSystemIdentityFormData(nil)
 	assert.Equal(t, "System Identity", form.Title)
 	require.Len(t, form.Fields, 3)
 	assert.Empty(t, form.Fields[0].Value)
@@ -47,7 +47,7 @@ func TestBuildSystemIdentityFormData_NilTree(t *testing.T) {
 
 func TestBuildSystemIdentityFormData_EmptyTree(t *testing.T) {
 	tree := config.NewTree()
-	form := BuildSystemIdentityFormData(tree)
+	form := buildSystemIdentityFormData(tree)
 	require.Len(t, form.Fields, 3)
 	assert.Empty(t, form.Fields[0].Value)
 }
@@ -95,7 +95,7 @@ func TestBuildUsersTableData_WithUsers(t *testing.T) {
 		{Name: "admin", KeyCount: 2},
 		{Name: "operator", Profiles: []string{"read-only"}, KeyCount: 0},
 	}
-	table := BuildUsersTableData(users)
+	table := buildUsersTableData(users)
 	assert.Equal(t, "Users", table.Title)
 	require.Len(t, table.Rows, 2)
 	assert.Equal(t, "admin", table.Rows[0].Key)
@@ -104,7 +104,7 @@ func TestBuildUsersTableData_WithUsers(t *testing.T) {
 }
 
 func TestBuildUsersTableData_Empty(t *testing.T) {
-	table := BuildUsersTableData(nil)
+	table := buildUsersTableData(nil)
 	assert.Empty(t, table.Rows)
 	assert.Equal(t, "No users configured.", table.EmptyMessage)
 }
@@ -118,7 +118,7 @@ func TestUsersIncludesPowerUser(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	html := string(HandleUsersPage(renderer, tree, []string{"admin"}))
+	html := string(handleUsersPage(renderer, tree, []string{"admin"}))
 
 	assert.Contains(t, html, "admin (system)", "power user must appear with system marker")
 	assert.Contains(t, html, "operator", "config user must still appear")
@@ -129,7 +129,7 @@ func TestBuildUsersTableData_SystemUserNoEditAction(t *testing.T) {
 		{Name: "admin", System: true},
 		{Name: "operator"},
 	}
-	table := BuildUsersTableData(users)
+	table := buildUsersTableData(users)
 	require.Len(t, table.Rows, 2)
 	assert.Empty(t, table.Rows[0].Actions, "system user should have no edit action")
 	assert.NotEmpty(t, table.Rows[1].Actions, "config user should have edit action")
@@ -137,7 +137,7 @@ func TestBuildUsersTableData_SystemUserNoEditAction(t *testing.T) {
 }
 
 func TestBuildResourcesData(t *testing.T) {
-	data := BuildResourcesData()
+	data := buildResourcesData()
 	assert.NotEmpty(t, data.Version)
 	assert.True(t, data.CPUCount > 0)
 	assert.True(t, data.GOMAXPROCS > 0)
@@ -147,7 +147,7 @@ func TestBuildResourcesData(t *testing.T) {
 }
 
 func TestBuildResourcesHTML(t *testing.T) {
-	data := ResourcesData{
+	data := resourcesData{
 		Version:    "1.0.0",
 		CPUCount:   4,
 		GOMAXPROCS: 4,
@@ -165,7 +165,7 @@ func TestBuildResourcesHTML(t *testing.T) {
 }
 
 func TestBuildHostHardwareData(t *testing.T) {
-	sections := BuildHostHardwareData()
+	sections := buildHostHardwareData()
 	assert.NotEmpty(t, sections)
 	for _, sec := range sections {
 		assert.NotEmpty(t, sec.Title)
@@ -174,7 +174,7 @@ func TestBuildHostHardwareData(t *testing.T) {
 }
 
 func TestBuildHostHardwareHTML_WithSections(t *testing.T) {
-	sections := []HardwareSection{
+	sections := []hardwareSection{
 		{Title: "CPU", Items: []HardwareItem{{Key: "Cores", Value: "4"}}},
 	}
 	html := buildHostHardwareHTML(sections)
@@ -194,7 +194,7 @@ func TestBuildHostHardwareHTML_Empty(t *testing.T) {
 }
 
 func TestBuildHostHardwareHTML_AlarmIndicator(t *testing.T) {
-	sections := []HardwareSection{
+	sections := []hardwareSection{
 		{Title: "Thermal", Items: []HardwareItem{
 			{Key: "coretemp0", Value: "85.0°C [ALARM]", CSSClass: "alarm"},
 			{Key: "coretemp1", Value: "42.0°C"},
@@ -208,7 +208,7 @@ func TestBuildHostHardwareHTML_AlarmIndicator(t *testing.T) {
 }
 
 func TestBuildHostHardwareHTML_NICCarrierClass(t *testing.T) {
-	sections := []HardwareSection{
+	sections := []hardwareSection{
 		{Title: "NIC", Items: []HardwareItem{
 			{Key: "eth0", Value: "igb, aa:bb:cc:dd:ee:ff, 1000 Mbps, up", CSSClass: "up"},
 			{Key: "eth1", Value: "igb, 11:22:33:44:55:66, -, down", CSSClass: "down"},
@@ -248,7 +248,7 @@ func TestBuildSysctlProfilesTableData_WithProfiles(t *testing.T) {
 		{Name: "forwarding", SettingCount: 2},
 		{Name: "performance", SettingCount: 5},
 	}
-	table := BuildSysctlProfilesTableData(profiles)
+	table := buildSysctlProfilesTableData(profiles)
 	assert.Equal(t, "Sysctl Profiles", table.Title)
 	require.Len(t, table.Rows, 2)
 	assert.Equal(t, "forwarding", table.Rows[0].Key)
@@ -256,7 +256,7 @@ func TestBuildSysctlProfilesTableData_WithProfiles(t *testing.T) {
 }
 
 func TestBuildSysctlProfilesTableData_Empty(t *testing.T) {
-	table := BuildSysctlProfilesTableData(nil)
+	table := buildSysctlProfilesTableData(nil)
 	assert.Empty(t, table.Rows)
 	assert.Equal(t, "No sysctl profiles configured.", table.EmptyMessage)
 }
@@ -283,7 +283,7 @@ func TestResolveRouterIdentity_Hostname(t *testing.T) {
 	sys := tree.GetOrCreateContainer("system")
 	sys.Set("host", "core-01")
 
-	assert.Equal(t, "core-01", ResolveRouterIdentity(tree))
+	assert.Equal(t, "core-01", resolveRouterIdentity(tree))
 }
 
 func TestResolveRouterIdentity_RouterID(t *testing.T) {
@@ -291,12 +291,12 @@ func TestResolveRouterIdentity_RouterID(t *testing.T) {
 	bgp := tree.GetOrCreateContainer("bgp")
 	bgp.Set("router-id", "10.0.0.1")
 
-	assert.Equal(t, "10.0.0.1", ResolveRouterIdentity(tree))
+	assert.Equal(t, "10.0.0.1", resolveRouterIdentity(tree))
 }
 
 func TestResolveRouterIdentity_Fallback(t *testing.T) {
-	assert.Equal(t, "ze", ResolveRouterIdentity(nil))
-	assert.Equal(t, "ze", ResolveRouterIdentity(config.NewTree()))
+	assert.Equal(t, "ze", resolveRouterIdentity(nil))
+	assert.Equal(t, "ze", resolveRouterIdentity(config.NewTree()))
 }
 
 func TestResolveRouterIdentity_HostnameOverridesRouterID(t *testing.T) {
@@ -306,7 +306,7 @@ func TestResolveRouterIdentity_HostnameOverridesRouterID(t *testing.T) {
 	bgp := tree.GetOrCreateContainer("bgp")
 	bgp.Set("router-id", "10.0.0.1")
 
-	assert.Equal(t, "edge-rtr-42", ResolveRouterIdentity(tree))
+	assert.Equal(t, "edge-rtr-42", resolveRouterIdentity(tree))
 }
 
 func TestCollectFleetPeers_WithPeers(t *testing.T) {

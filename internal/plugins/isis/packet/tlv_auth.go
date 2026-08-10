@@ -30,14 +30,14 @@ type AuthTLV struct {
 	Value    []byte // opaque; aliases the source buffer on decode
 }
 
-// DecodeAuthTLV parses a TLV 10 value: the first octet is the authentication
+// decodeAuthTLV parses a TLV 10 value: the first octet is the authentication
 // type, the remainder the opaque authentication value. A zero-length value is
 // rejected (ErrLength): TLV 10 must carry at least the type octet (RFC 5304
 // sec 1). The codec does not reject unknown auth types or malformed digest
 // lengths -- that is enforcement (isis-10) -- but it does require the
 // structural minimum so a truncated TLV is not silently accepted as valid
 // (security review: "must not silently accept malformed auth TLV structure").
-func DecodeAuthTLV(value []byte) (AuthTLV, error) {
+func decodeAuthTLV(value []byte) (AuthTLV, error) {
 	if len(value) < 1 {
 		return AuthTLV{}, ErrLength
 	}

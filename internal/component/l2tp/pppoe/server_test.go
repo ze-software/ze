@@ -12,7 +12,7 @@ func TestHandlePADTVerifiesMACAndSID(t *testing.T) {
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01}
 
 	newServer := func() (*InterfaceServer, uint16) {
-		st := NewSessionTable("eth0", 100)
+		st := newSessionTable("eth0", 100)
 		sid, err := st.AllocSID()
 		if err != nil {
 			t.Fatalf("AllocSID: %v", err)

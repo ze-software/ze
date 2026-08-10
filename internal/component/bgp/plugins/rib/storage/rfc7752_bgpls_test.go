@@ -44,7 +44,7 @@ func bgpLSNodeNLRI(identifier uint64, asn uint32) []byte {
 func TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-4 positive -- NLRIs whose Identifier values differ are held as separate routes, so they describe separate routing universes (§3.2)
 	fam := family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState}
-	rib := NewFamilyRIB(fam, false)
+	rib := newFamilyRIB(fam, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
@@ -55,15 +55,15 @@ func TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse(t *testing.T) {
 	rib.Insert(attrs, universe1, true)
 
 	assert.Equal(t, 2, rib.Len(), "distinct Identifier values yield distinct routes")
-	_, ok := rib.LookupEntry(universe0)
+	_, ok := rib.lookupEntry(universe0)
 	assert.True(t, ok, "routing universe 0 is retrievable")
-	_, ok = rib.LookupEntry(universe1)
+	_, ok = rib.lookupEntry(universe1)
 	assert.True(t, ok, "routing universe 1 is retrievable")
 
 	// Withdrawing one universe leaves the other intact.
 	assert.True(t, rib.Remove(universe1))
 	assert.Equal(t, 1, rib.Len())
-	_, ok = rib.LookupEntry(universe0)
+	_, ok = rib.lookupEntry(universe0)
 	assert.True(t, ok, "removing universe 1 does not disturb universe 0")
 }
 
@@ -77,7 +77,7 @@ func TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse(t *testing.T) {
 func TestRFC7752SameIdentifierIsOneRoutingUniverse(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-4 negative -- NLRIs sharing an Identifier are NOT treated as separate routing universes; the second advertisement replaces the first (§3.2)
 	fam := family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState}
-	rib := NewFamilyRIB(fam, false)
+	rib := newFamilyRIB(fam, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)

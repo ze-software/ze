@@ -17,7 +17,7 @@ var (
 
 // cmdShowBlame displays blame-annotated configuration with per-line authorship.
 func (m *Model) cmdShowBlame() (commandResult, error) { //nolint:unparam // dispatch table requires (commandResult, error)
-	return commandResult{output: m.editor.BlameView()}, nil
+	return commandResult{output: m.editor.blameView()}, nil
 }
 
 // cmdShowChanges displays pending changes for the current session (default) or all sessions.

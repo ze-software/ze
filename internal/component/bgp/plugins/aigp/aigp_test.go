@@ -80,12 +80,12 @@ func TestSetAIGPLoggerNilGuard(t *testing.T) {
 	t.Cleanup(func() { loggerPtr.Store(orig) })
 
 	custom := slogutil.DiscardLogger()
-	SetAIGPLogger(custom)
+	setAIGPLogger(custom)
 	if logger() != custom {
 		t.Fatal("SetAIGPLogger did not store the provided logger")
 	}
 	// A nil logger must be ignored, not stored.
-	SetAIGPLogger(nil)
+	setAIGPLogger(nil)
 	if logger() != custom {
 		t.Error("SetAIGPLogger(nil) overwrote the logger")
 	}
@@ -104,7 +104,7 @@ func TestRunAIGPPluginClosedConnReturns(t *testing.T) {
 	}
 
 	done := make(chan int, 1)
-	go func() { done <- RunAIGPPlugin(server) }()
+	go func() { done <- runAIGPPlugin(server) }()
 
 	select {
 	case code := <-done:

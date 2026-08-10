@@ -102,7 +102,7 @@ func TestBGPPeersPageRendersTable(t *testing.T) {
 
 	require.Len(t, peers, 3, "should find 2 standalone + 1 grouped peer")
 
-	data := BuildBGPPeersTableData(peers, "", nil)
+	data := buildBGPPeersTableData(peers, "", nil)
 	assert.Equal(t, "BGP Peers", data.Title)
 	assert.Len(t, data.Rows, 3)
 	assert.Equal(t, "Add Peer", data.AddLabel)
@@ -121,7 +121,7 @@ func TestBGPPeersPageRendersTable(t *testing.T) {
 func TestBGPPeersEmptyState(t *testing.T) {
 	tree := config.NewTree()
 	peers := collectPeers(tree)
-	data := BuildBGPPeersTableData(peers, "", nil)
+	data := buildBGPPeersTableData(peers, "", nil)
 
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No BGP peers configured.", data.EmptyMessage)
@@ -131,7 +131,7 @@ func TestBGPPeersEmptyState(t *testing.T) {
 
 func TestBGPPeersEmptyStateNilTree(t *testing.T) {
 	peers := collectPeers(nil)
-	data := BuildBGPPeersTableData(peers, "", nil)
+	data := buildBGPPeersTableData(peers, "", nil)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No BGP peers configured.", data.EmptyMessage)
 }
@@ -139,7 +139,7 @@ func TestBGPPeersEmptyStateNilTree(t *testing.T) {
 func TestBGPPeersStateColorCoding(t *testing.T) {
 	tree := buildTestBGPTree()
 	peers := collectPeers(tree)
-	data := BuildBGPPeersTableData(peers, "", nil)
+	data := buildBGPPeersTableData(peers, "", nil)
 
 	// All configured peers should have green flag (v1: no operational state).
 	for _, row := range data.Rows {
@@ -160,7 +160,7 @@ func TestBGPPeersFilterByGroup(t *testing.T) {
 	tree := buildTestBGPTree()
 	peers := collectPeers(tree)
 
-	data := BuildBGPPeersTableData(peers, "transit", nil)
+	data := buildBGPPeersTableData(peers, "transit", nil)
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "transit-peer", data.Rows[0].Key)
 	assert.Contains(t, data.EmptyMessage, "") // not empty since we have rows
@@ -171,7 +171,7 @@ func TestBGPPeersFilterByGroupEmpty(t *testing.T) {
 	tree := buildTestBGPTree()
 	peers := collectPeers(tree)
 
-	data := BuildBGPPeersTableData(peers, "nonexistent", nil)
+	data := buildBGPPeersTableData(peers, "nonexistent", nil)
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "nonexistent")
 	assert.Equal(t, "/show/bgp/group/nonexistent/peer/", data.AddURL)
@@ -180,7 +180,7 @@ func TestBGPPeersFilterByGroupEmpty(t *testing.T) {
 func TestBGPPeersRowActions(t *testing.T) {
 	tree := buildTestBGPTree()
 	peers := collectPeers(tree)
-	data := BuildBGPPeersTableData(peers, "", nil)
+	data := buildBGPPeersTableData(peers, "", nil)
 
 	require.NotEmpty(t, data.Rows)
 	// First peer (peer-a) has IP, so should have Edit + Detail + Teardown actions.
@@ -231,7 +231,7 @@ func TestBGPGroupsPageRendersTable(t *testing.T) {
 	groups := collectGroups(tree)
 
 	require.Len(t, groups, 1)
-	data := BuildBGPGroupsTableData(groups)
+	data := buildBGPGroupsTableData(groups)
 	assert.Equal(t, "BGP Groups", data.Title)
 	require.Len(t, data.Rows, 1)
 
@@ -247,7 +247,7 @@ func TestBGPGroupsPageRendersTable(t *testing.T) {
 func TestBGPGroupsEmptyState(t *testing.T) {
 	tree := config.NewTree()
 	groups := collectGroups(tree)
-	data := BuildBGPGroupsTableData(groups)
+	data := buildBGPGroupsTableData(groups)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No peer groups configured.", data.EmptyMessage)
 }
@@ -255,7 +255,7 @@ func TestBGPGroupsEmptyState(t *testing.T) {
 func TestBGPGroupsViewPeersLink(t *testing.T) {
 	tree := buildTestBGPTree()
 	groups := collectGroups(tree)
-	data := BuildBGPGroupsTableData(groups)
+	data := buildBGPGroupsTableData(groups)
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
@@ -268,7 +268,7 @@ func TestBGPGroupsViewPeersLink(t *testing.T) {
 
 func TestBGPSummaryPageRenders(t *testing.T) {
 	tree := buildTestBGPTree()
-	data := BuildBGPSummaryTableData(tree, nil)
+	data := buildBGPSummaryTableData(tree, nil)
 
 	assert.Equal(t, "BGP Summary", data.Title)
 	assert.Len(t, data.Rows, 3)
@@ -288,7 +288,7 @@ func TestBGPSummaryWithLiveData(t *testing.T) {
 	live := map[string]bgpSummaryPeer{
 		"peer-a": {State: "Established", Uptime: "1h30m", MsgIn: "42", MsgOut: "10"},
 	}
-	data := BuildBGPSummaryTableData(tree, live)
+	data := buildBGPSummaryTableData(tree, live)
 
 	require.Len(t, data.Rows, 3)
 	var peerARow WorkbenchTableRow
@@ -339,7 +339,7 @@ func TestFetchBGPSummaryPeersJSON(t *testing.T) {
 
 func TestBGPSummaryEmptyState(t *testing.T) {
 	tree := config.NewTree()
-	data := BuildBGPSummaryTableData(tree, nil)
+	data := buildBGPSummaryTableData(tree, nil)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No BGP peers configured.", data.EmptyMessage)
 }
@@ -351,7 +351,7 @@ func TestBGPFamiliesPageRenders(t *testing.T) {
 	entries := collectFamilies(tree)
 
 	require.NotEmpty(t, entries)
-	data := BuildBGPFamiliesTableData(entries)
+	data := buildBGPFamiliesTableData(entries)
 	assert.Equal(t, "BGP Address Families", data.Title)
 	assert.NotEmpty(t, data.Rows)
 
@@ -367,7 +367,7 @@ func TestBGPFamiliesPageRenders(t *testing.T) {
 func TestBGPFamiliesEmptyState(t *testing.T) {
 	tree := config.NewTree()
 	entries := collectFamilies(tree)
-	data := BuildBGPFamiliesTableData(entries)
+	data := buildBGPFamiliesTableData(entries)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No address families configured.", data.EmptyMessage)
 }
@@ -379,7 +379,7 @@ func TestBGPPolicyEmptyState(t *testing.T) {
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 	entries := collectPolicies(tree, schema)
-	data := BuildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
+	data := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No filters configured.", data.EmptyMessage)
 	assertPolicyAddAction(t, data.AddActions, "/show/bgp/policy/prefix-list/")
@@ -407,7 +407,7 @@ func TestBGPPolicyWithData(t *testing.T) {
 	assert.Equal(t, "prefix-list", entries[0].Type)
 	assert.Equal(t, 1, entries[0].RuleCount)
 
-	data := BuildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
+	data := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "reject-all", data.Rows[0].Key)
 	assert.Empty(t, data.AddURL, "generic BGP policy page must not hardcode a single add target")
@@ -436,7 +436,7 @@ func TestBGPPeerDetailTabs(t *testing.T) {
 		Families: "ipv4/unicast",
 	}
 
-	detail := BuildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(pe)
 	assert.Equal(t, "peer-a", detail.Title)
 	assert.Equal(t, "/show/bgp/peer/", detail.CloseURL)
 
@@ -456,7 +456,7 @@ func TestBGPPeerDetailConfigContent(t *testing.T) {
 		Families: "ipv4/unicast",
 	}
 
-	detail := BuildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(pe)
 	configContent := string(detail.Tabs[0].Content)
 	assert.Contains(t, configContent, "peer-a")
 	assert.Contains(t, configContent, "192.168.1.1")
@@ -467,7 +467,7 @@ func TestBGPPeerDetailConfigContent(t *testing.T) {
 
 func TestBGPPeerDetailStatusPlaceholder(t *testing.T) {
 	pe := peerEntry{Name: "peer-a", RemoteIP: "192.168.1.1"}
-	detail := BuildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(pe)
 	statusContent := string(detail.Tabs[1].Content)
 	assert.Contains(t, statusContent, peerStateConfigured)
 	assert.Contains(t, statusContent, "--") // placeholder values
@@ -475,7 +475,7 @@ func TestBGPPeerDetailStatusPlaceholder(t *testing.T) {
 
 func TestBGPPeerDetailActionsTab(t *testing.T) {
 	pe := peerEntry{Name: "peer-a", RemoteIP: "192.168.1.1"}
-	detail := BuildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(pe)
 	actionsContent := string(detail.Tabs[2].Content)
 	assert.Contains(t, actionsContent, "Flush")
 	assert.Contains(t, actionsContent, "Teardown")
@@ -485,7 +485,7 @@ func TestBGPPeerDetailActionsTab(t *testing.T) {
 
 func TestBGPPeerDetailGroupedCloseURL(t *testing.T) {
 	pe := peerEntry{Name: "peer-a", Group: "transit"}
-	detail := BuildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(pe)
 	assert.Equal(t, "/show/bgp/group/transit/peer/", detail.CloseURL)
 }
 
@@ -661,7 +661,7 @@ func TestWorkbench_BGPPeersEmptyPageDispatch(t *testing.T) {
 func TestBGPSubNavigation(t *testing.T) {
 	// Verify that navigating to bgp/peer/ selects the Routing section
 	// and the Peers sub-page.
-	sections := WorkbenchSections([]string{"bgp", "peer"})
+	sections := workbenchSections([]string{"bgp", "peer"})
 
 	var routingSection *WorkbenchSection
 	for i := range sections {
@@ -687,7 +687,7 @@ func TestBGPSubNavigation(t *testing.T) {
 }
 
 func TestBGPGroupsSubNavigation(t *testing.T) {
-	sections := WorkbenchSections([]string{"bgp", "group"})
+	sections := workbenchSections([]string{"bgp", "group"})
 
 	var routingSection *WorkbenchSection
 	for i := range sections {

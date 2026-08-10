@@ -1008,7 +1008,7 @@ func TestEVPNType5StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 
-	e := NewEVPNType5(rd, [10]byte{}, 0, prefix, netip.Addr{}, []uint32{1000})
+	e := newEVPNType5(rd, [10]byte{}, 0, prefix, netip.Addr{}, []uint32{1000})
 	s := e.String()
 	assert.Contains(t, s, "ip-prefix", "should start with route type")
 	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
@@ -1121,13 +1121,13 @@ func TestWireFormat_EVPN(t *testing.T) {
 		},
 		{
 			name:    "EVPNType5_noAddPath",
-			nlri:    NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}),
+			nlri:    newEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}),
 			addPath: false,
 			wantLen: 36,
 		},
 		{
 			name:    "EVPNType5_withAddPath",
-			nlri:    NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}),
+			nlri:    newEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}),
 			addPath: true,
 			wantLen: 40,
 		},
@@ -1174,8 +1174,8 @@ func TestRoundTrip_EVPN(t *testing.T) {
 	}{
 		{"Type2_noPath", NewEVPNType2(rd, ESI{}, 0, mac, netip.MustParseAddr("10.0.0.1"), []uint32{100}), false},
 		{"Type2_withPath", NewEVPNType2(rd, ESI{}, 0, mac, netip.MustParseAddr("10.0.0.1"), []uint32{100}), true},
-		{"Type5_noPath", NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}), false},
-		{"Type5_withPath", NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}), true},
+		{"Type5_noPath", newEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}), false},
+		{"Type5_withPath", newEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}), true},
 	}
 
 	for _, tt := range tests {
@@ -1219,5 +1219,5 @@ func mustParseEVPNType5(t *testing.T) *EVPNType5 {
 	t.Helper()
 	rd := RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}}
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	return NewEVPNType5(rd, ESI{}, 0, prefix, netip.Addr{}, []uint32{100})
+	return newEVPNType5(rd, ESI{}, 0, prefix, netip.Addr{}, []uint32{100})
 }

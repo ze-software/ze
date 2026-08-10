@@ -60,11 +60,11 @@ func (s LCPState) String() string {
 // LCP FSM event. RFC 1661 §4.1 defines the 16 events. Names match the
 // RFC abbreviations; positive/negative variants encode the
 // "acceptable" branch on receive events.
-type LCPEvent uint8
+type lCPEvent uint8
 
 // LCP FSM events.
 const (
-	LCPEventUp       LCPEvent = iota // lower layer is Up
+	LCPEventUp       lCPEvent = iota // lower layer is Up
 	LCPEventDown                     // lower layer is Down
 	LCPEventOpen                     // administrative Open
 	LCPEventClose                    // administrative Close
@@ -135,11 +135,11 @@ func (a LCPAction) String() string {
 	return "?"
 }
 
-// LCPTransition encodes the destination state and ordered actions
+// lCPTransition encodes the destination state and ordered actions
 // returned by the transition function for a given (state, event)
 // pair. A zero-length Actions slice with NewState == prior state
 // means the event was ignored at this state.
-type LCPTransition struct {
+type lCPTransition struct {
 	NewState LCPState
 	Actions  []LCPAction
 }
@@ -164,246 +164,246 @@ type LCPTransition struct {
 //
 // Pure function -- no I/O, no allocation beyond the returned slice.
 // Suitable for table-driven testing.
-func LCPDoTransition(state LCPState, ev LCPEvent) LCPTransition {
+func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 	switch state {
 	case LCPStateInitial:
 		switch ev {
 		case LCPEventUp:
-			return LCPTransition{NewState: LCPStateClosed}
+			return lCPTransition{NewState: LCPStateClosed}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLS}}
+			return lCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLS}}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateInitial}
+			return lCPTransition{NewState: LCPStateInitial}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateStarting:
 		switch ev {
 		case LCPEventUp:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateInitial, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateInitial, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateStarting}
+			return lCPTransition{NewState: LCPStateStarting}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateClosed:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateInitial}
+			return lCPTransition{NewState: LCPStateInitial}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosed}
+			return lCPTransition{NewState: LCPStateClosed}
 		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRTR:
-			return LCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJPlus, LCPEventRXJMinus, LCPEventRXR, LCPEventRTA:
-			return LCPTransition{NewState: LCPStateClosed}
+			return lCPTransition{NewState: LCPStateClosed}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateStopped:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLS}}
+			return lCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLS}}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateStopped}
+			return lCPTransition{NewState: LCPStateStopped}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosed}
+			return lCPTransition{NewState: LCPStateClosed}
 		case LCPEventRCRPlus:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActIRC, LCPActSCR, LCPActSCA}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActIRC, LCPActSCR, LCPActSCA}}
 		case LCPEventRCRMinus:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR, LCPActSCN}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR, LCPActSCN}}
 		case LCPEventRCA, LCPEventRCN, LCPEventRTR:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJPlus, LCPEventRXR, LCPEventRTA:
-			return LCPTransition{NewState: LCPStateStopped}
+			return lCPTransition{NewState: LCPStateStopped}
 		case LCPEventRXJMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateClosing:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateInitial}
+			return lCPTransition{NewState: LCPStateInitial}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateStopping}
+			return lCPTransition{NewState: LCPStateStopping}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosing}
+			return lCPTransition{NewState: LCPStateClosing}
 		case LCPEventTOPlus:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSTR}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSTR}}
 		case LCPEventTOMinus:
-			return LCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRTR:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRTA:
-			return LCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRXJPlus, LCPEventRXJMinus, LCPEventRXR:
-			return LCPTransition{NewState: LCPStateClosing}
+			return lCPTransition{NewState: LCPStateClosing}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateStopping:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateStarting}
+			return lCPTransition{NewState: LCPStateStarting}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateStopping}
+			return lCPTransition{NewState: LCPStateStopping}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosing}
+			return lCPTransition{NewState: LCPStateClosing}
 		case LCPEventTOPlus:
-			return LCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSTR}}
+			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSTR}}
 		case LCPEventTOMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRTR:
-			return LCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRTA:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRXJPlus, LCPEventRXJMinus, LCPEventRXR:
-			return LCPTransition{NewState: LCPStateStopping}
+			return lCPTransition{NewState: LCPStateStopping}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateReqSent:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateStarting}
+			return lCPTransition{NewState: LCPStateStarting}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateReqSent}
+			return lCPTransition{NewState: LCPStateReqSent}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActIRC, LCPActSTR}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActIRC, LCPActSTR}}
 		case LCPEventTOPlus:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
 		case LCPEventTOMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRCRPlus:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCA}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCA}}
 		case LCPEventRCRMinus:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCN}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCN}}
 		case LCPEventRCA:
-			return LCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActIRC}}
+			return lCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActIRC}}
 		case LCPEventRCN:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
 		case LCPEventRTR:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRTA, LCPEventRXJPlus, LCPEventRXR:
-			return LCPTransition{NewState: LCPStateReqSent}
+			return lCPTransition{NewState: LCPStateReqSent}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateAckRcvd:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateStarting}
+			return lCPTransition{NewState: LCPStateStarting}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateAckRcvd}
+			return lCPTransition{NewState: LCPStateAckRcvd}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActIRC, LCPActSTR}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActIRC, LCPActSTR}}
 		case LCPEventTOPlus:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
 		case LCPEventTOMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRCRPlus:
-			return LCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSCA, LCPActTLU}}
+			return lCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSCA, LCPActTLU}}
 		case LCPEventRCRMinus:
-			return LCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActSCN}}
+			return lCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActSCN}}
 		case LCPEventRCA, LCPEventRCN:
 			// RFC 1661 §4.1: in Ack-Rcvd, RCA/RCN trigger SCR (cross
 			// or stale Ack) -> stay in Req-Sent.
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
 		case LCPEventRTR:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRTA, LCPEventRXJPlus, LCPEventRXR:
-			return LCPTransition{NewState: LCPStateAckRcvd}
+			return lCPTransition{NewState: LCPStateAckRcvd}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateAckSent:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateStarting}
+			return lCPTransition{NewState: LCPStateStarting}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateAckSent}
+			return lCPTransition{NewState: LCPStateAckSent}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActIRC, LCPActSTR}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActIRC, LCPActSTR}}
 		case LCPEventTOPlus:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCR}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCR}}
 		case LCPEventTOMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRCRPlus:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCA}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCA}}
 		case LCPEventRCRMinus:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCN}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCN}}
 		case LCPEventRCA:
-			return LCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActIRC, LCPActTLU}}
+			return lCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActIRC, LCPActTLU}}
 		case LCPEventRCN:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActIRC, LCPActSCR}}
 		case LCPEventRTR:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRTA, LCPEventRXJPlus, LCPEventRXR:
-			return LCPTransition{NewState: LCPStateAckSent}
+			return lCPTransition{NewState: LCPStateAckSent}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJMinus:
-			return LCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
+			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 
 	case LCPStateOpened:
 		switch ev {
 		case LCPEventDown:
-			return LCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLD}}
+			return lCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLD}}
 		case LCPEventOpen:
-			return LCPTransition{NewState: LCPStateOpened}
+			return lCPTransition{NewState: LCPStateOpened}
 		case LCPEventClose:
-			return LCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActTLD, LCPActIRC, LCPActSTR}}
+			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActTLD, LCPActIRC, LCPActSTR}}
 		case LCPEventRCRPlus:
-			return LCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActTLD, LCPActSCR, LCPActSCA}}
+			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActTLD, LCPActSCR, LCPActSCA}}
 		case LCPEventRCRMinus:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR, LCPActSCN}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR, LCPActSCN}}
 		case LCPEventRCA, LCPEventRCN:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR}}
 		case LCPEventRTR:
-			return LCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActTLD, LCPActZRC, LCPActSTA}}
+			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActTLD, LCPActZRC, LCPActSTA}}
 		case LCPEventRTA:
-			return LCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR}}
+			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR}}
 		case LCPEventRUC:
-			return LCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSCJ}}
+			return lCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJPlus, LCPEventRXR:
-			return LCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSER}}
+			return lCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSER}}
 		case LCPEventRXJMinus:
-			return LCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActTLD, LCPActIRC, LCPActSTR}}
+			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActTLD, LCPActIRC, LCPActSTR}}
 		default:
-			return LCPTransition{NewState: state}
+			return lCPTransition{NewState: state}
 		}
 	}
 	// No-op for events not listed at the current state.
-	return LCPTransition{NewState: state}
+	return lCPTransition{NewState: state}
 }

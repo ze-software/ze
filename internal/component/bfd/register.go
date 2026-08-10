@@ -22,7 +22,7 @@ func init() {
 		InProcessConfigVerifier: verifyBFDConfig,
 		RunEngine:               RunBFDPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
-			UseLogger(slogutil.Logger(loggerName))
+			useLogger(slogutil.Logger(loggerName))
 		},
 		ConfigureMetrics: func(r metrics.Registry) {
 			bindMetricsRegistry(r)
@@ -31,7 +31,7 @@ func init() {
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
 		cfg.ConfigLogger = func(level string) {
-			UseLogger(slogutil.PluginLogger(reg.Name, level))
+			useLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		return cli.RunPlugin(cfg, args)
 	}

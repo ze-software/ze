@@ -45,7 +45,7 @@ func TestMVPNWithRD(t *testing.T) {
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 
-	mvpn := NewMVPNWithRD(AFIIPv6, MVPNIntraASIPMSIAD, rd, []byte{1, 2, 3, 4})
+	mvpn := newMVPNWithRD(AFIIPv6, MVPNIntraASIPMSIAD, rd, []byte{1, 2, 3, 4})
 
 	assert.Equal(t, AFIIPv6, mvpn.Family().AFI)
 	assert.Equal(t, rd, mvpn.RD())
@@ -58,10 +58,10 @@ func TestMVPNRoundTrip(t *testing.T) {
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 
-	original := NewMVPNWithRD(AFIIPv4, MVPNIntraASIPMSIAD, rd, []byte{10, 0, 0, 1})
+	original := newMVPNWithRD(AFIIPv4, MVPNIntraASIPMSIAD, rd, []byte{10, 0, 0, 1})
 	data := original.Bytes()
 
-	parsed, remaining, err := ParseMVPN(AFIIPv4, data)
+	parsed, remaining, err := parseMVPN(AFIIPv4, data)
 	require.NoError(t, err)
 	assert.Empty(t, remaining)
 	assert.Equal(t, original.RouteType(), parsed.RouteType())
@@ -83,7 +83,7 @@ func TestMVPNParseErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := ParseMVPN(AFIIPv4, tt.data)
+			_, _, err := parseMVPN(AFIIPv4, tt.data)
 			assert.Error(t, err)
 		})
 	}
@@ -111,7 +111,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 				rd := RouteDistinguisher{Type: RDType0}
 				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
-				return NewMVPNWithRD(AFIIPv4, MVPNSourceTreeJoin, rd, []byte{10, 0, 0, 1})
+				return newMVPNWithRD(AFIIPv4, MVPNSourceTreeJoin, rd, []byte{10, 0, 0, 1})
 			}(),
 			expected: "source-tree-join rd 0:65001:100",
 		},
@@ -121,7 +121,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 				rd := RouteDistinguisher{Type: RDType1}
 				copy(rd.Value[:4], []byte{10, 0, 0, 1})
 				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
-				return NewMVPNWithRD(AFIIPv6, MVPNSPMSIAD, rd, nil)
+				return newMVPNWithRD(AFIIPv6, MVPNSPMSIAD, rd, nil)
 			}(),
 			expected: "s-pmsi-ad rd 1:10.0.0.1:200",
 		},
@@ -155,7 +155,7 @@ func TestMVPNWriteToMatchesBytes(t *testing.T) {
 				rd := RouteDistinguisher{Type: RDType0}
 				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
-				return NewMVPNWithRD(AFIIPv4, MVPNIntraASIPMSIAD, rd, []byte{10, 0, 0, 1})
+				return newMVPNWithRD(AFIIPv4, MVPNIntraASIPMSIAD, rd, []byte{10, 0, 0, 1})
 			}(),
 		},
 	}

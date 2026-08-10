@@ -569,7 +569,7 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // (writeMandatoryAttrs). Both existed because this was the rail that diverged; the
 // queued rail happened to be right and had neither.
 //
-// attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
+// attrBuf and nlriBuf are caller-provided buffers (from getBuildBuf, session.go).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 //
@@ -923,7 +923,7 @@ func announceASPathASNs(dst []uint32, isIBGP bool, localAS, originAS uint32) []u
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
-// attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
+// attrBuf and nlriBuf are caller-provided buffers (from getBuildBuf, session.go).
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
 //
@@ -1009,7 +1009,7 @@ func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Rou
 
 	for _, peer := range peers {
 		// Get encoding context for CommitService
-		ctx := peer.SendContext()
+		ctx := peer.sendContext()
 		if ctx == nil {
 			continue // Peer not established
 		}

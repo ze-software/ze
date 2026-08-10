@@ -393,7 +393,7 @@ func TestProcessEventQueuesToast(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 2, Time: now, ChaosAction: "tcp-disconnect"})
 
 	d.state.mu.Lock()
-	toasts := d.state.ConsumePendingToasts()
+	toasts := d.state.consumePendingToasts()
 	d.state.mu.Unlock()
 
 	if len(toasts) != 1 {
@@ -424,7 +424,7 @@ func TestProcessEventNonToastEvent(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now})
 
 	d.state.mu.Lock()
-	toasts := d.state.ConsumePendingToasts()
+	toasts := d.state.consumePendingToasts()
 	d.state.mu.Unlock()
 
 	if len(toasts) != 0 {
@@ -441,10 +441,10 @@ func TestToastQueueMaxFive(t *testing.T) {
 
 	state := NewDashboardState(10, 40, 100)
 	for i := range 6 {
-		state.QueueToast(ToastEntry{PeerIndex: i, Label: "test"})
+		state.queueToast(toastEntry{PeerIndex: i, Label: "test"})
 	}
 
-	toasts := state.ConsumePendingToasts()
+	toasts := state.consumePendingToasts()
 	if len(toasts) != 5 {
 		t.Fatalf("expected 5 toasts, got %d", len(toasts))
 	}
@@ -461,7 +461,7 @@ func TestToastQueueMaxFive(t *testing.T) {
 func TestRenderToast(t *testing.T) {
 	t.Parallel()
 
-	toast := ToastEntry{PeerIndex: 3, Label: "chaos", Detail: "tcp-disconnect", CSSClass: "toast-warn", Time: time.Now()}
+	toast := toastEntry{PeerIndex: 3, Label: "chaos", Detail: "tcp-disconnect", CSSClass: "toast-warn", Time: time.Now()}
 	html := renderToast(toast)
 
 	if !strings.Contains(html, "toast-warn") {
@@ -498,7 +498,7 @@ func TestRenderToastColors(t *testing.T) {
 		{"reconnecting", "toast-warn"},
 	}
 	for _, tt := range tests {
-		html := renderToast(ToastEntry{Label: tt.label, CSSClass: tt.css})
+		html := renderToast(toastEntry{Label: tt.label, CSSClass: tt.css})
 		if !strings.Contains(html, tt.css) {
 			t.Errorf("toast %q missing class %q", tt.label, tt.css)
 		}
@@ -524,7 +524,7 @@ func TestStatusCounts(t *testing.T) {
 	state.Peers[8].Status = PeerDown
 	state.Peers[9].Status = PeerIdle
 
-	counts := state.StatusCounts()
+	counts := state.statusCounts()
 	if counts[PeerUp] != 6 {
 		t.Errorf("Up count = %d, want 6", counts[PeerUp])
 	}
@@ -550,7 +550,7 @@ func TestStatusCountsZeroPeers(t *testing.T) {
 	t.Parallel()
 
 	state := NewDashboardState(0, 40, 100)
-	counts := state.StatusCounts()
+	counts := state.statusCounts()
 	for s, c := range counts {
 		if c != 0 {
 			t.Errorf("status %d has count %d, want 0", s, c)
@@ -731,8 +731,8 @@ func TestRenderStatsIncludesChaosRate(t *testing.T) {
 	// Simulate some chaos events and a throughput update.
 	d.state.TotalChaos = 10
 	now := time.Now()
-	d.state.UpdateThroughput(now)
-	d.state.UpdateThroughput(now.Add(time.Second))
+	d.state.updateThroughput(now)
+	d.state.updateThroughput(now.Add(time.Second))
 
 	html := d.renderStats()
 	if !strings.Contains(html, "/s") {
@@ -805,8 +805,8 @@ func TestBroadcastStatsWithChaosRate(t *testing.T) {
 
 	// Simulate throughput update (normally done in broadcastDirty).
 	d.state.mu.Lock()
-	d.state.UpdateThroughput(now)
-	d.state.UpdateThroughput(now.Add(time.Second))
+	d.state.updateThroughput(now)
+	d.state.updateThroughput(now.Add(time.Second))
 	d.state.mu.Unlock()
 
 	d.state.RLock()

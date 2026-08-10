@@ -199,7 +199,7 @@ func TestNewASNNameDecoratorFromResolver(t *testing.T) {
 		},
 	}
 
-	d := NewASNNameDecoratorFromResolver(resolver)
+	d := newASNNameDecoratorFromResolver(resolver)
 	assert.Equal(t, "asn-name", d.Name())
 
 	result, err := d.Decorate("64500")

@@ -13,7 +13,7 @@ func init() {
 		Dependencies: []string{"bgp"},
 		YANG:         frpayang.ZeFilterRemovePrivateASYANG,
 		FilterTypes:  []string{"remove-private-as"},
-		RunEngine:    RunFilterRemovePrivateAS,
+		RunEngine:    runFilterRemovePrivateAS,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})
 }

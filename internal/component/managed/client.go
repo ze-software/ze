@@ -53,7 +53,7 @@ type ClientConfig struct {
 // reconnect and heartbeat. Blocks until ctx is canceled. This is a
 // long-lived goroutine -- one per managed client instance.
 func RunManagedClient(ctx context.Context, cfg ClientConfig) {
-	backoff := NewBackoff(1*time.Second, 60*time.Second, 0.1)
+	backoff := newBackoff(1*time.Second, 60*time.Second, 0.1)
 
 	for {
 		// Check managed flag before each connection attempt (AC-17).
@@ -181,10 +181,10 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 		for {
 			select {
 			case <-ticker.C:
-				if pingErr := SendPing(ctx, mc); pingErr != nil {
+				if pingErr := sendPing(ctx, mc); pingErr != nil {
 					return
 				}
-				hb.RecordPong() // Successful ping response = hub is alive.
+				hb.recordPong() // Successful ping response = hub is alive.
 			case <-ctx.Done():
 				return
 			case <-hbDone:
@@ -311,8 +311,8 @@ func SendConfigAck(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) er
 	return nil
 }
 
-// SendPing sends a ping RPC to the hub for liveness.
-func SendPing(ctx context.Context, mc *rpc.MuxConn) error {
+// sendPing sends a ping RPC to the hub for liveness.
+func sendPing(ctx context.Context, mc *rpc.MuxConn) error {
 	_, err := mc.CallRPC(ctx, fleet.VerbPing, struct{}{})
 	if err != nil {
 		return fmt.Errorf("ping RPC: %w", err)

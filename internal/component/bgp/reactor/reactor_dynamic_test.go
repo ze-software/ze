@@ -34,11 +34,11 @@ func newTestDynamicGroup(name string, prefixes []string, maxPeers uint32) *Dynam
 func TestDynamicGroupContainsAddr(t *testing.T) {
 	dg := newTestDynamicGroup("ix", []string{"185.1.69.0/24", "2001:7f8:4::/64"}, 100)
 
-	assert.True(t, dg.ContainsAddr(netip.MustParseAddr("185.1.69.1")))
-	assert.True(t, dg.ContainsAddr(netip.MustParseAddr("185.1.69.254")))
-	assert.False(t, dg.ContainsAddr(netip.MustParseAddr("185.1.70.1")))
-	assert.True(t, dg.ContainsAddr(netip.MustParseAddr("2001:7f8:4::1")))
-	assert.False(t, dg.ContainsAddr(netip.MustParseAddr("2001:7f8:5::1")))
+	assert.True(t, dg.containsAddr(netip.MustParseAddr("185.1.69.1")))
+	assert.True(t, dg.containsAddr(netip.MustParseAddr("185.1.69.254")))
+	assert.False(t, dg.containsAddr(netip.MustParseAddr("185.1.70.1")))
+	assert.True(t, dg.containsAddr(netip.MustParseAddr("2001:7f8:4::1")))
+	assert.False(t, dg.containsAddr(netip.MustParseAddr("2001:7f8:5::1")))
 }
 
 func TestFindDynamicGroup(t *testing.T) {
@@ -237,8 +237,8 @@ func TestDynamicPeerOwnsPrefixMaps(t *testing.T) {
 
 	// Every per-family prefix value reaches the dynamic peer.
 	assert.Equal(t, uint32(1000), first.Settings().PrefixMaximum["ipv4/unicast"])
-	assert.True(t, first.Settings().PrefixTeardownFor("ipv4/unicast"))
-	assert.Equal(t, uint16(30), first.Settings().PrefixIdleTimeoutFor("ipv4/unicast"))
+	assert.True(t, first.Settings().prefixTeardownFor("ipv4/unicast"))
+	assert.Equal(t, uint16(30), first.Settings().prefixIdleTimeoutFor("ipv4/unicast"))
 	assert.Equal(t, "2026-07-30", first.Settings().OldestPrefixUpdated())
 
 	// Mutating one peer changes neither its sibling nor the template.
@@ -247,11 +247,11 @@ func TestDynamicPeerOwnsPrefixMaps(t *testing.T) {
 	first.Settings().PrefixIdleTimeout["ipv4/unicast"] = 1
 	first.Settings().PrefixUpdated["ipv4/unicast"] = "2000-01-01"
 
-	assert.True(t, second.Settings().PrefixTeardownFor("ipv4/unicast"),
+	assert.True(t, second.Settings().prefixTeardownFor("ipv4/unicast"),
 		"the sibling keeps its own enforcement setting")
 	assert.Equal(t, uint32(1000), second.Settings().PrefixMaximum["ipv4/unicast"])
-	assert.Equal(t, uint16(30), second.Settings().PrefixIdleTimeoutFor("ipv4/unicast"))
+	assert.Equal(t, uint16(30), second.Settings().prefixIdleTimeoutFor("ipv4/unicast"))
 	assert.Equal(t, "2026-07-30", second.Settings().OldestPrefixUpdated())
-	assert.True(t, dg.Settings.PrefixTeardownFor("ipv4/unicast"),
+	assert.True(t, dg.Settings.prefixTeardownFor("ipv4/unicast"),
 		"the template is not mutated either")
 }

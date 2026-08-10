@@ -78,7 +78,7 @@ func TestCapabilityConflictDetection(t *testing.T) {
 			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: "dGVzdA=="},
 		},
 	}
-	require.NoError(t, reg.RegisterCapabilities(caps1))
+	require.NoError(t, reg.registerCapabilities(caps1))
 
 	// Second plugin tries same capability code - should fail
 	caps2 := &PluginCapabilities{
@@ -87,7 +87,7 @@ func TestCapabilityConflictDetection(t *testing.T) {
 			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: "b3RoZXI="},
 		},
 	}
-	err := reg.RegisterCapabilities(caps2)
+	err := reg.registerCapabilities(caps2)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "capability conflict")
 	assert.Contains(t, err.Error(), "73")

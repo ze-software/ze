@@ -28,8 +28,8 @@ const peerUpBarrierTimeout = 2 * time.Second
 // invites the belief that it is tunable.
 const apiSyncTimeout = 2 * time.Second
 
-// APISyncState tracks API process synchronization state.
-type APISyncState struct {
+// aPISyncState tracks API process synchronization state.
+type aPISyncState struct {
 	// processCount is the number of API processes that must send ready.
 	// Accessed from multiple goroutines (startup adds, reactor reads).
 	processCount atomic.Int32

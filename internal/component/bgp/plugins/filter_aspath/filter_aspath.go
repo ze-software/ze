@@ -39,9 +39,9 @@ var logger = slogutil.LazyLogger("bgp.filter.aspath")
 // the hot path can read without a lock.
 var listsByName atomic.Pointer[map[string]*aspathList]
 
-// RunFilterAsPath runs the AS-path filter plugin using the SDK RPC protocol.
+// runFilterAsPath runs the AS-path filter plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunFilterAsPath(conn net.Conn) int {
+func runFilterAsPath(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-aspath", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 

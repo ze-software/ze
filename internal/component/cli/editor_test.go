@@ -409,7 +409,7 @@ local-as 65000
 	assert.Empty(t, diff)
 
 	// Simulate modification by setting working content
-	ed.SetWorkingContent(`router-id 1.2.3.4
+	ed.setWorkingContent(`router-id 1.2.3.4
 local-as 65001
 `)
 	ed.MarkDirty()
@@ -442,9 +442,9 @@ func TestEditFilePersistence(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "edit file should not exist initially")
 
 	// Make a change and save edit state
-	ed.SetWorkingContent(`router-id 2.2.2.2`)
+	ed.setWorkingContent(`router-id 2.2.2.2`)
 	ed.MarkDirty()
-	err = ed.SaveEditState()
+	err = ed.saveEditState()
 	require.NoError(t, err)
 
 	// Edit file should now exist
@@ -513,9 +513,9 @@ func TestEditFileDeletedOnCommit(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 
-	ed.SetWorkingContent(`router-id 2.2.2.2`)
+	ed.setWorkingContent(`router-id 2.2.2.2`)
 	ed.MarkDirty()
-	err = ed.SaveEditState()
+	err = ed.saveEditState()
 	require.NoError(t, err)
 
 	// Edit file exists
@@ -551,9 +551,9 @@ func TestEditFileDeletedOnDiscard(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 
-	ed.SetWorkingContent(`router-id 2.2.2.2`)
+	ed.setWorkingContent(`router-id 2.2.2.2`)
 	ed.MarkDirty()
-	err = ed.SaveEditState()
+	err = ed.saveEditState()
 	require.NoError(t, err)
 
 	// Edit file exists
@@ -590,7 +590,7 @@ func TestPendingEditTime(t *testing.T) {
 	require.NoError(t, err)
 
 	// No pending edit, time should be zero
-	assert.True(t, ed.PendingEditTime().IsZero(), "no edit file should return zero time")
+	assert.True(t, ed.pendingEditTime().IsZero(), "no edit file should return zero time")
 
 	// Create edit file
 	editContent := `router-id 2.2.2.2`
@@ -605,7 +605,7 @@ func TestPendingEditTime(t *testing.T) {
 
 	// Should have pending edit with recent time
 	assert.True(t, ed.HasPendingEdit(), "should detect edit file")
-	modTime := ed.PendingEditTime()
+	modTime := ed.pendingEditTime()
 	assert.False(t, modTime.IsZero(), "should return edit file time")
 	assert.WithinDuration(t, time.Now(), modTime, 5*time.Second, "time should be recent")
 }
@@ -638,7 +638,7 @@ peer-as 65001`
 	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Get diff
-	diff := ed.PendingEditDiff()
+	diff := ed.pendingEditDiff()
 	assert.Contains(t, diff, "- router-id 1.2.3.4", "should show removed line")
 	assert.Contains(t, diff, "+ router-id 2.2.2.2", "should show added line")
 	assert.Contains(t, diff, "+ peer-as 65001", "should show new line")
@@ -663,7 +663,7 @@ func TestPendingEditDiffNoEditFile(t *testing.T) {
 	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Diff should be empty (no edit file to compare)
-	diff := ed.PendingEditDiff()
+	diff := ed.pendingEditDiff()
 	assert.Empty(t, diff, "no edit file should produce empty diff")
 }
 
@@ -689,7 +689,7 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Diff should be empty
-	diff := ed.PendingEditDiff()
+	diff := ed.pendingEditDiff()
 	assert.Empty(t, diff, "no changes should produce empty diff")
 }
 
@@ -872,7 +872,7 @@ func TestEditorEnsureListEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	err = ed.EnsureListEntry(
+	err = ed.ensureListEntry(
 		[]string{"static", "table", "default", "route", "0.0.0.0/0", "next"},
 		"hop", "10.104.1.254",
 	)
@@ -886,7 +886,7 @@ func TestEditorEnsureListEntry(t *testing.T) {
 	require.Contains(t, entries, "10.104.1.254", "entry should be keyed by IP")
 
 	// Idempotent: second call should not error
-	err = ed.EnsureListEntry(
+	err = ed.ensureListEntry(
 		[]string{"static", "table", "default", "route", "0.0.0.0/0", "next"},
 		"hop", "10.104.1.254",
 	)
@@ -1136,7 +1136,7 @@ func TestEditorSetWorkingContentParse(t *testing.T) {
 	session { asn { local 65001; } }
 }
 `
-	ed.SetWorkingContent(newContent)
+	ed.setWorkingContent(newContent)
 
 	// Tree should reflect new content
 	bgp := ed.WalkPath([]string{"bgp"})
@@ -2253,7 +2253,7 @@ func TestEditorBlameView(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err)
 
-	blame := ed.BlameView()
+	blame := ed.blameView()
 	assert.Contains(t, blame, "alice", "blame should include user")
 	assert.Contains(t, blame, "10.0.0.1", "blame should include value")
 }
@@ -4181,12 +4181,12 @@ func TestHasPendingSessionChangesAfterCommit(t *testing.T) {
 	// Make a change and verify pending.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "10.0.0.99")
 	require.NoError(t, err)
-	assert.True(t, ed.HasPendingSessionChanges(), "should have pending changes before commit")
+	assert.True(t, ed.hasPendingSessionChanges(), "should have pending changes before commit")
 
 	// Commit and verify no pending.
 	_, err = ed.CommitSession()
 	require.NoError(t, err)
-	assert.False(t, ed.HasPendingSessionChanges(), "should have no pending changes after commit")
+	assert.False(t, ed.hasPendingSessionChanges(), "should have no pending changes after commit")
 }
 
 // TestHasPendingSessionChangesNoMeta verifies nil-meta guards in session helpers.
@@ -4201,7 +4201,7 @@ func TestHasPendingSessionChangesNoMeta(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	// No session set: both should return safe defaults.
-	assert.False(t, ed.HasPendingSessionChanges(), "no session: should return false")
+	assert.False(t, ed.hasPendingSessionChanges(), "no session: should return false")
 	assert.Empty(t, ed.SessionID(), "no session: should return empty string")
 }
 
@@ -4640,7 +4640,7 @@ func TestBlameViewNilMeta(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	// No session set: meta is nil. Should not panic.
-	output := ed.BlameView()
+	output := ed.blameView()
 	assert.NotEmpty(t, output, "blame view should produce output even without metadata")
 }
 
@@ -5386,7 +5386,7 @@ func TestCheckDraftChangedOwnWriteNotReported(t *testing.T) {
 	require.NoError(t, err)
 
 	// Seed the draftMtime by polling once.
-	changed, _ := ed.CheckDraftChanged()
+	changed, _ := ed.checkDraftChanged()
 	assert.False(t, changed, "first poll should seed mtime, not report change")
 
 	// Second SaveDraft: advances draft mtime.
@@ -5397,7 +5397,7 @@ func TestCheckDraftChangedOwnWriteNotReported(t *testing.T) {
 
 	// Poll again: this is the bug scenario. The current session saved the draft,
 	// but CheckDraftChanged must NOT report it as another session's change.
-	changed, notification := ed.CheckDraftChanged()
+	changed, notification := ed.checkDraftChanged()
 	assert.False(t, changed, "own SaveDraft should not be reported as external change")
 	assert.Empty(t, notification, "no notification for own draft saves")
 }
@@ -5443,7 +5443,7 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	ed2.SetSession(session2)
 
 	// Seed ed2's draftMtime.
-	changed, _ := ed2.CheckDraftChanged()
+	changed, _ := ed2.checkDraftChanged()
 	assert.False(t, changed, "first poll should seed mtime")
 
 	// Session 1 writes again and saves draft (updates draft mtime with alice's session ID).
@@ -5453,7 +5453,7 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 polls: should detect the change (draft was modified by alice's SaveDraft).
-	changed, notification := ed2.CheckDraftChanged()
+	changed, notification := ed2.checkDraftChanged()
 	assert.True(t, changed, "other session's SaveDraft should be reported")
 	assert.Contains(t, notification, session1.ID, "notification should identify the other session")
 }
@@ -5479,7 +5479,7 @@ func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 	require.NoError(t, err)
 
 	// Seed mtime (first poll).
-	changed, _ := ed.CheckDraftChanged()
+	changed, _ := ed.checkDraftChanged()
 	assert.False(t, changed, "first poll should seed mtime, not report change")
 
 	// Write a newer draft and poll until filesystem mtime granularity has advanced enough
@@ -5491,7 +5491,7 @@ func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 		}
 		// Poll: should detect the newer mtime.
 		// On filesystem storage, ModifiedBy is empty so notifications don't include session ID.
-		detected, _ := ed.CheckDraftChanged()
+		detected, _ := ed.checkDraftChanged()
 		return detected
 	}, 2*time.Second, time.Millisecond, "newer draft mtime should be detected on filesystem storage")
 }
@@ -5619,7 +5619,7 @@ func TestDetectConflictSameLeaf(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob should detect conflict with Alice.
-	conflicts := ed2.DetectConflicts()
+	conflicts := ed2.detectConflicts()
 	require.NotEmpty(t, conflicts, "should detect conflict on same leaf")
 	assert.Equal(t, "bgp router-id", conflicts[0].Path)
 	assert.Equal(t, "10.0.0.2", conflicts[0].MyValue)
@@ -5653,7 +5653,7 @@ func TestNoConflictDifferentLeaves(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob should NOT detect any conflict.
-	conflicts := ed2.DetectConflicts()
+	conflicts := ed2.detectConflicts()
 	assert.Empty(t, conflicts, "different leaves should not conflict")
 }
 
@@ -5983,7 +5983,7 @@ func TestDetectConflictsNilSession(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	// No session set — should return nil, not panic.
-	assert.Nil(t, ed.DetectConflicts())
+	assert.Nil(t, ed.detectConflicts())
 }
 
 // TestDetectConflictsSameValue verifies no false positive when two users set same value.
@@ -6010,7 +6010,7 @@ func TestDetectConflictsSameValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Same value at same path — should NOT conflict.
-	conflicts := ed2.DetectConflicts()
+	conflicts := ed2.detectConflicts()
 	assert.Empty(t, conflicts, "same value at same path should not conflict")
 }
 
@@ -6024,12 +6024,12 @@ func TestChangePathHelpers(t *testing.T) {
 	cp := ChangePath(configPath, "thomas")
 	assert.Equal(t, "/etc/ze/config.conf.change.thomas", cp)
 
-	prefix := ChangePrefix(configPath)
+	prefix := changePrefix(configPath)
 	assert.Equal(t, "config.conf.change.", prefix)
 
-	user := ChangeUser(configPath, cp)
+	user := changeUser(configPath, cp)
 	assert.Equal(t, "thomas", user)
 
 	// Non-change-file path returns empty.
-	assert.Equal(t, "", ChangeUser(configPath, "/etc/ze/config.conf.draft"))
+	assert.Equal(t, "", changeUser(configPath, "/etc/ze/config.conf.draft"))
 }

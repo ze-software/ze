@@ -152,7 +152,7 @@ func TestRFC4271PartialBitSurvivesLengthReframing(t *testing.T) {
 // both are installed, so a Loc-RIB mirror of the RIB carries both
 // (internal/component/bgp/plugins/rib/storage/familyrib.go:196-207).
 func TestRFC4271OverlappingRoutesBothInstalled(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	less := []byte{8, 10}
@@ -163,9 +163,9 @@ func TestRFC4271OverlappingRoutesBothInstalled(t *testing.T) {
 
 	assert.Equal(t, 2, rib.Len(), "both the covering and the more specific route are held")
 
-	lessEntry, ok := rib.LookupEntry(less)
+	lessEntry, ok := rib.lookupEntry(less)
 	require.True(t, ok, "10.0.0.0/8 present")
-	moreEntry, ok := rib.LookupEntry(more)
+	moreEntry, ok := rib.lookupEntry(more)
 	require.True(t, ok, "10.0.0.0/24 present")
 	assert.True(t, lessEntry.GetBundle().HasLocalPref(), "covering route keeps its own attributes")
 	assert.True(t, moreEntry.GetBundle().HasMED(), "more specific keeps its own attributes")
@@ -190,7 +190,7 @@ func TestRFC4271OverlappingRoutesBothInstalled(t *testing.T) {
 // route replaces the older route in the Adj-RIB-In
 // (internal/component/bgp/plugins/rib/storage/familyrib.go:196-207).
 func TestRFC4271SamePrefixReplacesRatherThanAccumulates(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	nlriBytes := []byte{24, 10, 0, 0}
@@ -200,7 +200,7 @@ func TestRFC4271SamePrefixReplacesRatherThanAccumulates(t *testing.T) {
 	rib.Insert(concat(wireOriginIGP, wireMED100), nlriBytes, true)
 	assert.Equal(t, 1, rib.Len(), "identical NLRI replaces, it does not accumulate")
 
-	entry, ok := rib.LookupEntry(nlriBytes)
+	entry, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
 	assert.True(t, entry.GetBundle().HasMED(), "the newer route's attributes are in place")
 	assert.False(t, entry.GetBundle().HasLocalPref(), "the older route's attributes are gone")
@@ -222,7 +222,7 @@ func TestRFC4271SamePrefixReplacesRatherThanAccumulates(t *testing.T) {
 // a withdrawal for a prefix that was never announced removes nothing
 // (internal/component/bgp/plugins/rib/storage/familyrib.go:317-356).
 func TestRFC4271WithdrawRemovesFromAdjRIBIn(t *testing.T) {
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	kept := []byte{24, 10, 0, 1}
@@ -232,9 +232,9 @@ func TestRFC4271WithdrawRemovesFromAdjRIBIn(t *testing.T) {
 	require.Equal(t, 2, rib.Len())
 
 	rib.Remove(gone)
-	_, ok := rib.LookupEntry(gone)
+	_, ok := rib.lookupEntry(gone)
 	assert.False(t, ok, "withdrawn route removed from the Adj-RIB-In")
-	_, ok = rib.LookupEntry(kept)
+	_, ok = rib.lookupEntry(kept)
 	assert.True(t, ok, "an unrelated prefix is untouched by the withdrawal")
 	assert.Equal(t, 1, rib.Len())
 }

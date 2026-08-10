@@ -48,11 +48,11 @@ func (m *Message) Kind() byte {
 	return 0
 }
 
-// IsKeepalive returns true if this is a KEEPALIVE message.
-func (m *Message) IsKeepalive() bool { return m.Kind() == MsgKEEPALIVE }
+// isKeepalive returns true if this is a KEEPALIVE message.
+func (m *Message) isKeepalive() bool { return m.Kind() == MsgKEEPALIVE }
 
-// IsUpdate returns true if this is an UPDATE message.
-func (m *Message) IsUpdate() bool { return m.Kind() == MsgUPDATE }
+// isUpdate returns true if this is an UPDATE message.
+func (m *Message) isUpdate() bool { return m.Kind() == MsgUPDATE }
 
 // IsEOR returns true if this is an End-of-RIB marker (RFC 4724 Section 2).
 //
@@ -81,7 +81,7 @@ func (m *Message) IsUpdate() bool { return m.Kind() == MsgUPDATE }
 // MP_UNREACH_NLRI carrying nothing but AFI and SAFI, with no withdrawn routes
 // and no NLRI. Anything else is an ordinary UPDATE, however long it is.
 func (m *Message) IsEOR() bool {
-	if !m.IsUpdate() {
+	if !m.isUpdate() {
 		return false
 	}
 	if len(m.Body) < 4 {
@@ -170,9 +170,9 @@ func KeepaliveMsg() []byte {
 	return msg
 }
 
-// DefaultRouteMsg returns an UPDATE with route 0.0.0.0/32.
+// defaultRouteMsg returns an UPDATE with route 0.0.0.0/32.
 // Used for testing UPDATE receive handling.
-func DefaultRouteMsg() []byte {
+func defaultRouteMsg() []byte {
 	return []byte{
 		// BGP Header (16 bytes marker + 2 bytes length + 1 byte type)
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,

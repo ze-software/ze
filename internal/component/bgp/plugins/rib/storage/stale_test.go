@@ -27,7 +27,7 @@ func TestRouteEntry_StaleLevelDefault(t *testing.T) {
 func TestFamilyRIB_MarkStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -40,15 +40,15 @@ func TestFamilyRIB_MarkStale(t *testing.T) {
 	rib.Insert(attrs, nlri3, true)
 
 	// Before marking: all fresh
-	entry1, _ := rib.LookupEntry(nlri1)
+	entry1, _ := rib.lookupEntry(nlri1)
 	assert.Equal(t, StaleLevelFresh, entry1.StaleLevel)
 
 	rib.MarkStale(1) // level 1 (GR-stale equivalent)
 
 	// After marking: all at level 1
-	entry1, _ = rib.LookupEntry(nlri1)
-	entry2, _ := rib.LookupEntry(nlri2)
-	entry3, _ := rib.LookupEntry(nlri3)
+	entry1, _ = rib.lookupEntry(nlri1)
+	entry2, _ := rib.lookupEntry(nlri2)
+	entry3, _ := rib.lookupEntry(nlri3)
 	assert.Equal(t, uint8(1), entry1.StaleLevel, "route 1 should be at level 1")
 	assert.Equal(t, uint8(1), entry2.StaleLevel, "route 2 should be at level 1")
 	assert.Equal(t, uint8(1), entry3.StaleLevel, "route 3 should be at level 1")
@@ -64,7 +64,7 @@ func TestFamilyRIB_MarkStale(t *testing.T) {
 func TestFamilyRIB_MarkStaleHigherLevel(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -72,7 +72,7 @@ func TestFamilyRIB_MarkStaleHigherLevel(t *testing.T) {
 
 	rib.MarkStale(2) // level 2 (LLGR-stale equivalent)
 
-	entry, _ := rib.LookupEntry([]byte{24, 10, 0, 0})
+	entry, _ := rib.lookupEntry([]byte{24, 10, 0, 0})
 	assert.Equal(t, uint8(2), entry.StaleLevel)
 }
 
@@ -83,7 +83,7 @@ func TestFamilyRIB_MarkStaleHigherLevel(t *testing.T) {
 func TestFamilyRIB_PurgeStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -103,7 +103,7 @@ func TestFamilyRIB_PurgeStale(t *testing.T) {
 	rib.Insert(freshAttrs, freshNLRI, true)
 
 	// freshNLRI should be fresh (new entry replaces stale one)
-	freshEntry, ok := rib.LookupEntry(freshNLRI)
+	freshEntry, ok := rib.lookupEntry(freshNLRI)
 	require.True(t, ok)
 	assert.Equal(t, StaleLevelFresh, freshEntry.StaleLevel, "replaced route should be fresh")
 
@@ -113,10 +113,10 @@ func TestFamilyRIB_PurgeStale(t *testing.T) {
 	assert.Equal(t, 1, rib.Len(), "should have 1 route remaining")
 
 	// staleNLRI gone, freshNLRI remains
-	_, ok = rib.LookupEntry(staleNLRI)
+	_, ok = rib.lookupEntry(staleNLRI)
 	assert.False(t, ok, "stale route should be gone")
 
-	_, ok = rib.LookupEntry(freshNLRI)
+	_, ok = rib.lookupEntry(freshNLRI)
 	assert.True(t, ok, "fresh route should remain")
 }
 
@@ -127,7 +127,7 @@ func TestFamilyRIB_PurgeStale(t *testing.T) {
 func TestFamilyRIB_PurgeStaleEmpty(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -150,7 +150,7 @@ func TestFamilyRIB_PurgeStaleEmpty(t *testing.T) {
 func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -159,7 +159,7 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	rib.Insert(attrs, nlriBytes, true)
 	rib.MarkStale(1)
 
-	entry, _ := rib.LookupEntry(nlriBytes)
+	entry, _ := rib.lookupEntry(nlriBytes)
 	assert.Equal(t, uint8(1), entry.StaleLevel, "should be stale after mark")
 
 	// Re-insert with different attrs (implicit withdraw + fresh insert)
@@ -167,7 +167,7 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	newAttrs := concat(wireOriginIGP, wireLocalPref100, wireMED20)
 	rib.Insert(newAttrs, nlriBytes, true)
 
-	entry, _ = rib.LookupEntry(nlriBytes)
+	entry, _ = rib.lookupEntry(nlriBytes)
 	assert.Equal(t, StaleLevelFresh, entry.StaleLevel, "should be fresh after re-insert")
 }
 
@@ -183,7 +183,7 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -195,11 +195,11 @@ func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 	// Insert a NEW route (not replacing an existing one)
 	rib.Insert(attrs, []byte{24, 10, 0, 1}, true)
 
-	newEntry, ok := rib.LookupEntry([]byte{24, 10, 0, 1})
+	newEntry, ok := rib.lookupEntry([]byte{24, 10, 0, 1})
 	require.True(t, ok)
 	assert.Equal(t, StaleLevelFresh, newEntry.StaleLevel, "new route should be fresh")
 
-	oldEntry, _ := rib.LookupEntry([]byte{24, 10, 0, 0})
+	oldEntry, _ := rib.lookupEntry([]byte{24, 10, 0, 0})
 	assert.Equal(t, uint8(1), oldEntry.StaleLevel, "old route should still be stale")
 }
 
@@ -210,7 +210,7 @@ func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 func TestFamilyRIB_StaleCount(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -250,7 +250,7 @@ func TestPeerRIB_MarkFamilyStale(t *testing.T) {
 	rib.Insert(family.IPv4Unicast, attrs, v4prefix, true)
 	rib.Insert(family.IPv6Unicast, attrs, v6prefix, true)
 
-	rib.MarkFamilyStale(family.IPv4Unicast, 1)
+	rib.markFamilyStale(family.IPv4Unicast, 1)
 
 	// IPv4 should be stale
 	v4entry, ok := rib.Lookup(family.IPv4Unicast, v4prefix)
@@ -386,7 +386,7 @@ func TestPeerRIB_MarkFamilyStaleNonExistent(t *testing.T) {
 	defer rib.Release()
 
 	// Should not crash
-	rib.MarkFamilyStale(family.IPv4Unicast, 1)
+	rib.markFamilyStale(family.IPv4Unicast, 1)
 	assert.Equal(t, 0, rib.StaleCount())
 }
 

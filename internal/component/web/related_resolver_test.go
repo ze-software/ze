@@ -62,7 +62,7 @@ func buildGroupPeerTree(t *testing.T, groupName, peerName, groupIP, peerIP strin
 
 func mustResolve(t *testing.T, schema *config.Schema, tree *config.Tree, tool *config.RelatedTool, contextPath []string) *Resolution {
 	t.Helper()
-	r := NewRelatedResolver(schema, tree)
+	r := newRelatedResolver(schema, tree)
 	res, err := r.Resolve(tool, contextPath)
 	require.NoError(t, err)
 	return res
@@ -171,7 +171,7 @@ func TestRelatedToolResolve_RejectsUnsafeValue(t *testing.T) {
 		Label:   "Peer Detail",
 		Command: "peer ${path:connection/remote/ip|key} detail",
 	}
-	r := NewRelatedResolver(schema, tree)
+	r := newRelatedResolver(schema, tree)
 	_, err = r.Resolve(tool, []string{"bgp", "peer", "thomas"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsafe")
@@ -192,7 +192,7 @@ func TestRelatedToolResolve_PathDepthExceeded(t *testing.T) {
 		Label:   "Peer Detail",
 		Command: "peer ${path:" + deepPath + "} detail",
 	}
-	r := NewRelatedResolver(schema, tree)
+	r := newRelatedResolver(schema, tree)
 	_, err = r.Resolve(tool, []string{"bgp", "peer", "thomas"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "depth")
@@ -213,7 +213,7 @@ func TestRelatedToolResolve_DisabledOnMissingValue(t *testing.T) {
 		Command: "peer ${path:connection/remote/ip} detail", // no |key fallback
 		Empty:   config.RelatedEmptyDisable,
 	}
-	r := NewRelatedResolver(schema, tree)
+	r := newRelatedResolver(schema, tree)
 	res, err := r.Resolve(tool, []string{"bgp", "peer", "thomas"})
 	require.NoError(t, err)
 	assert.True(t, res.Disabled, "tool must be disabled when placeholder unresolvable")
@@ -247,7 +247,7 @@ func TestRelatedToolResolve_ResolvedCommandLengthLimit(t *testing.T) {
 		Label:   "X",
 		Command: cmd.String(),
 	}
-	r := NewRelatedResolver(schema, tree)
+	r := newRelatedResolver(schema, tree)
 	_, err = r.Resolve(tool, []string{"bgp", "peer", longKey})
 	require.Error(t, err, "resolver must reject when resolved command exceeds 4096 chars")
 }
@@ -328,7 +328,7 @@ func TestRelatedToolResolve_EmptyAllowCollapsesGap(t *testing.T) {
 		Command: "peer ${path:connection/remote/ip} detail",
 		Empty:   config.RelatedEmptyAllow,
 	}
-	r := NewRelatedResolver(schema, tree)
+	r := newRelatedResolver(schema, tree)
 	res, err := r.Resolve(tool, []string{"bgp", "peer", "thomas"})
 	require.NoError(t, err)
 	require.False(t, res.Disabled)

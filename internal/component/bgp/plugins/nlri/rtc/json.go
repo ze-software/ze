@@ -16,7 +16,7 @@ import (
 // Format: {"is-default":bool,"origin-as":N,"route-target":"..."}.
 func (r *RTC) AppendJSON(buf []byte) []byte {
 	buf = append(buf, `{"is-default":`...)
-	if r.IsDefault() {
+	if r.isDefault() {
 		buf = append(buf, "true"...)
 	} else {
 		buf = append(buf, "false"...)

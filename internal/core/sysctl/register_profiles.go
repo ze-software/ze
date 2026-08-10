@@ -9,7 +9,7 @@ func init() {
 		MustRegisterProfile(p)
 	}
 	for _, r := range builtinConflicts {
-		RegisterConflict(r)
+		registerConflict(r)
 	}
 }
 

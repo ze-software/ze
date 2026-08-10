@@ -11,13 +11,13 @@ import (
 // FlowSetHeaderSize is the size of a FlowSet header (ID + Length).
 const FlowSetHeaderSize = 4
 
-// WriteDataFlowSet writes a data FlowSet for interface counter records
+// writeDataFlowSet writes a data FlowSet for interface counter records
 // into buf at the given offset. Returns (bytes written, record count).
 //
 // RFC 3954: Data FlowSet ID = the template ID it references (256+).
 // Layout: FlowSet ID (2) + Length (2) + records + padding.
 // Length is backfilled after all records are written.
-func WriteDataFlowSet(buf []byte, off int, templateID uint16, ifaces []flowexport.InterfaceCounters) (int, uint16) {
+func writeDataFlowSet(buf []byte, off int, templateID uint16, ifaces []flowexport.InterfaceCounters) (int, uint16) {
 	start := off
 	recSize := CounterRecordSize()
 

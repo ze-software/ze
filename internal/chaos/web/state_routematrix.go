@@ -65,8 +65,8 @@ type RouteMatrix struct {
 	statUnmatched   int // receives with no available sender
 }
 
-// NewRouteMatrix creates an empty route matrix.
-func NewRouteMatrix() *RouteMatrix {
+// newRouteMatrix creates an empty route matrix.
+func newRouteMatrix() *RouteMatrix {
 	return &RouteMatrix{
 		cells:            make(map[[2]int]int),
 		cellLatencySum:   make(map[[2]int]time.Duration),
@@ -80,11 +80,11 @@ func NewRouteMatrix() *RouteMatrix {
 	}
 }
 
-// RecordSent records that a peer announced a prefix (for source inference).
+// recordSent records that a peer announced a prefix (for source inference).
 // Evicts prefix tracking data when the map exceeds maxPrefixTracking to
 // bound memory. Also tracks per-family per-peer send counts for the credit
 // fallback mechanism. Cumulative cell counters are preserved across evictions.
-func (m *RouteMatrix) RecordSent(peerIndex int, prefix netip.Prefix, t time.Time) {
+func (m *RouteMatrix) recordSent(peerIndex int, prefix netip.Prefix, t time.Time) {
 	m.statSentCalls++
 	if len(m.routeOrigins) >= maxPrefixTracking {
 		m.routeOrigins = make(map[netip.Prefix]int, maxPrefixTracking/2)
@@ -98,11 +98,11 @@ func (m *RouteMatrix) RecordSent(peerIndex int, prefix netip.Prefix, t time.Time
 	m.trackFamilySent(peerIndex, fam)
 }
 
-// RecordReceived records that a peer received a prefix and updates the matrix.
+// recordReceived records that a peer received a prefix and updates the matrix.
 // Returns the propagation latency (zero if unavailable). Two-tier matching:
 //  1. Prefix match: exact source + latency from routeOrigins/sentTimes.
 //  2. Credit match: approximate source from family send counts. No latency.
-func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.Time) time.Duration {
+func (m *RouteMatrix) recordReceived(destPeer int, prefix netip.Prefix, t time.Time) time.Duration {
 	m.statRecvCalls++
 	fam := prefixFamily(prefix)
 
@@ -121,16 +121,16 @@ func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.T
 	return 0
 }
 
-// RecordNonUnicastSent records that a peer sent a non-unicast route in the
+// recordNonUnicastSent records that a peer sent a non-unicast route in the
 // given family. Uses the unified family send tracking.
-func (m *RouteMatrix) RecordNonUnicastSent(peerIndex int, family string) {
+func (m *RouteMatrix) recordNonUnicastSent(peerIndex int, family string) {
 	m.statSentCalls++
 	m.trackFamilySent(peerIndex, family)
 }
 
-// RecordNonUnicastReceived records that a peer received a non-unicast route
+// recordNonUnicastReceived records that a peer received a non-unicast route
 // in the given family. Uses credit-based matching to infer the source.
-func (m *RouteMatrix) RecordNonUnicastReceived(destPeer int, family string) {
+func (m *RouteMatrix) recordNonUnicastReceived(destPeer int, family string) {
 	m.statRecvCalls++
 	if m.creditMatch(destPeer, family) {
 		m.statCreditMatch++
@@ -278,9 +278,9 @@ func (m *RouteMatrix) Families() []string {
 	return fams
 }
 
-// GetByFamily returns the route count for a specific family from source to dest.
+// getByFamily returns the route count for a specific family from source to dest.
 // Returns the total count if family is empty.
-func (m *RouteMatrix) GetByFamily(source, dest int, family string) int {
+func (m *RouteMatrix) getByFamily(source, dest int, family string) int {
 	if family == "" {
 		return m.cells[[2]int{source, dest}]
 	}
@@ -314,8 +314,8 @@ func (m *RouteMatrix) AvgLatency(source, dest int) time.Duration {
 	return m.cellLatencySum[key] / time.Duration(count)
 }
 
-// MaxAvgLatency returns the maximum average latency across all cells (for scaling).
-func (m *RouteMatrix) MaxAvgLatency() time.Duration {
+// maxAvgLatency returns the maximum average latency across all cells (for scaling).
+func (m *RouteMatrix) maxAvgLatency() time.Duration {
 	var max time.Duration
 	for key, count := range m.cellLatencyCount {
 		if count == 0 {
@@ -334,8 +334,8 @@ func (m *RouteMatrix) Get(source, dest int) int {
 	return m.cells[[2]int{source, dest}]
 }
 
-// TopNPeers returns the top N peer indices sorted by total route involvement.
-func (m *RouteMatrix) TopNPeers(n int) []int {
+// topNPeers returns the top N peer indices sorted by total route involvement.
+func (m *RouteMatrix) topNPeers(n int) []int {
 	type peerCount struct {
 		index int
 		count int
@@ -376,8 +376,8 @@ func (m *RouteMatrix) TopNPeers(n int) []int {
 	return result
 }
 
-// MaxCell returns the maximum cell value across all cells (for scaling colors).
-func (m *RouteMatrix) MaxCell() int {
+// maxCell returns the maximum cell value across all cells (for scaling colors).
+func (m *RouteMatrix) maxCell() int {
 	max := 0
 	for _, v := range m.cells {
 		if v > max {

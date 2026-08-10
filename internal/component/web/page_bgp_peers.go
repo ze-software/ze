@@ -143,10 +143,10 @@ func peerFlagFromState(pe peerEntry, state string) (string, string) {
 	}
 }
 
-// BuildBGPPeersTableData constructs a WorkbenchTableData from a list
+// buildBGPPeersTableData constructs a WorkbenchTableData from a list
 // of peer entries. filterGroup restricts the table to peers in that group.
 // live provides operational state from "show bgp summary" (nil when unavailable).
-func BuildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[string]bgpSummaryPeer) WorkbenchTableData {
+func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "remote-ip", Label: "Remote IP", Sortable: true},
@@ -245,16 +245,16 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 	}
 }
 
-// HandleBGPPeersPage renders the BGP peers table within the workbench.
-func HandleBGPPeersPage(renderer *Renderer, r *http.Request, viewTree *config.Tree, filterGroup string, dispatch CommandDispatcher) template.HTML {
+// handleBGPPeersPage renders the BGP peers table within the workbench.
+func handleBGPPeersPage(renderer *Renderer, r *http.Request, viewTree *config.Tree, filterGroup string, dispatch CommandDispatcher) template.HTML {
 	peers := collectPeers(viewTree)
 	live := fetchBGPSummaryPeers(r, dispatch)
-	tableData := BuildBGPPeersTableData(peers, filterGroup, live)
+	tableData := buildBGPPeersTableData(peers, filterGroup, live)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
-// BuildBGPPeerDetailData constructs a WorkbenchDetailData for a single peer.
-func BuildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
+// buildBGPPeerDetailData constructs a WorkbenchDetailData for a single peer.
+func buildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
 	configHTML := buildPeerConfigHTML(pe)
 	statusHTML := buildPeerStatusHTML(pe)
 	actionsHTML := buildPeerActionsHTML(pe)

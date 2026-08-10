@@ -36,7 +36,7 @@ func parsePeerAddrToKey(s string) netip.AddrPort {
 // Must be called with r.mu held (RLock or Lock).
 func (r *Reactor) findPeerByAddr(addr netip.Addr) (*Peer, bool) {
 	// Fast path: default port (standard BGP)
-	if peer, ok := r.peers[PeerKeyFromAddrPort(addr, DefaultBGPPort)]; ok {
+	if peer, ok := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]; ok {
 		return peer, true
 	}
 	// Slow path: search by IP (custom per-peer ports)
@@ -51,7 +51,7 @@ func (r *Reactor) findPeerByAddr(addr netip.Addr) (*Peer, bool) {
 // findPeerKeyByAddr looks up a peer's map key and peer by address.
 // Must be called with r.mu held.
 func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (netip.AddrPort, *Peer, bool) {
-	key := PeerKeyFromAddrPort(addr, DefaultBGPPort)
+	key := peerKeyFromAddrPort(addr, DefaultBGPPort)
 	if peer, ok := r.peers[key]; ok {
 		return key, peer, true
 	}
@@ -131,7 +131,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Default to 4K (standard); re-registered with 64K in notifyPeerEstablished
 	// if Extended Message (RFC 8654) is negotiated.
 	if r.fwdPool != nil {
-		r.fwdPool.RegisterOutgoingPool(fwdKey{peerAddr: key}, message.MaxMsgLen)
+		r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: key}, message.MaxMsgLen)
 	}
 
 	// Update Prometheus gauges if metrics are configured.
@@ -330,7 +330,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 
 	// Clean up source stats so disconnected peers don't accumulate in srcStats.
 	if r.fwdPool != nil {
-		r.fwdPool.RemoveSourceStats(peer.Settings().Address)
+		r.fwdPool.removeSourceStats(peer.Settings().Address)
 	}
 
 	// Remove peer's prefix demand from pool auto-sizing (AC-28).
@@ -340,7 +340,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 
 	// Unregister per-peer pool on session teardown.
 	if r.fwdPool != nil {
-		r.fwdPool.UnregisterOutgoingPool(fwdKey{peerAddr: key})
+		r.fwdPool.unregisterOutgoingPool(fwdKey{peerAddr: key})
 	}
 
 	// Check if any other peer uses this listener (same LocalAddress + port)

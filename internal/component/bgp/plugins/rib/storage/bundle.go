@@ -52,9 +52,9 @@ func (b Bundle) HasMED() bool              { return b.MED.IsValid() }
 func (b Bundle) HasAtomicAggregate() bool  { return b.AtomicAggregate.IsValid() }
 func (b Bundle) HasAggregator() bool       { return b.Aggregator.IsValid() }
 func (b Bundle) HasCommunities() bool      { return b.Communities.IsValid() }
-func (b Bundle) HasLargeCommunities() bool { return b.LargeCommunities.IsValid() }
-func (b Bundle) HasExtCommunities() bool   { return b.ExtCommunities.IsValid() }
-func (b Bundle) HasClusterList() bool      { return b.ClusterList.IsValid() }
+func (b Bundle) hasLargeCommunities() bool { return b.LargeCommunities.IsValid() }
+func (b Bundle) hasExtCommunities() bool   { return b.ExtCommunities.IsValid() }
+func (b Bundle) hasClusterList() bool      { return b.ClusterList.IsValid() }
 func (b Bundle) HasOriginatorID() bool     { return b.OriginatorID.IsValid() }
 func (b Bundle) HasOtherAttrs() bool       { return b.OtherAttrs.IsValid() }
 
@@ -178,10 +178,10 @@ type BundlePool struct {
 }
 
 // Bundles is the global BundlePool instance.
-var Bundles = NewBundlePool()
+var Bundles = newBundlePool()
 
-// NewBundlePool creates a BundlePool.
-func NewBundlePool() *BundlePool {
+// newBundlePool creates a BundlePool.
+func newBundlePool() *BundlePool {
 	return &BundlePool{
 		index: make(map[Bundle]uint32),
 	}

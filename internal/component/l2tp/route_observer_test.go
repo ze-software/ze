@@ -58,7 +58,7 @@ func (b *recordingBus) events() []emittedEvent {
 func TestRegisterL2TPSourcesRegistersSource(t *testing.T) {
 	// sync.Once means the registration may already have happened in
 	// another test. Call it explicitly, then assert lookup.
-	RegisterL2TPSources()
+	registerL2TPSources()
 
 	src, ok := redistribute.LookupSource("l2tp")
 	require.True(t, ok, "l2tp source must be registered")

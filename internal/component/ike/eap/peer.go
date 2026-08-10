@@ -101,7 +101,7 @@ func NewPeerSession(method uint8, identity, password string) *PeerSession {
 		password: password,
 		method:   method,
 		state:    peerStateIdentity,
-		userName: StripDomain(identity),
+		userName: stripDomain(identity),
 	}
 }
 
@@ -111,7 +111,7 @@ func NewPeerSessionTLS(identity string, cfg *PeerTLSConfig) *PeerSession {
 		identity: identity,
 		method:   TypeTLS,
 		state:    peerStateIdentity,
-		userName: StripDomain(identity),
+		userName: stripDomain(identity),
 		tlsCfg:   cfg,
 	}
 }

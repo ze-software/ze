@@ -189,8 +189,8 @@ func NewResponse(status string, data ResponseData) *Response {
 	}
 }
 
-// NewErrorResponse creates an error Response with the given message.
-func NewErrorResponse(message string) *Response {
+// newErrorResponse creates an error Response with the given message.
+func newErrorResponse(message string) *Response {
 	return &Response{
 		Status: StatusError,
 		Error:  message,
@@ -302,9 +302,9 @@ func (e WireEncoding) String() string {
 	}
 }
 
-// ParseWireEncoding converts a string to WireEncoding.
+// parseWireEncoding converts a string to WireEncoding.
 // Returns error for unknown encodings.
-func ParseWireEncoding(s string) (WireEncoding, error) {
+func parseWireEncoding(s string) (WireEncoding, error) {
 	switch s {
 	case wireEncHex:
 		return WireEncodingHex, nil

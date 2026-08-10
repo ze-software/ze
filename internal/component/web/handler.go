@@ -48,8 +48,8 @@ const (
 	formatHTML = "html"
 )
 
-// ParsedURL holds the decomposed parts of a request URL.
-type ParsedURL struct {
+// parsedURL holds the decomposed parts of a request URL.
+type parsedURL struct {
 	// Tier is the authorization tier derived from the URL prefix.
 	Tier Tier
 	// Verb is the action: "show", "monitor", "edit", "set", "delete", "commit", "discard", "compare", or "admin".
@@ -89,14 +89,14 @@ var knownPrefixes = map[string]bool{
 // ParseURL parses an HTTP request URL into a ParsedURL.
 // It extracts the tier, verb, YANG path segments, and negotiated format.
 // Returns an error for unrecognized prefixes or invalid config verbs.
-func ParseURL(r *http.Request) (ParsedURL, error) {
+func ParseURL(r *http.Request) (parsedURL, error) {
 	format := NegotiateContentType(r)
 
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	path = strings.TrimSuffix(path, "/")
 
 	if path == "" {
-		return ParsedURL{Tier: TierView, Verb: "show", Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: "show", Format: format}, nil
 	}
 
 	parts := strings.SplitN(path, "/", 2)
@@ -107,7 +107,7 @@ func ParseURL(r *http.Request) (ParsedURL, error) {
 	}
 
 	if !knownPrefixes[prefix] {
-		return ParsedURL{}, fmt.Errorf("unknown URL prefix: %q", prefix)
+		return parsedURL{}, fmt.Errorf("unknown URL prefix: %q", prefix)
 	}
 
 	var segments []string
@@ -118,56 +118,56 @@ func ParseURL(r *http.Request) (ParsedURL, error) {
 	switch prefix {
 	case "show":
 		if err := ValidatePathSegments(segments); err != nil {
-			return ParsedURL{}, err
+			return parsedURL{}, err
 		}
-		return ParsedURL{Tier: TierView, Verb: "show", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: "show", Path: segments, Format: format}, nil
 
 	case "monitor":
 		if err := ValidatePathSegments(segments); err != nil {
-			return ParsedURL{}, err
+			return parsedURL{}, err
 		}
-		return ParsedURL{Tier: TierView, Verb: "monitor", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: "monitor", Path: segments, Format: format}, nil
 
 	case "config":
 		return parseConfigURL(segments, format)
 
 	case "admin":
 		if err := ValidatePathSegments(segments); err != nil {
-			return ParsedURL{}, err
+			return parsedURL{}, err
 		}
-		return ParsedURL{Tier: TierAdmin, Verb: "admin", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierAdmin, Verb: "admin", Path: segments, Format: format}, nil
 
 	case "portal":
-		return ParsedURL{Tier: TierView, Verb: "portal", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: "portal", Path: segments, Format: format}, nil
 
 	case "login":
-		return ParsedURL{Verb: "login", Format: format}, nil
+		return parsedURL{Verb: "login", Format: format}, nil
 
 	case "assets":
-		return ParsedURL{Verb: "assets", Path: segments, Format: format}, nil
+		return parsedURL{Verb: "assets", Path: segments, Format: format}, nil
 	}
 
 	// Unreachable: knownPrefixes check above guarantees prefix is in the switch.
-	return ParsedURL{}, fmt.Errorf("unknown URL prefix: %q", prefix)
+	return parsedURL{}, fmt.Errorf("unknown URL prefix: %q", prefix)
 }
 
 // parseConfigURL handles /config/<verb>/<yang-path> URLs.
-func parseConfigURL(segments []string, format string) (ParsedURL, error) {
+func parseConfigURL(segments []string, format string) (parsedURL, error) {
 	if len(segments) == 0 {
-		return ParsedURL{}, errMissingConfigVerbExpectedConfigVerb
+		return parsedURL{}, errMissingConfigVerbExpectedConfigVerb
 	}
 
 	verb := segments[0]
 	if !configVerbs[verb] {
-		return ParsedURL{}, fmt.Errorf("unknown config verb: %q", verb)
+		return parsedURL{}, fmt.Errorf("unknown config verb: %q", verb)
 	}
 
 	yangSegments := segments[1:]
 	if err := ValidatePathSegments(yangSegments); err != nil {
-		return ParsedURL{}, err
+		return parsedURL{}, err
 	}
 
-	return ParsedURL{Tier: TierConfig, Verb: verb, Path: yangSegments, Format: format}, nil
+	return parsedURL{Tier: TierConfig, Verb: verb, Path: yangSegments, Format: format}, nil
 }
 
 // ValidatePathSegments rejects path segments that are unsafe or invalid

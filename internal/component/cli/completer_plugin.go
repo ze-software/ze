@@ -4,9 +4,9 @@
 
 package cli
 
-// PluginCompleter provides tab completion for plugin SDK methods.
+// pluginCompleter provides tab completion for plugin SDK methods.
 // Used by `ze bgp plugin cli` interactive mode after 5-stage negotiation.
-type PluginCompleter struct {
+type pluginCompleter struct {
 	methods []pluginMethod
 }
 
@@ -30,13 +30,13 @@ var pluginSDKMethods = []pluginMethod{
 	{name: "bye", help: "Signal clean shutdown", args: "[reason]"},
 }
 
-// NewPluginCompleter creates a completer for plugin SDK methods.
-func NewPluginCompleter() *PluginCompleter {
-	return &PluginCompleter{methods: pluginSDKMethods}
+// newPluginCompleter creates a completer for plugin SDK methods.
+func newPluginCompleter() *pluginCompleter {
+	return &pluginCompleter{methods: pluginSDKMethods}
 }
 
 // Complete returns completions for the given input.
-func (c *PluginCompleter) Complete(input string) []Completion {
+func (c *pluginCompleter) Complete(input string) []Completion {
 	if input == "" {
 		comps := make([]Completion, len(c.methods))
 		for i, m := range c.methods {
@@ -61,7 +61,7 @@ func (c *PluginCompleter) Complete(input string) []Completion {
 }
 
 // GhostText returns the best single completion for inline display.
-func (c *PluginCompleter) GhostText(input string) string {
+func (c *pluginCompleter) GhostText(input string) string {
 	if input == "" {
 		return ""
 	}

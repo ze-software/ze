@@ -17,7 +17,7 @@ import (
 //
 // PREVENTS: Handler auto-starting or with invalid state.
 func TestSignalHandlerNew(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	require.NotNil(t, handler, "NewSignalHandler must return non-nil")
 	require.False(t, handler.Running(), "handler should not be running initially")
@@ -29,7 +29,7 @@ func TestSignalHandlerNew(t *testing.T) {
 //
 // PREVENTS: Resource leaks or goroutine leaks on stop.
 func TestSignalHandlerStartStop(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	handler.Start()
 	require.True(t, handler.Running(), "handler should be running after Start")
@@ -50,7 +50,7 @@ func TestSignalHandlerStartStop(t *testing.T) {
 //
 // PREVENTS: Missing shutdown signal handling.
 func TestSignalHandlerSIGTERM(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	var called atomic.Bool
 	handler.OnShutdown(func() {
@@ -73,7 +73,7 @@ func TestSignalHandlerSIGTERM(t *testing.T) {
 //
 // PREVENTS: Missing config reload signal handling.
 func TestSignalHandlerSIGHUP(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	var called atomic.Bool
 	handler.OnReload(func() {
@@ -96,7 +96,7 @@ func TestSignalHandlerSIGHUP(t *testing.T) {
 //
 // PREVENTS: Missing status dump signal handling.
 func TestSignalHandlerSIGUSR1(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	var called atomic.Bool
 	handler.OnStatus(func() {
@@ -119,7 +119,7 @@ func TestSignalHandlerSIGUSR1(t *testing.T) {
 //
 // PREVENTS: Orphaned goroutines when parent context is canceled.
 func TestSignalHandlerContextCancellation(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -144,7 +144,7 @@ func TestSignalHandlerContextCancellation(t *testing.T) {
 //
 // PREVENTS: Signal handling interference.
 func TestSignalHandlerMultipleSignals(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	var reloadCount, statusCount atomic.Int32
 
@@ -181,7 +181,7 @@ func TestSignalHandlerMultipleSignals(t *testing.T) {
 //
 // PREVENTS: Crashes when callbacks not configured.
 func TestSignalHandlerNoCallback(t *testing.T) {
-	handler := NewSignalHandler()
+	handler := newSignalHandler()
 
 	handler.Start()
 	defer handler.Stop()

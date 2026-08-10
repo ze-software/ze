@@ -10,7 +10,7 @@ import (
 
 // TestWorkbenchSections_TwoLevel verifies that sections have Children populated.
 func TestWorkbenchSections_TwoLevel(t *testing.T) {
-	got := WorkbenchSections(nil)
+	got := workbenchSections(nil)
 	for _, s := range got {
 		assert.NotEmpty(t, s.Children, "section %q must have children", s.Key)
 	}
@@ -19,7 +19,7 @@ func TestWorkbenchSections_TwoLevel(t *testing.T) {
 // TestWorkbenchSections_TwoLevel_ChildSelected navigates to /show/bgp/peer/
 // and verifies the "Peers" child is selected and the "Routing" parent is expanded.
 func TestWorkbenchSections_TwoLevel_ChildSelected(t *testing.T) {
-	got := WorkbenchSections([]string{"bgp", "peer"})
+	got := workbenchSections([]string{"bgp", "peer"})
 
 	var routing *WorkbenchSection
 	for i := range got {
@@ -46,7 +46,7 @@ func TestWorkbenchSections_TwoLevel_ChildSelected(t *testing.T) {
 // TestWorkbenchSections_TwoLevel_SectionCollapse verifies that sections other
 // than the active one have Expanded=false.
 func TestWorkbenchSections_TwoLevel_SectionCollapse(t *testing.T) {
-	got := WorkbenchSections([]string{"bgp", "peer"})
+	got := workbenchSections([]string{"bgp", "peer"})
 
 	for _, s := range got {
 		if s.Key == "routing" {
@@ -60,7 +60,7 @@ func TestWorkbenchSections_TwoLevel_SectionCollapse(t *testing.T) {
 // TestWorkbenchSections_TwoLevel_DashboardDefault verifies that the root path
 // selects Dashboard and its Overview child.
 func TestWorkbenchSections_TwoLevel_DashboardDefault(t *testing.T) {
-	got := WorkbenchSections(nil)
+	got := workbenchSections(nil)
 
 	var dash *WorkbenchSection
 	for i := range got {
@@ -79,7 +79,7 @@ func TestWorkbenchSections_TwoLevel_DashboardDefault(t *testing.T) {
 
 // TestWorkbenchSections_TwoLevel_AllSectionsPresent verifies all 11 sections exist.
 func TestWorkbenchSections_TwoLevel_AllSectionsPresent(t *testing.T) {
-	got := WorkbenchSections(nil)
+	got := workbenchSections(nil)
 
 	wantKeys := []string{
 		"dashboard", "interfaces", "ip", "routing", "policy",
@@ -97,7 +97,7 @@ func TestWorkbenchSections_TwoLevel_AllSectionsPresent(t *testing.T) {
 // TestWorkbenchSections_InterfaceSubNav verifies that the Interfaces section
 // has sub-entries for All, Ethernet, Bridge, VLAN, Tunnel, Traffic.
 func TestWorkbenchSections_InterfaceSubNav(t *testing.T) {
-	got := WorkbenchSections([]string{"iface"})
+	got := workbenchSections([]string{"iface"})
 
 	var ifaces *WorkbenchSection
 	for i := range got {
@@ -121,7 +121,7 @@ func TestWorkbenchSections_InterfaceSubNav(t *testing.T) {
 // TestWorkbenchSectionsToolsURL verifies that Tools section URLs point to
 // /show/tools/ (not /admin/), and that the section is selected for tool paths.
 func TestWorkbenchSectionsToolsURL(t *testing.T) {
-	got := WorkbenchSections([]string{segTools, "ping"})
+	got := workbenchSections([]string{segTools, "ping"})
 
 	var tools *WorkbenchSection
 	for i := range got {
@@ -144,7 +144,7 @@ func TestWorkbenchSectionsToolsURL(t *testing.T) {
 // TestWorkbenchSectionsLogsURL verifies that Logs section URLs point to
 // /show/logs/ (not /admin/), and that the section is selected for log paths.
 func TestWorkbenchSectionsLogsURL(t *testing.T) {
-	got := WorkbenchSections([]string{segLogs, "live"})
+	got := workbenchSections([]string{segLogs, "live"})
 
 	var logs *WorkbenchSection
 	for i := range got {
@@ -167,7 +167,7 @@ func TestWorkbenchSectionsLogsURL(t *testing.T) {
 // TestWorkbenchSections_IPSubNav verifies that the IP section has sub-entries
 // for Addresses, Routes, DNS.
 func TestWorkbenchSections_IPSubNav(t *testing.T) {
-	got := WorkbenchSections([]string{"ip", "addresses"})
+	got := workbenchSections([]string{"ip", "addresses"})
 
 	var ip *WorkbenchSection
 	for i := range got {

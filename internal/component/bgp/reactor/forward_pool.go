@@ -424,33 +424,33 @@ func (fp *fwdPool) SetClock(c clock.Clock) {
 	fp.clock = c
 }
 
-// SetOverflowMux sets the shared overflow MixedBufMux for the pool.
+// setOverflowMux sets the shared overflow MixedBufMux for the pool.
 // When set, overflow dispatch acquires buffer handles from this mux.
 // Must be called before concurrent use.
-func (fp *fwdPool) SetOverflowMux(m *MixedBufMux) {
+func (fp *fwdPool) setOverflowMux(m *MixedBufMux) {
 	fp.overflowMux = m
 }
 
-// RegisterOutgoingPool creates an Outgoing Peer Pool for the given destination peer.
+// registerOutgoingPool creates an Outgoing Peer Pool for the given destination peer.
 // bufSize is the negotiated message size (4K standard, 64K ExtMsg).
 // Called at session establishment. Safe for concurrent use.
-func (fp *fwdPool) RegisterOutgoingPool(key fwdKey, bufSize int) {
+func (fp *fwdPool) registerOutgoingPool(key fwdKey, bufSize int) {
 	fp.mu.Lock()
 	fp.outgoingPools[key] = newPeerPool(bufSize)
 	fp.mu.Unlock()
 }
 
-// UnregisterOutgoingPool removes the Outgoing Peer Pool for the given destination peer.
+// unregisterOutgoingPool removes the Outgoing Peer Pool for the given destination peer.
 // Called at session teardown. Safe for concurrent use.
-func (fp *fwdPool) UnregisterOutgoingPool(key fwdKey) {
+func (fp *fwdPool) unregisterOutgoingPool(key fwdKey) {
 	fp.mu.Lock()
 	delete(fp.outgoingPools, key)
 	fp.mu.Unlock()
 }
 
-// OutgoingPool returns the Outgoing Peer Pool for the given key, or nil.
+// outgoingPool returns the Outgoing Peer Pool for the given key, or nil.
 // Used by ForwardUpdate to pass to buildModifiedPayload for copy-on-modify.
-func (fp *fwdPool) OutgoingPool(key fwdKey) *peerPool {
+func (fp *fwdPool) outgoingPool(key fwdKey) *peerPool {
 	fp.mu.RLock()
 	pp := fp.outgoingPools[key]
 	fp.mu.RUnlock()
@@ -857,12 +857,12 @@ func (fp *fwdPool) WorkerCount() int {
 	return int(fp.count.Load())
 }
 
-// OverflowDepths returns a snapshot of per-destination-peer overflow depth.
+// overflowDepths returns a snapshot of per-destination-peer overflow depth.
 // Each entry maps peer address string (IP-only, no port) to the number of
 // items currently in its overflow buffer. IP-only format matches the key
 // format used by weightTracker (peerAddrLabel) and Prometheus labels.
 // Called by the metrics update loop; must not block.
-func (fp *fwdPool) OverflowDepths() map[string]int {
+func (fp *fwdPool) overflowDepths() map[string]int {
 	fp.mu.RLock()
 	result := make(map[string]int, len(fp.workers))
 	for _, w := range fp.workers {
@@ -879,20 +879,20 @@ func (fp *fwdPool) OverflowDepths() map[string]int {
 // Returns 0.0 if no overflow mux is configured. Called by the metrics update loop.
 func (fp *fwdPool) PoolUsedRatio() float64 {
 	if fp.overflowMux != nil {
-		return fp.overflowMux.UsedRatio()
+		return fp.overflowMux.usedRatio()
 	}
 	return 0.0
 }
 
-// RecordForwarded increments the forwarded counter for a source peer.
+// recordForwarded increments the forwarded counter for a source peer.
 // Called from ForwardUpdate when TryDispatch succeeds.
-func (fp *fwdPool) RecordForwarded(sourcePeer netip.Addr) {
+func (fp *fwdPool) recordForwarded(sourcePeer netip.Addr) {
 	fp.getSourceStats(sourcePeer).forwarded.Add(1)
 }
 
-// RecordOverflowed increments the overflowed counter for a source peer.
+// recordOverflowed increments the overflowed counter for a source peer.
 // Called from ForwardUpdate when DispatchOverflow is used.
-func (fp *fwdPool) RecordOverflowed(sourcePeer netip.Addr) {
+func (fp *fwdPool) recordOverflowed(sourcePeer netip.Addr) {
 	fp.getSourceStats(sourcePeer).overflowed.Add(1)
 }
 
@@ -908,10 +908,10 @@ func (fp *fwdPool) getSourceStats(sourcePeer netip.Addr) *fwdSourceStats {
 	return s
 }
 
-// SourceOverflowRatios returns per-source-peer overflow ratio: overflowed/(forwarded+overflowed).
+// sourceOverflowRatios returns per-source-peer overflow ratio: overflowed/(forwarded+overflowed).
 // Returns 0.0 for peers with no overflow. Called by the metrics update loop.
 // Keys are string-form addresses for display/metrics consumption.
-func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
+func (fp *fwdPool) sourceOverflowRatios() map[string]float64 {
 	fp.srcStatsMu.Lock()
 	result := make(map[string]float64, len(fp.srcStats))
 	for _, s := range fp.srcStats {
@@ -928,9 +928,9 @@ func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
 	return result
 }
 
-// RemoveSourceStats deletes the source stats entry for a peer.
+// removeSourceStats deletes the source stats entry for a peer.
 // Called on peer disconnect to prevent unbounded srcStats growth.
-func (fp *fwdPool) RemoveSourceStats(sourcePeer netip.Addr) {
+func (fp *fwdPool) removeSourceStats(sourcePeer netip.Addr) {
 	fp.srcStatsMu.Lock()
 	delete(fp.srcStats, sourcePeer)
 	fp.srcStatsMu.Unlock()

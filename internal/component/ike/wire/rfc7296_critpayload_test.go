@@ -81,7 +81,7 @@ func critEncodeSenderChoice(t *testing.T, critical bool) []byte {
 			MessageID:    7,
 		},
 		Payloads: []PayloadEntry{{
-			Payload:  &PayloadRaw{PayloadType: critUnknownType, Data: []byte{0xDE, 0xAD, 0xBE, 0xEF}},
+			Payload:  &payloadRaw{PayloadType: critUnknownType, Data: []byte{0xDE, 0xAD, 0xBE, 0xEF}},
 			Critical: critical,
 		}},
 	}
@@ -126,7 +126,7 @@ func TestCritSenderZeroBitRequestsSkip(t *testing.T) {
 		if msg.Payloads[0].Critical {
 			t.Error("the decoded Critical bit is set, but the sender encoded zero")
 		}
-		raw, ok := msg.Payloads[0].Payload.(*PayloadRaw)
+		raw, ok := msg.Payloads[0].Payload.(*payloadRaw)
 		if !ok {
 			t.Fatalf("payload type = %T, want the unrecognized payload skipped as *PayloadRaw", msg.Payloads[0].Payload)
 		}
@@ -247,7 +247,7 @@ func TestCritUnknownCriticalPayloadNamesItsType(t *testing.T) {
 		if len(msg.Payloads) != 1 {
 			t.Fatalf("payload count = %d, want 1", len(msg.Payloads))
 		}
-		raw, ok := msg.Payloads[0].Payload.(*PayloadRaw)
+		raw, ok := msg.Payloads[0].Payload.(*payloadRaw)
 		if !ok {
 			t.Fatalf("payload type = %T, want *PayloadRaw", msg.Payloads[0].Payload)
 		}

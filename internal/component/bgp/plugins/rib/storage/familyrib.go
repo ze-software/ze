@@ -49,8 +49,8 @@ type FamilyRIB struct {
 	labels  *store.Store[attrpool.Handle] // labeled && cidr: parallel BART for label handles
 }
 
-// NewFamilyRIB creates a FamilyRIB for the given address family.
-func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
+// newFamilyRIB creates a FamilyRIB for the given address family.
+func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	r := &FamilyRIB{
 		fam:     fam,
 		addPath: addPath,
@@ -359,10 +359,10 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 	return true
 }
 
-// LookupEntry finds the RouteEntry for an NLRI. Returns (entry, true) if
+// lookupEntry finds the RouteEntry for an NLRI. Returns (entry, true) if
 // found, (zero RouteEntry, false) otherwise. The returned entry is a copy --
 // safe for read-only use.
-func (r *FamilyRIB) LookupEntry(nlriBytes []byte) (RouteEntry, bool) {
+func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 	if !r.cidr {
 		e, ok := r.opaque[string(nlriBytes)]
 		return e, ok
@@ -407,9 +407,9 @@ func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) boo
 	r.iterateEntry(fn, false)
 }
 
-// IterateEntrySorted is like IterateEntry but CIDR families are visited in
+// iterateEntrySorted is like IterateEntry but CIDR families are visited in
 // numerically sorted prefix order. Non-CIDR families have no natural order.
-func (r *FamilyRIB) IterateEntrySorted(fn func(nlriBytes []byte, entry RouteEntry) bool) {
+func (r *FamilyRIB) iterateEntrySorted(fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	r.iterateEntry(fn, true)
 }
 
@@ -482,10 +482,10 @@ func (r *FamilyRIB) Release() {
 	}
 }
 
-// ModifyEntry calls fn with a pointer to the entry for the given NLRI. fn
+// modifyEntry calls fn with a pointer to the entry for the given NLRI. fn
 // may mutate the entry (e.g., update StaleLevel). Returns false if the NLRI
 // does not exist.
-func (r *FamilyRIB) ModifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
+func (r *FamilyRIB) modifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
 	if !r.cidr {
 		key := string(nlriBytes)
 		e, ok := r.opaque[key]
@@ -562,8 +562,8 @@ func (r *FamilyRIB) Family() family.Family { return r.fam }
 // HasAddPath returns whether ADD-PATH is enabled.
 func (r *FamilyRIB) HasAddPath() bool { return r.addPath }
 
-// IsLabeled returns whether this is a labeled unicast family (SAFI 4).
-func (r *FamilyRIB) IsLabeled() bool { return r.labeled }
+// isLabeled returns whether this is a labeled unicast family (SAFI 4).
+func (r *FamilyRIB) isLabeled() bool { return r.labeled }
 
 // SetLabels stores an MPLS label handle for a prefix (side-data, not on RouteEntry).
 func (r *FamilyRIB) SetLabels(pfx netip.Prefix, h attrpool.Handle) {

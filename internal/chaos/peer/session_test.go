@@ -116,7 +116,7 @@ func TestNotificationCease(t *testing.T) {
 // PREVENTS: Serialization buffer sizing errors.
 func TestSerializeMessage(t *testing.T) {
 	ka := message.NewKeepalive()
-	data := SerializeMessage(ka)
+	data := serializeMessage(ka)
 
 	assert.Equal(t, 19, len(data))
 	assert.Equal(t, byte(4), data[18]) // KEEPALIVE type

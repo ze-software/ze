@@ -180,7 +180,7 @@ func TestEncodeVSARoundTrip(t *testing.T) {
 
 func TestDecodeUint32(t *testing.T) {
 	val := AttrUint32(0x01020304)
-	decoded, err := DecodeUint32(val)
+	decoded, err := decodeUint32(val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestDecodeUint32(t *testing.T) {
 }
 
 func TestDecodeUint32BadSize(t *testing.T) {
-	_, err := DecodeUint32([]byte{1, 2, 3})
+	_, err := decodeUint32([]byte{1, 2, 3})
 	if err == nil {
 		t.Error("expected error for 3-byte value")
 	}

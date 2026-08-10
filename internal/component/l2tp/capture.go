@@ -58,23 +58,23 @@ func (r *captureRecord) format() CaptureEntry {
 	return e
 }
 
-// CaptureRing is a fixed-size circular buffer of L2TP control message records.
+// captureRing is a fixed-size circular buffer of L2TP control message records.
 // Safe for concurrent use. Append is zero-alloc (stores value types only).
 // Callers must nil-check before calling methods.
-type CaptureRing struct {
+type captureRing struct {
 	mu      sync.Mutex
 	records []captureRecord
 	head    int
 	count   int
 }
 
-// NewCaptureRing creates a capture ring with the default capacity.
-func NewCaptureRing() *CaptureRing {
-	return &CaptureRing{records: make([]captureRecord, captureRingCapacity)}
+// newCaptureRing creates a capture ring with the default capacity.
+func newCaptureRing() *captureRing {
+	return &captureRing{records: make([]captureRecord, captureRingCapacity)}
 }
 
-// AppendInbound records an inbound control message.
-func (r *CaptureRing) AppendInbound(tunnelID, sessionID uint16, msgType MessageType, peer netip.AddrPort, byteCount int, resultCode uint16) {
+// appendInbound records an inbound control message.
+func (r *captureRing) appendInbound(tunnelID, sessionID uint16, msgType MessageType, peer netip.AddrPort, byteCount int, resultCode uint16) {
 	r.mu.Lock()
 	r.records[r.head] = captureRecord{
 		timestamp:  time.Now(),
@@ -93,8 +93,8 @@ func (r *CaptureRing) AppendInbound(tunnelID, sessionID uint16, msgType MessageT
 	r.mu.Unlock()
 }
 
-// AppendOutbound records an outbound control message.
-func (r *CaptureRing) AppendOutbound(tunnelID, sessionID uint16, msgType MessageType, peer netip.AddrPort, byteCount int) {
+// appendOutbound records an outbound control message.
+func (r *captureRing) appendOutbound(tunnelID, sessionID uint16, msgType MessageType, peer netip.AddrPort, byteCount int) {
 	r.mu.Lock()
 	r.records[r.head] = captureRecord{
 		timestamp: time.Now(),
@@ -115,7 +115,7 @@ func (r *CaptureRing) AppendOutbound(tunnelID, sessionID uint16, msgType Message
 // Snapshot returns up to limit formatted records, newest first.
 // limit <= 0 returns all. tunnelID > 0 filters by tunnel.
 // peer filters by peer address (empty = no filter).
-func (r *CaptureRing) Snapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
+func (r *captureRing) Snapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
 	var peerAddr netip.Addr
 	if peer != "" {
 		peerAddr, _ = netip.ParseAddr(peer)

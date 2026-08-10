@@ -251,7 +251,7 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 		case wm != "" && target.WireMethod == "":
 			target.WireMethod = wm
 			target.Description = child.Description
-			if ts := GetTaskSupportExtension(child); ts != "" {
+			if ts := getTaskSupportExtension(child); ts != "" {
 				target.TaskSupport = ts
 			}
 		case target.Description == "" && child.Description != "":
@@ -264,7 +264,7 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			target.Backend = be
 		}
 
-		if ee := GetEnsureExistsExtension(child); ee != "" && target.EnsureExists == "" {
+		if ee := getEnsureExistsExtension(child); ee != "" && target.EnsureExists == "" {
 			target.EnsureExists = ee
 		}
 
@@ -413,9 +413,9 @@ func GetCommandExtension(entry *gyang.Entry) string {
 	return ""
 }
 
-// HasCommandExtension returns true if the YANG entry has the ze:command extension.
+// hasCommandExtension returns true if the YANG entry has the ze:command extension.
 // This marks a config false container as an executable command.
-func HasCommandExtension(entry *gyang.Entry) bool {
+func hasCommandExtension(entry *gyang.Entry) bool {
 	return GetCommandExtension(entry) != ""
 }
 
@@ -426,10 +426,10 @@ var validTaskSupportValues = map[string]bool{
 	"forbidden": true,
 }
 
-// GetTaskSupportExtension reads the ze:task-support extension from a YANG entry.
+// getTaskSupportExtension reads the ze:task-support extension from a YANG entry.
 // Returns the level string ("required", "optional", "forbidden"), or empty
 // string if absent or if the value is not one of the three valid levels.
-func GetTaskSupportExtension(entry *gyang.Entry) string {
+func getTaskSupportExtension(entry *gyang.Entry) string {
 	if entry == nil {
 		return ""
 	}
@@ -545,10 +545,10 @@ func GetBackendExtension(entry *gyang.Entry) []string {
 	return out
 }
 
-// GetEnsureExistsExtension reads the ze:ensure-exists extension from a YANG entry.
+// getEnsureExistsExtension reads the ze:ensure-exists extension from a YANG entry.
 // Returns the rollback WireMethod string (e.g., "ze-iface:interface-delete"),
 // or empty string if the entry has no ze:ensure-exists extension.
-func GetEnsureExistsExtension(entry *gyang.Entry) string {
+func getEnsureExistsExtension(entry *gyang.Entry) string {
 	if entry == nil {
 		return ""
 	}
@@ -560,9 +560,9 @@ func GetEnsureExistsExtension(entry *gyang.Entry) string {
 	return ""
 }
 
-// HasEditShortcutExtension returns true if the YANG entry has the ze:edit-shortcut extension.
+// hasEditShortcutExtension returns true if the YANG entry has the ze:edit-shortcut extension.
 // This marks a command as available in edit mode as a shortcut (e.g., commit, save).
-func HasEditShortcutExtension(entry *gyang.Entry) bool {
+func hasEditShortcutExtension(entry *gyang.Entry) bool {
 	if entry == nil {
 		return false
 	}

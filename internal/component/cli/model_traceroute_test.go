@@ -427,7 +427,7 @@ func TestHandleTraceroutePoll_MultiRound(t *testing.T) {
 	}
 
 	m := NewCommandModel()
-	m.SetTracerouteFactory(factory)
+	m.setTracerouteFactory(factory)
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	require.NotNil(t, cmd)
 
@@ -520,7 +520,7 @@ func TestStartTraceroute_NoFactory(t *testing.T) {
 
 func TestStartTraceroute_NoTarget(t *testing.T) {
 	m := NewCommandModel()
-	m.SetTracerouteFactory(testFactory(nil))
+	m.setTracerouteFactory(testFactory(nil))
 	cmd := m.startTraceroute("monitor traceroute max-hops 10")
 	assert.Nil(t, cmd)
 	assert.Equal(t, "monitor traceroute: missing target address", m.statusMessage)
@@ -528,7 +528,7 @@ func TestStartTraceroute_NoTarget(t *testing.T) {
 
 func TestStartTraceroute_OK(t *testing.T) {
 	m := NewCommandModel()
-	m.SetTracerouteFactory(testFactory([]map[string]any{{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 1.0}}))
+	m.setTracerouteFactory(testFactory([]map[string]any{{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 1.0}}))
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	assert.NotNil(t, cmd)
 	assert.NotNil(t, m.activeTraceroute())

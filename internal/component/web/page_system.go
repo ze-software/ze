@@ -21,10 +21,10 @@ import (
 
 // --- System > Identity ---
 
-// BuildSystemIdentityFormData reads system identity fields from the config tree
+// buildSystemIdentityFormData reads system identity fields from the config tree
 // and returns a WorkbenchFormData for the identity form. The hostname comes from
 // system/host and the router-id from bgp/router-id, matching the YANG schemas.
-func BuildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
+func buildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 	hostname := ""
 	domain := ""
 	routerID := ""
@@ -78,17 +78,17 @@ func BuildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 	}
 }
 
-// HandleSystemIdentityPage renders the System Identity form.
-func HandleSystemIdentityPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := BuildSystemIdentityFormData(viewTree)
+// handleSystemIdentityPage renders the System Identity form.
+func handleSystemIdentityPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+	formData := buildSystemIdentityFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
 }
 
 // --- Router Identity Resolution ---
 
-// ResolveRouterIdentity returns a display name for this router instance.
+// resolveRouterIdentity returns a display name for this router instance.
 // Priority: system/host (configured hostname), then bgp/router-id, then "ze".
-func ResolveRouterIdentity(tree *config.Tree) string {
+func resolveRouterIdentity(tree *config.Tree) string {
 	if tree != nil {
 		if sys := tree.GetContainer("system"); sys != nil {
 			if h, ok := sys.Get("host"); ok && h != "" {
@@ -189,8 +189,8 @@ func collectUsers(tree *config.Tree) []userEntry {
 	return users
 }
 
-// BuildUsersTableData constructs a WorkbenchTableData for the users page.
-func BuildUsersTableData(users []userEntry) WorkbenchTableData {
+// buildUsersTableData constructs a WorkbenchTableData for the users page.
+func buildUsersTableData(users []userEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Username", Sortable: true},
 		{Key: "profiles", Label: "Profiles"},
@@ -233,24 +233,24 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 	}
 }
 
-// HandleUsersPage renders the System Users table. Power user names (from the
+// handleUsersPage renders the System Users table. Power user names (from the
 // zefs database, created by ze init) are prepended as system users so the
 // page never claims "No users configured" when authentication is active.
-func HandleUsersPage(renderer *Renderer, viewTree *config.Tree, powerUsers []string) template.HTML {
+func handleUsersPage(renderer *Renderer, viewTree *config.Tree, powerUsers []string) template.HTML {
 	configUsers := collectUsers(viewTree)
 	allUsers := make([]userEntry, 0, len(powerUsers)+len(configUsers))
 	for _, name := range powerUsers {
 		allUsers = append(allUsers, userEntry{Name: name, System: true})
 	}
 	allUsers = append(allUsers, configUsers...)
-	tableData := BuildUsersTableData(allUsers)
+	tableData := buildUsersTableData(allUsers)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
 // --- System > Resources ---
 
-// ResourcesData holds runtime resource information.
-type ResourcesData struct {
+// resourcesData holds runtime resource information.
+type resourcesData struct {
 	Version     string
 	Uptime      string
 	CPUCount    int
@@ -262,12 +262,12 @@ type ResourcesData struct {
 	CurrentTime string
 }
 
-// BuildResourcesData gathers runtime system resources.
-func BuildResourcesData() ResourcesData {
+// buildResourcesData gathers runtime system resources.
+func buildResourcesData() resourcesData {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	return ResourcesData{
+	return resourcesData{
 		Version:     version.Short(),
 		Uptime:      formatUptime(time.Since(processStart)),
 		CPUCount:    runtime.NumCPU(),
@@ -281,7 +281,7 @@ func BuildResourcesData() ResourcesData {
 }
 
 // buildResourcesHTML renders the resources property list as HTML.
-func buildResourcesHTML(data ResourcesData) template.HTML {
+func buildResourcesHTML(data resourcesData) template.HTML {
 	var b textbuf.Buffer
 	b.Str(`<div class="wb-resources" hx-get="/show/system/resources/" hx-trigger="every 5s" hx-swap="innerHTML">`)
 	b.Str(`<h2 class="wb-form-title">System Resources</h2>`)
@@ -300,16 +300,16 @@ func buildResourcesHTML(data ResourcesData) template.HTML {
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
-// HandleResourcesPage renders the System Resources property list.
-func HandleResourcesPage() template.HTML {
-	data := BuildResourcesData()
+// handleResourcesPage renders the System Resources property list.
+func handleResourcesPage() template.HTML {
+	data := buildResourcesData()
 	return buildResourcesHTML(data)
 }
 
 // --- System > Host Hardware ---
 
-// HardwareSection represents one subsection of the host hardware inventory.
-type HardwareSection struct {
+// hardwareSection represents one subsection of the host hardware inventory.
+type hardwareSection struct {
 	Title string
 	Items []HardwareItem
 }
@@ -321,20 +321,20 @@ type HardwareItem struct {
 	CSSClass string // optional CSS class for visual indicators (e.g., "up", "down", "alarm")
 }
 
-// BuildHostHardwareData detects the host inventory and returns hardware
+// buildHostHardwareData detects the host inventory and returns hardware
 // sections for display. Detection errors are non-fatal: partial data is
 // shown with error items appended to the relevant section.
-func BuildHostHardwareData() []HardwareSection {
+func buildHostHardwareData() []hardwareSection {
 	inv, err := host.Detect()
 	if err != nil {
-		return []HardwareSection{
+		return []hardwareSection{
 			{Title: "Detection Error", Items: []HardwareItem{
 				{Key: "Error", Value: err.Error()},
 			}},
 		}
 	}
 
-	var sections []HardwareSection
+	var sections []hardwareSection
 
 	if inv.CPU != nil {
 		items := []HardwareItem{
@@ -370,7 +370,7 @@ func BuildHostHardwareData() []HardwareSection {
 				Value: bVal.Reset().Str("cpu").Int(int64(c.CPU)).Str(freq).Str(role).String(),
 			})
 		}
-		sections = append(sections, HardwareSection{Title: "CPU", Items: items})
+		sections = append(sections, hardwareSection{Title: "CPU", Items: items})
 	}
 
 	if len(inv.NICs) > 0 {
@@ -395,11 +395,11 @@ func BuildHostHardwareData() []HardwareSection {
 				CSSClass: cssClass,
 			})
 		}
-		sections = append(sections, HardwareSection{Title: "NIC", Items: items})
+		sections = append(sections, hardwareSection{Title: "NIC", Items: items})
 	}
 
 	if inv.Memory != nil {
-		sections = append(sections, HardwareSection{Title: "Memory", Items: []HardwareItem{
+		sections = append(sections, hardwareSection{Title: "Memory", Items: []HardwareItem{
 			{Key: "Total", Value: formatBytes(inv.Memory.TotalBytes)},
 			{Key: "Available", Value: formatBytes(inv.Memory.AvailableBytes)},
 			{Key: "Free", Value: formatBytes(inv.Memory.FreeBytes)},
@@ -425,7 +425,7 @@ func BuildHostHardwareData() []HardwareSection {
 				Value: detail,
 			})
 		}
-		sections = append(sections, HardwareSection{Title: "Storage", Items: items})
+		sections = append(sections, hardwareSection{Title: "Storage", Items: items})
 	}
 
 	if inv.Thermal != nil && len(inv.Thermal.Sensors) > 0 {
@@ -445,7 +445,7 @@ func BuildHostHardwareData() []HardwareSection {
 				CSSClass: cssClass,
 			})
 		}
-		sections = append(sections, HardwareSection{Title: "Thermal", Items: items})
+		sections = append(sections, hardwareSection{Title: "Thermal", Items: items})
 	}
 
 	if inv.DMI != nil {
@@ -465,7 +465,7 @@ func BuildHostHardwareData() []HardwareSection {
 		addIfSet("BIOS Date", inv.DMI.BIOSDate)
 		addIfSet("Chassis Type", inv.DMI.ChassisType)
 		if len(items) > 0 {
-			sections = append(sections, HardwareSection{Title: "DMI", Items: items})
+			sections = append(sections, hardwareSection{Title: "DMI", Items: items})
 		}
 	}
 
@@ -479,11 +479,11 @@ func BuildHostHardwareData() []HardwareSection {
 		if inv.Kernel.BootTime != "" {
 			items = append(items, HardwareItem{Key: "Boot Time", Value: inv.Kernel.BootTime})
 		}
-		sections = append(sections, HardwareSection{Title: "Kernel", Items: items})
+		sections = append(sections, hardwareSection{Title: "Kernel", Items: items})
 	}
 
 	if len(sections) == 0 {
-		sections = append(sections, HardwareSection{
+		sections = append(sections, hardwareSection{
 			Title: "Info",
 			Items: []HardwareItem{{Key: "Status", Value: "No hardware information detected"}},
 		})
@@ -493,7 +493,7 @@ func BuildHostHardwareData() []HardwareSection {
 }
 
 // buildHostHardwareHTML renders the hardware inventory as HTML.
-func buildHostHardwareHTML(sections []HardwareSection) template.HTML {
+func buildHostHardwareHTML(sections []hardwareSection) template.HTML {
 	var b textbuf.Buffer
 	b.Str(`<div class="wb-hardware" hx-get="/show/system/hardware/" hx-trigger="every 10s" hx-swap="innerHTML">`)
 	b.Str(`<h2 class="wb-form-title">Host Hardware</h2>`)
@@ -530,9 +530,9 @@ func writeHardwareKV(b *textbuf.Buffer, item HardwareItem) {
 	b.Str(`</tr>`)
 }
 
-// HandleHostHardwarePage renders the Host Hardware inventory.
-func HandleHostHardwarePage() template.HTML {
-	sections := BuildHostHardwareData()
+// handleHostHardwarePage renders the Host Hardware inventory.
+func handleHostHardwarePage() template.HTML {
+	sections := buildHostHardwareData()
 	return buildHostHardwareHTML(sections)
 }
 
@@ -566,8 +566,8 @@ func collectSysctlProfiles(tree *config.Tree) []sysctlProfileEntry {
 	return profiles
 }
 
-// BuildSysctlProfilesTableData constructs a WorkbenchTableData for the sysctl profiles page.
-func BuildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableData {
+// buildSysctlProfilesTableData constructs a WorkbenchTableData for the sysctl profiles page.
+func buildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "settings", Label: "Settings", Sortable: true},
@@ -609,9 +609,9 @@ func smartHealthLabel(healthy bool) string {
 	return "FAILING"
 }
 
-// HandleSysctlProfilesPage renders the Sysctl Profiles table.
-func HandleSysctlProfilesPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
+// handleSysctlProfilesPage renders the Sysctl Profiles table.
+func handleSysctlProfilesPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	profiles := collectSysctlProfiles(viewTree)
-	tableData := BuildSysctlProfilesTableData(profiles)
+	tableData := buildSysctlProfilesTableData(profiles)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

@@ -440,7 +440,7 @@ func TestReceivedUpdate_EBGPWireEvictionReturnsBuffers(t *testing.T) {
 				t.Errorf("expected %d variant buffers in use, got delta %d", tc.variants, variantsAllocated)
 			}
 
-			cache := NewRecentUpdateCache(100)
+			cache := newRecentUpdateCache(100)
 			cache.RegisterConsumer("test-plugin")
 			cache.Add(update)
 			cache.Activate(id, 1)
@@ -529,7 +529,7 @@ func TestReceivedUpdateAdoptedHandlesReturnedOnce(t *testing.T) {
 			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
 			ReceivedAt:   time.Now(),
 		}
-		cache := NewRecentUpdateCache(100)
+		cache := newRecentUpdateCache(100)
 		cache.RegisterConsumer("test-plugin")
 		cache.Add(update)
 		cache.Activate(id, 1)

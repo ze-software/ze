@@ -35,7 +35,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
 			dropped = append(dropped, "destination")
 		} else if prefix.Addr().Is6() && offset > 0 {
-			fs.AddComponent(NewFlowDestPrefixComponentWithOffset(prefix, offset))
+			fs.AddComponent(newFlowDestPrefixComponentWithOffset(prefix, offset))
 		} else {
 			fs.AddComponent(NewFlowDestPrefixComponent(prefix))
 		}
@@ -47,7 +47,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
 			dropped = append(dropped, "source")
 		} else if prefix.Addr().Is6() && offset > 0 {
-			fs.AddComponent(NewFlowSourcePrefixComponentWithOffset(prefix, offset))
+			fs.AddComponent(newFlowSourcePrefixComponentWithOffset(prefix, offset))
 		} else {
 			fs.AddComponent(NewFlowSourcePrefixComponent(prefix))
 		}
@@ -58,7 +58,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		if vals, ok := matchCriteria[key]; ok {
 			seen[key] = true
 			if matches := parse(vals); len(matches) > 0 {
-				fs.AddComponent(NewFlowNumericComponent(typ, matches))
+				fs.AddComponent(newFlowNumericComponent(typ, matches))
 			} else {
 				dropped = append(dropped, key)
 			}
@@ -115,7 +115,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria["icmp-code"]; ok {
 		seen["icmp-code"] = true
 		if codes := parseFlowICMPCodesSlice(vals); len(codes) > 0 {
-			fs.AddComponent(NewFlowICMPCodeComponent(codes...))
+			fs.AddComponent(newFlowICMPCodeComponent(codes...))
 		} else {
 			dropped = append(dropped, "icmp-code")
 		}

@@ -63,7 +63,7 @@ func TestISISTLV2NarrowDecode(t *testing.T) {
 		0x80, 0x80, 0x80,            // delay / expense / error (supported bit set)
 	}
 	value = append(value, neigh[:]...) // 7-octet neighbor SourceID
-	out, err := DecodeNarrowISReachTLV(value)
+	out, err := decodeNarrowISReachTLV(value)
 	if err != nil {
 		t.Fatalf("DecodeNarrowISReachTLV: %v", err)
 	}
@@ -88,11 +88,11 @@ func TestISISTLV2NarrowDecode(t *testing.T) {
 // VALIDATES: AC-11/R-3 -- TLV 2 decode rejects malformed lengths (empty value,
 // or a body that is not a whole number of 11-octet entries) without panicking.
 func TestISISTLV2NarrowBadLength(t *testing.T) {
-	if _, err := DecodeNarrowISReachTLV(nil); err == nil {
+	if _, err := decodeNarrowISReachTLV(nil); err == nil {
 		t.Fatal("expected ErrLength for empty TLV 2 value")
 	}
 	// virtual flag + 5 octets (not a multiple of 11).
-	if _, err := DecodeNarrowISReachTLV([]byte{0x00, 1, 2, 3, 4, 5}); err == nil {
+	if _, err := decodeNarrowISReachTLV([]byte{0x00, 1, 2, 3, 4, 5}); err == nil {
 		t.Fatal("expected ErrLength for partial TLV 2 entry")
 	}
 }

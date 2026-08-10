@@ -276,7 +276,7 @@ func TestPSNPRequestAndAck(t *testing.T) {
 	ack := lspID(30, 0)
 	ackLSP, ackRaw := buildLSP(t, packet.PDUTypeL2LSP, ack, 5, 1000, nil)
 	d.Insert(Level2, ackLSP, ackRaw)
-	d.SetSSN(Level2, ack, cid)
+	d.setSSN(Level2, ack, cid)
 
 	pdus := f.buildPSNP(cid, Level2, ownSrc())
 	if len(pdus) == 0 {

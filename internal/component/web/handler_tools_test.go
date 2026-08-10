@@ -542,7 +542,7 @@ func testRenderer(t *testing.T) *Renderer {
 // command transparency line.
 func TestToolOverlay_RenderSuccess(t *testing.T) {
 	r := testRenderer(t)
-	data := ToolOverlayData{
+	data := toolOverlayData{
 		ID:           "overlay-peer-detail-bgp-peer-thomas",
 		State:        ToolOverlayResult,
 		Title:        "Peer Detail",
@@ -568,7 +568,7 @@ func TestToolOverlay_RenderSuccess(t *testing.T) {
 // PREVENTS: An error overlay that visually looks like a successful one.
 func TestToolOverlay_RenderError(t *testing.T) {
 	r := testRenderer(t)
-	data := ToolOverlayData{
+	data := toolOverlayData{
 		ID:           "overlay-peer-detail-bgp-peer-x",
 		State:        ToolOverlayError,
 		Title:        "Peer Detail",
@@ -592,7 +592,7 @@ func TestToolOverlay_ShowFullOutput(t *testing.T) {
 	r := testRenderer(t)
 	inline := strings.Repeat("a", relatedOverlayInlineBytes)
 	overflow := strings.Repeat("b", 1024)
-	data := ToolOverlayData{
+	data := toolOverlayData{
 		ID:             "overlay-x",
 		State:          ToolOverlayResult,
 		Title:          "X",
@@ -617,7 +617,7 @@ func TestToolOverlay_ShowFullOutput(t *testing.T) {
 // VALIDATES: AC-27 (truncation notice).
 func TestToolOverlay_TruncationNotice(t *testing.T) {
 	r := testRenderer(t)
-	data := ToolOverlayData{
+	data := toolOverlayData{
 		ID:           "overlay-x",
 		State:        ToolOverlayResult,
 		Title:        "X",

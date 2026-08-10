@@ -56,10 +56,10 @@ const (
 	ToolOverlayConfirm
 )
 
-// ToolOverlayData is the template payload for one overlay instance. Each
+// toolOverlayData is the template payload for one overlay instance. Each
 // overlay renders into its own DOM node identified by ID so multiple
 // overlays can coexist (Spec Tool Overlay region row, AC-25).
-type ToolOverlayData struct {
+type toolOverlayData struct {
 	ID             string
 	State          ToolOverlayState
 	Title          string
@@ -139,7 +139,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		// POST and only dispatch once the operator submits confirm=true.
 		confirmed := strings.EqualFold(strings.TrimSpace(r.PostFormValue("confirm")), "true")
 		if tool.Confirm != "" && !confirmed {
-			data := ToolOverlayData{
+			data := toolOverlayData{
 				ID:            overlayID(toolID, contextPath),
 				State:         ToolOverlayConfirm,
 				Title:         tool.Label,
@@ -158,7 +158,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 				viewTree = userTree
 			}
 		}
-		resolver := NewRelatedResolver(schema, viewTree)
+		resolver := newRelatedResolver(schema, viewTree)
 		res, err := resolver.Resolve(tool, contextPath)
 		if err != nil {
 			data := errorOverlay(toolID, contextPath, tool, err.Error())
@@ -184,7 +184,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 
 		// Strip ANSI, cap at 4 MiB, split inline / overflow.
 		cleaned, truncated := normalizeOutput(output)
-		data := ToolOverlayData{
+		data := toolOverlayData{
 			ID:          overlayID(toolID, contextPath),
 			State:       ToolOverlayResult,
 			Title:       tool.Label,
@@ -226,12 +226,12 @@ func lookupRelatedTool(schema *config.Schema, contextPath []string, toolID strin
 }
 
 // errorOverlay builds a populated ToolOverlayData for the error state.
-func errorOverlay(toolID string, contextPath []string, tool *config.RelatedTool, msg string) ToolOverlayData {
+func errorOverlay(toolID string, contextPath []string, tool *config.RelatedTool, msg string) toolOverlayData {
 	title := toolID
 	if tool != nil {
 		title = tool.Label
 	}
-	return ToolOverlayData{
+	return toolOverlayData{
 		ID:           overlayID(toolID, contextPath),
 		State:        ToolOverlayError,
 		Title:        title,
@@ -245,7 +245,7 @@ func errorOverlay(toolID string, contextPath []string, tool *config.RelatedTool,
 // is 200 for both success and tool-level error states (the overlay carries
 // its own visual error treatment); 4xx/5xx are reserved for protocol
 // errors that prevent overlay rendering at all.
-func renderToolOverlay(w http.ResponseWriter, renderer *Renderer, data ToolOverlayData, status int) {
+func renderToolOverlay(w http.ResponseWriter, renderer *Renderer, data toolOverlayData, status int) {
 	html := renderer.RenderFragment("tool_overlay", data)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
@@ -285,7 +285,7 @@ func isMutatingMethod(method string) bool {
 // failures (missing tool_id, invalid path, unknown tool) where the schema
 // lookup itself failed and we have no descriptor to title the overlay.
 func renderToolError(w http.ResponseWriter, renderer *Renderer, msg string, status int) {
-	data := ToolOverlayData{
+	data := toolOverlayData{
 		ID:           "overlay-error",
 		State:        ToolOverlayError,
 		Title:        "Tool error",
@@ -346,7 +346,7 @@ func asciiSafeID(s string) string {
 // rounded back to the previous valid UTF-8 rune boundary so a multi-byte
 // rune that straddles the inline cap is rendered fully in the overflow,
 // not partially in both halves.
-func assignOverlayBody(data *ToolOverlayData, cleaned string) {
+func assignOverlayBody(data *toolOverlayData, cleaned string) {
 	if len(cleaned) <= relatedOverlayInlineBytes {
 		data.OutputInline = template.HTML(template.HTMLEscapeString(cleaned)) //nolint:gosec // already escaped
 		return

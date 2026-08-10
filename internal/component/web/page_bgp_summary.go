@@ -62,9 +62,9 @@ func fetchBGPSummaryPeers(r *http.Request, dispatch CommandDispatcher) map[strin
 	return m
 }
 
-// BuildBGPSummaryTableData constructs a summary table from the config tree's
+// buildBGPSummaryTableData constructs a summary table from the config tree's
 // peer listing, enriched with live operational data when available.
-func BuildBGPSummaryTableData(viewTree *config.Tree, live map[string]bgpSummaryPeer) WorkbenchTableData {
+func buildBGPSummaryTableData(viewTree *config.Tree, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Peer", Sortable: true},
 		{Key: "remote-ip", Label: "Remote IP", Sortable: true},
@@ -122,9 +122,9 @@ func BuildBGPSummaryTableData(viewTree *config.Tree, live map[string]bgpSummaryP
 	}
 }
 
-// HandleBGPSummaryPage renders the BGP summary table within the workbench.
-func HandleBGPSummaryPage(renderer *Renderer, r *http.Request, viewTree *config.Tree, dispatch CommandDispatcher) template.HTML {
+// handleBGPSummaryPage renders the BGP summary table within the workbench.
+func handleBGPSummaryPage(renderer *Renderer, r *http.Request, viewTree *config.Tree, dispatch CommandDispatcher) template.HTML {
 	live := fetchBGPSummaryPeers(r, dispatch)
-	tableData := BuildBGPSummaryTableData(viewTree, live)
+	tableData := buildBGPSummaryTableData(viewTree, live)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

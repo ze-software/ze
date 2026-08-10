@@ -311,7 +311,7 @@ func (v *VPN) WriteTo(buf []byte, off int) int {
 	return pos - off
 }
 
-// VPNFamilies returns the address families this plugin can decode.
-func VPNFamilies() []string {
+// vPNFamilies returns the address families this plugin can decode.
+func vPNFamilies() []string {
 	return []string{"ipv4/mpls-vpn", "ipv6/mpls-vpn"}
 }

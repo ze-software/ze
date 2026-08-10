@@ -224,7 +224,7 @@ func TestApplyRemoteBindingRelabelToImplicitNull(t *testing.T) {
 func TestWithdrawRemoteBindingRealLabel(t *testing.T) {
 	bus := &captureBus{}
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.9.0.0/24")
 	lib.AddRemote(fec, 17000, "peer", netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.1"))
 	fib.ProgramPush(fec, 17000, netip.MustParseAddr("10.0.0.1")) // mirror onLabel
@@ -245,7 +245,7 @@ func TestWithdrawRemoteBindingRealLabel(t *testing.T) {
 func TestWithdrawRemoteBindingImplicitNull(t *testing.T) {
 	bus := &captureBus{}
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.9.0.0/24")
 	lib.AddRemote(fec, ImplicitNull, "peer", netip.MustParseAddr("10.0.0.1"), netip.Addr{})
 
@@ -261,7 +261,7 @@ func TestWithdrawRemoteBindingImplicitNull(t *testing.T) {
 func TestReconcileConcurrentWithdraw(t *testing.T) {
 	bus := &captureBus{}
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	lib := NewLIB()
+	lib := newLIB()
 	fec := netip.MustParsePrefix("10.9.0.0/24")
 	a := netip.MustParseAddr("10.0.0.1")
 	b := netip.MustParseAddr("10.0.0.2")
@@ -288,7 +288,7 @@ func TestReconcileConcurrentWithdraw(t *testing.T) {
 func TestReconcilePeerDown(t *testing.T) {
 	bus := &captureBus{}
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	lib := NewLIB()
+	lib := newLIB()
 	shared := netip.MustParsePrefix("10.1.0.0/24") // advertised by P and Q
 	soloP := netip.MustParsePrefix("10.2.0.0/24")  // advertised only by P
 	pAddr := netip.MustParseAddr("10.0.0.1")
@@ -315,7 +315,7 @@ func TestReconcilePeerDown(t *testing.T) {
 func TestReconcilePeerDownConcurrent(t *testing.T) {
 	bus := &captureBus{}
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	lib := NewLIB()
+	lib := newLIB()
 	a := netip.MustParseAddr("10.0.0.1")
 	for i := range 8 {
 		fec := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 3, byte(i), 0}), 24)
@@ -344,7 +344,7 @@ func TestReconcileFEC(t *testing.T) {
 	t.Run("programs surviving peer with its stored next hop", func(t *testing.T) {
 		bus := &captureBus{}
 		fib := newLDPFIB(bus, slogutil.DiscardLogger())
-		lib := NewLIB()
+		lib := newLIB()
 		// peerB's binding carries a resolved next hop distinct from its transport.
 		lib.AddRemote(fec, 18000, "peerB", netip.MustParseAddr("10.0.0.9"), netip.MustParseAddr("10.0.0.2"))
 		fib.ProgramPush(fec, 17000, netip.MustParseAddr("10.0.0.1")) // an earlier peerA push
@@ -361,7 +361,7 @@ func TestReconcileFEC(t *testing.T) {
 	t.Run("withdraws when last peer gone", func(t *testing.T) {
 		bus := &captureBus{}
 		fib := newLDPFIB(bus, slogutil.DiscardLogger())
-		lib := NewLIB() // no survivor
+		lib := newLIB() // no survivor
 		fib.ProgramPush(fec, 17000, netip.MustParseAddr("10.0.0.1"))
 
 		reconcileFEC(fib, lib, fec, slogutil.DiscardLogger())
@@ -375,7 +375,7 @@ func TestReconcileFEC(t *testing.T) {
 	t.Run("lowest peer key wins deterministically", func(t *testing.T) {
 		bus := &captureBus{}
 		fib := newLDPFIB(bus, slogutil.DiscardLogger())
-		lib := NewLIB()
+		lib := newLIB()
 		lib.AddRemote(fec, 30000, "2", netip.MustParseAddr("10.0.0.3"), netip.MustParseAddr("10.0.0.3"))
 		lib.AddRemote(fec, 20000, "1", netip.MustParseAddr("10.0.0.2"), netip.MustParseAddr("10.0.0.2"))
 

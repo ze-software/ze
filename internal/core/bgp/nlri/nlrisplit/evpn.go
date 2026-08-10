@@ -4,7 +4,7 @@
 
 package nlrisplit
 
-// SplitEVPN is the Splitter for L2VPN/EVPN NLRIs (RFC 7432 Section 7.1
+// splitEVPN is the Splitter for L2VPN/EVPN NLRIs (RFC 7432 Section 7.1
 // and RFC 8365 Section 8). Every EVPN NLRI is framed as
 // [route-type:1][length:1][route-type-specific:length]. Under ADD-PATH
 // (RFC 7911) each NLRI is prefixed with a 4-byte path-id that is
@@ -19,6 +19,6 @@ package nlrisplit
 //
 // Slices alias `data`. A malformed entry returns the partially-parsed
 // result plus a non-nil error; the caller decides whether to use it.
-func SplitEVPN(data []byte, addPath bool) ([][]byte, error) {
+func splitEVPN(data []byte, addPath bool) ([][]byte, error) {
 	return splitTypeLength(data, addPath, 2, 1, "EVPN")
 }

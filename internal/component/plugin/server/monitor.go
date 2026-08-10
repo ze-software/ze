@@ -113,9 +113,9 @@ func (mm *MonitorManager) GetMatching(namespace, eventType, direction, peerAddr,
 	return result
 }
 
-// GetMatchingTyped returns monitors with subscriptions matching the event,
+// getMatchingTyped returns monitors with subscriptions matching the event,
 // using pre-resolved typed IDs. Avoids the string-to-ID lookups in GetMatching.
-func (mm *MonitorManager) GetMatchingTyped(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*MonitorClient {
+func (mm *MonitorManager) getMatchingTyped(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*MonitorClient {
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
 
@@ -153,7 +153,7 @@ func (mm *MonitorManager) Deliver(namespace, eventType, direction, peerAddr, pee
 	}
 }
 
-// DeliverLazy sends an event to matching monitors, invoking build only when
+// deliverLazy sends an event to matching monitors, invoking build only when
 // at least one monitor matches. This avoids formatting cost for events that
 // no monitor subscribes to (the common case when structured plugin consumers
 // are present but no CLI monitor is attached). build is called outside the
@@ -165,7 +165,7 @@ func (mm *MonitorManager) Deliver(namespace, eventType, direction, peerAddr, pee
 // That is safe: enqueue uses a non-blocking send on a buffered channel that
 // the removed client's reader will simply stop consuming on Ctx cancellation.
 // The dropped counter on the removed client may tick up, which is harmless.
-func (mm *MonitorManager) DeliverLazy(namespace, eventType, direction, peerAddr, peerName string, build func() string) {
+func (mm *MonitorManager) deliverLazy(namespace, eventType, direction, peerAddr, peerName string, build func() string) {
 	matches := mm.GetMatching(namespace, eventType, direction, peerAddr, peerName)
 	if len(matches) == 0 {
 		return
@@ -184,7 +184,7 @@ func (mm *MonitorManager) DeliverLazyTyped(ns events.NamespaceID, et events.Even
 	if mm.monitorCount.Load() == 0 {
 		return
 	}
-	matches := mm.GetMatchingTyped(ns, et, dir, peerAddr, peerName)
+	matches := mm.getMatchingTyped(ns, et, dir, peerAddr, peerName)
 	if len(matches) == 0 {
 		return
 	}

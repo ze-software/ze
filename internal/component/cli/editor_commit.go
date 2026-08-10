@@ -26,7 +26,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	}
 
 	// Check for live conflicts before saving (scanning change files).
-	if liveConflicts := e.DetectConflicts(); len(liveConflicts) > 0 {
+	if liveConflicts := e.detectConflicts(); len(liveConflicts) > 0 {
 		return &CommitResult{Conflicts: liveConflicts}, nil
 	}
 
@@ -207,7 +207,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 		return nil, "", errNoSessionSet
 	}
 
-	if liveConflicts := e.DetectConflicts(); len(liveConflicts) > 0 {
+	if liveConflicts := e.detectConflicts(); len(liveConflicts) > 0 {
 		return &CommitResult{Conflicts: liveConflicts}, "", nil
 	}
 

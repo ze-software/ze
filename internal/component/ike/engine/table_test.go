@@ -88,12 +88,12 @@ func TestSATableLookupByInitiatorSPI(t *testing.T) {
 	}
 	tbl.Insert(sa)
 
-	got := tbl.LookupByInitiatorSPI(iSPI)
+	got := tbl.lookupByInitiatorSPI(iSPI)
 	if got != sa {
 		t.Fatal("LookupByInitiatorSPI should find SA with matching initiator SPI")
 	}
 
-	got = tbl.LookupByInitiatorSPI([8]byte{0xff})
+	got = tbl.lookupByInitiatorSPI([8]byte{0xff})
 	if got != nil {
 		t.Fatal("LookupByInitiatorSPI should return nil for unknown initiator SPI")
 	}

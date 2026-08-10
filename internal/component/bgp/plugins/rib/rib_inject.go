@@ -215,7 +215,7 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 		selector = pipeSelector
 	}
 
-	var source PipelineIterator
+	var source pipelineIterator
 	if protoID == bgpProtocolID {
 		source = newInboundSource(r, selector)
 	} else {

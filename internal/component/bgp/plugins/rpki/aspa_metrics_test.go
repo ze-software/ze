@@ -33,7 +33,7 @@ func TestBuildDecisionsRecordsASPAOutcomes(t *testing.T) {
 	SetMetricsRegistry(reg)
 	t.Cleanup(func() { rpkiMetricsPtr.Store(nil) })
 
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	batch := []validationRequest{
 		{state: ValidationValid, aspaState: ASPAValid},
 		{state: ValidationValid, aspaState: ASPAInvalid},
@@ -60,7 +60,7 @@ func TestBuildDecisionsASPAOutcomesSkipsInactive(t *testing.T) {
 	SetMetricsRegistry(reg)
 	t.Cleanup(func() { rpkiMetricsPtr.Store(nil) })
 
-	rp := &RPKIPlugin{}
+	rp := &rPKIPlugin{}
 	batch := []validationRequest{
 		{state: ValidationValid, aspaState: aspaStateNone},
 		{state: ValidationNotFound, aspaState: aspaStateNone},

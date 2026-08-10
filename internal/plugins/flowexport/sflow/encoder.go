@@ -68,7 +68,7 @@ func WriteDatagramHeader(buf []byte, off int, agentAddr netip.Addr, subAgentID, 
 	return off
 }
 
-// WriteCounterDatagrams encodes one or more sFlow v5 datagrams containing
+// writeCounterDatagrams encodes one or more sFlow v5 datagrams containing
 // counter samples for the given interfaces. Each datagram is written into
 // buf (which must be at least MaxDatagramSize bytes). When the next counter
 // sample would overflow the datagram, a copy is made and a new datagram
@@ -79,7 +79,7 @@ func WriteDatagramHeader(buf []byte, off int, agentAddr netip.Addr, subAgentID, 
 //
 // Returns a slice of completed datagram byte slices and the next datagram
 // sequence number.
-func WriteCounterDatagrams(buf []byte, agentAddr netip.Addr, subAgentID, datagramSeq, uptime uint32, ifaces []flowexport.InterfaceCounters, seqNums map[uint32]uint32) ([][]byte, uint32) {
+func writeCounterDatagrams(buf []byte, agentAddr netip.Addr, subAgentID, datagramSeq, uptime uint32, ifaces []flowexport.InterfaceCounters, seqNums map[uint32]uint32) ([][]byte, uint32) {
 	if len(ifaces) == 0 {
 		return nil, datagramSeq
 	}
@@ -116,7 +116,7 @@ func WriteCounterDatagrams(buf []byte, agentAddr netip.Addr, subAgentID, datagra
 		c := &ifaces[i]
 
 		// Check if this counter sample fits in the current datagram.
-		sampleSize := CounterSampleSize()
+		sampleSize := counterSampleSize()
 		if off+sampleSize > flowexport.MaxDatagramSize && sampleCount > 0 {
 			flushDatagram()
 			startDatagram()
@@ -133,7 +133,7 @@ func WriteCounterDatagrams(buf []byte, agentAddr netip.Addr, subAgentID, datagra
 		seq++
 		seqNums[c.IfIndex] = seq
 
-		off = WriteCounterSample(buf, off, c.IfIndex, seq, c)
+		off = writeCounterSample(buf, off, c.IfIndex, seq, c)
 		sampleCount++
 	}
 

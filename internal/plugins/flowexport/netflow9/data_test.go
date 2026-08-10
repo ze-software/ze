@@ -28,7 +28,7 @@ func TestNetflow9DataFlowSet(t *testing.T) {
 		},
 	}
 
-	n, count := WriteDataFlowSet(buf, 0, CounterTemplateID, ifaces)
+	n, count := writeDataFlowSet(buf, 0, CounterTemplateID, ifaces)
 	if count != 2 {
 		t.Errorf("record count: got %d, want 2", count)
 	}
@@ -110,7 +110,7 @@ func TestNetflow9DataFlowSetSingleRecord(t *testing.T) {
 		},
 	}
 
-	n, count := WriteDataFlowSet(buf, 0, CounterTemplateID, ifaces)
+	n, count := writeDataFlowSet(buf, 0, CounterTemplateID, ifaces)
 	if count != 1 {
 		t.Errorf("record count: got %d, want 1", count)
 	}
@@ -133,7 +133,7 @@ func TestNetflow9DataFlowSetOffset(t *testing.T) {
 		{IfIndex: 7, IfInOctets: 100, IfOutOctets: 200},
 	}
 
-	n, count := WriteDataFlowSet(buf, off, CounterTemplateID, ifaces)
+	n, count := writeDataFlowSet(buf, off, CounterTemplateID, ifaces)
 	if count != 1 {
 		t.Errorf("record count: got %d, want 1", count)
 	}
@@ -154,7 +154,7 @@ func TestNetflow9DataFlowSetOffset(t *testing.T) {
 func TestNetflow9DataFlowSetEmpty(t *testing.T) {
 	buf := make([]byte, 512)
 
-	n, count := WriteDataFlowSet(buf, 0, CounterTemplateID, nil)
+	n, count := writeDataFlowSet(buf, 0, CounterTemplateID, nil)
 	if count != 0 {
 		t.Errorf("record count for empty: got %d, want 0", count)
 	}

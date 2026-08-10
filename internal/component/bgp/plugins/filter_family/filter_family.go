@@ -45,9 +45,9 @@ var logger = slogutil.LazyLogger("bgp.filter.family")
 // path reads without a lock.
 var instancesByName atomic.Pointer[map[string]*familyFilter]
 
-// RunFilterFamily runs the family filter plugin using the SDK RPC protocol.
+// runFilterFamily runs the family filter plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunFilterFamily(conn net.Conn) int {
+func runFilterFamily(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-family", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 

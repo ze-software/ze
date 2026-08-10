@@ -5,7 +5,7 @@
 
 package nlrisplit
 
-// SplitMVPN is the Splitter for MCAST-VPN NLRIs (RFC 6514 Section 4).
+// splitMVPN is the Splitter for MCAST-VPN NLRIs (RFC 6514 Section 4).
 //
 // RFC 6514 Section 4: "The following is the format of the MCAST-VPN NLRI:
 // Route Type (1 octet), Length (1 octet), Route Type specific (variable)", where
@@ -19,6 +19,6 @@ package nlrisplit
 //
 // Slices alias data. A malformed entry returns the partially-parsed result plus
 // a non-nil error; the caller decides whether to use it.
-func SplitMVPN(data []byte, addPath bool) ([][]byte, error) {
+func splitMVPN(data []byte, addPath bool) ([][]byte, error) {
 	return splitTypeLength(data, addPath, 2, 1, "MVPN")
 }

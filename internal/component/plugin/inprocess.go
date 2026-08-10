@@ -146,9 +146,9 @@ func GetPluginForSendType(sendType string) string {
 	return registry.PluginForSendType(sendType)
 }
 
-// GetRequiredPlugins returns the list of internal plugins needed for the given families.
+// getRequiredPlugins returns the list of internal plugins needed for the given families.
 // Only returns plugins that handle known families.
 // Deduplicates the result.
-func GetRequiredPlugins(families []string) []string {
+func getRequiredPlugins(families []string) []string {
 	return registry.RequiredPlugins(families)
 }

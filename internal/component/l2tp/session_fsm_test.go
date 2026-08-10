@@ -49,7 +49,7 @@ func buildICCNWithProxy(txSpeed, framingType uint32) []byte {
 	off += WriteAVPUint32(buf[:], off, true, AVPTxConnectSpeed, txSpeed)
 	off += WriteAVPUint32(buf[:], off, true, AVPFramingType, framingType)
 	// AC-19: Sequencing Required.
-	off += WriteAVPEmpty(buf[:], off, true, 0, AVPSequencingRequired)
+	off += writeAVPEmpty(buf[:], off, true, 0, AVPSequencingRequired)
 	// AC-17: Proxy LCP.
 	off += WriteAVPBytes(buf[:], off, false, 0, AVPInitialReceivedLCPConfReq, []byte{0x01, 0x02})
 	off += WriteAVPBytes(buf[:], off, false, 0, AVPLastSentLCPConfReq, []byte{0x03, 0x04})
@@ -58,7 +58,7 @@ func buildICCNWithProxy(txSpeed, framingType uint32) []byte {
 	off += WriteAVPUint16(buf[:], off, false, AVPProxyAuthenType, 2) // CHAP
 	off += WriteAVPString(buf[:], off, false, AVPProxyAuthenName, "user1")
 	off += WriteAVPBytes(buf[:], off, false, 0, AVPProxyAuthenChallenge, []byte{0xAA, 0xBB})
-	off += WriteAVPProxyAuthenID(buf[:], off, false, ProxyAuthenIDValue{ChapID: 42})
+	off += writeAVPProxyAuthenID(buf[:], off, false, ProxyAuthenIDValue{ChapID: 42})
 	off += WriteAVPBytes(buf[:], off, false, 0, AVPProxyAuthenResponse, []byte{0xCC, 0xDD})
 	return buf[:off]
 }
@@ -83,7 +83,7 @@ func buildCDN(resultCode, assignedSID uint16) []byte {
 	var buf [128]byte
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgCDN))
-	off += WriteAVPResultCode(buf[:], off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf[:], off, true, ResultCodeValue{Result: resultCode})
 	off += WriteAVPUint16(buf[:], off, true, AVPAssignedSessionID, assignedSID)
 	return buf[:off]
 }
@@ -93,7 +93,7 @@ func buildWEN(ce CallErrorsValue) []byte {
 	var buf [128]byte
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgWEN))
-	off += WriteAVPCallErrors(buf[:], off, true, ce)
+	off += writeAVPCallErrors(buf[:], off, true, ce)
 	return buf[:off]
 }
 
@@ -102,7 +102,7 @@ func buildSLI(accm ACCMValue) []byte {
 	var buf [128]byte
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgSLI))
-	off += WriteAVPACCM(buf[:], off, true, accm)
+	off += writeAVPACCM(buf[:], off, true, accm)
 	return buf[:off]
 }
 
@@ -415,7 +415,7 @@ func TestSession_StopCCN_CascadeSessions(t *testing.T) {
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf[:], off, true, AVPAssignedTunnelID, 200)
-	off += WriteAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
+	off += writeAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
 	stopCCN := buf[:off]
 
 	tun.handleStopCCN(now, stopCCN)
@@ -837,7 +837,7 @@ func TestStopCCNQueuesAllTeardowns(t *testing.T) {
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf[:], off, true, AVPAssignedTunnelID, 200)
-	off += WriteAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
+	off += writeAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
 	tun.handleStopCCN(now, buf[:off])
 
 	if len(tun.pendingKernelTeardowns) != 3 {
@@ -952,7 +952,7 @@ func TestWriteICRPBody(t *testing.T) {
 	if !ok || attrType != AVPMessageType {
 		t.Fatal("first AVP should be Message Type")
 	}
-	mt, _ := ReadAVPUint16(value)
+	mt, _ := readAVPUint16(value)
 	if MessageType(mt) != MsgICRP {
 		t.Fatalf("expected ICRP (11), got %d", mt)
 	}
@@ -960,7 +960,7 @@ func TestWriteICRPBody(t *testing.T) {
 	if !ok || attrType != AVPAssignedSessionID {
 		t.Fatal("second AVP should be Assigned Session ID")
 	}
-	sid, _ := ReadAVPUint16(value)
+	sid, _ := readAVPUint16(value)
 	if sid != 42 {
 		t.Fatalf("expected SID 42, got %d", sid)
 	}
@@ -995,7 +995,7 @@ func TestWriteOCRPBody(t *testing.T) {
 	if !ok || attrType != AVPMessageType {
 		t.Fatal("first AVP should be Message Type")
 	}
-	mt, _ := ReadAVPUint16(value)
+	mt, _ := readAVPUint16(value)
 	if MessageType(mt) != MsgOCRP {
 		t.Fatalf("expected OCRP (8), got %d", mt)
 	}
@@ -1003,7 +1003,7 @@ func TestWriteOCRPBody(t *testing.T) {
 	if !ok || attrType != AVPAssignedSessionID {
 		t.Fatal("second AVP should be Assigned Session ID")
 	}
-	sid, _ := ReadAVPUint16(value)
+	sid, _ := readAVPUint16(value)
 	if sid != 77 {
 		t.Fatalf("expected SID 77, got %d", sid)
 	}

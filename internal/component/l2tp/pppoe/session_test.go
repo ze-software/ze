@@ -8,7 +8,7 @@ import (
 )
 
 func TestSessionIDAlloc(t *testing.T) {
-	st := NewSessionTable("eth0", 0)
+	st := newSessionTable("eth0", 0)
 	sid, err := st.AllocSID()
 	if err != nil {
 		t.Fatalf("AllocSID: %v", err)
@@ -22,7 +22,7 @@ func TestSessionIDAlloc(t *testing.T) {
 }
 
 func TestSessionIDAllocSequential(t *testing.T) {
-	st := NewSessionTable("eth0", 0)
+	st := newSessionTable("eth0", 0)
 	seen := make(map[uint16]bool)
 	const n = 1000
 	for range n {
@@ -41,7 +41,7 @@ func TestSessionIDAllocSequential(t *testing.T) {
 }
 
 func TestSessionIDExhausted(t *testing.T) {
-	st := NewSessionTable("eth0", 0)
+	st := newSessionTable("eth0", 0)
 	for range maxSID {
 		sid, err := st.AllocSID()
 		if err != nil {
@@ -56,12 +56,12 @@ func TestSessionIDExhausted(t *testing.T) {
 }
 
 func TestSessionIDFree(t *testing.T) {
-	st := NewSessionTable("eth0", 0)
+	st := newSessionTable("eth0", 0)
 	sid, err := st.AllocSID()
 	if err != nil {
 		t.Fatalf("AllocSID: %v", err)
 	}
-	st.FreeSID(sid)
+	st.freeSID(sid)
 
 	// After freeing, the SID should be allocatable again.
 	// Allocate all remaining and verify the freed SID appears.
@@ -83,7 +83,7 @@ func TestSessionIDFree(t *testing.T) {
 }
 
 func TestSessionTableAdd(t *testing.T) {
-	st := NewSessionTable("eth0", 100)
+	st := newSessionTable("eth0", 100)
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01}
 	s := &Session{
 		SID:       42,
@@ -109,7 +109,7 @@ func TestSessionTableAdd(t *testing.T) {
 }
 
 func TestSessionTableRemove(t *testing.T) {
-	st := NewSessionTable("eth0", 100)
+	st := newSessionTable("eth0", 100)
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02}
 	s := &Session{SID: 10, MAC: mac, IfName: "eth0"}
 	if err := st.Add(s); err != nil {
@@ -121,7 +121,7 @@ func TestSessionTableRemove(t *testing.T) {
 	if got := st.Lookup(10); got != nil {
 		t.Fatal("Lookup returned non-nil after Remove")
 	}
-	if got := st.LookupByMAC(mac); got != nil {
+	if got := st.lookupByMAC(mac); got != nil {
 		t.Fatal("LookupByMAC returned non-nil after Remove")
 	}
 	if st.Count() != 0 {
@@ -131,7 +131,7 @@ func TestSessionTableRemove(t *testing.T) {
 
 func TestSessionTableMaxLimit(t *testing.T) {
 	const limit = 5
-	st := NewSessionTable("eth0", limit)
+	st := newSessionTable("eth0", limit)
 
 	for i := range limit {
 		sid := uint16(i + 1)
@@ -151,7 +151,7 @@ func TestSessionTableMaxLimit(t *testing.T) {
 }
 
 func TestSessionTableLookupByMAC(t *testing.T) {
-	st := NewSessionTable("eth0", 100)
+	st := newSessionTable("eth0", 100)
 	mac1 := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 	mac2 := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x66}
 
@@ -165,24 +165,24 @@ func TestSessionTableLookupByMAC(t *testing.T) {
 		t.Fatalf("Add s2: %v", err)
 	}
 
-	got := st.LookupByMAC(mac1)
+	got := st.lookupByMAC(mac1)
 	if got == nil || got.SID != 1 {
 		t.Fatalf("LookupByMAC(mac1) = %v, want SID 1", got)
 	}
-	got = st.LookupByMAC(mac2)
+	got = st.lookupByMAC(mac2)
 	if got == nil || got.SID != 2 {
 		t.Fatalf("LookupByMAC(mac2) = %v, want SID 2", got)
 	}
 
 	unknown := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
-	if got := st.LookupByMAC(unknown); got != nil {
+	if got := st.lookupByMAC(unknown); got != nil {
 		t.Fatalf("LookupByMAC(unknown) = %v, want nil", got)
 	}
 }
 
 func TestFreeSIDZeroIsNoop(t *testing.T) {
-	st := NewSessionTable("eth0", 0)
-	st.FreeSID(0)
+	st := newSessionTable("eth0", 0)
+	st.freeSID(0)
 	// SID 0 must remain reserved (bit 0 of word 0 stays clear).
 	if st.bitmap[0]&1 != 0 {
 		t.Fatal("FreeSID(0) made SID 0 allocatable")

@@ -34,7 +34,7 @@ var (
 	ErrUnknownPayload    = errors.New("ike: unknown payload type")
 )
 
-// UnsupportedCritError reports an unrecognized payload whose critical bit is set.
+// unsupportedCritError reports an unrecognized payload whose critical bit is set.
 //
 // RFC 7296 Section 2.5 states the obligation in two parts.
 // The first part is
@@ -43,16 +43,16 @@ var (
 // "In that Notify payload, the Notification Data contains the one-octet payload type".
 // A bare sentinel discards the octet the Notification Data must carry.
 // The type therefore travels on the error itself.
-type UnsupportedCritError struct{ PayloadType uint8 }
+type unsupportedCritError struct{ PayloadType uint8 }
 
-func (e *UnsupportedCritError) Error() string {
+func (e *unsupportedCritError) Error() string {
 	var b textbuf.Buffer
 	return b.Str("ike: unsupported critical payload type ").Uint8(e.PayloadType).String()
 }
 
 // Is makes errors.Is(err, ErrUnsupportedCrit) true for this typed error, so every
 // existing comparison keeps working while the payload type stays reachable.
-func (e *UnsupportedCritError) Is(target error) bool { return target == ErrUnsupportedCrit }
+func (e *unsupportedCritError) Is(target error) bool { return target == ErrUnsupportedCrit }
 
 // CriticalPayloadType returns the one-octet payload type an unsupported critical
 // payload error names, and whether err is such an error.
@@ -61,7 +61,7 @@ func (e *UnsupportedCritError) Is(target error) bool { return target == ErrUnsup
 // A caller can therefore never read the zero as a valid payload type
 // (ai/rules/evidence.md).
 func CriticalPayloadType(err error) (uint8, bool) {
-	var uc *UnsupportedCritError
+	var uc *unsupportedCritError
 	if errors.As(err, &uc) && uc != nil {
 		return uc.PayloadType, true
 	}
@@ -128,22 +128,22 @@ func (g *GenericHeader) ReadFrom(data []byte) error {
 	return nil
 }
 
-// PayloadRaw holds an unknown or unparsed payload (skipped by type).
-type PayloadRaw struct {
+// payloadRaw holds an unknown or unparsed payload (skipped by type).
+type payloadRaw struct {
 	PayloadType uint8
 	Data        []byte
 }
 
-func (p *PayloadRaw) Type() uint8 { return p.PayloadType }
+func (p *payloadRaw) Type() uint8 { return p.PayloadType }
 
-func (p *PayloadRaw) WriteTo(buf []byte, off int) int {
+func (p *payloadRaw) WriteTo(buf []byte, off int) int {
 	copy(buf[off:], p.Data)
 	return len(p.Data)
 }
 
-func (p *PayloadRaw) Len() int { return len(p.Data) }
+func (p *payloadRaw) Len() int { return len(p.Data) }
 
-func (p *PayloadRaw) ReadFrom(data []byte) error {
+func (p *payloadRaw) ReadFrom(data []byte) error {
 	p.Data = data
 	return nil
 }

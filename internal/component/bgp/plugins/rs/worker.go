@@ -355,10 +355,10 @@ func (wp *workerPool) Stop() {
 	}
 }
 
-// SetChanSize updates the channel capacity for newly created workers.
+// setChanSize updates the channel capacity for newly created workers.
 // Existing workers keep their current channel size until they exit (idle timeout)
 // and are recreated. Safe for concurrent use with Dispatch.
-func (wp *workerPool) SetChanSize(size int) {
+func (wp *workerPool) setChanSize(size int) {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	if size > 0 {
@@ -371,10 +371,10 @@ func (wp *workerPool) WorkerCount() int {
 	return int(wp.count.Load())
 }
 
-// BackpressureDetected returns true if the channel for the given key has
+// backpressureDetected returns true if the channel for the given key has
 // triggered a backpressure warning (channel full) since the last check.
 // Clears the flag on read so the caller sees each backpressure event once.
-func (wp *workerPool) BackpressureDetected(key workerKey) bool {
+func (wp *workerPool) backpressureDetected(key workerKey) bool {
 	_, ok := wp.backpressure.LoadAndDelete(key)
 	return ok
 }

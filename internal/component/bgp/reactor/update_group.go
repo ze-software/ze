@@ -26,9 +26,9 @@ type GroupKey struct {
 	PolicyKey uint32
 }
 
-// UpdateGroup is a set of established peers that share the same GroupKey.
+// updateGroup is a set of established peers that share the same GroupKey.
 // Members receive identical UPDATE wire bytes for the same route.
-type UpdateGroup struct {
+type updateGroup struct {
 	Key     GroupKey
 	Members []*Peer
 }
@@ -47,14 +47,14 @@ type UpdateGroup struct {
 // is called from the reactor API path.
 type UpdateGroupIndex struct {
 	mu      sync.Mutex
-	groups  map[GroupKey]*UpdateGroup
+	groups  map[GroupKey]*updateGroup
 	enabled bool
 }
 
-// NewUpdateGroupIndex creates an UpdateGroupIndex with the given enabled state.
-func NewUpdateGroupIndex(enabled bool) *UpdateGroupIndex {
+// newUpdateGroupIndex creates an UpdateGroupIndex with the given enabled state.
+func newUpdateGroupIndex(enabled bool) *UpdateGroupIndex {
 	return &UpdateGroupIndex{
-		groups:  make(map[GroupKey]*UpdateGroup),
+		groups:  make(map[GroupKey]*updateGroup),
 		enabled: enabled,
 	}
 }
@@ -63,7 +63,7 @@ func NewUpdateGroupIndex(enabled bool) *UpdateGroupIndex {
 // flag from the ze.bgp.reactor.update-groups environment variable (default true).
 func NewUpdateGroupIndexFromEnv() *UpdateGroupIndex {
 	enabled := env.GetBool("ze.bgp.reactor.update-groups", true)
-	return NewUpdateGroupIndex(enabled)
+	return newUpdateGroupIndex(enabled)
 }
 
 // Enabled returns whether update grouping is active.
@@ -78,7 +78,7 @@ func (idx *UpdateGroupIndex) Add(peer *Peer) {
 	if !idx.enabled {
 		return
 	}
-	ctxID := peer.SendContextID() // locked accessor (peer.mu.RLock)
+	ctxID := peer.sendContextID() // locked accessor (peer.mu.RLock)
 	if ctxID == 0 {
 		return // Not established or context not set
 	}
@@ -89,7 +89,7 @@ func (idx *UpdateGroupIndex) Add(peer *Peer) {
 	peer.updateGroupKey = key // store under idx.mu to avoid racing with Remove
 	group, ok := idx.groups[key]
 	if !ok {
-		group = &UpdateGroup{Key: key}
+		group = &updateGroup{Key: key}
 		idx.groups[key] = group
 	}
 	group.Members = append(group.Members, peer)
@@ -141,7 +141,7 @@ func (idx *UpdateGroupIndex) Remove(peer *Peer) {
 // GroupsForPeers returns the update groups formed by the given peer subset.
 // Each returned UpdateGroup contains only peers from the input slice.
 // Returns nil when disabled (caller falls back to per-peer loop).
-func (idx *UpdateGroupIndex) GroupsForPeers(peers []*Peer) []UpdateGroup {
+func (idx *UpdateGroupIndex) GroupsForPeers(peers []*Peer) []updateGroup {
 	if !idx.enabled {
 		return nil
 	}
@@ -151,7 +151,7 @@ func (idx *UpdateGroupIndex) GroupsForPeers(peers []*Peer) []UpdateGroup {
 	// because the caller may pass a filtered subset of peers.
 	tmp := make(map[GroupKey][]*Peer)
 	for _, peer := range peers {
-		ctxID := peer.SendContextID() // locked accessor (peer.mu.RLock)
+		ctxID := peer.sendContextID() // locked accessor (peer.mu.RLock)
 		if ctxID == 0 {
 			continue
 		}
@@ -163,9 +163,9 @@ func (idx *UpdateGroupIndex) GroupsForPeers(peers []*Peer) []UpdateGroup {
 		return nil
 	}
 
-	result := make([]UpdateGroup, 0, len(tmp))
+	result := make([]updateGroup, 0, len(tmp))
 	for key, members := range tmp {
-		result = append(result, UpdateGroup{Key: key, Members: members})
+		result = append(result, updateGroup{Key: key, Members: members})
 	}
 	return result
 }

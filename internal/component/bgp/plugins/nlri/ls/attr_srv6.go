@@ -49,7 +49,7 @@ func (t *LsSRv6EndpointBehavior) ToJSON() map[string]any {
 	}
 }
 
-func decodeSRv6EndpointBehavior(data []byte) (LsAttrTLV, error) {
+func decodeSRv6EndpointBehavior(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
@@ -99,7 +99,7 @@ func (t *LsSRv6BGPPeerNodeSID) ToJSON() map[string]any {
 	}
 }
 
-func decodeSRv6BGPPeerNodeSID(data []byte) (LsAttrTLV, error) {
+func decodeSRv6BGPPeerNodeSID(data []byte) (lsAttrTLV, error) {
 	// RFC 9514 Section 5.1: exactly 12 bytes
 	if len(data) < 12 {
 		return nil, ErrBGPLSTruncated
@@ -114,20 +114,20 @@ func decodeSRv6BGPPeerNodeSID(data []byte) (LsAttrTLV, error) {
 
 // --- TLV 1252: SRv6 SID Structure ---
 
-// LsSRv6SIDStructureAttr represents SRv6 SID Structure as a standalone attribute TLV (1252).
+// lsSRv6SIDStructureAttr represents SRv6 SID Structure as a standalone attribute TLV (1252).
 // RFC 9514 Section 8: LocBlockLen(1) + LocNodeLen(1) + FuncLen(1) + ArgLen(1).
 // Note: This also appears as a sub-TLV inside SRv6 End.X SID (TLV 1106).
-type LsSRv6SIDStructureAttr struct {
+type lsSRv6SIDStructureAttr struct {
 	LocBlockLen uint8
 	LocNodeLen  uint8
 	FuncLen     uint8
 	ArgLen      uint8
 }
 
-func (t *LsSRv6SIDStructureAttr) Code() uint16 { return TLVSRv6SIDStructure }
-func (t *LsSRv6SIDStructureAttr) Len() int     { return 4 + 4 }
+func (t *lsSRv6SIDStructureAttr) Code() uint16 { return TLVSRv6SIDStructure }
+func (t *lsSRv6SIDStructureAttr) Len() int     { return 4 + 4 }
 
-func (t *LsSRv6SIDStructureAttr) WriteTo(buf []byte, off int) int {
+func (t *lsSRv6SIDStructureAttr) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVSRv6SIDStructure, 4)
 	vOff := off + 4
 	buf[vOff] = t.LocBlockLen
@@ -137,7 +137,7 @@ func (t *LsSRv6SIDStructureAttr) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsSRv6SIDStructureAttr) ToJSON() map[string]any {
+func (t *lsSRv6SIDStructureAttr) ToJSON() map[string]any {
 	return map[string]any{
 		"srv6-sid-structure": map[string]any{
 			"loc-block-len": int(t.LocBlockLen),
@@ -148,11 +148,11 @@ func (t *LsSRv6SIDStructureAttr) ToJSON() map[string]any {
 	}
 }
 
-func decodeSRv6SIDStructure(data []byte) (LsAttrTLV, error) {
+func decodeSRv6SIDStructure(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsSRv6SIDStructureAttr{
+	return &lsSRv6SIDStructureAttr{
 		LocBlockLen: data[0],
 		LocNodeLen:  data[1],
 		FuncLen:     data[2],

@@ -20,13 +20,13 @@ var ErrReactorStopped = errors.New("l2tp: reactor stopped")
 // has been reached.
 var ErrMaxTunnels = errors.New("l2tp: max-tunnels limit reached")
 
-// ErrCallTimeout is returned by PlaceOutgoingCallSync when neither a
+// ErrCallTimeout is returned by placeOutgoingCallSync when neither a
 // success nor a failure outcome arrives within the caller's deadline. The
 // underlying dial/tunnel keeps running; the operator can observe it via
 // `show l2tp tunnels/sessions`.
 var ErrCallTimeout = errors.New("l2tp: outgoing call timed out")
 
-// Failure-outcome causes surfaced to a blocking PlaceOutgoingCallSync when a
+// Failure-outcome causes surfaced to a blocking placeOutgoingCallSync when a
 // call cannot complete. These distinguish the reasons an operator sees.
 var (
 	errCallPlacementRefused  = errors.New("l2tp: outgoing call refused (max sessions or tunnel not established)")
@@ -64,8 +64,8 @@ type pendingCall struct {
 	outgoing bool
 	params   callParams
 	// result, when non-nil, receives the call's terminal outcome (AC-4).
-	// PlaceOutgoingCallSync installs it and blocks on it; the fire-and-forget
-	// Dial/PlaceOutgoingCall/PlaceIncomingCall paths leave it nil. Buffered
+	// placeOutgoingCallSync installs it and blocks on it; the fire-and-forget
+	// Dial/PlaceOutgoingCall/placeIncomingCall paths leave it nil. Buffered
 	// (cap 1) at the call site so the reactor never blocks delivering.
 	result chan callOutcome
 }
@@ -105,14 +105,14 @@ func (r *L2TPReactor) PlaceOutgoingCall(target DialTarget, p callParams) (uint16
 	return r.dialWithCall(target, &pendingCall{outgoing: true, params: p})
 }
 
-// PlaceIncomingCall dials target and, once the tunnel establishes, originates
+// placeIncomingCall dials target and, once the tunnel establishes, originates
 // a LAC-side incoming call (ICRQ) with the given call parameters. Returns the
 // local tunnel ID. Safe to call from any goroutine (R-2).
-func (r *L2TPReactor) PlaceIncomingCall(target DialTarget, p callParams) (uint16, error) {
+func (r *L2TPReactor) placeIncomingCall(target DialTarget, p callParams) (uint16, error) {
 	return r.dialWithCall(target, &pendingCall{outgoing: false, params: p})
 }
 
-// PlaceOutgoingCallSync dials target, originates an LNS-side outgoing call
+// placeOutgoingCallSync dials target, originates an LNS-side outgoing call
 // (OCRQ) once the tunnel establishes, and BLOCKS until the call reaches a
 // terminal outcome (session established, or a failure: tunnel auth reject,
 // tie-breaker loss, setup failure, or peer CDN) or timeout elapses. This is
@@ -121,7 +121,7 @@ func (r *L2TPReactor) PlaceIncomingCall(target DialTarget, p callParams) (uint16
 // came up and why it did not. Safe to call from any goroutine (the dial is
 // marshaled onto the reactor goroutine, R-2; the result channel is buffered
 // so the reactor never blocks on delivery even after a timeout).
-func (r *L2TPReactor) PlaceOutgoingCallSync(target DialTarget, p callParams, timeout time.Duration) (callOutcome, error) {
+func (r *L2TPReactor) placeOutgoingCallSync(target DialTarget, p callParams, timeout time.Duration) (callOutcome, error) {
 	pc := &pendingCall{outgoing: true, params: p, result: make(chan callOutcome, 1)}
 	if _, err := r.dialWithCall(target, pc); err != nil {
 		return callOutcome{}, err
@@ -142,7 +142,7 @@ func (r *L2TPReactor) PlaceOutgoingCallSync(target DialTarget, p callParams, tim
 }
 
 // dialWithCall is the shared marshaling path for Dial / PlaceOutgoingCall /
-// PlaceIncomingCall / PlaceOutgoingCallSync.
+// placeIncomingCall / placeOutgoingCallSync.
 func (r *L2TPReactor) dialWithCall(target DialTarget, call *pendingCall) (uint16, error) {
 	r.mu.Lock()
 	if !r.started {
@@ -269,7 +269,7 @@ func (r *L2TPReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sen
 // resolvePendingCall delivers a failure outcome to a call still waiting for
 // its tunnel to establish (the pendingCall was never placed on a session)
 // and clears it. Used by the tunnel-teardown paths (auth reject, tie-breaker
-// loss, retransmit exhaustion) so a blocking PlaceOutgoingCallSync learns the
+// loss, retransmit exhaustion) so a blocking placeOutgoingCallSync learns the
 // tunnel died instead of timing out. No-op when there is no pending call or
 // it carries no result channel. Caller MUST hold tunnelsMu.
 func (t *L2TPTunnel) resolvePendingCall(o callOutcome) {
@@ -288,7 +288,7 @@ func (r *L2TPReactor) transmit(localTID uint16, outbound []sendRequest) {
 	for _, req := range outbound {
 		if r.capture != nil && len(req.bytes) > 12 {
 			outSID := uint16(req.bytes[8])<<8 | uint16(req.bytes[9])
-			r.capture.AppendOutbound(localTID, outSID, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
+			r.capture.appendOutbound(localTID, outSID, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
 		}
 		if rc := r.rawCapture.Load(); rc != nil {
 			rc.Append(1, req.bytes)

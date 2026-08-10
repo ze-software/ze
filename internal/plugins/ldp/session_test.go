@@ -15,12 +15,12 @@ func TestSessionPeerAddresses(t *testing.T) {
 	b := netip.MustParseAddr("10.0.0.2")
 
 	s.addPeerAddresses([]netip.Addr{a, b, a}) // duplicate a
-	if got := s.PeerAddresses(); len(got) != 2 {
+	if got := s.peerAddresses(); len(got) != 2 {
 		t.Fatalf("PeerAddresses len = %d, want 2 (deduped)", len(got))
 	}
 
 	s.removePeerAddresses([]netip.Addr{a})
-	got := s.PeerAddresses()
+	got := s.peerAddresses()
 	if len(got) != 1 || got[0] != b {
 		t.Errorf("after remove = %v, want [%s]", got, b)
 	}
@@ -46,7 +46,7 @@ func TestSessionStateString(t *testing.T) {
 }
 
 func TestSessionHandleInit(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	s := &Session{
 		state:         StateOpenSent,
 		keepaliveTime: DefaultKeepaliveTime,
@@ -56,7 +56,7 @@ func TestSessionHandleInit(t *testing.T) {
 	}
 
 	peerLSRID := [4]byte{10, 0, 0, 2}
-	msg := InitMessage{
+	msg := initMessage{
 		MessageID:       1,
 		ProtocolVersion: ldpVersion,
 		KeepaliveTime:   30,
@@ -79,7 +79,7 @@ func TestSessionHandleInit(t *testing.T) {
 }
 
 func TestSessionHandleInitFromInitialized(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	s := &Session{
 		state:         StateInitialized,
 		keepaliveTime: DefaultKeepaliveTime,
@@ -88,7 +88,7 @@ func TestSessionHandleInitFromInitialized(t *testing.T) {
 		stopCh:        make(chan struct{}),
 	}
 
-	msg := InitMessage{
+	msg := initMessage{
 		MessageID:       1,
 		ProtocolVersion: ldpVersion,
 		KeepaliveTime:   45,
@@ -115,13 +115,13 @@ func TestSessionProcessMessagesFiresOperational(t *testing.T) {
 		state:         StateOpenSent,
 		keepaliveTime: DefaultKeepaliveTime,
 		maxPDU:        DefaultMaxPDULength,
-		lib:           NewLIB(),
+		lib:           newLIB(),
 		log:           slogutil.DiscardLogger(),
 		stopCh:        make(chan struct{}),
 	}
 
 	var buf [256]byte
-	n := EncodeInit(buf[:], InitMessage{
+	n := EncodeInit(buf[:], initMessage{
 		MessageID:       1,
 		ProtocolVersion: ldpVersion,
 		KeepaliveTime:   30,
@@ -147,14 +147,14 @@ func TestSessionCurrentKeepalive(t *testing.T) {
 		state:         StateOpenSent,
 		keepaliveTime: DefaultKeepaliveTime,
 		maxPDU:        DefaultMaxPDULength,
-		lib:           NewLIB(),
+		lib:           newLIB(),
 		stopCh:        make(chan struct{}),
 	}
 	if s.currentKeepalive() != DefaultKeepaliveTime {
 		t.Fatalf("initial keepalive = %v, want %v", s.currentKeepalive(), DefaultKeepaliveTime)
 	}
 
-	s.handleInit(InitMessage{KeepaliveTime: 20}, [4]byte{10, 0, 0, 2})
+	s.handleInit(initMessage{KeepaliveTime: 20}, [4]byte{10, 0, 0, 2})
 
 	if s.currentKeepalive().Seconds() != 20 {
 		t.Errorf("keepalive after negotiation = %v, want 20s", s.currentKeepalive())
@@ -162,7 +162,7 @@ func TestSessionCurrentKeepalive(t *testing.T) {
 }
 
 func TestSessionKeepaliveNegotiation(t *testing.T) {
-	lib := NewLIB()
+	lib := newLIB()
 	s := &Session{
 		state:         StateOpenSent,
 		keepaliveTime: 60 * 1e9,
@@ -171,7 +171,7 @@ func TestSessionKeepaliveNegotiation(t *testing.T) {
 		stopCh:        make(chan struct{}),
 	}
 
-	msg := InitMessage{
+	msg := initMessage{
 		KeepaliveTime: 20,
 	}
 	s.handleInit(msg, [4]byte{10, 0, 0, 4})

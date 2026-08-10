@@ -45,7 +45,7 @@ func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexp
 		chunk := snap.Interfaces[start:end]
 
 		buf := flowexport.GetBuf()
-		n := WriteExportPacket(
+		n := writeExportPacket(
 			*buf, sysUpTime, unixSecs,
 			e.seqNum, e.SourceID,
 			nil, false,
@@ -87,7 +87,7 @@ func (e *CounterEncoder) EncodeTemplate(sender *flowexport.Sender) error {
 	sysUpTime := uint32(time.Since(e.StartTime).Milliseconds())
 	unixSecs := uint32(time.Now().Unix())
 
-	n := WriteExportPacket(
+	n := writeExportPacket(
 		*buf, sysUpTime, unixSecs,
 		e.seqNum, e.SourceID,
 		e.templateBytes, true,

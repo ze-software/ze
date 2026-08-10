@@ -22,9 +22,9 @@ func MUPPrefixLen(prefix netip.Prefix) int {
 	return 1 + (prefix.Bits()+7)/8
 }
 
-// TEIDFieldLen returns the encoded byte length for a TEID field.
+// tEIDFieldLen returns the encoded byte length for a TEID field.
 // Returns 0 if bits <= 0.
-func TEIDFieldLen(bits int) int {
+func tEIDFieldLen(bits int) int {
 	if bits <= 0 {
 		return 0
 	}

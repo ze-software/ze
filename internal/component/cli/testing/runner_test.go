@@ -32,7 +32,7 @@ expect=context:root
 expect=dirty:false
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 	assert.Empty(t, result.Error)
@@ -67,7 +67,7 @@ input=enter
 expect=context:path=bgp
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 }
@@ -93,7 +93,7 @@ option=file:path=test.conf
 expect=context:path=bgp
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.False(t, result.Passed, "test should fail")
 	assert.Contains(t, result.Error, "context")
@@ -113,7 +113,7 @@ option=file:path=nonexistent.conf
 expect=context:root
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.False(t, result.Passed)
 	assert.Contains(t, result.Error, "nonexistent")
@@ -143,7 +143,7 @@ expect=dirty:false
 expect=error:none
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "all expectations should pass: %s", result.Error)
 }
@@ -173,7 +173,7 @@ input=type:text=set
 expect=context:path=bgp
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 }
@@ -226,7 +226,7 @@ expect=context:root
 expect=dirty:true
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.False(t, result.Passed)
 	// Error should identify which expectation failed
@@ -248,7 +248,7 @@ option=file:path=test.conf
 expect=context:root
 `
 
-	result := RunETTest(etContent)
+	result := runETTest(etContent)
 	require.NotNil(t, result)
 
 	// TempDir should be cleaned up (empty or not exist)

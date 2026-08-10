@@ -470,7 +470,7 @@ func TestSessionClearReportedWarningsOnTeardown(t *testing.T) {
 	require.Len(t, report.Warnings(), 1)
 
 	// Simulate session teardown.
-	s.ClearReportedWarnings()
+	s.clearReportedWarnings()
 	assert.Empty(t, report.Warnings(), "ClearReportedWarnings should remove the entry")
 }
 

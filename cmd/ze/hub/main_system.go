@@ -255,9 +255,9 @@ var (
 	hubIdentityStore identity.Storage
 )
 
-// SetIdentityStore sets the storage backend used for machine identity
+// setIdentityStore sets the storage backend used for machine identity
 // resolution. Called once at hub startup before startUpdateChecker.
-func SetIdentityStore(s identity.Storage) {
+func setIdentityStore(s identity.Storage) {
 	hubIdentityOnce.Do(func() { hubIdentityStore = s })
 }
 

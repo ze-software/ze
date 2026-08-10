@@ -57,7 +57,7 @@ func TestReplayForPeerDispatchesTypedReplayCommand(t *testing.T) {
 	})
 	bridge.SetReady()
 
-	rr := &RouteReflector{
+	rr := &routeReflector{
 		plugin: p,
 		peers: map[string]*peerState{
 			"10.0.0.1": {

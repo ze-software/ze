@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 )
 
-// Hashable is implemented by types that can be hashed for deduplication.
-type Hashable interface {
+// hashable is implemented by types that can be hashed for deduplication.
+type hashable interface {
 	// Hash returns a 64-bit hash of the value.
 	Hash() uint64
 	// Equal returns true if the value equals another.
@@ -21,7 +21,7 @@ type Hashable interface {
 }
 
 // internRequest is sent to a worker goroutine for interning.
-type internRequest[T Hashable] struct {
+type internRequest[T hashable] struct {
 	value    T
 	response chan T
 }
@@ -30,7 +30,7 @@ type internRequest[T Hashable] struct {
 //
 // Each attribute type has its own goroutine that handles interning requests,
 // allowing concurrent access without lock contention across types.
-type AttributeStore[T Hashable] struct {
+type AttributeStore[T hashable] struct {
 	entries map[uint64][]entry[T]
 	mu      sync.RWMutex
 
@@ -47,13 +47,13 @@ type AttributeStore[T Hashable] struct {
 }
 
 // entry holds a stored value with its reference count.
-type entry[T Hashable] struct {
+type entry[T hashable] struct {
 	value    T
 	refCount int64
 }
 
 // NewAttributeStore creates a new attribute store with a worker goroutine.
-func NewAttributeStore[T Hashable](bufferSize int) *AttributeStore[T] {
+func NewAttributeStore[T hashable](bufferSize int) *AttributeStore[T] {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &AttributeStore[T]{
 		entries:  make(map[uint64][]entry[T]),
@@ -115,9 +115,9 @@ func (s *AttributeStore[T]) internSync(value T) T {
 	return value
 }
 
-// InternDirect performs synchronous interning without using the worker.
+// internDirect performs synchronous interning without using the worker.
 // Use this when you're already in a serialized context.
-func (s *AttributeStore[T]) InternDirect(value T) T {
+func (s *AttributeStore[T]) internDirect(value T) T {
 	return s.internSync(value)
 }
 
@@ -208,8 +208,8 @@ func HashBytes(data []byte) uint64 {
 	return h
 }
 
-// HashUint32 returns a 64-bit FNV-1a hash of a uint32.
-func HashUint32(v uint32) uint64 {
+// hashUint32 returns a 64-bit FNV-1a hash of a uint32.
+func hashUint32(v uint32) uint64 {
 	h := uint64(fnvOffset64)
 	h ^= uint64(v >> 24)
 	h *= fnvPrime64
@@ -222,8 +222,8 @@ func HashUint32(v uint32) uint64 {
 	return h
 }
 
-// HashString returns a 64-bit FNV-1a hash of a string.
-func HashString(s string) uint64 {
+// hashString returns a 64-bit FNV-1a hash of a string.
+func hashString(s string) uint64 {
 	h := uint64(fnvOffset64)
 	for i := range len(s) {
 		h ^= uint64(s[i])
@@ -232,8 +232,8 @@ func HashString(s string) uint64 {
 	return h
 }
 
-// CombineHashes combines multiple hashes into one via FNV-1a.
-func CombineHashes(hashes ...uint64) uint64 {
+// combineHashes combines multiple hashes into one via FNV-1a.
+func combineHashes(hashes ...uint64) uint64 {
 	h := uint64(fnvOffset64)
 	for _, hash := range hashes {
 		for shift := 56; shift >= 0; shift -= 8 {

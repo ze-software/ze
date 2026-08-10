@@ -43,8 +43,8 @@ func WithInterval(d time.Duration) WriterOption {
 	return func(w *Writer) { w.interval = d }
 }
 
-// WithBufSize sets the write buffer size in bytes.
-func WithBufSize(n int) WriterOption {
+// withBufSize sets the write buffer size in bytes.
+func withBufSize(n int) WriterOption {
 	return func(w *Writer) {
 		if n > 0 {
 			w.bufSize = n
@@ -230,8 +230,8 @@ func writePadded(b *textbuf.Buffer, v, width int) {
 	b.Str(s)
 }
 
-// ExpandPatternTableName replaces %N in an already-expanded path with the
+// expandPatternTableName replaces %N in an already-expanded path with the
 // given table name.
-func ExpandPatternTableName(path, tableName string) string {
+func expandPatternTableName(path, tableName string) string {
 	return strings.ReplaceAll(path, "%N", tableName)
 }

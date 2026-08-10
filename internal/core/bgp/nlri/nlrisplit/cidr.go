@@ -13,7 +13,7 @@ import (
 // safe because malformed inputs return an error regardless.
 const maxPrefixBits = 128
 
-// SplitCIDR is the Splitter for families with [prefix-len(1 byte, bits)]
+// splitCIDR is the Splitter for families with [prefix-len(1 byte, bits)]
 // [address-bytes((prefix-len+7)/8)] wire NLRIs -- RFC 4271 unicast and
 // multicast for IPv4 / IPv6. Under ADD-PATH (RFC 7911) each NLRI is
 // prefixed with a 4-byte path-id that is included in the returned slice.
@@ -23,7 +23,7 @@ const maxPrefixBits = 128
 // that need to retain bytes must copy. Returns an error when the first
 // malformed NLRI is encountered; any successfully-parsed NLRIs before
 // that point are still returned so partial processing is possible.
-func SplitCIDR(data []byte, addPath bool) ([][]byte, error) {
+func splitCIDR(data []byte, addPath bool) ([][]byte, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}

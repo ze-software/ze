@@ -134,21 +134,21 @@ func (b *Builder) AddExtendedCommunity(ec ExtendedCommunity) *Builder {
 	return b
 }
 
-// SetAtomicAggregate sets the ATOMIC_AGGREGATE attribute.
-func (b *Builder) SetAtomicAggregate(v bool) *Builder {
+// setAtomicAggregate sets the ATOMIC_AGGREGATE attribute.
+func (b *Builder) setAtomicAggregate(v bool) *Builder {
 	b.atomicAggregate = v
 	return b
 }
 
-// SetAIGP sets the AIGP attribute with the given metric value.
-func (b *Builder) SetAIGP(metric uint64) *Builder {
+// setAIGP sets the AIGP attribute with the given metric value.
+func (b *Builder) setAIGP(metric uint64) *Builder {
 	b.aigp = NewAIGPMetric(metric)
 	return b
 }
 
-// SetWire sets pre-built wire bytes (for forwarding).
+// setWire sets pre-built wire bytes (for forwarding).
 // When wire is set, Build() returns it directly.
-func (b *Builder) SetWire(wire []byte) *Builder {
+func (b *Builder) setWire(wire []byte) *Builder {
 	b.wire = wire
 	return b
 }

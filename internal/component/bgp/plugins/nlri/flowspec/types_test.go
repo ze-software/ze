@@ -184,7 +184,7 @@ func TestFlowSpecICMPTypeRoundTrip(t *testing.T) {
 func TestFlowSpecICMPCode(t *testing.T) {
 	t.Parallel()
 	// Network Unreachable = 0, Host Unreachable = 1 per RFC 792
-	comp := NewFlowICMPCodeComponent(0, 1)
+	comp := newFlowICMPCodeComponent(0, 1)
 
 	assert.Equal(t, FlowICMPCode, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
@@ -217,10 +217,10 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 		},
 		{
 			name: "icmp-code",
-			comp: NewFlowICMPCodeComponent(0, 255),
+			comp: newFlowICMPCodeComponent(0, 255),
 			buildNLRI: func() *FlowSpec {
 				fs := NewFlowSpec(IPv4FlowSpec)
-				fs.AddComponent(NewFlowICMPCodeComponent(0, 255))
+				fs.AddComponent(newFlowICMPCodeComponent(0, 255))
 				return fs
 			},
 		},
@@ -259,7 +259,7 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 func TestFlowSpecICMPCodeRoundTrip(t *testing.T) {
 	t.Parallel()
 	original := NewFlowSpec(IPv4FlowSpec)
-	original.AddComponent(NewFlowICMPCodeComponent(3)) // Port Unreachable
+	original.AddComponent(newFlowICMPCodeComponent(3)) // Port Unreachable
 
 	data := original.Bytes()
 	parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
@@ -910,7 +910,7 @@ func TestNumericComponentString(t *testing.T) {
 		},
 		{
 			name:     "icmp-code",
-			comp:     NewFlowICMPCodeComponent(0),
+			comp:     newFlowICMPCodeComponent(0),
 			expected: "icmp-code =0",
 		},
 		{
@@ -948,49 +948,49 @@ func TestNumericOperatorString(t *testing.T) {
 	}{
 		{
 			name: "equal operator",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpEqual, Value: 80},
 			}),
 			expected: "destination-port =80",
 		},
 		{
 			name: "greater than",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpGreater, Value: 1024},
 			}),
 			expected: "destination-port >1024",
 		},
 		{
 			name: "less than",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpLess, Value: 65535},
 			}),
 			expected: "destination-port <65535",
 		},
 		{
 			name: "greater or equal",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
 			}),
 			expected: "destination-port >=1024",
 		},
 		{
 			name: "less or equal",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpLess | FlowOpEqual, Value: 65535},
 			}),
 			expected: "destination-port <=65535",
 		},
 		{
 			name: "not equal",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpNotEq, Value: 0},
 			}),
 			expected: "destination-port !=0",
 		},
 		{
 			name: "range without AND prefix",
-			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
 				{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
 				{Op: FlowOpLess | FlowOpEqual, Value: 65535, And: true},
 			}),
@@ -1036,7 +1036,7 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 			name: "port range",
 			fs: func() *FlowSpec {
 				f := NewFlowSpec(IPv4FlowSpec)
-				f.AddComponent(NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				f.AddComponent(newFlowNumericComponent(FlowDestPort, []FlowMatch{
 					{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
 					{Op: FlowOpLess | FlowOpEqual, Value: 65535, And: true},
 				}))
@@ -1128,7 +1128,7 @@ func TestBitmaskComponentString(t *testing.T) {
 		},
 		{
 			name: "tcp-flags multiple matches with AND",
-			comp: NewFlowNumericComponent(FlowTCPFlags, []FlowMatch{
+			comp: newFlowNumericComponent(FlowTCPFlags, []FlowMatch{
 				{Op: 0, Value: 0x02},                    // SYN
 				{Op: FlowOpNot, Value: 0x04, And: true}, // AND NOT RST
 			}),
@@ -1137,7 +1137,7 @@ func TestBitmaskComponentString(t *testing.T) {
 		},
 		{
 			name: "fragment multiple with match and AND",
-			comp: NewFlowNumericComponent(FlowFragment, []FlowMatch{
+			comp: newFlowNumericComponent(FlowFragment, []FlowMatch{
 				{Op: FlowOpMatch, Value: uint64(FlowFragDontFragment)},        // =dont-fragment
 				{Op: FlowOpNot, Value: uint64(FlowFragIsFragment), And: true}, // &!is-fragment
 			}),
@@ -1236,7 +1236,7 @@ func TestFlowSpecNumericOperatorReservedBitZero(t *testing.T) {
 
 	// One component exercising all three encoder len codes (1, 2, 4 octet values) and
 	// several comparison operators, plus the AND and END bits.
-	comp := NewFlowNumericComponent(FlowPacketLength, []FlowMatch{
+	comp := newFlowNumericComponent(FlowPacketLength, []FlowMatch{
 		{Op: FlowOpEqual, Value: 6},                 // 1-octet value (lenCode 0)
 		{Op: FlowOpGreater, Value: 1024, And: true}, // 2-octet value (lenCode 1)
 		{Op: FlowOpLess, Value: 0x12345, And: true}, // 4-octet value (lenCode 2), END set
@@ -1265,7 +1265,7 @@ func TestFlowSpecBitmaskOperatorReservedBitsZero(t *testing.T) {
 	t.Parallel()
 
 	// TCP flags (Type 9) uses the bitmask operator; exercise MATCH, NOT and AND/END bits.
-	comp := NewFlowTCPFlagsMatchComponent([]FlowMatch{
+	comp := newFlowTCPFlagsMatchComponent([]FlowMatch{
 		{Op: FlowOpMatch, Value: 0x02},                        // =syn
 		{Op: FlowOpNot | FlowOpMatch, Value: 0x04, And: true}, // AND !=rst, END set
 	})
@@ -1294,7 +1294,7 @@ func TestFlowSpecFragmentReservedHighNibbleZero(t *testing.T) {
 	t.Parallel()
 
 	// Fragment (Type 12) with combined and single flags across two {op, value} pairs.
-	comp := NewFlowFragmentMatchComponent([]FlowMatch{
+	comp := newFlowFragmentMatchComponent([]FlowMatch{
 		{Op: FlowOpMatch, Value: uint64(FlowFragIsFragment | FlowFragFirstFragment)},
 		{Op: FlowOpMatch, Value: uint64(FlowFragDontFragment), And: true},
 	})

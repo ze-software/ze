@@ -39,7 +39,7 @@ func clearTombstoneTransitive(dst []byte, flagsOff int) {
 	dst[flagsOff] &^= byte(attribute.FlagTransitive)
 }
 
-// ClearTombstoneTransitiveInBody clears the Transitive bit on every
+// clearTombstoneTransitiveInBody clears the Transitive bit on every
 // ATTR_TOMBSTONE marker in a freshly built UPDATE body.
 //
 // draft-mangin-idr-attr-tombstone-00 Section 5.3: "At the originating AS's EBGP
@@ -59,7 +59,7 @@ func clearTombstoneTransitive(dst []byte, flagsOff int) {
 // length. A body that does not parse is left alone: it is the caller's own
 // output, and a malformed one is a caller bug rather than something to repair
 // here.
-func ClearTombstoneTransitiveInBody(dst []byte, n int) {
+func clearTombstoneTransitiveInBody(dst []byte, n int) {
 	if n < 4 {
 		return
 	}

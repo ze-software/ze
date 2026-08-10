@@ -86,7 +86,7 @@ func TestCommunityUnderscoreSpellingsDerived(t *testing.T) {
 			continue // no hyphen to convert (e.g. "nopeer", "blackhole")
 		}
 		checked++
-		got, ok := CommunityValue(underscored)
+		got, ok := communityValue(underscored)
 		if !ok {
 			t.Errorf("underscore spelling %q not accepted; it must be derived from %q", underscored, name)
 			continue
@@ -104,7 +104,7 @@ func TestCommunityUnderscoreSpellingsDerived(t *testing.T) {
 // aliases are accepted on input and never produced on output.
 func TestCommunityAliasesParseButNeverRender(t *testing.T) {
 	for alias, value := range communityAliases {
-		got, ok := CommunityValue(alias)
+		got, ok := communityValue(alias)
 		if !ok {
 			t.Errorf("alias %q is not accepted", alias)
 			continue
@@ -151,7 +151,7 @@ func TestRegisterCommunityNameReachesBothDirections(t *testing.T) {
 	if got, err := parseSingleCommunity(name); err != nil || got != uint32(value) {
 		t.Errorf("parseSingleCommunity(%q) = 0x%08X, %v -- want 0x%08X", name, got, err, uint32(value))
 	}
-	if got, ok := CommunityValue("registry_probe"); !ok || got != value {
+	if got, ok := communityValue("registry_probe"); !ok || got != value {
 		t.Errorf("underscore spelling of a registered name not accepted")
 	}
 }
@@ -160,19 +160,19 @@ func TestRegisterCommunityNameReachesBothDirections(t *testing.T) {
 // An alias MUST NOT be repointed at a different value. It MUST NOT attach to
 // a community that carries no canonical name.
 func TestRegisterCommunityAliasRejectsConflicts(t *testing.T) {
-	if err := RegisterCommunityAlias(Community(0x0BAD0002), "orphan-alias"); err == nil {
+	if err := registerCommunityAlias(Community(0x0BAD0002), "orphan-alias"); err == nil {
 		t.Error("alias for an unnamed community was accepted; the guard must fail closed")
 	}
-	if _, ok := CommunityValue("orphan-alias"); ok {
+	if _, ok := communityValue("orphan-alias"); ok {
 		t.Error("a rejected alias was still recorded")
 	}
-	if err := RegisterCommunityAlias(CommunityNoExport, "gshut"); err == nil {
+	if err := registerCommunityAlias(CommunityNoExport, "gshut"); err == nil {
 		t.Error(`repointing the existing alias "gshut" at another value was accepted`)
 	}
-	if got, ok := CommunityValue("gshut"); !ok || got != CommunityGracefulShutdown {
+	if got, ok := communityValue("gshut"); !ok || got != CommunityGracefulShutdown {
 		t.Error("a rejected alias overwrote the existing mapping")
 	}
-	if err := RegisterCommunityAlias(CommunityGracefulShutdown, "gshut"); err != nil {
+	if err := registerCommunityAlias(CommunityGracefulShutdown, "gshut"); err != nil {
 		t.Errorf("re-registering an alias with its own value must be idempotent, got %v", err)
 	}
 }

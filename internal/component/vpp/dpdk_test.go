@@ -5,7 +5,7 @@ import "testing"
 func TestNewDPDKBinder(t *testing.T) {
 	// VALIDATES: DPDKBinder construction
 	// PREVENTS: nil map panic
-	b := NewDPDKBinder()
+	b := newDPDKBinder()
 	if b == nil {
 		t.Fatal("NewDPDKBinder returned nil")
 	}
@@ -17,7 +17,7 @@ func TestNewDPDKBinder(t *testing.T) {
 func TestDPDKBinderValidatesPCI(t *testing.T) {
 	// VALIDATES: AC-10 -- invalid PCI address rejected during bind
 	// PREVENTS: sysfs path traversal
-	b := NewDPDKBinder()
+	b := newDPDKBinder()
 	err := b.BindAll([]DPDKInterface{
 		{PCIAddress: "invalid-addr", Name: "xe0"},
 	})

@@ -18,7 +18,7 @@ func makeVRP(prefix string, maxLen uint8, asn uint32) VRP {
 // VALIDATES: VRPs are stored and counted correctly per family.
 // PREVENTS: VRPs being lost or miscounted.
 func TestROACacheAddAndCount(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 	c.Add(makeVRP("192.168.0.0/16", 24, 65002))
@@ -34,7 +34,7 @@ func TestROACacheAddAndCount(t *testing.T) {
 // VALIDATES: Same VRP added twice results in count=1.
 // PREVENTS: Duplicate VRPs inflating counts.
 func TestROACacheDeduplicate(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001)) // duplicate
@@ -48,7 +48,7 @@ func TestROACacheDeduplicate(t *testing.T) {
 // VALIDATES: Remove deletes matching VRP.
 // PREVENTS: Stale VRPs persisting after withdrawal.
 func TestROACacheRemove(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 
 	vrp := makeVRP("10.0.0.0/8", 24, 65001)
 	c.Add(vrp)
@@ -66,10 +66,10 @@ func TestROACacheRemove(t *testing.T) {
 // VALIDATES: FindCovering returns VRPs for exact prefix match.
 // PREVENTS: Exact matches being missed.
 func TestROACacheFindCoveringExact(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-	entries := c.FindCovering("10.0.0.0/8")
+	entries := c.findCovering("10.0.0.0/8")
 	require.Len(t, entries, 1)
 	assert.Equal(t, uint32(65001), entries[0].ASN)
 }
@@ -79,10 +79,10 @@ func TestROACacheFindCoveringExact(t *testing.T) {
 // VALIDATES: VRP for /8 covers a /24 within its address space.
 // PREVENTS: Covering-prefix lookup missing shorter VRPs.
 func TestROACacheFindCoveringLonger(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-	entries := c.FindCovering("10.1.2.0/24")
+	entries := c.findCovering("10.1.2.0/24")
 	require.Len(t, entries, 1)
 	assert.Equal(t, uint32(65001), entries[0].ASN)
 }
@@ -92,10 +92,10 @@ func TestROACacheFindCoveringLonger(t *testing.T) {
 // VALIDATES: Non-covered prefix returns no VRPs.
 // PREVENTS: False positives in covering lookup.
 func TestROACacheFindCoveringNoMatch(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-	entries := c.FindCovering("192.168.0.0/24")
+	entries := c.findCovering("192.168.0.0/24")
 	assert.Empty(t, entries)
 }
 
@@ -104,11 +104,11 @@ func TestROACacheFindCoveringNoMatch(t *testing.T) {
 // VALIDATES: All covering VRPs returned when multiple exist.
 // PREVENTS: Only first/shortest VRP being returned.
 func TestROACacheFindCoveringMultiple(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 	c.Add(makeVRP("10.0.0.0/16", 24, 65002))
 
-	entries := c.FindCovering("10.0.1.0/24")
+	entries := c.findCovering("10.0.1.0/24")
 	assert.Len(t, entries, 2, "both /8 and /16 VRPs should cover /24")
 }
 
@@ -117,10 +117,10 @@ func TestROACacheFindCoveringMultiple(t *testing.T) {
 // VALIDATES: IPv6 covering lookup works correctly.
 // PREVENTS: IPv6 address handling bugs.
 func TestROACacheFindCoveringIPv6(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("2001:db8::/32", 48, 65003))
 
-	entries := c.FindCovering("2001:db8:1::/48")
+	entries := c.findCovering("2001:db8:1::/48")
 	require.Len(t, entries, 1)
 	assert.Equal(t, uint32(65003), entries[0].ASN)
 }
@@ -134,7 +134,7 @@ func TestROACacheFindCoveringIPv6(t *testing.T) {
 // PREVENTS: A per-source code path leaking into validation and making a route's state depend on which
 // cache announced the covering VRP.
 func TestValidationDoesNotDistinguishCacheSource(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 
 	// Two independent ApplyDelta batches stand in for two cache sessions writing the shared cache.
 	c.ApplyDelta(nil, []VRP{makeVRP("10.0.0.0/8", 24, 65001)})     // "cache A"
@@ -160,7 +160,7 @@ func TestValidationDoesNotDistinguishCacheSource(t *testing.T) {
 // VALIDATES: Clear empties both IPv4 and IPv6 tables.
 // PREVENTS: Stale VRPs after cache clear.
 func TestROACacheClear(t *testing.T) {
-	c := NewROACache()
+	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 	c.Add(makeVRP("2001:db8::/32", 48, 65003))
 

@@ -10,29 +10,29 @@ import (
 // TestOriginTrackerRevalidate verifies the tracker detects origin-validation state changes when
 // the ROA cache changes, and prunes removed routes.
 func TestOriginTrackerRevalidate(t *testing.T) {
-	cache := NewROACache()
-	tr := NewOriginTracker()
+	cache := newROACache()
+	tr := newOriginTracker()
 
 	key := routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0}
 	tr.Track(key, 65001, ValidationNotFound, aspaStateNone)
 	assert.Equal(t, 1, tr.count())
 
 	// Empty cache: the route is still NotFound, so re-validation reports no change.
-	assert.Empty(t, tr.Revalidate(cache))
+	assert.Empty(t, tr.revalidate(cache))
 
 	// A VRP authorizing the route arrives: re-validation flips it to Valid and reports the change.
 	cache.Add(makeVRP("10.0.0.0/8", 24, 65001))
-	changed := tr.Revalidate(cache)
+	changed := tr.revalidate(cache)
 	require.Len(t, changed, 1)
 	assert.Equal(t, key, changed[0].key)
 	assert.Equal(t, ValidationValid, changed[0].state)
 
 	// The updated state is stored: a second re-validation with no further change reports nothing.
-	assert.Empty(t, tr.Revalidate(cache))
+	assert.Empty(t, tr.revalidate(cache))
 
 	tr.Remove(key)
 	assert.Equal(t, 0, tr.count())
-	assert.Empty(t, tr.Revalidate(cache))
+	assert.Empty(t, tr.revalidate(cache))
 }
 
 // TestHandleROAChangeReValidates verifies RFC 6811 Section 4 origin re-validation: a VRP mapping
@@ -46,9 +46,9 @@ func TestOriginTrackerRevalidate(t *testing.T) {
 // re-validation that changes no route's state enqueues nothing, so a VRP change that does not
 // affect a route does not spuriously re-dispatch it.
 func TestHandleROAChangeReValidates(t *testing.T) {
-	rp := &RPKIPlugin{
-		cache:         NewROACache(),
-		originTracker: NewOriginTracker(),
+	rp := &rPKIPlugin{
+		cache:         newROACache(),
+		originTracker: newOriginTracker(),
 		validateCh:    make(chan validationRequest, 16),
 		stopCh:        make(chan struct{}),
 	}

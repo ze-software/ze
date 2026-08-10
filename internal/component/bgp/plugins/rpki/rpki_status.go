@@ -21,7 +21,7 @@ func actionString(a uint8) string {
 
 // appendGlobalActions writes the effective global actions object to b, read from the same
 // atomics buildDecisions enforces. Buffer-first: no fmt, no per-call allocation.
-func (rp *RPKIPlugin) appendGlobalActions(b *textbuf.Buffer) {
+func (rp *rPKIPlugin) appendGlobalActions(b *textbuf.Buffer) {
 	b.Str(`,"actions":{"invalid":"`).Str(actionString(uint8(rp.originInvalidAction.Load())))    //nolint:gosec // stored as uint8
 	b.Str(`","not-found":"`).Str(actionString(uint8(rp.originNotFoundAction.Load())))           //nolint:gosec // stored as uint8
 	b.Str(`","aspa-invalid":"`).Str(actionString(uint8(rp.aspaInvalidAction.Load())))           //nolint:gosec // stored as uint8
@@ -31,7 +31,7 @@ func (rp *RPKIPlugin) appendGlobalActions(b *textbuf.Buffer) {
 // appendPeerActions writes the per-peer resolved actions array to b. Each entry lists the four
 // resolved actions with the config level each was resolved from (peer/group/global). Peers are
 // sorted by IP for deterministic output. Reads the same per-peer map buildDecisions uses.
-func (rp *RPKIPlugin) appendPeerActions(b *textbuf.Buffer) {
+func (rp *rPKIPlugin) appendPeerActions(b *textbuf.Buffer) {
 	b.Str(`,"peer-actions":[`)
 
 	if p := rp.perPeerActions.Load(); p != nil && len(*p) > 0 {

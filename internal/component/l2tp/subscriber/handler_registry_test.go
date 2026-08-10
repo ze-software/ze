@@ -81,7 +81,7 @@ func TestPoolHandlerRegistration(t *testing.T) {
 }
 
 func TestShaperHandlerRegistration(t *testing.T) {
-	defer UnregisterShaperHandler()
+	defer unregisterShaperHandler()
 
 	if GetShaperHandler() != nil {
 		t.Fatal("expected nil shaper handler before registration")

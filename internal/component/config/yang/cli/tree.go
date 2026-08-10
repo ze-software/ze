@@ -42,9 +42,9 @@ type AnalysisNode struct {
 	Children    map[string]*AnalysisNode
 }
 
-// BuildUnifiedTree loads YANG schemas and RPC registrations, then merges
+// buildUnifiedTree loads YANG schemas and RPC registrations, then merges
 // config entries and command entries into a single analysis tree.
-func BuildUnifiedTree() (*AnalysisNode, error) {
+func buildUnifiedTree() (*AnalysisNode, error) {
 	root := &AnalysisNode{
 		Name:     "(root)",
 		Source:   SourceBoth,
@@ -181,14 +181,14 @@ func walkCommandNode(parent *AnalysisNode, node *command.Node) {
 	}
 }
 
-// CollectCollisions walks the unified tree and returns all collision groups.
-func CollectCollisions(root *AnalysisNode, minPrefix int) []CollisionGroup {
-	var groups []CollisionGroup
+// collectCollisions walks the unified tree and returns all collision groups.
+func collectCollisions(root *AnalysisNode, minPrefix int) []collisionGroup {
+	var groups []collisionGroup
 	collectCollisionsRecursive(root, nil, minPrefix, &groups)
 	return groups
 }
 
-func collectCollisionsRecursive(node *AnalysisNode, path []string, minPrefix int, groups *[]CollisionGroup) {
+func collectCollisionsRecursive(node *AnalysisNode, path []string, minPrefix int, groups *[]collisionGroup) {
 	if node == nil || len(node.Children) < 2 {
 		return
 	}
@@ -203,7 +203,7 @@ func collectCollisionsRecursive(node *AnalysisNode, path []string, minPrefix int
 		})
 	}
 
-	found := FindCollisions(siblings, minPrefix)
+	found := findCollisions(siblings, minPrefix)
 	for i := range found {
 		found[i].Path = append([]string{}, path...)
 	}
@@ -222,8 +222,8 @@ func collectCollisionsRecursive(node *AnalysisNode, path []string, minPrefix int
 	}
 }
 
-// SortedChildren returns child names in sorted order.
-func (n *AnalysisNode) SortedChildren() []string {
+// sortedChildren returns child names in sorted order.
+func (n *AnalysisNode) sortedChildren() []string {
 	names := make([]string, 0, len(n.Children))
 	for name := range n.Children {
 		names = append(names, name)
@@ -277,7 +277,7 @@ func yangNodeKind(entry *gyang.Entry) string {
 
 // AllRPCDocs returns documentation for all registered operational commands.
 // It loads YANG API modules to extract input/output parameter metadata.
-func AllRPCDocs() ([]RPCDoc, error) {
+func AllRPCDocs() ([]rPCDoc, error) {
 	loader, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("YANG loader: %w", err)
@@ -287,13 +287,13 @@ func AllRPCDocs() ([]RPCDoc, error) {
 	cmdTree := yang.BuildCommandTree(loader)
 
 	rpcs := pluginserver.AllBuiltinRPCs()
-	docs := make([]RPCDoc, 0, len(rpcs))
+	docs := make([]rPCDoc, 0, len(rpcs))
 	for _, reg := range rpcs {
 		cliPath := wireToPath[reg.WireMethod]
 		if cliPath == "" {
 			continue
 		}
-		docs = append(docs, RPCDoc{
+		docs = append(docs, rPCDoc{
 			CLICommand: cliPath,
 			Help:       lookupYANGDesc(cmdTree, cliPath),
 			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
@@ -368,8 +368,8 @@ func lookupYANGDesc(root *command.Node, cliPath string) string {
 	return node.Description
 }
 
-// RPCDoc holds documentation for a single operational command.
-type RPCDoc struct {
+// rPCDoc holds documentation for a single operational command.
+type rPCDoc struct {
 	CLICommand string
 	Help       string
 	ReadOnly   bool

@@ -14,7 +14,7 @@ func TestDecodeAddressList(t *testing.T) {
 	body := make([]byte, ldpTLVHdrLen+len(val))
 	EncodeTLV(body, TLV{Type: TLVTypeAddressList, Length: uint16(len(val)), Value: val})
 
-	m, err := DecodeAddressList(7, body)
+	m, err := decodeAddressList(7, body)
 	if err != nil {
 		t.Fatalf("DecodeAddressList: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestDecodeAddressList(t *testing.T) {
 func TestDecodeAddressListShort(t *testing.T) {
 	body := make([]byte, ldpTLVHdrLen+1)
 	EncodeTLV(body, TLV{Type: TLVTypeAddressList, Length: 1, Value: []byte{0x00}})
-	if _, err := DecodeAddressList(1, body); err == nil {
+	if _, err := decodeAddressList(1, body); err == nil {
 		t.Error("expected error for truncated address list TLV")
 	}
 }
@@ -56,7 +56,7 @@ func TestLDPHelloEncode(t *testing.T) {
 		t.Fatal("EncodeHello returned 0 bytes")
 	}
 
-	hdr, err := DecodeMessageHeader(buf[:])
+	hdr, err := decodeMessageHeader(buf[:])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestLDPHelloDecode(t *testing.T) {
 	var buf [128]byte
 	n := EncodeHello(buf[:], orig)
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestLDPHelloRoundTripIPv6(t *testing.T) {
 	var buf [128]byte
 	n := EncodeHello(buf[:], orig)
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestLDPHelloRoundTripIPv6(t *testing.T) {
 }
 
 func TestLDPInitEncode(t *testing.T) {
-	m := InitMessage{
+	m := initMessage{
 		MessageID:          1,
 		ProtocolVersion:    1,
 		KeepaliveTime:      180,
@@ -146,7 +146,7 @@ func TestLDPInitEncode(t *testing.T) {
 		t.Fatal("EncodeInit returned 0 bytes")
 	}
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestLDPInitEncode(t *testing.T) {
 }
 
 func TestLDPInitRoundTripLoopDetection(t *testing.T) {
-	m := InitMessage{
+	m := initMessage{
 		MessageID:       2,
 		ProtocolVersion: 1,
 		KeepaliveTime:   90,
@@ -185,7 +185,7 @@ func TestLDPInitRoundTripLoopDetection(t *testing.T) {
 	var buf [128]byte
 	n := EncodeInit(buf[:], m)
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestLDPInitRoundTripLoopDetection(t *testing.T) {
 }
 
 func TestLDPLabelMapEncode(t *testing.T) {
-	m := LabelMappingMessage{
+	m := labelMappingMessage{
 		MessageID: 5,
 		FEC: FECElement{
 			Type:   FECPrefix,
@@ -212,12 +212,12 @@ func TestLDPLabelMapEncode(t *testing.T) {
 		Label: 1000,
 	}
 	var buf [128]byte
-	n := EncodeLabelMapping(buf[:], m)
+	n := encodeLabelMapping(buf[:], m)
 	if n == 0 {
 		t.Fatal("EncodeLabelMapping returned 0 bytes")
 	}
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestLDPLabelMapEncode(t *testing.T) {
 		t.Fatalf("type = %#x, want %#x", hdr.Type, MsgTypeLabelMapping)
 	}
 
-	decoded, err := DecodeLabelMapping(hdr.MessageID, buf[ldpMsgHdrLen:n])
+	decoded, err := decodeLabelMapping(hdr.MessageID, buf[ldpMsgHdrLen:n])
 	if err != nil {
 		t.Fatalf("DecodeLabelMapping: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestLDPLabelMapEncode(t *testing.T) {
 }
 
 func TestLDPLabelMapIPv6(t *testing.T) {
-	m := LabelMappingMessage{
+	m := labelMappingMessage{
 		MessageID: 6,
 		FEC: FECElement{
 			Type:   FECPrefix,
@@ -248,13 +248,13 @@ func TestLDPLabelMapIPv6(t *testing.T) {
 		Label: 2000,
 	}
 	var buf [256]byte
-	n := EncodeLabelMapping(buf[:], m)
+	n := encodeLabelMapping(buf[:], m)
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
-	decoded, err := DecodeLabelMapping(hdr.MessageID, buf[ldpMsgHdrLen:n])
+	decoded, err := decodeLabelMapping(hdr.MessageID, buf[ldpMsgHdrLen:n])
 	if err != nil {
 		t.Fatalf("DecodeLabelMapping: %v", err)
 	}
@@ -274,12 +274,12 @@ func TestLDPPDUHeaderRoundTrip(t *testing.T) {
 		LabelSpace: 0,
 	}
 	var buf [16]byte
-	n := EncodePDUHeader(buf[:], orig)
+	n := encodePDUHeader(buf[:], orig)
 	if n != ldpHeaderLen {
 		t.Fatalf("EncodePDUHeader returned %d, want %d", n, ldpHeaderLen)
 	}
 
-	decoded, err := DecodePDUHeader(buf[:n])
+	decoded, err := decodePDUHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodePDUHeader: %v", err)
 	}
@@ -290,15 +290,15 @@ func TestLDPPDUHeaderRoundTrip(t *testing.T) {
 
 func TestLDPPDUHeaderBadVersion(t *testing.T) {
 	var buf [16]byte
-	EncodePDUHeader(buf[:], PDUHeader{Version: 2, PDULength: 10, LSRID: [4]byte{1, 2, 3, 4}})
-	_, err := DecodePDUHeader(buf[:])
+	encodePDUHeader(buf[:], PDUHeader{Version: 2, PDULength: 10, LSRID: [4]byte{1, 2, 3, 4}})
+	_, err := decodePDUHeader(buf[:])
 	if err == nil {
 		t.Fatal("expected error for version 2, got nil")
 	}
 }
 
 func TestLDPPDUHeaderShort(t *testing.T) {
-	_, err := DecodePDUHeader([]byte{0, 1, 0})
+	_, err := decodePDUHeader([]byte{0, 1, 0})
 	if err == nil {
 		t.Fatal("expected error for short buffer, got nil")
 	}
@@ -317,7 +317,7 @@ func TestLDPLabelValidation(t *testing.T) {
 }
 
 func TestLDPLabelWithdrawEncode(t *testing.T) {
-	m := LabelWithdrawMessage{
+	m := labelWithdrawMessage{
 		MessageID: 10,
 		FEC: FECElement{
 			Type:   FECPrefix,
@@ -333,7 +333,7 @@ func TestLDPLabelWithdrawEncode(t *testing.T) {
 		t.Fatal("EncodeLabelWithdraw returned 0 bytes")
 	}
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}
@@ -350,14 +350,14 @@ func TestLDPTLVShort(t *testing.T) {
 }
 
 func TestLDPKeepaliveEncode(t *testing.T) {
-	m := KeepaliveMessage{MessageID: 7}
+	m := keepaliveMessage{MessageID: 7}
 	var buf [16]byte
-	n := EncodeKeepalive(buf[:], m)
+	n := encodeKeepalive(buf[:], m)
 	if n != ldpMsgHdrLen {
 		t.Fatalf("EncodeKeepalive returned %d, want %d", n, ldpMsgHdrLen)
 	}
 
-	hdr, err := DecodeMessageHeader(buf[:n])
+	hdr, err := decodeMessageHeader(buf[:n])
 	if err != nil {
 		t.Fatalf("DecodeMessageHeader: %v", err)
 	}

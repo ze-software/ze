@@ -75,7 +75,7 @@ func TestBMPSenderConnects(t *testing.T) {
 	if _, err := io.ReadFull(collectorConn, headerBuf); err != nil {
 		t.Fatalf("read header: %v", err)
 	}
-	ch, _, err := DecodeCommonHeader(headerBuf, 0)
+	ch, _, err := decodeCommonHeader(headerBuf, 0)
 	if err != nil {
 		t.Fatalf("decode header: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestBMPSenderInitiation(t *testing.T) {
 	if _, err := io.ReadFull(collectorConn, headerBuf); err != nil {
 		t.Fatalf("read header: %v", err)
 	}
-	ch, _, err := DecodeCommonHeader(headerBuf, 0)
+	ch, _, err := decodeCommonHeader(headerBuf, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -184,7 +184,7 @@ func readBMPFromPipe(conn net.Conn) (any, error) {
 	if _, err := io.ReadFull(conn, headerBuf); err != nil {
 		return nil, fmt.Errorf("read header: %w", err)
 	}
-	ch, _, err := DecodeCommonHeader(headerBuf, 0)
+	ch, _, err := decodeCommonHeader(headerBuf, 0)
 	if err != nil {
 		return nil, fmt.Errorf("decode header: %w", err)
 	}
@@ -352,7 +352,7 @@ func TestBMPSenderStatistics(t *testing.T) {
 	if r.err != nil {
 		t.Fatalf("read: %v", r.err)
 	}
-	sr, ok := r.msg.(*StatisticsReport)
+	sr, ok := r.msg.(*statisticsReport)
 	if !ok {
 		t.Fatalf("expected *StatisticsReport, got %T", r.msg)
 	}

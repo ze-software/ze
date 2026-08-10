@@ -276,8 +276,8 @@ type BMPPlugin struct {
 	stopCh chan struct{}
 }
 
-// RunBMPPlugin is the in-process entry point for the bgp-bmp plugin.
-func RunBMPPlugin(conn net.Conn) int {
+// runBMPPlugin is the in-process entry point for the bgp-bmp plugin.
+func runBMPPlugin(conn net.Conn) int {
 	logger().Debug("bgp-bmp plugin starting")
 
 	p := sdk.NewWithConn("bgp-bmp", conn)
@@ -607,7 +607,7 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 			return
 		}
 
-		ch, _, err := DecodeCommonHeader(headerBuf, 0)
+		ch, _, err := decodeCommonHeader(headerBuf, 0)
 		if err != nil {
 			logger().Warn("bmp: bad header", "remote", remote, "error", err)
 			return
@@ -686,9 +686,9 @@ func (bp *BMPPlugin) processMessage(remote string, msg any) {
 		bp.processPeerDown(remote, m)
 	case *RouteMonitoring:
 		bp.processRouteMonitoring(remote, m)
-	case *StatisticsReport:
+	case *statisticsReport:
 		bp.processStatisticsReport(remote, m)
-	case *RouteMirroring:
+	case *routeMirroring:
 		bp.processRouteMirroring(remote, m)
 	}
 }
@@ -788,7 +788,7 @@ func (bp *BMPPlugin) processRouteMonitoring(remote string, m *RouteMonitoring) {
 	}
 }
 
-func (bp *BMPPlugin) processStatisticsReport(remote string, m *StatisticsReport) {
+func (bp *BMPPlugin) processStatisticsReport(remote string, m *statisticsReport) {
 	logger().Debug("bmp: statistics report",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,
@@ -796,7 +796,7 @@ func (bp *BMPPlugin) processStatisticsReport(remote string, m *StatisticsReport)
 	)
 }
 
-func (bp *BMPPlugin) processRouteMirroring(remote string, m *RouteMirroring) {
+func (bp *BMPPlugin) processRouteMirroring(remote string, m *routeMirroring) {
 	logger().Debug("bmp: route mirroring",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,

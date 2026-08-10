@@ -25,7 +25,7 @@ func TestEmitEngineEventDeliversToProcessSubscriber(t *testing.T) {
 	_ = evt
 
 	s := &Server{
-		subscriptions:     NewSubscriptionManager(),
+		subscriptions:     newSubscriptionManager(),
 		engineSubscribers: newEngineEventSubscribers(),
 	}
 

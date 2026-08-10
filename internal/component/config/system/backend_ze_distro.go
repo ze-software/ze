@@ -27,16 +27,16 @@ func newZeBackend(cfg UpdateCheckConfig, opts BackendOptions) (UpdateBackend, er
 	if cfg.Interval == 0 {
 		cfg.Interval = 86400
 	}
-	if err := ValidateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
+	if err := validateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
 		return nil, err
 	}
-	WarnConfigConflicts(cfg.SelfUpdate)
+	warnConfigConflicts(cfg.SelfUpdate)
 
 	if cfg.SelfUpdate.AutoApply || cfg.SelfUpdate.RestartImmediate || cfg.SelfUpdate.RestartTime != "" {
-		backend.updater = NewSelfUpdater(cfg.URL, cfg.Interval, cfg.SelfUpdate, opts.IdentityStore)
+		backend.updater = newSelfUpdater(cfg.URL, cfg.Interval, cfg.SelfUpdate, opts.IdentityStore)
 		return backend, nil
 	}
-	backend.checker = NewUpdateChecker(cfg.URL, cfg.Interval)
+	backend.checker = newUpdateChecker(cfg.URL, cfg.Interval)
 	return backend, nil
 }
 
@@ -69,7 +69,7 @@ func (b *zeBackend) Stop() {
 
 func (b *zeBackend) Status() ExtendedUpdateStatus {
 	if b.updater != nil {
-		status := b.updater.ExtendedStatus()
+		status := b.updater.extendedStatus()
 		status.Backend = BackendZeSelfUpdate
 		return status
 	}
@@ -86,7 +86,7 @@ func (b *zeBackend) Check(ctx context.Context) (ExtendedUpdateStatus, error) {
 	if b.updater == nil {
 		return b.Status(), ErrNotConfigured
 	}
-	b.updater.ManualCheck(ctx)
+	b.updater.manualCheck(ctx)
 	return b.Status(), nil
 }
 
@@ -94,7 +94,7 @@ func (b *zeBackend) Download(ctx context.Context) (FirmwareResult, error) {
 	if b.updater == nil {
 		return FirmwareResult{}, ErrNotConfigured
 	}
-	ver, err := b.updater.ManualDownload(ctx)
+	ver, err := b.updater.manualDownload(ctx)
 	if err != nil {
 		return FirmwareResult{}, err
 	}
@@ -105,7 +105,7 @@ func (b *zeBackend) Apply(ctx context.Context) (FirmwareResult, error) {
 	if b.updater == nil {
 		return FirmwareResult{}, ErrNotConfigured
 	}
-	ver, err := b.updater.ManualApply(ctx)
+	ver, err := b.updater.manualApply(ctx)
 	if err != nil {
 		return FirmwareResult{}, err
 	}
@@ -116,7 +116,7 @@ func (b *zeBackend) Restart() (FirmwareResult, error) {
 	if b.updater == nil {
 		return FirmwareResult{}, ErrNotConfigured
 	}
-	if err := b.updater.ManualRestart(); err != nil {
+	if err := b.updater.manualRestart(); err != nil {
 		return FirmwareResult{}, err
 	}
 	return FirmwareResult{Status: "restarting"}, nil

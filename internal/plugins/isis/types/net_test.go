@@ -61,7 +61,7 @@ func TestNETAccessors(t *testing.T) {
 		sys := []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
 		raw = append(raw, sys...)
 		raw = append(raw, 0x00) // SEL
-		n, err := NETFromBytes(raw)
+		n, err := nETFromBytes(raw)
 		if err != nil {
 			t.Fatalf("NETFromBytes(areaLen=%d) error: %v", areaLen, err)
 		}
@@ -81,16 +81,16 @@ func TestNETAccessors(t *testing.T) {
 // VALIDATES: NETFromBytes rejects total length 7 (below 8) and 21 (above 20) (AC-6).
 // PREVENTS: out-of-bound area sizes; resource exhaustion from a bad length.
 func TestNETBytesBounds(t *testing.T) {
-	if _, err := NETFromBytes(make([]byte, MinNETLen-1)); err == nil {
+	if _, err := nETFromBytes(make([]byte, MinNETLen-1)); err == nil {
 		t.Errorf("NETFromBytes(len=%d) should error (below min)", MinNETLen-1)
 	}
-	if _, err := NETFromBytes(make([]byte, MaxNETLen+1)); err == nil {
+	if _, err := nETFromBytes(make([]byte, MaxNETLen+1)); err == nil {
 		t.Errorf("NETFromBytes(len=%d) should error (above max)", MaxNETLen+1)
 	}
-	if _, err := NETFromBytes(make([]byte, MinNETLen)); err != nil {
+	if _, err := nETFromBytes(make([]byte, MinNETLen)); err != nil {
 		t.Errorf("NETFromBytes(len=%d) should succeed: %v", MinNETLen, err)
 	}
-	if _, err := NETFromBytes(make([]byte, MaxNETLen)); err != nil {
+	if _, err := nETFromBytes(make([]byte, MaxNETLen)); err != nil {
 		t.Errorf("NETFromBytes(len=%d) should succeed: %v", MaxNETLen, err)
 	}
 }
@@ -99,7 +99,7 @@ func TestNETBytesBounds(t *testing.T) {
 // PREVENTS: serialize/parse asymmetry for the variable-length NET.
 func TestNETWriteToRoundTrip(t *testing.T) {
 	raw := []byte{0x49, 0x00, 0x01, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00}
-	n, err := NETFromBytes(raw)
+	n, err := nETFromBytes(raw)
 	if err != nil {
 		t.Fatalf("NETFromBytes error: %v", err)
 	}

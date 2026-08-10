@@ -30,7 +30,7 @@ func TestRouteEntry_HasAttribute(t *testing.T) {
 	entry := NewRouteEntry()
 
 	assert.False(t, entry.HasASPath(), "ASPath should be absent")
-	assert.False(t, entry.HasBundle(), "Bundle should be absent")
+	assert.False(t, entry.hasBundle(), "Bundle should be absent")
 
 	// Create a bundle with Origin set
 	b := NewBundle()

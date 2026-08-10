@@ -97,11 +97,11 @@ const (
 	narrowMetricExternalIE = 0x40 // I/E bit of the default metric octet
 )
 
-// DecodeNarrowISReachTLV parses a TLV 2 value (decode-only, AC-14). The value
+// decodeNarrowISReachTLV parses a TLV 2 value (decode-only, AC-14). The value
 // must be at least 1 octet (the virtual flag) and the remainder a whole number
 // of 11-octet entries; anything else is rejected with ErrLength rather than
 // reading past the buffer. This never panics on arbitrary input (R-3).
-func DecodeNarrowISReachTLV(value []byte) (NarrowISReachTLV, error) {
+func decodeNarrowISReachTLV(value []byte) (NarrowISReachTLV, error) {
 	if len(value) < 1 {
 		return NarrowISReachTLV{}, ErrLength
 	}

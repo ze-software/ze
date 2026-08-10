@@ -173,7 +173,7 @@ func (m *monitor) safeHandleEvent(ev *interfaces.SwInterfaceEvent) {
 // distinguishes interface removal from an admin/link-state change.
 func (m *monitor) handleEvent(ev *interfaces.SwInterfaceEvent) {
 	idx := uint32(ev.SwIfIndex)
-	name, hasName := m.b.names.LookupName(idx)
+	name, hasName := m.b.names.lookupName(idx)
 	if !hasName {
 		var bIdx textbuf.Buffer
 		name = bIdx.Reset().Str("sw_if_index_").Int(int64(idx)).String()

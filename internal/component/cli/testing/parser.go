@@ -129,8 +129,8 @@ var validActions = map[string]bool{
 	"restart": true,
 }
 
-// ParseETFile parses an .et (Editor Test) file content.
-func ParseETFile(content string) (*TestCase, error) {
+// parseETFile parses an .et (Editor Test) file content.
+func parseETFile(content string) (*TestCase, error) {
 	tc := &TestCase{
 		Tmpfs:    make([]TmpfsBlock, 0),
 		Options:  make([]Option, 0),

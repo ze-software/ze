@@ -33,9 +33,9 @@ func WriteFlowDataSet(buf []byte, off int, flows []FlowRecord, templateID uint16
 	return writeFlowDataSet(buf, off, flows, templateID, FlowRecordSize(), writeFlowRecord)
 }
 
-// WriteFlowDataSet6 encodes an IPFIX Data Set containing IPv6 per-flow records.
+// writeFlowDataSet6 encodes an IPFIX Data Set containing IPv6 per-flow records.
 // Mirrors WriteFlowDataSet but uses the IPv6 record size and writer.
-func WriteFlowDataSet6(buf []byte, off int, flows []FlowRecord, templateID uint16) (int, uint32) {
+func writeFlowDataSet6(buf []byte, off int, flows []FlowRecord, templateID uint16) (int, uint32) {
 	return writeFlowDataSet(buf, off, flows, templateID, FlowRecordSize6(), writeFlowRecord6)
 }
 

@@ -33,7 +33,7 @@ func FuzzParseRTC(f *testing.F) {
 	f.Add([]byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}) // All zeros
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		rtc, _, err := ParseRTC(data)
+		rtc, _, err := parseRTC(data)
 		if err != nil {
 			return
 		}
@@ -44,7 +44,7 @@ func FuzzParseRTC(f *testing.F) {
 		buf := make([]byte, rtc.Len()+10)
 		_ = rtc.WriteTo(buf, 0)
 		_ = rtc.OriginAS()
-		_ = rtc.IsDefault()
-		_ = rtc.RouteTargetValue()
+		_ = rtc.isDefault()
+		_ = rtc.routeTargetValue()
 	})
 }

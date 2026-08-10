@@ -748,7 +748,7 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 // whichever one the family asked for, and `count` is the number the mode
 // governs.
 func (s *Session) reportPrefixExceeded(fk uint32, famName string, current int64, maximum uint32) (*message.Notification, bool) {
-	teardown := s.settings.PrefixTeardownFor(famName)
+	teardown := s.settings.prefixTeardownFor(famName)
 	s.incrPrefixExceededMetric(famName)
 	// The mode is on the line because the two modes report different numbers for
 	// the same peer, and nothing else on an operator surface says which one
@@ -775,7 +775,7 @@ func (s *Session) reportPrefixExceeded(fk uint32, famName string, current int64,
 	return nil, true
 }
 
-// ClearReportedWarnings emits report.ClearWarning for every prefix-threshold
+// clearReportedWarnings emits report.ClearWarning for every prefix-threshold
 // warning this session has raised. Called by Peer.runOnce in its teardown
 // defer so warnings do not linger on the bus after the session ends.
 //
@@ -787,7 +787,7 @@ func (s *Session) reportPrefixExceeded(fk uint32, famName string, current int64,
 // accessed from the session read goroutine", so calling this concurrently
 // with that goroutine would race. The runOnce defer in peer_run.go is the
 // only safe call site today.
-func (s *Session) ClearReportedWarnings() {
+func (s *Session) clearReportedWarnings() {
 	if s.prefixCounts == nil {
 		return
 	}

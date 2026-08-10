@@ -80,7 +80,7 @@ func TestBuildSSHFormData(t *testing.T) {
 	ssh.Set("idle-timeout", "300")
 	ssh.Set("max-sessions", "10")
 
-	form := BuildSSHFormData(tree)
+	form := buildSSHFormData(tree)
 	assert.Equal(t, "SSH Configuration", form.Title)
 	require.Len(t, form.Fields, 5)
 	assert.Equal(t, "true", form.Fields[0].Value)
@@ -90,7 +90,7 @@ func TestBuildSSHFormData(t *testing.T) {
 }
 
 func TestBuildSSHFormData_NilTree(t *testing.T) {
-	form := BuildSSHFormData(nil)
+	form := buildSSHFormData(nil)
 	assert.Equal(t, "SSH Configuration", form.Title)
 	require.Len(t, form.Fields, 5)
 	assert.Empty(t, form.Fields[0].Value)
@@ -103,7 +103,7 @@ func TestBuildWebFormData(t *testing.T) {
 	web.Set("enabled", "true")
 	web.Set("insecure", "false")
 
-	form := BuildWebFormData(tree)
+	form := buildWebFormData(tree)
 	assert.Equal(t, "Web Configuration", form.Title)
 	require.Len(t, form.Fields, 3)
 	assert.Equal(t, "true", form.Fields[0].Value)
@@ -117,7 +117,7 @@ func TestBuildTelemetryFormData(t *testing.T) {
 	prom.Set("enabled", "true")
 	prom.Set("path", "/metrics")
 
-	form := BuildTelemetryFormData(tree)
+	form := buildTelemetryFormData(tree)
 	assert.Equal(t, "Telemetry Configuration", form.Title)
 	require.Len(t, form.Fields, 12)
 	assert.Equal(t, "true", form.Fields[0].Value)
@@ -125,7 +125,7 @@ func TestBuildTelemetryFormData(t *testing.T) {
 }
 
 func TestBuildTelemetryFormData_NilTree(t *testing.T) {
-	form := BuildTelemetryFormData(nil)
+	form := buildTelemetryFormData(nil)
 	assert.Equal(t, "Telemetry Configuration", form.Title)
 	require.Len(t, form.Fields, 12)
 	assert.Empty(t, form.Fields[0].Value)
@@ -141,7 +141,7 @@ func TestBuildTACACSFormData(t *testing.T) {
 	tacacs.Set("authorization", "true")
 	tacacs.Set("accounting", "true")
 
-	form := BuildTACACSFormData(tree)
+	form := buildTACACSFormData(tree)
 	assert.Equal(t, "TACACS+ Configuration", form.Title)
 	require.Len(t, form.Fields, 5)
 	assert.Equal(t, "10", form.Fields[1].Value)
@@ -155,7 +155,7 @@ func TestBuildMCPFormData(t *testing.T) {
 	mcp.Set("enabled", "true")
 	mcp.Set("auth-mode", "bearer")
 
-	form := BuildMCPFormData(tree)
+	form := buildMCPFormData(tree)
 	assert.Equal(t, "MCP Configuration", form.Title)
 	require.Len(t, form.Fields, 10)
 	assert.Equal(t, "true", form.Fields[0].Value)
@@ -165,7 +165,7 @@ func TestBuildMCPFormData(t *testing.T) {
 }
 
 func TestBuildMCPFormData_SensitiveFields(t *testing.T) {
-	form := BuildMCPFormData(nil)
+	form := buildMCPFormData(nil)
 	tokenField := form.Fields[3]
 	assert.Equal(t, "password", tokenField.Type)
 	tlsKeyField := form.Fields[9]
@@ -179,7 +179,7 @@ func TestBuildLookingGlassFormData(t *testing.T) {
 	lg.Set("enabled", "true")
 	lg.Set("tls", "false")
 
-	form := BuildLookingGlassFormData(tree)
+	form := buildLookingGlassFormData(tree)
 	assert.Equal(t, "Looking Glass Configuration", form.Title)
 	require.Len(t, form.Fields, 4)
 	assert.Equal(t, "true", form.Fields[0].Value)
@@ -199,7 +199,7 @@ func TestBuildLookingGlassFormDataTLSDefaultsOn(t *testing.T) {
 	lg := env.GetOrCreateContainer("looking-glass")
 	lg.Set("enabled", "true")
 
-	form := BuildLookingGlassFormData(tree)
+	form := buildLookingGlassFormData(tree)
 	require.Len(t, form.Fields, 4)
 	assert.Equal(t, "tls", form.Fields[2].Name)
 	assert.Equal(t, "true", form.Fields[2].Value,
@@ -209,7 +209,7 @@ func TestBuildLookingGlassFormDataTLSDefaultsOn(t *testing.T) {
 func TestBuildLookingGlassFormDataTokenIsSensitive(t *testing.T) {
 	// The token gates every looking-glass route, so the form must offer it and
 	// must not render it as readable text.
-	form := BuildLookingGlassFormData(nil)
+	form := buildLookingGlassFormData(nil)
 	require.Len(t, form.Fields, 4)
 	assert.Equal(t, "token", form.Fields[3].Name)
 	assert.Equal(t, "password", form.Fields[3].Type)
@@ -223,7 +223,7 @@ func TestBuildAPIFormData(t *testing.T) {
 	rest.Set("enabled", "true")
 	rest.Set("cors-origin", "*")
 
-	form := BuildAPIFormData(tree)
+	form := buildAPIFormData(tree)
 	assert.Equal(t, "API Configuration", form.Title)
 	require.Len(t, form.Fields, 8)
 	assert.Equal(t, "password", form.Fields[0].Type)
@@ -232,7 +232,7 @@ func TestBuildAPIFormData(t *testing.T) {
 }
 
 func TestBuildAPIFormData_SensitiveFields(t *testing.T) {
-	form := BuildAPIFormData(nil)
+	form := buildAPIFormData(nil)
 	assert.Equal(t, "password", form.Fields[0].Type)
 	assert.Equal(t, "password", form.Fields[7].Type)
 }

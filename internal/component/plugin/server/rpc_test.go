@@ -49,7 +49,7 @@ func TestConcurrentPluginDispatch(t *testing.T) {
 
 	// Create a minimal server with a codec handler that uses the barrier.
 	s := &Server{
-		subscriptions: NewSubscriptionManager(),
+		subscriptions: newSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
 		rpcHandlers: map[string]func(json.RawMessage) (any, error){
 			"test:barrier": func(_ json.RawMessage) (any, error) { //nolint:unparam // test stub always succeeds

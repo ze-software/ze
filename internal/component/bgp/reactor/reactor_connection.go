@@ -314,7 +314,7 @@ func (r *Reactor) PausePeer(addr netip.Addr) error {
 		return ErrPeerNotFound
 	}
 
-	peer.PauseReading()
+	peer.pauseReading()
 	return nil
 }
 
@@ -329,7 +329,7 @@ func (r *Reactor) ResumePeer(addr netip.Addr) error {
 		return ErrPeerNotFound
 	}
 
-	peer.ResumeReading()
+	peer.resumeReading()
 	return nil
 }
 
@@ -339,7 +339,7 @@ func (r *Reactor) pauseAllReads() {
 	defer r.mu.RUnlock()
 
 	for _, peer := range r.peers {
-		peer.PauseReading()
+		peer.pauseReading()
 	}
 }
 
@@ -349,6 +349,6 @@ func (r *Reactor) resumeAllReads() {
 	defer r.mu.RUnlock()
 
 	for _, peer := range r.peers {
-		peer.ResumeReading()
+		peer.resumeReading()
 	}
 }

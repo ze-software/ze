@@ -11,11 +11,11 @@ import (
 // TestRTCBasic verifies basic RTC NLRI creation.
 func TestRTCBasic(t *testing.T) {
 	t.Parallel()
-	rt := RouteTarget{
+	rt := routeTarget{
 		Type:  0,
 		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 	}
-	rtc := NewRTC(65001, rt)
+	rtc := newRTC(65001, rt)
 
 	assert.Equal(t, uint32(65001), rtc.OriginAS())
 }
@@ -23,7 +23,7 @@ func TestRTCBasic(t *testing.T) {
 // TestRTCFamily verifies RTC address family.
 func TestRTCFamily(t *testing.T) {
 	t.Parallel()
-	rtc := NewRTC(65001, RouteTarget{})
+	rtc := newRTC(65001, routeTarget{})
 
 	assert.Equal(t, AFIIPv4, rtc.Family().AFI)
 	assert.Equal(t, SAFIRTC, rtc.Family().SAFI)
@@ -32,7 +32,7 @@ func TestRTCFamily(t *testing.T) {
 // TestRTCBytes verifies RTC wire format.
 func TestRTCBytes(t *testing.T) {
 	t.Parallel()
-	rtc := NewRTC(65001, RouteTarget{
+	rtc := newRTC(65001, routeTarget{
 		Type:  0,
 		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 	})
@@ -46,27 +46,27 @@ func TestRTCBytes(t *testing.T) {
 // TestRTCDefault verifies default RTC (matches all RTs).
 func TestRTCDefault(t *testing.T) {
 	t.Parallel()
-	rtc := NewRTC(0, RouteTarget{})
+	rtc := newRTC(0, routeTarget{})
 
-	assert.True(t, rtc.IsDefault())
+	assert.True(t, rtc.isDefault())
 	assert.Equal(t, []byte{0}, rtc.Bytes())
 }
 
 // TestRTCRoundTrip verifies encode/decode cycle.
 func TestRTCRoundTrip(t *testing.T) {
 	t.Parallel()
-	rt := RouteTarget{
+	rt := routeTarget{
 		Type:  0x0002,
 		Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 100},
 	}
-	original := NewRTC(65001, rt)
+	original := newRTC(65001, rt)
 	data := original.Bytes()
 
-	parsed, remaining, err := ParseRTC(data)
+	parsed, remaining, err := parseRTC(data)
 	require.NoError(t, err)
 	assert.Empty(t, remaining)
 	assert.Equal(t, original.OriginAS(), parsed.OriginAS())
-	assert.Equal(t, original.RouteTargetValue().Type, parsed.RouteTargetValue().Type)
+	assert.Equal(t, original.routeTargetValue().Type, parsed.routeTargetValue().Type)
 }
 
 // TestRTCParseDefault verifies parsing default RTC.
@@ -74,10 +74,10 @@ func TestRTCParseDefault(t *testing.T) {
 	t.Parallel()
 	data := []byte{0} // prefix-length = 0
 
-	parsed, remaining, err := ParseRTC(data)
+	parsed, remaining, err := parseRTC(data)
 	require.NoError(t, err)
 	assert.Empty(t, remaining)
-	assert.True(t, parsed.IsDefault())
+	assert.True(t, parsed.isDefault())
 }
 
 // TestRTCParseErrors verifies error handling.
@@ -93,7 +93,7 @@ func TestRTCParseErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := ParseRTC(tt.data)
+			_, _, err := parseRTC(tt.data)
 			assert.Error(t, err)
 		})
 	}
@@ -104,17 +104,17 @@ func TestRouteTargetString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		rt       RouteTarget
+		rt       routeTarget
 		expected string
 	}{
 		{
 			name:     "2-byte ASN",
-			rt:       RouteTarget{Type: 0x0002, Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100}},
+			rt:       routeTarget{Type: 0x0002, Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100}},
 			expected: "65001:100",
 		},
 		{
 			name:     "4-byte ASN",
-			rt:       RouteTarget{Type: 0x0200, Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 100}},
+			rt:       routeTarget{Type: 0x0200, Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 100}},
 			expected: "65001:100",
 		},
 	}
@@ -140,12 +140,12 @@ func TestRTCStringCommandStyle(t *testing.T) {
 	}{
 		{
 			name:     "default rtc",
-			rtc:      NewRTC(0, RouteTarget{}),
+			rtc:      newRTC(0, routeTarget{}),
 			expected: "default",
 		},
 		{
 			name: "rtc with 2-byte asn rt",
-			rtc: NewRTC(65001, RouteTarget{
+			rtc: newRTC(65001, routeTarget{
 				Type:  0x0002,
 				Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 			}),
@@ -153,7 +153,7 @@ func TestRTCStringCommandStyle(t *testing.T) {
 		},
 		{
 			name: "rtc with 4-byte asn rt",
-			rtc: NewRTC(65002, RouteTarget{
+			rtc: newRTC(65002, routeTarget{
 				Type:  0x0200,
 				Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 200},
 			}),
@@ -181,11 +181,11 @@ func TestRTCWriteToMatchesBytes(t *testing.T) {
 	}{
 		{
 			name: "default rtc",
-			rtc:  NewRTC(0, RouteTarget{}),
+			rtc:  newRTC(0, routeTarget{}),
 		},
 		{
 			name: "rtc with route target",
-			rtc: NewRTC(65001, RouteTarget{
+			rtc: newRTC(65001, routeTarget{
 				Type:  0,
 				Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 			}),
@@ -212,21 +212,21 @@ func TestRTCWriteToMatchesBytes(t *testing.T) {
 // PREVENTS: Regression from method rename (RouteTarget→RouteTargetValue).
 func TestRTCRouteTargetValueAccessor(t *testing.T) {
 	t.Parallel()
-	rt := RouteTarget{
+	rt := routeTarget{
 		Type:  0x0002,
 		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 	}
-	rtc := NewRTC(65001, rt)
+	rtc := newRTC(65001, rt)
 
-	got := rtc.RouteTargetValue()
+	got := rtc.routeTargetValue()
 	assert.Equal(t, rt.Type, got.Type)
 	assert.Equal(t, rt.Value, got.Value)
 
 	// Also verify via round-trip
 	data := rtc.Bytes()
-	parsed, _, err := ParseRTC(data)
+	parsed, _, err := parseRTC(data)
 	require.NoError(t, err)
 
 	binary.BigEndian.PutUint16(rt.Value[:2], 65001)
-	assert.Equal(t, rt.Type, parsed.RouteTargetValue().Type)
+	assert.Equal(t, rt.Type, parsed.routeTargetValue().Type)
 }

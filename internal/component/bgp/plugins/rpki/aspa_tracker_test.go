@@ -11,7 +11,7 @@ import (
 // VALIDATES: AC-5 — routes tracked for re-validation with correct path data.
 // PREVENTS: Routes lost or reverse index not populated.
 func TestASPATrackerAdd(t *testing.T) {
-	tr := NewASPATracker()
+	tr := newASPATracker()
 	tr.Track(trackedRoute{
 		key:       routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "192.168.0.0/24", pathID: 0},
 		peerName:  "peer1",
@@ -29,7 +29,7 @@ func TestASPATrackerAdd(t *testing.T) {
 // VALIDATES: Withdrawal removes route from primary map and reverse index.
 // PREVENTS: Stale entries causing spurious re-validation.
 func TestASPATrackerRemove(t *testing.T) {
-	tr := NewASPATracker()
+	tr := newASPATracker()
 	key := routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "192.168.0.0/24", pathID: 0}
 	tr.Track(trackedRoute{
 		key:       key,
@@ -54,12 +54,12 @@ func TestASPATrackerRevalidate(t *testing.T) {
 	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1 positive -- when ASPA data changes,
 	// affected tracked routes are re-verified and the route whose state flipped (Valid -> Invalid)
 	// is returned for re-dispatch.
-	cache := NewASPACache()
+	cache := newASPACache()
 	// Initially: 64501 authorizes 64500 as provider.
 	cache.Set(64501, []uint32{64500})
 	cache.Set(64502, []uint32{64501})
 
-	tr := NewASPATracker()
+	tr := newASPATracker()
 	key := routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0}
 	tr.Track(trackedRoute{
 		key:       key,
@@ -73,7 +73,7 @@ func TestASPATrackerRevalidate(t *testing.T) {
 	// Change ASPA: 64502 no longer authorizes 64501.
 	cache.Set(64502, []uint32{99999})
 
-	changed := tr.Revalidate(cache, []uint32{64502})
+	changed := tr.revalidate(cache, []uint32{64502})
 	assert.Len(t, changed, 1)
 	assert.Equal(t, ASPAInvalid, changed[0].aspaState)
 }
@@ -83,7 +83,7 @@ func TestASPATrackerRevalidate(t *testing.T) {
 // VALIDATES: Routes indexed by all ASNs in their path.
 // PREVENTS: Missing routes during re-validation.
 func TestASPATrackerReverseIndex(t *testing.T) {
-	tr := NewASPATracker()
+	tr := newASPATracker()
 
 	// Route 1: path [100, 200, 300]
 	tr.Track(trackedRoute{
@@ -100,11 +100,11 @@ func TestASPATrackerReverseIndex(t *testing.T) {
 	})
 
 	// Change for customer-AS 200 should only affect route 1.
-	cache := NewASPACache()
+	cache := newASPACache()
 	cache.Set(200, []uint32{100})
 	cache.Set(300, []uint32{200})
 
-	changed := tr.Revalidate(cache, []uint32{200})
+	changed := tr.revalidate(cache, []uint32{200})
 	assert.Len(t, changed, 1)
 	assert.Equal(t, "1.0.0.0/8", changed[0].key.prefix)
 }
@@ -117,10 +117,10 @@ func TestASPATrackerRevalidateNoChange(t *testing.T) {
 	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1 negative -- re-verification after an
 	// ASPA change that does not alter a route's outcome returns nothing, so no spurious re-dispatch
 	// is triggered for that route.
-	cache := NewASPACache()
+	cache := newASPACache()
 	cache.Set(64501, []uint32{64500})
 
-	tr := NewASPATracker()
+	tr := newASPATracker()
 	tr.Track(trackedRoute{
 		key:       routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0},
 		path:      []uint32{64500, 64501},
@@ -128,7 +128,7 @@ func TestASPATrackerRevalidateNoChange(t *testing.T) {
 	})
 
 	// Cache didn't actually change the outcome for this route.
-	changed := tr.Revalidate(cache, []uint32{64501})
+	changed := tr.revalidate(cache, []uint32{64501})
 	assert.Empty(t, changed)
 }
 
@@ -137,7 +137,7 @@ func TestASPATrackerRevalidateNoChange(t *testing.T) {
 // VALIDATES: Remove of non-tracked route is safe no-op.
 // PREVENTS: Panic on withdrawal for unknown route.
 func TestASPATrackerRemoveNonexistent(t *testing.T) {
-	tr := NewASPATracker()
+	tr := newASPATracker()
 	tr.Remove(routeKey{peerAddr: "x", family: "y", prefix: "z", pathID: 0})
 	assert.Equal(t, 0, tr.count())
 }
@@ -147,7 +147,7 @@ func TestASPATrackerRemoveNonexistent(t *testing.T) {
 // VALIDATES: Existing route replaced when same key re-tracked.
 // PREVENTS: Stale path data after route update.
 func TestASPATrackerUpdate(t *testing.T) {
-	tr := NewASPATracker()
+	tr := newASPATracker()
 	key := routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0}
 
 	tr.Track(trackedRoute{

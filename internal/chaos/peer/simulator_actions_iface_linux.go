@@ -23,29 +23,29 @@ import (
 // times), netns-scoped. Returns Disconnected=true when a flap was actually
 // performed -- the session's transport is torn and must reconnect. With no
 // iface param it is a graceful no-op (Disconnected=false).
-func executeIfaceLinkFlap(action engine.ChaosAction, emit func(Event)) ChaosResult {
+func executeIfaceLinkFlap(action engine.ChaosAction, emit func(Event)) chaosResult {
 	params := engine.ParseIfaceFaultParams(action.Params)
 	if params.Iface == "" {
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 	}
 	if err := flapLink(params.Iface, params.Cycles, params.Interval); err != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("iface-link-flap %s: %w", params.Iface, err)})
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 	}
-	return ChaosResult{Disconnected: true}
+	return chaosResult{Disconnected: true}
 }
 
 // executeIfaceAddrRemove removes then restores an address on the configured
 // interface, netns-scoped. With no iface/addr param it is a graceful no-op.
-func executeIfaceAddrRemove(action engine.ChaosAction, emit func(Event)) ChaosResult {
+func executeIfaceAddrRemove(action engine.ChaosAction, emit func(Event)) chaosResult {
 	params := engine.ParseIfaceFaultParams(action.Params)
 	if params.Iface == "" || params.Addr == "" {
-		return ChaosResult{Disconnected: false}
+		return chaosResult{Disconnected: false}
 	}
 	if err := cycleAddr(params.Iface, params.Addr, params.Interval); err != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("iface-addr-remove %s %s: %w", params.Iface, params.Addr, err)})
 	}
-	return ChaosResult{Disconnected: false}
+	return chaosResult{Disconnected: false}
 }
 
 // flapLink brings the named link down then up, cycles times, pausing interval

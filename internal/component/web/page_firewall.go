@@ -43,8 +43,8 @@ func collectTables() []tableEntry {
 	return entries
 }
 
-// BuildFirewallTablesTableData constructs a WorkbenchTableData for the tables page.
-func BuildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
+// buildFirewallTablesTableData constructs a WorkbenchTableData for the tables page.
+func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "family", Label: "Family", Sortable: true},
@@ -82,10 +82,10 @@ func BuildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 	}
 }
 
-// HandleFirewallTablesPage renders the firewall tables table within the workbench.
-func HandleFirewallTablesPage(renderer *Renderer) template.HTML {
+// handleFirewallTablesPage renders the firewall tables table within the workbench.
+func handleFirewallTablesPage(renderer *Renderer) template.HTML {
 	entries := collectTables()
-	tableData := BuildFirewallTablesTableData(entries)
+	tableData := buildFirewallTablesTableData(entries)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
@@ -147,8 +147,8 @@ func collectChains(filterTable, filterHook, filterType string) []chainEntry {
 	return entries
 }
 
-// BuildFirewallChainsTableData constructs a WorkbenchTableData for the chains page.
-func BuildFirewallChainsTableData(entries []chainEntry, filterTable string) WorkbenchTableData {
+// buildFirewallChainsTableData constructs a WorkbenchTableData for the chains page.
+func buildFirewallChainsTableData(entries []chainEntry, filterTable string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "table", Label: "Table", Sortable: true},
 		{Key: "name", Label: "Name", Sortable: true},
@@ -207,13 +207,13 @@ func BuildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 	}
 }
 
-// HandleFirewallChainsPage renders the firewall chains table within the workbench.
-func HandleFirewallChainsPage(renderer *Renderer, r *http.Request) template.HTML {
+// handleFirewallChainsPage renders the firewall chains table within the workbench.
+func handleFirewallChainsPage(renderer *Renderer, r *http.Request) template.HTML {
 	filterTable := r.URL.Query().Get("table")
 	filterHook := r.URL.Query().Get("hook")
 	filterType := r.URL.Query().Get("type")
 	entries := collectChains(filterTable, filterHook, filterType)
-	tableData := BuildFirewallChainsTableData(entries, filterTable)
+	tableData := buildFirewallChainsTableData(entries, filterTable)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
@@ -458,8 +458,8 @@ func actionSummary(actions []firewall.Action) string {
 	return textbuf.Join(parts, " ")
 }
 
-// BuildFirewallRulesTableData constructs a WorkbenchTableData for the rules page.
-func BuildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain string) WorkbenchTableData {
+// buildFirewallRulesTableData constructs a WorkbenchTableData for the rules page.
+func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "order", Label: "#"},
 		{Key: "flags", Label: "Flags"},
@@ -535,12 +535,12 @@ func BuildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 	}
 }
 
-// HandleFirewallRulesPage renders the firewall rules table within the workbench.
-func HandleFirewallRulesPage(renderer *Renderer, r *http.Request) template.HTML {
+// handleFirewallRulesPage renders the firewall rules table within the workbench.
+func handleFirewallRulesPage(renderer *Renderer, r *http.Request) template.HTML {
 	filterTable := r.URL.Query().Get("table")
 	filterChain := r.URL.Query().Get("chain")
 	entries := collectRules(filterTable, filterChain)
-	tableData := BuildFirewallRulesTableData(entries, filterTable, filterChain)
+	tableData := buildFirewallRulesTableData(entries, filterTable, filterChain)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
@@ -603,8 +603,8 @@ func setFlagsStr(f firewall.SetFlags) string {
 	return textbuf.Join(parts, ", ")
 }
 
-// BuildFirewallSetsTableData constructs a WorkbenchTableData for the sets page.
-func BuildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
+// buildFirewallSetsTableData constructs a WorkbenchTableData for the sets page.
+func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "table", Label: "Table", Sortable: true},
 		{Key: "name", Label: "Name", Sortable: true},
@@ -642,20 +642,20 @@ func BuildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 	}
 }
 
-// HandleFirewallSetsPage renders the firewall sets table within the workbench.
-func HandleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
+// handleFirewallSetsPage renders the firewall sets table within the workbench.
+func handleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
 	filterTable := r.URL.Query().Get("table")
 	entries := collectSets(filterTable)
-	tableData := BuildFirewallSetsTableData(entries)
+	tableData := buildFirewallSetsTableData(entries)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
 // --- Connections page ---
 
-// BuildFirewallConnectionsTableData constructs a WorkbenchTableData for the
+// buildFirewallConnectionsTableData constructs a WorkbenchTableData for the
 // connections (conntrack) page. For v1, conntrack data requires runtime command
 // dispatch, so this shows a placeholder empty state.
-func BuildFirewallConnectionsTableData() WorkbenchTableData {
+func buildFirewallConnectionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "protocol", Label: "Protocol", Sortable: true},
 		{Key: "source", Label: "Source", Sortable: true},
@@ -680,9 +680,9 @@ func BuildFirewallConnectionsTableData() WorkbenchTableData {
 	}
 }
 
-// HandleFirewallConnectionsPage renders the firewall connections table within the workbench.
-func HandleFirewallConnectionsPage(renderer *Renderer) template.HTML {
-	tableData := BuildFirewallConnectionsTableData()
+// handleFirewallConnectionsPage renders the firewall connections table within the workbench.
+func handleFirewallConnectionsPage(renderer *Renderer) template.HTML {
+	tableData := buildFirewallConnectionsTableData()
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
@@ -694,25 +694,25 @@ func HandleFirewallConnectionsPage(renderer *Renderer) template.HTML {
 func renderFirewallPageContent(renderer *Renderer, r *http.Request, path []string) (template.HTML, bool) {
 	// /show/firewall/ (no sub-path or empty) defaults to tables.
 	if len(path) == 0 || (len(path) == 1 && path[0] == "") {
-		return HandleFirewallTablesPage(renderer), true
+		return handleFirewallTablesPage(renderer), true
 	}
 
 	switch path[0] {
 	case "chain":
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleFirewallChainsPage(renderer, r), true
+			return handleFirewallChainsPage(renderer, r), true
 		}
 	case "rule":
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleFirewallRulesPage(renderer, r), true
+			return handleFirewallRulesPage(renderer, r), true
 		}
 	case "set":
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleFirewallSetsPage(renderer, r), true
+			return handleFirewallSetsPage(renderer, r), true
 		}
 	case "connections":
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleFirewallConnectionsPage(renderer), true
+			return handleFirewallConnectionsPage(renderer), true
 		}
 	}
 
