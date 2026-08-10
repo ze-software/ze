@@ -424,10 +424,9 @@ endef
 #
 # ZE_QEMU_DUT_TAGS captures that exact set ONCE, and every QEMU target that
 # builds $(ZE_QEMU_BIN) uses it -- so no target can hand-write a narrower set
-# and drift (it drifted three times: plan/learned/1258, 1269). zetest without
-# ze_setup $(ZE_FEATURES) pulls in fakeddos, whose YANG imports
-# ze-ddos-detect-conf (ze_ddos), and then every config load dies "no such
-# module: ze-ddos-detect-conf".
+# and drift (it drifted three times). zetest without ze_setup $(ZE_FEATURES)
+# pulls in fakeddos, whose YANG imports ze-ddos-detect-conf (ze_ddos), and then
+# every config load dies "no such module: ze-ddos-detect-conf".
 ZE_QEMU_DUT_TAGS := ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)
 # The stripped DUT is deliberately the MINIMAL build -- it is what
 # test/ui/ze-stripped-surface.ci asserts against, so it must NOT pick up
@@ -442,8 +441,8 @@ ZE_QEMU_TEST_TAGS := ze_test $(ZE_FEATURES) $(ZE_TAGS)
 # was never produced, so /tmp/ze-qemu-bin/ze-stripped dangled and any suite that
 # execs it (test/ui, via ZE_TEST_DEPS_STRIPPED) could not be debugged with the
 # one target whose entire job is reproducing a failure. Same drift class as the
-# tag sets above (plan/learned/1258, 1269): the fix is one definition, used by
-# all five call sites, so a sixth target cannot build a partial set.
+# tag sets above: the fix is one definition, used by all five call sites, so a
+# sixth target cannot build a partial set.
 define ze-qemu-crossbuild
 @echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 @mkdir -p bin

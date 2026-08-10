@@ -47,8 +47,8 @@ transposed value are lost.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/776-srv6-prefix-sid.md` - SRv6 design decisions
-- [ ] `plan/learned/906-srv6-review-fixes.md` - transposition errata 7652 fix
+- [ ] The SRv6 prefix-SID record (retired with the learned corpus) - SRv6 design decisions
+- [ ] The SRv6 review-fixes record (retired with the learned corpus) - transposition errata 7652 fix
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc9252.md` - Section 6: EVPN transposition rules

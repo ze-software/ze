@@ -34,7 +34,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - **gRPC-over-wire `.ci` (L40)** - engine path covered by `test/plugin/grpc-execute.ci`; a true gRPC-wire test needs grpcio/grpcurl vendored (tooling gate).
 - **`test/pppoe/` orphan (from `plan/deferrals/fixit-ddos-test-infra.md`, 2026-07-16)** - DONE 2026-08-07.
   Thomas chose "repair" on 2026-08-07, which VOIDS the Option D (delete) decision recorded
-  in `plan/learned/1218-fixit-pppoe-orphaned-tests.md`. The three `.ci` are restored and run.
+  by the pppoe orphaned-tests fixit. The three `.ci` are restored and run.
   `option=netns:veth=` was never a real directive; the repair extends the option that already
   provisions netns interfaces, `netns-link`, with `peer=` (veth pair) and `vlan=` (802.1Q
   sub-interface on each end), rather than adding a second directive family for the same job.

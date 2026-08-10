@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Provenance.** Two rows of `plan/deferrals/knowledge-0-umbrella.md`, dated
 2026-08-02, both homed at `spec-knowledge-0-umbrella` which closed
-(`plan/learned/1316-knowledge-0-umbrella.md`) without doing them. They were
+(the closed knowledge-0 umbrella) without doing them. They were
 therefore homeless: a deferral whose destination is gone is a deletion with a
 polite name (`ai/rules/planning.md`). This file is their home.
 

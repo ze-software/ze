@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Spec | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` |
+| Spec | the rfcgate-1b RFC 7296 pilot spec |
 | Primary handover | `plan/handover/03-rfcgate-1b-pilot-after-wp8.md` -- read that first, it holds the queue |
 | Adds | only what WP-3 left open. It supersedes nothing |
 | Written | 2026-07-31 |

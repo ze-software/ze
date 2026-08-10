@@ -202,8 +202,8 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 
 ## Files to Modify
 <!-- Check // Design: annotations on each file. -->
-- `internal/core/observation/observation.go` - add a `SrcAS uint32` field to the `Observation` struct (observation.go). Design ref: `plan/learned/1016-observation-feed.md`.
-- `internal/plugins/flowexport/exporter.go` - in the publish loop (exporter.go), stamp `obs.SrcAS = f.SrcAS`. Design ref: `plan/learned/819-flow-export-2-flow-records.md`.
+- `internal/core/observation/observation.go` - add a `SrcAS uint32` field to the `Observation` struct (observation.go).
+- `internal/plugins/flowexport/exporter.go` - in the publish loop (exporter.go), stamp `obs.SrcAS = f.SrcAS`. Design ref: `docs/architecture/flowexport/flow-export-2-flow-records.md`.
 - `internal/component/trafficfeature/service.go` - add `SrcAS uint32` to `FeatureEntry` (service.go).
 - `internal/component/trafficfeature/feature.go` - add a persistent `srcAS uint32` to `sourceState` (feature.go); stamp it in the SOURCE-role branch of `ingest` only when `obs.SrcAS != 0` (feature.go); copy it into `FeatureEntry.SrcAS` in `snapshot` (feature.go); do NOT clear it in the window reset (feature.go).
 

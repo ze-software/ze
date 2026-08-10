@@ -13,12 +13,11 @@
 # working-tree diff alone. Once a change was committed it left that diff, so
 # a scoped verify on the now-clean tree tested NOTHING in that package and
 # reported green even when the committed package's tests were red (a real
-# regression slipped in this way -- see
-# plan/learned/842-scoped-verify-committed-gap.md). Diffing against the SHA
-# recorded by the last passing verify closes that hole. The baseline is used
-# ONLY when the last verify PASSED (exit=0) and its SHA is a reachable commit
-# in this repository; otherwise we have no trusted green point and fall back
-# to the working-tree-only set (no worse than the historical behaviour).
+# regression slipped in this way). Diffing against the SHA recorded by the last
+# passing verify closes that hole. The baseline is used ONLY when the last
+# verify PASSED (exit=0) and its SHA is a reachable commit in this repository;
+# otherwise we have no trusted green point and fall back to the working-tree-only
+# set (no worse than the historical behaviour).
 #
 # Non-Go inputs that a Go test EXECUTES are collected too, and map to the
 # package that runs them (see PYTHON_TEST_PKG below). Filtering every query on

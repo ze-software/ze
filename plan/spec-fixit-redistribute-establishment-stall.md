@@ -468,7 +468,7 @@ plugins that signal", "make every `send [ update ]` plugin signal", or "shorten 
 fallback" is a design call for Thomas, not a mechanical fix.
 
 Direct evidence (debug via `option=env:var=ze.log.bgp.routes:value=debug`, which MUST go
-ABOVE the `stdin=peer` header -- inside it the runner rejects it, per `plan/learned/545`):
+ABOVE the `stdin=peer` header -- inside it the runner rejects it):
 
 | # | Experiment | Result |
 |---|-----------|--------|
@@ -507,7 +507,7 @@ spec-fixit-migrate-sleeps-infra is removing. The honest test fix is the E9 recip
 `peer_initial_sync.go` sets `sendingConfigStatic`, `reactor_notify.go` tags the
 sent event, and `rib_structured.go` skips ribOut storage for it ("Storing them in
 ribOut would cause duplicates (config re-send + RIB replay)");
-`plan/learned/1008-cp-survival-4-on-demand-origination-design.md` corroborates
+`docs/architecture/bgp/on-demand-origination.md` corroborates
 `config-static` as the established Meta consumer. The file's own header `:5` ("Config
 static route populates adj-rib-out via RIB plugin") is therefore a FALSE premise. These
 never failed the test because `sys.exit(1)` sets the PLUGIN's exit code while

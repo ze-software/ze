@@ -21,7 +21,7 @@
 # 2026-07-25 when the QEMU run used -p 4.
 #
 # The older note here claimed the Alpine QEMU kernel could not load this table at
-# all (`nft flush: operation not supported`, plan/learned/1112). That was the
+# all (`nft flush: operation not supported`). That was the
 # `type route` + hook prerouting combination the kernel rejects with EOPNOTSUPP;
 # b54540f25 made it a filter chain (translate.go) and the table now loads in QEMU.
 

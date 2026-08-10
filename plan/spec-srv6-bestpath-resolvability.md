@@ -56,8 +56,8 @@ itself be subject to best-path selection.
 
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - component isolation, registration pattern
-- [ ] `plan/learned/776-srv6-prefix-sid.md` - original SRv6 design decisions
-- [ ] `plan/learned/906-srv6-review-fixes.md` - state machine fix: store derived state after all gates
+- [ ] The SRv6 prefix-SID record (retired with the learned corpus) - original SRv6 design decisions
+- [ ] The SRv6 review-fixes record (retired with the learned corpus) - state machine fix: store derived state after all gates
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc9252.md` - Section 5: resolvability requirement for best-path

@@ -274,7 +274,7 @@ class RoundCapCase(unittest.TestCase):
     took seven review passes; the code was clean after pass 1 and all eleven later
     findings were false statements in the spec's own closure prose. Each round's
     fixes were prose, so each next round had fresh prose to audit and the loop had
-    no state in which it stopped (plan/learned/1368-vacuous-eor-family-tests.md).
+    no state in which it stopped.
     """
 
     def setUp(self):

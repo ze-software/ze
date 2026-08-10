@@ -28,7 +28,7 @@
 #     place with one pwrite for the data and a second for the container CRC
 #     (pkg/zefs/store.go flushInPlace), so a kill between them leaves the CRC
 #     disagreeing with the data. That is the accepted, documented consequence of
-#     the in-place design (plan/learned/750-zefs-integrity.md), and the storage
+#     the in-place design, and the storage
 #     layer then moves the unreadable blob aside and recreates it
 #     (internal/component/config/storage/blob.go), destroying the very sequence
 #     this test asserts. ze is therefore never SIGKILLed on a passing path.
@@ -227,8 +227,8 @@ class Daemon:
 
         No SIGKILL while the test can still pass. A kill -9 can cut a zefs
         in-place flush between its data pwrite and its container-CRC pwrite,
-        which corrupts database.zefs and erases the persisted sequence
-        (plan/learned/750-zefs-integrity.md). That is what the old fixed
+        which corrupts database.zefs and erases the persisted sequence.
+        That is what the old fixed
         `wait(timeout=5.0)` then `kill()` did on a loaded host, and it is the
         whole reason this test was flaky.
 

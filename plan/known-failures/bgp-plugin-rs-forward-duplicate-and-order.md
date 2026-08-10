@@ -95,17 +95,17 @@ Under 20-way suite load that ordering inverts. When it does:
 
 ## Correction: `Replaying` does NOT gate the forward
 
-`plan/learned/1271-fixit-bgp-egress-rail-divergence.md` (lines 40-41) states that
+The `fixit-bgp-egress-rail-divergence` closure record stated that
 "bgp-rs already marks a peer `Replaying` and withholds it from forward targets",
 and three in-tree comments said the same. **All four were wrong.**
 `selectForwardTargets` (`rs/server_forward.go`) never reads `Replaying`.
 Including a replaying peer is deliberate, recorded in
-`plan/learned/630-rs-fastpath-3-passthrough.md` and pinned by
+the rs-fastpath passthrough design and pinned by
 `TestReplayingPeerIncludedInForwardTargets`: BGP UPDATE duplicates are idempotent
 at the receiver, and excluding replaying peers loses routes when peers connect
 together. The comments were corrected 2026-07-25 (`rs/peer.go`,
-`rs/server_handlers.go`, `adj_rib_in/rib_commands.go`); learned 1271 is history
-and was left as written. **Do not re-derive the false claim from it.**
+`rs/server_handlers.go`, `adj_rib_in/rib_commands.go`). That closure record was history
+and was left as written; it has since been retired with the learned corpus.
 
 Consequence: the claim landing before the first establishment is the ONLY thing
 preventing a doubled replay. There is no second line of defence.

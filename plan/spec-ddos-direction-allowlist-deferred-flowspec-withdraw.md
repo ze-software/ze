@@ -12,8 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/1110-ddos-direction-allowlist.md` - the source spec's learned summary
-4. `internal/plugins/ddos/flowspec/responder.go` - `onCharacterized`
+3. `internal/plugins/ddos/flowspec/responder.go` - `onCharacterized`
 
 ## Task
 
@@ -65,9 +64,10 @@ Three questions therefore precede the two-line fix:
 
 **Provenance.** Recorded as a Review Gate NOTE on `spec-ddos-direction-allowlist`
 2026-07-12; the spec was closed in `0814dc93f` and `git rm`'d, so that NOTE now exists
-only in git history. `plan/learned/1110-ddos-direction-allowlist.md` does NOT record it
-(verified: no `onCharacterized` mention, no Known Limitations section). Without this
-file the finding would survive only in a dangling deferral row.
+only in git history. The source spec's learned summary did NOT record it either
+(verified: no `onCharacterized` mention, no Known Limitations section), and that summary
+was retired with the learned corpus. Without this file the finding would survive only in a
+dangling deferral row.
 
 **Open design question.** Whether the fix is "withdraw at `:164`" or "make the two
 responders share one exemption path". Three of the four early returns in
@@ -81,7 +81,7 @@ the inconsistency rather than remove it.
   → Constraint: an operator-visible announce must not outlive the policy that justifies it
 - [ ] `ai/rules/evidence.md` - a guard that neither denies nor speaks does not exist
   → Constraint: the exemption branch currently logs but leaves state installed; logging is not withdrawing
-- [ ] `plan/learned/1110-ddos-direction-allowlist.md` - the direction/allowlist design
+- [ ] The direction/allowlist design record (retired with the learned corpus)
   → Decision: `SuppressMitigation` (not `Mitigate`) so the bool zero value means mitigate, fail-safe
 
 ### RFC Summaries (MUST for protocol work)
@@ -102,7 +102,7 @@ the inconsistency rather than remove it.
 - [ ] `internal/core/ddosevent/event.go` - `SuppressMitigation` / `Direction` / `Confidence` carried on the event
 
 **Behavior to preserve:**
-- `SuppressMitigation` polarity: the zero value means mitigate (`plan/learned/1110`). A withdraw must never be triggered by a default-constructed event.
+- `SuppressMitigation` polarity: the zero value means mitigate. A withdraw must never be triggered by a default-constructed event.
 - Alert mode (`ResponseLevel != responseEnforce`) must continue to announce nothing.
 - Non-exempt characterizations must announce exactly as they do today.
 - The withdraw's wire form: `withdraw()` re-renders with mode "del", and `renderFlowspecCommand` omits the traffic-action community for "del" so the withdraw byte-matches the announced NLRI (`responder.go`, `:229`).
@@ -188,7 +188,7 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 | AC-2 | `SuppressMitigation` characterization with nothing installed | No withdraw is sent; no error |
 | AC-3 | Characterization without exemption | Announce behavior byte-identical to today |
 | AC-4 | Alert mode (`ResponseLevel != responseEnforce`) | Still announces nothing and withdraws nothing |
-| AC-5 | Default-constructed event (`SuppressMitigation` false) | Mitigates; polarity preserved (`plan/learned/1110`) |
+| AC-5 | Default-constructed event (`SuppressMitigation` false) | Mitigates; polarity preserved |
 | AC-6 | (from A-4) The leak-probe has a production driver, or its inertness is recorded as a deliberate decision | (fill during design) |
 | AC-7 | (from A-5) `max-mitigation-duration` is either enforced or removed from the flowspec config surface | (fill during design) |
 
@@ -229,7 +229,6 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 - `internal/plugins/ddos/flowspec/responder.go` - withdraw at the `SuppressMitigation` branch, which must first reach the `r.active` check now sitting below it at `:171`; address A-3's sibling branches
 - `internal/plugins/ddos/flowspec/register.go` - a probe driver, if A-4 lands here (`:105-107` is where the three handlers are wired and where a fourth input would go)
 - `internal/plugins/ddos/flowspec/config.go` - `max-mitigation-duration`, if A-5 enforces rather than removes it
-- `plan/learned/1110-ddos-direction-allowlist.md` - record this finding, which the closed spec's Review Gate NOTE carried and the learned summary omitted
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -306,7 +305,7 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| The finding survived in `plan/learned/1110` | It lived only in the closed spec's Review Gate NOTE and a deferral row; 1110 never recorded it | Grep during the 2026-07-16 deferral sweep | A closed spec's Review NOTE is not a durable home; this spec is |
+| The finding survived in the source spec's learned summary | It lived only in the closed spec's Review Gate NOTE and a deferral row; that summary never recorded it | Grep during the 2026-07-16 deferral sweep | A closed spec's Review NOTE is not a durable home; this spec is |
 | The stranded announce "clears normally on attack-end / max-mitigation-duration", making this minor (asserted by deferral row L63 AND by this spec's own first draft) | No production path withdraws a flowspec announce at all: `onCleared` ignores the clear while active, `probeTick` has no production caller, and `max-mitigation-duration` is never read | Re-verified at the producers 2026-07-16 while reconciling two drafts of this spec | Severity is understated in the row. The fix's real scope is the responder's missing withdraw reachability, not one branch |
 | The two drafts of this spec were equivalent, so either could be deleted | They were not: one carried the stale "clears normally" severity, the other carried the producer-verified refutation. Deleting the wrong one would have shipped an implementer a spec instructing them to preserve withdraw paths that do not exist | Diffing the pair before deletion, then verifying each claim at the producer | Never resolve duplicate specs by name alone; diff the content and verify the claims first |
 

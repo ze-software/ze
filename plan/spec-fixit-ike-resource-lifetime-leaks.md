@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Three IKE resources outlive the thing that owns them, because a cleanup step sits
 below an early return or has no paired teardown at all.**
 
-Found on 2026-08-02 while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Each
+Found on 2026-08-02 while closing the rfcgate-1b RFC 7296 pilot spec. Each
 defect was verified by reading the producing function. None was measured at run
 time, and phase 1 of this spec is that measurement.
 

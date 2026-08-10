@@ -58,7 +58,7 @@ so a caller cannot even OBSERVE which one the kernel holds.
 
 Thomas ruled on 2026-08-01 in two steps.
 
-Step one. `RFC7296-3.13.1-3` lands in `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` as
+Step one. `RFC7296-3.13.1-3` lands in the rfcgate-1b RFC 7296 pilot spec as
 encoder-proven. The tag states that Ze refuses OPAQUE at config commit and at negotiation,
 because the dataplane cannot express it exactly.
 
@@ -390,7 +390,7 @@ reader usually loses the read half, and the read half is what blocks the proof.
 |----------|--------|
 | What breaks if this is wrong? | An IPsec policy protects the wrong set of traffic. Too wide leaks nothing but violates the negotiated scope and RFC 7296 Section 2.9. Too narrow drops traffic the peers agreed to protect. A silently reverted vendor patch produces the wide case with no signal at all |
 | How is it reverted? | A single commit revert, while the two refusals remain in place. Once the refusals are relaxed and an operator configures `port opaque`, a revert makes that configuration fail at commit, so the config must change too |
-| Who else touches this path? | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` (owns the `RFC7296-3.13.1-3` row and its tags), `plan/spec-ipsec-ipcomp.md` and `plan/spec-ipsec-auth-piggyback.md` (same engine), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the other dataplane backend), and `internal/plugins/ospf/` (an RFC 4552 state selector) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (owns the `RFC7296-3.13.1-3` row and its tags), `plan/spec-ipsec-ipcomp.md` and `plan/spec-ipsec-auth-piggyback.md` (same engine), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the other dataplane backend), and `internal/plugins/ospf/` (an RFC 4552 state selector) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

@@ -11,7 +11,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Deferral holder created on 2026-08-02 while `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` was
+Deferral holder created on 2026-08-02 while the rfcgate-1b RFC 7296 pilot spec was
 closing. No spec owned this.
 
 ## Task
@@ -77,10 +77,10 @@ assertions is not coverage (`ai/rules/completion.md`).
     credential the guard is asking for.
 - [ ] `ai/rules/completion.md` - the user goal is the operator clear
   → Constraint: the fix must make the goal work, not route around the assertion.
-- [ ] `plan/learned/1159-fixit-cli-credential-resolution.md` - owns `readCredentials`
+- [ ] The `fixit-cli-credential-resolution` record (retired with the learned corpus) - owns `readCredentials`
   → Decision: the resolver's precedence (flag, then env, then store) and its injectable
     seams are settled. This spec consumes them and does not redesign them.
-- [ ] `plan/learned/1215-fixit-ipsec-clear-reestablish.md` - the IKE half, already landed
+- [ ] The `fixit-ipsec-clear-reestablish` record (retired with the learned corpus) - the IKE half, already landed
   → Constraint: its own notes park scenarios 10 and 11 as statically validated only. That
     park is what this spec closes.
 

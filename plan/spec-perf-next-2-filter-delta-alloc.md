@@ -17,8 +17,9 @@ there and the package has no scratch type. Dropping Phase B is a scope
 reduction, which only Thomas can approve (`ai/rules/no-partial-completion.md`).
 The spec's own Phase B gate cannot decide it either: that gate demands a fresh
 `ze-perf-bench PPROF=1` profile showing the `encode*Value` frames, and
-`plan/learned/900-perf-next-round-3.md` records that `Dockerfile.ze` is stale
-and that `ze-perf-bench` never exercises the filter path.
+`ze-perf-bench` never exercises the filter path
+(`docs/architecture/perf-round-3.md`), and `Dockerfile.ze` was recorded stale
+when round 3 closed.
 
 Thomas chooses one: implement Phase B and meet AC-3, or approve the deferral,
 which then needs a `plan/deferrals/` shard with a destination spec plus a
@@ -27,8 +28,8 @@ corrected AC-3 before closure.
 Awaiting closure (recorded 2026-07-22 during plan review): Phase A landed --
 `filterAttrID`/`filterAttrs` (fixed struct + bitset replacing
 `map[string]string`) at `internal/component/bgp/reactor/filter_chain.go,79`,
-per `plan/learned/900-perf-next-round-3.md`. Phase B (pooled scratch for the 14
-encoder sites) was deliberately deferred in learned 900; at closure, home that
+per `docs/architecture/perf-round-3.md`. Phase B (pooled scratch for the 14
+encoder sites) was deliberately deferred in that round; at closure, home that
 deferral in a `plan/deferrals/` shard with a destination spec so it is not
 lost. Only the two-commit closure (plus that deferral row) remains.
 
@@ -38,15 +39,14 @@ lost. Only the two-commit closure (plus that deferral row) remains.
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/component/bgp/reactor/filter_delta.go`, `filter_chain.go` (parseFilterAttrs), `filter_delta_handlers.go`
-4. `plan/learned/875-filter-delta-parse-once.md` (prior optimization of the same path)
+4. `internal/component/bgp/reactor/filter_delta_parse_test.go` - the call-count test the prior optimization of this path left behind
 
 ## Task
 
 When an external policy filter modifies an UPDATE, the reactor converts the
 filter's text delta into wire attribute operations. This path currently costs
 **~24 allocs per modified UPDATE** (measured by BenchmarkFilterModifyEgress
-after spec filter-delta-parse-once reduced it from 34, see
-`plan/learned/875-filter-delta-parse-once.md`). It fires:
+after spec filter-delta-parse-once reduced it from 34). It fires:
 
 - Import: per received UPDATE when `peer.settings.ImportFilters` is non-empty AND the filter changed the text (`reactor_notify.go`).
 - Export: per DESTINATION PEER per forwarded UPDATE when export filters are configured and modify the text (`reactor_api_forward.go`). The export path multiplies the cost by fan-out, making it the valuable half.
@@ -121,9 +121,8 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
   → Constraint: filter modify IS a sanctioned copy boundary; the goal is fewer allocations, not zero copies
 - [ ] `ai/rules/go-standards.md` - string keys on hot paths
   → Decision: closed 16-name key set becomes struct fields (typed identity)
-- [ ] `plan/learned/875-filter-delta-parse-once.md` - prior round on this exact path
+- [ ] `docs/architecture/perf-round-3.md` - the campaign this round belongs to
   → Decision: parse exactly twice per modify; extractors share read-only; preserve the call-count test
-- [ ] `plan/learned/859-perf-hot-alloc-reduction.md`
   → Decision: value-type struct keys over interning; same principle applies to parse output
 
 ### RFC Summaries (MUST for protocol work)

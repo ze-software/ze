@@ -12,12 +12,12 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md`
-3. `plan/learned/1071-managed-hub-server.md` - the managed server this hardens
+3. The managed-hub-server record (retired with the learned corpus) - the managed server this hardens
 4. `internal/component/plugin/server/managed_serve.go`, `internal/component/managed/client.go`
 
 ## Task
 
-Follow-up hardening for the managed-config hub server (landed in `plan/learned/1071-managed-hub-server.md`),
+Follow-up hardening for the managed-config hub server (landed by `spec-managed-hub-server`),
 capturing three gaps surfaced by that spec's `/ze-review`:
 
 1. **Secure server-cert verification.** `ManagedServer` presents a self-signed cert
@@ -64,7 +64,7 @@ an indefinite block.
 ### Architecture Docs
 - [ ] `docs/architecture/fleet-config.md` - security section (cert verification default), roles
   → Constraint: cert verification is the documented default; the current self-signed cert breaks it.
-- [ ] `plan/learned/1071-managed-hub-server.md` - what was built and why the dedicated listener
+- [ ] The managed-hub-server record (retired with the learned corpus) - what was built and why the dedicated listener
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] N/A - TLS/cert handling, not an IETF wire protocol.

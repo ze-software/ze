@@ -20,7 +20,7 @@ MUST NOT obligations proven by tests.
 
 ### Provenance (do not delete)
 
-Four RFC compliance rows were deferred out of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` into
+Four RFC compliance rows were deferred out of the rfcgate-1b RFC 7296 pilot spec into
 this spec. The owner decided on 2026-07-31: "Create a spec to fully implement IPComp, do not
 do it as part of this session." The pilot spec's phase list calls the four rows work package
 WP-11. The 2026-07-30 re-triage renumbered them to work package WP-16. The row identifiers
@@ -248,7 +248,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 |----------|--------|
 | What breaks if this is wrong? | An IPsec tunnel carries traffic the peer cannot decompress, or a peer that offers IPComp loses its Child SA. Both are total data-path loss for that tunnel |
 | How is it reverted? | The negotiation is off by default, so a single commit revert is safe while the default holds. Once an operator enables it and peers negotiate, a revert drops those tunnels until both ends are downgraded |
-| Who else touches this path? | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` (the four rows, and the generic error-notification sender its WP-3 and WP-4 build), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the VPP backend cannot program a security association at all today), `plan/spec-ipsec-remote-access.md` (the same engine and the same Child SA path) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the four rows, and the generic error-notification sender its WP-3 and WP-4 build), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the VPP backend cannot program a security association at all today), `plan/spec-ipsec-remote-access.md` (the same engine and the same Child SA path) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -327,7 +327,7 @@ count assertion beside it. A counter is proven over a chain that holds the paylo
 The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk` and `:217`), so a
 `.ci` there earns a verify tier. A `.ci` that drives a crafted IKEv2 inner payload chain needs
 a scripted IKEv2 peer, and `internal/test/cli/` has none today. Building one is in scope for
-the design phase, and it serves many other rows in `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
+the design phase, and it serves many other rows in the rfcgate-1b RFC 7296 pilot spec.
 
 ### QEMU Integration Tests
 | Test | Package | Validates | Status |

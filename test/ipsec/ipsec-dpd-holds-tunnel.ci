@@ -1,7 +1,7 @@
 # Functional test: a configured DPD keeps a HEALTHY tunnel up.
 # Spec: plan/spec-fixit-ike-test-discrimination.md (item 5, AC-8).
 #
-# The DPD cleartext defect (plan/learned/1332-fixit-ike-dpd-cleartext.md) sent the
+# The DPD cleartext defect sent the
 # liveness probe unencrypted. A conforming peer answered nothing, the initiator's
 # own timeout fired, and a tunnel that was never broken was torn down. Four unit
 # tests in internal/component/ike/engine/rfc7296_dpd_test.go prove the probe is

@@ -10,7 +10,7 @@
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:** this spec file;
-`.claude/rules/planning.md`; `plan/learned/1124-vrrp-first-hop-redundancy.md`
+`.claude/rules/planning.md`; `docs/architecture/vrrp/vrrp-first-hop-redundancy.md`
 (the closed VRRP work and its Known Limitations);
 `internal/plugins/vrrp/instance.go`, `groups.go`, `fsm/fsm.go`.
 
@@ -109,7 +109,7 @@ the "Active router behavior beyond the election" theme.
   → Constraint: whatever ships here must retire the documented caveat, not add a second one
 - [ ] `ai/rules/architecture.md` - exact or reject
   → Constraint: a leaf ze cannot enforce exactly must fail verify, never approximate silently
-- [ ] `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` - the macvlan/vmac recipe the filter must not break
+- [ ] `docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md` - the macvlan/vmac recipe the filter must not break
   → Constraint: the ARP/ND sysctl recipe makes the macvlan the sole responder; a filter that drops ARP or ND breaks virtual-MAC ownership
 
 ### RFC Summaries (MUST for protocol work)

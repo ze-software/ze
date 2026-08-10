@@ -56,7 +56,7 @@ running" from "End-of-RIB not yet sent" is the shape that unblocks it.
 against this speaker's own initial dump, never against routes learned
 afterwards. That was applied to a PLUGIN-INJECTED route by analogy with
 `role-otc-unicast-scope.ci`, where the route is FORWARDED from another peer.
-`plan/learned/1252-masked-verdict-and-rfc-exemption.md` says of that same shape
+The masked-verdict-and-RFC-exemption record says of that same shape
 that the pattern alone is not the defect, the route's provenance is. Ze's own
 design treats plugin-injected initial routes as part of the dump. Under
 `ai/rules/rfc-compliance.md` that ruling is void by default and must be

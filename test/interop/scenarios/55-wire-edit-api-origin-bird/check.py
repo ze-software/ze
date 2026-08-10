@@ -31,7 +31,7 @@ through `raise_if_observer_failed`.
 
 # VALIDATES: plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md AC-1, AC-2
 #   and AC-4, against a live peer rather than against Ze's own view of what it
-#   sent. `plan/learned/1320-wire-edit-4-api-origin.md` converged the two announce
+#   sent. The wire-edit-4 API-origin work converged the two announce
 #   rails on one writer, `(*announceAttrs).emit`
 #   (internal/component/bgp/reactor/announce_build.go), and its interop row was
 #   owed.

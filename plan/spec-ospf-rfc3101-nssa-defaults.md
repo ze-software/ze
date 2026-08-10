@@ -58,12 +58,12 @@ conformance row become true as written.
     present, so every negative `.ci` assertion needs a positive control step before it.
 
 ### Prior Art (learned summaries)
-- [ ] `plan/learned/972-ospf-af-unify.md` - the address-family seam decision
+- [ ] `docs/architecture/ospf/ospf-af-unify.md` - the address-family seam decision
   → Constraint: scope-typed OSPFv3 LS Types MUST be classified through the helpers
     (`types.LSType.NSSA()`, `.ASExternal()`, `.ASWide()`), never through OSPFv2 numeric
     constants. A past defect put OSPFv3 AS-External LSAs in per-area storage because code
     compared `key.Type == 5`.
-- [ ] `plan/learned/975-ospfv3-5-nssa-redist.md` - OSPFv3 Type-7 origination
+- [ ] `docs/architecture/ospf/ospfv3-5-nssa-redist.md` - OSPFv3 Type-7 origination
   → Decision: reuse the v4 NSSA policy (translator election, P-bit boundary rule, source
     preference) and vary ONLY the wire encode. This spec follows the same split.
   → Constraint: the OSPFv3 P-bit rides in the prefix's `PrefixOptions` (`OptPrefixP`), NOT

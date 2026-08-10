@@ -8,13 +8,13 @@
 | Phase | - |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
+Deferral holder created at the closure of the wire-edit-5 fan-out dedup spec on 2026-08-02
 (`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-`plan/learned/1321-wire-edit-5-fanout-dedup.md` AC-11 asked for per-destination cost
+AC-11 of the wire-edit-5 fan-out dedup spec asked for per-destination cost
 "no worse at 1 and 2". It is met at fan-out 2 within one group and NOT met at
 fan-out 2 with 2 groups.
 
@@ -45,7 +45,7 @@ or a group-count signal the forward loop already has.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 - [ ] `ai/rules/completion.md` - why a silent cap is banned
-- [ ] `plan/learned/1321-wire-edit-5-fanout-dedup.md` - the measurement and why no threshold was added
+- [ ] `docs/architecture/bgp/fanout-dedup.md` - the measurement and why no threshold was added
 
 ## Current Behavior (MANDATORY)
 

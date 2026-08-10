@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 286 design docs, 3268 files
+Total: 261 design docs, 3269 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -236,6 +236,7 @@ Total: 286 design docs, 3268 files
 
 ## `docs/architecture/anomaly/anomaly-4-interop-harness.md`
 
+- `internal/plugins/anomaly/detect/chain_integration_test.go` -- facts->judgment->response end to end.
 - `internal/plugins/anomaly/shape/testsupport.go` -- in-process test composition seam.
 
 ## `docs/architecture/api/architecture.md`
@@ -515,6 +516,7 @@ Total: 286 design docs, 3268 files
 
 - `cmd/ze-serial-shell/main.go` -- gokrazy serial shell wrapper
 - `cmd/ze/login.go` -- serial console login gate
+- `cmd/ze/login_test.go` -- serial console login tests
 
 ## `docs/architecture/appliance/build-artifacts.md`
 
@@ -1117,6 +1119,7 @@ Total: 286 design docs, 3268 files
 
 | File | Topic |
 |------|-------|
+| `cmd/ze/bootstrap_template_test.go` | Appliance Config Loading Priority (section 21): template becomes effective config |
 | `cmd/ze/hub/audit.go` | audit log file management |
 | `cmd/ze/internal/helpfmt/helpfmt.go` | CLI help formatting |
 | `cmd/ze/internal/suggest/suggest.go` | CLI command suggestions |
@@ -1232,6 +1235,7 @@ Total: 286 design docs, 3268 files
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
+| `internal/component/bgp/reactor/forward_update_bench_test.go` | Forwarding Path (section 9): per-UPDATE in-process hot path throughput. |
 | `internal/component/bgp/reactor/link_scope.go` | RFC 2545 Section 3 link-local next-hop condition |
 | `internal/component/bgp/reactor/listener.go` | TCP listener management |
 | `internal/component/bgp/reactor/negotiated.go` | negotiated capability tracking |
@@ -1277,6 +1281,7 @@ Total: 286 design docs, 3268 files
 | `internal/component/bgp/reactor/session_validation_nlritype.go` | RFC 7606 UPDATE validation |
 | `internal/component/bgp/reactor/session_write.go` | wire write primitives and Send* methods |
 | `internal/component/bgp/reactor/signal.go` | OS signal handling |
+| `internal/component/bgp/reactor/unified_filter_order_test.go` | Ingress Filter Pipeline (section 9): unified stage-ordered filter pipeline |
 | `internal/component/bgp/redistribute/bgp.go` | BGP redistribute source registration |
 | `internal/component/bgp/redistribute/consumer.go` | BGP redistribution consumer |
 | `internal/component/bgp/redistribute/producer.go` | BGP redistribution source bridge |
@@ -1318,6 +1323,7 @@ Total: 286 design docs, 3268 files
 | `internal/component/firewall/register.go` | Firewall plugin registration |
 | `internal/component/firewall/registry.go` | firewall table registry |
 | `internal/component/firewall/validate.go` | Firewall verify-time validation |
+| `internal/component/iface/registry_integration_linux_test.go` | Interface Management (section 14): generic |
 | `internal/component/ike/engine/redistribute.go` | redistribute source registration |
 | `internal/component/l2tp/cli/decode.go` | l2tp offline decode |
 | `internal/component/l2tp/cli/main.go` | l2tp offline CLI |
@@ -1464,6 +1470,7 @@ Total: 286 design docs, 3268 files
 | `internal/plugins/fib/kernel/monitor.go` | FIB kernel route monitoring |
 | `internal/plugins/fib/kernel/monitor_linux.go` | FIB Linux route monitor |
 | `internal/plugins/fib/kernel/monitor_other.go` | FIB noop route monitor |
+| `internal/plugins/fib/kernel/richroute_lifecycle_test.go` | FIB Kernel (section 16): rich route programming |
 | `internal/plugins/fib/p4/backend.go` | FIB P4 backend |
 | `internal/plugins/fib/p4/fibp4.go` | FIB P4 plugin |
 | `internal/plugins/firewall/nft/backend_linux.go` | nftables backend Linux implementation |
@@ -1639,7 +1646,9 @@ Total: 286 design docs, 3268 files
 |------|-------|
 | `internal/plugins/as112/config.go` | as112 config parse + validation |
 | `internal/plugins/as112/doctor.go` | as112 listen-port bind-capability doctor check (finding L1) |
+| `internal/plugins/as112/freebind_integration_linux_test.go` | AC-11 / finding B2: IP_FREEBIND wiring proof |
 | `internal/plugins/as112/health.go` | `ze ... request as112 healthcheck` command (finding M4) |
+| `internal/plugins/as112/integration_linux_test.go` | end-to-end DNS-serving proof against the real privileged port 53 |
 | `internal/plugins/as112/metrics.go` | as112 Prometheus metrics |
 | `internal/plugins/as112/register.go` | as112 plugin registration, OnConfigure |
 | `internal/plugins/as112/server.go` | as112 DNS server (answer policy, |
@@ -1919,6 +1928,7 @@ Total: 286 design docs, 3268 files
 |------|-------|
 | `internal/component/iface/dispatch_resolve_integration_linux_test.go` | sub-spec 5 dispatch translation. |
 | `internal/component/iface/resolve.go` | shared logical-name resolver |
+| `internal/component/iface/resolve_integration_linux_test.go` | resolver os-name remapping. |
 | `internal/component/l2tp/pppoe/resolve.go` | consumers resolve through iface |
 | `scripts/checks/iface_resolution.go` | AC-U1 no-direct-resolution guard |
 
@@ -1949,6 +1959,11 @@ Total: 286 design docs, 3268 files
 
 - `internal/component/iface/offload_linux.go` -- ethtool offload and sysfs steering
 - `internal/component/iface/offload_other.go` -- no-op stub for non-Linux
+
+## `docs/architecture/iface/vlan-qos-map.md`
+
+- `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` -- VLAN QoS wire-level lab tests
+- `internal/plugins/iface/netlink/vlanqoslab_tci_test.go` -- 802.1Q TCI decode/build helpers
 
 ## `docs/architecture/ike/ipsec-10-cli-diag.md`
 
@@ -2093,6 +2108,15 @@ Total: 286 design docs, 3268 files
 | `internal/component/ike/transport/nat.go` | NAT detection and port 4500 handling |
 | `internal/component/ike/transport/nat_test.go` | NAT detection tests |
 
+## `docs/architecture/ike/ipsec-dataplane-inspection.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/cmd/show_dataplane_test.go` | kernel dataplane read surface |
+| `internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go` | kernel dataplane read surface |
+| `internal/component/ike/dataplane/xfrm_readback_linux_test.go` | kernel dataplane read surface |
+| `internal/component/ike/engine/health_drift_test.go` | kernel dataplane read surface |
+
 ## `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`
 
 | File | Topic |
@@ -2120,10 +2144,15 @@ Total: 286 design docs, 3268 files
 | File | Topic |
 |------|-------|
 | `internal/plugins/isis/auth_keystore.go` | IS-IS authentication key store. |
+| `internal/plugins/isis/auth_keystore_test.go` | IS-IS authentication key store tests. |
 | `internal/plugins/isis/auth_wiring.go` | engine <-> authentication wiring. |
+| `internal/plugins/isis/auth_wiring_test.go` | engine authentication wiring tests. |
 | `internal/plugins/isis/packet/auth_sign.go` | IS-IS authentication backend (sign side). |
+| `internal/plugins/isis/packet/auth_sign_test.go` | tests for the sign-side helpers. |
 | `internal/plugins/isis/packet/auth_types.go` | IS-IS authentication backend (sign + verify). |
+| `internal/plugins/isis/packet/auth_types_test.go` | tests for the auth type/algorithm helpers. |
 | `internal/plugins/isis/packet/auth_verify.go` | IS-IS authentication backend (verify side). |
+| `internal/plugins/isis/packet/auth_verify_test.go` | IS-IS authentication backend tests. |
 
 ## `docs/architecture/isis/isis-11-redistribution.md`
 
@@ -2131,52 +2160,83 @@ Total: 286 design docs, 3268 files
 |------|-------|
 | `internal/plugins/isis/redist_wiring.go` | engine <-> redistribution wiring. |
 | `internal/plugins/isis/redistribute/consumer.go` | IS-IS redistribution consumer. |
+| `internal/plugins/isis/redistribute/consumer_test.go` | IS-IS redistribution consumer tests. |
 | `internal/plugins/isis/redistribute/events/events.go` | IS-IS redistevents producer wiring. |
+| `internal/plugins/isis/redistribute/events/events_test.go` | producer wiring test (AC-11). |
 | `internal/plugins/isis/redistribute/redistribute.go` | IS-IS redistribution (both directions). |
 | `internal/plugins/isis/redistribute/source.go` | IS-IS redistribution source (producer). |
+| `internal/plugins/isis/redistribute/source_test.go` | IS-IS redistribution source tests. |
 
 ## `docs/architecture/isis/isis-12-ipv6.md`
 
-- `internal/plugins/isis/lsdb/origination_ipv6.go` -- IPv6 origination scope filtering (RFC 5308).
-- `internal/plugins/isis/redistribute/ipv6.go` -- IPv6 redistribution (both directions).
-- `internal/plugins/isis/spf/ipv6.go` -- IPv6 leaf extraction + next-hop over the
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/circuit/hello_ipv6_test.go` | IIH TLV 232 (IPv6 link-local) origination. |
+| `internal/plugins/isis/lsdb/origination_ipv6.go` | IPv6 origination scope filtering (RFC 5308). |
+| `internal/plugins/isis/lsdb/origination_ipv6_test.go` | IPv6 origination tests. |
+| `internal/plugins/isis/redistribute/ipv6.go` | IPv6 redistribution (both directions). |
+| `internal/plugins/isis/redistribute/ipv6_test.go` | TDD plan -- IPv6 redistribution both ways. |
+| `internal/plugins/isis/spf/ipv6.go` | IPv6 leaf extraction + next-hop over the |
+| `internal/plugins/isis/spf/ipv6_test.go` | TDD plan -- IPv6 leaf extraction + next-hop |
 
 ## `docs/architecture/isis/isis-13-cli-diag-interop.md`
 
 | File | Topic |
 |------|-------|
 | `internal/component/web/handler_isis.go` | IS-IS web neighbor + database views. |
+| `internal/component/web/handler_isis_test.go` | IS-IS web view tests. |
 | `internal/component/web/page_isis.go` | IS-IS web page shell + SSE script. |
 | `internal/plugins/isis/cmd_show.go` | `show isis ...` / `clear isis |
+| `internal/plugins/isis/cmd_show_test.go` | `show isis ...` / `clear isis |
 | `internal/plugins/isis/codes.go` | IS-IS diagnostic code ownership. |
+| `internal/plugins/isis/codes_test.go` | IS-IS diagnostic code ownership tests. |
 | `internal/plugins/isis/doctor.go` | IS-IS config-sanity doctor checks. |
+| `internal/plugins/isis/doctor_test.go` | IS-IS doctor check unit tests. |
 | `internal/plugins/isis/frr_interop_integration_linux_test.go` | IS-IS interop with FRR isisd. |
+| `internal/plugins/isis/metrics_doc_test.go` | the canonical ze_isis_* metric |
+| `internal/plugins/isis/metrics_test.go` | the canonical ze_isis_* metric |
 | `internal/plugins/isis/show.go` | engine-side render + clear for |
+| `internal/plugins/isis/show_test.go` | engine render + clear unit tests. |
 | `internal/plugins/isis/spf/spflog.go` | `show isis spf-log` history |
+| `internal/plugins/isis/spf/spflog_test.go` | SPF-log ring boundary tests. |
+| `internal/plugins/isis/yang/cmd_schema_test.go` | owner-presence half of the |
 
 ## `docs/architecture/isis/isis-3-l2-transport.md`
 
 | File | Topic |
 |------|-------|
 | `internal/plugins/isis/transport/backend_linux.go` | Linux AF_PACKET/SOCK_RAW backend |
+| `internal/plugins/isis/transport/backend_linux_test.go` | Linux AF_PACKET backend unit tests |
 | `internal/plugins/isis/transport/backend_other.go` | non-Linux backend stub |
+| `internal/plugins/isis/transport/backend_other_test.go` | non-Linux backend stub test |
 | `internal/plugins/isis/transport/doctor.go` | raw-socket readiness doctor check |
 | `internal/plugins/isis/transport/doctor_linux.go` | raw-socket probe for the doctor check |
 | `internal/plugins/isis/transport/doctor_other.go` | raw-socket probe (non-Linux stub) |
+| `internal/plugins/isis/transport/doctor_test.go` | raw-socket doctor check tests |
 | `internal/plugins/isis/transport/frame.go` | IEEE 802.3 + LLC frame codec |
+| `internal/plugins/isis/transport/frame_test.go` | 802.3 + LLC frame codec tests |
 | `internal/plugins/isis/transport/metrics.go` | transport Prometheus metrics |
+| `internal/plugins/isis/transport/metrics_test.go` | transport Prometheus metrics |
+| `internal/plugins/isis/transport/mtu_test.go` | MTU expose + neighbor inference |
 | `internal/plugins/isis/transport/multicast.go` | ISO multicast MAC selection |
+| `internal/plugins/isis/transport/multicast_test.go` | multicast MAC selection tests |
 | `internal/plugins/isis/transport/register.go` | doctor-check registration |
 | `internal/plugins/isis/transport/transport.go` | raw L2 transport orchestrator |
+| `internal/plugins/isis/transport/transport_integration_linux_test.go` | raw L2 QEMU integration tests |
+| `internal/plugins/isis/transport/transport_test.go` | transport orchestrator + lifecycle |
 
 ## `docs/architecture/isis/isis-4-component-config.md`
 
 | File | Topic |
 |------|-------|
+| `internal/component/config/validators_isis_test.go` | IS-IS NET / system-id validators |
 | `internal/plugins/isis/config.go` | IS-IS config resolution |
+| `internal/plugins/isis/config_test.go` | config resolution unit tests |
 | `internal/plugins/isis/events.go` | IS-IS event bus types |
+| `internal/plugins/isis/events_test.go` | IS-IS event namespace test |
 | `internal/plugins/isis/register.go` | IS-IS component registration |
 | `internal/plugins/isis/server.go` | IS-IS engine orchestration |
+| `internal/plugins/isis/server_test.go` | engine/server + PDU dispatcher tests |
 
 ## `docs/architecture/isis/isis-5-adjacency.md`
 
@@ -2184,46 +2244,83 @@ Total: 286 design docs, 3268 files
 |------|-------|
 | `internal/plugins/isis/adjacency/adjacency.go` | IS-IS adjacency record and state. |
 | `internal/plugins/isis/adjacency/fsm.go` | adjacency finite state machine. |
+| `internal/plugins/isis/adjacency/fsm_test.go` | adjacency FSM transition tests. |
 | `internal/plugins/isis/adjacency/table.go` | per-circuit neighbor table + snapshot. |
+| `internal/plugins/isis/adjacency/table_test.go` | neighbor table keying + snapshot. |
+| `internal/plugins/isis/adjacency_integration_linux_test.go` | adjacency QEMU integration test. |
+| `internal/plugins/isis/adjacency_up_test.go` | two-engine adjacency wiring test. |
 | `internal/plugins/isis/circuit/circuit.go` | per-interface IS-IS circuit runtime. |
+| `internal/plugins/isis/circuit/circuit_test.go` | circuit RX dispatch + lifecycle. |
 | `internal/plugins/isis/circuit/hello.go` | IIH origination (LAN + P2P) + padding. |
+| `internal/plugins/isis/circuit/hello_test.go` | IIH origination + padding + hold time. |
 | `internal/plugins/isis/circuit/runtime.go` | circuit RX dispatch, Hello send, sweep. |
+| `internal/plugins/isis/circuit/runtime_test.go` | circuit RX dispatch + P2P IIH signing. |
 | `internal/plugins/isis/circuits.go` | engine <-> adjacency-circuit wiring. |
+| `internal/plugins/isis/circuits_test.go` | per-circuit goroutine lifecycle. |
 
 ## `docs/architecture/isis/isis-6-lsdb.md`
 
 | File | Topic |
 |------|-------|
 | `internal/plugins/isis/lsdb/aging.go` | LSP aging, refresh, and zero-age purge. |
+| `internal/plugins/isis/lsdb/aging_test.go` | LSP aging / purge / grace tests. |
+| `internal/plugins/isis/lsdb/boundary_test.go` | boundary tests for the numeric LSDB inputs. |
 | `internal/plugins/isis/lsdb/encode.go` | TLV value builders + fragment packer for origination. |
 | `internal/plugins/isis/lsdb/entry.go` | per-LSP database entry (raw bytes + metadata). |
 | `internal/plugins/isis/lsdb/lsdb.go` | the Link-State Database store. |
+| `internal/plugins/isis/lsdb/lsdb_test.go` | LSDB store/freshness/flags/snapshot tests. |
+| `internal/plugins/isis/lsdb/metrics_test.go` | LSDB Prometheus metrics (owner isis-6). |
 | `internal/plugins/isis/lsdb/origination.go` | own-LSP origination from live state. |
+| `internal/plugins/isis/lsdb/origination_test.go` | own-LSP origination tests. |
+| `internal/plugins/isis/lsdb/own_conflict_test.go` | own-LSP sequence conflicts. |
 | `internal/plugins/isis/lsdb_wiring.go` | engine <-> LSDB wiring (origination trigger, aging loop). |
+| `internal/plugins/isis/lsdb_wiring_test.go` | engine<->LSDB wiring tests (Wiring Test table). |
 | `internal/plugins/isis/own_lsp_conflict.go` | own-LSP origination and sequence state. |
+| `internal/plugins/isis/own_lsp_conflict_test.go` | engine reaction to a claim on an own LSP ID. |
 
 ## `docs/architecture/isis/isis-7-flooding.md`
 
-- `internal/plugins/isis/flooding_wiring.go` -- engine <-> flooding wiring (handlers, timers, P2P initial CSNP).
-- `internal/plugins/isis/lsdb/flooding.go` -- LSP flooding (receive-side algorithm + periodic SRM-driven TX).
-- `internal/plugins/isis/lsdb/snp.go` -- CSNP/PSNP synchronization + per-circuit pending-request set.
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/flooding_wiring.go` | engine <-> flooding wiring (handlers, timers, P2P initial CSNP). |
+| `internal/plugins/isis/flooding_wiring_test.go` | engine-layer flooding wiring tests (Wiring Test table). |
+| `internal/plugins/isis/lsdb/flooding.go` | LSP flooding (receive-side algorithm + periodic SRM-driven TX). |
+| `internal/plugins/isis/lsdb/flooding_metrics_test.go` | flooding/SNP Prometheus metrics (owner isis-7). |
+| `internal/plugins/isis/lsdb/flooding_test.go` | flooding receive algorithm + periodic SRM TX tests. |
+| `internal/plugins/isis/lsdb/snp.go` | CSNP/PSNP synchronization + per-circuit pending-request set. |
+| `internal/plugins/isis/lsdb/snp_test.go` | CSNP/PSNP build, receive, and pending-request tests. |
+| `internal/plugins/isis/packet/flood_ci_test.go` | fixture pin for test/isis/isis-flooding.ci |
 
 ## `docs/architecture/isis/isis-8-dis-broadcast.md`
 
-- `internal/plugins/isis/circuit/dis.go` -- Designated IS (DIS) election on
-- `internal/plugins/isis/dis_wiring.go` -- engine <-> DIS-election wiring.
-- `internal/plugins/isis/lsdb/pseudonode.go` -- pseudo-node LSP origination on a
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/circuit/dis.go` | Designated IS (DIS) election on |
+| `internal/plugins/isis/circuit/dis_test.go` | DIS election unit tests. |
+| `internal/plugins/isis/dis_wiring.go` | engine <-> DIS-election wiring. |
+| `internal/plugins/isis/dis_wiring_test.go` | engine-layer DIS wiring tests. |
+| `internal/plugins/isis/lsdb/pseudonode.go` | pseudo-node LSP origination on a |
+| `internal/plugins/isis/lsdb/pseudonode_test.go` | pseudo-node LSP origination tests. |
+| `internal/plugins/isis/packet/pseudonode_ci_test.go` | fixture pin for test/isis/isis-dis.ci. |
 
 ## `docs/architecture/isis/isis-9-spf-rib.md`
 
 | File | Topic |
 |------|-------|
+| `internal/component/sysrib/sysrib_ecmp_pathgroup_test.go` | sysrib/locrib path-group ECMP expansion. |
+| `internal/component/sysrib/sysrib_ecmp_relabel_test.go` | sysrib ECMP relabel detection. |
 | `internal/plugins/isis/spf/computer.go` | the SPF orchestrator (trigger -> run -> install). |
+| `internal/plugins/isis/spf/computer_test.go` | / plan/spec-isis-11-redistribution.md -- SPF OnChange seam. |
 | `internal/plugins/isis/spf/graph.go` | SPF graph build from the synced LSDB. |
+| `internal/plugins/isis/spf/graph_test.go` | TDD plan -- TestISISGraphBuild. |
 | `internal/plugins/isis/spf/install.go` | FIB install via Loc-RIB insertion. |
+| `internal/plugins/isis/spf/install_test.go` | TDD plan -- Loc-RIB insertion + wiring. |
 | `internal/plugins/isis/spf/leak.go` | step 5 -- L1<->L2 inter-level route leaking |
+| `internal/plugins/isis/spf/leak_test.go` | step 5 -- the ORIGINATION side of L1<->L2 |
 | `internal/plugins/isis/spf/route.go` | prefix attach, L1/L2 leaking, route diff. |
+| `internal/plugins/isis/spf/route_test.go` | TDD plan -- prefix attach, L1/L2 leaking |
 | `internal/plugins/isis/spf/spf.go` | per-level Dijkstra over the LSDB graph. |
+| `internal/plugins/isis/spf/spf_test.go` | TDD plan -- Dijkstra, ECMP, overload, |
 | `internal/plugins/isis/spf_wiring.go` | engine <-> SPF wiring (LSDB read, next-hop, install). |
 
 ## `docs/architecture/l2tp/bng-1-radius-attributes.md`
@@ -2277,6 +2374,7 @@ Total: 286 design docs, 3268 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/l2tp/bridge_integration_linux_test.go` | AC-3 / A-4 LAC bridge integration |
 | `internal/component/l2tp/bridge_linux.go` | AC-3 / A-4 LAC data-plane bridge |
 | `internal/component/l2tp/cmd/outgoing_call.go` | AC-4 request l2tp outgoing-call |
 | `internal/component/l2tp/outgoing_call.go` | AC-4 operator-initiated outgoing call |
@@ -2315,15 +2413,22 @@ Total: 286 design docs, 3268 files
 
 | File | Topic |
 |------|-------|
+| `internal/plugins/ldp/adjacency_expiry_test.go` | adjacency expiry tears the session (F6) test |
 | `internal/plugins/ldp/cmd_show.go` | `show ldp ...` surfaced under the top-level |
 | `internal/plugins/ldp/discovery.go` | LDP discovery (UDP hello) |
 | `internal/plugins/ldp/discovery_manager.go` | dynamic LDP interface reload (AC-9) |
+| `internal/plugins/ldp/discovery_manager_test.go` | dynamic interface reload (AC-9) tests |
 | `internal/plugins/ldp/doctor.go` | LDP port-646 readiness doctor check |
+| `internal/plugins/ldp/doctor_test.go` | LDP port-646 readiness doctor check tests |
 | `internal/plugins/ldp/events.go` | LDP event bus types |
 | `internal/plugins/ldp/fib.go` | LDP dataplane via the mpls-fib bus (AC-3/AC-4) |
+| `internal/plugins/ldp/fib_test.go` | ldpFIB emit tests (AC-4/AC-5) |
+| `internal/plugins/ldp/frr_interop_integration_linux_test.go` | AC-10 interop with FRR ldpd. |
 | `internal/plugins/ldp/lib.go` | LDP Label Information Base |
 | `internal/plugins/ldp/local.go` | local FEC origination (AC-3) |
+| `internal/plugins/ldp/local_test.go` | local FEC origination tests (AC-3) |
 | `internal/plugins/ldp/register.go` | LDP component registration |
+| `internal/plugins/ldp/register_test.go` | discovery interface resolution tests |
 | `internal/plugins/ldp/rfc5036_test.go` | LDP plugin |
 | `internal/plugins/ldp/session.go` | LDP session FSM |
 | `internal/plugins/ldp/wire.go` | LDP wire codec |
@@ -2366,10 +2471,16 @@ Total: 286 design docs, 3268 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/doctor/mpls_inuse_linux_test.go` | MPLS-in-use gating for the doctor check (F15) |
 | `internal/component/mpls/forwarding_linux.go` | kernel AF_MPLS table reader |
+| `internal/component/mpls/forwarding_linux_test.go` | MPLS operation classifier tests |
 | `internal/component/mpls/forwarding_other.go` | non-Linux `show mpls forwarding` stub |
 | `internal/component/mpls/show_forwarding.go` | `show mpls forwarding` CLI (AC-7) |
+| `internal/component/mpls/show_forwarding_test.go` | `show mpls forwarding` handler tests |
+| `internal/component/sysrib/sysrib_labels_test.go` | Loc-RIB label pass-through (F1) test |
+| `internal/plugins/fib/kernel/bgplu_mpls_integration_linux_test.go` | BGP labeled-unicast -> kernel MPLS route, |
 | `internal/plugins/fib/kernel/mpls.go` | MPLS shared constants, errors, validation |
+| `internal/plugins/fib/kernel/mpls_linux_test.go` | MPLS label validation tests |
 
 ## `docs/architecture/mrt.md`
 
@@ -2716,6 +2827,7 @@ Total: 286 design docs, 3268 files
 
 | File | Topic |
 |------|-------|
+| `internal/core/rib/locrib/candidate_backup_test.go` | Path backup carry-through (AC-13, |
 | `internal/plugins/ospf/spf/lfa.go` | OSPF LFA / TI-LFA fast reroute. |
 | `internal/plugins/ospf/spf/lfa_multiarea.go` | RFC 5286 Section 6.3 OSPF multi-area |
 | `internal/plugins/ospf/spf/tilfa.go` | TI-LFA repair list builder. Where no |
@@ -2817,6 +2929,17 @@ Total: 286 design docs, 3268 files
 | `internal/component/pki/store.go` | PKI in-memory certificate store |
 | `internal/component/pki/store_test.go` | PKI store tests |
 | `internal/component/pki/types.go` | PKI certificate store types |
+
+## `docs/architecture/pki/tls-listeners.md`
+
+| File | Topic |
+|------|-------|
+| `cmd/ze/hub/main_reload_pki_test.go` | reload ordering (AC-10) and rollback (R-3) |
+| `cmd/ze/hub/service_web_tls_test.go` | hub web TLS material selection tests |
+| `internal/component/pki/tls_test.go` | server TLS material tests |
+| `internal/component/web/doctor_test.go` | web TLS certificate doctor check tests |
+| `internal/component/web/server_tls_test.go` | web TLS chain + rotation tests |
+| `internal/core/dnsserver/secure_pki_test.go` | DoT/DoH PKI certificate reference tests |
 
 ## `docs/architecture/plugin-manager-wiring.md`
 
@@ -3053,6 +3176,7 @@ Total: 286 design docs, 3268 files
 ## `docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md`
 
 - `internal/plugins/rsvpte/frr.go` -- RSVP-TE Fast Reroute
+- `internal/plugins/rsvpte/frr_test.go` -- Fast Reroute tests
 
 ## `docs/architecture/rsvpte/mpls-rsvp-te.md`
 
@@ -3061,20 +3185,37 @@ Total: 286 design docs, 3268 files
 | `internal/core/mplsfib/events.go` | MPLS forwarding-entry input to fib-kernel |
 | `internal/plugins/fib/kernel/mplsentry.go` | MPLS forwarding-entry programming |
 | `internal/plugins/fib/kernel/mplsentry_linux.go` | netlink AF_MPLS swap/pop programming |
+| `internal/plugins/fib/kernel/mplsentry_test.go` | MPLS forwarding-entry dispatch tests |
 | `internal/plugins/rsvpte/admission.go` | RSVP-TE bandwidth admission control |
+| `internal/plugins/rsvpte/admission_iface_test.go` | multi-interface admission mapping |
+| `internal/plugins/rsvpte/admission_se_test.go` | SHARED EXPLICIT admission (RFC 3209 6.1) |
 | `internal/plugins/rsvpte/build.go` | RSVP-TE full-message encoders |
+| `internal/plugins/rsvpte/build_test.go` | full-message encoder round-trip tests |
 | `internal/plugins/rsvpte/cmd_show.go` | `show rsvp-te ...` surfaced under the |
 | `internal/plugins/rsvpte/doctor.go` | raw-socket (proto 46) readiness check |
 | `internal/plugins/rsvpte/doctor_linux.go` | raw-socket probe for the doctor check |
+| `internal/plugins/rsvpte/doctor_linux_test.go` | raw-socket probe test (Linux) |
 | `internal/plugins/rsvpte/doctor_other.go` | raw-socket probe (non-Linux stub) |
+| `internal/plugins/rsvpte/doctor_other_test.go` | raw-socket probe test (non-Linux) |
+| `internal/plugins/rsvpte/doctor_test.go` | raw-socket readiness doctor check tests |
 | `internal/plugins/rsvpte/engine.go` | RSVP-TE signaling engine |
+| `internal/plugins/rsvpte/engine_test.go` | signaling engine tests (fake transport) |
 | `internal/plugins/rsvpte/events.go` | RSVP-TE event bus types |
 | `internal/plugins/rsvpte/fib.go` | RSVP-TE dataplane via the mpls-fib bus |
+| `internal/plugins/rsvpte/fib_test.go` | busFIB emit tests |
 | `internal/plugins/rsvpte/fsm.go` | RSVP-TE per-LSP state machine |
+| `internal/plugins/rsvpte/interop_test.go` | ze-to-ze RSVP-TE signaling interop |
+| `internal/plugins/rsvpte/linkdown_test.go` | link-failure -> PathErr (AC-6) tests |
+| `internal/plugins/rsvpte/refresh_rro_test.go` | RESV refresh (AC-5) and ERO/RRO (AC-9) tests |
 | `internal/plugins/rsvpte/register.go` | RSVP-TE component registration |
+| `internal/plugins/rsvpte/register_test.go` | tunnel reconciliation on config reload |
 | `internal/plugins/rsvpte/reroute.go` | make-before-break reroute (AC-7) |
+| `internal/plugins/rsvpte/reroute_test.go` | make-before-break reroute tests |
 | `internal/plugins/rsvpte/rro.go` | RRO collection + ERO/RRO display (AC-9) |
+| `internal/plugins/rsvpte/rro_bounds_test.go` | RRO bounding (F9) tests |
+| `internal/plugins/rsvpte/rro_test.go` | RRO collection + ERO/RRO display helpers |
 | `internal/plugins/rsvpte/show_data.go` | `show rsvp-te ...` data builders |
+| `internal/plugins/rsvpte/softstate_test.go` | RSVP-TE soft-state expiry (F8) test |
 | `internal/plugins/rsvpte/transport.go` | RSVP-TE raw IP transport (protocol 46) |
 | `internal/plugins/rsvpte/transport_linux.go` | Linux raw IP socket for RSVP (proto 46) |
 | `internal/plugins/rsvpte/transport_other.go` | non-Linux RSVP transport stub |
@@ -3284,8 +3425,14 @@ Total: 286 design docs, 3268 files
 
 ## `docs/architecture/traffic/cos-dynamic.md`
 
-- `internal/plugins/cos/handler.go` -- dynamic CoS event handler
-- `internal/plugins/cos/session_state.go` -- per-session CoS state for revert
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/subscriber_bridge_test.go` | AccessInterface propagation test |
+| `internal/plugins/cos/filter_test.go` | CoS Filter-Id parser tests |
+| `internal/plugins/cos/handler.go` | dynamic CoS event handler |
+| `internal/plugins/cos/handler_helpers_test.go` | test helpers for CoS handler tests |
+| `internal/plugins/cos/handler_test.go` | CoS handler tests |
+| `internal/plugins/cos/session_state.go` | per-session CoS state for revert |
 
 ## `docs/architecture/traffic/cos-plugin.md`
 
@@ -3606,22 +3753,37 @@ Total: 286 design docs, 3268 files
 | File | Topic |
 |------|-------|
 | `internal/plugins/isis/cli/decode.go` | offline IS-IS PDU decode CLI (wiring proof) |
+| `internal/plugins/isis/cli/decode_test.go` | offline decode CLI unit test |
 | `internal/plugins/isis/cli/run.go` | offline `ze isis decode` subcommand entry |
 | `internal/plugins/isis/packet/checksum.go` | ISO 8473 Fletcher checksum, two-step adjustment |
+| `internal/plugins/isis/packet/checksum_test.go` | Fletcher checksum vector + corruption tests |
 | `internal/plugins/isis/packet/csnp.go` | L1/L2 CSNP body codec (source ID, start/end LSPID) |
+| `internal/plugins/isis/packet/csnp_test.go` | CSNP round-trip tests |
+| `internal/plugins/isis/packet/fuzz_test.go` | decode/iterator/round-trip fuzz targets |
+| `internal/plugins/isis/packet/gen_ci_test.go` | fixture pin for test/isis-wire/isis-pdu-1.ci |
 | `internal/plugins/isis/packet/header.go` | common 8-byte header, PDU type constants, dispatch |
+| `internal/plugins/isis/packet/header_test.go` | common header + PDU constant tests |
 | `internal/plugins/isis/packet/hello.go` | LAN L1/L2 IIH and P2P IIH body codec |
+| `internal/plugins/isis/packet/hello_test.go` | IIH round-trip tests |
 | `internal/plugins/isis/packet/json.go` | offline decode rendering (JSON view of a PDU) |
 | `internal/plugins/isis/packet/lsp.go` | L1/L2 LSP body codec (lifetime, LSPID, sequence, checksum, type block) |
+| `internal/plugins/isis/packet/lsp_test.go` | LSP round-trip tests |
 | `internal/plugins/isis/packet/pdu.go` | top-level PDU dispatch (header parse -> body decoder) |
 | `internal/plugins/isis/packet/psnp.go` | L1/L2 PSNP body codec (source ID) |
+| `internal/plugins/isis/packet/psnp_test.go` | PSNP round-trip tests |
 | `internal/plugins/isis/packet/tlv.go` | generic TLV iterator + encode helper |
 | `internal/plugins/isis/packet/tlv_auth.go` | TLV 10 (Authentication) structural codec only |
+| `internal/plugins/isis/packet/tlv_auth_test.go` | TLV 10 (Authentication) codec test |
 | `internal/plugins/isis/packet/tlv_core.go` | core TLV codecs (1, 8, 9, 22, 129, 132-shared, 137, 240) |
+| `internal/plugins/isis/packet/tlv_core_test.go` | core TLV round-trip + boundary tests |
 | `internal/plugins/isis/packet/tlv_ipv4.go` | TLV 132 (IP Interface Address), TLV 135 (Extended IP Reachability) |
+| `internal/plugins/isis/packet/tlv_ipv4_test.go` | IPv4 TLV round-trip + prefix/metric boundary tests |
 | `internal/plugins/isis/packet/tlv_ipv6.go` | TLV 232 (IPv6 Interface Address), TLV 236 (IPv6 Reachability) |
+| `internal/plugins/isis/packet/tlv_ipv6_test.go` | IPv6 TLV round-trip + prefix/metric boundary tests |
 | `internal/plugins/isis/packet/tlv_neighbours.go` | TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode-only) |
+| `internal/plugins/isis/packet/tlv_neighbours_test.go` | TLV 6 SNPA round-trip + TLV 2 decode-only tests |
 | `internal/plugins/isis/packet/tlv_opaque.go` | unknown-TLV opaque retention + verbatim re-serialization |
+| `internal/plugins/isis/packet/tlv_opaque_test.go` | unknown-TLV passthrough tests |
 
 ## `docs/architecture/wire/l2tp.md`
 
@@ -3896,9 +4058,11 @@ Total: 286 design docs, 3268 files
 | `internal/component/iface/migrate.go` | Make-before-break interface migration |
 | `internal/component/iface/migrate_linux.go` | Make-before-break interface migration |
 | `internal/component/iface/migrate_other.go` | Make-before-break interface migration |
+| `internal/component/iface/mirror_packet_integration_linux_test.go` | AC-6 -- prove the tc mirror copies |
 | `internal/component/iface/rate.go` | Per-interface rate tracking |
 | `internal/component/iface/reconcile_ra.go` | Router Advertisement sender lifecycle |
 | `internal/component/iface/register.go` | Interface plugin registration |
+| `internal/component/iface/slaac_integration_linux_test.go` | AC-6 -- SLAAC address lifecycle |
 | `internal/component/iface/tunnel.go` | Tunnel interface specification |
 | `internal/component/iface/validate.go` | Interface-name validation |
 | `internal/component/iface/validate_linux.go` | Linux-specific bounds (VLAN / MTU) |
@@ -3909,6 +4073,7 @@ Total: 286 design docs, 3268 files
 | `internal/plugins/iface/dhcp/dhcp_linux.go` | DHCP client lifecycle |
 | `internal/plugins/iface/dhcp/dhcp_v4_linux.go` | DHCPv4 client lifecycle |
 | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` | DHCPv6 client lifecycle |
+| `internal/plugins/iface/dhcp/dhcp_v6_pd_linux_test.go` | AC-6 -- DHCPv6-PD lease flow. This is |
 | `internal/plugins/iface/dhcp/ifacedhcp.go` | DHCP client plugin |
 | `internal/plugins/iface/dhcp/logger_linux.go` | DHCP client plugin logger |
 | `internal/plugins/iface/dhcp/resolv_linux.go` | DNS resolver config from DHCP |
@@ -4138,32 +4303,6 @@ Total: 286 design docs, 3268 files
 | `internal/plugins/iface/vpp/query.go` | VPP interface query and MAC operations |
 | `internal/plugins/iface/vpp/register.go` | VPP interface backend registration |
 
-## `plan/spec-anomaly-4-interop-harness.md`
-
-- `internal/plugins/anomaly/detect/chain_integration_test.go` -- facts->judgment->response end to end.
-
-## `plan/spec-appliance-login-shell.md`
-
-- `cmd/ze/login_test.go` -- serial console login tests
-
-## `plan/spec-as112-1-iface-address-registry.md`
-
-- `internal/component/iface/registry_integration_linux_test.go` -- generic
-
-## `plan/spec-as112-2-dns-server.md`
-
-- `internal/plugins/as112/freebind_integration_linux_test.go` -- AC-11 / finding B2: IP_FREEBIND wiring proof
-- `internal/plugins/as112/integration_linux_test.go` -- end-to-end DNS-serving proof against the real privileged port 53
-
-## `plan/spec-cos-dynamic.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/l2tp/subscriber_bridge_test.go` | AccessInterface propagation test |
-| `internal/plugins/cos/filter_test.go` | CoS Filter-Id parser tests |
-| `internal/plugins/cos/handler_helpers_test.go` | test helpers for CoS handler tests |
-| `internal/plugins/cos/handler_test.go` | CoS handler tests |
-
 ## `plan/spec-fib-depth.md`
 
 | File | Topic |
@@ -4172,29 +4311,10 @@ Total: 286 design docs, 3268 files
 | `internal/component/sysrib/nhresolver.go` | recursive next-hop resolution |
 | `internal/plugins/fib/kernel/nexthop_linux.go` | Linux netlink rich route programming |
 | `internal/plugins/fib/kernel/richroute.go` | rich route programming |
-| `internal/plugins/fib/kernel/richroute_lifecycle_test.go` | rich route programming |
-
-## `plan/spec-fixit-appliance-evidence-config.md`
-
-- `cmd/ze/bootstrap_template_test.go` -- template becomes effective config
 
 ## `plan/spec-fixit-mgmt-listener-auth-guard.md`
 
 - `internal/component/lg/auth.go` -- optional looking-glass auth gate
-
-## `plan/spec-followup-l2tp-call.md`
-
-- `internal/component/l2tp/bridge_integration_linux_test.go` -- AC-3 / A-4 LAC bridge integration
-
-## `plan/spec-followup-subsystem.md`
-
-- `internal/component/iface/mirror_packet_integration_linux_test.go` -- AC-6 -- prove the tc mirror copies
-- `internal/component/iface/slaac_integration_linux_test.go` -- AC-6 -- SLAAC address lifecycle
-- `internal/plugins/iface/dhcp/dhcp_v6_pd_linux_test.go` -- AC-6 -- DHCPv6-PD lease flow. This is
-
-## `plan/spec-iface-resolve-2-resolver.md`
-
-- `internal/component/iface/resolve_integration_linux_test.go` -- resolver os-name remapping.
 
 ## `plan/spec-improve-3-event-replay.md`
 
@@ -4212,235 +4332,21 @@ Total: 286 design docs, 3268 files
 | File | Topic |
 |------|-------|
 | `internal/component/ike/cmd/show_dataplane.go` | kernel dataplane read surface |
-| `internal/component/ike/cmd/show_dataplane_test.go` | kernel dataplane read surface |
-| `internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go` | kernel dataplane read surface |
-| `internal/component/ike/dataplane/xfrm_readback_linux_test.go` | kernel dataplane read surface |
 | `internal/component/ike/engine/doctor_xfrm.go` | IPsec dataplane reachability check |
 | `internal/component/ike/engine/doctor_xfrm_linux.go` | kernel XFRM probe (Linux) |
 | `internal/component/ike/engine/doctor_xfrm_other.go` | kernel XFRM probe (non-Linux) |
 | `internal/component/ike/engine/health_drift.go` | kernel dataplane read surface |
-| `internal/component/ike/engine/health_drift_test.go` | kernel dataplane read surface |
 
 ## `plan/spec-ipsec-esp-dual-form-receive.md`
 
 - `internal/component/ike/dataplane/espform.go` -- one Child SA receives both ESP forms
 - `internal/component/ike/dataplane/espform_linux.go` -- one Child SA receives both ESP forms
 
-## `plan/spec-isis-10-auth.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/auth_keystore_test.go` | IS-IS authentication key store tests. |
-| `internal/plugins/isis/auth_wiring_test.go` | engine authentication wiring tests. |
-| `internal/plugins/isis/packet/auth_sign_test.go` | tests for the sign-side helpers. |
-| `internal/plugins/isis/packet/auth_types_test.go` | tests for the auth type/algorithm helpers. |
-| `internal/plugins/isis/packet/auth_verify_test.go` | IS-IS authentication backend tests. |
-
-## `plan/spec-isis-11-redistribution.md`
-
-- `internal/plugins/isis/redistribute/consumer_test.go` -- IS-IS redistribution consumer tests.
-- `internal/plugins/isis/redistribute/events/events_test.go` -- producer wiring test (AC-11).
-- `internal/plugins/isis/redistribute/source_test.go` -- IS-IS redistribution source tests.
-
-## `plan/spec-isis-12-ipv6.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/circuit/hello_ipv6_test.go` | IIH TLV 232 (IPv6 link-local) origination. |
-| `internal/plugins/isis/lsdb/origination_ipv6_test.go` | IPv6 origination tests. |
-| `internal/plugins/isis/redistribute/ipv6_test.go` | TDD plan -- IPv6 redistribution both ways. |
-| `internal/plugins/isis/spf/ipv6_test.go` | TDD plan -- IPv6 leaf extraction + next-hop |
-
-## `plan/spec-isis-13-cli-diag-interop.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/web/handler_isis_test.go` | IS-IS web view tests. |
-| `internal/plugins/isis/cmd_show_test.go` | `show isis ...` / `clear isis |
-| `internal/plugins/isis/codes_test.go` | IS-IS diagnostic code ownership tests. |
-| `internal/plugins/isis/doctor_test.go` | IS-IS doctor check unit tests. |
-| `internal/plugins/isis/metrics_doc_test.go` | the canonical ze_isis_* metric |
-| `internal/plugins/isis/metrics_test.go` | the canonical ze_isis_* metric |
-| `internal/plugins/isis/show_test.go` | engine render + clear unit tests. |
-| `internal/plugins/isis/spf/spflog_test.go` | SPF-log ring boundary tests. |
-| `internal/plugins/isis/yang/cmd_schema_test.go` | owner-presence half of the |
-
-## `plan/spec-isis-2-wire.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/cli/decode_test.go` | offline decode CLI unit test |
-| `internal/plugins/isis/packet/checksum_test.go` | Fletcher checksum vector + corruption tests |
-| `internal/plugins/isis/packet/csnp_test.go` | CSNP round-trip tests |
-| `internal/plugins/isis/packet/fuzz_test.go` | decode/iterator/round-trip fuzz targets |
-| `internal/plugins/isis/packet/gen_ci_test.go` | fixture pin for test/isis-wire/isis-pdu-1.ci |
-| `internal/plugins/isis/packet/header_test.go` | common header + PDU constant tests |
-| `internal/plugins/isis/packet/hello_test.go` | IIH round-trip tests |
-| `internal/plugins/isis/packet/lsp_test.go` | LSP round-trip tests |
-| `internal/plugins/isis/packet/psnp_test.go` | PSNP round-trip tests |
-| `internal/plugins/isis/packet/tlv_auth_test.go` | TLV 10 (Authentication) codec test |
-| `internal/plugins/isis/packet/tlv_core_test.go` | core TLV round-trip + boundary tests |
-| `internal/plugins/isis/packet/tlv_ipv4_test.go` | IPv4 TLV round-trip + prefix/metric boundary tests |
-| `internal/plugins/isis/packet/tlv_ipv6_test.go` | IPv6 TLV round-trip + prefix/metric boundary tests |
-| `internal/plugins/isis/packet/tlv_neighbours_test.go` | TLV 6 SNPA round-trip + TLV 2 decode-only tests |
-| `internal/plugins/isis/packet/tlv_opaque_test.go` | unknown-TLV passthrough tests |
-
-## `plan/spec-isis-3-l2-transport.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/transport/backend_linux_test.go` | Linux AF_PACKET backend unit tests |
-| `internal/plugins/isis/transport/backend_other_test.go` | non-Linux backend stub test |
-| `internal/plugins/isis/transport/doctor_test.go` | raw-socket doctor check tests |
-| `internal/plugins/isis/transport/frame_test.go` | 802.3 + LLC frame codec tests |
-| `internal/plugins/isis/transport/metrics_test.go` | transport Prometheus metrics |
-| `internal/plugins/isis/transport/mtu_test.go` | MTU expose + neighbor inference |
-| `internal/plugins/isis/transport/multicast_test.go` | multicast MAC selection tests |
-| `internal/plugins/isis/transport/transport_integration_linux_test.go` | raw L2 QEMU integration tests |
-| `internal/plugins/isis/transport/transport_test.go` | transport orchestrator + lifecycle |
-
-## `plan/spec-isis-4-component-config.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/config/validators_isis_test.go` | IS-IS NET / system-id validators |
-| `internal/plugins/isis/config_test.go` | config resolution unit tests |
-| `internal/plugins/isis/events_test.go` | IS-IS event namespace test |
-| `internal/plugins/isis/server_test.go` | engine/server + PDU dispatcher tests |
-
-## `plan/spec-isis-5-adjacency.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/adjacency/fsm_test.go` | adjacency FSM transition tests. |
-| `internal/plugins/isis/adjacency/table_test.go` | neighbor table keying + snapshot. |
-| `internal/plugins/isis/adjacency_integration_linux_test.go` | adjacency QEMU integration test. |
-| `internal/plugins/isis/adjacency_up_test.go` | two-engine adjacency wiring test. |
-| `internal/plugins/isis/circuit/circuit_test.go` | circuit RX dispatch + lifecycle. |
-| `internal/plugins/isis/circuit/hello_test.go` | IIH origination + padding + hold time. |
-| `internal/plugins/isis/circuit/runtime_test.go` | circuit RX dispatch + P2P IIH signing. |
-| `internal/plugins/isis/circuits_test.go` | per-circuit goroutine lifecycle. |
-
-## `plan/spec-isis-6-lsdb.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/lsdb/aging_test.go` | LSP aging / purge / grace tests. |
-| `internal/plugins/isis/lsdb/boundary_test.go` | boundary tests for the numeric LSDB inputs. |
-| `internal/plugins/isis/lsdb/lsdb_test.go` | LSDB store/freshness/flags/snapshot tests. |
-| `internal/plugins/isis/lsdb/metrics_test.go` | LSDB Prometheus metrics (owner isis-6). |
-| `internal/plugins/isis/lsdb/origination_test.go` | own-LSP origination tests. |
-| `internal/plugins/isis/lsdb/own_conflict_test.go` | own-LSP sequence conflicts. |
-| `internal/plugins/isis/lsdb_wiring_test.go` | engine<->LSDB wiring tests (Wiring Test table). |
-| `internal/plugins/isis/own_lsp_conflict_test.go` | engine reaction to a claim on an own LSP ID. |
-
-## `plan/spec-isis-7-flooding.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/flooding_wiring_test.go` | engine-layer flooding wiring tests (Wiring Test table). |
-| `internal/plugins/isis/lsdb/flooding_metrics_test.go` | flooding/SNP Prometheus metrics (owner isis-7). |
-| `internal/plugins/isis/lsdb/flooding_test.go` | flooding receive algorithm + periodic SRM TX tests. |
-| `internal/plugins/isis/lsdb/snp_test.go` | CSNP/PSNP build, receive, and pending-request tests. |
-| `internal/plugins/isis/packet/flood_ci_test.go` | fixture pin for test/isis/isis-flooding.ci |
-
-## `plan/spec-isis-8-dis-broadcast.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/circuit/dis_test.go` | DIS election unit tests. |
-| `internal/plugins/isis/dis_wiring_test.go` | engine-layer DIS wiring tests. |
-| `internal/plugins/isis/lsdb/pseudonode_test.go` | pseudo-node LSP origination tests. |
-| `internal/plugins/isis/packet/pseudonode_ci_test.go` | fixture pin for test/isis/isis-dis.ci. |
-
-## `plan/spec-isis-9-spf-rib.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/sysrib/sysrib_ecmp_pathgroup_test.go` | sysrib/locrib path-group ECMP expansion. |
-| `internal/component/sysrib/sysrib_ecmp_relabel_test.go` | sysrib ECMP relabel detection. |
-| `internal/plugins/isis/spf/computer_test.go` | / plan/spec-isis-11-redistribution.md -- SPF OnChange seam. |
-| `internal/plugins/isis/spf/graph_test.go` | TDD plan -- TestISISGraphBuild. |
-| `internal/plugins/isis/spf/install_test.go` | TDD plan -- Loc-RIB insertion + wiring. |
-| `internal/plugins/isis/spf/leak_test.go` | step 5 -- the ORIGINATION side of L1<->L2 |
-| `internal/plugins/isis/spf/route_test.go` | TDD plan -- prefix attach, L1/L2 leaking |
-| `internal/plugins/isis/spf/spf_test.go` | TDD plan -- Dijkstra, ECMP, overload, |
-
-## `plan/spec-mpls-1-kernel.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/doctor/mpls_inuse_linux_test.go` | MPLS-in-use gating for the doctor check (F15) |
-| `internal/component/mpls/forwarding_linux_test.go` | MPLS operation classifier tests |
-| `internal/component/mpls/show_forwarding_test.go` | `show mpls forwarding` handler tests |
-| `internal/component/sysrib/sysrib_labels_test.go` | Loc-RIB label pass-through (F1) test |
-| `internal/plugins/fib/kernel/bgplu_mpls_integration_linux_test.go` | BGP labeled-unicast -> kernel MPLS route, |
-| `internal/plugins/fib/kernel/mpls_linux_test.go` | MPLS label validation tests |
-
-## `plan/spec-mpls-2-ldp.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ldp/adjacency_expiry_test.go` | adjacency expiry tears the session (F6) test |
-| `internal/plugins/ldp/discovery_manager_test.go` | dynamic interface reload (AC-9) tests |
-| `internal/plugins/ldp/doctor_test.go` | LDP port-646 readiness doctor check tests |
-| `internal/plugins/ldp/fib_test.go` | ldpFIB emit tests (AC-4/AC-5) |
-| `internal/plugins/ldp/frr_interop_integration_linux_test.go` | AC-10 interop with FRR ldpd. |
-| `internal/plugins/ldp/local_test.go` | local FEC origination tests (AC-3) |
-| `internal/plugins/ldp/register_test.go` | discovery interface resolution tests |
-
-## `plan/spec-mpls-3-rsvp-te.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/fib/kernel/mplsentry_test.go` | MPLS forwarding-entry dispatch tests |
-| `internal/plugins/rsvpte/admission_iface_test.go` | multi-interface admission mapping |
-| `internal/plugins/rsvpte/admission_se_test.go` | SHARED EXPLICIT admission (RFC 3209 6.1) |
-| `internal/plugins/rsvpte/build_test.go` | full-message encoder round-trip tests |
-| `internal/plugins/rsvpte/doctor_linux_test.go` | raw-socket probe test (Linux) |
-| `internal/plugins/rsvpte/doctor_other_test.go` | raw-socket probe test (non-Linux) |
-| `internal/plugins/rsvpte/doctor_test.go` | raw-socket readiness doctor check tests |
-| `internal/plugins/rsvpte/engine_test.go` | signaling engine tests (fake transport) |
-| `internal/plugins/rsvpte/fib_test.go` | busFIB emit tests |
-| `internal/plugins/rsvpte/interop_test.go` | ze-to-ze RSVP-TE signaling interop |
-| `internal/plugins/rsvpte/linkdown_test.go` | link-failure -> PathErr (AC-6) tests |
-| `internal/plugins/rsvpte/refresh_rro_test.go` | RESV refresh (AC-5) and ERO/RRO (AC-9) tests |
-| `internal/plugins/rsvpte/register_test.go` | tunnel reconciliation on config reload |
-| `internal/plugins/rsvpte/reroute_test.go` | make-before-break reroute tests |
-| `internal/plugins/rsvpte/rro_bounds_test.go` | RRO bounding (F9) tests |
-| `internal/plugins/rsvpte/rro_test.go` | RRO collection + ERO/RRO display helpers |
-| `internal/plugins/rsvpte/softstate_test.go` | RSVP-TE soft-state expiry (F8) test |
-
-## `plan/spec-mpls-4-rsvp-te-fast-reroute.md`
-
-- `internal/plugins/rsvpte/frr_test.go` -- Fast Reroute tests
-
-## `plan/spec-ospf-ext-6-ti-lfa.md`
-
-- `internal/core/rib/locrib/candidate_backup_test.go` -- Path backup carry-through (AC-13,
-
 ## `plan/spec-pki-full-chain.md`
 
-| File | Topic |
-|------|-------|
-| `cmd/ze/hub/main_reload_pki_test.go` | reload ordering (AC-10) and rollback (R-3) |
-| `cmd/ze/hub/service_web_tls_test.go` | hub web TLS material selection tests |
-| `internal/component/pki/tls.go` | server TLS material from the PKI store |
-| `internal/component/pki/tls_test.go` | server TLS material tests |
-| `internal/component/web/doctor.go` | doctor check for environment.web.certificate |
-| `internal/component/web/doctor_test.go` | web TLS certificate doctor check tests |
-| `internal/component/web/register.go` | doctor check registration for the web component |
-| `internal/component/web/server_tls_test.go` | web TLS chain + rotation tests |
-| `internal/core/dnsserver/secure_pki_test.go` | DoT/DoH PKI certificate reference tests |
-
-## `plan/spec-unify-filters.md`
-
-- `internal/component/bgp/reactor/unified_filter_order_test.go` -- unified stage-ordered filter pipeline
-
-## `plan/spec-vlan-qos-lab.md`
-
-- `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` -- VLAN QoS wire-level lab tests
-- `internal/plugins/iface/netlink/vlanqoslab_tci_test.go` -- 802.1Q TCI decode/build helpers
+- `internal/component/pki/tls.go` -- server TLS material from the PKI store
+- `internal/component/web/doctor.go` -- doctor check for environment.web.certificate
+- `internal/component/web/register.go` -- doctor check registration for the web component
 
 ## `rfc/short/rfc5880.md`
 

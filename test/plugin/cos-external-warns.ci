@@ -1,5 +1,5 @@
 # Test: cos warns when running as an external plugin process
-# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- cos's
+# VALIDATES: ai/rules/plugins.md "Plugin Process Boundary" -- cos's
 # warnIfExternal (internal/plugins/cos/register.go) logs a warning when it
 # runs as a genuine external subprocess, since iface.GetBackend is a
 # same-process call that would silently no-op across the process boundary --

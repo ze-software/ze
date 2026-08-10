@@ -129,12 +129,12 @@ picked up)". This file is that destination. Routed through
 2026-07-16.
 
 → Constraint: **NAMING COLLISION, carried over.** "A-4" means two different things. In
-`plan/learned/1098-followup-vpp-iface.md` and in the source comments `doctor.go` /
+the followup-vpp-iface record and in the source comments `doctor.go` /
 `lcp.go` ("see A-4"), it is the ORIGIN spec's A-4 = the BGP-netns deferral = THIS spec. In
 the parent spec's Assumptions table, A-4 = "a missing plugin is detectable" = the doctor half.
-Unrelated. Those source comments point at a retired spec and per `ai/rules/planning.md`
-"Design references survive closure" should be repointed at
-`plan/learned/1098-followup-vpp-iface.md`. Not actioned; raise with Thomas.
+Unrelated. Those source comments point at a retired spec, and the record that replaced it
+was retired with the learned corpus, so they need a live design target
+(`ai/rules/planning.md`, "Design references survive closure"). Not actioned; raise with Thomas.
 
 ## Required Reading
 
@@ -251,7 +251,7 @@ Unrelated. Those source comments point at a retired spec and per `ai/rules/plann
 - [ ] `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md`
   → Constraint: read BEFORE choosing the netns config surface shape. Q3 is open and is
     Thomas's call.
-- [ ] `plan/learned/1098-followup-vpp-iface.md` - the learned summary of the origin spec
+- [ ] The followup-vpp-iface record of the origin spec (retired with the learned corpus)
   → Constraint: records that real-VPP LCP proof needs a VPP image carrying the linux-cp
     plugins (`ligato/vpp-base` lacks them). That is the residual half of Q12.
 - [ ] `docs/guide/vpp.md` - the operator-facing VPP guide; documents the netns constraint as a
@@ -580,10 +580,6 @@ None deferred. Scope is set above and every AC is assigned.
   2026-07-16): it **STAYS** `"dataplane"`. It is not a bug, no spec owns changing it, and
   changing it would delete the forwarding/management isolation this spec exists to preserve.
   Do not touch it here or anywhere
-- `plan/learned/1098-followup-vpp-iface.md` - a learned summary records what was decided THEN
-  and must not be rewritten. -> Constraint: when this spec lands, `1098`'s Decisions bullet
-  "any other value passes through and the doctor check warns" becomes stale in its IMPLICATION
-  (the warning narrows). This spec's own learned summary carries the supersession instead
 - `mk/test-integration.mk` - no edit needed for the netns integration tests
   (`ZE_QEMU_INTEGRATION_PKGS` at line 319 auto-discovers the build tag)
 
@@ -873,7 +869,7 @@ Why the shape (field, not wrapper) is forced, not chosen:
   build must be a clear error, never a silent host bind (AC-10).
 - **The VPP end-to-end rail is not identified.** The netns BIND is provable today
   (`mk/test-integration.mk`); proving BGP peering over a real VPP LCP TAP needs a VPP image
-  carrying the linux-cp plugins, which `plan/learned/1098-followup-vpp-iface.md` records as
+  carrying the linux-cp plugins, which the followup-vpp-iface work recorded as
   absent from `ligato/vpp-base`. -> Open: Q12.
 - ~~**This spec serves a user population that is not evidenced.** See A-12 and R-11.~~
   **WITHDRAWN 2026-07-16.** The premise (that the `"dataplane"` default would be fixed away)
@@ -893,7 +889,7 @@ Why the shape (field, not wrapper) is forced, not chosen:
 | 5 | Do web / gnmi / looking-glass listeners need this too? | **NEEDS THOMAS / follow-up.** They do NOT go through `network.ListenerFactory` (`web/server.go`, `lg/server.go`, `dnsserver/secure.go` each build listeners directly), so BGP is genuinely special TODAY. If an operator wants the whole box in the dataplane namespace, a process-level netns (Q3) is a better answer than per-service leaves |
 | 6 | What happens to `doctor-vpp-lcp-netns` if BGP can bind in the LCP netns? | **ANSWERED: NARROW, do not delete.** It becomes a mismatch check: warn when `vpp.lcp.netns` and the BGP listener netns disagree. That is a real, permanent hazard, whereas "netns is not root-reachable" becomes false once BGP can follow. AC-3, Behavior-to-change #4, Phase 4 |
 | 7 | Should the `vpp.lcp.netns` default stay "dataplane"? | **ANSWERED: YES, IT STAYS.** -> Decision (user, 2026-07-16). ~~The default is fixed now, as `plan/spec-fixit-vpp-lcp-netns-default.md` (another agent).~~ SUPERSEDED: **that spec was never created and must not be.** The default is deliberate, not a defect: `plan/deferrals.md` records the intent as reachability "without forcing the operator to a root-reachable netns", and `"dataplane"` is IPng's production convention (`54bffb83b`; `docs/research/vpp-deployment-reference.md`). Changing it would delete the isolation model. Q7 is CLOSED, not moved |
-| 12 | What QEMU rail can prove BGP peering over an LCP TAP? | **PARTLY ANSWERED, 2026-07-16.** The netns BIND rail EXISTS: `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`) auto-discovers any package with `//go:build integration && linux`, and a daemon-level `.ci` marked `option=needs-linux` runs under `make ze-qemu-needs-linux-test`. Neither needs a Makefile edit. **The residual, still unanswered:** the VPP+LCP end-to-end rail. `plan/learned/1098-followup-vpp-iface.md` records that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), which is an image-provisioning problem on top of a test-rail problem. -> Constraint: identify it before Phase 2 or the netns leg has an unbounded tail |
+| 12 | What QEMU rail can prove BGP peering over an LCP TAP? | **PARTLY ANSWERED, 2026-07-16.** The netns BIND rail EXISTS: `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`) auto-discovers any package with `//go:build integration && linux`, and a daemon-level `.ci` marked `option=needs-linux` runs under `make ze-qemu-needs-linux-test`. Neither needs a Makefile edit. **The residual, still unanswered:** the VPP+LCP end-to-end rail. The followup-vpp-iface work recorded that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), which is an image-provisioning problem on top of a test-rail problem. -> Constraint: identify it before Phase 2 or the netns leg has an unbounded tail |
 
 ## Decisions Needed From Thomas (blocking `ready`)
 

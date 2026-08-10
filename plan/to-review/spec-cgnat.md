@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/architecture/core-design.md` - core design, firewall backend abstraction
-4. `plan/learned/671-fw-6-firewall-vpp.md` - VPP firewall backend decisions
+4. `docs/architecture/firewall/fw-6-firewall-vpp.md` - VPP firewall backend decisions
 5. `internal/plugins/firewall/vpp/nat_linux.go` - current NAT44 VPP path
 6. `internal/plugins/firewall/vpp/backend_linux.go` - VPP backend, govpp ops
 7. `internal/component/firewall/model.go` - abstract firewall data model
@@ -44,7 +44,7 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 - [ ] `docs/architecture/core-design.md` - firewall data model, backend abstraction
   -> Decision: firewall uses abstract Match/Action types lowered by per-backend code
   -> Constraint: Backend interface is Apply(desired []Table), ListTables, GetCounters, Close
-- [ ] `plan/learned/671-fw-6-firewall-vpp.md` - VPP firewall backend design history
+- [ ] `docs/architecture/firewall/fw-6-firewall-vpp.md` - VPP firewall backend design history
   -> Decision: ACL-only scope at launch; NAT44, classify, policer added later via same ops seam
   -> Constraint: fakeOps-based tests mandatory for all VPP backends
 
@@ -513,6 +513,6 @@ MUST document: REQ-1 (EIM), REQ-2 (port preservation), REQ-3 (port parity), REQ-
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Write learned summary to `plan/learned/873-cgnat.md`
+- [ ] Add the closure row to `plan/journal/<class>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
 - [ ] **Commit B:** `git rm plan/spec-cgnat.md`

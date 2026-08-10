@@ -30,7 +30,7 @@
 # distinguishes "the relay is broken" from "nothing works".
 #
 # THE TWO MESSAGES ARE THE SAME BYTES ON PURPOSE. That equality IS the property
-# under test: plan/learned/1271-fixit-bgp-egress-rail-divergence.md put the replay on
+# under test: the egress-rail convergence put the replay on
 # the forward rail so a relayed route gets exactly ONE egress transform, the same one
 # a live forward applies. The old announce rail prepended the local AS first and then
 # ran only the session's export filters, so the same route left on two different byte

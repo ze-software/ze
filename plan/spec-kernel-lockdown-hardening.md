@@ -16,7 +16,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/988-kernel-build-consolidation.md`, `plan/learned/870-kernel-build-convergence.md` - kernel build system
+3. The kernel build-consolidation and build-convergence records (retired with the learned corpus) - kernel build system
 4. `tools/kernel-builder/run.py`, `tools/kernel-builder/build.py` - build driver + engine (signing hooks here)
 5. `gokrazy/kernel/{kernel,runtime}.{config,require}`, `tools/installer-kernel/hardware.config` - config fragments + floor enforcement
 
@@ -80,7 +80,7 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/988-kernel-build-consolidation.md`, `plan/learned/870-kernel-build-convergence.md` — kernel build system
+- [ ] The kernel build-consolidation and build-convergence records (retired with the learned corpus) — kernel build system
   → Constraint: one driver `tools/kernel-builder/run.py` resolves fragments and calls `build.py` in docker/qemu; both Makefiles AND `ze appliance kernel` go through it. Any signing step lives in `build.py` (runs in-container), not on the host.
   → Constraint: config floors enforced by paired `.require` files; the Go path `internal/appliance/kernelreg.go` resolves fragments+manifests, the actual `=y` assertion is `build.py:enforce_required_symbols` (143-160). A missing required `=y` symbol fails the build.
   → Constraint: resolved `.config` (defconfig + merge_config + olddefconfig) is the cheaply-diffable artifact; unrelated symbols must stay byte-identical.

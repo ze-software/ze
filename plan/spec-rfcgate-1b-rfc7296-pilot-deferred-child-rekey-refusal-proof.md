@@ -25,7 +25,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**Provenance.** Deferred out of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` (work package
+**Provenance.** Deferred out of the rfcgate-1b RFC 7296 pilot spec (work package
 WP-3), rows dated 2026-07-31 in `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`. That spec is
 closed and its shard is deleted, so this file is the tracker now. WP-3's design named both
 carriers; detail is in `plan/handover/04-wp3-residuals.md`.

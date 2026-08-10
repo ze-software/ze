@@ -22,7 +22,7 @@ passive (`connect false`, ze.conf) and BIRD holds its dial for 30 seconds
 (`connect delay time 30`, bird.conf), so the establishment cannot happen before
 this plugin has announced. The guard below asserts the rail anyway.
 
-`plan/learned/1320-wire-edit-4-api-origin.md` converged both rails on one writer,
+The wire-edit-4 API-origin work converged both rails on one writer,
 so a scenario that reaches only one of them leaves half the convergence untested
 against a live peer. It also leaves the discrimination mutation rail-specific:
 each rail is falsified by a different one (check.py, DISCRIMINATION).

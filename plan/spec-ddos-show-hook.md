@@ -92,7 +92,7 @@ it only. (At the time this file was opened, another agent may have held it.)
 
 ### Architecture Docs
 
-- [ ] `plan/learned/1011-cp-survival-5-detect-0-umbrella.md` - named as the design doc by both
+- [ ] `docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md` - named as the design doc by both
       `show.go` and `responder.go`
   → Constraint: read before changing the responder's state or the show surface; the
     `// Design:` anchors on both files point here and must keep resolving.

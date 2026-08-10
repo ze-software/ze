@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `ai/rules/plugins.md`, `ai/rules/testing.md`, `ai/rules/interop-and-goal-validation.md`
-4. `plan/learned/1249-feature-gate-10-bgp.md` (the gate this spec back-fills)
+4. The `feature-gate-10-bgp` record (retired with the learned corpus) - the gate this spec back-fills
 5. Source: `internal/plugins/fib/kernel/fibkernel.go`, `internal/plugins/mrt/component.go`, `internal/plugins/flowexport/enrichbgp.go`, `cmd/ze/hub/build_tag_bgp_absent_test.go`, `test/ui/ze-stripped-surface.ci`
 
 ## Task

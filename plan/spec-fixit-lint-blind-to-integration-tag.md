@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **`make ze-lint` cannot see any file behind the `integration` build tag. Sixty-eight
 tracked Go files across about twenty-five packages have never been linted.**
 
-Found on 2026-08-02 while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
+Found on 2026-08-02 while closing the rfcgate-1b RFC 7296 pilot spec.
 
 `.golangci.yml` sets `build-tags` to `ze_core` plus every feature-gate tag
 (`.golangci.yml:17` onward). The list has no `integration` entry. A Go file whose

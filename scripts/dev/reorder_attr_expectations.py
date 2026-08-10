@@ -3,9 +3,9 @@
 
 Why a transform and not a paste
 -------------------------------
-`plan/learned/1285-bgp-attribute-order-one-convention.md` chose ONE attribute
-order for every UPDATE builder (MP_UNREACH first, then everything else by
-ascending type code) and rewrote 52 expectations to match. Pasting the daemon's
+Ze chose ONE attribute order for every UPDATE builder (MP_UNREACH first, then
+everything else by ascending type code) and rewrote 52 expectations to match.
+Pasting the daemon's
 fresh output would have produced the same green suite while silently baking in
 whatever ELSE changed at the same time. This tool cannot do that: it parses the
 COMMITTED hex, permutes the attribute block, and re-emits, asserting per

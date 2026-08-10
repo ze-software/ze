@@ -161,7 +161,7 @@ for edge cases, state transitions, and protocol details. Key reference areas:
 |-------|------|-------|---------|
 | 1 | `spec-ipsec-1-pki-store.md` | YANG `pki {}` config, certificate parser, in-memory store, `$9$` for private keys, `show pki certificates` CLI, certificate validation (chain, expiry). Shared infrastructure for IPsec, TLS, and future mutual-auth features | - |
 | 2 | `spec-ipsec-2-xfrm.md` | XFRM interface type in iface component. Backend methods (CreateXFRM, GetXFRMInfo). YANG schema for `xfrm` list. Netlink wiring via xfrm_interface. Reconciliation. Discovery of unmanaged XFRM interfaces | ipsec-1 (soft) |
-| 3 | `spec-ipsec-3-data-model.md` | ~~DONE~~ YANG `vpn ipsec {}`. IKE groups, ESP groups, interface binding. Config parser producing typed Go structs. Learned summary: `plan/learned/734-ipsec-3-data-model.md` | - |
+| 3 | `spec-ipsec-3-data-model.md` | ~~DONE~~ YANG `vpn ipsec {}`. IKE groups, ESP groups, interface binding. Config parser producing typed Go structs. Design record: `docs/architecture/ike/ipsec-3-data-model.md` | - |
 | 4 | `spec-ipsec-4-data-model-eap.md` | Extend ipsec-3 data model with EAP authentication config (eap-tls, eap-mschapv2), remote-access peer type, virtual IP pool config, EAP credentials | ipsec-3 |
 | 5 | `spec-ipsec-5-ikev2-wire.md` | IKEv2 packet codec: header, all payload types (SA, KE, Nonce, ID, AUTH, CERT, CERTREQ, TSi, TSr, Notify, Delete, Vendor, EAP, CP). Encode/decode roundtrip. No state machine, no network I/O | - |
 | 6 | `spec-ipsec-6-ikev2-crypto.md` | Crypto primitives: DH groups (14, 19, 20), PRF (HMAC-SHA256/384/512), encryption (AES-GCM, AES-CBC), integrity, SKEYSEED/SK_* key hierarchy derivation, proposal negotiation | - |
@@ -438,7 +438,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
    - Verify: XFRM netdevs created, addresses assigned, reconciled on reload
 
 3. **Phase: IPsec Data Model (ipsec-3)** -- ~~DONE~~ YANG vpn ipsec {}, config parser, validation
-   - Learned summary: `plan/learned/734-ipsec-3-data-model.md`
+   - Design record: `docs/architecture/ike/ipsec-3-data-model.md`
 
 4. **Phase: EAP Data Model (ipsec-4)** -- extend data model for EAP config
    - Tests: EAP authentication config parsing, virtual IP pool config

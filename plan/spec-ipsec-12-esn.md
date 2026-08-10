@@ -54,11 +54,11 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
      `dataplane.SAParams`, not via a backend-specific side channel.
   -> Constraint: route-based (XFRM interface, if_id bound) tunnel mode only. ESN applies to
      the Child/ESP SA, which is always tunnel mode here.
-- [ ] `plan/learned/742-ipsec-8-ikev2-child-xfrm.md` -- XFRM netlink backend
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` -- XFRM netlink backend
   -> Constraint: Child SA install builds `netlink.XfrmState`; anti-replay set via
      `state.ReplayWindow`. ESN requires `state.ESN = true`, and the kernel then expects the
      ESN replay structure (XFRMA_REPLAY_ESN_VAL) rather than the legacy replay value.
-- [ ] `plan/learned/739-ipsec-6-ikev2-crypto.md` -- proposal negotiation
+- [ ] `docs/architecture/ike/ipsec-6-ikev2-crypto.md` -- proposal negotiation
   -> Decision: `crypto.NegotiateESP` exists but is currently DEAD CODE; the engine uses
      `espGroup.Proposals[0]` directly for the Child SA. ESN intent is therefore taken from
      the first ESP proposal, not from a negotiated selection.

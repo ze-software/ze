@@ -12,7 +12,7 @@
 
 **Re-read these after context compaction:**
 1. This spec file
-2. `plan/learned/1271-fixit-bgp-egress-rail-divergence.md` — the change this hardens
+2. The `fixit-bgp-egress-rail-divergence` record (retired with the learned corpus) — the change this hardens
 3. The Run 2 review artifact recorded under `tmp/review/` for that spec (findings R2-4..R2-9)
 4. `plan/deferrals/fixit-bgp-egress-rail-divergence.md` — the rows this spec owns
 
@@ -265,7 +265,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1271-fixit-bgp-egress-rail-divergence.md` — what was built and why
+- [ ] The `fixit-bgp-egress-rail-divergence` record (retired with the learned corpus) — what was built and why
   → Constraint: a relayed route must keep exactly ONE egress transform; do not
      reintroduce a second rail while fixing add-path.
   → Constraint: the stored attribute block is the WHOLE attribute section including

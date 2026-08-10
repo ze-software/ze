@@ -109,9 +109,9 @@ WP-4a. Raise that with him rather than deciding it here.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - where a shared listener harness sits relative to its consumers
   → Constraint: the small-core plus registration pattern means the harness must not gain per-plugin knowledge.
-- [ ] `plan/learned/1027-dns-server-harness.md` - why the authoritative shape lives in one place
+- [ ] `docs/architecture/dns/server-harness.md` - why the authoritative shape lives in one place
   → Decision: `shapeAuthoritative` is a single invariant defined in exactly one place. Truncation and the NOTIMP reply belong at the same altitude, not in each plugin.
-- [ ] `plan/learned/993-geodns-2-server.md` - geodns listener, EDNS0, answer synthesis
+- [ ] `docs/architecture/dns/geodns.md` - geodns listener, EDNS0, answer synthesis
   → Constraint: geodns owns answer policy only. The harness owns the wire write.
 
 ### RFC Summaries (Scope: protocol)
@@ -231,7 +231,7 @@ stage 2 for a zone-transfer request, which streams several messages rather than 
 
 → Constraint: the harness cannot see the transport today. WP-1 must surface it. The
 answer func must still not receive the `ResponseWriter`. That would break the
-shaping invariant recorded in `plan/learned/1027-dns-server-harness.md`.
+shaping invariant recorded in `docs/architecture/dns/server-harness.md`.
 
 ### Integration Points
 - `dnsserver.Authoritative` - the single choke point for truncation, the NOTIMP reply, and write-error handling. Both responders funnel through it.
@@ -368,7 +368,7 @@ Record the outcome in the table below. Escalate only what survives.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A flat 512-octet bound applied to every transport breaks DoH and DoT | `TestDoHIgnoresEDNSUDPSize` goes red | make the bound transport-aware at the single write. Bound UDP only. A-1 and A-2 gate this |
-| R-2 | Surfacing the transport to the write path tempts a design that hands the answer func the `ResponseWriter` | a review notes the answer func can now write the wire itself | keep the write in the harness. Pass a transport enum, never the writer. `plan/learned/1027-dns-server-harness.md` records why |
+| R-2 | Surfacing the transport to the write path tempts a design that hands the answer func the `ResponseWriter` | a review notes the answer func can now write the wire itself | keep the write in the harness. Pass a transport enum, never the writer. `docs/architecture/dns/server-harness.md` records why |
 | R-3 | The SOA MINIMUM clamp changes cached TTLs for existing geodns operators | a functional test asserting a specific TTL changes value | the clamp only ever raises a TTL, so it cannot shorten caching. Document the change in the geodns guide |
 | R-4 | AXFR exposes a whole zone to any client that asks | an AXFR from an unlisted source succeeds in a test | refuse by default. WP-4b lands refusal before WP-4c lands service. Access control is a YANG leaf, not a flag |
 | R-5 | WP-4 grows past the spec and strands the other six packages half-proven | WP-4a slips while WP-1 through WP-3 sit unlanded | order WP-4 last. Every earlier commit leaves the gate green, so WP-4 CAN split into a sibling spec and no revert is needed |
@@ -728,7 +728,7 @@ disclosure surface. Both are in scope here.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Truncate at the single write in the harness | Truncate in each plugin's answer func | The harness already owns the wire write and the authoritative shape. Two copies of a size bound would drift, and one plugin CAN omit it. Matches `plan/learned/1027-dns-server-harness.md` |
+| Truncate at the single write in the harness | Truncate in each plugin's answer func | The harness already owns the wire write and the authoritative shape. Two copies of a size bound would drift, and one plugin CAN omit it. Matches `docs/architecture/dns/server-harness.md` |
 | Make the bound transport-aware | Apply 512 octets to every transport | §4.2.1 is headed "UDP usage" and binds UDP only. A flat bound would break the enrolled RFC 8484 tagged test and cripple DoT and DoH |
 | Pass a transport enum, never the `ResponseWriter` | Give the answer func the writer so it can decide | Withholding the writer is the invariant that stops an answer func bypassing the shaping. Handing it over to solve a size problem would trade a security property for convenience |
 | Reject an unpackable name at config validate time | Discover it at pack time and answer SERVFAIL | `ai/rules/protocol.md` requires a config Ze cannot serve exactly to fail at verify. An operator learns at commit, not from a resolver timeout |

@@ -18,7 +18,7 @@ has generalized it) the generalized entity axis. It ships no facts-layer or flow
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-anomaly-0-umbrella.md` - shared framing, R-3 degrade rule, A-1 chaining of 5/6/7
-4. `plan/learned/1048-anomaly-1-detect.md` - the JUDGMENT-layer invariants this child must not regress
+4. `docs/architecture/anomaly/anomaly-1-detect.md` - the JUDGMENT-layer invariants this child must not regress
 5. Source: `internal/plugins/anomaly/detect/detector.go`, `internal/plugins/anomaly/detect/score.go`,
    `internal/core/anomalyevent/event.go`, `internal/component/trafficfeature/feature.go`
 
@@ -54,7 +54,7 @@ children 6 and 5 respectively and are consumed, not modified, here.
     `fe.SrcAS` off the already-imported `trafficfeature.FeatureEntry` -- zero new imports.
   → Constraint: R-3 -- AS enrichment is OPTIONAL; the detector must keep scoring (prefix cohorts,
     no per-ASN entities) when `fe.SrcAS` is unset. AS availability must never gate detection.
-- [ ] `plan/learned/1048-anomaly-1-detect.md` - the JUDGMENT-layer contract
+- [ ] `docs/architecture/anomaly/anomaly-1-detect.md` - the JUDGMENT-layer contract
   → Constraint: scoring is PURE in `score.go`; freeze-learn is `scoreEntity` returning pending
     `baselineUpdate`s that `onTick` folds only when NOT anomalous or still warming; warmup gates
     self-deviation for `warmupTicks`. Any new entity type must preserve all three.

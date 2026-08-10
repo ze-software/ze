@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | deferred |
-| Depends | - (was `spec-relocate-scratch-and-cache`, LANDED and closed 2026-08-03; `plan/learned/1173-relocate-scratch-and-cache.md`) |
+| Depends | - (was `spec-relocate-scratch-and-cache`, LANDED and closed 2026-08-03) |
 | Phase | - |
 | Updated | 2026-07-18 |
 
@@ -96,7 +96,7 @@ status quo is worth changing.
 
 - `ai/rules/platform-linux.md` — the vendored-init bump runbook and modcache cache-permission rules
 - `mk/gokrazy.mk` — how `bin/gok` and the image build consume the two stores today
-- `plan/learned/1173-relocate-scratch-and-cache.md` — must land first (Depends)
+- `spec-relocate-scratch-and-cache` (closed) — must land first (Depends)
 
 ## Current Behavior
 

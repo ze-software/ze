@@ -29,7 +29,7 @@ reachable from `/ze-status` as actionable until now, which is what a triage of e
 
 ## Task
 
-**Provenance.** Deferred out of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` (work package
+**Provenance.** Deferred out of the rfcgate-1b RFC 7296 pilot spec (work package
 WP-8), row dated 2026-07-31 in `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`. That spec is
 closed and its shard is deleted, so this file is the tracker now. The open owner question is
 recorded there as OR-WP8-1.

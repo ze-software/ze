@@ -19,7 +19,7 @@ plane policing therefore covers TCP destination ports and nothing else. DHCP,
 IPv6 ND, OSPF, IS-IS, BFD and PPPoE are unpoliced.
 
 **This is the anticipated extension, not a defect.** CoPP was scoped to BGP on
-purpose. `plan/learned/1005-cp-survival-2-copp-port179.md` records the design,
+purpose. `docs/architecture/traffic/cp-survival-2-copp-port179.md` records the design,
 and its Consequences section says directly: "Any future control-plane protection
 (e.g., OSPF, LDP, SSH) can extend the copp plugin with additional protocol blocks
 under `control-plane-protection { ... }`."
@@ -63,7 +63,7 @@ and saying so in the docs.
 - [ ] `ai/rules/plugins.md` - removing the plugin must remove all CoPP; no copp spelling in generic packages
 
 ### Learned Summaries
-- [ ] `plan/learned/1005-cp-survival-2-copp-port179.md` - the design this extends
+- [ ] `docs/architecture/traffic/cp-survival-2-copp-port179.md` - the design this extends
   → Decision: copp is a system plugin over a firewall extension, because removing the plugin must remove all CoPP.
   → Decision: term order is structurally fixed (established, trusted, limit) because wrong ordering is the dangerous failure mode. Do not make it configurable.
   → Decision: default chain policy is accept, not drop, to avoid lock-out on first apply. Operators opt into drop.

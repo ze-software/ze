@@ -1,5 +1,5 @@
 # Test: flow-export refuses to start as an external plugin process
-# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- flow-export's
+# VALIDATES: ai/rules/plugins.md "Plugin Process Boundary" -- flow-export's
 # IsInternal() guard (internal/plugins/flowexport/register.go) refuses to
 # start when it runs as a genuine external subprocess, since
 # iface.SubscribeCollectNotify is a same-process call (registers into
@@ -20,7 +20,7 @@
 # available") -- the daemon fails before the external flow-export subprocess
 # ever gets a chance to run. option=needs-linux below; not executable on the
 # darwin dev host, but confirmed PASSING under
-# `make ze-qemu-needs-linux-test` (real QEMU Linux VM, plan/learned/1045).
+# `make ze-qemu-needs-linux-test` (real QEMU Linux VM).
 #
 # // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED and STRENGTHENED, not

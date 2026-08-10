@@ -9,7 +9,7 @@
 | Deferral shard | `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
+Deferral holder created at the closure of the wire-edit-5 fan-out dedup spec on 2026-08-02
 (`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
@@ -55,9 +55,9 @@ the next one silent, which is the failure this spec exists to stop
 
 Whether `reject=bgp:` should EXIST is a second question this spec must answer.
 The two sites that use it want to assert that a peer never received given bytes.
-That is a real assertion with no directive behind it. **`plan/learned/1321-wire-edit-5-fanout-dedup.md`
-recorded AC-1 and AC-2 as inexpressible with today's directives for this exact
-reason**, so the choice is either to implement `reject=bgp:` in ze-peer or to
+That is a real assertion with no directive behind it. **The wire-edit-5 fan-out
+dedup spec recorded its AC-1 and AC-2 as inexpressible with today's directives
+for this exact reason**, so the choice is either to implement `reject=bgp:` in ze-peer or to
 state that a negative wire assertion is out of the harness's reach and record how
 those ACs are proven instead.
 
@@ -153,7 +153,7 @@ A `.ci` file containing `reject=` between `stdin=peer:` and its terminator.
 | AC-2 | The three known sites | Each either carries a working rejection assertion or has the dead line removed with a stated reason |
 | AC-3 | The whole `.ci` corpus | No other site carries a silently dropped directive |
 | AC-4 | A `reject=bgp:` line anywhere | Either ze-peer implements it and a fixture proves it fails when the rejected bytes ARE sent, or the directive is documented as unavailable and the two sites using it are rewritten |
-| AC-5 | `plan/learned/1321-wire-edit-5-fanout-dedup.md`'s AC-1 and AC-2 | Recorded as either now expressible (with the test that proves them) or permanently out of the harness's reach (with the reason), in `plan/learned/1321-wire-edit-5-fanout-dedup.md` |
+| AC-5 | AC-1 and AC-2 of the closed wire-edit-5 fan-out dedup spec | Recorded as either now expressible (with the test that proves them) or permanently out of the harness's reach (with the reason), in `docs/architecture/bgp/fanout-dedup.md` |
 
 ## 🧪 TDD Test Plan
 

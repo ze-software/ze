@@ -12,14 +12,14 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/1172-rfc-requirement-coverage.md` - the pilot that built the gate this spec extends
+3. The RFC-requirement-coverage pilot record (retired with the learned corpus) - the pilot that built the gate this spec extends
 4. `ai/RFC-REQUIREMENTS.md` - the generated ledger; its Coverage-by-RFC rollup sizes and ranks this work
 5. `rfc/enrolled.txt`, `ai/skills/ze-rfc.md`, `ai/skills/ze-rfc-audit.md`
 
 ## Task
 
 Extend the RFC-requirement-coverage gate (built and piloted on RFC 7606 by
-`plan/learned/1172-rfc-requirement-coverage.md`) outward to the rest of the RFC
+the RFC-requirement-coverage pilot) outward to the rest of the RFC
 summaries. Today only RFC 7606 is in `rfc/enrolled.txt`; every other summary is listed
 in `ai/RFC-REQUIREMENTS.md` marked "not enrolled", so nothing enforces its MUST-level
 obligations.
@@ -66,7 +66,7 @@ nothing.
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
-- [ ] `plan/learned/1172-rfc-requirement-coverage.md` - how the gate, tags, polarity rule,
+- [ ] The RFC-requirement-coverage pilot record - how the gate, tags, polarity rule,
   dispositions, ratchets, ledger, audit, and test-protection hook work.
   → Decision: enrolment is a deliberate act taken once the tests exist; writing a summary does
     NOT enroll it (`rfc/enrolled.txt` header).
@@ -192,4 +192,4 @@ and the enforcing test carries the machine-checked `// RFC requirement: <id> <po
 
 Owns `rfc/enrolled.txt` and the Coverage-by-RFC rollup going forward. Inherited from the deferral
 row filed by `plan/spec-rfc-requirement-coverage.md` (now closed; knowledge in
-`plan/learned/1172-rfc-requirement-coverage.md`).
+the RFC-requirement-coverage pilot).

@@ -1,5 +1,5 @@
 # Test: ddos-detect warns when running as an external plugin process
-# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- ddos-detect's
+# VALIDATES: ai/rules/plugins.md "Plugin Process Boundary" -- ddos-detect's
 # warnIfExternal (internal/plugins/ddos/detect/register.go) logs a warning
 # when it runs as a genuine external subprocess, since both its subscribe
 # paths (trafficstat.EnsureGlobal/SubscribeRates, and the
@@ -22,7 +22,7 @@
 # available") -- the daemon fails before the external ddos-detect subprocess
 # ever gets a chance to run. option=needs-linux below; not executable on the
 # darwin dev host, but confirmed PASSING under
-# `make ze-qemu-needs-linux-test` (real QEMU Linux VM, plan/learned/1045).
+# `make ze-qemu-needs-linux-test` (real QEMU Linux VM).
 #
 # // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED, not weakened: the

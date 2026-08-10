@@ -14,14 +14,14 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/component/lg/handler_api.go` - the birdwatcher transform and its `getNum` / `getStr` helpers
 4. `internal/component/bgp/plugins/cmd/peer/summary.go` - the producer of the peer row
-5. `plan/learned/1158-cross-plugin-count-aggregation-via-dispatch.md` - what Phase 4 shipped and why
+5. The cross-plugin count-aggregation record (retired with the learned corpus) - what Phase 4 shipped and why
 
 ## Task
 
 Holds work deferred from `plan/spec-lg-birdwatcher-peer-fields.md` (Phase 4). That spec
 is **closed and removed** from `plan/`: Phase 4 shipped in commit `79037a3d4` and the
 spec file was deleted by the two-commit closure `4723c326c`. Its filled text survives in
-git history; its learned summary is `plan/learned/1158-cross-plugin-count-aggregation-via-dispatch.md`.
+git history, and its learned summary was retired with the learned corpus.
 
 **The originating deferral row (dated 2026-07-15) is largely obsolete.** It claimed only
 `routes_received` had a correct source and that `routes_imported` / `routes_exported` had
@@ -65,8 +65,7 @@ that reads as a valid answer.
 - [ ] `ai/rules/plugins.md` - `cmd/peer` must not import the RIB plugin
 
 ### Decision Records
-- [ ] `plan/learned/1158-cross-plugin-count-aggregation-via-dispatch.md` - the dispatch pattern, the "honest zero" decision, the race that killed the pre-policy source
-- [ ] `plan/learned/488-lg-looking-glass.md` - LG component boundaries
+- [ ] The cross-plugin count-aggregation record - the dispatch pattern, the "honest zero" decision, the race that killed the pre-policy source
 - [ ] `plan/spec-bgp-filtered-route-storage.md` - owns `routes_filtered`; read before touching it
 
 **Key insights:**

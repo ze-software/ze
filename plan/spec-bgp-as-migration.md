@@ -203,7 +203,7 @@ and writes the enrolment row that admits all nine in the same change.
 |----------|--------|
 | What breaks if this is wrong? | Sessions fail to establish, or establish under the wrong AS relationship. A session wrongly treated as iBGP skips the eBGP AS_PATH prepend, which breaks loop detection and leaks routes that should have been filtered by AS. A wrongly rejected OPEN takes a working peering down. |
 | How is it reverted? | Per phase, single commit revert. The Bad Peer AS check is separately revertible from the migration feature, which is why it lands alone. Once a peer has accepted routes carrying a wrong AS_PATH the effect propagates beyond us. |
-| Who else touches this path? | `plan/spec-bgp-local-as-options.md` owns the Section 3.3 half and must land first; the AS_PATH encoders moved under a resolver and that work has LANDED (`plan/learned/1319-wire-edit-3-aspath-fold.md`); it moves the AS_PATH encoders and consumes the iBGP verdict; `plan/spec-bgp-remote-as-auto.md` and `plan/spec-bgp-session-ready-contract.md` touch the same OPEN and session-establishment paths. |
+| Who else touches this path? | `plan/spec-bgp-local-as-options.md` owns the Section 3.3 half and must land first; the AS_PATH encoders moved under a resolver and that work has LANDED with the wire-edit-3 AS_PATH fold; it moves the AS_PATH encoders and consumes the iBGP verdict; `plan/spec-bgp-remote-as-auto.md` and `plan/spec-bgp-session-ready-contract.md` touch the same OPEN and session-establishment paths. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

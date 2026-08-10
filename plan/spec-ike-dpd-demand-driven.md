@@ -137,7 +137,7 @@ also drops "or any of its Child SAs", which is the hard half of the requirement.
 | RFC 7296 is enrolled, so its MUSTs are gated | `rfc/enrolled.txt` line 167 |
 | 222 of its 227 rows are gated; 5 are SHOULD-level, ungated and untagged | same line |
 | `RFC7296-2.4-2` is one of those 5 | `ai/RFC-REQUIREMENTS.md` line 3787: `\| RFC7296-2.4-2 \| SHOULD \| 2.4 \| -- \| -- \| \|`, both evidence columns empty |
-| No test carries the tag in either polarity | a repository-wide search for the id finds it only in `rfc/short/rfc7296.md`, `ai/RFC-REQUIREMENTS.md`, `plan/deferrals/fixit-ike-dpd-cleartext.md`, `plan/learned/1332-fixit-ike-dpd-cleartext.md` and `skip-blocked.md`. No `.go` and no `.ci` |
+| No test carries the tag in either polarity | a repository-wide search for the id finds it only in `rfc/short/rfc7296.md`, `ai/RFC-REQUIREMENTS.md`, `plan/deferrals/fixit-ike-dpd-cleartext.md` and `skip-blocked.md`. No `.go` and no `.ci` |
 | The gate therefore reports it uncovered, not green | `make ze-rfc-check` does not gate SHOULD-level rows |
 
 **Consequence for this spec.** Nothing today claims false conformance, so no

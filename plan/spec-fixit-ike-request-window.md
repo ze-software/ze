@@ -11,7 +11,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Found on 2026-07-30 by phase 2b of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. An agent
+Found on 2026-07-30 by phase 2b of the rfcgate-1b RFC 7296 pilot spec. An agent
 tried to write tagged tests for `RFC7296-2.3-2` and `RFC7296-2.3-4`. The agent
 refused to tag either row. A test bound to any one guard stays green while the
 endpoint exceeds the window through the other paths. The supervising session then read
@@ -163,7 +163,7 @@ No wire format change, and no configuration surface change.
 
 ### Integration Points
 
-The rfcgate-1b pilot, now closed (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`), owned at its phase 2b the rows `RFC7296-2.3-2`
+The rfcgate-1b pilot, now closed, owned at its phase 2b the rows `RFC7296-2.3-2`
 and `RFC7296-2.3-4`. Both stay untagged until this spec closes.
 
 ## What other implementations do (evidence, not assumption)
@@ -294,7 +294,7 @@ rekeys with the slot in place.
 
 ## Integration Points
 
-The rfcgate-1b pilot, now closed (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`), owned at its phase 2b the rows `RFC7296-2.3-2`
+The rfcgate-1b pilot, now closed, owned at its phase 2b the rows `RFC7296-2.3-2`
 and `RFC7296-2.3-4`. Both stay untagged until this spec closes.
 
 ## Boundaries Crossed

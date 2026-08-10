@@ -38,9 +38,9 @@ hardening spec lands and fixes the ordering.
 
 **Re-read these after context compaction:**
 1. This spec file
-2. `plan/learned/1161-bgp-export-filter-applied-twice.md`, `plan/learned/1231-fixit-private-asn-leak.md`, `plan/learned/1245-fixit-bgp-concurrency-races.md`
+2. The export-filter-applied-twice, private-ASN-leak and BGP-concurrency-races fixits (records retired with the learned corpus)
 3. Reproduction captures: `tmp/stress-repro/bgp-plugin-{372,378,394}-*.log`
-4. Origin: split out of the load-dependent-functional-failures fixit, closed as `plan/learned/1270-fixit-load-dependent-functional-failures.md` (owner decision 2026-07-24 — the forward-rail fix is a spec-sized new primitive, not a redirect).
+4. Origin: split out of the load-dependent-functional-failures fixit, closed 2026-07-24 (owner decision — the forward-rail fix is a spec-sized new primitive, not a redirect).
 
 ## Task
 
@@ -73,7 +73,7 @@ identical". Never widen a test to green (these are real product bugs — `no-par
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1161`, `/1231`, `/1245`
+- [ ] The three fixits named in the reading list above
   → Constraint: the egress gate (`exportFilterForBody`) exists because of the /1231 private-ASN leak;
      any change must keep originated/injected/redistribute routes egress-filtered.
   → Constraint: egress handling is a property of HOW the route is relayed, not of the write primitive (/1161).

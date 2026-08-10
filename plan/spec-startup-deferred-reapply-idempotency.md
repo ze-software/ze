@@ -14,14 +14,13 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/component/config/transaction/orchestrator.go` - `filterDiffs`, `runApply`
 4. `internal/plugins/ntp/register.go` - the one confirmed non-idempotent apply handler
-5. `plan/learned/1104-startup-resilience.md` - the closed source spec's record
+5. The startup-resilience record of the closed source spec (retired with the learned corpus)
 
 ## Task
 
 **Provenance.** Deferred out of `plan/spec-startup-resilience.md` (Known
-Limitations, risk R-1). That spec is CLOSED and removed from disk; its record is
-`plan/learned/1104-startup-resilience.md` and its text is in git history (deleted
-by `e9a4ced83`). The closed spec was reachability-only and said so: "the audit did
+Limitations, risk R-1). That spec is CLOSED and removed from disk; its record was retired with the learned
+corpus and its text is in git history (deleted by `e9a4ced83`). The closed spec was reachability-only and said so: "the audit did
 not hunt for idempotency gaps and none were incidentally observed." So this is not
 a known-broken list. It is an UNHUNTED SURFACE, and the first job here is the hunt.
 
@@ -82,7 +81,7 @@ depend on receiving sibling sections; narrowing the coordinator is a larger spec
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - small core + registration; participant discovery
   -> Constraint: no plugin spelling in the coordinator; a shared helper registers, it does not switch on plugin name
-- [ ] `plan/learned/1104-startup-resilience.md` - the closed source spec's record
+- [ ] The startup-resilience record of the closed source spec (retired with the learned corpus)
   -> Constraint: NTP's worker handoff must stay synchronous (single clock-writer invariant), so a fix must SKIP the handoff, never make it async
 
 **Key insights:**

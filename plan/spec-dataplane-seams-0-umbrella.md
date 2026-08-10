@@ -48,14 +48,14 @@ other four.
 | F-2 | `iface.Binding.Ifindex` is an `int` documented "the kernel interface index of the resolved OS device". The VPP iface backend fills the same `InterfaceInfo.Index` with its `sw_if_index`. One field, two namespaces, and the guard against confusing them is a function each caller must remember to call | `Binding` in `internal/component/iface/iface.go`; `int(d.SwIfIndex)` in `internal/plugins/iface/vpp/query.go`; `ActiveBackendName` in `internal/component/iface/backend.go` | 2 |
 | F-3 | `BestChangeEntry` and `ECMPPath` have no egress-interface field. Routes cross that seam as next-hop IP only. Static routes CAN name an interface, but they reach the dataplane by a different path: `internal/plugins/static` declares its own `routeBackend` with netlink and VPP implementations, imports no sysrib, and separately emits `redistevents`. Whether the missing field is a gap or a deliberate boundary is an open question child 3 answers first, and cancelling that child is a legitimate outcome | `BestChangeEntry` in `internal/component/sysrib/events/events.go`; `routeBackend` in `internal/plugins/static/backend.go`; `emitRouteChange` in `internal/plugins/static/inject.go` | 3 |
 | F-4 | Ten protocols each open their own receive socket, with four unrelated per-packet metadata structs and no shared type. No receive path anywhere carries a VLAN tag: `PACKET_AUXDATA`, `TP_STATUS_VLAN` and `VlanTCI` do not appear in the tree. DHCP learns neither its source nor its ingress interface | `serveMulti` in `internal/plugins/dhcpserver/register.go`; `transport.Inbound` (bfd), `wire.RawPacket` (ospf), `transport.RawFrame` (isis), `packet.RxMeta` (vrrp) | 4 |
-| F-5 | `copp` polices TCP only. Its translation hardcodes a TCP protocol match in both the trusted-source term and the rate-limit term, so DHCP, ND, OSPF, IS-IS, BFD and PPPoE are unpoliced. This is the extension `plan/learned/1005` anticipated, not a defect. What that summary did NOT anticipate: its `FamilyInet` choice means an nft `inet` table cannot reach ARP, IS-IS or PPPoE at all, since none is IP. That half is a new design question | `translatePolicy` in `internal/plugins/copp/translate.go`; `plan/learned/1005-cp-survival-2-copp-port179.md` | 5 |
+| F-5 | `copp` polices TCP only. Its translation hardcodes a TCP protocol match in both the trusted-source term and the rate-limit term, so DHCP, ND, OSPF, IS-IS, BFD and PPPoE are unpoliced. This is the extension the copp design anticipated, not a defect. What that design did NOT anticipate: its `FamilyInet` choice means an nft `inet` table cannot reach ARP, IS-IS or PPPoE at all, since none is IP. That half is a new design question | `translatePolicy` in `internal/plugins/copp/translate.go`; `docs/architecture/traffic/cp-survival-2-copp-port179.md` | 5 |
 
 ### Children
 
 | # | Spec | Size | Coordinates with |
 |---|------|------|------------------|
 | 1 | `plan/spec-dataplane-seams-1-route-type-numbering.md` | small | - |
-| 2 | `plan/spec-dataplane-seams-2-backend-typed-index.md` | medium | `plan/learned/1185`, `plan/learned/950` |
+| 2 | `plan/spec-dataplane-seams-2-backend-typed-index.md` | medium | the static-interface-nexthops ruling, `docs/architecture/iface/logical-name-resolution.md` |
 | 3 | `plan/spec-dataplane-seams-3-route-egress-interface.md` | research first, may cancel | `plan/spec-fib-depth.md` (in-progress) |
 | 4 | `plan/spec-dataplane-seams-4-control-packet-rx.md` | design only | `plan/spec-cp-survival-0-umbrella.md` |
 | 5 | `plan/spec-dataplane-seams-5-copp-non-tcp.md` | medium | `plan/spec-cp-survival-0-umbrella.md` (owns copp) |
@@ -76,13 +76,12 @@ other four.
 - [ ] `ai/rules/plugins.md` - registration over hardcoding; no plugin spelling in generic packages
 
 ### Learned Summaries
-- [ ] `plan/learned/1185-fixit-static-interface-nexthops.md` - the ruling that produced F-2
+- [ ] The static-interface-nexthops ruling (record retired with the learned corpus) - the ruling that produced F-2
   → Decision: one resolver serves both dataplanes on purpose. The VPP iface backend publishes its `sw_if_index` through `iface.InterfaceInfo.Index` into `Binding.Ifindex`, and no second resolution path may be introduced.
   → Decision: `ActiveBackendName()` was chosen over a config-verify pairing check specifically because `LoadBackend` swaps the backend live at runtime. A config-time check therefore cannot replace it.
   → Constraint: a zero or invalid resolved index must be rejected, never emitted. Index 0 is VPP `local0`.
   → Constraint: the summary's Consequences section already instructs future authors to gate on `ActiveBackendName()`. Child 2 changes the enforcement, not this decision.
-- [ ] `plan/learned/950-iface-resolve-2-resolver.md` - `Binding` is a pure value type; no second resolver
-- [ ] `plan/learned/1247-fixit-static-per-route-isolation.md` - later work on the same static path
+- [ ] `docs/architecture/iface/logical-name-resolution.md` - `Binding` is a pure value type; no second resolver
 
 ### Related Specs
 - [ ] `plan/spec-fib-depth.md` - in-progress, owns FIB programming depth; child 3 lands in its territory

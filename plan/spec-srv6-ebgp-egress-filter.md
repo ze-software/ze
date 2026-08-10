@@ -75,7 +75,7 @@ AS boundaries.
 - [ ] `docs/architecture/core-design.md` - component isolation
   -> Decision: peerForwardFacts precomputes per-peer forwarding decisions at session boundaries
   -> Constraint: egress attribute mods use ModAccumulator, not direct wire mutation
-- [ ] `plan/learned/776-srv6-prefix-sid.md` - SRv6 design decisions
+- [ ] The SRv6 prefix-SID record (retired with the learned corpus) - SRv6 design decisions
   -> Decision: PrefixSID suppression on NH change uses `mods.Op(40, AttrModSuppress, nil)`
   -> Decision: EBGP filtering via existing attr-discard mechanism (ingress)
   -> Constraint: Ze does not originate local SRv6 SIDs; suppress rather than rebuild

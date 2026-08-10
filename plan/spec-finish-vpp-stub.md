@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `git log -p plan/deferrals.md` (pre-2026-07-06) - original deferral rows + evidence
-4. `plan/learned/1096-followup-vpp-traffic-protocol.md`, `plan/learned/1097-followup-vpp-traffic.md`, `plan/learned/1098-followup-vpp-iface.md` - the wave's VPP decisions and gotchas
+4. `docs/architecture/traffic/followup-vpp-traffic.md` - the wave's VPP decisions and gotchas
 5. The "Message inventory" table in Current Behavior below - it IS the scope; do not re-derive it
 
 ## Task
@@ -48,9 +48,9 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 |---|--------------|------------------------|----------|
 | 1 | HANDLERS at `test/scripts/vpp_stub.py` | HANDLERS dict now at `test/scripts/vpp_stub.py` (the wave inserted `handle_classify_add_del_table` at :517-546) | read 2026-07-10 |
 | 2 | Scope = iface handlers + stats + inject + route dump + 2 `.ci` | Scope EXPANDED: wave added span/wireguard/lcp/gre/gretap/ipip/vxlan/tunnel_types binapi surface and traffic classify/policer messages; vendored govpp binapi packages; 49 of 57 sent request messages unhandled | Message inventory below |
-| 3 | (not stated) | The wave chose real-VPP Docker evidence (`scripts/evidence/effective-vpp-iface.py`, `ze-deployment-vpp-iface-test`) instead of stub coverage for its new surface; the stub gap is this spec's to close | `plan/learned/1098-followup-vpp-iface.md` Consequences; `mk/test-integration.mk` |
+| 3 | (not stated) | The wave chose real-VPP Docker evidence (`scripts/evidence/effective-vpp-iface.py`, `ze-deployment-vpp-iface-test`) instead of stub coverage for its new surface; the stub gap is this spec's to close | the followup-vpp-iface record, Consequences; `mk/test-integration.mk` |
 | 4 | `test/vpp` has 001,002,005,006,007 | Confirmed: exactly `001-boot.ci`, `002-fib-route.ci`, `005-mpls-push.ci`, `006-iface-create.ci`, `007-fib-route-lookup.ci`; 003/004/008+ absent | `ls test/vpp/` 2026-07-10 |
-| 5 | (not stated) | `plan/learned/1096` explicitly routes work here: "spec-finish-vpp-stub.md must add sw_interface_dump + policer_add_del handlers before any apply-tier .ci traffic test can run against the stub (A-6 is broken -- only classify_add_del_table was added)" | `plan/learned/1096-followup-vpp-traffic-protocol.md` Consequences |
+| 5 | (not stated) | The followup-vpp-traffic-protocol record explicitly routed work here: "spec-finish-vpp-stub.md must add sw_interface_dump + policer_add_del handlers before any apply-tier .ci traffic test can run against the stub (A-6 is broken -- only classify_add_del_table was added)" | that record's Consequences |
 | 6 | (not stated) | `test/traffic/020-vpp-accept-dscp-filter.ci` and `026-vpp-accept-multiclass.ci` name this spec as the blocker for apply-tier traffic `.ci` | read 2026-07-10 |
 
 ## Required Reading
@@ -68,7 +68,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
   → Constraint: `006-iface-create.ci` depends on the EMPTY dump behavior ("the dump is empty but the handshake succeeds") -- adding a `sw_interface_dump` handler must keep 006 green (empty table at boot is still a valid dump).
 - [ ] `internal/plugins/iface/vpp/ifacevpp.go`, `internal/plugins/traffic/vpp/` (code the stub exercises)
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10; message-by-message inventory below.)
-- [ ] `plan/learned/1096-followup-vpp-traffic-protocol.md`, `plan/learned/1097-followup-vpp-traffic.md`, `plan/learned/1098-followup-vpp-iface.md`
+- [ ] `docs/architecture/traffic/followup-vpp-traffic.md`
   → Decision: the wave's stance: stub-backed `.ci` = wiring proof, real-VPP evidence = correctness proof (1097: "Real-VPP evidence is the authoritative apply-tier validation (A-6: the stub cannot run a full traffic Apply)"). This spec keeps that split and closes the CI side.
   → Constraint: 1097 gotcha: the traffic `.ci` suite is timing/stderr-capture sensitive under load; do NOT raise sleep baselines; poll the stub JSONL with deadlines instead.
 - [ ] `internal/test/cli/cmd_vpp.go`, `mk/test-functional.mk`, `mk/test-release.mk`

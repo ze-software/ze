@@ -44,8 +44,8 @@ of the RFC scope.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/776-srv6-prefix-sid.md` - original SRv6 design decisions
-- [ ] `plan/learned/906-srv6-review-fixes.md` - recent fixes
+- [ ] The SRv6 prefix-SID record (retired with the learned corpus) - original SRv6 design decisions
+- [ ] The SRv6 review-fixes record (retired with the learned corpus) - recent fixes
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc9252.md` - scope includes labeled unicast

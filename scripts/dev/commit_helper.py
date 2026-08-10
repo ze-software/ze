@@ -1697,8 +1697,8 @@ def discovery_index_problems(
         ("regenerate and include it") would cross-commit their rows.
       - working tree fresh, commit INCOHERENT -- the index on disk was regenerated
         WITH those uncommitted sources, so committing it publishes rows pointing at
-        files absent from HEAD. This is how `plan/learned/1282-*.md` reached HEAD's
-        committed index without ever being committed itself.
+        files absent from HEAD. A never-committed summary reached HEAD's committed
+        index this way.
     """
     state, stale = discovery_index_freshness(repo)
     if state == "unknown":
@@ -1860,9 +1860,9 @@ DEFERRAL_SCAN_EXEMPT_DIRS = ("ai/rules/", ".claude/rules/")
 DEFERRAL_NO_DESTINATION_NEEDED = frozenset({"cancelled", "user-approved-drop"})
 
 # A destination names a markdown file: a full `plan/...md` path (which may be
-# nested, e.g. plan/learned/1127-x.md) or a bare `spec-x.md` resolved against
-# plan/. The plan/ alternative comes first so the longest form wins; the
-# lookbehind stops a match starting mid-path or mid-word.
+# nested, e.g. plan/journal/registry-contamination.md) or a bare `spec-x.md`
+# resolved against plan/. The plan/ alternative comes first so the longest form
+# wins; the lookbehind stops a match starting mid-path or mid-word.
 DEFERRAL_DEST_PATH_RE = re.compile(r"(?<![\w/-])(plan/[\w./-]+\.md|[\w.-]+\.md)")
 
 # Statuses that mean the row is CLOSED and needs no destination. Everything else

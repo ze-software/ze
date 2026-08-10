@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Spec | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` |
+| Spec | the rfcgate-1b RFC 7296 pilot spec |
 | Landed here | WP-1 defects, WP-5, WP-3, WP-8, plus the IPComp and remote-access splits |
 | Gate | 2867 gated MUST-level requirements, 2971 tags resolved |
 | Written | 2026-07-31 |
@@ -12,7 +12,7 @@ Supersedes `02-rfcgate-1b-pilot-wp1-wp2-wp6-wp12.md`, `02-design-wp3.md` and
 
 ## Why this handover exists
 
-`c_model_phase` (`.claude/hooks/pretool-writeedit.py`, `plan/learned/1310-phase-gates.md`)
+`c_model_phase` (`.claude/hooks/pretool-writeedit.py`)
 landed mid-session and blocks an implementation edit made on Opus 5. The owner chose to
 start an Opus 4.8 session rather than write the ack. Everything below is what that session
 needs. Nothing here is blocked on anything except the model.
@@ -98,7 +98,7 @@ mismatch.
 ## The other three specs of the closed umbrella
 
 `plan/spec-rfcgate-0-umbrella.md` was closed by `7c14eec20` (learned summary
-`plan/learned/1304-rfcgate-0-umbrella.md`). Four specs of its set are still open: this
+the closed rfcgate-0 umbrella). Four specs of its set are still open: this
 pilot and three children. None of the three is closeable as it stands.
 
 | Spec | State |

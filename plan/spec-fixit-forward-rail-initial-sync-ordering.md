@@ -11,7 +11,7 @@
 
 **Re-read these after context compaction:**
 1. This spec file
-2. `plan/learned/1252-masked-verdict-and-rfc-exemption.md` (the session that found this)
+2. The masked-verdict-and-RFC-exemption record (retired with the learned corpus) - the session that found this
 3. Source files under Current Behavior
 
 ## Freshness check (2026-07-27)
@@ -116,7 +116,7 @@ believing P is live when it has been withdrawn.
 the speaker's own initial dump, never against routes learned later
 (`rfc/short/rfc4724.md`). Tests asserting EOR-vs-forwarded-route order were
 asserting something Ze never owed and were corrected separately; see
-`plan/learned/1252-masked-verdict-and-rfc-exemption.md`.
+the masked-verdict-and-RFC-exemption record.
 
 ## Required Reading
 

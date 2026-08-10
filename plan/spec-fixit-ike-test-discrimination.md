@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **~~Four~~ Five places in the IKE and IPsec test surface report green without testing the
 thing they name.**
 
-Found on 2026-08-02 while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Two were
+Found on 2026-08-02 while closing the rfcgate-1b RFC 7296 pilot spec. Two were
 measured by reverting the production guard and re-running. Two were read.
 
 `ai/rules/interop-and-goal-validation.md` states the standard this spec applies: a
@@ -81,8 +81,7 @@ records it and does not edit the rule.
 
 ### Item 5: no `.ci` holds a DPD interval open, so the liveness probe is unproven at daemon level
 
-Added 2026-08-03, homed here from the DPD cleartext fixit, which closed the same day as
-`plan/learned/1332-fixit-ike-dpd-cleartext.md`. The row lives in
+Added 2026-08-03, homed here from the DPD cleartext fixit, which closed the same day. The row lives in
 `plan/deferrals/fixit-ike-dpd-cleartext.md`, which survives that closure because it still
 holds this live row.
 

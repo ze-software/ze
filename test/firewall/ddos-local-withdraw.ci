@@ -1,5 +1,6 @@
 # Test: A cleared ddos-local mitigation is withdrawn from the kernel.
-# VALIDATES: plan/learned/1116 -- the "ze_" ownership prefix on ddos-local's
+# VALIDATES: docs/architecture/firewall/table-ownership-and-shutdown-flush.md
+#            -- the "ze_" ownership prefix on ddos-local's
 #            table (ze_ddos-local, not the old bare "ddos-local") lets the firewall
 #            backend's reconcile sweep it when removeMitigation registers nil +
 #            ApplyAll. Without the prefix, shouldDeleteTable ignores the table and a

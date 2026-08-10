@@ -59,7 +59,7 @@ agent to drop the shard from commit B exists only because the gate cannot see th
 when the gate can.
 
 **Provenance.** Found on 2026-08-08 while landing the "found problem gets a spec" rule
-(`plan/learned/1366-found-problem-spec-first.md`, commit `a756f094c`). Independent review
+(the found-problem-spec-first record, commit `a756f094c`). Independent review
 rounds 3 and 5 verified the mechanism against the producing function.
 
 ### Amendment (2026-08-08, RESEARCH): the defect has TWO directions, not one

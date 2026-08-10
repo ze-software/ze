@@ -12,8 +12,7 @@
 #
 # Runs under test/plugin/ so the TLS plugin hub is configured by the
 # BGP peer's `process ...` directive; an L2TP-only test cannot
-# trigger hub setup by itself (see plan/learned/620-l2tp-7-subsystem.md
-# "Gotchas" -- BFD-as-plugin precedent).
+# trigger hub setup by itself. BFD-as-plugin is the same precedent.
 
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 stdin=peer:terminator=EOF_PEER

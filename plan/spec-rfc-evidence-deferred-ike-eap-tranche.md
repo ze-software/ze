@@ -55,7 +55,7 @@ buys. Check whether that review has landed before starting.
   → Constraint: a `.ci` in a suite `mk/test-functional.mk` `all_suites` does not name resolves to `TIER_UNRUN` and the scanner refuses the tag.
 - [ ] `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` - the selection rule and the ranking
   → Decision: the rule tests the ORACLE, never the requirement text.
-- [ ] `plan/learned/1296-rfcgate-2-evidence.md` - the carrier, tier and ratchet machinery
+- [ ] `plan/spec-rfcgate-2-evidence.md` history (spec closed) - the carrier, tier and ratchet machinery
   → Constraint: every ledger link carries a `kind/tier` cell and a per-tier monotonic ratchet holds it.
 
 ### RFC Summaries (Scope: protocol)

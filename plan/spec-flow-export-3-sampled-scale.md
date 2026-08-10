@@ -15,7 +15,7 @@
 3. `plan/spec-flow-export-0-umbrella.md` - umbrella architecture
 4. `plan/spec-flow-export-1-counter-export.md` - shared component / sender / encoder factory pattern
 5. `plan/spec-flow-export-2-flow-records.md` - sampling + conntrack + per-flow encoders this spec extends
-6. `plan/learned/818-flow-export-1-counter-export.md`, `819-flow-export-2-flow-records.md`, `820-flow-export-0-umbrella.md`
+6. `docs/architecture/flowexport/flow-export-1-counter-export.md`, `docs/architecture/flowexport/flow-export-2-flow-records.md`, `docs/architecture/flowexport/flow-export-0-umbrella.md`
 7. `internal/component/flowexport/conntrack/delta.go` - the SCALING RISK / TOMBSTONE INVARIANT / GRACE BOUNDS doc blocks
 8. `internal/component/flowexport/sampling_worker.go` - the existing psample read loop -> ExportFlowSample
 9. `docs/guide/flow-export.md` - the "Scale: conntrack vs sampling" section this spec implements against

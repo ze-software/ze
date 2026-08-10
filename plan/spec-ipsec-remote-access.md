@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | - (was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03; `plan/learned/1256-fixit-ipsec-verify-siblings.md`) |
+| Depends | - (was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03) |
 | Phase | - |
 | Updated | 2026-07-31 |
 
@@ -21,8 +21,8 @@
 
 `vpn ipsec remote-access` is a complete, documented, YANG-validated config surface that the
 daemon **silently ignores**. Traced 2026-07-23 (recorded in
-`plan/learned/1256-fixit-ipsec-verify-siblings.md` and in the correction appended to
-`plan/learned/1255-fixit-codeql-security-triage.md`):
+the `fixit-ipsec-verify-siblings` record and in the correction appended to the
+`fixit-codeql-security-triage` record, both retired with the learned corpus):
 
 | Field | Consumer today | Effect |
 |-------|----------------|--------|
@@ -70,9 +70,9 @@ So the missing pieces are admission, per-user credentials, and address assignmen
 
 ## RFC 7296 Rows Homed Here (owner split, 2026-07-31)
 
-**Provenance.** These rows arrived from `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Item 15
+**Provenance.** These rows arrived from the rfcgate-1b RFC 7296 pilot spec. Item 15
 of that spec's phase list held 17 RFC 7296 rows as work package WP-9, "Configuration
-payload and remote access" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). On 2026-07-31
+payload and remote access" (the rfcgate-1b RFC 7296 pilot spec). On 2026-07-31
 the owner split WP-9. The rows that need the address-assignment FEATURE move here. The
 rows that are already conformant stay in the pilot, together with two live defects.
 
@@ -206,7 +206,7 @@ proposal. The literal reading would discard an SA proposal because a Configurati
 elsewhere in the same message carried attribute 5.
 
 **`1.7-1` does not duplicate `3.15.1-4`.** The pilot asked this spec to settle the
-question (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). They are separate obligations.
+question (the rfcgate-1b RFC 7296 pilot spec). They are separate obligations.
 
 `3.15.1-4` scopes attributes Ze does not recognize. `1.7-1` names type 5 and binds even an
 implementation that DOES recognize it, because RFC 4306 defined type 5. An implementation
@@ -272,7 +272,7 @@ the working tree, which agree for every section below.
 **Correction to the briefing that opened this work.** The briefing stated that `4-1` had
 already landed and set the mark to 1. It has not. No `RFC7296-4-*` id exists at HEAD or in
 the working tree, and all four rows are still `NOT IMPL` in the pilot's Appendix A
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). The hazard is real, and its mechanism
+(the rfcgate-1b RFC 7296 pilot spec). The hazard is real, and its mechanism
 is "first to land sets the mark", not "the mark is already 1".
 
 **The rule: Section 4 must land in ascending ordinal order across specs.** `4-1` first,

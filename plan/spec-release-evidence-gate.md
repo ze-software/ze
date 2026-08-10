@@ -58,7 +58,7 @@ rather than skipping honestly.
 ## Required Reading
 
 ### Architecture Docs
-- [x] `plan/learned/656-deployment-readiness-review.md` - established ze-release-check
+- [x] The deployment-readiness-review record (retired with the learned corpus) - established ze-release-check
   → Decision: Docker-based clean-clone verify is a permanent gate target
   → Constraint: ZE_SKIP_SUITES mechanism for container-incompatible suites
 

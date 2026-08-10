@@ -21,11 +21,9 @@ reduction to surface to Thomas.
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/541-policy-framework.md` - original policy framework decisions
-4. `plan/learned/572-cmd-8-policy-show.md` - policy introspection commands
-5. `plan/learned/593-cmd-2-session-policy.md` - session policy knobs
-6. `internal/component/bgp/reactor/filter_chain.go` - chain execution
-7. `internal/component/bgp/reactor/filter_delta.go` - wire-level delta tracking
+3. The Prior Decisions section below - the policy-framework, policy-show and session-policy decisions
+4. `internal/component/bgp/reactor/filter_chain.go` - chain execution
+5. `internal/component/bgp/reactor/filter_delta.go` - wire-level delta tracking
 
 ## Task
 
@@ -78,18 +76,22 @@ The work splits into five child specs:
 - [ ] `ai/rules/config.md` - YANG augment vs grouping, listener pattern
   -> Constraint: filter plugins augment bgp/policy; new sets container needs augment points
 
-### Learned Summaries
-- [ ] `plan/learned/541-policy-framework.md` - original policy framework decisions
+### Prior Decisions
+
+The records these came from were retired with the learned corpus. Each decision
+they carried is stated here.
+
+- [ ] The original policy framework pass
   -> Decision: specialized filter plugins over generic policy language
   -> Decision: three config concerns separated: policy (definitions), filter (chains), redistribute (sources)
   -> Decision: each filter type augments bgp/policy with ze:filter-marked list
   -> Decision: inactive: prefix for deactivation
-- [ ] `plan/learned/572-cmd-8-policy-show.md` - policy introspection
+- [ ] The policy introspection commands
   -> Decision: show policy list and show policy chain implemented; show policy detail and show policy test deferred
-- [ ] `plan/learned/593-cmd-2-session-policy.md` - session policy knobs
+- [ ] The session policy knobs
   -> Decision: AttrModSuppress action for attribute removal
   -> Decision: send-community as leaf-list enum for granular control
-- [ ] `plan/learned/551-filter-non-cidr-families.md` - non-CIDR NLRI handling
+- [ ] Non-CIDR NLRI handling
   -> Constraint: non-CIDR families get marker-only blocks; raw=true for per-NLRI decisions
 
 **Key insights:**

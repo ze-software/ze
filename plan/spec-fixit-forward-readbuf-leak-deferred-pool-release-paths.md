@@ -15,9 +15,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Provenance.** Two rows of `plan/deferrals/fixit-forward-readbuf-leak.md`, dated
 2026-07-21. The verification of that spec's read-pool fix found them, and they were
-explicitly out of its scope. Both were homed on prose. Their source spec closed
-(`plan/learned/1234-fixit-forward-readbuf-leak.md`) and its file is gone. This file
-is their home.
+explicitly out of its scope. Both were homed on prose. Their source spec closed and its
+file is gone. This file is their home.
 
 **The one subject.** A forward-rail pool resource is acquired and then not returned
 on a path that is not the happy one. Neither is the read-pool leak that spec fixed:

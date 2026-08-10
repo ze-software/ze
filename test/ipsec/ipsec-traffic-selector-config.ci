@@ -1,5 +1,5 @@
 # Functional test: the traffic-selector and transport-mode config surface.
-# Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, WP-7 (RFC 7296 Sections 2.9, 2.23.1).
+# Design: docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md (RFC 7296 Sections 2.9, 2.23.1).
 #
 # Verifies that an operator can reach the new surface through the daemon: a peer
 # with a traffic-selector list and a transport-mode peer both load, and the

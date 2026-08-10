@@ -333,7 +333,7 @@ The VPP IPsec backend cannot program a security association at all
 ## Audit 2026-08-02: implemented by a DIFFERENT design. NOT ready to close
 
 Read against the code on 2026-08-02, during the closure of
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. This section is a bookkeeping record. It changes
+the rfcgate-1b RFC 7296 pilot spec. This section is a bookkeeping record. It changes
 no code and closes nothing.
 
 **The tunnel-level defect is fixed and interop-proven. The spec text is counterfactual.**
@@ -389,7 +389,7 @@ destination. The spec stays OPEN.
 
 ## Audit 2026-08-02, second pass: three more policy-identity residuals
 
-Found while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, after the audit above was
+Found while closing the rfcgate-1b RFC 7296 pilot spec, after the audit above was
 written. All three sit on the same surface this spec owns: what identifies a policy, and
 what may remove one. They are appended rather than merged into the list above, so the
 first pass stays as it was written.

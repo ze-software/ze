@@ -46,7 +46,7 @@ are the config surface and the per-key policy applied at the auth callback.
   -> Decision: per-key touch/verify policy is enforced here (or in `matchPublicKey`), the single authorization seam.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - YANG leaf naming.
   -> Constraint: new leaves are kebab-case under the existing `public-keys` list.
-- [ ] `plan/learned/648-ssh-pubkey.md` - the original pubkey design; note its forward remark that FIDO keys would need no Go change was only half right (enum + policy are needed).
+- [ ] The SSH pubkey record (retired with the learned corpus) - the original pubkey design; note its forward remark that FIDO keys would need no Go change was only half right (enum + policy are needed).
 
 **Key insights:**
 - The value of the feature is letting an operator log in with a hardware security key; touch enforcement comes from the crypto library for free once the key type is allowed.

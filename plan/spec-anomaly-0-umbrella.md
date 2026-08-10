@@ -41,8 +41,8 @@ on it.
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now), starting at the Correction block above
 2. `.claude/rules/planning.md` - workflow rules
-3. The three closed foundations: `plan/learned/1046-traffic-analysis-restructure.md`,
-   `plan/learned/1048-anomaly-1-detect.md`, `plan/learned/1049-anomaly-2-shape.md`
+3. The three closed foundations: `docs/architecture/traffic/traffic-analysis-layers.md`,
+   `docs/architecture/anomaly/anomaly-1-detect.md`, `docs/architecture/anomaly/anomaly-2-shape.md`
 4. The child specs listed in the Child Spec Roadmap table (written per-session as work begins)
 
 ## Task
@@ -76,11 +76,11 @@ a verdict or an action is a plugin.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - component/plugin registration model every child plugs into
   → Constraint: children register via `init()` in `register.go`; core discovers via registries, never imports plugins directly. Each child self-contains (`ai/rules/plugins.md`) — remove it and all its CLI/schema/doctor surface vanishes.
-- [ ] `plan/learned/1046-traffic-analysis-restructure.md` - the FACTS layer contract
+- [ ] `docs/architecture/traffic/traffic-analysis-layers.md` - the FACTS layer contract
   → Constraint: `trafficfeature.Snapshot()` is the neutral fact surface; children consume it, never re-measure. The facts layer holds no verdict (severity moved out to detection).
-- [ ] `plan/learned/1048-anomaly-1-detect.md` - the JUDGMENT layer contract
+- [ ] `docs/architecture/anomaly/anomaly-1-detect.md` - the JUDGMENT layer contract
   → Constraint: `anomalyevent` namespace `anomaly-detect`, keyed on a source `netip.Prefix`; scoring is pure in `score.go`; freeze-learn (`scoreEntity` returns pending `baselineUpdate`s, `onTick` folds them only when not-anomalous or still warming). Any new entity type or feature must preserve freeze-learn + warmup.
-- [ ] `plan/learned/1049-anomaly-2-shape.md` - the RESPONSE layer contract
+- [ ] `docs/architecture/anomaly/anomaly-2-shape.md` - the RESPONSE layer contract
   → Constraint: responder owns one mutex, whole-owner firewall re-register under key `anomaly-shape`, responder-level monotonic generation guard, timed auto-revert, blast-radius cap, kill-switch, allowlist. `registerTables`/`applyAll` are mockable package vars for unit testing without a kernel.
 
 ### Reference Implementations (grounding, not doc)

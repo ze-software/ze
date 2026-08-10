@@ -12,12 +12,11 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/1094-followup-web-cli-ux.md` - what the closed umbrella delivered
 4. `plan/deferrals.md` - the rows that point here
 
 ## Task
 
-`spec-followup-web-cli-ux` shipped and was closed (`plan/learned/1094-followup-web-cli-ux.md`,
+`spec-followup-web-cli-ux` shipped and was closed (
 retired in `49d1185ed`). Two of its deferrals were never done and were left pointing at the
 deleted spec file, so `commit_helper.py` refuses commits with "live deferrals without a
 destination spec". This spec is that destination. It exists to hold the residual items, not
@@ -27,7 +26,7 @@ to redo the umbrella.
 
 - **Nushell shell-generator glue (from AC-8/9, 2026-07-09)** - AC-8 scoped completion to
   bash/zsh/fish (all wired and tested). Nushell's single-completer model needs separate
-  wiring, plus `ze config show` config-section completion. `plan/learned/1094` does not
+  wiring, plus `ze config show` config-section completion. its closure record does not
   mention nushell at all, so this was never started. Not urgent: three shells work.
 - **Control-hiding on purpose-built workbench pages (from AC-1 tail, 2026-07-09)** - the
   bgp peers/groups/policy, system, firewall and interfaces Add buttons built via
@@ -61,7 +60,7 @@ work today. Do not let the spec's existence imply urgency it does not have.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1094-followup-web-cli-ux.md` - what the umbrella delivered and why these were cut
+- [ ] The `followup-web-cli-ux` closure record (retired with the learned corpus) - what the umbrella delivered and why these were cut
   → Constraint: (fill during research) confirm the AC-1 enforcement claim against the producing authz code before treating this as cosmetic.
 
 **Key insights:** (fill during research)

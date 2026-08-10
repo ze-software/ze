@@ -9,11 +9,11 @@ and asserts the host `nft list tables` is byte-identical before and after.
 
 Why a curated subset and not `firewall --all`: 009-set-element-timeout crashes
 the Alpine QEMU kernel. That is a pre-existing environment issue unrelated to
-the netns launch mode and is triaged separately -- see
-plan/learned/1112-netlink-ci-harness.md. The copp-* suites ARE included: they
-configure only `control-plane-protection` (no firewall {} block), which used to
-fail "firewall backend not loaded" until ApplyAll learned to load the OS-default
-backend on demand -- this run is that fix's Linux regression guard. 004-cli-show
+the netns launch mode and is triaged separately. The copp-* suites ARE included:
+they configure only `control-plane-protection` (no firewall {} block), which
+used to fail "firewall backend not loaded" until ApplyAll learned to load the
+OS-default backend on demand -- this run is that fix's Linux regression guard.
+004-cli-show
 is ALSO included: it drives `ze cli` over the real SSH CLI path (a config-declared
 SSH user + `ze init`-provisioned client credentials), which needs the daemon
 built with ze_ssh (see the make target; ze init is already in ze_core).

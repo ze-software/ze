@@ -37,7 +37,7 @@ one. Seven are pre-existing and were not created by the session that found this:
 - `plan/spec-fixit-positional-arg-matching.md`
 - `plan/spec-fixit-zefs-diff-structural-ops.md`
 - `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md`
-- `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record is `plan/learned/1307-rfc-evidence-tier-vacuity.md`)
+- `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record was retired with the learned corpus)
 - `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`
 
 Consequence: a spec reported `unknown` lands in the `other` bucket

@@ -557,8 +557,8 @@ shape for core-hosted listeners like dnsserver.
   starts the web server from `--web`, `ze.web.listen`, and `ze.web.enabled`, none of
   which consult the config block. Parsing `certificate` behind the block's `enabled`
   leaf would have served a self-signed certificate to an operator who named their own.
-  This is the third instance of
-  `plan/learned/1327-enabled-gate-discards-service-settings.md`; the extractor is split
+  This is the third instance of the
+  enabled-gate-discards-service-settings class; the extractor is split
   the same way MCP and looking-glass are.
 
 ### Documentation Updates

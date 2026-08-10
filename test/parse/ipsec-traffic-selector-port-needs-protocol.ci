@@ -4,7 +4,7 @@
 # be zero" (and the End Port MUST be 65535). A specific port under protocol 0
 # could not be encoded conformantly, so the config is refused rather than being
 # widened to all ports behind the operator's back.
-# Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, WP-7.
+# Design: docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md.
 stdin=config:terminator=EOF_CONF
 vpn {
 	ipsec {

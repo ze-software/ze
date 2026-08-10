@@ -16,7 +16,7 @@
 # scripts/evidence/netns_qemu.py host-safe subset and runs only on a
 # full-kernel host via `make ze-netns-test`. The parse -> apply -> readback
 # chain also has direct Go coverage in
-# internal/plugins/firewall/nft/*_linux_test.go. See plan/learned/1112.
+# internal/plugins/firewall/nft/*_linux_test.go.
 
 option=needs-linux:caps=net-admin
 

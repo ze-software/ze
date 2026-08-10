@@ -11,7 +11,7 @@
 > `trafficusage` plugin: the XDP program is assembled in pure Go as
 > `asm.Instructions` and loaded in-memory via `ebpf.NewCollection`. No C source,
 > no `bpf2go`, no committed `.o` blob, no clang in the build, no bpffs pinning.
-> See `plan/learned/977-traffic-usage.md` for the precedent.
+> See `docs/architecture/traffic/traffic-usage.md` for the precedent.
 
 ## Post-Compaction Recovery
 

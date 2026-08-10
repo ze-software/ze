@@ -442,7 +442,7 @@ D does not have.
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
-| A wait/guard whose two ends disagree about loudness (`api_sync.go` Warn vs `peer.go` Debug) let a 2.5s stall live indefinitely. | 2nd instance on this chain in one day (see `plan/learned/1157-fail-open-auth-empty-profiles.md` for the class). | Possible addition to `ai/rules/evidence.md`: when a guard has a timeout arm and an error arm, both must speak at the same level. | Propose after Q2 is answered. |
+| A wait/guard whose two ends disagree about loudness (`api_sync.go` Warn vs `peer.go` Debug) let a 2.5s stall live indefinitely. | 2nd instance on this chain in one day (the fail-open auth empty-profiles class). | Possible addition to `ai/rules/evidence.md`: when a guard has a timeout arm and an error arm, both must speak at the same level. | Propose after Q2 is answered. |
 
 ## Design Insights
 - The signal transport is already generic and public (`ze-plugin:session-peer-ready`, `plugins/cmd/peer/session.go`). The gap is not a missing mechanism, it is a missing DECLARATION and a missing convention. That makes Option B far cheaper than it looks and Option D a protocol change rather than a plumbing change.

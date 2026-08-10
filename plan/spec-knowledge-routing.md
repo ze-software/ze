@@ -19,8 +19,7 @@ removed. Steady state is near zero, not 889.
 
 ### Why the previous pass was not enough
 
-`plan/learned/1316-knowledge-0-umbrella.md` (closed, see
-`plan/learned/1316-knowledge-0-umbrella.md`) retired summaries 1-400 on an AGE
+The closed knowledge-0 umbrella retired summaries 1-400 on an AGE
 band, because decay correlated with age: band 1-200 was 78% dead paths. That
 worked and 889 remain. But age was a PROXY. The real question for every summary
 is whether its content belongs somewhere else, and for most of them it does.
@@ -73,7 +72,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1316-knowledge-0-umbrella.md` - the previous pass and its measurements
+- [ ] The closed knowledge-0 umbrella (record retired with the learned corpus) - the previous pass and its measurements
   → Constraint: dead-path rate is now about 5% and `make ze-learned-staleness` holds it with a zero-slack ceiling. Routing must not raise it.
   → Decision: age-band retirement is DONE and is not repeated. This spec routes by content.
 - [ ] `ai/rules/writing.md` - governs anything written into `docs/`

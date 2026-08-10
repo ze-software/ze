@@ -1,5 +1,4 @@
 # Functional test: the out-of-SA error notification, over a real UDP socket.
-# Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md (WP-3).
 #
 # One unprivileged ze instance runs an IKEv2 responder on 127.0.0.1. A Python probe
 # speaks to its real IKE socket and proves three things RFC 7296 Section 2.21.4

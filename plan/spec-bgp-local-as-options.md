@@ -195,7 +195,7 @@ and the Section 4.2 four are that spec's.
 |----------|--------|
 | What breaks if this is wrong? | The AS_PATH Ze advertises to an eBGP peer is wrong: too few ASNs breaks loop detection at the far end and can attract traffic that should have been rejected, too many shifts path selection against us. During an AS migration this is the exact attribute the migration depends on. |
 | How is it reverted? | Single commit revert. The change is confined to the guard and the encoder choice; no persistent state carries it. Once a peer has accepted and re-advertised a wrong AS_PATH the effect propagates beyond us. |
-| Who else touches this path? | `plan/spec-bgp-as-migration.md` owns the rest of RFC 7705 and the enrolment; the AS_PATH encoders moved under a resolver and that work has LANDED (`plan/learned/1319-wire-edit-3-aspath-fold.md`) and must preserve whatever this spec decides. |
+| Who else touches this path? | `plan/spec-bgp-as-migration.md` owns the rest of RFC 7705 and the enrolment; the AS_PATH encoders moved under a resolver and that work has LANDED with the wire-edit-3 AS_PATH fold and must preserve whatever this spec decides. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

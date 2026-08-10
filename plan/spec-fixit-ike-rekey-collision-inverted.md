@@ -11,7 +11,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Found on 2026-07-30 during phase 2b of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. An agent
+Found on 2026-07-30 during phase 2b of the rfcgate-1b RFC 7296 pilot spec. An agent
 reported that the repository convention looked inverted against the RFC. The supervising
 session then read the RFC text and all four layers below and confirmed it.
 
@@ -115,7 +115,7 @@ peer's request. The loser's exchange is dropped and its request window is freed.
 
 ### Integration Points
 
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` owns rows `RFC7296-2.8-1` and `RFC7296-2.8.2-1`.
+The rfcgate-1b RFC 7296 pilot spec owns rows `RFC7296-2.8-1` and `RFC7296-2.8.2-1`.
 Both are already enrolled and tagged, so this spec CHANGES an existing proof rather than
 adding one.
 

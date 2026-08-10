@@ -18,8 +18,8 @@ not support. Each row is gated and proven, so every gate is green over text that
 misquotes its source.**
 
 Found on 2026-08-02 by the RFC 7296 extraction sign-off walk and by the independent
-review of `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record is `plan/learned/1307-rfc-evidence-tier-vacuity.md`), both while closing
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Neither was looking for this. Both found it
+review of `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record was retired with the learned corpus), both while closing
+the rfcgate-1b RFC 7296 pilot spec. Neither was looking for this. Both found it
 by reading the RFC beside the row.
 
 **No gate can see any of these.** `make ze-rfc-check` verifies that a row parses,
@@ -295,7 +295,7 @@ summaries stay enrolled and no requirement id is retired.
 
 ## Provenance
 
-- `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, the RFC 7296 extraction sign-off walk
+- the rfcgate-1b RFC 7296 pilot spec, the RFC 7296 extraction sign-off walk
   (2026-08-02): rows one, three and four.
 - The independent review of `spec-rfcgate-2-deferred-rs-replay-evidence`
   (2026-08-02): rows two and five.

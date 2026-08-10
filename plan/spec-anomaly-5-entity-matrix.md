@@ -13,7 +13,7 @@
 1. This spec file (you are reading it now)
 2. `.claude/rules/planning.md` and `ai/rules/planning.md` - workflow rules
 3. `plan/spec-anomaly-0-umbrella.md` - the umbrella; this is child 5 (row "entity-matrix"), R-1/R-7 memory risks, AC-3
-4. `plan/learned/1046-traffic-analysis-restructure.md` (facts contract), `plan/learned/1048-anomaly-1-detect.md` (judgment contract)
+4. `docs/architecture/traffic/traffic-analysis-layers.md` (facts contract), `docs/architecture/anomaly/anomaly-1-detect.md` (judgment contract)
 5. Source: `internal/component/trafficfeature/feature.go`, `internal/component/trafficfeature/service.go`, `internal/plugins/anomaly/detect/detector.go`, `internal/plugins/anomaly/detect/score.go`, `internal/core/anomalyevent/event.go`
 
 ## Task
@@ -42,7 +42,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
   → Constraint: umbrella verdict is "mostly a FACTS-layer change; dest carries only `inBytes` today, port is a per-source histogram; the detector re-key is the smaller half." Budget the bulk in `trafficfeature/feature.go`, not `detect`.
   → Constraint: R-1/R-7 -- the `10000` cap is PER MAP; child 5 must decide per-dimension vs shared cap and size the ceiling; early signal is `ze_anomaly_tracked_entities`.
   → Constraint: prefix cohort transfers to DEST; PORT has NO natural cohort (cohort-free scoring). Excludes ASN.
-- [ ] `plan/learned/1048-anomaly-1-detect.md` (via umbrella lines 52-53)
+- [ ] `docs/architecture/anomaly/anomaly-1-detect.md` (via umbrella lines 52-53)
   → Constraint: scoring stays pure in `score.go`; freeze-learn (`scoreEntity` returns pending `baselineUpdate`s, `onTick` folds only when not-anomalous or still warming); any new entity type MUST preserve freeze-learn + warmup.
 - [ ] `ai/rules/performance.md` + `ai/rules/performance.md`
   → Constraint: new keyed maps run on the 1s tick (hot-ish). Store typed values (`netip.Addr`, `uint16`), not strings; compare typed. No `fmt`/`.String()` string-building on the tick path; use `textbuf` for any display formatting (cold `show` path only).

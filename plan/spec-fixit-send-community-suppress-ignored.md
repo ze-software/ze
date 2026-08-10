@@ -289,7 +289,7 @@ waits for the destinations first. The announce was also
 dropped with `BUG: ForwardUpdatesDirect: msgID missing from cache`
 (`reactor_api_forward_batch.go`), which the scenario hid behind a re-announce.
 That was a SEPARATE defect and is now fixed at its source in
-`plugin/coordinator.go` (`plan/learned/1335-cache-consumer-declared-before-reactor.md`).
+`plugin/coordinator.go` (the cache-consumer-declared-before-reactor record).
 Scenario 54 announces each prefix once again.
 
 ## Files to Modify

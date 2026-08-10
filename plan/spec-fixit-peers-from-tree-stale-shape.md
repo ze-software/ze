@@ -56,7 +56,7 @@ its tests are migrated with it, or the function is deleted and
 `loadPeersFullOrTree`'s fallback branch is removed -- decide which after establishing
 whether the stdin path needs it at all.
 
-**Provenance.** Found 2026-07-27 while correcting `plan/learned/1277`'s false claim
+**Provenance.** Found 2026-07-27 while correcting a closure record's false claim
 that the fallback is unreachable in production. It is reachable; it just fails early.
 
 ## Required Reading

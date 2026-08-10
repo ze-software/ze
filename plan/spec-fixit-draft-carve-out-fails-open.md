@@ -48,7 +48,7 @@ The goal: the carve-out passes a draft and nothing else, and a fixture fails if
 it is ever widened again.
 
 **How this was found.** An independent review run on 2026-08-08 to satisfy the
-review gate for `plan/learned/1365-guard-must-know-what-is-not-yet-its-subject.md`,
+review gate for the guard-must-know-what-is-not-yet-its-subject record,
 which documents the carve-out. The verdict was not clean, so that summary cannot
 land until this spec does. It is the one file of the 2026-08-08 commit sweep
 held back for a reason other than its own content.
@@ -292,7 +292,7 @@ All nine live in `run_draft_incubator` (`scripts/dev/hook-fixture-check.py`).
 | The new fixtures | `python3 scripts/dev/hook-fixture-check.py` names them and reports all green (section `draft-incubator`, 15 fixtures) |
 | The three defect fixtures discriminate | re-run the section against the `9f6cada32` version of `pretool-bash.py` and observe 3 RED of 15 |
 | The six existing fixtures still pass | the same run reports `run_draft_incubator` fully green |
-| `plan/learned/1365-*.md` can land | `/ze-review` re-run returns clean and `review_gate.py record` succeeds |
+| That record can land | `/ze-review` re-run returns clean and `review_gate.py record` succeeds |
 
 ## Checklist
 

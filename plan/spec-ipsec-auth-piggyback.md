@@ -40,7 +40,7 @@ it does not repeat the full handshake.
 ### Provenance (do not delete)
 
 Thomas ruled on 2026-08-01 that this work lands in a follow-up spec, and not in
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, which is near closure. The pilot made Ze SEND
+the rfcgate-1b RFC 7296 pilot spec, which is near closure. The pilot made Ze SEND
 the error notification where it once sent silence. That half is complete and proven.
 
 The pilot left a comment at the exact refusal site that names this follow-up
@@ -72,10 +72,11 @@ The `RFC7296-2.21.2-2` row carries the second half of this text. The first half,
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` - the pilot that sent the notification
+- [ ] `internal/component/ike/engine/notify_error.go` - the error-notification sender the rfcgate-1b pilot added
   → Decision: the pilot sends the error notification and then sets `StateDead`. This
     spec changes only the second half.
-  → Constraint: the pilot is near closure. Never edit it from this spec.
+  → Constraint: the pilot spec is closed, so its text is in git history only. Read the
+    sender in the code rather than looking for the spec.
 - [ ] `ai/rules/rfc-compliance.md` - what a MAY costs
   → Constraint: making Ze more conformant needs no permission. Choosing anything
     narrower than full compliance needs Thomas.
@@ -274,7 +275,7 @@ the design phase closes.
 |----------|--------|
 | What breaks if this is wrong? | An IKE SA survives when Ze must delete it, or an authenticated peer accumulates SAs that carry no traffic. A wrong initiator guard removes the Child SA install from every tunnel, which is total data-path loss |
 | How is it reverted? | A single commit revert, while the behavior stays off by default. Once a peer depends on the surviving SA, a revert deletes that SA on the next Child SA refusal |
-| Who else touches this path? | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the dataplane the attachment path installs into) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the dataplane the attachment path installs into) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

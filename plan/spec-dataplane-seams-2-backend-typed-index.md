@@ -18,7 +18,7 @@ netlink backend is active that int is a Linux kernel interface index. When the
 VPP backend is active the same field carries a VPP `sw_if_index`. The two are
 not interchangeable, and programming one where the other is expected is a bug.
 
-This is by design. `plan/learned/1185-fixit-static-interface-nexthops.md` records
+This is by design. The static-interface-nexthops ruling records
 the ruling: one resolver serves both dataplanes, the VPP iface backend publishes
 its `sw_if_index` through `iface.InterfaceInfo.Index` into `Binding.Ifindex`, and
 no second resolution path may be introduced. `iface.ActiveBackendName()` was
@@ -80,12 +80,11 @@ evidence rather than assuming it.
 - [ ] `ai/rules/evidence.md` - guards fail closed; a zero value must never be a valid-looking answer
 
 ### Learned Summaries
-- [ ] `plan/learned/1185-fixit-static-interface-nexthops.md` - the ruling this spec strengthens
+- [ ] The static-interface-nexthops ruling (record retired with the learned corpus) - the ruling this spec strengthens
   → Decision: one resolver, two dataplanes, on purpose. No second resolution path.
   → Decision: a runtime accessor was chosen over a config-verify pairing check because `LoadBackend` swaps the backend live. A config-time check cannot replace it.
   → Constraint: a zero or invalid resolved index must be rejected, never emitted. Index 0 is VPP `local0`.
-- [ ] `plan/learned/950-iface-resolve-2-resolver.md` - `Binding` is a pure value type over the backend; no second resolver
-- [ ] `plan/learned/951-iface-resolve-mac-match.md`, `plan/learned/953-iface-resolve-dispatch-guard.md` - the rest of the resolver work
+- [ ] `docs/architecture/iface/logical-name-resolution.md` - `Binding` is a pure value type over the backend; no second resolver
 
 ### Related Specs
 - [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-2

@@ -12,8 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/1110-ddos-direction-allowlist.md` - the source spec's learned summary
-4. `internal/plugins/ddos/local/match.go` - `buildDropTerm`
+3. `internal/plugins/ddos/local/match.go` - `buildDropTerm`
 
 ## Task
 
@@ -45,7 +44,7 @@ detector gains one, or the responder gains a policy view it is not architectural
 have. That choice, not the term construction, is the real work.
 
 -> Constraint: this is a **narrowing** change. It must not become a second enforcement point
-for the traffic policy. `learned/1110` records the parent's central decision: "Detector is the
+for the traffic policy. The parent spec's central decision was recorded as: "Detector is the
 single enforcement point; the event carries the decision." A responder that reads policy rules
 directly overturns that decision and must not be introduced here.
 
@@ -81,8 +80,8 @@ complete bypass of the mitigation, by spoofing into it. Nothing in
 for spoof or urpf across the tree returns one comment and no enforcement.
 
 That is the real cost of the feature, and it is a security trade rather than an
-implementation detail. It does not appear in this spec, in the parent, or in
-`plan/learned/1110-ddos-direction-allowlist.md`.
+implementation detail. It does not appear in this spec, in the parent, or in the source
+spec's learned summary.
 
 **Two further facts that bear on the design.**
 
@@ -91,8 +90,8 @@ implementation detail. It does not appear in this spec, in the parent, or in
 not exempt ones, and bare addresses rather than prefixes. So it cannot be reused
 as-is: an Accept term must carry the RULE's prefix, which only the detector knows.
 
-The architectural constraint the spec names is real and holds. `learned/1110`
-records "Detector is the single enforcement point; the event carries the
+The architectural constraint the spec names is real and holds. The parent recorded
+"Detector is the single enforcement point; the event carries the
 decision", so the exempt prefixes must travel ON the event and the responder must
 never read policy rules. That means a new field, which is a detector-to-responder
 contract change.
@@ -109,11 +108,11 @@ place it is worth the most to an attacker.
 The source spec was closed in `0814dc93f`.
 
 **A correction this spec must carry.** The deferral row asserted this limitation was
-"recorded in `plan/learned/1110-ddos-direction-allowlist.md` Known Limitations". That is
-FALSE: 1110 has no Known Limitations section at all (headings are Context, Decisions,
-Consequences, Gotchas, Files), and no mention of `buildDropTerm` or per-source
-narrowing. The knowledge existed ONLY in the deferral row. Closing this spec must add
-the record to 1110 or to this spec's own learned summary.
+"recorded in the source spec's learned summary, Known Limitations". That is
+FALSE: that summary had no Known Limitations section at all (its headings were Context,
+Decisions, Consequences, Gotchas, Files), and no mention of `buildDropTerm` or per-source
+narrowing. The knowledge existed ONLY in the deferral row, and the summary has since been
+retired with the learned corpus. This spec is now its only home.
 
 **Open design question.** Whether per-source narrowing belongs in the drop term at all,
 or whether an exempted source should instead be an accept term ordered ahead of the drop.
@@ -126,7 +125,7 @@ The firewall model's term ordering decides this; do not assume the match-list ap
   → Constraint: an exemption's operator-visible meaning must not change silently
 - [ ] `ai/rules/evidence.md` - `SuppressMitigation` was named so the zero value means mitigate
   → Constraint: a narrowing bug must fail toward mitigating, never toward letting an attack through
-- [ ] `plan/learned/1110-ddos-direction-allowlist.md` - the direction/allowlist design this extends
+- [ ] The direction/allowlist design record this extends (retired with the learned corpus)
   → Decision: policy is evaluated once at detection and the outcome is encoded on the event (`SuppressMitigation`), so the responder does not re-evaluate policy
 
 ### RFC Summaries (MUST for protocol work)
@@ -146,9 +145,9 @@ The firewall model's term ordering decides this; do not assume the match-list ap
 
 **Behavior to preserve:**
 - The v1 contract: an exempted source suppresses the whole incident. Operators depend on this today; changing it silently would alter live mitigation behavior.
-- `SuppressMitigation`'s fail-safe polarity: the bool zero value means mitigate (`plan/learned/1110`).
+- `SuppressMitigation`'s fail-safe polarity: the bool zero value means mitigate.
 - Existing drop-term construction for every non-exempt vector must produce identical firewall terms.
-- The detector stays the single policy enforcement point. Responders obey the event and never re-read policy (`learned/1110`; plugins receive only their own config subtree).
+- The detector stays the single policy enforcement point. Responders obey the event and never re-read policy (plugins receive only their own config subtree).
 - `buildDropTerm`'s exact-match TCP-flag mask contract, documented at `match.go`: `Mask == Flags` means "examine exactly these bits, require them set" (AC-9 of the parent).
 - The `ze_ddos-local` table name and its ownership prefix (`local/responder.go`): renaming it strands drop rules in the kernel.
 
@@ -249,7 +248,7 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 | `ddos-source-carve` | `test/plugin/ddos-source-carve.ci` | flood with one exempted source: attack dropped, exempt source still passes | |
 
 Note: ddos flood `.ci` tests must run serially and need a UDP sink bound on the victim, and
-the nft backend deadlock recorded in `learned/1110` Gotchas applies. Read
+the nft backend deadlock the parent recorded as a gotcha applies. Read
 `plan/spec-fixit-ddos-test-infra.md` before authoring a flood `.ci`.
 
 ### Future (if deferring any tests)
@@ -260,7 +259,6 @@ the nft backend deadlock recorded in `learned/1110` Gotchas applies. Read
 - `internal/plugins/ddos/local/responder.go` - pass the exempt set through
 - `internal/core/ddosevent/event.go` - carry the exempt source set on the event
 - `internal/plugins/ddos/local/yang/` - policy surface for per-source exemption, if design approves
-- `plan/learned/1110-ddos-direction-allowlist.md` - add the Known Limitations record the deferral row wrongly claimed was already there
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -337,7 +335,7 @@ the nft backend deadlock recorded in `learned/1110` Gotchas applies. Read
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| The limitation was recorded in `plan/learned/1110` Known Limitations (per the deferral row) | 1110 has no Known Limitations section and never mentioned it | Grep during the 2026-07-16 deferral sweep | The knowledge lived only in a deferral row; closing this spec must fix that |
+| The limitation was recorded in the source spec's learned summary, Known Limitations (per the deferral row) | That summary had no Known Limitations section and never mentioned it | Grep during the 2026-07-16 deferral sweep | The knowledge lived only in a deferral row; closing this spec must fix that |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |

@@ -45,7 +45,7 @@ ARTIFACT_DIR = Path("tmp/review")
 # no longer converging on the product. On 2026-08-09 a test-only change took seven
 # passes: the code was clean after pass 1 and every later finding was a false
 # statement in the spec's own closure prose, so each round's prose fix gave the
-# next round fresh prose to audit (plan/learned/1368-vacuous-eor-family-tests.md).
+# next round fresh prose to audit.
 # The cap is not a ban -- a genuinely defective implementation can need more. It
 # costs one sentence naming what the extra round found in the PRODUCT, which is
 # the sentence nobody can write when the loop is auditing its own bookkeeping.

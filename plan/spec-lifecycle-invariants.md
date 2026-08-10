@@ -23,11 +23,12 @@ was verified by reading the producing function.
 
 ### Root cause 1: the subscriber event namespace has one consumer
 
-`plan/learned/760-subscriber-session-model.md` built a transport-generic
+The unified subscriber session model
+(`docs/architecture/l2tp/subscriber-session-model.md`) built a transport-generic
 `subscriber` event namespace so PPPoE and L2TP sessions would drive the same
-downstream plugins. It states the problem it existed to solve: *"PPPoE did not
-emit EventBus events. Auth, pool, shaping, accounting, and CoA were wired only to
-L2TP."*
+downstream plugins. It states the problem it existed to solve: PPPoE emitted no
+bus events, and authentication, pools, shaping, accounting and
+change-of-authorization were wired to L2TP alone.
 
 Half of it landed. PPPoE emits `subevents.SessionUp`, `SessionIPAssigned` and
 `SessionDown` (`pppoe/subsystem.go`, `Subsystem.eventConsumer`), and nothing
@@ -107,15 +108,15 @@ those two rows true rather than changing them.
 | I-1 | A build-time guard that fails when an event topic is emitted and never subscribed |
 | I-2 | A vacuity-trap row for concurrency tests that never contend, and a fresh-versus-restore trigger row in the Sibling Call-Site Audit |
 | I-3 | Sub-millisecond `poll-sleep` granularity, a pinned VPP evidence image, and a `checkVPPVersion` that checks what its comment claims |
-| I-4 | PPPoE parity `plan/learned/760` deferred: Disconnect-Request teardown, and RADIUS Framed-Route |
+| I-4 | PPPoE parity the subscriber-session-model work deferred: Disconnect-Request teardown, and RADIUS Framed-Route |
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/760-subscriber-session-model.md` - the spec that created the subscriber namespace and the bridge
+- [ ] `docs/architecture/l2tp/subscriber-session-model.md` - the design record of the work that created the subscriber namespace and the bridge
   → Decision: the bridge re-emits one-directionally, `l2tpevents` to `subevents`, for L2TP only. A consumer migrated to `subevents` therefore keeps working for L2TP and gains PPPoE, so consumers migrate one at a time with no flag day.
   → Constraint: handler registries delegate (`l2tp.Register*` forwards to `subscriber.Register*`); event subscriptions do not. Never assume a working handler implies a working subscription.
-- [ ] `plan/learned/885-cos-dynamic.md` - the CoS session handler this spec migrates
+- [ ] `docs/architecture/traffic/cos-dynamic.md` - the CoS session handler this spec migrates
   → Constraint: `cos/register.go` passes a nil `resolveStatic`, so `onSessionDown` pushes nil maps and wipes the VLAN QoS map rather than restoring the configured profile. Fix while migrating, do not preserve.
 - [ ] `ai/rules/architecture.md` - required before a spec whose data crosses a boundary
   → Constraint: trace the producer of every value, not the consumer; the boundary table must name how each crossing is verified.
@@ -281,7 +282,7 @@ Three independent entry points converge on the same downstream consumers.
 |----------|--------|
 | What breaks if this is wrong? | Subscriber sessions on both transports: addresses leak from the pool, accounting records double or vanish, shaping and CoS stop applying, and RADIUS-imposed session limits stop being enforced. IKE and NetFlow changes are observability-only |
 | How is it reverted? | Phase by phase. The consumer migration is revertible per consumer because the bridge keeps feeding both namespaces. The topic split is one commit. The metadata re-key is not independently revertible once consumers depend on the new key |
-| Who else touches this path? | `plan/spec-finish-l2tp.md` (its L42 renegotiation-test gap is closed by this spec; its L41 row is already stale and should be corrected), `plan/spec-radius-acct-timewheel.md` (same `interimLoop`, so land this first), `plan/learned/885-cos-dynamic.md` |
+| Who else touches this path? | `plan/spec-finish-l2tp.md` (its L42 renegotiation-test gap is closed by this spec; its L41 row is already stale and should be corrected), `plan/spec-radius-acct-timewheel.md` (same `interimLoop`, so land this first), `docs/architecture/traffic/cos-dynamic.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -550,7 +551,7 @@ tests instead.
 
 - The Echo re-entry fix and root cause 2 are one bug seen twice. The guard that closed the Echo case is the guard renegotiation walks through, because renegotiation genuinely leaves the Opened state and Echo does not. A guard keyed on state transition cannot express "once per session"; only a latch on the session can.
 - A test can be a faithful proof of its requirement and still miss the defect the requirement exists to prevent. `TestRFC1661RenegotiateOnConfigureRequestInOpened` proves the transition table, which is what "be prepared to renegotiate" means at the FSM layer and nothing more.
-- Delegating a handler registry and delegating an event subscription look alike from the call site and behave completely differently. That asymmetry is what let `plan/learned/760` read as complete.
+- Delegating a handler registry and delegating an event subscription look alike from the call site and behave completely differently. That asymmetry is what let the subscriber-session-model work read as complete.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

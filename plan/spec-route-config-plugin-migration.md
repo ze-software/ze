@@ -680,6 +680,6 @@ plugin dispatch. `test/encode/{flow,flow-redirect,simple-flow,flow-rate-packets}
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Write learned summary to `plan/learned/918-route-config-plugin-migration.md`
+- [ ] Add the closure row to `plan/journal/<class>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
 - [ ] **Commit B:** `git rm plan/spec-route-config-plugin-migration.md`

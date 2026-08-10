@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **The rule corpus is stored by topic and consumed by situation.**
 
-`plan/learned/1356-learned-corpus-drain-over-archive.md` carries the measurement.
+The learned-corpus drain-over-archive decision carries the measurement.
 Every artifact today, the rendered rule, `TRIGGERS.md`, `CORE.md`, the router, is
 a rearrangement of a DOCUMENT. An agent mid-task needs the two to five
 instructions bearing on what it is about to do. Measured over 1,043 past task
@@ -52,7 +52,7 @@ subagent skip implementation directives". This spec is that later.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1356-learned-corpus-drain-over-archive.md` - the measurement and the rejected alternative
+- [ ] The learned-corpus drain-over-archive decision (record retired with the learned corpus) - the measurement and the rejected alternative
   → Decision: citation count is not a relevance metric; the corpus is the rationale layer for hooks and code, not for rules
   → Constraint: 1,538 of 1,585 instruction points have no machine behind them
 - [ ] `ai/rules/rule-format.md` - the point format this extends

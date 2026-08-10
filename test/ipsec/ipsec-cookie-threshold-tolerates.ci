@@ -1,6 +1,6 @@
 # Functional test: a responder that tolerates one half-open IKE SA does NOT challenge
 # the first initiation, RFC 7296 Section 2.6.
-# Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, rows RFC7296-2.6-3/-4/-5.
+# RFC requirements: RFC7296-2.6-3/-4/-5 (rfc/short/rfc7296.md).
 #
 # This is the negative half of ipsec-cookie-challenge.ci. The same two daemons, the
 # same loopback exchange, one leaf changed: cookie-threshold 1 tolerates one half-open

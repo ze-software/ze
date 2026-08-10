@@ -11,7 +11,7 @@
 #
 # Runs under test/plugin/ so the TLS plugin hub is configured; an
 # L2TP-only SIGHUP scenario still needs a BGP peer in config to trigger
-# hub setup (see plan/learned/620 "Gotchas").
+# hub setup.
 
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 stdin=peer:terminator=EOF_PEER

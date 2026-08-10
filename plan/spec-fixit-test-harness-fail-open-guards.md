@@ -23,8 +23,8 @@ Guard 3 is DONE (2026-08-07). Guards 1 and 2 are DONE (2026-08-09). Guard 4 is
 untouched and needs the ruling in the table above. This spec stays open for it.
 
 Found on 2026-08-02 by the independent review of
-`spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record is `plan/learned/1307-rfc-evidence-tier-vacuity.md`), while closing
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
+`spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record was retired with the learned corpus), while closing
+the rfcgate-1b RFC 7296 pilot spec.
 
 A guard that fails open in the test harness is worse than no guard. It converts a
 run that proved nothing into a green bar, and a green bar is what everyone reads.

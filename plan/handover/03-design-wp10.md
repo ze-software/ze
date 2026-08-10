@@ -4,7 +4,7 @@
 
 Rows: `RFC7296-3.6-1`, `-2`, `-3`, `RFC7296-3.5-2`, `-3`, `-4`, `RFC7296-3.3.4-1`,
 `RFC7296-4-4`, `RFC7296-2.15-3`.
-Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 14.
+Source spec: the rfcgate-1b RFC 7296 pilot spec, phase list item 14.
 
 **Read-only design. No tracked file was modified.** Every `file:line` below was read in the
 working tree on 2026-07-31. Other agents are editing `internal/component/ike/engine/`, so
@@ -530,7 +530,7 @@ an IKE message, and Ze will parse every one into an `x509.CertPool`
 The spec anticipated exactly this and named it a security risk: "Accepting up to four
 certificates means accepting an attacker-supplied chain: the first certificate MUST carry
 the AUTH key (`RFC7296-1.2-2`) and chain validation must not be weakened to accommodate the
-new count" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
+new count" (the rfcgate-1b RFC 7296 pilot spec).
 
 ### Production design
 
@@ -993,7 +993,7 @@ applies to all of them: on a miss, deny.
 established, the fetch deadlocks the handshake it is part of. The timeout bounds it; the
 doctor check below is what tells an operator why it failed.
 
-**Doctor check.** The spec requires one (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`): the
+**Doctor check.** The spec requires one (the rfcgate-1b RFC 7296 pilot spec): the
 hash-and-URL fetch is an outbound network dependency. Register it from the owning package
 per `ai/rules/repo-maintenance.md`, with a `doctor-ike-cert-url-*` code in
 `internal/core/diagnostic/codes.go`. It should verify the configured local publication URL
@@ -1108,7 +1108,7 @@ also a valid hex string. Any implementation that guesses the encoding from the v
 silently reinterpret that operator's secret as eight binary octets, break an established
 deployment, and violate `2.15-1` at the same time. The spec named this risk directly:
 "Hex PSK decoding (`2.15-3`) must not change how an existing ASCII PSK is interpreted"
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
+(the rfcgate-1b RFC 7296 pilot spec).
 
 ### What Ze does today
 
@@ -1246,7 +1246,7 @@ management-facility sentence is the FIRST of the three in §3.3.4, and its row w
 in the checklist, after the two sentences that depend on it. That is unavoidable -- `-2` and
 `-3` were committed first -- and it is worth one line in the row text so a reader is not
 confused. Correct Appendix A in the same commit, per the precedent set for `1.4-2` to
-`1.4-5` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
+`1.4-5` (the rfcgate-1b RFC 7296 pilot spec).
 
 ### The contiguity warning: §3.6 and §4
 

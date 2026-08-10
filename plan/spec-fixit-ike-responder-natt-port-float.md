@@ -18,7 +18,7 @@ Found on 2026-07-31. It is the first time the responder EAP interop scenario was
 **NARROWED 2026-07-31 to defect 2. Defect 1 landed in RFC 7296 pilot WP-8.**
 
 ~~**Defect 1: Ze gates the NAT-T reply form on its OWN NAT verdict, not the peer's.**~~
-Landed in `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, WP-8. The rows are `RFC7296-2.11-2`,
+Landed in the rfcgate-1b RFC 7296 pilot spec, WP-8. The rows are `RFC7296-2.11-2`,
 `RFC7296-2.11-3` and `RFC7296-2.23-8`.
 
 `sendWithNATT` is gone. `sendReply` (`internal/component/ike/engine/eap_auth.go`) now

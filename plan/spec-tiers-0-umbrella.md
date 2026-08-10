@@ -220,7 +220,7 @@ its directory location.
 ## Phase 2 (edge-out) -- COMPLETE (2026-06-20)
 
 Performed directly via `scripts/dev/migrate_module.py` (learned summary
-`plan/learned/947-tiers-2-edge-out.md`). Moved set = the migration baseline's
+the tiers-2 edge-out record). Moved set = the migration baseline's
 tiers-2 rows: **`isis, ldp, rsvpte, flowexport, mrt`** `component/` -> `plugins/`.
 
 -> Decision: the moved set is `mrt`, NOT `mpls` (the early prose/AC-6 said mpls).
@@ -256,7 +256,7 @@ tiers-4 (borderline `ike`), tiers-5 (Path B preconditions).
 ## Phase 3 (platform-in) -- COMPLETE (2026-06-20)
 
 Performed via `scripts/dev/migrate_module.py` (learned summary
-`plan/learned/948-tiers-3-platform-in.md`). Moved set = the migration baseline's
+the tiers-3 platform-in record). Moved set = the migration baseline's
 tiers-3 rows: **`bfd, sysctl, sysrib`** `plugins/` -> `component/`. All three are
 `sdk.NewWithConn` engines that a feature DOES depend on (axis B), so the gate
 places them in `internal/component/`: BGP reactor + static depend on BFD; iface +
@@ -314,7 +314,7 @@ Phase 3, and the tiers-4 `ike` borderline.
 
 ### OSPF: gate regression resolved by nesting the v6 leaves (NOT a tier move)
 
-After Phase 3 the OSPF/OSPFv3 feature landed (`plan/learned/955-975`). The Phase-1
+After Phase 3 the OSPF/OSPFv3 feature landed. The Phase-1
 gate then went RED: `internal/plugins/ospf` (an `sdk.NewWithConn` engine) was flagged
 to move to `internal/component/`, because something under `internal/plugins/` imported
 the `ospf` engine subtree -- specifically `internal/plugins/ospfv3/transport` imported

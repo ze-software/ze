@@ -12,7 +12,7 @@
 **Re-read these after context compaction:** this spec file;
 `.claude/rules/planning.md`; `scripts/evidence/effective-vrrp-keepalived.py`
 (the lab this spec extends, its module docstring is the topology);
-`plan/learned/1124-vrrp-first-hop-redundancy.md`.
+`docs/architecture/vrrp/vrrp-first-hop-redundancy.md`.
 
 ## Task
 
@@ -136,7 +136,7 @@ This is test infrastructure, not a protocol gap.
 | A-1 | keepalived 2.3.1 speaks v2 well enough to pair with ze's v2 opt-in | keepalived defaults to v2, which the lab currently pins away from | QS-5 shrinks to a capture-only proof or a different peer | Design phase: run keepalived without `vrrp_version 3` and capture | unvalidated |
 | A-2 | The existing bridge topology carries IPv6 VRRP multicast with no change | `:348` states the setup covers the ff02::12 case | QS-6 needs topology work | Design phase: capture ff02::12 on the observer | unvalidated |
 | A-3 | The stock Alpine kernel needs no extra modules for the IPv6 path | `ensure_kernel_support` probes macvlan, bridge and veth only | The VM needs a custom kernel, which the target explicitly avoids | Extend the probe and run | unvalidated |
-| A-4 | ze's IPv6 first-advert source quirk does not red QS-6 | `plan/learned/1124-vrrp-first-hop-redundancy.md`: the first IPv6 advert sources from the transient EUI-64 link-local, judged cosmetic and not fixable by action ordering | QS-6 asserts a source address that will not hold; assert on later adverts | Read learned 1122 before writing the assertion | unvalidated |
+| A-4 | ze's IPv6 first-advert source quirk does not red QS-6 | `docs/architecture/vrrp/vrrp-first-hop-redundancy.md`: the first IPv6 advert sources from the transient EUI-64 link-local, judged cosmetic and not fixable by action ordering | QS-6 asserts a source address that will not hold; assert on later adverts | Read learned 1122 before writing the assertion | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -221,7 +221,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 |---------|----------|
 | keepalived rejects the generated config | Read the version it reports (`keepalived_version`, `:1117`); keyword drift, not a ze defect |
 | ze v2 advert differs from the golden bytes | A real codec defect: add the unit regression first, then fix |
-| IPv6 first-advert source assertion fails | A-4: read `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` before re-deriving; assert on later adverts |
+| IPv6 first-advert source assertion fails | A-4: read `docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md` before re-deriving; assert on later adverts |
 | 3 fix attempts fail | STOP. Report all 3. Ask user. |
 
 ## Known Limitations

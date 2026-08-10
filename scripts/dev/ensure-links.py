@@ -5,7 +5,7 @@
     cache/ -> ${XDG_CACHE_HOME:-~/.cache}/ze                              durable cache
 
 The real directories live OUTSIDE the checkout so the working tree holds only symlinks and
-`rm -rf tmp` is always safe. Spec: plan/learned/1173-relocate-scratch-and-cache.md.
+`rm -rf tmp` is always safe.
 
 Contract:
   - Idempotent and safe to call from make prerequisites, hooks, and scripts.
@@ -160,7 +160,6 @@ SENTINEL = """\
 // it whenever tmp/ is a real directory; after the opt-in `make ze-migrate-scratch`, tmp/
 // is a symlink that `go list` skips without any sentinel, so this file is not needed there.
 // Keep this content in sync with SENTINEL in scripts/dev/ensure-links.py.
-// See plan/learned/1173-relocate-scratch-and-cache.md.
 module ze-tmp-scratch
 
 go 1.25

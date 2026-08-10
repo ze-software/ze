@@ -116,7 +116,7 @@ criterion remains unimplemented". They are owed to the session that closes AC-6 
 
 ### Why the learned summary already exists
 
-`plan/learned/1202-fixit-bgp-session-fsm-lifecycle.md` is COMMITTED (`cbf8f4be4`) while
+The learned summary for this spec was COMMITTED (`cbf8f4be4`) while
 this spec is still open. That is the completed-but-not-closed signal
 `scripts/dev/spec-closure-check.py` looks for, and here it is a **false positive**: the
 summary's own first paragraph scopes itself to "ONLY the FSM-package slice", names the

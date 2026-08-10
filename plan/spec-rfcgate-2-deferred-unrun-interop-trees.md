@@ -235,7 +235,7 @@ that pass with the dataplane broken.
 |----------|--------|
 | What breaks if this is wrong? | Nothing user-visible. The failure mode is evidential: an RFC requirement could be credited to a test that does not run or cannot fail, which makes `docs/features/rfc-status.md` overstate conformance. |
 | How is it reverted? | Single commit revert. No config migration, no wire change. The `check_evidence_ratchet` would then fire on any requirement that had taken interop evidence, which is the intended alarm. |
-| Who else touches this path? | the rfcgate-1b pilot, now closed (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`), whose IPsec tags this path carries, plus sibling sessions in `internal/component/ike/**` and `internal/component/bgp/**`. This spec touches neither tree. |
+| Who else touches this path? | the rfcgate-1b pilot, now closed, whose IPsec tags this path carries, plus sibling sessions in `internal/component/ike/**` and `internal/component/bgp/**`. This spec touches neither tree. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -381,7 +381,7 @@ bound to this tree yet, so no false evidence is created either way.
 | 6 | Has a user guide page? | Yes | `docs/labs/pppoe-interop.md` - the stale module claim |
 | 7 | Wire format changed? | No | none |
 | 8 | Plugin SDK/protocol changed? | No | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | no requirement changes status here. This spec makes a tier AVAILABLE; binding a requirement to it is `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | no requirement changes status here. This spec makes a tier AVAILABLE; binding a requirement to it is the rfcgate-1b RFC 7296 pilot spec |
 | 10 | Test infrastructure changed? | Yes | `ai/rules/testing.md` carrier table; `docs/functional-tests.md` if it names the refused trees |
 | 11 | Affects daemon comparison? | No | no capability change |
 | 12 | Internal architecture changed? | No | one derivation added inside an existing gate |

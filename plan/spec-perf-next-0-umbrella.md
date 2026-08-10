@@ -17,21 +17,22 @@ is now `blocked` awaiting his answer on Phase B. Children 1 and 3 are complete
 
 Two of this umbrella's own criteria need the same answer. AC-1 asks for a fresh
 `ze-perf-bench PPROF=1` profile and AC-3 for a recorded re-run, but
-`plan/learned/900-perf-next-round-3.md` records that `Dockerfile.ze` is stale
-and that `ze-perf-bench` exercises none of the three paths this round touched.
+`ze-perf-bench` exercises none of the three paths this round touched
+(`docs/architecture/perf-round-3.md`), and `Dockerfile.ze` was recorded stale
+when the round closed.
 R-1 in this spec already pre-authorizes per-child Go benchmarks as the proof, so
 Thomas can either waive AC-1 and AC-3 under R-1 or ask for `Dockerfile.ze` to be
 repaired and the harness run.
 
 Awaiting closure (recorded 2026-07-22 during plan review): all three children
-shipped and the roll-up learned summary ALREADY EXISTS as
-`plan/learned/900-perf-next-round-3.md` (child 1 `ebgpWireSlot` lock-free slots
+shipped and the round's design record ALREADY EXISTS as
+`docs/architecture/perf-round-3.md` (child 1 `ebgpWireSlot` lock-free slots
 in `received_update.go,89`; child 2 `filterAttrs`/`filterAttrID` in
 `filter_chain.go,79`, Phase B scratch-pool deliberately deferred there;
 child 3 `Community.AppendText` in
 `internal/core/bgp/attribute/text_append.go`). Remaining work is the
 two-commit closure of the umbrella and its three children. Note:
-`plan/learned/875-filter-delta-parse-once.md` is a PRIOR pol-4 follow-up, not
+the pol-4 `filter-delta-parse-once` follow-up is PRIOR work, not
 child 2's completion signal.
 
 ## Post-Compaction Recovery
@@ -39,8 +40,7 @@ child 2's completion signal.
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/771-performance-optimization-campaign.md`, `plan/learned/859-perf-hot-alloc-reduction.md`
-4. Child specs: `plan/spec-perf-next-1-ebgp-wire-lockfree.md`, `plan/spec-perf-next-2-filter-delta-alloc.md`, `plan/spec-perf-next-3-rib-show-alloc.md`
+3. Child specs: `plan/spec-perf-next-1-ebgp-wire-lockfree.md`, `plan/spec-perf-next-2-filter-delta-alloc.md`, `plan/spec-perf-next-3-rib-show-alloc.md`
 
 ## Task
 
@@ -61,7 +61,7 @@ and several candidates that turned out NOT to be worth doing. This umbrella:
 | bird | 65ms +/- 0ms | 1,538,461 r/s | 28ms |
 
 History: 91ms (pre-771) -> 71ms (post-771) -> 62ms (post-859). Remaining gap to
-BIRD's best recorded run (44ms) is attributed in `plan/learned/771-performance-optimization-campaign.md`
+BIRD's best recorded run (44ms) was attributed by the first campaign
 to architecture (Go GC vs slab allocation, buffered vs in-place parsing,
 socket-layer write coalescing), not to remaining low-hanging fruit.
 
@@ -100,7 +100,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 | Candidate | Verdict | Evidence |
 |-----------|---------|----------|
 | Engine event dispatch slice copy (`internal/component/plugin/server/engine_event.go`) | NOT hot. No spec. | BGP events never reach engine subscribers; only config-transaction events do (~10-30 handler registrations per config reload, dispatch rate ~0.1/s operational). Verified via `deliverEvent` flow in `internal/component/plugin/server/dispatch.go`. |
-| UPDATE builder pooling (the old spec-604 deferral) | ALREADY DONE. | Commit 233ff1726 (2026-04-16), `plan/learned/604-update-pool.md` + `plan/learned/605-mvpn-pool-and-bounded-scratch.md`. All 14 make() sites eliminated; `GetUpdateBuilder`/`PutUpdateBuilder` pool exists; BuildUnicast measured at ~10 allocs/op. Reactor forward path never used builders. |
+| UPDATE builder pooling (the old spec-604 deferral) | ALREADY DONE. | Commit 233ff1726 (2026-04-16). All 14 make() sites eliminated; `GetUpdateBuilder`/`PutUpdateBuilder` pool exists; BuildUnicast measured at ~10 allocs/op. Reactor forward path never used builders. |
 | `forward_build.go` pool-fallback make() (lines 278, 352, 376-378) | Deliberate design, keep. | Tiered escalation per-peer pool -> modBufPool -> make only for oversized payload on pool miss; commented `// pool-fallback` at each site. |
 | RFC 7606 validation cache (`docs/research/optimisation-findings.md`) | Stale, unmeasured. | Document dated 2025-12-22 pre-dates both campaigns; explicitly requires measurement that was never done. Act only if a fresh profile shows validation frames at the top. |
 | `prefixToWire` allocations (`internal/component/bgp/plugins/rib/rib_nlri.go,117`) | Cold path. No change. | Callers are CLI `inject`/`withdraw` one-shots (`rib_commands.go,383`) and tests; not per-route. |
@@ -112,9 +112,8 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 ### Architecture Docs
 - [ ] `ai/rules/performance.md` - allocation strategy and pool inventory
   → Constraint: copies happen only at sanctioned boundaries (pool entry, ContextID mismatch, filter modify, JSON for external plugins)
-- [ ] `plan/learned/771-performance-optimization-campaign.md` - first campaign, methodology
+- [ ] `docs/architecture/perf-round-3.md` - the third campaign, and the two before it in outline
   → Decision: profile-first; reject proposals that profiling shows are stack-allocated already
-- [ ] `plan/learned/859-perf-hot-alloc-reduction.md` - second campaign, string-key elimination
   → Decision: value-type struct keys over interned strings; one commit for bisection safety
 - [ ] `mk/perf.mk` - ze-perf-bench / PPROF / report targets
   → Constraint: results land in `test/perf/results/`, profiles in `tmp/perf-run/pprof`
@@ -305,7 +304,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| (research phase) update-builder pooling was open work | Done in commit 233ff1726 | Read plan/learned/604+605 during research | Child spec dropped before writing |
+| (research phase) update-builder pooling was open work | Done in commit 233ff1726 | Read the update-pool records during research | Child spec dropped before writing |
 | (research phase) engine event dispatch was hot | Config-transaction-only, ~0.1/s | Traced deliverEvent callers | Candidate rejected |
 
 ### Failed Approaches

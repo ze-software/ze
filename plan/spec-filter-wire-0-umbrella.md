@@ -16,7 +16,6 @@
 4. `internal/component/bgp/reactor/filter_chain.go`, `filter_delta.go`, `filter_ordered.go`, `filter_format.go`, `forward_build.go`
 5. `internal/component/bgp/filterapi/filterapi.go` (ModAccumulator), `internal/component/bgp/reactor/forward_context.go` (encoding-context stability)
 6. `pkg/plugin/rpc/types.go` (FilterUpdateInput/Output), `pkg/plugin/sdk/sdk_callbacks.go` (FilterUpdateHandler)
-7. Learned: `plan/learned/1127-rib-arch-2-filter-raw-bytes.md` (the binary Raw carrier this builds on)
 
 ## Task
 

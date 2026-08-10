@@ -23,8 +23,7 @@ deterministic either, so even one machine gives a spread rather than a figure.
 `_record_duration` (`scripts/dev/verify-lock.sh`) appends the real elapsed
 seconds for the machine you are on, and `tmp/*` is gitignored, so that file is
 the only per-machine record there is. Read it as an expectation, never as a
-threshold: a run past it is a slow run, not a failed one
-(`plan/learned/1359-rules-corpus-paraphrase-drift.md`).  <!-- doc-links: ignore -->
+threshold: a run past it is a slow run, not a failed one.
 
 **A slow run can outlast the lock's own break threshold: raise `ZE_VERIFY_MAX_LOCK_AGE` rather than lose the pass.**
 When a second invocation is waiting, `verify-lock.sh` breaks a lock whose holder

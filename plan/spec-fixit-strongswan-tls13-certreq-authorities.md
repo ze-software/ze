@@ -11,7 +11,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Deferral holder created on 2026-08-02 while `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` was
+Deferral holder created on 2026-08-02 while the rfcgate-1b RFC 7296 pilot spec was
 closing. The finding is not the pilot's work and had no home.
 
 ## Task

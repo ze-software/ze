@@ -12,18 +12,16 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `plan/learned/1103-fixit-appliance-evidence-config.md` - what the closed spec fixed
-4. `plan/deferrals.md` - the rows that point here
+3. `plan/deferrals.md` - the rows that point here
 
 ## Task
 
 `spec-fixit-appliance-evidence-config` fixed the two bugs that blocked the appliance
-evidence run and was closed (`plan/learned/1103-fixit-appliance-evidence-config.md`, closed
-in `f42c2ccb2`). The end-to-end QEMU run it unblocked was never executed, and two deferral
+evidence run and was closed in `f42c2ccb2`. The end-to-end QEMU run it unblocked was never executed, and two deferral
 rows were left pointing at the deleted spec file, so `commit_helper.py` refuses commits with
 "live deferrals without a destination spec". This spec is that destination.
 
-`plan/learned/1103` states the residue plainly: the full L2TP evidence test
+Its closure record stated the residue plainly: the full L2TP evidence test
 (`ze-deployment-gokrazy-l2tp-ppp-test`) needs root, and "AC-3's end-to-end qemu run remains
 to be executed on a root host".
 
@@ -44,8 +42,7 @@ to be executed on a root host".
   proof fails closed with exit 1 and names the fix (`make ze-kernel KERNEL_ARCH=amd64`).
   Under `sudo` it probes ROOT's cache, so pass `XDG_CACHE_HOME` at the cache holding the
   kernel.
-  -> Constraint (added 2026-08-03 at the source spec's closure, knowledge
-  `plan/learned/1329-gokrazy-init-bump.md`): the boot proof is
+  -> Constraint (added 2026-08-03 at the source spec's closure): the boot proof is
   `make ze-vpp-hugepages-qemu-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
   It is NOT `test/appliance/serial-login.ci`, which boots nothing and which the
   source spec wrongly named (`ai/rules/platform-linux.md` strikes it out of the
@@ -75,7 +72,7 @@ code and forbids skipping for "needs hardware". Read it before proposing any nar
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1103-fixit-appliance-evidence-config.md` - the two bugs fixed, and the stated residue at :69-73
+- [ ] The `fixit-appliance-evidence-config` closure record (retired with the learned corpus) - the two bugs fixed, and the stated residue
   → Constraint: (fill during research) the two blocking bugs (`ze init --force` daemonRunning guard vs host sshd:22; active-config shadowing the build template) are FIXED -- confirm against the producing code before assuming the run is still blocked.
 - [ ] `ai/rules/platform-linux.md` - QEMU integration is mandatory for linux-only code
   → Constraint: (fill during research)
@@ -86,9 +83,9 @@ code and forbids skipping for "needs hardware". Read it before proposing any nar
 
 **Source files read:** (fill during research -- these are the entry points, not yet read)
 - [ ] `mk/test-integration.mk` - defines the `ze-deployment-gokrazy-l2tp-ppp-test` target this spec must execute
-- [ ] `internal/plugins/init/main.go` - holds the `daemonRunning` guard that `plan/learned/1103` fixed (bug 1: false positive against host sshd:22)
+- [ ] `internal/plugins/init/main.go` - holds the `daemonRunning` guard that `spec-fixit-appliance-evidence-config` fixed (bug 1: false positive against host sshd:22)
 
-**Behavior to preserve:** the two fixes from `1103` (bootstrap-from-template, daemonRunning guard).
+**Behavior to preserve:** the two fixes from `spec-fixit-appliance-evidence-config` (bootstrap-from-template, daemonRunning guard).
 
 **Behavior to change:** none expected -- this is an evidence run, not a code change. If the
 run reveals a defect, that defect gets its own spec.
@@ -121,7 +118,7 @@ run reveals a defect, that defect gets its own spec.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The two bugs that blocked this run are fixed, so the only remaining barrier is the host environment (root + `/dev/ppp` + PPPoL2TP) | `plan/learned/1103` documents both fixes; `:73` says only the run "remains to be executed on a root host" | If a third blocker exists, this is an implementation spec, not an evidence run, and needs a real design pass | Execute the run on a qualifying host and read the first failure | unvalidated |
+| A-1 | The two bugs that blocked this run are fixed, so the only remaining barrier is the host environment (root + `/dev/ppp` + PPPoL2TP) | The closed spec's record documents both fixes and says only the run "remains to be executed on a root host" | If a third blocker exists, this is an implementation spec, not an evidence run, and needs a real design pass | Execute the run on a qualifying host and read the first failure | unvalidated |
 | A-2 | Both deferral rows (gokrazy-init-bump AC-6, iface-absent-link-graceful AC-3) are satisfied by ONE run | Both name the same `ze-deployment-gokrazy-l2tp-ppp-test` L2TP-session proof | If they need different assertions, this spec covers one and the other stays homeless | Read both source specs' AC text before running | unvalidated |
 
 ### Risks

@@ -14,10 +14,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 `plan/learned/` still cites 389 file paths that do not exist, across 306
-distinct paths. Down from 1,860 at the start of
-`plan/learned/1316-knowledge-0-umbrella.md` (closed, see
-`plan/learned/1316-knowledge-0-umbrella.md`), which retired band 1-400 and
-repaired 672 paths from git rename history.
+distinct paths. Down from 1,860 at the start of the closed knowledge-0 umbrella,
+which retired band 1-400 and repaired 672 paths from git rename history.
 
 `make ze-learned-staleness` holds the line with a zero-slack shrink-only
 ceiling, so this cannot grow. It is not falling either.
@@ -58,7 +56,7 @@ disappears.** Check its status before starting. Doing both is waste.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/1316-knowledge-0-umbrella.md` - what was already tried
+- [ ] The closed knowledge-0 umbrella (record retired with the learned corpus) - what was already tried
   → Constraint: age-band retirement and git-rename repath are DONE and are not repeated. What remains resisted both.
   → Decision: the shrink-only ceiling asserts EQUALITY with the measured count. Any change here re-records it, never raises it.
 - [ ] `plan/spec-knowledge-routing.md` - the overlapping proposal

@@ -1,5 +1,5 @@
 # Test: as112 refuses to start as an external plugin process
-# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- as112's
+# VALIDATES: ai/rules/plugins.md "Plugin Process Boundary" -- as112's
 # IsInternal() guard (internal/plugins/as112/register.go) refuses to start
 # when as112 runs as a genuine external subprocess (not the synthetic
 # net.Pipe() unit test), since iface.RegisterOwnedAddresses is a
@@ -34,8 +34,8 @@ plugin {
 	}
 	external as112 {
 		# "ze plugin" is an unrelated CLI verb, not a plugin launcher --
-		# ze-test plugin-external (internal/test/cli/cmd_plugin_external.go,
-		# plan/learned/1045-plugin-process-boundary.md) launches a registered
+		# ze-test plugin-external
+		# (internal/test/cli/cmd_plugin_external.go) launches a registered
 		# plugin's own RunEngine via a real TLS connect-back.
 		run "ze-test plugin-external as112"
 	}

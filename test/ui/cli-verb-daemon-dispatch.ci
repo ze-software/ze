@@ -12,8 +12,7 @@
 #            `ze show` commands answered `unknown command`. Nothing caught it:
 #            every `exec=ze show ...` test in this suite landed on a local
 #            handler, an offline fallback, or the bare-verb help page, so none
-#            drove a daemon-dispatched subcommand through the verb form
-#            (plan/learned/1361-cli-verb-resolution.md).
+#            drove a daemon-dispatched subcommand through the verb form.
 #            The first repair then read `show host` as a bare grouping container
 #            -- no ze:command declares it and it has nine children -- and
 #            printed a subcommand list instead of running the fallback.

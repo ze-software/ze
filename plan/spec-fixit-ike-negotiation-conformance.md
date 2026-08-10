@@ -11,7 +11,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Found on 2026-07-30 by phase 2b of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Group D
+Found on 2026-07-30 by phase 2b of the rfcgate-1b RFC 7296 pilot spec. Group D
 refused to tag three rows. A green tag over the IKE_SA_INIT half alone would publish
 "proven" over a wire-visible gap in the very exchange each row cites. The
 supervising session then read every producer named below and confirmed all three. Owner
@@ -132,7 +132,7 @@ accepted offer against our proposals.
 
 ### Integration Points
 
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` phase 2b owns rows `RFC7296-1.3-2`,
+The rfcgate-1b RFC 7296 pilot spec phase 2b owns rows `RFC7296-1.3-2`,
 `RFC7296-2.8.2-1` and `RFC7296-3.3.6-3`. All three stay untagged until this spec closes.
 
 ## Key Design Decisions

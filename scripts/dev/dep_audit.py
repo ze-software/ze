@@ -1136,7 +1136,7 @@ def selftest() -> int:
         # walked from repo root with no exclusion for it, so this same violation
         # committed by ANOTHER session's own in-progress worktree got reported
         # against THIS repo's tier-check gate the first time ze-plugin-boundary-check
-        # was wired into the live `make ze-verify` path, plan/learned/1045).
+        # was wired into the live `make ze-verify` path).
         w(
             root,
             ".claude/worktrees/agent-fake/internal/app/use2.go",

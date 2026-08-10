@@ -23,7 +23,7 @@ Both reload gaps still un-fixed.
 2. `internal/plugins/rsvpte/register.go` - `OnConfigApply`, `runRefreshLoop`, `runCleanupLoop`, `reconcileTunnels`
 3. `internal/plugins/rsvpte/admission.go` - `setInterface`, `Reserve`/`Release`, `interfaceBandwidth`, `sessions`
 4. `internal/plugins/rsvpte/engine.go` - `engine.cfg()`/`setConfig` (atomic config, mpls-4)
-5. `plan/learned/925-mpls-rsvp-te-fast-reroute.md` - the two limitations this spec closes ("Known pre-existing limitations")
+5. `docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md` - the two limitations this spec closes ("Known pre-existing limitations")
 
 ## Task
 
