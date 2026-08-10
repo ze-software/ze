@@ -328,9 +328,37 @@ func kernelCachePathFor(version, arch, profile, target string) (string, error) {
 	return filepath.Dir(kernelCachePath(version, variant)), nil
 }
 
+// installerKernelRequestFile is the build-system record tools/installer-kernel/Makefile
+// writes beside the image it builds. It holds the arch-profile-builder that was
+// asked for, and that Makefile skips the build while the record still matches.
+const installerKernelRequestFile = ".request"
+
+// invalidateInstallerKernelRequest deletes that record. Every path through
+// resolveInstallerKernel replaces build/kernel/Image, and none of them runs the
+// Makefile. A surviving record would therefore describe an image the Makefile
+// did not produce. `make -C tools/installer-kernel PROFILE=qemu` would report
+// nothing to do, over another profile's kernel.
+//
+// It returns the error, and the caller stops on it. A record this process
+// cannot delete, whose image it is about to replace, is the state the deletion
+// exists to prevent. To continue past it leaves the wrong kernel behind under a
+// success exit code. An absent record is the wanted state, not a failure.
+func invalidateInstallerKernelRequest(outputDir string) error {
+	path := filepath.Join(outputDir, installerKernelRequestFile)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove stale build record %s: %w", path, err)
+	}
+	return nil
+}
+
 func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
 	cached := kernelCachePath(version, variant)
 	toolsDst := filepath.Join(td.outputDir, td.artifact)
+	// Before any path below replaces the image, so no branch can skip it. The
+	// cache hit is the common repeat path and it returns before any build.
+	if err := invalidateInstallerKernelRequest(td.outputDir); err != nil {
+		return "", err
+	}
 
 	if _, err := os.Stat(cached); err == nil {
 		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {

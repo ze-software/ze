@@ -184,11 +184,98 @@ grep -q '^CONFIG_COMPOSE_FIXTURE=y$' "$scratch/build/kernel/config"
 # write_provenance() in run.py writes this sidecar into --out-dir, so the line
 # pins the build output to the scratch out-dir rather than to any other path.
 grep -q '^profile=compose-fixture$' "$scratch/build/kernel/kernel.version"
-rm -f "$scratch/build/kernel/Image"
-if PATH="$work/fakebin:$PATH" make -q -C "$scratch/tools/installer-kernel" PROFILE=compose-fixture BUILDER=docker ARCH=amd64; then
-	echo "missing build/Image unexpectedly considered up to date" >&2
-	exit 1
-fi
+# The build record, by name and by content. Two languages spell this file:
+# $(REQUEST) in tools/installer-kernel/Makefile writes it, and
+# invalidateInstallerKernelRequest in internal/appliance/cmd_kernel.go deletes
+# it. Renaming either side alone breaks the contract with both suites green
+# unless one of them names the file, so this assertion names it.
+grep -qx 'amd64-compose-fixture-docker' "$scratch/build/kernel/.request"
+
+expect_status() {
+	want=$1
+	shift
+	if "$@"; then
+		rc=0
+	else
+		rc=$?
+	fi
+	if [ "$rc" -ne "$want" ]; then
+		echo "wanted exit $want, got $rc: $*" >&2
+		exit 1
+	fi
+}
+
+kmake() {
+	PATH="$work/fakebin:$PATH" make -C "$scratch/tools/installer-kernel" "$@"
+}
+
+# test-relax: the deleted block was `rm -f $scratch/build/kernel/Image` followed
+# by an `if make -q ...` that expected a non-zero exit. It could not fail for
+# ANY Makefile, not just this one. A missing target is always out of date, so
+# `make -q` reports work to do whatever the prerequisite list holds. The `rm -f`
+# before it decided the answer on its own. The assertions below replace it with
+# the only state that discriminates, the steady state, plus one probe per
+# rebuild trigger. Coverage rises: the old block proved nothing, and these prove
+# AC-1, AC-3 and AC-4.
+#
+# `make -q` here changes nothing on disk (the request comparison in
+# tools/installer-kernel/Makefile reads $(REQUEST) and writes no file), so the
+# probes below are independent of each other and of their order.
+
+# AC-1: the build above just succeeded and nothing changed after it, so make
+# must report that there is no work to do.
+expect_status 0 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+# The same question twice must give the same answer. The request comparison
+# reads a file and writes none today, so this probe guards against a future
+# edit that makes the parse write one again: an earlier design of this Makefile
+# stamped $(OUT)/.request at parse time, which would make the answer depend on
+# how many times it was asked.
+expect_status 0 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+# AC-4: a different PROFILE=, ARCH= or BUILDER= is work to do, with every file
+# untouched. Each probe changes exactly one of the three.
+expect_status 1 kmake -q ARCH=amd64 PROFILE=qemu BUILDER=docker
+expect_status 1 kmake -q ARCH=arm64 PROFILE=compose-fixture BUILDER=docker
+expect_status 1 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=qemu
+# The probes above left the steady state intact.
+expect_status 0 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+
+# Each file probe below makes exactly ONE prerequisite newer than the built
+# image, which is what proves that prerequisite is on the list: with everything
+# newer, the probe would pass even with the prerequisite gone. Fixed past dates
+# give that ordering. A future date would give it too, until the date arrived,
+# and then the suite would go red on the calendar rather than on a defect. The
+# dates are a day apart because GNU Make 3.81, the make Apple ships, resolves
+# mtimes to one second.
+find "$scratch/tools" "$scratch/internal" -type f -exec touch -t 202601010000 {} +
+touch -t 202601020000 "$scratch/build/kernel/Image"
+# Re-dating changed no content, so there is still no work to do.
+expect_status 0 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+
+# AC-3: a newer internal/appliance/kernel.version is work to do.
+touch -t 202601030000 "$scratch/internal/appliance/kernel.version"
+expect_status 1 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+touch -t 202601010000 "$scratch/internal/appliance/kernel.version"
+
+# The Makefile itself is work to do. Its recipe names the profile, the arch,
+# the builder and the run.py argument list, so editing it changes the build as
+# much as editing a config fragment does. The unconditional FORCE this spec
+# removed used to cover that; $(MAKEFILE_LIST) on the prerequisite line is what
+# covers it now.
+touch -t 202601030000 "$scratch/tools/installer-kernel/Makefile"
+expect_status 1 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+touch -t 202601010000 "$scratch/tools/installer-kernel/Makefile"
+
+# A builder module ADDED to tools/kernel-builder/ is work to do. The file is
+# new on purpose: touching run.py would pass against a prerequisite list that
+# names the modules one by one, so it could not tell the glob from the list it
+# replaced. Only a module the old list never named discriminates.
+: > "$scratch/tools/kernel-builder/newmod.py"
+touch -t 202601030000 "$scratch/tools/kernel-builder/newmod.py"
+expect_status 1 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
+rm -f "$scratch/tools/kernel-builder/newmod.py"
+
+# Every probe restored what it changed, so the steady state is the last word.
+expect_status 0 kmake -q ARCH=amd64 PROFILE=compose-fixture BUILDER=docker
 
 printf 'OK\n'
 EOF_SH

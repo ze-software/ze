@@ -339,6 +339,97 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	}
 }
 
+// TestKernelInvalidatesInstallerRequest pins the contract between this path and
+// tools/installer-kernel/Makefile. That Makefile skips a build while
+// build/kernel/.request still names the requested arch-profile-builder. This
+// path replaces build/kernel/Image and never runs it. The record must not
+// survive. If it did, a later `make PROFILE=<other>` would report nothing to do
+// and leave this profile's kernel in place. Producer:
+// invalidateInstallerKernelRequest in cmd_kernel.go.
+//
+// Both branches that replace the image are driven. A cache hit is the common
+// repeat path and it returns before any build. A deletion placed next to the
+// build alone would leave the record behind exactly when it matters most.
+func TestKernelInvalidatesInstallerRequest(t *testing.T) {
+	const version = "7.1.1"
+	for _, tc := range []struct {
+		name     string
+		populate func(t *testing.T)
+	}{
+		{name: "build", populate: func(*testing.T) {}},
+		{name: "cache-hit", populate: func(t *testing.T) {
+			cached := kernelCachePath(version, kernelCacheVariant(archAMD64, "hardware"))
+			if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(cached, []byte("cached-hardware-kernel"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			writeInstallerKernelRegistry(t)
+			t.Setenv("XDG_CACHE_HOME", t.TempDir())
+			tc.populate(t)
+
+			requestPath := filepath.Join(kernelInstallerOutputDir, installerKernelRequestFile)
+			if err := os.MkdirAll(kernelInstallerOutputDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			// A record the Makefile left behind for a different profile.
+			if err := os.WriteFile(requestPath, []byte("amd64-qemu-docker\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			setTestHTTP(t, func(string) (*http.Response, error) { return nil, errors.New("no network") })
+			setTestKernelBuild(t, fakeInstallerBuild("hardware-kernel"))
+
+			if _, err := resolveKernel(version, archAMD64, "hardware", "", kernelTargetInstaller); err != nil {
+				t.Fatalf("resolveKernel: %v", err)
+			}
+
+			if _, err := os.Stat(requestPath); !os.IsNotExist(err) {
+				t.Errorf("%s survived a kernel resolve (err=%v); a later make would skip the rebuild", requestPath, err)
+			}
+		})
+	}
+}
+
+// TestKernelUndeletableRequestStopsResolve drives the guard's failing path from
+// the same entry point. A record this process cannot delete, whose image it is
+// about to replace, is the state the deletion exists to prevent. The resolve
+// must stop, not report success over a kernel the record misdescribes.
+func TestKernelUndeletableRequestStopsResolve(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	// A NON-EMPTY DIRECTORY at the record path. os.Remove refuses it for every
+	// user, root included. The failing path is therefore driven whatever
+	// identity the suite runs as.
+	requestPath := filepath.Join(kernelInstallerOutputDir, installerKernelRequestFile)
+	if err := os.MkdirAll(requestPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(requestPath, "occupant"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	setTestHTTP(t, func(string) (*http.Response, error) { return nil, errors.New("no network") })
+	setTestKernelBuild(t, fakeInstallerBuild("hardware-kernel"))
+
+	_, err := resolveKernel("7.1.1", archAMD64, "hardware", "", kernelTargetInstaller)
+	if err == nil {
+		t.Fatal("resolveKernel succeeded with an undeletable build record; the next make would trust it")
+	}
+	// Pinned to the producer: any other error here would leave the test green
+	// while the guard did nothing.
+	if !strings.Contains(err.Error(), "remove stale build record") {
+		t.Errorf("resolveKernel error = %v, want the record removal to be the cause", err)
+	}
+}
+
 func TestKernelReadsArchFromAppliance(t *testing.T) {
 	t.Chdir(t.TempDir())
 	writeInstallerKernelRegistry(t)
