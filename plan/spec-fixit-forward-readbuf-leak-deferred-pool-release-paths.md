@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | code |
 | Depends | - |
-| Phase | implementation complete, review not run |
-| Deferral shard | `plan/deferrals/fixit-forward-readbuf-leak.md` |
-| Updated | 2026-08-07 |
+| Phase | closed: code landed in `23da6d8a0`, review gate clean, record in this commit |
+| Deferral shard | `plan/deferrals/fixit-forward-readbuf-leak.md` (all rows terminal, removed in commit B) |
+| Updated | 2026-08-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -264,7 +264,7 @@ there is no boundary to walk: any drift of one fails it.
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
-| 16 | Any changed source file referenced by existing doc source anchors? | No | Checked: no `source:` anchor names either changed file |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, and none is stale | Anchors DO name both changed files (`docs/architecture/core-design.md`,717-718; `docs/architecture/update-building.md`,414; `docs/guide/bgp-policy.md`,102; `docs/comparison.md`,338; `docs/architecture/bgp/structural-forwarding.md`,9). Each claim is about the accumulator hoist, the body cache, or the RS rail existing. None describes the buffer's release, so none is falsified by adding one. The one anchor that DOES name `releaseItem` (`docs/architecture/forward-congestion-pool.md`,465) states the overflow handle returns on processing complete, which this change makes more true, not less. No edit needed. The earlier "no anchor names either changed file" in this row was wrong and is corrected here |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | No operator-facing surface in this area |
 
 ## Implementation Steps
@@ -380,6 +380,179 @@ Not applicable. No protocol behavior is implemented or changed.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] Problem record written as a row in `plan/journal/<class>.md` (commit `2cff2050a`
+      retired `plan/learned/NNN-<name>.md`; the row is the closure artifact
+      `spec_closure_stem` reads)
+- [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/bgp/reactor/reactor_api_forward.go`,761: `a.r.fwdPool.releaseItem(&item)`
+  on the `buildFwdBody` failure exit of `forwardUpdateCore`, before the `continue`.
+- `internal/component/bgp/reactor/forward_rs.go`,461: `r.fwdPool.releaseItem(&item)`
+  on the same exit of `reactorForwardRS`.
+- `internal/component/bgp/reactor/forward_modbuf_leak_test.go`: three tests, one
+  control and one per rail.
+- Item 2 needed no code. `fwdPool.DispatchOverflow` already calls `releaseItem` on
+  both stopped branches (`forward_pool.go`,648 and,670), landed by `027f6b0b3` with
+  `forward_pool_stopped_release_test.go`. This spec re-read the function and
+  confirmed it.
+- The code landed in commit `23da6d8a0`. This closure carries the record only.
+
+### Bugs Found/Fixed
+- The Outgoing Peer Pool buffer was dropped, not returned, when `buildFwdBody`
+  reported `!ok`, on both forwarding rails. Covered by
+  `TestForwardUpdateCoreReturnsModBufOnBodyFailure` and
+  `TestForwardRSReturnsModBufOnBodyFailure`.
+
+### Documentation Updates
+- None. Item 16 of the Documentation Update Checklist was re-checked against the
+  tree and corrected: anchors do name both changed files, and no anchored claim
+  describes the buffer's release, so none is falsified. `make ze-doc-test` not run:
+  no doc file changed.
+
+### Deviations from Plan
+- The spec's Closure checklist named `plan/learned/NNN-<name>.md`. Commit
+  `2cff2050a` retired that corpus in favour of a row in `plan/journal/<class>.md`.
+  The checklist text is corrected in this commit and the row is the artifact.
+- The deferral shard's third row is rehomed rather than left pointing at this spec
+  (see Deferrals Resolved).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Documentation checklist row 16 asserted that no doc `source:` anchor names either changed file | Eight anchors name `reactor_api_forward.go` or `forward_rs.go` | grep over `docs/` and `ai/` at closure | row 16 corrected with the real anchor list and the reason each claim is unaffected |
+| approach | The Closure checklist directed the lesson to `plan/learned/NNN-<name>.md` | That corpus was retired by `2cff2050a`; the artifact is a `plan/journal/<class>.md` row | the closure gate reads the journal row for the spec stem | checklist text corrected, journal rows written |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Item 1: return the mod buffer on the body-build failure exit of the general rail | Done | `reactor_api_forward.go`,761 | `releaseItem` before the `continue` |
+| Item 1: the same on the route-server rail | Done | `forward_rs.go`,461 | identical shape |
+| Item 2: `DispatchOverflow` releases the item on a stopped pool | Done | `forward_pool.go`,648 and,670 | landed by `027f6b0b3`, re-read and confirmed here |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestForwardUpdateCoreReturnsModBufOnBodyFailure` | free count equal to the pre-call count |
+| AC-2 | Done | `TestForwardRSReturnsModBufOnBodyFailure` | same assertion on the RS rail |
+| AC-3 | Done | `TestForwardModBufTakenOnRebuild` | the dispatched item carries a non-zero `peerBufIdx`, so AC-1 and AC-2 assert over a real loan |
+| AC-4 | Done | `TestDispatchOverflowReleasesItemWhenStopped` | first stopped branch; the second is recorded as a coverage limit in the test file |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestForwardModBufTakenOnRebuild` | Done | `forward_modbuf_leak_test.go`,165 | control |
+| `TestForwardUpdateCoreReturnsModBufOnBodyFailure` | Done | `forward_modbuf_leak_test.go`,200 | |
+| `TestForwardRSReturnsModBufOnBodyFailure` | Done | `forward_modbuf_leak_test.go`,222 | |
+| `TestDispatchOverflowReleasesItemWhenStopped` | Done | `forward_pool_stopped_release_test.go`,27 | landed 2026-08-05 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/reactor_api_forward.go` | Done | one call added |
+| `internal/component/bgp/reactor/forward_rs.go` | Done | one call added |
+| `internal/component/bgp/reactor/forward_modbuf_leak_test.go` | Done | created |
+
+### Audit Summary
+- **Total items:** 14
+- **Done:** 14
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The Outgoing Peer Pool buffer is returned when the body build fails, on BOTH rails | unit, mutation-discriminated | `make ze-test-pkg PKG=./internal/component/bgp/reactor RUN='TestForwardModBufTakenOnRebuild\|TestForwardUpdateCoreReturnsModBufOnBodyFailure\|TestForwardRSReturnsModBufOnBodyFailure\|TestDispatchOverflowReleasesItemWhenStopped'` -> `ok github.com/ze-software/ze/internal/component/bgp/reactor 1.574s`. The independent review discriminated each site by mutation: reverting `reactor_api_forward.go`,761 reds the general test while the RS test stays green, and reverting `forward_rs.go`,461 reds the RS test while the general one stays green |
+| The pool-balance assertions are not vacuous | unit control | `TestForwardModBufTakenOnRebuild` asserts a non-zero `peerBufIdx` on the dispatched item, so the pool provably lent a buffer before the balance is asserted |
+| An item reaching `DispatchOverflow` after the pool stopped returns its buffer | unit, mutation-discriminated | `TestDispatchOverflowReleasesItemWhenStopped`; reverting the first stopped branch in `forward_pool.go` reds it |
+| No regression under the race detector | package stress | `make ze-race-reactor` (`-race -count=20`): all four tests of this spec green on every repetition. Two other tests are red and neither is this spec's (see Pre-Commit Verification, and the `--unverified` attribution on the commit) |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| 2026-07-21: Outgoing peer-pool MOD buffer leak on the body-build failure path | done | Fixed by this spec. `reactor_api_forward.go`,761 and `forward_rs.go`,461, proven by the two rail tests |
+| 2026-07-21: pool-stopped `DispatchOverflow` does not `releaseItem` | done | Fixed earlier by `027f6b0b3`; re-read and confirmed at `forward_pool.go`,648 and,670 |
+| 2026-08-07: `TestForwardAdoptedHandleHeldUntilLastWrite` red under `make ze-race-reactor` | done, rehomed | This spec was its only destination and closure deletes it. The knowledge now lives in `plan/journal/registry-contamination.md`, which carries the test name, the observation, the ruled-out hypothesis and the next step. Re-observed at closure, together with a SECOND test in the same package failing on the same empty read pool |
+
+All three rows are terminal, so `plan/deferrals/fixit-forward-readbuf-leak.md`
+holds no live work. It is NOT removed, and the reason is a gate boundary rather
+than a choice. `deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`)
+reads the shard at HEAD, by design, and at the moment commit B is PREPARED that
+HEAD still carries the live row. Commit A resolves it, and commit A has not run
+yet, so the gate refuses commit B's removal. The shard survives with every row
+terminal, which the gate's own message calls the correct end state. The gate's
+blind spot is recorded in `plan/journal/gate-excludes-part-of-its-population.md`.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-forward-readbuf-leak-deferred-pool-release-paths-640fa955-f03a-45e8-a58f-4b367f5859e6.md` (5 files pinned) |
+| `review_gate.py check` | `review_gate: OK (3 code files, clean, hashes match ...)`, exit 0 |
+| Rounds | 1 |
+| Reviewer lenses used | leak-path enumeration (every exit between acquire and hand-off, both rails), mutation discrimination per call site, duplication of the release obligation |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER and no ISSUE. The review found no product defect and required no code change | - | - |
+
+The review recorded one NOTE, kept out of the code deliberately: `releaseItem` has
+two open-coded copies, the supersede path (`forward_pool.go`,745-751) and the RS
+direct-write path (`forward_rs.go`,506-507). Neither leaks today. Folding them in
+needs its own change and would widen this closure, so it is recorded as a journal
+row (`plan/journal/helper-bypassed-by-an-open-coded-copy.md`) and the code is left
+alone.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/forward_modbuf_leak_test.go` | Yes | `ls -la` reports 9849 bytes; `git ls-files` reports it tracked, added by `23da6d8a0` |
+| `internal/component/bgp/reactor/forward_pool_stopped_release_test.go` | Yes | added by `027f6b0b3` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the general rail releases on the failure exit | `grep -n releaseItem reactor_api_forward.go` -> `761: a.r.fwdPool.releaseItem(&item)`; `TestForwardUpdateCoreReturnsModBufOnBodyFailure` green |
+| AC-2 | the RS rail releases on the same exit | `grep -n releaseItem forward_rs.go` -> `461: r.fwdPool.releaseItem(&item)`; `TestForwardRSReturnsModBufOnBodyFailure` green |
+| AC-3 | the loan is real, so AC-1 and AC-2 are not vacuous | `TestForwardModBufTakenOnRebuild` green in the same run |
+| AC-4 | the stopped pool releases the item | `grep -n releaseItem forward_pool.go` -> `648` and `670`; `TestDispatchOverflowReleasesItemWhenStopped` green |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `forwardUpdateCore` with a destination whose body build fails | none: a Go unit test, `forward_modbuf_leak_test.go`,200 | Yes. The test drives the rail's own entry point with an unregistered destination context, which is what makes `buildFwdBody` report `!ok` |
+| `reactorForwardRS` with a client whose body build fails | `forward_modbuf_leak_test.go`,222 | Yes, same knob on the RS rail |
+| `DispatchOverflow` on a stopped pool | `forward_pool_stopped_release_test.go`,27 | Yes. Read at closure: it stops the pool, dispatches an item holding a buffer, then asserts the pool's free count |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | all three acquire sites return the buffer on every failure return; only a success carries a non-zero index out (`forward_build.go`, `forward_dedup.go`) |
+| A-2 | confirmed | the exit enumeration in Current Behavior was re-walked by the independent reviewer on both rails |
+| A-3 | confirmed | both rails dereference `fwdPool` before the new call to fetch the Outgoing Peer Pool; the package tests pass under `-race -count=20` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No user-facing, config, CLI, API, wire, SDK, RFC, metrics or inventory surface changed | the diff is two `releaseItem` calls and one test file; no exported symbol, no command, no leaf, no wire byte | Yes |
+| No anchored doc claim is stale | grep over `docs/` and `ai/` for `reactor_api_forward.go`, `forward_rs.go`, `forward_pool.go`: eight anchors name a changed file, each about the accumulator hoist, the body cache or the RS rail existing. The `releaseItem` anchor (`docs/architecture/forward-congestion-pool.md`,465) says the handle returns on processing complete, which the fix strengthens | Yes |
+
+## Core Insight
+
+A resource-balance assertion is vacuous by default. A pool that never lent a buffer
+ends at its baseline exactly like a pool that lent one and got it back, so
+"the free count is unchanged" proves nothing until the loan is proven separately.
+The control test is not politeness; without it the two leak tests assert over an
+untouched pool.

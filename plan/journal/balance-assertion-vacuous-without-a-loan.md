@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-10 | fixit-forward-readbuf-leak-deferred-pool-release-paths | bgp reactor forward rail | a leak test asserted that the Outgoing Peer Pool free count is unchanged across the call. A pool that never lent a buffer ends at the same baseline. The assertion would have passed over an untouched pool | added `TestForwardModBufTakenOnRebuild`. It asserts the dispatched item carries a non-zero `peerBufIdx`, so the loan is proven before the balance is. Each rail's release was then discriminated by reverting it, and only that rail's test went red |
