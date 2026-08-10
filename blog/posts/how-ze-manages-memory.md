@@ -1,6 +1,7 @@
 ---
 title: How Ze keeps BGP traffic away from the garbage collector
 date: 2026-08-04
+author: Thomas Mangin
 description: How Ze reuses buffers, borrows wire data and limits copies so repeated routing work creates little garbage.
 ---
 

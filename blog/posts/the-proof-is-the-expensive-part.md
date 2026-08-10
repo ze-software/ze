@@ -1,6 +1,7 @@
 ---
 title: The proof is the expensive part
 date: 2026-08-06
+author: Thomas Mangin
 description: Ze uses AI to write code, but an RFC claim only counts after the standard, the tests, the public gap list and the commit process all agree.
 ---
 

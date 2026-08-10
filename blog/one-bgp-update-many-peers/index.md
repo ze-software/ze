@@ -1,6 +1,6 @@
 # One BGP UPDATE, many peers
 
-*2026-08-04*
+*2026-08-04 by Thomas Mangin*
 
 [ExaBGP](https://github.com/Exa-Networks/exabgp) was never meant to be a router. I wrote it so an ordinary process could speak BGP: announce a service or anycast prefix, inject a blackhole or FlowSpec rule, and turn received messages into text or JSON that another program could use. Most ExaBGP installations use it as a route announcer, and that narrow focus is still one of its strengths.
 

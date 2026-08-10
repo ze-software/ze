@@ -1,6 +1,7 @@
 ---
 title: One BGP UPDATE, many peers
 date: 2026-08-04
+author: Thomas Mangin
 description: How Ze completes each peer's policy decision before encoding its UPDATE, then reuses an earlier encoding when the complete result matches.
 ---
 

@@ -1,6 +1,7 @@
 ---
 title: The repository is half the AI harness
 date: 2026-08-09
+author: Thomas Mangin
 description: AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.
 ---
 
@@ -29,21 +30,9 @@ Rails gave repositories a shape people could learn, and the tooling followed onc
 
 ## Rails made the tree an interface
 
-Rails turned project structure into something people argued about. Its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the idea Convention over Configuration. Running `rails new` creates recognised places for application code, commands, configuration, database changes, libraries, logs, public files, tests and temporary data.
+Rails turned project structure into something people argued about. Its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the idea Convention over Configuration. Running `rails new` creates recognised places for application code, configuration, database changes, libraries and tests.
 
-```text
-app/        application code
-bin/        commands
-config/     configuration
-db/         database changes
-lib/        additional libraries
-log/        logs
-public/     public files
-test/       tests and fixtures
-tmp/        temporary data
-```
-
-Rails was probably not the first project to lay a tree out like that, but it was the first one to make the idea popular. Good ideas often appear in several places at roughly the same time. Many people encounter the same pain, the available tools make an answer possible, and several engineers independently build similar things. One implementation gets the viral effect, receives a memorable name and becomes the example everybody remembers.
+Rails was probably not the first project to lay a tree out like that, but it was the first one to make the idea popular. It was an idea whose time had come. Many people encounter the same pain, the available tools make an answer possible, and several engineers independently build similar things. One implementation gets the viral effect, receives a memorable name and becomes the example everybody remembers. Twenty years later the same thing is happening around the plain Markdown files an agent reads, and I come back to that at the end.
 
 What Rails did was make its conventions consistent, generate them automatically and teach them to a large community. A developer entering an unfamiliar Rails application already knew where to look, and so did the Rails tools. The directory tree had become an interface shared by people and programs.
 
@@ -53,9 +42,13 @@ The idea spread far beyond Rails. Plenty of ecosystems now ship a command which 
 
 An agent needs the same interface a new developer needs, with one extra difficulty: it starts every session knowing nothing at all.
 
-## AI has not had its Rails moment
+## AI repositories have not had their Rails moment
 
 AI coding has concentrated on the tool side. Harnesses keep getting better at tool use, planning, context management and coordination between agents, and the models improve every few weeks. Still, they walk into arbitrary repositories with no idea where anything is meant to live.
+
+The tooling looks the part now, with its animated terminals and neat progress trees, and underneath the presentation it is still immature. Stencil's [The harness problem](https://stencil.so/blog/the-harness-problem) measured something far more basic than planning or context management, which is whether a model can apply the edit it has already decided to make. Grok 4 failed half of its patches on their benchmark, EDIT-Bench has a single model above sixty per cent on realistic editing tasks, and changing nothing except the format of the edit moved sixteen models by fifteen points on average. Stencil sells that format, so their own figures deserve the usual caution, and an effect of that size is hard to dismiss.
+
+A model which cannot reliably replace a line of text is not being held back by its understanding of the code. A model's ability is fixed the day it ships, and how much of that ability arrives in the repository depends on what we build around it. The edit format is the cheapest thing on that list, and a fair measure of how much better AI coding can get without waiting for new models.
 
 A harness has to support every language and every kind of repository, so it stays general. It can search files, edit text and run commands. It cannot know why one project requires registration while another prefers a switch statement. It cannot know where an architectural decision lives when the project never linked that decision to the code. It cannot recover a rule which exists only in the maintainer's memory.
 
@@ -67,7 +60,7 @@ This is one reason opinions about AI coding are so divided. Some people see the 
 
 AI-assisted development reminds me of using the Internet at home over 64K between 1994 and 1996. I had already used a faster university connection, so home access was painful. It required technical skill and motivation, and bulletin board systems were still more popular than the Internet. Yet I loved it because the promise was obvious. ADSL and services such as BitTorrent and YouTube later made the Internet useful to far more people. Judging the Internet by 64K would have mistaken a temporary stage for the limits of the technology.
 
-AI coding is at a comparable stage. It is already a large improvement for technical and motivated users who are willing to work around its limitations, and its ADSL moment has not arrived. The UI and guidelines which will make it ordinary are still being invented. Most of that missing work is not intellectually difficult. Nobody has built and standardised it yet.
+AI coding is at a comparable stage. It is already a large improvement for technical and motivated users who are willing to work around its limitations, and its ADSL moment has not arrived. Many of the AI development best practices which will make it ordinary are still to be invented. Most of that missing work is not intellectually difficult. The edit format above needed no training and around three hundred dollars of benchmarking, which is the sort of gain that sits on the floor until somebody thinks to measure it. Nobody has built and standardised it yet.
 
 In 1999 and 2000, working for an ISP felt like having a superpower, perhaps the way working for a frontier AI lab feels now.
 
@@ -231,15 +224,13 @@ The point of writing any of it down is retention. A prompt correction lasts for 
 
 ## The convention will come from a project
 
-AI-assisted development is beginning to discover its Convention over Configuration, and we do not yet know which project will make it viral.
+AI-assisted development is beginning to discover its Convention over Configuration, and we do not yet know which project will make it viral. The decisions do not have to be the best possible ones. They arrive attached to something people want.
 
-This is simply how conventions form. A useful project becomes popular, people copy its structure, the structure becomes familiar, and tools begin to expect it. The decisions do not have to be the best possible ones. They arrive attached to something people want.
-
-Andrej Karpathy gave a small demonstration of that effect with his [LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). It describes an LLM maintaining a wiki made from ordinary Markdown files, with Obsidian as the editor. Raw sources stay separate, the agent maintains cross-linked pages, an `index.md` helps it find the right information, and an `AGENTS.md` or `CLAUDE.md` explains the structure. More complicated search can wait until the collection needs it.
+Andrej Karpathy gave a small demonstration of that with his [LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). It describes an LLM maintaining a wiki made from ordinary Markdown files, with Obsidian as the editor. Raw sources stay separate, the agent maintains cross-linked pages, an `index.md` helps it find the right information, and an `AGENTS.md` or `CLAUDE.md` explains the structure. More complicated search can wait until the collection needs it.
 
 The idea became extremely popular the moment he shared it, and many people had already reached the same answer independently. Ze was already using Markdown for its rules, designs and working memory, maintaining cross-links and generating indexes, all of it in the same text editors we write the code in. What Karpathy added was a clear explanation and a large audience, and for many people his version will become the version they know and copy.
 
-That is the effect I mean. One implementation becomes the reference without needing to invent every part. If its choices are excellent, they are copied. If some choices are awkward, they are copied as well. Familiarity turns them into the convention.
+A reference version gets copied whole. Excellent choices spread, awkward ones spread with them, and familiarity turns the whole set into the convention.
 
 Ze may contribute to that shape, or another project may do it much better. I hope the one which becomes viral is a good one.
 

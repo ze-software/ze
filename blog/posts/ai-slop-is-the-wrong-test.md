@@ -1,6 +1,7 @@
 ---
 title: AI slop is the wrong test
 date: 2026-08-03
+author: Thomas Mangin
 description: Ze is an AI-written NOS. The useful question is whether the code is constrained, reviewed, tested and measured.
 ---
 

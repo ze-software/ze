@@ -1,6 +1,6 @@
 # How Ze keeps BGP traffic away from the garbage collector
 
-*2026-08-04*
+*2026-08-04 by Thomas Mangin*
 
 The Common Gateway Interface let an HTTP server invoke an external program to produce a webpage. ExaBGP applied the same separation to BGP: it managed the sessions and the wire messages, while ordinary processes exchanged decoded events and route announcements with it.
 

@@ -1,6 +1,6 @@
 # AI slop is the wrong test
 
-*2026-08-03*
+*2026-08-03 by Thomas Mangin*
 
 Ze is an AI-written NOS. I decide the architecture, the tradeoffs, what the code must never break and what gets rejected. Claude turns that into implementation.
 

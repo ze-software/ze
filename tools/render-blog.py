@@ -12,8 +12,12 @@ front matter:
     ---
     title: From ExaBGP to a Network OS
     date: 2026-07-03
+    author: Thomas Mangin
     description: One-line summary shown on the index and in the feed.
     ---
+
+Every article carries a byline: `author` is required, and a missing one is a
+build warning rather than a silently anonymous page.
 
     Normal Markdown body, with ## headings, code fences, links.
 
@@ -52,7 +56,7 @@ def rfc822(iso):
 
 
 def parse_articles():
-    """Every blog/posts/*.md as {slug, title, date, description, body},
+    """Every blog/posts/*.md as {slug, title, date, author, description, body},
     newest first. Skips files without a title (treat as not ready)."""
     articles = []
     for f in sorted(POSTS_DIR.glob("*.md")):
@@ -61,11 +65,15 @@ def parse_articles():
         if not title:
             sitelib.warn("blog article %s has no title, skipping" % f.name)
             continue
+        author = meta.get("author", "").strip()
+        if not author:
+            sitelib.warn("blog article %s has no author front matter" % f.name)
         articles.append(
             {
                 "slug": slug_of(meta, f),
                 "title": title.strip(),
                 "date": meta.get("date", "").strip(),
+                "author": author,
                 "description": meta.get("description", "").strip(),
                 "body": body,
             }
@@ -76,11 +84,12 @@ def parse_articles():
 
 def render_article(a):
     body_html = markdown.markdown(a["body"], extensions=["tables", "fenced_code", "sane_lists"])
-    lead = (
-        '<time datetime="%s">%s</time>' % (a["date"], a["date"])
-        if a["date"]
-        else None
-    )
+    bits = []
+    if a["date"]:
+        bits.append('<time datetime="%s">%s</time>' % (a["date"], a["date"]))
+    if a["author"]:
+        bits.append("by %s" % html.escape(a["author"]))
+    lead = " ".join(bits) or None
     parts = [
         '            <section aria-labelledby="post-title">',
         sitelib.page_hero(
@@ -101,8 +110,11 @@ def render_article(a):
 
 def render_article_markdown(a):
     parts = ["# %s" % a["title"], ""]
-    if a["date"]:
-        parts.append("*%s*" % a["date"])
+    byline = " ".join(
+        x for x in (a["date"], "by %s" % a["author"] if a["author"] else "") if x
+    )
+    if byline:
+        parts.append("*%s*" % byline)
         parts.append("")
     parts.append(a["body"].strip())
     return "\n".join(parts).strip() + "\n"
@@ -181,24 +193,27 @@ def render_feed(articles):
         if not a["date"]:
             continue
         link = "%s%s/" % (BLOG_URL, a["slug"])
-        items.append(
-            "\n".join(
-                [
-                    "        <item>",
-                    "            <title>%s</title>" % escape(a["title"]),
-                    "            <link>%s</link>" % link,
-                    '            <guid isPermaLink="true">%s</guid>' % link,
-                    "            <pubDate>%s</pubDate>" % rfc822(a["date"]),
-                    "            <description>%s</description>" % escape(a["description"] or a["title"]),
-                    "        </item>",
-                ]
-            )
+        item = [
+            "        <item>",
+            "            <title>%s</title>" % escape(a["title"]),
+            "            <link>%s</link>" % link,
+            '            <guid isPermaLink="true">%s</guid>' % link,
+            "            <pubDate>%s</pubDate>" % rfc822(a["date"]),
+        ]
+        # RSS <author> wants an email address, so the byline goes in
+        # dc:creator, which every reader understands and needs no address.
+        if a["author"]:
+            item.append("            <dc:creator>%s</dc:creator>" % escape(a["author"]))
+        item.append(
+            "            <description>%s</description>" % escape(a["description"] or a["title"])
         )
+        item.append("        </item>")
+        items.append("\n".join(item))
     built = rfc822(articles[0]["date"]) if articles and articles[0]["date"] else rfc822("2026-01-01")
     feed = "\n".join(
         [
             '<?xml version="1.0" encoding="UTF-8"?>',
-            '<rss version="2.0">',
+            '<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">',
             "    <channel>",
             "        <title>Ze blog</title>",
             "        <link>%s</link>" % BLOG_URL,
@@ -240,8 +255,15 @@ def main():
         dest = dest_dir / "index.html"
         desc = a["description"] or a["title"]
         full_title = "%s - Ze Blog" % a["title"]
+        head_extra = ""
+        if a["author"]:
+            head_extra = '        <meta name="author" content="%s" />\n' % html.escape(
+                a["author"], quote=True
+            )
         dest.write_text(
-            sitelib.page_head(full_title, desc, "../../", og_title=full_title, og_desc=desc)
+            sitelib.page_head(
+                full_title, desc, "../../", og_title=full_title, og_desc=desc, extra_head=head_extra
+            )
             + render_article(a)
             + "\n"
             + sitelib.page_foot("../../")

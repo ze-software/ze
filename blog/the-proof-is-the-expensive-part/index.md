@@ -1,6 +1,6 @@
 # The proof is the expensive part
 
-*2026-08-06*
+*2026-08-06 by Thomas Mangin*
 
 I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part.
 
