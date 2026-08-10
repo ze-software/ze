@@ -139,7 +139,7 @@
                 <div class="section-head journey-hero reveal">
                     <span class="journey-eyebrow">Timeline</span>
                     <h1 id="milestones-title">The road so far.</h1>
-                    <p>23 milestones, newest first. The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, color-coded by category.</p>
+                    <p>25 milestones, newest first. The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each node's color is its category. This is the coarse view: the <a href="../changes/">Changes</a> log has every week, and <a href="../features/">Features</a> lists what ships today. Click a category to filter, click again to show everything.</p>
@@ -159,6 +159,18 @@
                 <div class="tl-quarter" data-quarter>
                     <h2 class="tl-quarter-head">Q3 2026</h2>
                     <ol class="tl-list">
+                    <li class="tl-item cat-platform" data-cat="platform">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-07-20">Jul 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Feature-gated builds</h3>
+                                <span class="tl-cat">platform</span>
+                            </div>
+                            <p>Thirty-six subsystems compile out behind build tags, so a deployment ships only the code it runs. All are on by default, and the config loader fails closed on a config carrying blocks the running build has no code for.</p>
+                            <a class="tl-link" href="../changes/2026-07-20/">Read the week &rarr;</a>
+                        </div>
+                    </li>
                     <li class="tl-item cat-routing" data-cat="routing">
                         <span class="tl-node" aria-hidden="true"></span>
                         <div class="tl-date"><time datetime="2026-07-13">Jul 2026</time></div>
@@ -168,6 +180,18 @@
                                 <span class="tl-cat">routing</span>
                             </div>
                             <p>First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU.</p>
+                            <a class="tl-link" href="../changes/2026-07-13/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-platform" data-cat="platform">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-07-13">Jul 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">RFC compliance gate</h3>
+                                <span class="tl-cat">platform</span>
+                            </div>
+                            <p>Every RFC Ze implements is enrolled requirement by requirement, and a requirement counts as met only when a test names it and fails when the behaviour is taken out. Gaps are published on the RFC status page instead of being inferred from test coverage.</p>
                             <a class="tl-link" href="../changes/2026-07-13/">Read the week &rarr;</a>
                         </div>
                     </li>

@@ -4,11 +4,27 @@ The landmarks that mark Ze's path from a bare BGP speaker to a full network oper
 
 ## Q3 2026
 
+### Feature-gated builds (Jul 2026)
+
+*platform*
+
+Thirty-six subsystems compile out behind build tags, so a deployment ships only the code it runs. All are on by default, and the config loader fails closed on a config carrying blocks the running build has no code for.
+
+[Read the week](../changes/2026-07-20/)
+
 ### VRRP first-hop redundancy (Jul 2026)
 
 *routing*
 
 First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU.
+
+[Read the week](../changes/2026-07-13/)
+
+### RFC compliance gate (Jul 2026)
+
+*platform*
+
+Every RFC Ze implements is enrolled requirement by requirement, and a requirement counts as met only when a test names it and fails when the behaviour is taken out. Gaps are published on the RFC status page instead of being inferred from test coverage.
 
 [Read the week](../changes/2026-07-13/)
 
