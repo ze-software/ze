@@ -286,7 +286,7 @@ class TestGuardIsWiredIntoTheEngineCalls(SentinelTestCase):
             stderr_at_send.append(self.written())
 
         def record_read(*_args, **_kwargs):
-            return None  # makes _call_engine raise, ending the call
+            return None  # engine connection closed, ending the call
 
         api._send_rpc = record_send
         api._read_line = record_read
@@ -294,10 +294,9 @@ class TestGuardIsWiredIntoTheEngineCalls(SentinelTestCase):
         try:
             raise AssertionError("observer assertion blew up")
         except AssertionError:
-            with self.assertRaises(RuntimeError):
-                api._call_engine(
-                    "ze-plugin-engine:dispatch-command", {"command": "request shutdown"}
-                )
+            api._call_engine(
+                "ze-plugin-engine:dispatch-command", {"command": "request shutdown"}
+            )
 
         self.assertEqual(
             len(stderr_at_send), 1, "the engine call should still have been attempted"
@@ -325,6 +324,68 @@ class TestGuardIsWiredIntoTheEngineCalls(SentinelTestCase):
         api = _bare_api()
         api.wait_for_shutdown(timeout=0.01)
         self.assertEqual(self.written(), "")
+
+
+class TestShutdownIsAnsweredByTheClose(SentinelTestCase):
+    """`request shutdown` is the one command a closed connection completes.
+
+    ze can close the engine connection before it emits the reply to the command
+    that told it to stop -- shutdown_fire_and_forget's docstring has said so for
+    as long as that helper has existed. Every observer that sent the command
+    through the synchronous path instead raised out of its own last statement,
+    and the traceback reached the runner as `ZE-OBSERVER-FAIL: uncaught observer
+    exception`, which outranks every other verdict. Measured on
+    rpki-aspa-invalid and concurrent-config-commit: both printed their OK line
+    and were reported failed.
+    """
+
+    @staticmethod
+    def _api_whose_engine_closed():
+        api = _bare_api()
+        api._send_rpc = lambda *_args, **_kwargs: None
+        api._read_line = lambda *_args, **_kwargs: None
+        return api
+
+    def test_shutdown_dispatch_completes_when_the_engine_closes(self):
+        api = self._api_whose_engine_closed()
+        resp = api._call_engine(
+            "ze-plugin-engine:dispatch-command", {"command": "request shutdown"}
+        )
+        self.assertEqual(resp["result"]["status"], "done")
+
+    def test_daemon_shutdown_spelling_is_covered_too(self):
+        api = self._api_whose_engine_closed()
+        resp = api._call_engine(
+            "ze-plugin-engine:dispatch-command", {"command": "daemon shutdown"}
+        )
+        self.assertEqual(resp["result"]["status"], "done")
+
+    def test_any_other_command_still_raises_on_a_closed_engine(self):
+        """The narrowness IS the guard: a lost reply is a real failure elsewhere.
+
+        `request quiesce` is the case that proves it. A barrier whose engine
+        vanished has not drained anything, and answering it "done" would make
+        the barrier vacuous exactly when it matters.
+        """
+        for command in ("request quiesce", "show bgp summary", "request shutdown now"):
+            with self.subTest(command=command):
+                api = self._api_whose_engine_closed()
+                with self.assertRaises(RuntimeError):
+                    api._call_engine(
+                        "ze-plugin-engine:dispatch-command", {"command": command}
+                    )
+
+    def test_a_non_dispatch_method_still_raises(self):
+        api = self._api_whose_engine_closed()
+        with self.assertRaises(RuntimeError):
+            api._call_engine("ze-plugin-engine:ready", {})
+
+    def test_malformed_params_do_not_open_the_exemption(self):
+        for params in (None, "request shutdown", {"command": None}, {}):
+            with self.subTest(params=params):
+                api = self._api_whose_engine_closed()
+                with self.assertRaises(RuntimeError):
+                    api._call_engine("ze-plugin-engine:dispatch-command", params)
 
 
 class TestGuardedDispatchNeverRaises(SentinelTestCase):

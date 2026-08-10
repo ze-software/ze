@@ -122,6 +122,26 @@ def _parse_go_duration(raw: str) -> float:
     )
 
 
+_SHUTDOWN_COMMANDS = ("request shutdown", "daemon shutdown")
+
+
+def _is_shutdown_dispatch(method: str, params: Any) -> bool:
+    """Report whether this RPC is the command that stops the daemon.
+
+    Only a dispatch-command carrying one of `_SHUTDOWN_COMMANDS` qualifies. The
+    method name alone is not enough: dispatch-command carries every other verb
+    an observer sends, and a closed connection is a real failure for all of them.
+    """
+    if not method.endswith("dispatch-command"):
+        return False
+    if not isinstance(params, dict):
+        return False
+    command = params.get("command")
+    if not isinstance(command, str):
+        return False
+    return command.strip() in _SHUTDOWN_COMMANDS
+
+
 class API:
     """ZeBGP API client using YANG RPC protocol.
 
@@ -164,6 +184,9 @@ class API:
 
         # Plugin name (set during TLS auth or registry sharing)
         self._name = _ze_env("ze.plugin.name", "python-plugin")
+
+        # Stage 1 gate: ready() refuses to send stage 5 before this is True.
+        self._declared = False
 
         # Accumulated declarations for Stage 1
         self._families: list[dict[str, str]] = []
@@ -379,6 +402,18 @@ class API:
 
         In TLS mode, reads from the shared connection. If an inbound request
         arrives instead of the expected response, it is queued for _serve_one.
+
+        One command answers with a closed connection instead of a response, and
+        that is its success: a dispatch of ``request shutdown`` asks ze to stop,
+        and ze can close the engine connection before it emits the reply (see
+        :meth:`shutdown_fire_and_forget`, which exists for this). Raising there
+        made an observer report the daemon's compliance as its own failure --
+        the traceback reached the runner as ``ZE-OBSERVER-FAIL: uncaught
+        observer exception``, and that sentinel outranks every other verdict, so
+        tests whose assertions had already printed OK were reported failed
+        (measured on rpki-aspa-invalid and concurrent-config-commit). An EOF on
+        any other method still raises: only the command that closes the
+        connection may be answered by the close.
         """
         # Fail closed BEFORE the engine hears anything. If an exception is
         # propagating, this call is almost certainly the observer's
@@ -396,6 +431,8 @@ class API:
             else:
                 line = self._read_line(self._engine_fd, "_engine_buf")
             if line is None:
+                if _is_shutdown_dispatch(method, params):
+                    return {"result": {"status": "done"}}
                 raise RuntimeError(f"no response for {method}")
 
             resp_id, verb, payload = self._parse_line(line)
@@ -720,6 +757,7 @@ class API:
             params["enrichers"] = self._enrichers
 
         self._call_engine("ze-plugin-engine:declare-registration", params)
+        self._declared = True
 
     # ==================================================================
     # Stage 2: Config Delivery
@@ -823,12 +861,27 @@ class API:
     # ==================================================================
 
     def ready(self) -> None:
-        """Signal to ZeBGP that this API process is ready (Stage 5).
+        """Signal to ZeBGP that this API process is ready (Stage 5) and NOTHING else.
+
+        This is stage 5 alone. The module-level `ze_api.ready()` is a DIFFERENT
+        function that runs all five stages; picking this one by mistake is what
+        left three decode fixtures dead for months.
 
         Sends ze-plugin-engine:ready RPC, including any accumulated
         subscriptions to avoid the race condition between ready and
         event delivery.
         """
+        if not self._declared:
+            # Fail closed, and say so here rather than let the engine say it
+            # (ai/rules/evidence.md). runStartupHandshake refuses any first
+            # request that is not declare-registration, so without this the
+            # script dies far from its mistake with an opaque engine error.
+            raise RuntimeError(
+                "ze_api: ready() is stage 5 alone and declare_done() has not run. "
+                "Call declare_done(), wait_for_config(), capability_done() and "
+                "wait_for_registry() first, or use the module-level ze_api.ready(), "
+                "which runs all five stages on the singleton."
+            )
         params: dict[str, Any] = {}
         if self._subscription is not None:
             params["subscribe"] = self._subscription
