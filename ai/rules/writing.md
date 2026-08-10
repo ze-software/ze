@@ -140,7 +140,8 @@ text clearer for a reader. Owner directive, 2026-07-31.
 | Error messages, log lines, diagnostic remediation text | Yes, together with `cli.md` |
 | CLI output, help text, completions, TUI labels | Yes |
 | YANG `description` strings | Yes |
-| `ai/` rules, patterns, and digests, plus `plan/` specs and journal rows | Yes |
+| `ai/` rules, patterns, and digests, plus the durable half of `plan/`: journal rows, learned summaries, the template | Yes |
+| A `plan/` document deleted at closure: `plan/spec-*.md`, a deferral shard, a known-failure shard | No. It is removed when the work closes, so nobody reads the edit |
 | Commit messages and PR text | Yes |
 | Chat replies, reports, and analysis for the user | No. Answer the person who asked |
 | Thomas's authored prose: blog posts, articles, emails, the weekly update (`/write`, `/ze-weekly-update`) | No. That prose is his voice and it stays UK English (see "Language and Spelling" above) |
@@ -174,7 +175,8 @@ text clearer for a reader. Owner directive, 2026-07-31.
 - **The checker holds our own word lists, not the ASD dictionary.** It cannot see every violation, so the six habits stay a review checklist as well as a gate. Report a violation as an ISSUE against its habit number.
 - **When the tool is wrong, fix the tool and add the case to `scripts/dev/ste_check_test.py`.** A checker that flags `setup`, an RFC 2119 MUST, or a code span gets switched off, and then it protects nothing.
 - **Escape hatch for a document that must quote non-STE text at length:** `<!-- ste: ignore-file <reason> -->`, or `<!-- ste: ignore -->` above one line. The reason is mandatory.
-- **Surfaces the tool reads:** Markdown in `docs/`, `ai/`, `plan/`, and the repository root. Prose comments in `.go`. The `description` strings in `.yang`. Piped text on stdin. It never reads `rfc/`, which stays verbatim.
+- **Surfaces the tool reads:** Markdown in `docs/`, `ai/`, the durable half of `plan/`, and the repository root. Prose comments in `.go`. The `description` strings in `.yang`. Piped text on stdin. It never reads `rfc/`, which stays verbatim.
+- **A document that is DELETED when the work closes is out of scope, and editing its prose is banned work (owner directive, 2026-08-10).** A spec `git rm`s itself in commit B, and a deferral or known-failure shard goes when its rows resolve, so a sentence rewritten there is read once by the session that wrote it. `plan/spec-*.md`, `plan/deferrals/` and `plan/known-failures/` are excluded in `scripts/dev/ste_check.py`. `plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` stay in: they outlive every spec and are read by sessions that were not there.
 
 ### Mechanical check: STE
 

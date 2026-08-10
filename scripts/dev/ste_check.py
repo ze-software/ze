@@ -20,7 +20,9 @@ Surfaces
 --------
 Every writing surface INSIDE the repository:
 
-    markdown             docs/, ai/, plan/, and the root *.md files
+    markdown             docs/, ai/, the durable half of plan/, and the root *.md
+                         files. A document deleted at closure is out: see
+                         EXCLUDE_GLOBS
     go-comments          prose comments in *.go, minus the structured markers
     yang-descriptions    `description` strings in *.yang
     stdin                a commit message or a PR body, piped in as "-"
@@ -69,6 +71,7 @@ import json
 import re
 import subprocess
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 
 # --------------------------------------------------------------------------
@@ -114,7 +117,20 @@ EXCLUDE_DIRS = (
     ".git/",
     "backups/",
     "ai/rules/points/",
+    # A deferral shard and a known-failure shard are deleted when their rows are
+    # resolved, like the spec below. See EXCLUDE_GLOBS.
+    "plan/deferrals/",
+    "plan/known-failures/",
 )
+
+# A document that is DELETED when the work closes is not worth an STE edit
+# (owner directive, 2026-08-10). A spec lives for the length of one piece of
+# work and `git rm`s itself in commit B (`ai/rules/planning.md`, "Spec
+# Closure"), so a sentence rewritten there is read once by the session that
+# wrote it and then removed. The durable records under `plan/` stay in scope:
+# `plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` outlive every spec
+# and are read by sessions that were not there.
+EXCLUDE_GLOBS = ("plan/spec-*.md",)
 
 # Generated files carry their producer's prose, so a finding there belongs to the
 # generator. Detected by marker, so a new generated document needs no wiring.
@@ -1141,7 +1157,9 @@ def review(path, text, surface):
 
 
 def excluded(rel):
-    return any(rel.startswith(d) for d in EXCLUDE_DIRS)
+    if any(rel.startswith(d) for d in EXCLUDE_DIRS):
+        return True
+    return any(fnmatch(rel, pattern) for pattern in EXCLUDE_GLOBS)
 
 
 def default_files(root):

@@ -8,6 +8,7 @@ directives ## Directives
   this-rule-is-at-the-level-of-git-safety
   never-claim-done-while-an-ac-is-unimplemented
   fix-a-defect-that-blocks-your-goal
+  fix-the-problem-not-only-the-files-you-opened
   spec-a-found-problem-close-then-ask
   interoperability-and-correctness-are-never-optional
   recording-a-problem-is-not-addressing-it-fix-the-root-cause

@@ -80,8 +80,12 @@
 - A defect you walk into while working on something else gets ONE row in
   `plan/journal/<class>.md`: `| Date | Spec | Surface | Symptom | Fix |`.
   Then close the work in hand and stop. No spec, no deferral row, no ask.
-- Two finds are FIXED on the spot, and only these two: a defect that stops a test
-  or a gate from passing, and a test that is wrong about what it asserts.
+- Three finds are FIXED on the spot, and only these three: a defect that stops a
+  test or a gate from passing, a test that is wrong about what it asserts, and
+  code RELATED to the problem in hand, edited or not, its tests included.
+- The unit you fix is the PROBLEM, never the files you happened to open. The other
+  call site, the sibling path with the same defect, the test that asserts the
+  behaviour you changed: each leaves the problem half-fixed, so each is in scope.
 - FIX IT anyway when the fix is small enough not to derail the work in hand, and
   still write the row. A small fix needs no spec to authorise it.
 - The defect that BLOCKS the goal your work exists to achieve is governed by the

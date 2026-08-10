@@ -478,6 +478,22 @@ class TestSkips(unittest.TestCase):
         text = "<!-- ste: ignore -->\nThe peer should retry.\n"
         self.assertEqual(habits(text), [])
 
+    def test_a_document_deleted_at_closure_is_out_of_scope(self):
+        # A spec `git rm`s itself in commit B, and a deferral or known-failure
+        # shard goes when its rows resolve. Editing prose there is work nobody
+        # reads (owner directive, 2026-08-10).
+        self.assertTrue(ste.excluded("plan/spec-fixit-something.md"))
+        self.assertTrue(ste.excluded("plan/deferrals/fixit-something.md"))
+        self.assertTrue(ste.excluded("plan/known-failures/flaky-thing.md"))
+
+    def test_the_durable_half_of_plan_stays_in_scope(self):
+        # A journal row, a learned summary and the template outlive every spec
+        # and are read by sessions that were not there.
+        self.assertFalse(ste.excluded("plan/journal/unwired-feature.md"))
+        self.assertFalse(ste.excluded("plan/learned/RECURRING-PATTERNS.md"))
+        self.assertFalse(ste.excluded("plan/TEMPLATE.md"))
+        self.assertFalse(ste.excluded("docs/guide/quickstart.md"))
+
 
 class TestBaselineArithmetic(unittest.TestCase):
     def test_tally_is_per_surface(self):
