@@ -1132,11 +1132,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		err = errors.Join(peerErrs...)
 	}
 
-	// Gracefully stop remaining processes (daemons)
+	// Gracefully stop remaining processes (daemons). The daemon that the test's
+	// own observer asks to stop is given that chance first: see
+	// selfStopGrace and terminateAfterSelfExit.
+	selfStop := fgProc != nil && tmpfsRequestsDaemonShutdown(rec.TmpfsFiles)
 	for _, p := range bgProcs {
-		if !peerProcs[p] && p.Process != nil {
-			terminateGracefully(p)
+		if peerProcs[p] || p.Process == nil {
+			continue
 		}
+		if selfStop && p == fgProc {
+			terminateAfterSelfExit(p, selfStopGrace(r.withParallelHeadroom(testBudget)))
+			continue
+		}
+		terminateGracefully(p)
 	}
 
 	// Barrier: every peer's output must be complete before anything reads it. Only

@@ -12,6 +12,7 @@ package runner
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -436,4 +437,113 @@ func TestEveryExecSiteUsesChildEnv(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("scanned no source files; the test cannot be gating anything")
 	}
+}
+
+// TestSelfStopGraceStaysInsideTheBudget drives the derived grace at the budgets
+// the plugin suite really uses.
+//
+// VALIDATES: the grace is a strict fraction of the wall-clock the daemon races,
+// so it is reachable at every budget and always leaves the runner time to
+// signal, reap and report inside the same deadline.
+// PREVENTS: the constant this replaces. A wait unrelated to the deadline that
+// kills the process is either never reached or larger than the whole run
+// (`(*Runner).testBudgetEnv`, same reasoning).
+// DISCRIMINATES: raise selfStopShare to 1.0 and the upper bound fails; drop it
+// to 0 and the lower bound fails, which is terminateGracefully's behavior.
+func TestSelfStopGraceStaysInsideTheBudget(t *testing.T) {
+	for _, budget := range []time.Duration{
+		time.Second, 15 * time.Second, 20 * time.Second, 2 * time.Minute,
+	} {
+		grace := selfStopGrace(budget)
+		if grace <= 0 {
+			t.Errorf("budget %v: grace %v is not a wait at all", budget, grace)
+		}
+		if grace >= budget {
+			t.Errorf("budget %v: grace %v leaves the runner no time to tear down and report",
+				budget, grace)
+		}
+	}
+}
+
+// TestTmpfsRequestsDaemonShutdown reads the marker out of the shapes an observer
+// really writes it in.
+//
+// VALIDATES: a .ci whose embedded observer asks the daemon to stop is
+// recognized, and one that never does is not.
+// PREVENTS: giving the self-exit grace to the ~105 plugin .ci files whose daemon
+// never stops itself, which would add the whole grace to each of their runs.
+func TestTmpfsRequestsDaemonShutdown(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{"no tmpfs at all", nil, false},
+		{
+			"observer dispatches it",
+			map[string][]byte{"obs.run": []byte("dispatch(api, 'request shutdown')\n")},
+			true,
+		},
+		{
+			"second file carries it",
+			map[string][]byte{
+				"helper.py": []byte("def noop():\n    return None\n"),
+				"obs.run":   []byte("api._call_engine('x', {'command': 'request shutdown'})\n"),
+			},
+			true,
+		},
+		{
+			"observer never stops the daemon",
+			map[string][]byte{"obs.run": []byte("dispatch(api, 'show bgp summary')\n")},
+			false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tmpfsRequestsDaemonShutdown(tc.files); got != tc.want {
+				t.Errorf("tmpfsRequestsDaemonShutdown = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTerminateAfterSelfExitLetsTheProcessFinish drives both arms against real
+// children.
+//
+// VALIDATES: a process that exits on its own inside the grace is reaped without
+// a signal, and one that never exits is still torn down.
+// PREVENTS: the failure this function exists for -- the runner signaling the
+// daemon while the observer inside it was mid-RPC, which surfaced as
+// "no response for ze-plugin-engine:dispatch-command" on six .ci files whose
+// wire expectations had already passed.
+// DISCRIMINATES: pass grace 0 and the first case's child is signaled before it
+// can write its own exit status, which is what the assertion reads.
+func TestTerminateAfterSelfExitLetsTheProcessFinish(t *testing.T) {
+	t.Run("self exit inside the grace is not signaled", func(t *testing.T) {
+		// Exits 7 on its own. A SIGTERM would make the status 143 instead, so
+		// the exit code IS the evidence that no signal was sent.
+		cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "sleep 0.2; exit 7") //nolint:gosec // fixed argv
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("start: %v", err)
+		}
+		terminateAfterSelfExit(cmd, 10*time.Second)
+		if code := cmd.ProcessState.ExitCode(); code != 7 {
+			t.Errorf("exit code = %d, want 7 (the child's own status, unsignaled)", code)
+		}
+	})
+
+	t.Run("a daemon that never stops is still torn down", func(t *testing.T) {
+		cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "sleep 300") //nolint:gosec // fixed argv
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("start: %v", err)
+		}
+		start := time.Now()
+		terminateAfterSelfExit(cmd, 50*time.Millisecond)
+		if elapsed := time.Since(start); elapsed > 30*time.Second {
+			t.Errorf("teardown took %v; the grace is not bounding anything", elapsed)
+		}
+		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() == 0 {
+			t.Error("a child that never exits must be signaled, not reported as a clean exit")
+		}
+	})
 }

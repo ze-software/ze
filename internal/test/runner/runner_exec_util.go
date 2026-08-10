@@ -5,6 +5,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -703,6 +704,81 @@ func terminateGracefully(cmd *exec.Cmd) {
 	})
 	_ = cmd.Wait()
 	timer.Stop()
+}
+
+// selfStopShare is the fraction of the daemon's own wall-clock budget that
+// terminateAfterSelfExit will wait before it signals. It is a SHARE and not a
+// constant for the reason testBudgetEnv gives: a constant unrelated to the
+// deadline that kills the process is either unreachable or larger than the run.
+// The remainder is what the runner keeps to signal, reap, drain the peers and
+// write the report inside the same deadline.
+const selfStopShare = 0.5
+
+// selfStopGrace is how long a daemon whose test asks it to stop is given to do
+// so, derived from the wall-clock budget that daemon actually races.
+func selfStopGrace(budget time.Duration) time.Duration {
+	return time.Duration(float64(budget) * selfStopShare)
+}
+
+// requestShutdownMarker is the command an observer plugin dispatches to stop the
+// daemon it runs inside. A .ci that embeds it is declaring that its daemon ends
+// the test itself, which is what terminateAfterSelfExit waits for.
+const requestShutdownMarker = "request shutdown"
+
+// tmpfsRequestsDaemonShutdown reports whether any embedded tmpfs file asks the
+// daemon to stop. It reads the same tmpfs contents tmpfsHasErrExit does.
+func tmpfsRequestsDaemonShutdown(files map[string][]byte) bool {
+	for _, content := range files {
+		if bytes.Contains(content, []byte(requestShutdownMarker)) {
+			return true
+		}
+	}
+	return false
+}
+
+// terminateAfterSelfExit waits up to grace for a daemon to exit on its own, and
+// only then falls back to the SIGTERM teardown terminateGracefully performs.
+//
+// The default arm of runOrchestrated waits the check peers and signals the
+// daemon at once. A check peer stops as soon as its LAST expected message
+// arrives, so a test whose observer plugin still has work after that message --
+// a delivery window to sit out, a state to poll, its own `request shutdown` --
+// had the daemon pulled out from under it. The observer's next engine RPC then
+// answered nothing, ze_api raised "no response for ze-plugin-engine:
+// dispatch-command", and the excepthook turned a teardown the RUNNER ordered
+// into a ZE-OBSERVER-FAIL that outranks every other verdict
+// (checkObserverSentinel). Six .ci files failed that way with their wire
+// expectations already satisfied.
+//
+// The wait is bounded, so a daemon that does not stop itself still gets the old
+// teardown and the test still ends inside its deadline.
+func terminateAfterSelfExit(cmd *exec.Cmd, grace time.Duration) {
+	if cmd.Process == nil {
+		_ = cmd.Wait() //nolint:errcheck // teardown: the exit status is read elsewhere
+		return
+	}
+	// Lifecycle goroutine (one-time Process.Wait bridge): Wait must be called
+	// exactly once, so it runs here and every path below reads the same channel.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = cmd.Wait() //nolint:errcheck // teardown: the exit status is read elsewhere
+	}()
+
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return
+	case <-timer.C:
+	}
+
+	_ = cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck // best-effort teardown
+	killTimer := time.AfterFunc(teardownGraceTimeout, func() {
+		_ = cmd.Process.Kill() //nolint:errcheck // best-effort teardown
+	})
+	<-done
+	killTimer.Stop()
 }
 
 // stopNamedBackground executes a cmd=stop step: it looks the named process up in
