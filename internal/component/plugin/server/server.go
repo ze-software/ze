@@ -577,6 +577,22 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	return nil
 }
 
+// replyContext carries a RESPONSE to a request the engine has already run. It
+// is s.ctx with the cancellation Stop triggers removed, because a reply and a
+// request are owed different things: reading the NEXT request must stop the
+// moment the server stops, and answering one already run must not.
+//
+// `request shutdown` is the case that proves it. handleDaemonShutdown stops the
+// reactor, which reaches Stop below and cancels s.ctx, all before the reply to
+// that same command is written; writeAppended (pkg/plugin/rpc/conn.go) returns
+// ctx.Err() without writing a byte on a canceled context, so the one caller
+// certain to lose its answer was the caller that asked the daemon to stop. The
+// write stays bounded: defaultWriteDeadline when nothing else bounds it, and the
+// socket error the moment the plugin is gone.
+func (s *Server) replyContext() context.Context {
+	return context.WithoutCancel(s.ctx)
+}
+
 // Stop signals the server to stop and cleans up resources.
 func (s *Server) Stop() {
 	if s.cancel != nil {

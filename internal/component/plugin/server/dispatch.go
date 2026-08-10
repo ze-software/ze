@@ -89,7 +89,7 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 	}
 
 	var tb textbuf.Buffer
-	if err := conn.SendError(s.ctx, req.ID, tb.Str("unknown method: ").Str(req.Method).String()); err != nil {
+	if err := conn.SendError(s.replyContext(), req.ID, tb.Str("unknown method: ").Str(req.Method).String()); err != nil {
 		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
 	}
 }
@@ -430,14 +430,15 @@ func (s *Server) handleCodecRPC(proc *process.Process, conn *plugipc.PluginConn,
 	codec func(json.RawMessage) (any, error),
 ) {
 	result, err := codec(req.Params)
+	reply := s.replyContext()
 	if err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(reply, req.ID, err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
 
-	if sendErr := conn.SendResult(s.ctx, req.ID, result); sendErr != nil {
+	if sendErr := conn.SendResult(reply, req.ID, result); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }

@@ -531,6 +531,53 @@ func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
 	assert.Contains(t, malR.err.Error(), "too short")
 }
 
+// TestDispatchAnswersRequestThatStoppedTheServer verifies that a plugin RPC whose
+// own handler stops the server is still answered.
+//
+// VALIDATES: The reply travels on replyContext, which Stop does not cancel.
+//
+// PREVENTS: `request shutdown` stranding its caller. handleDaemonShutdown stops
+//
+//	the reactor, that reaches Server.Stop and cancels s.ctx, and writeAppended
+//	returns ctx.Err() without writing a byte on a canceled context. The observer
+//	in 35 functional tests then died on "no response for
+//	ze-plugin-engine:dispatch-command" after every assertion had passed.
+func TestDispatchAnswersRequestThatStoppedTheServer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	callCtx, callCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer callCancel()
+
+	// The handler cancels the server context, which is what Server.Stop does on
+	// the shutdown path, and it does so BEFORE the reply is written.
+	s := &Server{ctx: ctx, rpcHandlers: map[string]func(json.RawMessage) (any, error){
+		"ze-plugin-engine:decode-mp-reach": func(json.RawMessage) (any, error) { //nolint:unparam // test stub: the success path is the case under test
+			cancel()
+			return map[string]string{"status": "ok"}, nil
+		},
+	}}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := plugipc.NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &process.Process{}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := pluginConn.CallRPC(callCtx, "ze-plugin-engine:decode-mp-reach", &rpc.DecodeMPReachInput{Hex: "0001"})
+		done <- err
+	}()
+
+	req, err := engineConn.ReadRequest(callCtx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	require.NoError(t, <-done, "a request the engine already ran must be answered even though it stopped the server")
+}
+
 // TestHasConfiguredPluginRunCommand verifies that hasConfiguredPlugin matches
 // external plugins by Run command when config name differs from registry name.
 //

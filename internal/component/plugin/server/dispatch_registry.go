@@ -190,13 +190,14 @@ func lookupEngineOp(method string) *engineOp {
 // RPCCallError so external and in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
 	result, err := op.handle(s, proc, req.Params)
+	reply := s.replyContext()
 	if err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, rpcErrMessage(err)); sendErr != nil {
+		if sendErr := conn.SendError(reply, req.ID, rpcErrMessage(err)); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
-	if sendErr := conn.SendResult(s.ctx, req.ID, result); sendErr != nil {
+	if sendErr := conn.SendResult(reply, req.ID, result); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
