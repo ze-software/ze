@@ -5,8 +5,14 @@
         <link>https://ze-software.net/blog/</link>
         <description>Editorial articles on Ze.</description>
         <language>en</language>
-        <lastBuildDate>Thu, 06 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Sun, 09 Aug 2026 00:00:00 +0000</lastBuildDate>
         <item>
+            <title>The repository is half the AI harness</title>
+            <link>https://ze-software.net/blog/the-repository-is-the-ai-harness/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/the-repository-is-the-ai-harness/</guid>
+            <pubDate>Sun, 09 Aug 2026 00:00:00 +0000</pubDate>
+            <description>AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.</description>
+        </item>        <item>
             <title>The proof is the expensive part</title>
             <link>https://ze-software.net/blog/the-proof-is-the-expensive-part/</link>
             <guid isPermaLink="true">https://ze-software.net/blog/the-proof-is-the-expensive-part/</guid>

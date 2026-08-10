@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>The repository is half the AI harness - Ze Blog</title>
+        <meta name="description" content="AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce." />
+        <meta property="og:title" content="The repository is half the AI harness - Ze Blog" />
+        <meta property="og:description" content="AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="The repository is half the AI harness - Ze Blog" />
+        <meta name="twitter:description" content="AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/blog/the-repository-is-the-ai-harness/" />
+        <meta property="og:url" content="https://ze-software.net/blog/the-repository-is-the-ai-harness/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Article</span>
+                    <h1 id="post-title">The repository is half the AI harness</h1>
+                    <p><time datetime="2026-08-09">2026-08-09</time></p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All articles</a></p>
+            </section>
+            <section class="md-content reveal">
+<p>Ze is a network operating system spread over 634 Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it. That is a problem about repository structure, and it is a good deal older than AI.</p>
+<p>At the start of the 2000s, Git did not exist. CVS was notorious because you could not rename a folder, a serious limitation when the structure of a project mattered. Subversion was the modern choice if CVS had not already put you off version control.</p>
+<p>Project layouts were not very standard either. Our convention was to put each project's configuration, working data and source code under the same three top-level directories:</p>
+<pre><code class="language-text">project/
+    etc/&lt;project&gt;/
+    data/&lt;project&gt;/
+    src/&lt;project&gt;/
+</code></pre>
+<p>Project names let us combine or separate trees as needed. The layout was close enough to the Filesystem Hierarchy Standard (FHS) to map onto the operating system easily. During development, the repository acted as the installed root, leaving only a code-test loop.</p>
+<p>The same thinking is visible in the <a href="https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532" target="_blank" rel="noopener">first ExaBGP commit from September 2009</a>. It had <code>daemon</code>, <code>etc</code>, <code>lib</code> and <code>test</code> directories, and a test which announced a route to a Cisco 7204 and kept the connection alive. By 2009 this kind of layout was far more familiar, largely because Ruby on Rails had made project structure part of the framework.</p>
+<p>Ze is in good company here. Most repositories on GitHub are well organised for human developers and for the tools we already had, and the reasoning behind that organisation was never written into the tree. People carried it instead, in a wiki nobody updates, a handful of pull request comments and the maintainer's head. An agent arrives with none of that and no way to ask for it.</p>
+<p>Rails gave repositories a shape people could learn, and the tooling followed once that shape became predictable. An agent needs that shape as much as a new developer does. It also needs the reasoning behind the shape, and something which checks its work. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on. So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both.</p>
+<p><em>This article was co-authored with Claude. The architecture, design decisions and conclusions come from my work on Ze. Claude helped organise the material and draft the text.</em></p>
+<h2>Rails made the tree an interface</h2>
+<p>Rails turned project structure into something people argued about. Its <a href="https://guides.rubyonrails.org/getting_started.html#rails-philosophy" target="_blank" rel="noopener">official philosophy</a> calls the idea Convention over Configuration. Running <code>rails new</code> creates recognised places for application code, commands, configuration, database changes, libraries, logs, public files, tests and temporary data.</p>
+<pre><code class="language-text">app/        application code
+bin/        commands
+config/     configuration
+db/         database changes
+lib/        additional libraries
+log/        logs
+public/     public files
+test/       tests and fixtures
+tmp/        temporary data
+</code></pre>
+<p>Rails was probably not the first project to lay a tree out like that, but it was the first one to make the idea popular. Good ideas often appear in several places at roughly the same time. Many people encounter the same pain, the available tools make an answer possible, and several engineers independently build similar things. One implementation gets the viral effect, receives a memorable name and becomes the example everybody remembers.</p>
+<p>What Rails did was make its conventions consistent, generate them automatically and teach them to a large community. A developer entering an unfamiliar Rails application already knew where to look, and so did the Rails tools. The directory tree had become an interface shared by people and programs.</p>
+<p>That is two problems solved together. Rails improved the framework tools and prescribed the structure those tools could expect, so they never had to rediscover an application's shape.</p>
+<p>The idea spread far beyond Rails. Plenty of ecosystems now ship a command which lays out a new project for you, such as <code>django-admin startproject</code>, <code>cargo new</code> or <code>ng new</code>. Scaffolding a tree is completely normal, so the mechanism we would need already exists. What those commands generate is aimed at the compiler, the package manager and the human reader. Not one of them puts anything in the tree for an agent.</p>
+<p>An agent needs the same interface a new developer needs, with one extra difficulty: it starts every session knowing nothing at all.</p>
+<h2>AI has not had its Rails moment</h2>
+<p>AI coding has concentrated on the tool side. Harnesses keep getting better at tool use, planning, context management and coordination between agents, and the models improve every few weeks. Still, they walk into arbitrary repositories with no idea where anything is meant to live.</p>
+<p>A harness has to support every language and every kind of repository, so it stays general. It can search files, edit text and run commands. It cannot know why one project requires registration while another prefers a switch statement. It cannot know where an architectural decision lives when the project never linked that decision to the code. It cannot recover a rule which exists only in the maintainer's memory.</p>
+<p>We keep improving the worker while leaving the workplace unexplained.</p>
+<p>Frontier labs are well placed to fix half of this, because they build the model and the harness together and can train one for the other. The other half is not theirs to fix. Nobody at a lab can decide where your architectural decisions live, which patterns your project considers correct, or what counts as evidence that a change works. That has to happen inside the repository, and for now it has to be built by hand.</p>
+<p>This is one reason opinions about AI coding are so divided. Some people see the failures of current harnesses and conclude that AI cannot produce serious software. Others use AI successfully but accept the awkwardness of today's tools as a permanent cost. Both positions treat the current state of the art as the final form.</p>
+<p>AI-assisted development reminds me of using the Internet at home over 64K between 1994 and 1996. I had already used a faster university connection, so home access was painful. It required technical skill and motivation, and bulletin board systems were still more popular than the Internet. Yet I loved it because the promise was obvious. ADSL and services such as BitTorrent and YouTube later made the Internet useful to far more people. Judging the Internet by 64K would have mistaken a temporary stage for the limits of the technology.</p>
+<p>AI coding is at a comparable stage. It is already a large improvement for technical and motivated users who are willing to work around its limitations, and its ADSL moment has not arrived. The UI and guidelines which will make it ordinary are still being invented. Most of that missing work is not intellectually difficult. Nobody has built and standardised it yet.</p>
+<p>In 1999 and 2000, working for an ISP felt like having a superpower, perhaps the way working for a frontier AI lab feels now.</p>
+<p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> by saying that generated code has to be constrained, reviewed, tested and measured. <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a> explains how Ze ties an RFC claim to requirements, tests, known gaps and commit evidence. This article covers what comes before all of that: helping the agent find the right information before it writes the wrong code.</p>
+<h2>Other engineers are finding the same shape</h2>
+<p>This problem is wider than Ze.</p>
+<p>Cloudflare published <a href="https://blog.cloudflare.com/engineering-standards-enforcement/" target="_blank" rel="noopener">How Cloudflare enforces engineering standards using AI</a> in August 2026. Before building what it calls the Cloudflare Codex, its engineering guidance lived in formal documentation, repository files, chat threads and the accumulated knowledge of individual engineers. Developers spent time searching and could not always tell whether an answer was current, authoritative or relevant.</p>
+<p>That is almost exactly the problem we found while building Ze.</p>
+<p>Cloudflare turned its standards into structured RFCs. Requirements use <code>MUST</code> and <code>SHOULD</code>. Each statement has a stable name which survives edits to the document around it. Agents receive a compact set of relevant statements first and load the complete RFC only when they need more. AI reviewers check code and technical designs, and rules which ordinary software can recognise are moving into fast linters.</p>
+<p>Ze arrived at a remarkably similar shape inside a single repository. Individual instructions have stable path names. A compact index tells an agent which detailed rule applies. Source files point to their design documents. Edit hooks reject common mistakes immediately. Larger checks run before a change can be accepted.</p>
+<p>Cloudflare is applying this across a large engineering organisation and Ze is doing it inside an open-source project, which makes the convergence useful evidence. Independent engineers facing the same problem are reaching similar conclusions.</p>
+<h2>The project is the other half of the harness</h2>
+<p>The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning.</p>
+<p>Ze carries that meaning in several layers.</p>
+<p><code>ai/INDEX.md</code> is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.</p>
+<p><code>ai/PACKAGE-MAP.md</code> gives one short description for each of those 634 packages, which is a great deal of blind exploration to avoid.</p>
+<p>Production Go files carry a <code>// Design:</code> line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with <code>// Detail:</code>, <code>// Overview:</code> and <code>// Related:</code> comments. There are around 3,400 of the first kind and 2,900 of the second.</p>
+<p>The documents point back into the source through <code>&lt;!-- source: ... --&gt;</code> markers. Small programs generate the two reverse indexes, <code>ai/CODE-TO-DOCS.md</code> and <code>ai/DOCS-TO-CODE.md</code>:</p>
+<pre><code class="language-text">code file       -&gt; documents which explain it
+design document -&gt; source files which implement it
+</code></pre>
+<p>Those names are boring, which is useful. An agent can guess them without learning a product name for a simple idea.</p>
+<p>All of these links are checked. A renamed file, a deleted design or a stale generated index makes verification fail. A hand-written index which quietly becomes fiction is worse than no index at all.</p>
+<p>Source files are kept around one concern. Ze uses 1,000 lines as the point at which a production file must be examined for a second concern, which protects the agent's context: changing one thing should not mean paying for several unrelated things on every later step. A coherent file is allowed to stay coherent even when it is large, because mechanical splitting usually makes navigation worse.</p>
+<p>Humans benefit from all of this too. We have longer-lived memory than an AI session, though we still forget, change teams and misunderstand old decisions. Structure reduces the amount everybody has to remember.</p>
+<h2>A rule needs teeth</h2>
+<p>Consider command dispatch. A switch is simple and efficient when every possible command is known:</p>
+<pre><code class="language-go">switch name {
+case &quot;show&quot;:
+    runShow()
+case &quot;configure&quot;:
+    runConfigure()
+}
+</code></pre>
+<p>Ze allows features supplied by plugins, including third-party plugins, so the complete set of commands is open. A central switch would force the core to know every extension and would destroy that separation.</p>
+<p>Ze uses a registry instead. A registry is just a table which modules add themselves to:</p>
+<pre><code class="language-go">Register(&quot;show&quot;, runShow)
+Register(&quot;configure&quot;, runConfigure)
+</code></pre>
+<p>The main program looks up the name in the table, and a third party can register another command without touching the core.</p>
+<p>A requirement like that needs more than a sentence in an architecture document. The repository provides a chain. <code>ai/patterns/registration.md</code> explains why registration is required and what the accepted shape looks like. Nearly four hundred <code>register.go</code> files show the normal implementation. <code>make generate</code> scans for those files and writes the list of modules loaded at startup, so nobody maintains it by hand. An edit hook rejects hard-coded command lists and registration hidden inside <code>init()</code>. A separate check catches dependencies crossing a plugin boundary. Tests prove that registration and discovery actually work.</p>
+<p>Whatever the hook prints becomes the agent's next prompt, so it has to point somewhere useful:</p>
+<pre><code class="language-text">✘ BLOCKED: Implicit behavior in init()
+  Registration belongs in register.go (or register_*.go), not init().
+  Move Register/Subscribe/AddHandler/Hook calls to register.go.
+  Global assignments belong in var blocks, not init().
+  See ai/patterns/registration.md
+</code></pre>
+<p>That is the general shape I want from an AI-ready project. An important rule needs an explanation, a visible example, a mechanical check where one is possible, and a behavioural test.</p>
+<p>The check should also run as early as it can. The <code>init()</code> mistake above is caught while the file is being written, before anything is compiled, so the agent repairs one file. Caught by a test run half an hour later, the same mistake has a morning's work sitting on top of it, all of it written on the assumption that the first file was acceptable. Some evidence cannot be had that cheaply: a protocol error may need another routing daemon running beside Ze, so it naturally comes later and costs more. Ze's verification command currently runs twenty-five stages in roughly that order. Cheap structure, documentation and generated-file checks come first, then unit, race, allocation, functional and ExaBGP compatibility tests. Release evidence extends further into fuzzing, interoperability, Linux virtual machines, deployment tests, chaos and performance.</p>
+<p>Those twenty-five stages are scar tissue. Almost every one exists because something plausible once passed through a weaker process.</p>
+<h2>Testing has two directions</h2>
+<p>Unit testing is one form of testing. It answers a small question, and it can give a dangerously reassuring answer when the real requirement is larger.</p>
+<p>The functional direction asks how far through the system a behaviour has been proved:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Question</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Function</td>
+<td>Does this small piece return the expected result?</td>
+</tr>
+<tr>
+<td>Subsystem</td>
+<td>Do the connected parts work together?</td>
+</tr>
+<tr>
+<td>Application</td>
+<td>Can a user achieve the result through the real program?</td>
+</tr>
+<tr>
+<td>Interoperability</td>
+<td>Does it work with software written by somebody else?</td>
+</tr>
+</tbody>
+</table>
+<p>A door is the easy analogy. At function level the handle turns and operates its latch. At subsystem level the handle is fitted to a door, and the door still opens and closes. At application level the door has to secure the building, because a door which works perfectly is still useless if it has been fitted next to a large hole in the wall. At interoperability level the door has to work with a frame and a lock supplied by somebody else.</p>
+<p>For Ze, a parser can return the right values in a Go test while the complete daemon sends the wrong message on the wire. Ze can also agree with its own test peer while FRR, BIRD or another implementation rejects the result. Each level catches a class of mistake the level below cannot see.</p>
+<p>The other direction asks what happens under unusual, hostile or expensive conditions:</p>
+<table>
+<thead>
+<tr>
+<th>Technique</th>
+<th>What it tries to reveal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fuzzing</td>
+<td>Inputs the developer did not think to write</td>
+</tr>
+<tr>
+<td>Race detection</td>
+<td>Failures caused by operations happening at the same time</td>
+</tr>
+<tr>
+<td>Mutation testing</td>
+<td>Tests which stay green after the code is deliberately broken</td>
+</tr>
+<tr>
+<td>Allocation checks</td>
+<td>Unexpected memory use in work which runs frequently</td>
+</tr>
+<tr>
+<td>Benchmarks</td>
+<td>Important work becoming unacceptably slow</td>
+</tr>
+</tbody>
+</table>
+<p>I group benchmarks with the safety checks rather than with performance work because uncontrolled CPU and memory use becomes an operational failure, and occasionally a denial-of-service weakness.</p>
+<p>The two directions cross each other. A parser can be tested for correct output and then fuzzed with malformed input. A subsystem can be checked for its normal result and then run under the race detector. An application test can be checked by deliberately breaking the feature and confirming that the test turns red.</p>
+<p>That last one is worth doing by hand when the automated version does not reach far enough. Mutation testing changes production code and checks whether the unit tests notice, which leaves application and interoperability tests uncovered. Claude 5 started closing that gap on its own: remove the fix, rebuild the actual program, confirm the scenario fails, restore the fix and confirm it passes. Nobody asked for it, and it catches tests which observe an unchanged path, along with tests which assert something that was already true before the feature existed.</p>
+<p>Test volume alone creates false confidence. Ze's test-health page records volume, but it also looks for tests which nothing runs, requirements with only a positive or a negative case, and tests which never expect a specific error. The useful question is whether a plausible defect would make the evidence fail.</p>
+<h2>Protect the proof from its author</h2>
+<p>An AI which sees a failing test will sometimes change the test to match its implementation. The result is green, internally consistent and wrong. Humans do this too, usually more slowly and with better excuses.</p>
+<p>I described that machinery in <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a>, so I will not repeat it here beyond the principle it rests on: the authoring process has to make every attempt to weaken the evidence visible, whether the author is a model or a person.</p>
+<p>Claude has developed its own vocabulary while helping me build this. For every RFC <code>MUST</code>, Ze tests the valid case and the failure case. I called those positive and negative tests. Claude calls them the two polarities. Claude also calls important decisions load-bearing, so often that it has become an online joke. If this continues, I expect the larger ones to become load-banging. I normally cut the phrase from prose. This time the joke has earned its place.</p>
+<h2>What this costs</h2>
+<p>I would rather not pretend this machinery is free.</p>
+<p>The generated indexes are large. <code>ai/CODE-TO-DOCS.md</code> and <code>ai/DOCS-TO-CODE.md</code> are around a quarter of a megabyte each, and the RFC requirement ledger is over a megabyte. Nobody reads those files, but they are regenerated, checked and committed, and they make diffs noisier.</p>
+<p>The six thousand cross-reference comments have to stay true. Every renamed file, every moved design document and every merged package is a small maintenance debt. The checks stop them rotting silently, which means they turn into failures somebody has to clear.</p>
+<p>A full verification run is slow enough that I do not run it after every edit, so most of the day I run the cheap stages and rely on the full run before a commit is accepted. That is a real gap and I know it.</p>
+<p>The hooks fire on code which is correct. A pattern which is right ninety-five times out of a hundred still blocks the other five, and arguing with a hook is more annoying than arguing with a person. When a rule turns out to be wrong, it has already been copied into hundreds of files by an agent which was doing exactly what it was told.</p>
+<p>I still think the trade is worth it, because the alternative is reading every diff myself. None of that is automated, and it spends my time instead of machine time. It is a trade though, and a smaller project should pick the parts which pay for themselves rather than copying all of it.</p>
+<h2>A project can build this incrementally</h2>
+<p>Ze's machinery is large because Ze is large and because we have been learning while building it. Another project can start with the useful core, roughly in this order.</p>
+<ol>
+<li><strong>Make the project folder runnable.</strong> Keep configuration, fixtures and working data in predictable places, and reduce the differences between development, testing and installation.</li>
+<li><strong>Write a short architecture map.</strong> Explain the major directories, what belongs in each one and which dependencies are allowed.</li>
+<li><strong>Create one task-oriented index.</strong> Route the common jobs to the relevant design, rule and example.</li>
+<li><strong>Link source to design and back again.</strong> Put the link where an agent opening the source will see it, generate the reverse index so no large table is maintained by hand, and fail the build when either side goes stale.</li>
+<li><strong>Record the approved patterns.</strong> Show how the project implements registration, configuration, commands, storage and the other repeated concerns.</li>
+<li><strong>Turn repeated mistakes into checks.</strong> Start with the cheap ones, for patterns which can be recognised reliably.</li>
+<li><strong>Test for depth and under pressure.</strong> Cover function, subsystem, application and third-party software where the feature needs it, then add fuzzing, race detection, mutation checks, memory limits and benchmarks according to the risk.</li>
+<li><strong>Provide one verification command.</strong> Run the cheap failures before the expensive evidence, and continue far enough to report every useful failure rather than stopping at the first.</li>
+<li><strong>Make every failure useful.</strong> Name the problem, the affected file, the expected pattern and the document which explains the correction.</li>
+</ol>
+<p>The point of writing any of it down is retention. A prompt correction lasts for one conversation. A documented pattern, linked from the code and backed by a check, survives the next agent, the next human and the next year.</p>
+<h2>The convention will come from a project</h2>
+<p>AI-assisted development is beginning to discover its Convention over Configuration, and we do not yet know which project will make it viral.</p>
+<p>This is simply how conventions form. A useful project becomes popular, people copy its structure, the structure becomes familiar, and tools begin to expect it. The decisions do not have to be the best possible ones. They arrive attached to something people want.</p>
+<p>Andrej Karpathy gave a small demonstration of that effect with his <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">LLM Wiki gist</a>. It describes an LLM maintaining a wiki made from ordinary Markdown files, with Obsidian as the editor. Raw sources stay separate, the agent maintains cross-linked pages, an <code>index.md</code> helps it find the right information, and an <code>AGENTS.md</code> or <code>CLAUDE.md</code> explains the structure. More complicated search can wait until the collection needs it.</p>
+<p>The idea became extremely popular the moment he shared it, and many people had already reached the same answer independently. Ze was already using Markdown for its rules, designs and working memory, maintaining cross-links and generating indexes, all of it in the same text editors we write the code in. What Karpathy added was a clear explanation and a large audience, and for many people his version will become the version they know and copy.</p>
+<p>That is the effect I mean. One implementation becomes the reference without needing to invent every part. If its choices are excellent, they are copied. If some choices are awkward, they are copied as well. Familiarity turns them into the convention.</p>
+<p>Ze may contribute to that shape, or another project may do it much better. I hope the one which becomes viral is a good one.</p>
+<p>That creates a responsibility for Ze today. Its structure has to be understandable outside the people who created it. Its checks have to prove something useful. Its documentation has to explain why the machinery exists. Another AI should be able to inspect the repository, reproduce the useful parts and leave behind the complexity which only Ze needs.</p>
+<p>ExaBGP could run straight out of its project folder because the design let the program find its environment, with no installation step in between. An AI-ready repository has to do the same thing for an agent, and let it find the project's architecture without already understanding it. That environment includes the source code, its relationships, the designs, the tests, the checks and the failure messages.</p>
+<p>Ze has not found the solution, and we are still working on it. An article about AI written six months ago is probably already out of date, and this one describes summer 2026. Model releases arrive almost every month, and each one moves the boundary: a more capable model may make some of this machinery unnecessary, or it may use a richer structure correctly and justify adding more. If you are reading this later, check which of these problems have already been solved before copying anything.</p>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
