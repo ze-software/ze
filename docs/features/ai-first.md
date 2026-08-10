@@ -95,9 +95,9 @@ inventing new ones: `make ze-inventory`, `make ze-command-list`,
 
 Commit preparation uses `scripts/dev/commit_helper.py`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,
-message file, executable user-run script, ignored-path checks, `git commit -F`
-flow, and learned-summary gate for workflow/tooling/rule changes.
-<!-- source: scripts/dev/commit_helper.py -- commit helper CLI and lesson gate -->
+message file, executable user-run script, ignored-path checks, and `git commit -F`
+flow.
+<!-- source: scripts/dev/commit_helper.py -- commit helper CLI and its commit gates -->
 
 <!-- source: mk/inventory.mk -- quick reference and targets -->
 

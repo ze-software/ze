@@ -17,7 +17,6 @@ import sys
 import tempfile
 import textwrap
 import time
-from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,9 +96,9 @@ def marker_line(marker: str, payload: str) -> str:
 
     THE only way a caller-supplied string is written into the generated script as
     a comment. Newline safety used to be a per-flag concern -- `push_authorisation`
-    flattened its own value and nothing else did -- so the lesson reason, the
-    subject and the staged paths each rendered raw, and a newline in any of them
-    forged a push marker (see split_push_section).
+    flattened its own value and nothing else did -- so the subject and the staged
+    paths each rendered raw, and a newline in either of them forged a push marker
+    (see split_push_section).
 
     Flattening alone still lets a value SPELL the push marker at the start of its
     own line, which `split_push_section` would then have to adjudicate. Refuse it
@@ -124,26 +123,6 @@ def comment_line(text: str) -> str:
     return marker_line("#", text)
 
 
-LESSON_WORTHY_PREFIXES = (
-    "ai/rules/",
-    "ai/skills/",
-    "ai/agents/",
-    "internal/plugins/skills/",
-    "scripts/dev/",
-    "scripts/docvalid/",
-    "scripts/inventory/",
-    "scripts/lint/",
-    "scripts/status/",
-    "mk/",
-    "docs/contributing/",
-)
-
-LESSON_WORTHY_FILES = {
-    "Makefile",
-    "ai/INDEX.md",
-    "ai/INSTRUCTIONS.md",
-}
-
 FORBIDDEN_COMMIT_SCRIPT_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
@@ -157,7 +136,6 @@ class CommitBlock:
     add_paths: tuple[str, ...]
     remove_paths: tuple[str, ...]
     message_path: str
-    lesson_comment: str
     # A shell line re-run inside the generated script (under `set -e`) before the
     # git commands, so a spec-closure commit re-verifies the review gate at
     # commit-RUN time, not only at script-generation time. Closes the edit-after-
@@ -458,188 +436,8 @@ def message_text(subject: str, body: list[str]) -> str:
     return "\n".join(parts) + "\n"
 
 
-# A repeated one-for-one token swap is a mechanical substitution (a rename applied
-# everywhere). A SINGLE swapped token is an edit -- a changed threshold, a flipped
-# default, a different function called -- and an edit can carry a lesson. Two is
-# where the helper stops guessing and starts asking.
-MIN_SUBSTITUTION_SITES = 2
-
-
-def _lesson_scope(paths: tuple[str, ...]) -> tuple[str, ...]:
-    """The commit's paths whose change could plausibly carry a reusable lesson."""
-    return tuple(
-        path
-        for path in paths
-        if path in LESSON_WORTHY_FILES or path.startswith(LESSON_WORTHY_PREFIXES)
-    )
-
-
-# Words and single punctuation marks, never whitespace runs. Splitting on
-# whitespace alone would bury a renamed identifier inside `widen(value):`, and the
-# rename is exactly the mechanical case this has to recognize.
-LESSON_TOKEN_RE = re.compile(r"\w+|[^\w\s]")
-
-
-def _lesson_tokens(text: str) -> list[str]:
-    return LESSON_TOKEN_RE.findall(text)
-
-
-def _token_counts(changes: tuple[tuple[str, str, str], ...], sign: str) -> Counter[str]:
-    return Counter(
-        token for _, s, text in changes if s == sign for token in _lesson_tokens(text)
-    )
-
-
-def _indent(text: str) -> str:
-    return text[: len(text) - len(text.lstrip())]
-
-
-def _line_shapes(
-    changes: tuple[tuple[str, str, str], ...], sign: str
-) -> list[tuple[str, tuple[str, ...]]]:
-    """One (indent, ordered tokens) record per changed line, in diff order.
-
-    Ordered, because order is meaning. `count > baseline` and `baseline > count`
-    hold the same words and say opposite things. Indented, because indentation is
-    meaning too: dedenting a `return` out of a loop body changes no word and
-    changes what the function returns.
-
-    A line with no tokens is not a record. Blank lines and whitespace carry
-    nothing to compare, and counting them would demand a summary for a spacing
-    change.
-    """
-    shapes = []
-    for _, s, text in changes:
-        if s != sign:
-            continue
-        tokens = tuple(_lesson_tokens(text))
-        if tokens:
-            shapes.append((_indent(text), tokens))
-    return shapes
-
-
-def _mechanical_kind(changes: tuple[tuple[str, str, str], ...]) -> str | None:
-    """Name the mechanical shape of a diff, or None when it carries new content.
-
-    Compares the ordered SEQUENCE of changed lines added against those removed,
-    each line taken as its indentation plus its tokens in order. A block that
-    leaves one file and arrives unchanged in another leaves the two sequences
-    equal, which is the case this exists to recognize. Anything that changes what
-    a line SAYS -- a new token, a swapped operand, a different nesting level --
-    breaks the sequence, and that is what a learned summary exists to explain.
-
-    Order and indentation are both load-bearing, so neither is normalized away.
-    `if count > baseline:` to `if baseline > count:` is a logic inversion whose
-    words are untouched; an order-free comparison called it a reformat. The cost
-    of reading them strictly is a re-wrapped paragraph or a re-homed block being
-    asked for a summary it may not owe, which `--lesson-not-needed "<why>"`
-    clears in one flag. The cost of reading them loosely is a silent inversion.
-
-    A pure DELETION is not mechanical: removing a gate is a behavior change.
-    """
-    shapes_added = _line_shapes(changes, "+")
-    if shapes_added == _line_shapes(changes, "-"):
-        return "no new text" if not shapes_added else "a move or a reformat"
-    added, removed = _token_counts(changes, "+"), _token_counts(changes, "-")
-    new, gone = added - removed, removed - added
-    if len(new) == 1 and len(gone) == 1:
-        ((new_token, new_count),) = new.items()
-        ((old_token, old_count),) = gone.items()
-        if new_count == old_count >= MIN_SUBSTITUTION_SITES:
-            return (
-                f"a repeated {old_token} -> {new_token} substitution "
-                f"({new_count} sites)"
-            )
-    return None
-
-
-def _lesson_new_content(changes: tuple[tuple[str, str, str], ...]) -> str:
-    """One changed line this commit did not merely relocate, as evidence.
-
-    Three shapes, in the order a reader can act on them: a line carrying a word
-    that is new, a line whose words all existed but now sit in a different order
-    or at a different indent, and a removal. The middle one has to be named as
-    what it is -- pointing at a removed line to explain a reordering sends the
-    reader to the wrong end of the diff.
-    """
-    new = _token_counts(changes, "+") - _token_counts(changes, "-")
-    for path, sign, text in changes:
-        if sign == "+" and any(token in new for token in _lesson_tokens(text)):
-            return f"{path}: {textwrap.shorten(text.strip(), 96, placeholder=' ...')}"
-    removed_shapes = _line_shapes(changes, "-")
-    added_lines = [(p, t) for p, s, t in changes if s == "+" and _lesson_tokens(t)]
-    for index, (path, text) in enumerate(added_lines):
-        shape = (_indent(text), tuple(_lesson_tokens(text)))
-        if index >= len(removed_shapes) or removed_shapes[index] != shape:
-            body = textwrap.shorten(text.strip(), 80, placeholder=" ...")
-            return f"{path}: reordered or re-indented, not relocated: {body}"
-    for path, sign, text in changes:
-        if sign == "-":
-            body = textwrap.shorten(text.strip(), 88, placeholder=" ...")
-            return f"{path}: removed {body}"
-    return ""
-
-
-def lesson_worthy(
-    paths: tuple[str, ...],
-    changes: tuple[tuple[str, str, str], ...] | None = None,
-) -> bool:
-    """Does this commit warrant a learned summary?
-
-    Two questions, in order. WHICH paths changed decides whether the question is
-    worth asking: a commit touching no rule, skill, tooling script, or make
-    surface never carried a lesson. WHAT changed in those paths decides the
-    answer: relocated content teaches nothing, new content can.
-
-    `changes` is the prospective diff over the scoped paths as (path, '+'|'-',
-    text) triples. It stays optional so the path question can be asked alone.
-    With no diff the answer is True, which is the pre-content behavior: the
-    demand is the status quo, and one flag (`--lesson-not-needed`) clears it.
-    """
-    scope = _lesson_scope(paths)
-    if not scope:
-        return False
-    if changes is None:
-        return True
-    return _mechanical_kind(tuple(c for c in changes if c[0] in scope)) is None
-
-
 def learned_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(path for path in paths if LEARNED_RE.match(path))
-
-
-# Where a durable lesson BELONGS, from the routing taxonomy in
-# `plan/spec-knowledge-routing.md`. A commit that puts its lesson in one of these
-# has not lost it, so the helper asks for a DESTINATION and takes a summary as
-# only one of the answers.
-#
-# Measured 2026-08-03 over 903 summaries: 13 were referenced by a rule or a hook.
-# The other 890 reached nothing that governs behaviour. A gate that demands a
-# document produces an archive; a gate that demands a destination produces
-# guidance, and `plan/learned/` goes back to being the staging queue that spec
-# describes rather than the place lessons come to rest.
-ROUTE_PREFIXES = (
-    "ai/rules/",  # a recurring trap an agent must avoid
-    "ai/digests/",  # how data flows through a subsystem today
-    "docs/architecture/",  # a design decision, why the code is shaped this way
-    "rfc/short/",  # a protocol obligation
-    "plan/journal/",  # a problem class with countable recurrence
-)
-
-ROUTE_FILES = frozenset(
-    {
-        "plan/learned/DESIGN-HISTORY.md",  # an abandoned approach and why it failed
-        "plan/learned/HOOK-FRICTION.md",  # hook or tooling friction
-        "plan/learned/RECURRING-PATTERNS.md",  # a trap seen more than once
-    }
-)
-
-
-def routed_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
-    """The commit's paths that are a canonical home for a durable lesson."""
-    return tuple(
-        path for path in paths if path in ROUTE_FILES or path.startswith(ROUTE_PREFIXES)
-    )
 
 
 SPEC_PATH_RE = re.compile(r"^plan/spec-.+\.md$")
@@ -688,107 +486,6 @@ def closure_reminder(
         "    git rm plan/spec-<stem>.md   (ai/rules/planning.md Spec Closure)\n"
         "  List what is still open: scripts/dev/spec-closure-check.py --list"
     )
-
-
-def lesson_comment(
-    add_paths: tuple[str, ...],
-    remove_paths: tuple[str, ...],
-    required: bool,
-    lesson_not_needed: str | None,
-    changes: tuple[tuple[str, str, str], ...] | None = None,
-) -> str:
-    """The `Lesson:` line for the generated script, or a refusal.
-
-    `required` is the operator saying so with `--lesson-required`, and it always
-    refuses. `changes` is the commit's own diff, which decides the AUTOMATIC
-    demand: content the commit adds warrants a summary, content it only moves
-    does not.
-    """
-    paths = add_paths + remove_paths
-    scope = _lesson_scope(paths)
-    scoped = tuple(c for c in (changes or ()) if c[0] in scope)
-    learned = learned_paths(add_paths)
-    reason = ""
-    if lesson_not_needed is not None:
-        # Flattened HERE, not only at render time, so the reason this gate
-        # measures is the one line the script will carry -- and so the record a
-        # later reader checks cannot hold a second line the gate never saw.
-        reason = comment_safe(lesson_not_needed)
-        if len(reason) < 12:
-            raise UsageError(
-                "--lesson-not-needed reason is too short: "
-                f'"{reason}" is {len(reason)} characters, 12 is the minimum.\n'
-                "  The reason is the record of why this change teaches nothing "
-                "reusable,\n"
-                "  so it has to say something a later reader can check."
-            )
-    if required and lesson_not_needed:
-        raise UsageError(
-            "--lesson-required cannot be combined with --lesson-not-needed"
-        )
-    if learned:
-        return "Lesson: " + ", ".join(learned)
-    if required:
-        # The journal row is the artifact that replaced the summary, so it
-        # satisfies the operator's demand exactly as a summary does. The message
-        # already offered it; only this branch did not accept it.
-        journal = journal_paths(add_paths)
-        if journal:
-            return "Lesson: " + ", ".join(journal)
-        raise UsageError(
-            "--lesson-required was passed and no closure artifact is staged.\n"
-            "  expected: a plan/learned/NNN-<name>.md or a plan/journal/<class>.md\n"
-            "            among the --file paths"
-        )
-    if lesson_worthy(paths, changes):
-        # A route satisfies the demand exactly as a summary does: the lesson
-        # reached a home that governs behaviour instead of an archive nobody
-        # reads. `--lesson-required` is checked above, so an operator who wants
-        # the summary regardless still gets it.
-        # A route counts only when it DOCUMENTS lesson-worthy change elsewhere.
-        # `ai/rules/` is both a destination and in scope, so a commit touching
-        # only a rule would otherwise satisfy itself, and the gate would degrade
-        # into "never ask" for the whole rule corpus (TestLessonIsContentDriven).
-        routed = routed_paths(add_paths)
-        if routed and set(scope) - set(routed) and not reason:
-            return "Lesson: routed to " + ", ".join(routed)
-        if not reason:
-            evidence = _lesson_new_content(scoped) or "new lines in " + ", ".join(scope)
-            raise UsageError(
-                # "lesson-worthy paths changed" is the STABLE LEADING PHRASE for
-                # this failure kind (ai/rules/cli.md): it is what a
-                # scanner greps for and what commit_helper_test.go pins. Rewording
-                # the message around it is fine; dropping it is not.
-                "lesson-worthy paths changed: this commit adds content rather "
-                "than moving\n"
-                "  it, and names no home for what it taught, so the helper cannot "
-                "tell\n"
-                "  whether a lesson was lost.\n"
-                "  evidence: " + evidence + "\n"
-                "  expected: the lesson ROUTED to where it governs behaviour, or "
-                "an\n"
-                "            explicit statement that there is no lesson\n"
-                "  next: put it where it belongs and pass that path with --file --\n"
-                "          a recurring trap        -> ai/rules/<rule>.md\n"
-                "          a design decision       -> docs/architecture/<area>.md\n"
-                "          a subsystem's data flow -> ai/digests/<subsystem>.md\n"
-                "          a protocol obligation   -> rfc/short/rfcNNNN.md\n"
-                "          an abandoned approach   -> plan/learned/DESIGN-HISTORY.md\n"
-                "          hook or tooling friction-> plan/learned/HOOK-FRICTION.md\n"
-                "        a plan/learned/NNN-<name>.md still counts when the lesson "
-                "fits\n"
-                "        nowhere else yet (plan/learned/METHODOLOGY.md), or pass\n"
-                '        --lesson-not-needed "<why this change teaches nothing '
-                'reusable>"'
-            )
-        return "Lesson: not needed - " + reason
-    if reason:
-        return "Lesson: not needed - " + reason
-    if scoped:
-        kind = _mechanical_kind(scoped)
-        if kind:
-            return "Lesson: not needed - " + kind
-    return "Lesson: not required by helper heuristic"
 
 
 def quote_paths(paths: tuple[str, ...]) -> str:
@@ -844,10 +541,10 @@ def render_staging_guard(paths: tuple[str, ...], script_rel: str = "") -> str:
 
 
 def render_block(block: CommitBlock, script_rel: str = "") -> str:
-    # Every line here carries caller text -- the subject, the staged paths, the
-    # lesson reason -- so every line goes through marker_line/comment_line. None
-    # of the three may be interpolated raw: a newline in any of them ends its
-    # comment and turns the remainder into shell (see marker_line).
+    # Every line here carries caller text -- the subject and the staged paths --
+    # so every line goes through marker_line/comment_line. Neither may be
+    # interpolated raw: a newline in either one ends its comment and turns the
+    # remainder into shell (see marker_line).
     lines = [
         comment_line(f"Commit {block.tag}: {block.subject}"),
         # Provenance: which files this block commits, machine-readable. --replace
@@ -857,7 +554,6 @@ def render_block(block: CommitBlock, script_rel: str = "") -> str:
             f"tag={block.tag} paths="
             + quote_paths(block.add_paths + block.remove_paths),
         ),
-        comment_line(block.lesson_comment),
     ]
     if block.review_check:
         lines.append("# critical-review gate re-check (ai/rules/planning.md)")
@@ -945,7 +641,7 @@ def split_push_section(text: str) -> tuple[str, str | None]:
 
     Scanning for the first marker line and truncating there was the second half
     of the forgery: a `# ze-commit-push:` planted anywhere in the script -- inside
-    a lesson comment, inside a path -- was read as the owner's authorisation AND
+    a subject, inside a path -- was read as the owner's authorisation AND
     silently cut every commit block below it out of the script. Position is what
     distinguishes a section this helper wrote from a line some caller's text
     happened to spell.
@@ -2263,25 +1959,6 @@ def _prospective_added_lines(
     ]
 
 
-def lesson_change_lines(
-    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
-) -> tuple[tuple[str, str, str], ...]:
-    """This commit's diff over its lesson-scoped paths, for `lesson_worthy`.
-
-    Returns an empty tuple when no scoped path changed, which `lesson_worthy`
-    already answers False on by path alone. Deletions are included (no
-    --diff-filter): removing a rule or a gate is content leaving the tree.
-    """
-    scope = set(_lesson_scope(add_paths + remove_paths))
-    if not scope:
-        return ()
-    return tuple(
-        change
-        for change in _prospective_line_changes(repo, add_paths, remove_paths)
-        if change[0] in scope
-    )
-
-
 def _deferral_prose(line: str) -> str:
     """The prose part of a '+' diff line, with quoted and backticked spans blanked.
 
@@ -2744,11 +2421,10 @@ def _journal_added_spec_stems(
     has: the row must be new to this commit.
 
     A MALFORMED added row is skipped here and REFUSED by `journal_row_problems`,
-    which `commit_gate_problems` runs before the review gate and before
-    `lesson_comment`. That ordering is what makes the skip safe: no commit
-    reaches this function carrying a row the parser could not read, so the skip
-    can no longer silence the review gate. Drop that gate and this becomes a
-    fail-open branch again.
+    which `commit_gate_problems` runs before the review gate. That ordering is
+    what makes the skip safe: no commit reaches this function carrying a row the
+    parser could not read, so the skip can no longer silence the review gate.
+    Drop that gate and this becomes a fail-open branch again.
 
     A row is compared by its CELLS, not by its diff line. The shards are
     unpadded today, so appending one row emits one `+` line; column-pad a class
@@ -3193,20 +2869,12 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         )
     msg = message_text(args.subject, args.body)
     msg_path = message_rel_path(session, tag)
-    comment = lesson_comment(
-        add_paths,
-        remove_paths,
-        args.lesson_required,
-        args.lesson_not_needed,
-        lesson_change_lines(repo, add_paths, remove_paths),
-    )
     block = CommitBlock(
         tag,
         args.subject.strip(),
         add_paths,
         remove_paths,
         msg_path,
-        comment,
         review_check,
     )
     script, authorisation = write_outputs(
@@ -3224,7 +2892,6 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         print(f"session={session}")
         print(f"message={msg_path}")
         print(f"script={script.relative_to(repo).as_posix()}")
-        print(f"lesson={comment}")
         if args.unverified:
             print(f"verify=UNVERIFIED ({args.unverified})")
         else:
@@ -3335,15 +3002,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="replace the script named by --script. Refused when that script was "
         "prepared for an unrelated file set. Without --script every create "
         "already gets its own new script, so nothing needs replacing",
-    )
-    create_cmd.add_argument(
-        "--lesson-required",
-        action="store_true",
-        help="require a new plan/learned/NNN-name.md in --file",
-    )
-    create_cmd.add_argument(
-        "--lesson-not-needed",
-        help="explicit reason no learned summary is useful for this commit",
     )
     create_cmd.add_argument(
         "--broken-head-fix",

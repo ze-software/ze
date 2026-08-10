@@ -1339,8 +1339,6 @@ def run_commit_gate(results: Results) -> None:
                     "fixture commit",
                     "--file",
                     "docs/notes.md",
-                    "--lesson-not-needed",
-                    "fixture integration test for the deferral gate",
                 ]
             )
         script_exists = bool(
@@ -1524,8 +1522,6 @@ def run_commit_gate(results: Results) -> None:
                     "remove a source without refreshing the index",
                     "--remove",
                     "internal/beta/b.go",
-                    "--lesson-not-needed",
-                    "fixture for the removal path of the discovery-index gate",
                 ]
             )
         script_exists = bool(

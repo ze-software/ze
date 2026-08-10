@@ -31,16 +31,9 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
    stop. Do not prepare a commit script for failing code.
 4. **Draft commit message:** Base the subject and body on the scoped changes.
    Do not run `git log` just to imitate style unless the user explicitly asks.
-5. **Lesson check:** If the commit ADDS content to agent workflow, rules, tooling,
-   verification, or discovery paths -- not merely moves, renames, or reformats it --
-   append a row to `plan/journal/<class>.md` (creating the file when the class is
-   new) and `--file` it. The row has five columns:
-   `| Date | Spec | Surface | Symptom | Fix |`. If the added content taught
-   nothing reusable, pass `--lesson-not-needed "<reason>"` instead.
-   A journal row records a lesson; it is not an artifact of committing.
-6. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the
-   session ID, message file, executable script, ignored-path checks,
-   `git commit -F`, and lesson gate are handled consistently:
+5. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the
+   session ID, message file, executable script, ignored-path checks, and
+   `git commit -F` are handled consistently:
 
 ```bash
 scripts/dev/commit_helper.py create \
@@ -52,7 +45,7 @@ scripts/dev/commit_helper.py create \
   --file file3_test.go
 ```
 
-7. **Run and report:** Run the generated script yourself, with `bash` and the
+6. **Run and report:** Run the generated script yourself, with `bash` and the
    path from the helper's `script=` line (never a path you built from the
    session id), then show the resulting commit SHA(s),
    the included files, verification evidence or skip reason, commit

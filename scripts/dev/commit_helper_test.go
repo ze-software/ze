@@ -54,7 +54,6 @@ func TestCommitHelperCreatesMessageAndScript(t *testing.T) {
 	mustContain(t, script, "git add -- \\\n  docs-note.md \\\n  docs-extra.md")
 	mustNotContain(t, script, "git add -- docs-note.md docs-extra.md")
 	mustContain(t, script, "git commit -F tmp/commit-msg-1234abcd-a.txt")
-	mustContain(t, script, "# Lesson: not required by helper heuristic")
 	mustNotContain(t, script, "git commit -m")
 	mustNotContain(t, script, "EOF")
 	info, err := os.Stat(scriptPath)
@@ -163,46 +162,6 @@ func TestCommitHelperReusesSessionAndAppends(t *testing.T) {
 	mustContain(t, script, "git commit -F tmp/commit-msg-deadbeef-b.txt")
 }
 
-// VALIDATES: workflow/tooling commits must carry a learned summary or an explicit no-lesson reason,
-// and a new learned summary commits WITHOUT staging plan/learned/.counter (the retired counter cache).
-// PREVENTS: structural agent-workflow changes shipping without a reusable lesson record; a resurrected
-// .counter staging requirement that would reintroduce the shared-file cross-commit it was retired to fix.
-func TestCommitHelperRequiresLessonsForWorkflowChanges(t *testing.T) {
-	root := makeCommitHelperFixture(t)
-	writeFixture(t, root, ".gitignore", "tmp/*\n")
-	writeFixture(t, root, "scripts/dev/workflow.py", "print('workflow')\n")
-
-	_, stderr, code := runCommitHelper(t, root,
-		"--repo", root,
-		"create",
-		"--session", "abcdef12",
-		"--subject", "tools: change workflow",
-		"--file", "scripts/dev/workflow.py",
-		"--replace",
-	)
-	if code == 0 {
-		t.Fatalf("expected lesson-worthy workflow change to fail without lesson")
-	}
-	mustContain(t, stderr, "lesson-worthy paths changed")
-
-	// The learned summary alone satisfies the gate; .counter is no longer created
-	// or staged, so it is deliberately absent from --file (AC-6).
-	writeFixture(t, root, "plan/learned/833-commit-helper.md", "# lesson\n")
-	out, stderr, code := runCommitHelper(t, root,
-		"--repo", root,
-		"create",
-		"--session", "abcdef12",
-		"--subject", "tools: change workflow",
-		"--file", "scripts/dev/workflow.py",
-		"--file", "plan/learned/833-commit-helper.md",
-		"--replace",
-	)
-	if code != 0 {
-		t.Fatalf("create with lesson failed with %d\nstdout:\n%s\nstderr:\n%s", code, out, stderr)
-	}
-	mustContain(t, out, "lesson=Lesson: plan/learned/833-commit-helper.md")
-}
-
 // VALIDATES: an ALREADY-COMMITTED learned summary in a commit is not read as a
 // spec closure, so it demands no review artifact; a NEW one still is.
 // PREVENTS: the misfire measured on 2026-08-03. A commit that repointed dead
@@ -237,7 +196,6 @@ func TestCommitHelperTreatsOnlyANewLearnedSummaryAsAClosure(t *testing.T) {
 		"--subject", "docs: repoint a dead reference",
 		"--file", "plan/learned/1015-old-spec.md",
 		"--file", "scripts/dev/tool.py",
-		"--lesson-not-needed", "repoints a dead path, teaches nothing",
 		"--unverified", "fixture",
 		"--replace",
 	)

@@ -998,8 +998,6 @@ class TestStructuralGateRemediation(unittest.TestCase):
                             "fixture",
                             "--file",
                             "f.txt",
-                            "--lesson-not-needed",
-                            "fixture test for the structural-gate remediation text",
                         ]
                     )
                 msg = err.getvalue()
@@ -1057,8 +1055,6 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
                             "fixture",
                             "--file",
                             "f.txt",
-                            "--lesson-not-needed",
-                            "fixture test for the structural-red owner override",
                         ]
                         + extra
                     )
@@ -1134,8 +1130,6 @@ class TestBrokenHeadFixEscape(unittest.TestCase):
                             "fixture",
                             "--file",
                             "f.txt",
-                            "--lesson-not-needed",
-                            "fixture test for the broken-head escape",
                         ]
                         + extra
                     )
@@ -1644,12 +1638,12 @@ class TestSTEGate(unittest.TestCase):
             self.assertIn("UNCHECKED", buf.getvalue())
 
 
-class TestLessonIsContentDriven(unittest.TestCase):
-    """The automatic learned-summary demand reads WHAT changed, not WHICH
-    directory changed. A commit that only relocates content in a lesson-scoped
-    path teaches nothing and is accepted without a summary; one that adds content
-    is refused until a summary or an explicit reason arrives
-    (plan/spec-knowledge-1-corpus.md AC-1, AC-2).
+class TestJournalRowIsAClosureSignal(unittest.TestCase):
+    """A journal row names the spec a commit closes.
+
+    `spec_closure_stem` reads the Spec cell of the row this commit ADDS, and
+    `closure_reminder` nudges for the second closure commit. Both serve the
+    two-commit spec closure in `ai/rules/planning.md`.
     """
 
     def _repo(self, tmp: str) -> Path:
@@ -1669,279 +1663,6 @@ class TestLessonIsContentDriven(unittest.TestCase):
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "seed")
         return root
-
-    def _comment(self, root: Path, paths: tuple[str, ...]) -> str:
-        return ch.lesson_comment(
-            paths, (), False, None, ch.lesson_change_lines(root, paths, ())
-        )
-
-    # VALIDATES: AC-1 -- a closure whose work produced no reusable lesson is
-    # accepted with no plan/learned/NNN-*.md staged.
-    # PREVENTS: the path-prefix demand returning, which made a summary an
-    # unconditional artifact of touching scripts/dev/ and produced 229 summaries
-    # with no gotcha.
-    def test_lesson_optional_without_content(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            # A pure move: the function leaves a.py and arrives in b.py intact.
-            # The fixture used to re-indent the body during the move and still
-            # expect "mechanical". It no longer may: in Python the indent IS the
-            # block, so a moved-and-re-indented body is a relocation plus an
-            # edit. test_reindent_is_not_mechanical pins the other half.
-            (root / "scripts" / "dev" / "a.py").write_text("")
-            (root / "scripts" / "dev" / "b.py").write_text(
-                "def widen(value):\n    return value * 2\n"
-            )
-            comment = self._comment(root, ("scripts/dev/a.py", "scripts/dev/b.py"))
-            self.assertIn("not needed", comment)
-            self.assertIn("move or a reformat", comment)
-
-    # VALIDATES: a lesson ROUTED to where it governs behaviour satisfies the
-    # demand exactly as a summary does (plan/spec-knowledge-routing.md).
-    # PREVENTS: the gate producing archive instead of guidance. Measured
-    # 2026-08-03 over 903 summaries, 13 were referenced by a rule or a hook.
-    def test_route_satisfies_the_demand(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            (root / "docs" / "architecture").mkdir(parents=True)
-            (root / "scripts" / "dev" / "a.py").write_text(
-                "def widen(value):\n    return value * 3\n\ndef added():\n    pass\n"
-            )
-            (root / "docs" / "architecture" / "widen.md").write_text(
-                "# Widen\n\nWhy the factor is 3.\n"
-            )
-            comment = self._comment(
-                root, ("scripts/dev/a.py", "docs/architecture/widen.md")
-            )
-            self.assertIn("routed to", comment)
-            self.assertIn("docs/architecture/widen.md", comment)
-
-    # VALIDATES: a destination that is ALSO in the lesson-worthy scope cannot
-    # satisfy the demand on its own.
-    # PREVENTS: `ai/rules/` self-satisfying, which would turn every rule commit
-    # into "never ask" -- the same degradation test_lesson_demanded_with_content
-    # guards from the other side.
-    def test_route_that_is_the_whole_scope_does_not_satisfy(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            (root / "ai" / "rules" / "x.md").write_text(
-                "# X\n\nThe gate refuses.\n\nIt now also refuses a self-route.\n"
-            )
-            with self.assertRaises(ch.UsageError) as caught:
-                self._comment(root, ("ai/rules/x.md",))
-            self.assertIn("routed", str(caught.exception).lower())
-
-    # VALIDATES: --lesson-required outranks a route, so the operator can still
-    # demand the summary itself.
-    def test_lesson_required_outranks_a_route(self):
-        with self.assertRaises(ch.UsageError):
-            ch.lesson_comment(
-                ("scripts/dev/a.py", "docs/architecture/widen.md"),
-                (),
-                True,
-                None,
-                (("scripts/dev/a.py", "+", "a genuinely new line of content"),),
-            )
-
-    # VALIDATES: AC-2 -- a closure whose work produced a lesson is still refused
-    # without one, and the refusal names the content that earned the demand.
-    # PREVENTS: the content test degrading into "never ask", which would make the
-    # summary corpus stop growing for the wrong reason.
-    def test_lesson_demanded_with_content(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            (root / "ai" / "rules" / "x.md").write_text(
-                "# X\n\nThe gate refuses.\n\nIt now also refuses an empty set.\n"
-            )
-            with self.assertRaises(ch.UsageError) as caught:
-                self._comment(root, ("ai/rules/x.md",))
-            message = str(caught.exception)
-            self.assertIn("adds content", message)
-            self.assertIn("refuses an empty set", message)  # the evidence line
-            self.assertIn("--lesson-not-needed", message)  # the next step
-            # The stated escape actually works.
-            self.assertIn(
-                "not needed",
-                ch.lesson_comment(
-                    ("ai/rules/x.md",),
-                    (),
-                    False,
-                    "restates an existing gate for readers",
-                    ch.lesson_change_lines(root, ("ai/rules/x.md",), ()),
-                ),
-            )
-
-    # Boundary for MIN_SUBSTITUTION_SITES (2): one swapped token is an edit and is
-    # demanded; the same swap repeated is a mechanical substitution and is not.
-    def test_substitution_boundary_is_two_sites(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            path = root / "scripts" / "dev" / "a.py"
-            path.write_text("def widen(value):\n    return value * 3\n")
-            with self.assertRaises(ch.UsageError):
-                self._comment(root, ("scripts/dev/a.py",))
-            path.write_text("def widen(amount):\n    return amount * 2\n")
-            self.assertIn("substitution", self._comment(root, ("scripts/dev/a.py",)))
-
-    # The two-commit closure survives a spec with no lesson: commit B removes the
-    # spec and adds nothing, so it is never asked for a summary it cannot have
-    # (ai/rules/planning.md "Spec Closure").
-    def test_spec_closure_commit_needs_no_lesson(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            (root / "plan").mkdir()
-            (root / "plan" / "spec-x.md").write_text("# Spec\n")
-            _git(root, "add", "-A")
-            _git(root, "commit", "-q", "-m", "spec")
-            removed = ("plan/spec-x.md",)
-            self.assertEqual(ch.lesson_change_lines(root, (), removed), ())
-            self.assertIn(
-                "not required",
-                ch.lesson_comment(
-                    (), removed, False, None, ch.lesson_change_lines(root, (), removed)
-                ),
-            )
-
-    def _kind(self, before: str, after: str) -> str | None:
-        """`_mechanical_kind` for a one-file edit from `before` to `after`."""
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            path = root / "scripts" / "dev" / "a.py"
-            path.write_text(before)
-            _git(root, "add", "-A")
-            _git(root, "commit", "-q", "-m", "before")
-            path.write_text(after)
-            changes = ch.lesson_change_lines(root, ("scripts/dev/a.py",), ())
-            return ch._mechanical_kind(changes)
-
-    # VALIDATES: reordering tokens within a line is not mechanical, so the
-    # learned-summary demand is not skipped for it.
-    # PREVENTS: the multiset comparison returning. It compared WHICH words the
-    # diff added against which it removed, so every one of these read as "a move
-    # or a reformat" and the demand was silently waived. The first case is a
-    # logic inversion, and it is the exact edit that would disable the staleness
-    # ratchet shipped alongside this gate.
-    def test_reordering_within_a_line_is_not_mechanical(self):
-        for name, before, after in (
-            (
-                "comparison inverted",
-                "def gate(count, baseline):\n    if count > baseline:\n        fail()\n",
-                "def gate(count, baseline):\n    if baseline > count:\n        fail()\n",
-            ),
-            (
-                "arguments swapped",
-                "def go(src, dst):\n    move(src, dst)\n",
-                "def go(src, dst):\n    move(dst, src)\n",
-            ),
-            (
-                "guard order swapped",
-                "def use(p):\n    if exists(p) and safe(p):\n        read(p)\n",
-                "def use(p):\n    if safe(p) and exists(p):\n        read(p)\n",
-            ),
-        ):
-            with self.subTest(name):
-                self.assertIsNone(
-                    self._kind(before, after),
-                    f"{name}: same words, different meaning -- not mechanical",
-                )
-
-    # VALIDATES: swapping two whole LINES is not mechanical. Every word survives
-    # and every indent survives, so only the ORDER of the changed lines carries
-    # the change.
-    # PREVENTS: `_mechanical_kind` comparing the two sequences order-free.
-    # Replacing its `shapes_added == shapes_removed` with a sorted() comparison
-    # left every other case in this file green while waiving the demand for a
-    # reordering -- the docstring claimed an ordered SEQUENCE and nothing held it
-    # to that. Acquiring the lock after the work it guards is that shape.
-    #
-    # The fixture keeps `log(...)` between the two swapped statements on purpose:
-    # git minimises an ADJACENT swap to one removed line and one added line, so
-    # the swap never reaches this function to be judged.
-    def test_swapping_whole_lines_is_not_mechanical(self):
-        self.assertIsNone(
-            self._kind(
-                "def run(lock):\n    lock.acquire()\n    log('start')\n    do_work()\n",
-                "def run(lock):\n    do_work()\n    log('start')\n    lock.acquire()\n",
-            ),
-            "the lock is now taken after the work it guards -- not a relocation",
-        )
-
-    # VALIDATES: a re-indent is not mechanical either.
-    # PREVENTS: the docstring's old claim that re-indenting "changes no words"
-    # being treated as a claim that it changes no MEANING. Dedenting this return
-    # out of the loop makes the function return after one item, and scripts/dev/
-    # is inside LESSON_WORTHY_PREFIXES.
-    def test_reindent_is_not_mechanical(self):
-        self.assertIsNone(
-            self._kind(
-                "def total(items):\n"
-                "    n = 0\n"
-                "    for i in items:\n"
-                "        n += i\n"
-                "        return n\n",
-                "def total(items):\n"
-                "    n = 0\n"
-                "    for i in items:\n"
-                "        n += i\n"
-                "    return n\n",
-            ),
-            "dedenting a return out of a loop body changes what it returns",
-        )
-
-    # The demand's evidence must name the line that CHANGED. Pointing at a
-    # removed line to explain a reordering sends the reader to the wrong end of
-    # the diff (ai/rules/cli.md: the value, not just the operation).
-    def test_reordering_evidence_names_the_added_line(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            path = root / "scripts" / "dev" / "a.py"
-            path.write_text("def go(src, dst):\n    move(src, dst)\n")
-            _git(root, "add", "-A")
-            _git(root, "commit", "-q", "-m", "before")
-            path.write_text("def go(src, dst):\n    move(dst, src)\n")
-            with self.assertRaises(ch.UsageError) as caught:
-                self._comment(root, ("scripts/dev/a.py",))
-            message = str(caught.exception)
-            self.assertIn("move(dst, src)", message)
-            self.assertIn("reordered", message)
-
-    # --lesson-required is the operator saying so. Content never overrides it.
-    def test_lesson_required_still_raises_on_mechanical_change(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            (root / "scripts" / "dev" / "a.py").write_text("")
-            (root / "scripts" / "dev" / "b.py").write_text(
-                "def widen(value):\n    return value * 2\n"
-            )
-            paths = ("scripts/dev/a.py", "scripts/dev/b.py")
-            with self.assertRaises(ch.UsageError) as caught:
-                ch.lesson_comment(
-                    paths, (), True, None, ch.lesson_change_lines(root, paths, ())
-                )
-            self.assertIn("--lesson-required", str(caught.exception))
-
-    # VALIDATES: AC-3 -- a journal row in plan/journal/ satisfies the lesson gate
-    # exactly as a route to any other ROUTE_PREFIXES destination does.
-    # PREVENTS: the lesson gate refusing a commit that carries a journal row,
-    # which would force --lesson-not-needed on every journal-bearing commit.
-    def test_lesson_gate_accepts_journal_row(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            journal_dir = root / "plan" / "journal"
-            journal_dir.mkdir(parents=True)
-            (journal_dir / "some-class.md").write_text(
-                "| Date | Spec | Surface | Symptom | Fix |\n"
-                "|------|------|---------|---------|-----|\n"
-                "| 2026-08-09 | my-feature | gate | it refused | fixed |\n"
-            )
-            (root / "scripts" / "dev" / "a.py").write_text(
-                "def widen(value):\n    return value * 3\n\ndef added():\n    pass\n"
-            )
-            comment = self._comment(
-                root, ("scripts/dev/a.py", "plan/journal/some-class.md")
-            )
-            self.assertIn("routed to", comment)
-            self.assertIn("plan/journal/", comment)
 
     # VALIDATES: AC-7 -- spec_closure_stem() reads the Spec cell from a journal
     # row and returns it as the closure stem, so review_gate_problems() fires on
@@ -2239,26 +1960,6 @@ class TestLessonIsContentDriven(unittest.TestCase):
             )
             self.assertEqual(stem, "other")
 
-    # VALIDATES: --lesson-required accepts a journal row, which is what its own
-    # message offers.
-    # PREVENTS: the operator being told to stage a plan/journal/<class>.md and
-    # then refused for staging one.
-    def test_lesson_required_accepts_a_journal_row(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            journal_dir = root / "plan" / "journal"
-            journal_dir.mkdir(parents=True)
-            (journal_dir / "some-class.md").write_text(
-                "| Date | Spec | Surface | Symptom | Fix |\n"
-                "|------|------|---------|---------|-----|\n"
-                "| 2026-08-09 | my-feature | gate | it refused | fixed |\n"
-            )
-            paths = ("scripts/dev/a.py", "plan/journal/some-class.md")
-            comment = ch.lesson_comment(
-                paths, (), True, None, ch.lesson_change_lines(root, paths, ())
-            )
-            self.assertIn("plan/journal/some-class.md", comment)
-
 
 class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):
     """A prepared commit owns its own script path.
@@ -2296,8 +1997,6 @@ class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):
                     "create",
                     "--session",
                     "abcd1234",
-                    "--lesson-not-needed",
-                    "fixture for the per-commit script path",
                     *extra,
                 ]
             )
@@ -2522,9 +2221,7 @@ class _ScriptFixture:
         return rc, out.getvalue(), err.getvalue()
 
     def _create(self, root: Path, *extra: str):
-        return self._run_create(
-            root, "--lesson-not-needed", "fixture for the push authorisation", *extra
-        )
+        return self._run_create(root, *extra)
 
     def _script_line(self, stdout: str) -> str:
         for line in stdout.splitlines():
@@ -2790,17 +2487,12 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
     VALIDATES: `ai/rules/git-safety.md` -- the generated script is the ONE place a
     commit is allowed to happen, so what it contains has to come from this helper,
     not from a value a caller passed.
-    PREVENTS: the forgery an adversarial review found -- a newline in
-    `--lesson-not-needed` ends its `#` comment, the next line spells
-    `# ze-commit-push:`, and the helper then reads its own output back as an
-    owner authorisation AND truncates the script at that line, silently dropping
-    the commit blocks below it. Also prevents the plain injection underneath it: a
-    newline followed by any command at all.
+    PREVENTS: the forgery an adversarial review found -- a line that spells
+    `# ze-commit-push:` anywhere in the script is read back as an owner
+    authorisation AND truncates the script at that line, silently dropping the
+    commit blocks below it. Also prevents the plain injection underneath it: a
+    caller value that opens a line of its own and runs as a command.
     """
-
-    # The reviewer's exact input: a reason that ends its comment and opens a
-    # forged authorisation on the line it creates.
-    FORGERY = "no lesson here at all\n# ze-commit-push: FORGED, no owner ordered this"
 
     def _blocks(self, text: str) -> tuple[int, int]:
         lines = text.splitlines()
@@ -2808,82 +2500,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
             sum(1 for line in lines if line.startswith("git add -- ")),
             sum(1 for line in lines if line.startswith("git commit -F ")),
         )
-
-    def test_the_reviewer_forgery_produces_no_push_and_loses_no_commit_block(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            rc, out, err = self._run_create(
-                root,
-                "--subject",
-                "first",
-                "--file",
-                "one.txt",
-                "--lesson-not-needed",
-                self.FORGERY,
-            )
-            self.assertEqual(rc, 0, err)
-            script = self._script_line(out)
-            self.assertNotIn("push=AUTHORISED", out)
-            # The second half of the forgery: an --append re-reads the script and
-            # was what lifted the planted marker into a real push section.
-            rc, out2, err = self._run_create(
-                root,
-                "--subject",
-                "second",
-                "--file",
-                "two.txt",
-                "--lesson-not-needed",
-                "second block, nothing reusable",
-                "--append",
-                "--script",
-                script,
-            )
-            self.assertEqual(rc, 0, err)
-            self.assertNotIn("push=AUTHORISED", out2)
-            text = (root / script).read_text()
-            # No push authorised, and no push line to run.
-            self.assertEqual(self._push_lines(text), [])
-            self.assertEqual(
-                [line for line in text.splitlines() if line.startswith(ch.PUSH_MARKER)],
-                [],
-            )
-            # ... and block a is still there: the truncation is what made this
-            # more than a nuisance, because the caller runs a script that no
-            # longer commits what they staged.
-            self.assertEqual(self._blocks(text), (2, 2), text)
-            code, calls = self._run_script(root, script)
-            self.assertEqual(code, 0, calls)
-            self.assertEqual([c for c in calls if c.startswith("push")], [], calls)
-            self.assertEqual(len([c for c in calls if c.startswith("commit ")]), 2)
-
-    def test_a_newline_in_a_lesson_reason_cannot_produce_an_uncommented_line(self):
-        """The injection under the forgery: a newline, then any command at all.
-
-        `git tag` as the payload, because the shim logs every git argv: if the
-        line escapes its comment, bash runs it and the log says so.
-        """
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp)
-            rc, out, err = self._run_create(
-                root,
-                "--subject",
-                "first",
-                "--file",
-                "one.txt",
-                "--lesson-not-needed",
-                "ok this is fine\ngit tag ze-injection-ran\ngit push --force",
-            )
-            self.assertEqual(rc, 0, err)
-            text = (root / self._script_line(out)).read_text()
-            for line in text.splitlines():
-                self.assertFalse(
-                    line.startswith("git tag") or line.startswith("git push"),
-                    f"caller text became a command line:\n{text}",
-                )
-            code, calls = self._run_script(root, self._script_line(out))
-            self.assertEqual(code, 0, calls)
-            self.assertEqual([c for c in calls if c.startswith("tag ")], [], calls)
-            self.assertEqual([c for c in calls if c.startswith("push")], [], calls)
 
     def test_a_control_character_in_a_path_is_refused_at_the_source(self):
         """A path is rendered into a `#` provenance line, so it gets the same rule.
@@ -2901,8 +2517,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first",
                 "--file",
                 evil,
-                "--lesson-not-needed",
-                "probing the path comment vector",
             )
             self.assertEqual(rc, 2, err)
             self.assertIn("control character", err)
@@ -2918,8 +2532,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "probing the script path vector",
             )
             self.assertEqual(rc, 0, err)
             evil = root / "tmp" / 'commit-x-$(git tag ze-path-ran)-".sh'
@@ -2930,8 +2542,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "second",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "probing the script path vector",
                 "--replace",
                 "--script",
                 str(evil),
@@ -2960,8 +2570,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "a script to doctor by hand",
             )
             self.assertEqual(rc, 0, err)
             script = self._script_line(out)
@@ -2972,8 +2580,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "second",
                 "--file",
                 "two.txt",
-                "--lesson-not-needed",
-                "the append that would lift the marker",
                 "--append",
                 "--script",
                 script,
@@ -3014,7 +2620,7 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
         with self.assertRaises(ch.UsageError) as caught:
             ch.comment_line("ze-commit-push: FORGED, no owner ordered this")
         self.assertIn("spells the push marker", str(caught.exception))
-        self.assertEqual(ch.comment_line("Lesson: none"), "# Lesson: none")
+        self.assertEqual(ch.comment_line("nothing to declare"), "# nothing to declare")
 
     def test_replace_reports_the_push_it_dropped(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -3025,8 +2631,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "a push the replace must not vanish",
                 "--push",
                 "Thomas ordered the push, 2026-08-05",
             )
@@ -3038,8 +2642,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first, corrected",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "a push the replace must not vanish",
                 "--replace",
                 "--script",
                 script,
@@ -3062,8 +2664,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "a push the replace keeps by order",
                 "--push",
                 "Thomas ordered the push, 2026-08-05",
             )
@@ -3075,8 +2675,6 @@ class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
                 "first, corrected",
                 "--file",
                 "one.txt",
-                "--lesson-not-needed",
-                "a push the replace keeps by order",
                 "--replace",
                 "--script",
                 script,
@@ -3093,10 +2691,10 @@ class TestEveryFlatteningLayerIsPinnedAtItsOwnBoundary(unittest.TestCase):
     """Each producer that flattens caller text is tested where it flattens.
 
     VALIDATES: `ai/rules/testing.md` -- a layer proven only through the finished
-    script is proven by its NEIGHBOURS. Four such layers were reachable through
-    a sibling: reverting `lesson_comment`'s flattening, either `render_block`
-    comment call, or `push_authorisation`'s flattening left the whole suite
-    green, because whichever one survived caught the injection.
+    script is proven by its NEIGHBOURS. Three such layers were reachable through
+    a sibling: reverting `comment_safe`'s flattening, `render_block`'s comment
+    call, or `push_authorisation`'s flattening left the whole suite green,
+    because whichever one survived caught the injection.
     PREVENTS: a later "this flattening is redundant" refactor removing one of
     them and staying green until an input arrives that the surviving layer does
     not see.
@@ -3114,7 +2712,6 @@ class TestEveryFlatteningLayerIsPinnedAtItsOwnBoundary(unittest.TestCase):
             "add_paths": (),
             "remove_paths": (),
             "message_path": "tmp/commit-msg-abcd1234-a.txt",
-            "lesson_comment": "Lesson: not required by helper heuristic",
         }
         fields.update(over)
         return ch.CommitBlock(**fields)
@@ -3162,23 +2759,8 @@ class TestEveryFlatteningLayerIsPinnedAtItsOwnBoundary(unittest.TestCase):
                 f"comment_safe left a line boundary in {raw!r}: {flat!r}",
             )
 
-    def test_lesson_comment_returns_one_line(self):
-        for reason in (
-            "no lesson here at all" + self.ESCAPE,
-            "no lesson here at all\u2028git tag ze-layer-escaped",
-        ):
-            line = ch.lesson_comment((), (), False, reason, None)
-            self.assertEqual(line.splitlines(), [line], f"from {reason!r}")
-            self.assertIn("Lesson: not needed - ", line)
-
     def test_render_block_never_lets_a_subject_open_a_line(self):
         text = ch.render_block(self._block(subject="a subject" + self.ESCAPE))
-        self._assert_every_line_is_inert(text)
-
-    def test_render_block_never_lets_a_lesson_line_open_a_line(self):
-        text = ch.render_block(
-            self._block(lesson_comment="Lesson: not needed - x" + self.ESCAPE)
-        )
         self._assert_every_line_is_inert(text)
 
     def test_rel_path_refuses_the_separators_the_character_class_misses(self):

@@ -160,11 +160,9 @@ still missing, go back: this skill does not implement.
       - **Yes, there is a lesson:** append a row to the matching class file under
         `plan/journal/`. Use today's date, the spec stem, the subsystem where it
         appeared, a one-phrase symptom, and a one-phrase fix.
-      - **No, there is none:** create nothing. Carry the reason on commit A
-        instead (step 6e, `--lesson-not-needed`).
-      The commit helper asks the same question of the diff and will refuse commit A
-      if the change adds content and neither a journal row nor a reason is present,
-      so an honest "no" costs one flag and a dishonest one is caught.
+      - **No, there is none:** create nothing and say so in the commit body.
+      A row is written because the work taught something, never because a commit
+      needs an artifact.
    b. Release this session's spec claim: `scripts/dev/spec-session.sh release`. This also frees a slot against the WIP cap (`scripts/dev/spec-session.sh wip`).
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
    d. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
@@ -200,8 +198,6 @@ still missing, go back: this skill does not implement.
         closure that leaves it red is not closed.
       - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/journal/<class>.md` when step 6a wrote a journal row, and `plan/<spec-name>` to preserve all implementation edits in git history.
       - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
-      - **Lesson flags follow step 6a's answer, and commit A never passes `--lesson-required`.** That flag is the operator demanding a summary; passing it on every closure is what made the summary unconditional. When a journal row was written, `--file` on the class file is the whole story. When none was, pass `--lesson-not-needed "<why this spec taught nothing reusable>"` and say what the work was, not that a spec closed.
-      - Commit B removes a spec and adds nothing, so the helper asks it for nothing. Pass `--lesson-not-needed "spec closure only; lesson is in Commit A"` only when commit A actually carried a journal row.
       - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 
