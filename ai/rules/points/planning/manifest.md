@@ -9,6 +9,7 @@ directives ## Directives
   supervise-delegate-and-review-independently
 spec-work-runs-in-subagents-the-main-thread-supervises ## Spec Work Runs in Subagents; the Main Thread Supervises
   the-main-thread-launches-verifies-and-gates-each-phase
+  announce-the-fan-out-before-you-spawn-it
   where-each-spec-phase-runs
   launch-independent-phases-in-one-message
   brief-every-subagent-with-its-spec-phase-and-rules

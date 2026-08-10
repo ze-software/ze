@@ -14,3 +14,5 @@ stage:
 | 7 | No TODO, FIXME, or stub remains in the new code |
 | 8 | No item was silently dropped from scope |
 | 9 | Every function is reachable from a user entry point (wired, not just library) |
+| 10 | You READ the diff, hunk by hunk, and every hunk is one you would defend. A gate covers what somebody thought to check, so a defect on a surface no gate reads survives a fully green run |
+| 11 | Every generated artifact in the diff was produced by its generator, never edited by hand. When both are in the diff, the generator's output and the artifact are compared, and the comparison is a test |

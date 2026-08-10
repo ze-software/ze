@@ -62,6 +62,13 @@ it, the work is not done.
 
 Every single one of these must be true before you say "done":
 
+The word for a green gate over an unread diff is not "done", and it is not
+"green" either. Say what you have: the gates pass, and you have not read the
+change. That sentence is accurate, it costs one line, and it tells the reader
+which of the two claims they are getting. A subagent's report is a claim, so a
+main thread that relays "green" before it reads the diff has asserted something
+nobody checked.
+
 | # | Requirement |
 |---|-------------|
 | 1 | Every acceptance criterion in the spec has working code |
@@ -73,6 +80,8 @@ Every single one of these must be true before you say "done":
 | 7 | No TODO, FIXME, or stub remains in the new code |
 | 8 | No item was silently dropped from scope |
 | 9 | Every function is reachable from a user entry point (wired, not just library) |
+| 10 | You READ the diff, hunk by hunk, and every hunk is one you would defend. A gate covers what somebody thought to check, so a defect on a surface no gate reads survives a fully green run |
+| 11 | Every generated artifact in the diff was produced by its generator, never edited by hand. When both are in the diff, the generator's output and the artifact are compared, and the comparison is a test |
 
 If ANY of these is false, you are not done. Say what remains and keep working.
 

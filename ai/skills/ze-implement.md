@@ -200,7 +200,11 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
 9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
-    steps 7-9 find nothing and every target is green. Report what was built, what
+    steps 7-9 find nothing, every target is green, AND you have read the whole
+    diff yourself, every phase agent's hunks included. Read it here, before the
+    report: `/ze-close` runs the Review Gate. A report that calls the work green
+    before anybody has read it makes that gate establish what you already
+    announced. Report what was built, what
     the tests prove, and any surviving risk from the spec's R-N rows. Then state
     plainly that closure (deliverables, security, docs, Review Gate, commits) is
     `/ze-close`, and that `ai/rules/planning.md` puts it on the review
@@ -225,4 +229,5 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
 - If the spec has a **Risks & Assumptions** section containing only template placeholder rows, STOP and ask the user to complete it (or confirm there are genuinely none). Specs created before the section existed are exempt -- do not retrofit without user request.
 - Before handing off, re-read the spec and confirm each item is actually implemented in the code
 - **"Implemented" is not "done".** This skill produces a clean diff, not a closed spec. Do not say done, complete, or ready to commit at step 11 -- say the implementation is green and closure is next (`ai/rules/completion.md`).
+- **"Green" is a claim about the DIFF, never about the gates.** Requirement 10 in `ai/rules/completion.md` binds this word: say it only after you have read the diff hunk by hunk, your own and every phase agent's. A gate covers what somebody thought to check, so a defect on a surface no gate reads passes every target. When you have run the gates and not read the change, say exactly that instead. It is one line, and it tells the reader which claim they are getting. Reporting "green" and leaving the reading to the Review Gate inverts the order: the review then establishes what you already announced.
 - **The Review Gate is BLOCKING and lives in `/ze-close`.** The inline reviews in steps 7-10 do NOT satisfy it: they check the spec's own checklists, `/ze-review` checks what nobody planned for. This is the Review Gate from `ai/rules/planning.md`.

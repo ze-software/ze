@@ -20,6 +20,8 @@ Rationale: `ai/rationale/planning.md`
 
 **The main thread supervises. It does not perform the spec work itself.** Most phases run in a subagent invoked through their `ze-*` skill, and the main thread launches each one, reads the report back, verifies it, decides, and gates the next phase. The `Runs in` column names the four exceptions, so read it before you delegate.
 
+**Say what you are about to spawn BEFORE you spawn it: the number of agents, what each does, and the rough cost.** The user pays for every agent and can see them running. A spawn they cannot map onto anything you wrote reads as a session out of control. Name the skill's own fan-out too: `/ze-close` spawns reviewers at its Review Gate, so "closure is running" understates it by three agents. Then report STATUS, never architecture: what runs, what finished, what is left, what it cost. A user who cannot follow you reads the tree instead, and what they find lands as a surprise you owed them.
+
 | Phase | Skill | Runs in | The main thread does |
 |-------|-------|---------|----------------------|
 | Research a topic or subsystem | `/ze-explore`, `/ze-audit` | subagent | states the question, reads the findings, decides what they change |
@@ -556,6 +558,7 @@ other two red:
 |------|-------|-------------------------------------|
 | `check_doc_links.py --design-only` | `// Design:` lines in `.go` | no |
 | `spec-citation-check.py` | ANY `plan/spec-*.md` string inside a `plan/spec-*.md` | YES -- spec-to-spec citations |
+| `check_doc_links.py` check 5 (`check_tracked_citations`) | ANY path reference in ANY tracked file, a `plan/spec-*.md` target included | YES -- a citation from `docs/`, a script, or a test. `scripts/dev/doc_citation_baseline.txt` grandfathers only the pairs that predate the check, so commit B reds the gate for every tracked file that cites the spec it removes |
 
 MEASURED twice in one day. The wire-edit and knowledge sets closed on 2026-08-02
 leaving 31 spec-to-spec citations and 28 dead learned-summary paths, which reddened
