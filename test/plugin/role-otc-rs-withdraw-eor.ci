@@ -13,10 +13,11 @@
 # 2. Customer is equally one of the three destination roles egress rule 1 names,
 # so what the test PROVES is unchanged; the label was wrong.
 #
-# WHAT IS NOT PROVEN, and is not proven anywhere: an RS-Client DESTINATION
-# (declared wire role 2). No .ci and no interop scenario exercises it, so egress
-# rule 1's third named destination role rests on the Customer case being read as
-# representative. Homed on plan/spec-rfc7606-5-1-2-relay-shape.md.
+# The RS-Client DESTINATION (declared wire role 2) that this header used to
+# record as proven nowhere is now proven, by
+# test/plugin/role-otc-rs-client-dest-stamp.ci. Egress rule 1's third named
+# destination role no longer rests on the Customer case below being read as
+# representative.
 #
 # RFC requirement: RFC9234-5-4 positive -- the running route server adds the OTC
 # Attribute with its local AS number to a route it advertises to a Customer, one

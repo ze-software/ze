@@ -1,0 +1,199 @@
+# Test: OTC egress -- an RS-Client DESTINATION is stamped, like the other two
+# VALIDATES: RFC 9234 Section 5 egress rule 1 -- "If a route is to be advertised
+#            to a Customer, a Peer, or an RS-Client [...] and the OTC Attribute
+#            is not present, then [...] an OTC Attribute MUST be added with a
+#            value equal to the AS number of the local AS". The rule names THREE
+#            destination roles. RS-Client is the third, and until this file it
+#            was the only one no test declared: role-otc-egress-stamp.ci and
+#            role-otc-rs-withdraw-eor.ci both give the destination wire role 3
+#            (customer), so the RS-Client arm of the gate rested on the Customer
+#            case being read as representative.
+#
+# RFC requirement: RFC9234-5-4 positive -- ze adds the OTC Attribute with its
+# local AS number to a route advertised to a destination that declared wire role
+# 2 (RS-Client) in its OPEN.
+#
+# PREVENTS: the roleRSClient arm being dropped from the destination-role gate in
+#           OTCEgressFilter (internal/component/bgp/plugins/role/otc.go). A route
+#           reaching an RS-Client without OTC is one the client can leak upward
+#           with nothing for a conforming neighbor to catch, which is the whole
+#           purpose of the attribute.
+#
+# WHY THE ROLE VALUES ARE WHAT THEY ARE. roleNames
+# (internal/component/bgp/plugins/role/role.go) maps 2 to rs-client, and
+# validRolePairs (validate.go) admits {1,2}: RS opposite RS-Client. So the
+# destination declares hex=02 and ze declares its complement by config, `import
+# rs`, which extractRoleCapabilities (config.go) turns into the single byte 01.
+# `import provider` would have ze declare 0 against the peer's 2, which is not a
+# pair Table 2 lists, and the session would never establish.
+#
+# This is the RFC 9234 role only. It does NOT select the RFC 7947 route-server
+# forwarding rail -- that is `rs-client true` in the session block, which this
+# file does not set. The AS_PATH below is therefore prepended with 65000 exactly
+# as in role-otc-egress-stamp.ci, and the two expected UPDATEs are byte-identical.
+# That is the point: the destination's role name changes whether the obligation
+# arises, and nothing else about the message.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). The assertion is that
+# specific bytes are PRESENT, so deleting the mechanism cannot satisfy it. Remove
+# roleRSClient from the destination-role gate in OTCEgressFilter and the dest
+# reads attrLen=0018 with no C023 attribute, which this exact-hex rule refuses.
+
+# Source peer (Customer, ASN 65001) on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The source must outlive the dest's assertion: a source that closes makes ze
+# withdraw its routes, and the dest would read a session-down withdrawal in place
+# of the stamped re-advertisement its rule waits for. Same reason as
+# role-otc-egress-stamp.ci.
+option=linger:value=true
+# Role capability: drop ze-peer's default (mirrored Provider) then add Customer.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# Advertise 10.0.0.0/24: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, no OTC.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# Dest peer (RS-Client, ASN 65002) on 127.0.0.2 -- the wire assertion lives here.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Role capability: drop ze-peer's default (mirrored) then declare RS-Client (0x02).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=02
+# The advertisement MUST carry OTC: C0 23 04 0000FDE8, value 65000, ze's local AS.
+# attrLen=001F: ORIGIN, AS_PATH [65000, 65001], NEXT_HOP, then OTC.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C023040000FDE8180A0000
+EOF_DEST
+
+# Observer: keeps the daemon alive until the dest has actually been written the
+# stamped route, so the wire rule above cannot pass or fail by absence.
+tmpfs=test-rs-client-stamp.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Hold the daemon up while the RS-Client dest verifies the OTC stamp."""
+import sys
+from ze_api import API, runtime_fail
+
+DEST = '127.0.0.2'
+
+
+def dest_updates(api):
+    """Real UPDATEs written to the dest peer, its own initial-sync EoR excluded.
+
+    updates-sent counts EVERY UPDATE written to the peer, End-of-RIB included
+    (IncrUpdatesSent in reactor/reactor_notify.go sees only the message type).
+    eor-sent is the separate marker counter for ze's OWN End-of-RIB, so the
+    difference is the forwarded traffic -- here, the stamped re-advertisement.
+    """
+    return (api.peer_counter('updates-sent', peer=DEST)
+            - api.peer_counter('eor-sent', peer=DEST))
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce FIRST so the poll behind it is a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC, and 40 engine round trips
+    # on a starved daemon would outlast the test's own budget.
+    api.quiesce()
+    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=40):
+        runtime_fail('dest peer was never sent the OTC-stamped route')
+    print('OK: dest was sent the OTC-stamped route', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze: ASN 65000, Provider to the source Customer and RS to the dest RS-Client.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-rs-client-stamp {
+		run ./test-rs-client-stamp.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		# Local role Provider, so the source peer IS a Customer, and `default`
+		# expands to the destination roles RFC 9234 Section 5 allows a Provider
+		# to export to: customer and rs-client (exportDefaults, config.go). The
+		# dest below is the second of those, so the export set does not gate it.
+		role {
+			import provider
+			export default
+		}
+		process test-rs-client-stamp {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		# Local role RS, the Table 2 complement of the RS-Client the peer
+		# declares. This is what makes the destination an RS-Client for the
+		# Section 5 procedures.
+		role {
+			import rs
+			export default
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
