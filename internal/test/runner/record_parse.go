@@ -177,7 +177,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 				if strings.HasPrefix(trimmed, "option=env:") {
 					return r, fmt.Errorf("stdin=peer block line %d: %q is consumed by the test runner, not ze-peer, "+
 						"so placing it inside a stdin=peer block silently drops it. "+
-						"Move it outside (above) the stdin=peer:terminator=... header.",
+						"Move it outside (above) the stdin=peer:terminator=... header",
 						blockLine, trimmed)
 				}
 				// Parse expect= and action= lines for reporting purposes
