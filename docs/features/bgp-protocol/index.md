@@ -59,8 +59,9 @@
 | PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
 
 <!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
-<!-- source: internal/core/bgp/capability/encoding.go -- ASN4, AddPath, ExtMsg, ExtNH -->
-<!-- source: internal/core/bgp/capability/session.go -- GR, RouteRefresh, Role -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessage, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
+<!-- source: internal/core/bgp/capability/session.go -- SessionCaps fields RouteRefresh, EnhancedRouteRefresh, GracefulRestart -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- BGP Role capability plugin -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
@@ -117,4 +118,4 @@ already run on the original announcement and is not applied twice.
 <!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
 <!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
 <!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
-<!-- source: internal/core/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->
+<!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->

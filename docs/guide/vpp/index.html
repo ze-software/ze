@@ -151,16 +151,22 @@ to the path <code>/var/run/netns/&lt;name&gt;</code>, and ze passes the same lea
 as its global <code>default netns</code>, which VPP falls back to for any pair that
 carries no namespace of its own. So <code>host</code> asks VPP for a namespace
 literally called <code>host</code>, which normally does not exist.</p>
-<p>Until BGP learns to bind inside a named namespace (specced, not
-implemented), the remedy is to run ze's BGP in the same namespace as the
-TAPs. <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> when BGP is configured
-alongside a non-root-reachable LCP netns, and says the same: no
-<code>vpp.lcp.netns</code> value fixes it. Run <code>ze explain doctor-vpp-lcp-netns</code> for
-the detail.</p>
+<p>Two remedies work today. Leave <code>vpp.lcp.netns</code> empty: that clears VPP's
+global <code>default netns</code>, and LCP then creates the TAPs in VPP's own
+namespace, where ze runs. Or run ze's BGP in the namespace the leaf
+names. Nothing else does, until BGP learns to bind inside a named
+namespace (specced, not implemented).</p>
+<p><code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> for any non-empty
+<code>vpp.lcp.netns</code>, and a BGP stanza is not required to see it: <code>host</code> and
+<code>root</code> get one warning of their own, because the value is wrong even
+where nothing binds. On Linux the check also opens the namespace
+directory, and reports a namespace that is absent (LCP pair creation
+would fail at apply) separately from a probe that could not answer. Run
+<code>ze explain doctor-vpp-lcp-netns</code> for the detail.</p>
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
 <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
 <!-- source: internal/component/vpp/startupconf.go -- linux-cp section: b.kv("default netns", s.LCP.Netns) -->
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootReachable ("", host, root) -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootMarker ("", host, root) -->
 
 <h2 id="what-ze-does-for-you">What ze does for you</h2>
 <p>When <code>vpp.enabled</code> is true, ze takes ownership of the whole VPP
@@ -411,7 +417,7 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.lcp.netns</code></td>
 <td>string</td>
 <td><code>dataplane</code></td>
-<td>Network namespace where LCP TAPs appear, also emitted as VPP's global <code>default netns</code>. Must not contain path separators. VPP resolves the value as a name under, so it must be a namespace that exists: <code>host</code> and <code>root</code> are not special to VPP and do <strong>not</strong> mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there; <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code>. See <a href="#how-the-two-halves-fit-together">"How the two halves fit together"</a>. <span class="ev-src"><span class="ev-ref"><code>/var/run/netns/</code></span></span></td>
+<td>Network namespace where LCP TAPs appear, also emitted as VPP's global <code>default netns</code>. Must not contain path separators. VPP resolves the value as a name under, so it must be a namespace that exists: <code>host</code> and <code>root</code> are not special to VPP and do <strong>not</strong> mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there. An EMPTY value is the exception: it clears VPP's global <code>default netns</code> and the TAPs stay in VPP's own namespace. <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> for every other value. See <a href="#how-the-two-halves-fit-together">"How the two halves fit together"</a>. <span class="ev-src"><span class="ev-ref"><code>/var/run/netns/</code></span></span></td>
 </tr>
 <tr>
 <td><code>vpp.plugins.wireguard</code></td>

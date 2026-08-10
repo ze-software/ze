@@ -26,15 +26,15 @@ checks needed for the current diff and is included in `make ze-verify`.
 |------|-------------|-------------------|
 | `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, `docs/functional-tests.md` release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. |
 | `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
-| `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale`, `ze-doc-test` and `ze-regen-check-readonly` | Two things: every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, AND `ai/CODE-TO-DOCS.md` itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale `ai/CODE-TO-DOCS.md` reported "all references valid" and exit 0 (it had drifted by 24 code paths). The two failures report separately: a stale FILE names the regen target, a broken ANCHOR prints `MISSING: <path>` with its referencing doc and line. |
+| `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale`, `ze-doc-test` and `ze-regen-check-readonly` | Three things: every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, every SYMBOL the anchor names after its `--` is declared in the `.go` file it points at, AND `ai/CODE-TO-DOCS.md` itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale `ai/CODE-TO-DOCS.md` reported "all references valid" and exit 0 (it had drifted by 24 code paths). The failures report separately: a stale FILE names the regen target, a broken ANCHOR prints `MISSING: <path>` with its referencing doc and line, and an undeclared symbol prints `CLAIM:` with the doc, the line, the anchored file and the token. |
+| `scripts/dev/check_doc_links.py` | `ze-doc-links`, and the `--md-only` subset at the end of `ze-regen-check` | Four checks over the instruction corpus: every backticked path and markdown link in `ai/`, `.claude/rules/` and the `plan/` meta documents resolves; every `// Design:` target resolves; every backticked `*.sh` filename and `c_*`/`check_*` function name in the hook-describing documents names something in the tree; and every `doc-links: ignore` marker states a reason. The marker sweep runs over every TRACKED file rather than the walked corpus, so a marker no other check reads is still audited. `make ze-doc-test` does NOT run this script: `ze-doc-links` is its own `ze-verify` stage. |
 | `scripts/dev/digest_check.py` | `ze-digest-check` and `ze-doc-test` | Every `file:line` anchor in `ai/digests/*.md` resolves to a real file (subsystem-relative via each digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. |
-| `scripts/dev/learned_numbers.py --check` | `ze-learned-numbers-check`, `ze-doc-test` and `ze-regen-check-readonly` (via `ze-discovery-index-check`) | Every `plan/learned/NNN-*.md` number is claimed by exactly one summary, and each H1 number matches its filename. Duplicates are invisible to `commit_helper.py learned-next`, which allocates max(existing prefixes)+1 against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with `make ze-learned-numbers-fix`, then `make ze-discovery-index`. |
-| `scripts/dev/learned_staleness.py` | `ze-learned-staleness` and `ze-doc-test` | Every path a `plan/learned/NNN-*.md` lists in its `## Files` section still resolves, and every `plan/learned/NNN` citation still names a summary. A summary is read through `## Files` and every `## Files <qualifier>` heading, so a second `## Files Modified` section is checked rather than skipped. A summary with no `## Files` section, or one that cannot be read, is reported. An empty finding list must mean every summary was read, never that the parser gave up. A `..` token, or a path whose real target leaves the tree, is reported and never resolved. Findings are counted against the shrink-only ceiling `plan/.learned-staleness-baseline`. More than the ceiling fails the gate, and fewer rewrites it down. The corpus held 1,860 dead references when the gate landed, which is why the ceiling exists. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 | `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
 | `scripts/dev/ste_check.py --check` | `ze-ste-check`, and `commit_helper.py create` | The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with `make ze-ste-review`. Rule: `ai/rules/writing.md`. |
 
-`ze-doc-test` runs doc drift, command validation, and stale source-anchor validation unconditionally and reports
+`ze-doc-test` runs doc drift, command validation, and source-anchor validation
+(path and symbol) unconditionally and reports
 a combined verdict. `ze-verify-wiring-docs` is the changed-file-aware gate used
 by `make ze-verify`; it delegates to the direct targets in the table only when
 the current diff touches matching sources. `ze-consistency` is left standalone
@@ -43,8 +43,8 @@ of code review, not doc review.
 
 <!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
 <!-- source: scripts/docvalid/commands.go -- main -->
-<!-- source: scripts/dev/code_to_docs.py -- check_mode -->
-<!-- source: scripts/dev/learned_numbers.py -- check, fix -->
+<!-- source: scripts/dev/code_to_docs.py -- check_anchor_symbols, anchor_symbol_tokens, go_declarations -->
+<!-- source: scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
 <!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
@@ -56,6 +56,7 @@ of code review, not doc review.
 | After you write any prose, in any file | `make ze-ste-review-changed` |
 | After editing any file under `docs/` | `make ze-doc-test` |
 | After adding or removing a plugin | `make ze-doc-test` |
+| After editing `ai/`, `.claude/rules/`, or a `plan/` meta document | `make ze-doc-links` (`ze-doc-test` does not cover it) |
 | After adding or renaming a YANG `ze:command` | `make ze-validate-commands` |
 | After adding a doc validator, inventory source, command source, or exported Go API | `make ze-verify-wiring-docs` |
 | Before opening a documentation PR | `make ze-doc-test` |
@@ -114,6 +115,9 @@ Two-direction check. Both directions are contract bugs:
 | Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `ze-functional-test` in the Makefile |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
 | Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `make ze-doc-test` |
+| `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
+| `cannot read the anchored file, so its symbols are unverifiable` | The anchor points at a file the checker could not read or decode. Fix the path. The check fails closed here on purpose: an unreadable file proves nothing about the claims above it |
+| `doc-links: ignore marker states no reason` | Write the reason inline, `<!-- doc-links: ignore (why this path cannot resolve) -->`, or delete the marker and repair the reference it was hiding. A marker with no reason is a silent allowlist |
 | Plugin in registry but not in Shipped Plugins table | Add a row to `docs/DESIGN.md`'s Shipped Plugins table |
 | YANG `ze:command` with no handler | Remove the YANG declaration OR write the handler in `internal/component/<area>/cmd/` or `cmd/ze/<area>/register.go` |
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
@@ -137,6 +141,23 @@ looking for `ze:command` extensions. For each extension it checks
 `docs/`, extracts referenced code paths, and fails if any referenced file or
 directory is missing. The same script regenerates `ai/CODE-TO-DOCS.md` when run
 without `--check`; check mode is read-only.
+
+One walk of `docs/` also feeds the symbol half. An anchor is
+`<!-- source: <path> -- Sym1, Sym2 -->`, and the tokens after the `--` used to
+be discarded. `anchor_symbol_tokens` keeps a token only when it is an identifier
+or a dotted chain of them, so a description holding a space or a hyphen is prose
+and is never checked. `go_declarations` then reads the anchored `.go` file's own
+text for top-level funcs, methods, types, vars, consts, struct fields and
+interface methods. It is a text scan rather than a `gopls` query, so it carries
+no build context and finds a `//go:build linux` declaration on a macOS host.
+`check_anchor_symbols` compares the two, and the `report=` argument `main()`
+passes decides whether a finding is printed.
+
+`scripts/dev/check_doc_links.py` walks the instruction corpus for paths,
+`// Design:` targets and hook names. Its fourth check, `check_ignore_reasons`,
+does not use that corpus: it sweeps every file `git ls-files` names, because a
+`doc-links: ignore` marker outside the walked corpus suppresses nothing and is
+therefore the one nobody ever audits.
 
 `scripts/lint/consistency.go` walks `.go` files, parses `// Design:`,
 `// Detail:`, `// Overview:`, `// Related:` comments, checks for asymmetries,

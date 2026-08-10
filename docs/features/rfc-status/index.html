@@ -207,8 +207,8 @@
 <td>RFC 2545</td>
 <td>IPv6 next-hop handling</td>
 <td>Supported</td>
-<td>IPv6 MP_REACH next-hop parsing, including global plus link-local next-hop form.</td>
-<td>Capability code 77 is draft-based; RFC 2545 covers the next-hop wire behavior.</td>
+<td>Enrolled 2026-08-07. All four SHALL-level requirements sit in Section 3 and govern the MP_REACH_NLRI Network Address of Next Hop field; each is proven in both polarities by verify-tier functional tests, bound per line in and listed in. Send side: ze evaluates the Section 3 condition itself. <code>linkScope.linkLocalNextHop</code> emits the 32-octet form (global address first, link-local second, length octet 0x20) only when the speaker shares a locally connected subnet with the peer AND with the entity named by the global next hop, and the 16-octet form (one address, length octet 0x10) in every other case. Connected subnets come from <code>network.ConnectedPrefixes</code>, snapshotted per session. The <code>session &gt; link-local</code> leaf supplies the address; it does not decide inclusion. The snapshot is re-settled for every established peer when an address is added to or removed from ANY interface, <code>refreshPeerLinkScopes</code>, so a change on an interface other than the session's does not leave a stale answer behind a surviving TCP session. A link-local address is refused wherever it could reach the FIRST slot of that field: the three route-level entry points (<code>ParseRouteAttributes</code>, <code>handleAnnounceUnicast</code>, <code>parseNhopFlat</code>) and the two peer config leaves <code>connection &gt; local &gt; ip</code> and <code>session &gt; next-hop</code> (<code>ValidatePeerGlobalNextHop</code>) all call <code>ValidateGlobalNextHop</code>, and <code>linkScope.linkLocalNextHop</code> refuses independently of all of them, appending nothing when the global address it is given is not a global IPv6 address. Receive side: <code>parseNextHops</code> accepts lengths 16 and 32 for an IPv6 next hop and rejects every other length for AFI 2. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc2545.md</code></span><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span><span class="ev-ref"><code>internal/component/bgp/reactor/link_scope.go</code></span><span class="ev-ref"><code>internal/core/network/connected.go</code></span><span class="ev-ref"><code>internal/component/bgp/reactor/reactor_iface.go</code></span><span class="ev-ref"><code>internal/component/bgp/reactor/config_nexthop_form.go</code></span><span class="ev-ref"><code>internal/core/bgp/attribute/nexthop_form.go</code></span><span class="ev-ref"><code>internal/core/bgp/attribute/mpnlri.go</code></span></span></td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>RFC 4486</td>
@@ -542,7 +542,7 @@
 <!-- source: docs/architecture/wire/nlri-bgpls.md -- BGP-LS NLRI wire format -->
 <!-- source: internal/component/bgp/plugins/nlri/ -- per-family register.go files hold family registrations and RFC metadata -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/config.go -- MVPN config route parser -->
-<!-- source: plan/learned/776-srv6-prefix-sid.md -- SRv6 Prefix-SID implementation closure and doc conflict -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- SRv6 Service TLV and SID Structure extraction from the Prefix-SID attribute -->
 
 <h2 id="bgp-operations-telemetry-rpki-and-bfd-adjacent-standards">BGP operations, telemetry, RPKI, and BFD-adjacent standards</h2>
 <table>
@@ -914,9 +914,9 @@
 <!-- source: docs/architecture/wire/ospfv3.md -- OSPFv3 wire and extension behavior -->
 <!-- source: internal/plugins/ospf/config_ipsec.go -- RFC 4552 OSPFv3 IPsec config validation -->
 <!-- source: internal/plugins/ospf/ipsec_install.go -- RFC 4552 OSPFv3 IPsec XFRM installer -->
-<!-- source: plan/learned/920-mpls-ldp.md -- LDP learned closure -->
-<!-- source: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE learned closure -->
-<!-- source: plan/learned/925-mpls-rsvp-te-fast-reroute.md -- RSVP-TE FRR learned closure -->
+<!-- source: internal/plugins/ldp/session.go -- LDP session FSM and label distribution -->
+<!-- source: internal/plugins/rsvpte/engine.go -- RSVP-TE PATH/RESV signaling and soft state -->
+<!-- source: internal/plugins/rsvpte/frr.go -- RSVP-TE fast reroute facility backup -->
 
 <h2 id="first-hop-redundancy">First-hop redundancy</h2>
 <table>

@@ -18,7 +18,9 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 |------|-------------|---------|
 | `--chaos-seed <N>` | PRNG seed for reproducible faults. `-1` = time-based. `0` = disabled. | 0 (off) |
 | `--chaos-rate <f>` | Probability of fault per operation (0.0 to 1.0) | 0.1 |
-<!-- source: cmd/ze/main.go -- chaosSeed, chaosRate global flags; internal/component/bgp/cli/childmode.go -- ze.bgp.chaos.seed/rate -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- chaosSeed, chaosRate global flags -->
+<!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
+<!-- source: internal/component/bgp/cli/childmode.go -- injectChaosFromEnv, ze.bgp.chaos.seed/rate -->
 
 ## ze-chaos Tool
 

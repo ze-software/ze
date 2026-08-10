@@ -9,8 +9,8 @@ Ze is Go, and Go code leans on packages. 40 direct dependencies, read straight f
 | `charm.land/bubbletea/v2` | `v2.0.8` | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
 | `charm.land/bubbles/v2` | `v2.1.1` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
 | `charm.land/lipgloss/v2` | `v2.0.5` | Styling and layout for the CLI's colors, borders, and widths. |
-| `charm.land/wish/v2` | `v2.0.1` | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
-| `github.com/charmbracelet/ssh` | `v0.0.0-20250826160808-ebfa259c7309` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
+| `charm.land/wish/v2` | `v2.0.3` | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
+| `github.com/charmbracelet/ssh` | `?` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
 | `github.com/charmbracelet/colorprofile` | `v0.4.3` | Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them. |
 | `github.com/muesli/reflow` | `v0.3.0` | ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. |
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |
@@ -50,7 +50,7 @@ Ze is Go, and Go code leans on packages. 40 direct dependencies, read straight f
 | --- | --- | --- |
 | `github.com/openconfig/goyang` | `v1.6.3` | Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine. |
 | `github.com/openconfig/gnmi` | `v0.14.1` | Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities. |
-| `google.golang.org/grpc` | `v1.82.1` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
+| `google.golang.org/grpc` | `v1.83.0` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
 | `google.golang.org/protobuf` | `v1.36.11` | Runtime support for the generated protobuf message types behind Ze's gRPC API. |
 | `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | `v1.6.2` | Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto. |
 

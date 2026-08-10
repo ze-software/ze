@@ -107,12 +107,15 @@ go version
 <p>Optional tools for appliance and ISO work:</p>
 <pre><code class="language-bash">sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
 </code></pre>
+<p>On an arm64 host, ask for <code>grub-efi-arm64-bin</code> instead: Debian packages one GRUB
+module set per architecture, and the amd64 one has no installation candidate
+there.</p>
 <p>Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.</p>
 <pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
 make ze-setup CHECK=1 || true
 </code></pre>
-<p>In check mode (<code>CHECK=1</code>) this lists anything missing as <code>[missing] &lt;tool&gt;</code> and exits non-zero. Run plain <code>make ze-setup</code> without <code>CHECK=1</code> to have it print the <code>sudo apt-get install ...</code> commands for the missing packages. It never runs <code>sudo</code> for you.</p>
+<p>In check mode (<code>CHECK=1</code>) this lists anything missing as <code>[missing] &lt;tool&gt;</code> and exits non-zero. Run plain <code>make ze-setup</code> without <code>CHECK=1</code> and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through <code>sudo -n</code>, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with <code>sudo -v</code>, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.</p>
 <h2 id="2-build-ze">2. Build Ze</h2>
 <p><code>make build</code> compiles the normal Ze binary and helper binaries.</p>
 <pre><code class="language-bash">cd ~/ze

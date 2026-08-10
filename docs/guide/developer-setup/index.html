@@ -84,6 +84,10 @@ missing tools, vendors Go dependencies, and reports what it did.</p>
 </code></pre>
 <p>Exits 0 if all required tools are present, nonzero if any are missing.
 Useful as a CI preflight check.</p>
+<p>Two of the rows are behaviour, not binaries: <code>gopls-answers</code> and
+<code>pyright-answers</code> run each language server and check that it replies. A server
+on PATH that does not answer fails this check, because every LSP call against
+it fails the same silent way.</p>
 <h2 id="what-it-installs">What It Installs</h2>
 <h3 id="build-and-lint">Build and Lint</h3>
 <table>
@@ -134,6 +138,10 @@ Useful as a CI preflight check.</p>
 <td><code>ruff</code></td>
 <td>Python linter (via <code>pipx</code>)</td>
 </tr>
+<tr>
+<td><code>pyright</code></td>
+<td>Python language server behind the agent LSP tool (via <code>pipx</code>)</td>
+</tr>
 </tbody>
 </table>
 <h3 id="appliance-and-evidence">Appliance and Evidence</h3>
@@ -147,7 +155,7 @@ Useful as a CI preflight check.</p>
 <tbody>
 <tr>
 <td><code>uv</code></td>
-<td>Python package runner for SSH probe (<code>uv run --with paramiko</code>)</td>
+<td>Python package runner for SSH probe (<code>uv run --with paramiko</code>, via <code>pipx</code>)</td>
 </tr>
 <tr>
 <td><code>qemu</code></td>
@@ -189,14 +197,74 @@ Useful as a CI preflight check.</p>
 <h2 id="platform-notes">Platform Notes</h2>
 <h3 id="macos">macOS</h3>
 <ul>
-<li><strong>e2fsprogs</strong> is keg-only on Homebrew. The Ze code resolves it via the
-  Cellar path; no PATH modification is needed after <code>brew install e2fsprogs</code>.</li>
+<li><strong>The Homebrew prefix is resolved, never assumed.</strong> It is <code>/opt/homebrew</code> on
+  Apple Silicon and <code>/usr/local</code> on Intel, so a hardcoded path is absent on half
+  the Macs. Every consumer asks in the same order: <code>HOMEBREW_PREFIX</code> when
+  <code>brew shellenv</code> has exported it, then the <code>brew</code> binary's own location
+  (<code>&lt;prefix&gt;/bin/brew</code>), then the two documented defaults. The <code>brew</code> link is
+  not followed: on Intel it points into <code>&lt;prefix&gt;/Homebrew</code>, which would answer
+  with the wrong prefix.</li>
+<li><strong>e2fsprogs</strong> is keg-only on Homebrew, so none of it is linked onto <code>PATH</code> and
+  <code>which</code> finds nothing however well it is installed. It is looked for under
+  <code>&lt;prefix&gt;/opt/e2fsprogs/sbin</code>, the link kept at the current version, and under
+  <code>&lt;prefix&gt;/Cellar/e2fsprogs/&lt;version&gt;/sbin</code>, where an interrupted upgrade
+  leaves it with no link. No PATH modification is needed after
+  <code>brew install e2fsprogs</code>.</li>
 <li><strong>grub</strong> has no first-party Homebrew formula. ISO builds require Linux or
   a container (colima/docker). The setup script skips grub on macOS.</li>
 </ul>
+<!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
+<!-- source: scripts/evidence/homebrew.py -- brew_prefixes, brew_keg_dirs -->
+
 <h3 id="linux">Linux</h3>
-<p>The script prints <code>sudo apt-get install ...</code> commands but never runs <code>sudo</code>
-automatically. Copy and run the printed commands to install.</p>
+<p><code>make ze-setup</code> installs the apt packages itself, the same way it installs the
+Homebrew ones on macOS. Each command is echoed before it runs. It takes
+<code>apt-get update</code> once per run, because a container image ships no package
+lists, and it sets <code>DEBIAN_FRONTEND=noninteractive</code> so a package with a debconf
+prompt cannot stop the run.</p>
+<p><strong>How it reaches root.</strong> The answer is decided before any command runs, and
+<code>sudo</code> is always given <code>-n</code>, so no path can stop at a password prompt:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What setup does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You are root (a container build)</td>
+<td>Runs the command directly. <code>sudo</code> need not be installed</td>
+</tr>
+<tr>
+<td><code>sudo</code> acts with no password</td>
+<td>Runs <code>sudo -n &lt;command&gt;</code></td>
+</tr>
+<tr>
+<td><code>sudo</code> wants a password, a terminal is attached</td>
+<td>Asks once with <code>sudo -v</code>, then runs <code>sudo -n &lt;command&gt;</code></td>
+</tr>
+<tr>
+<td><code>sudo</code> wants a password, no terminal (CI, an agent session)</td>
+<td>Prints the command, installs nothing, exits nonzero</td>
+</tr>
+</tbody>
+</table>
+<!-- source: scripts/dev/dev-setup.py -- privilege_mode, run_privileged, apt_install -->
+
+<p><strong>uv</strong> is not in the Debian or Ubuntu repositories, so it installs through
+<code>pipx</code> on both platforms. One route is one thing to fix, and it keeps
+<code>curl | sh</code> off every dev machine.</p>
+<p><strong>GRUB follows your host architecture.</strong> Debian packages one module set per
+architecture: an amd64 host takes <code>grub-efi-amd64-bin</code>, an arm64 host takes
+<code>grub-efi-arm64-bin</code>. Asking an arm64 host for the amd64 package installs
+nothing at all, <code>grub-mkstandalone</code> included. <code>ze appliance iso</code> picks its GRUB
+target from the architecture of the image it packs, so building an ISO for the
+OTHER architecture needs that architecture's set too, through
+<code>dpkg --add-architecture</code>.</p>
+<!-- source: scripts/dev/dev-setup.py -- grub_apt_package -->
+<!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
+
 <p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
 <code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
 Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
@@ -206,9 +274,10 @@ echoes and then runs these commands via <code>sudo</code> to lift it globally:</
 <pre><code class="language-bash">echo &quot;kernel.apparmor_restrict_unprivileged_userns = 0&quot; | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 </code></pre>
-<p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. If <code>sudo</code> is
-unavailable it prints the commands to run by hand instead. <code>make ze-setup
-CHECK=1</code> only reports the state, never changes it.</p>
+<p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. It goes through
+the same root route as the package installs, so on a root run the echoed lines
+carry no <code>sudo</code>, and when root is out of reach it prints the commands to run by
+hand instead. <code>make ze-setup CHECK=1</code> only reports the state, never changes it.</p>
 <p><strong>KVM device access.</strong> <code>/dev/kvm</code> is <code>root:kvm</code> mode 0660, so QEMU-backed
 evidence (the appliance boot proofs and every <code>ze-qemu-*</code> target) needs your
 user in the <code>kvm</code> group. Without it QEMU does not quietly fall back to
@@ -232,7 +301,9 @@ virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs
 evidence scripts select the Apple hypervisor (<code>hvf</code>) by platform.</p>
 <!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
 
-<p>These two are the only places setup runs <code>sudo</code>.</p>
+<p>These two, and the apt installs above, are every place setup reaches for root.
+All three go through one helper, so the table of states earlier in this section
+governs each of them.</p>
 <h2 id="after-setup">After Setup</h2>
 <p>Verify everything works:</p>
 <pre><code class="language-bash">make ze-smoke    # lint + unit tests + build (~2 min)

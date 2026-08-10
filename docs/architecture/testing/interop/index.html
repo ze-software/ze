@@ -66,6 +66,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#optional-sidecars">Optional sidecars</a></li>
 <li><a href="#prove-a-scenario-discriminates">Prove a scenario discriminates</a></li>
 <li><a href="#daemon-helpers">Daemon Helpers</a></li>
+<li><a href="#querying-ze">Querying Ze</a></li>
 <li><a href="#a-process-plugin-that-fails">A process plugin that fails</a></li>
 <li><a href="#scenario-inventory">Scenario Inventory</a></li>
 <li><a href="#running">Running</a></li>
@@ -309,6 +310,27 @@ discriminates".</p>
 <p>All classes (<code>FRR</code>, <code>BIRD</code>, <code>GoBGP</code>, <code>Ze</code>) are defined in <code>interop.py</code>. Each wraps the
 daemon's native CLI (<code>vtysh</code>, <code>birdc</code>, <code>gobgp</code>, <code>ze</code>) via <code>docker exec</code>. Start with an
 existing scenario (e.g., <code>01-ebgp-ipv4-frr/check.py</code>) as a template.</p>
+<h3 id="querying-ze">Querying Ze</h3>
+<p><code>Ze.cli(command)</code> is the only way to ask the Ze daemon anything. It runs
+<code>ze cli -c &lt;command&gt; --user ... --format json</code> inside the container.</p>
+<p>Two properties of that line are load-bearing and neither is obvious.</p>
+<p><code>ze cli -c</code> rather than the verb form <code>ze show bgp rib status</code>: <code>--user</code> and
+<code>--format</code> are flags of <code>ze cli</code>, and the verb form has no slot for either.</p>
+<p>The daemon starts an SSH listener only when its config asks for one
+(<code>infraSetup</code>, <code>cmd/ze/hub/infra_setup.go</code>), and <code>ze cli</code> reaches the daemon over
+SSH. No scenario <code>ze.conf</code> asks. The harness appends <code>ZE_CLI_CONFIG</code> -- the
+listener plus the account it authenticates against -- to the RENDERED copy of
+every <code>ze.conf</code> (<code>_render_scenario_dir</code>), so no scenario carries the boilerplate
+and none can forget it. A scenario that forgot it would fail its assertions for a
+reason unrelated to what it tests. <code>test/ipsec-interop/lab.py</code> does the same thing
+for the IPsec lab.</p>
+<p><strong>A Ze helper never converts a failed query into a plausible number.</strong>
+<code>Ze.rib_count</code> raises when the command fails or answers without a <code>routes-in</code>
+field, because 0 is a legitimate RIB size and a failed query is not
+(<code>ai/rules/evidence.md</code>). It returned 0 on failure until 2026-08-07 and three
+separate faults hid behind that one number for three days
+(<code>plan/spec-fixit-test-harness-fail-open-guards.md</code>, guard 3). Write new Ze
+helpers the same way.</p>
 <p>All session waiters poll with a configurable timeout (default 90s, override via <code>SESSION_TIMEOUT</code> env var).
 The harness passes that value into the Ze container as <code>SESSION_TIMEOUT</code>, so a process
 plugin can size its own barriers against the harness budget instead of repeating a
@@ -328,7 +350,12 @@ within a few lines of it. A scenario whose Ze writes more than 2000 lines after 
 sentinel must raise the <code>lines</code> bound.</p>
 <p>An unreadable log raises as well, with the docker error rather than the plugin's
 message. "I could not look" is not "the plugin is fine".</p>
-<p>Three call sites, and only the last one fires on every failure:</p>
+<p>An unreadable log is NOT a plugin verdict, and the two are worded differently. The
+sentinel case names the plugin as the cause. The unreadable case says a plugin failure
+cannot be ruled out. <code>observer_failure_note</code> returns the finished line so one writer
+states the claim: a caller that added its own prefix asserted the plugin as the cause
+for every scenario that failed before Ze's container existed.</p>
+<p>Three call sites, and the first covers every failure the other two miss:</p>
 <table>
 <thead>
 <tr>
@@ -339,7 +366,7 @@ message. "I could not look" is not "the plugin is fine".</p>
 <tbody>
 <tr>
 <td><code>run.py</code>, the scenario's <code>except BaseException</code> handler</td>
-<td>ALWAYS, on any scenario failure. Uses <code>observer_failure_note</code>, which returns text instead of raising, because a second exception there would replace the failure being reported</td>
+<td>on every scenario failure other than a Ctrl-C. An interrupt is counted and ends the loop, whether it arrives before this point or during the read itself, so the run still prints its summary. Uses <code>observer_failure_note</code>, which returns text instead of raising, because a second exception there would replace the failure being reported</td>
 </tr>
 <tr>
 <td><code>wait_containers_healthy</code></td>

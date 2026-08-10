@@ -142,7 +142,11 @@ ze env get ze.log              # details for one var
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |
 | `ze.config.dir` | -- | Override config directory |
 | `ze.storage.blob` | `true` | Use blob storage (false = filesystem) |
-<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration; internal/core/ssh/client/client.go -- ze.ssh.host/port; cmd/ze/main.go -- ze.storage.blob; internal/core/paths/paths.go -- ze.config.dir -->
+<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
+<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host/port -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- ze.storage.blob registration -->
+<!-- source: internal/core/resolve/resolve.go -- ze.storage.blob lookup -->
+<!-- source: internal/core/paths/paths.go -- ze.config.dir -->
 
 ## CLI Flags
 

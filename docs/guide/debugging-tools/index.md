@@ -313,7 +313,7 @@ ze-test bgp encode --client 1
 - Client connects, sends configured messages, exits when server disconnects
 
 Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.
-<!-- source: internal/test/cli/cmd_bgp.go -- runClientOnly, clientCmd.Cancel -->
+<!-- source: internal/test/cli/cmd_bgp.go -- zeTestRunClientOnly, clientCmd.Cancel -->
 
 **Use `--port` to avoid conflicts:**
 ```bash

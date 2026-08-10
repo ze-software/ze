@@ -1119,15 +1119,16 @@ out of scope for v1; see <code>plan/deferrals/</code>.</p>
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
 
 <h2 id="tunnel-reload-behaviour">Tunnel Reload Behaviour</h2>
-<p>On config reload (SIGHUP or transaction commit), <code>applyTunnels</code> compares each
-tunnel's spec against the previously applied config, indexed by name. Tunnels
+<p>On config reload (SIGHUP or transaction commit), <code>applyConfig</code> compares each
+tunnel's spec against the previously applied config, which <code>indexTunnelSpecs</code>
+indexes by name. Tunnels
 whose spec is unchanged are left alone; MTU, MAC, and addresses still reconcile
 through later phases, so non-spec changes still take effect. Tunnels whose spec
 changed (encapsulation kind, <code>local</code>, <code>remote</code>, <code>key</code>, <code>ttl</code>, <code>hoplimit</code>, and
 the rest of the per-case leaves) are deleted and recreated, because Linux does
 not support in-place modification of most tunnel kinds. The recreate briefly
 drops traffic on the changed tunnel only; unrelated tunnels are not disturbed.</p>
-<!-- source: internal/component/iface/config.go -- applyTunnels, indexTunnelSpecs -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexTunnelSpecs -->
 
 <h2 id="tunnel-validation-scope">Tunnel Validation Scope</h2>
 <p><code>ze config validate</code>, API pre-save validation, and CLI commit validation run
@@ -1175,7 +1176,8 @@ ride the same <code>interface-unit</code> grouping used everywhere else.</p>
 </code></pre>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list wireguard, ze:sensitive on private-key and peer preshared-key, ze:listener on the list entry -->
 <!-- source: internal/component/iface/wireguard.go -- WireguardSpec / WireguardPeerSpec types -->
-<!-- source: internal/component/iface/config.go -- parseWireguardEntry, applyWireguards, wireguardSpecEqual -->
+<!-- source: internal/component/iface/config.go -- parseWireguardEntry, parseWireguardPeer -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexWireguardSpecs, wireguardSpecEqual -->
 
 <h3 id="key-material-and-9-encoding">Key material and <code>$9$</code> encoding</h3>
 <p><code>private-key</code> and peer <code>preshared-key</code> are marked <code>ze:sensitive</code> in YANG.
@@ -1193,7 +1195,7 @@ MD5 passwords, SSH secrets, MCP tokens, and API tokens.</p>
 <!-- source: internal/component/config/secret/secret.go -- Encode, Decode, IsEncoded ($9$ implementation) -->
 
 <h3 id="reconciliation">Reconciliation</h3>
-<p>On reload, <code>applyWireguards</code> compares the new spec to the previously
+<p>On reload, <code>applyConfig</code> compares the new spec to the previously
 applied spec via <code>wireguardSpecEqual</code>. Unchanged entries are a no-op; the
 kernel is not touched and peer handshake state is preserved. Changed
 entries trigger a single <code>ConfigureWireguardDevice</code> call with
@@ -1208,7 +1210,7 @@ The kernel tracks peers only by public key, so the label can change
 freely without affecting the handshake. <code>ze init</code> emits discovered peers
 with synthetic names (<code>peer0</code>, <code>peer1</code>, ...) which operators typically
 rename via <code>ze config edit</code>.</p>
-<!-- source: internal/component/iface/config.go -- wireguardSpecEqual, wireguardPeerEqual -->
+<!-- source: internal/component/iface/config_apply.go -- wireguardSpecEqual, wireguardPeerEqual -->
 <!-- source: internal/component/iface/backend.go -- CreateWireguardDevice, ConfigureWireguardDevice, GetWireguardDevice interface methods -->
 
 <h3 id="port-conflict-detection">Port conflict detection</h3>
@@ -1217,7 +1219,7 @@ TCP services (web, ssh, mcp, etc.) with one Phase-5 extension:
 <code>ListenerEndpoint</code> gained a <code>Protocol</code> field so wireguard's UDP ports
 never clash with a TCP service on the same port. Two wireguards with
 the same <code>listen-port</code> are rejected at reload time.</p>
-<!-- source: internal/component/config/listener.go -- ListenerEndpoint.Protocol, collectWireguardListeners, conflicts -->
+<!-- source: internal/component/config/listener.go -- ListenerEndpoint.Protocol, buildListenerService, CollectListeners, FindListenerConflict -->
 
 <h3 id="dependencies">Dependencies</h3>
 <p>WireGuard peer and key configuration uses

@@ -103,22 +103,17 @@ checks needed for the current diff and is included in <code>make ze-verify</code
 <tr>
 <td><code>scripts/dev/code_to_docs.py --check</code></td>
 <td><code>ze-doc-check-stale</code>, <code>ze-doc-test</code> and <code>ze-regen-check-readonly</code></td>
-<td>Two things: every <code>&lt;!-- source. --&gt;</code> path under <code>docs/</code> points to an existing source file or directory, AND itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale reported "all references valid" and exit 0 (it had drifted by 24 code paths). The two failures report separately: a stale FILE names the regen target, a broken ANCHOR prints <code>MISSING: &lt;path&gt;</code> with its referencing doc and line. <span class="ev-src"><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span></span></td>
+<td>Three things: every <code>&lt;!-- source. --&gt;</code> path under <code>docs/</code> points to an existing source file or directory, every SYMBOL the anchor names after its <code>--</code> is declared in the <code>.go</code> file it points at, AND itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale reported "all references valid" and exit 0 (it had drifted by 24 code paths). The failures report separately: a stale FILE names the regen target, a broken ANCHOR prints <code>MISSING: &lt;path&gt;</code> with its referencing doc and line, and an undeclared symbol prints <code>CLAIM:</code> with the doc, the line, the anchored file and the token. <span class="ev-src"><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span></span></td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/check_doc_links.py</code></span></span></td>
+<td><code>ze-doc-links</code>, and the <code>--md-only</code> subset at the end of <code>ze-regen-check</code></td>
+<td>Four checks over the instruction corpus: every backticked path and markdown link in <code>ai/</code>, <code>plan/</code> meta documents resolves; every <code>// Design:</code> target resolves; every backticked <code>*.sh</code> filename and <code>c_*</code>/<code>check_*</code> function name in the hook-describing documents names something in the tree; and every <code>doc-links: ignore</code> marker states a reason. The marker sweep runs over every TRACKED file rather than the walked corpus, so a marker no other check reads is still audited. <code>make ze-doc-test</code> does NOT run this script: <code>ze-doc-links</code> is its own <code>ze-verify</code> stage. <span class="ev-src"><span class="ev-ref"><code>.claude/rules/</code></span></span></td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/digest_check.py</code></span></span></td>
 <td><code>ze-digest-check</code> and <code>ze-doc-test</code></td>
 <td>Every <code>file:line</code> anchor in resolves to a real file (subsystem-relative via each digest's <code>&lt;!-- digest-base: --&gt;</code> header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. <span class="ev-src"><span class="ev-ref"><code>ai/digests/*.md</code></span></span></td>
-</tr>
-<tr>
-<td><code>scripts/dev/learned_numbers.py --check</code></td>
-<td><code>ze-learned-numbers-check</code>, <code>ze-doc-test</code> and <code>ze-regen-check-readonly</code> (via <code>ze-discovery-index-check</code>)</td>
-<td>Every number is claimed by exactly one summary, and each H1 number matches its filename. Duplicates are invisible to <code>commit_helper.py learned-next</code>, which allocates max(existing prefixes)+1 against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with <code>make ze-learned-numbers-fix</code>, then <code>make ze-discovery-index</code>. <span class="ev-src"><span class="ev-ref"><code>plan/learned/NNN-*.md</code></span></span></td>
-</tr>
-<tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/learned_staleness.py</code></span></span></td>
-<td><code>ze-learned-staleness</code> and <code>ze-doc-test</code></td>
-<td>Every path a lists in its <code>## Files</code> section still resolves, and every <code>plan/learned/NNN</code> citation still names a summary. A summary is read through <code>## Files</code> and every <code>## Files &lt;qualifier&gt;</code> heading, so a second <code>## Files Modified</code> section is checked rather than skipped. A summary with no <code>## Files</code> section, or one that cannot be read, is reported. An empty finding list must mean every summary was read, never that the parser gave up. A <code>. </code> token, or a path whose real target leaves the tree, is reported and never resolved. Findings are counted against the shrink-only ceiling. More than the ceiling fails the gate, and fewer rewrites it down. The corpus held 1,860 dead references when the gate landed, which is why the ceiling exists. <span class="ev-src"><span class="ev-ref"><code>plan/learned/NNN-*.md</code></span><span class="ev-ref"><code>plan/.learned-staleness-baseline</code></span></span></td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/lint/consistency.go</code></span></span></td>
@@ -137,7 +132,8 @@ checks needed for the current diff and is included in <code>make ze-verify</code
 </tr>
 </tbody>
 </table>
-<p><code>ze-doc-test</code> runs doc drift, command validation, and stale source-anchor validation unconditionally and reports
+<p><code>ze-doc-test</code> runs doc drift, command validation, and source-anchor validation
+(path and symbol) unconditionally and reports
 a combined verdict. <code>ze-verify-wiring-docs</code> is the changed-file-aware gate used
 by <code>make ze-verify</code>; it delegates to the direct targets in the table only when
 the current diff touches matching sources. <code>ze-consistency</code> is left standalone
@@ -145,8 +141,8 @@ because it covers both documentation and code-style concerns and is run as part
 of code review, not doc review.</p>
 <!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
 <!-- source: scripts/docvalid/commands.go -- main -->
-<!-- source: scripts/dev/code_to_docs.py -- check_mode -->
-<!-- source: scripts/dev/learned_numbers.py -- check, fix -->
+<!-- source: scripts/dev/code_to_docs.py -- check_anchor_symbols, anchor_symbol_tokens, go_declarations -->
+<!-- source: scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
 <!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
@@ -171,6 +167,10 @@ of code review, not doc review.</p>
 <tr>
 <td>After adding or removing a plugin</td>
 <td><code>make ze-doc-test</code></td>
+</tr>
+<tr>
+<td>After editing <code>ai/</code>, <code>plan/</code> meta document. <span class="ev-src"><span class="ev-ref"><code>.claude/rules/</code></span></span></td>
+<td><code>make ze-doc-links</code> (<code>ze-doc-test</code> does not cover it)</td>
 </tr>
 <tr>
 <td>After adding or renaming a YANG <code>ze:command</code></td>
@@ -257,6 +257,18 @@ Registered handlers: 69
 <td>Fix or remove the <code>&lt;!-- source: ... --&gt;</code> path, then rerun <code>make ze-doc-test</code></td>
 </tr>
 <tr>
+<td><code>CLAIM: ... names 'Sym', which is not declared there</code></td>
+<td>Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be</td>
+</tr>
+<tr>
+<td><code>cannot read the anchored file, so its symbols are unverifiable</code></td>
+<td>The anchor points at a file the checker could not read or decode. Fix the path. The check fails closed here on purpose: an unreadable file proves nothing about the claims above it</td>
+</tr>
+<tr>
+<td><code>doc-links: ignore marker states no reason</code></td>
+<td>Write the reason inline, <code>&lt;!-- doc-links: ignore (why this path cannot resolve) --&gt;</code>, or delete the marker and repair the reference it was hiding. A marker with no reason is a silent allowlist</td>
+</tr>
+<tr>
 <td>Plugin in registry but not in Shipped Plugins table</td>
 <td>Add a row to 's Shipped Plugins table. <span class="ev-src"><span class="ev-ref"><code>docs/DESIGN.md</code></span></span></td>
 </tr>
@@ -290,6 +302,21 @@ looking for <code>ze:command</code> extensions. For each extension it checks
 <code>docs/</code>, extracts referenced code paths, and fails if any referenced file or
 directory is missing. The same script regenerates <code>ai/CODE-TO-DOCS.md</code> when run
 without <code>--check</code>; check mode is read-only.</p>
+<p>One walk of <code>docs/</code> also feeds the symbol half. An anchor is
+<code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>, and the tokens after the <code>--</code> used to
+be discarded. <code>anchor_symbol_tokens</code> keeps a token only when it is an identifier
+or a dotted chain of them, so a description holding a space or a hyphen is prose
+and is never checked. <code>go_declarations</code> then reads the anchored <code>.go</code> file's own
+text for top-level funcs, methods, types, vars, consts, struct fields and
+interface methods. It is a text scan rather than a <code>gopls</code> query, so it carries
+no build context and finds a <code>//go:build linux</code> declaration on a macOS host.
+<code>check_anchor_symbols</code> compares the two, and the <code>report=</code> argument <code>main()</code>
+passes decides whether a finding is printed.</p>
+<p><code>scripts/dev/check_doc_links.py</code> walks the instruction corpus for paths,
+<code>// Design:</code> targets and hook names. Its fourth check, <code>check_ignore_reasons</code>,
+does not use that corpus: it sweeps every file <code>git ls-files</code> names, because a
+<code>doc-links: ignore</code> marker outside the walked corpus suppresses nothing and is
+therefore the one nobody ever audits.</p>
 <p><code>scripts/lint/consistency.go</code> walks <code>.go</code> files, parses <code>// Design:</code>,
 <code>// Detail:</code>, <code>// Overview:</code>, <code>// Related:</code> comments, checks for asymmetries,
 and scans <code>docs/</code>/<code>scripts/</code> for references to packages that no longer exist.</p>

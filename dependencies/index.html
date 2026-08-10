@@ -61,8 +61,8 @@
 <tr><td><code>charm.land/bubbletea/v2</code></td><td><code>v2.0.8</code></td><td>The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session.</td></tr>
 <tr><td><code>charm.land/bubbles/v2</code></td><td><code>v2.1.1</code></td><td>Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.</td></tr>
 <tr><td><code>charm.land/lipgloss/v2</code></td><td><code>v2.0.5</code></td><td>Styling and layout for the CLI's colors, borders, and widths.</td></tr>
-<tr><td><code>charm.land/wish/v2</code></td><td><code>v2.0.1</code></td><td>SSH server middleware that wires each incoming session to run the CLI's Bubbletea program.</td></tr>
-<tr><td><code>github.com/charmbracelet/ssh</code></td><td><code>v0.0.0-20250826160808-ebfa259c7309</code></td><td>SSH session and public-key types that the wish server and the CLI's key-based auth build on.</td></tr>
+<tr><td><code>charm.land/wish/v2</code></td><td><code>v2.0.3</code></td><td>SSH server middleware that wires each incoming session to run the CLI's Bubbletea program.</td></tr>
+<tr><td><code>github.com/charmbracelet/ssh</code></td><td><code>?</code></td><td>SSH session and public-key types that the wish server and the CLI's key-based auth build on.</td></tr>
 <tr><td><code>github.com/charmbracelet/colorprofile</code></td><td><code>v0.4.3</code></td><td>Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them.</td></tr>
 <tr><td><code>github.com/muesli/reflow</code></td><td><code>v0.3.0</code></td><td>ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes.</td></tr>
 <tr><td><code>github.com/creack/pty</code></td><td><code>v1.1.24</code></td><td>Opens a pseudo-terminal in a Linux integration test that exercises serial console handling.</td></tr>
@@ -98,7 +98,7 @@
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
 <tr><td><code>github.com/openconfig/goyang</code></td><td><code>v1.6.3</code></td><td>Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine.</td></tr>
 <tr><td><code>github.com/openconfig/gnmi</code></td><td><code>v0.14.1</code></td><td>Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities.</td></tr>
-<tr><td><code>google.golang.org/grpc</code></td><td><code>v1.82.1</code></td><td>Backs Ze's gRPC servers: gNMI and Ze's own management API.</td></tr>
+<tr><td><code>google.golang.org/grpc</code></td><td><code>v1.83.0</code></td><td>Backs Ze's gRPC servers: gNMI and Ze's own management API.</td></tr>
 <tr><td><code>google.golang.org/protobuf</code></td><td><code>v1.36.11</code></td><td>Runtime support for the generated protobuf message types behind Ze's gRPC API.</td></tr>
 <tr><td><code>google.golang.org/grpc/cmd/protoc-gen-go-grpc</code></td><td><code>v1.6.2</code></td><td>Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto.</td></tr>
 </tbody></table></details>

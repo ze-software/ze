@@ -56,6 +56,10 @@ Optional tools for appliance and ISO work:
 sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
 ```
 
+On an arm64 host, ask for `grub-efi-arm64-bin` instead: Debian packages one GRUB
+module set per architecture, and the amd64 one has no installation candidate
+there.
+
 Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.
 
 ```bash
@@ -64,7 +68,7 @@ cd ze
 make ze-setup CHECK=1 || true
 ```
 
-In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-setup` without `CHECK=1` to have it print the `sudo apt-get install ...` commands for the missing packages. It never runs `sudo` for you.
+In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-setup` without `CHECK=1` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
 
 ## 2. Build Ze
 

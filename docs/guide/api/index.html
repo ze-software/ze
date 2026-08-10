@@ -106,8 +106,10 @@ ze.api-server.rest.listen=127.0.0.1:8081
 <pre><code>curl http://localhost:8081/api/v1/commands
 curl -X POST http://localhost:8081/api/v1/execute \
     -H &quot;Content-Type: application/json&quot; \
-    -d '{&quot;command&quot;:&quot;bgp summary&quot;}'
+    -d '{&quot;command&quot;:&quot;show bgp summary&quot;}'
 </code></pre>
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
+
 <p>Open interactive docs: <a href="http://localhost:8081/api/v1/docs" target="_blank" rel="noopener">http://localhost:8081/api/v1/docs</a></p>
 <h2 id="authentication">Authentication</h2>
 <p>Three modes, in order of precedence:</p>
@@ -188,10 +190,12 @@ but write commands, REST config sessions, and gRPC config sessions return 403.</
 </table>
 <p>POST <code>/api/v1/execute</code> body:</p>
 <pre><code class="language-json">{
-  &quot;command&quot;: &quot;show bgp rib routes&quot;,
+  &quot;command&quot;: &quot;show bgp rib&quot;,
   &quot;params&quot;: {&quot;family&quot;: &quot;ipv4/unicast&quot;}
 }
 </code></pre>
+<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- module ze-rib-cmd -->
+
 <p>Response:</p>
 <pre><code class="language-json">{
   &quot;status&quot;: &quot;done&quot;,
@@ -199,8 +203,8 @@ but write commands, REST config sessions, and gRPC config sessions return 403.</
 }
 </code></pre>
 <h3 id="convenience-routes">Convenience routes</h3>
-<p>These map to the generic Execute endpoint internally. The data returned is
-identical to calling <code>execute</code> directly.</p>
+<p>Most convenience routes map to the generic Execute endpoint internally. The
+refresh row gives the required generic Execute command instead.</p>
 <table>
 <thead>
 <tr>
@@ -213,12 +217,12 @@ identical to calling <code>execute</code> directly.</p>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/v1/peers</code></td>
-<td><code>bgp summary</code></td>
+<td><code>show bgp summary</code></td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/v1/peers/{name}</code></td>
-<td><code>peer {name} detail</code></td>
+<td><code>show bgp peer {name} detail</code></td>
 </tr>
 <tr>
 <td><code>DELETE</code></td>
@@ -228,7 +232,7 @@ identical to calling <code>execute</code> directly.</p>
 <tr>
 <td><code>POST</code></td>
 <td><code>/api/v1/peers/{name}/refresh</code></td>
-<td><code>request peer {name} refresh</code></td>
+<td>Use <code>/api/v1/execute</code> with <code>request peer {name} refresh {family}</code></td>
 </tr>
 <tr>
 <td><code>GET</code></td>
@@ -257,6 +261,9 @@ identical to calling <code>execute</code> directly.</p>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/api/rest/server.go -- RESTServer.handlePeerRefresh -->
+<!-- source: internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang -- module ze-refresh-cmd; internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefreshMarker -->
+
 <h3 id="config-editing">Config editing</h3>
 <table>
 <thead>
@@ -430,17 +437,19 @@ must be authenticated and must configure TLS with both <code>tls-cert</code> and
 <p>Pass the same <code>Bearer username:password</code> or <code>Bearer &lt;token&gt;</code> as REST, via
 the <code>authorization</code> metadata key:</p>
 <pre><code class="language-python">metadata = [('authorization', 'Bearer alice:password123')]
-stub.Execute(CommandRequest(command='bgp summary'), metadata=metadata)
+stub.Execute(CommandRequest(command='show bgp summary'), metadata=metadata)
 </code></pre>
 <h3 id="grpc-reflection">gRPC reflection</h3>
 <p>Reflection is enabled by default. Discover the schema with <code>grpcurl</code> on a
 plaintext loopback listener:</p>
 <pre><code>grpcurl -plaintext localhost:50051 list
 grpcurl -plaintext localhost:50051 describe ze.api.v1.ZeService
-grpcurl -plaintext -d '{&quot;command&quot;:&quot;bgp summary&quot;}' \
+grpcurl -plaintext -d '{&quot;command&quot;:&quot;show bgp summary&quot;}' \
     -H &quot;authorization: Bearer alice:password123&quot; \
     localhost:50051 ze.api.v1.ZeService/Execute
 </code></pre>
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
+
 <h3 id="tls">TLS</h3>
 <p>Configure TLS via YANG before binding gRPC outside loopback:</p>
 <pre><code>environment {

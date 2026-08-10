@@ -92,16 +92,23 @@ as its global `default netns`, which VPP falls back to for any pair that
 carries no namespace of its own. So `host` asks VPP for a namespace
 literally called `host`, which normally does not exist.
 
-Until BGP learns to bind inside a named namespace (specced, not
-implemented), the remedy is to run ze's BGP in the same namespace as the
-TAPs. `ze doctor` reports `doctor-vpp-lcp-netns` when BGP is configured
-alongside a non-root-reachable LCP netns, and says the same: no
-`vpp.lcp.netns` value fixes it. Run `ze explain doctor-vpp-lcp-netns` for
-the detail.
+Two remedies work today. Leave `vpp.lcp.netns` empty: that clears VPP's
+global `default netns`, and LCP then creates the TAPs in VPP's own
+namespace, where ze runs. Or run ze's BGP in the namespace the leaf
+names. Nothing else does, until BGP learns to bind inside a named
+namespace (specced, not implemented).
+
+`ze doctor` reports `doctor-vpp-lcp-netns` for any non-empty
+`vpp.lcp.netns`, and a BGP stanza is not required to see it: `host` and
+`root` get one warning of their own, because the value is wrong even
+where nothing binds. On Linux the check also opens the namespace
+directory, and reports a namespace that is absent (LCP pair creation
+would fail at apply) separately from a probe that could not answer. Run
+`ze explain doctor-vpp-lcp-netns` for the detail.
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
 <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
 <!-- source: internal/component/vpp/startupconf.go -- linux-cp section: b.kv("default netns", s.LCP.Netns) -->
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootReachable ("", host, root) -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootMarker ("", host, root) -->
 
 ## What ze does for you
 
@@ -210,7 +217,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.lcp.enabled` | boolean | `true` | Whether ze asks VPP to load `linux_cp_plugin.so` and `linux_nl_plugin.so`. Leave on when BGP uses VPP-owned NICs. |
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
-| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must not contain path separators. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there; `ze doctor` reports `doctor-vpp-lcp-netns`. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
+| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must not contain path separators. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there. An EMPTY value is the exception: it clears VPP's global `default netns` and the TAPs stay in VPP's own namespace. `ze doctor` reports `doctor-vpp-lcp-netns` for every other value. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
 | `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. |
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->

@@ -59,9 +59,13 @@ Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated f
 | `prefix { teardown true/false; }` | Per family | Tear down on exceed (default: true) or warn-only. |
 | `prefix { idle-timeout N; }` | Per family | Seconds to wait before reconnect after this family caused a teardown. Default 0, which keeps the peer down. |
 | `prefix { reconnect never\|backoff\|timer; }` | Per family | What the peer does after this family stopped the session. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
+| `prefix { count offered\|installed; }` | Per family | Which prefixes the count compared against `maximum` holds. Default `offered`. |
 
 When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false` on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own `teardown` value, so one family can warn while another stops the session.
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
+
+`count` states which prefixes the number compared against `maximum` holds, and it changes what happens after `teardown false` drops an UPDATE. RFC 4271 Section 6.7 does not say whether a prefix limit governs what the peer offered or what the receiver kept, so the operator chooses. `offered`, the default, keeps a dropped UPDATE's prefixes in the count: the count stays above the maximum, and Ze drops every later announce of that family until the peer withdraws them. `installed` leaves the count where it was, so the family accepts the next announce that fits. Neither value is the size of the RIB, because import policy can reject a counted prefix. The choice never changes enforcement: both values drop the same UPDATE and send the same NOTIFICATION.
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- applyInstalledPrefixDeltas settles an installed family before the count moves -->
 
 
 A peer stopped by a prefix limit STAYS DOWN by default. Its state reads `idle-hold`, `ze show warnings` carries a `prefix-hold` warning that names the family, and the log line says `peer held down`. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.
@@ -119,11 +123,15 @@ Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, defau
 | ORIGINATOR_ID loop | RFC 4456 Section 8 | iBGP only | ORIGINATOR_ID matches local Router ID |
 | CLUSTER_LIST loop | RFC 4456 Section 8 | iBGP only | Local Router ID found in CLUSTER_LIST |
 
-All three checks run after RFC 7606 structural validation but before prefix limit counting.
-Routes failing any check are silently treated as withdrawn (no NOTIFICATION, session stays up).
+All three checks run in one ingress filter at `FilterStageProtocol`, so they come
+after RFC 7606 structural validation and after prefix limit counting, which both
+run on the session read path before the UPDATE reaches the filter pipeline.
+A route failing any check is dropped silently (no NOTIFICATION, session stays up).
 Cluster ID defaults to Router ID per RFC 4456 Section 7.
 
-<!-- source: internal/component/bgp/reactor/session_validation.go -- detectLoops -->
+<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStageProtocol -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606; internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits -->
 
 ### Capabilities Configuration
 
@@ -166,9 +174,9 @@ External processes receive BGP events and send commands:
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Play the WebM recording](../../../assets/demos/config-graph.webm?v=fbb0bda458) · [View the poster](../../../assets/demos/config-graph.png?v=f10c574616) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
+[Play the WebM recording](../../../assets/demos/config-graph.webm?v=551b0249a0) · [View the poster](../../../assets/demos/config-graph.png?v=60a75596e2) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
 
-Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

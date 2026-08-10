@@ -179,8 +179,8 @@ The Engine has no knowledge of BGP or any other specific protocol.</p>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/wireu/</code></span></span></td>
 </tr>
 <tr>
-<td><code>PackContext</code></td>
-<td>Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH)</td>
+<td><code>EncodingContext</code></td>
+<td>Negotiated capabilities that determine encoding (ASN4, ADD-PATH, extended next hop)</td>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/context/</code></span></span></td>
 </tr>
 <tr>
@@ -201,7 +201,7 @@ The Engine has no knowledge of BGP or any other specific protocol.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
-<!-- source: internal/core/bgp/context/context.go -- PackContext -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 

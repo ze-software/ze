@@ -214,10 +214,18 @@ straight from each plugin's own YANG module.</p>
 <td>Per family</td>
 <td>What the peer does after this family stopped the session. No value means <code>timer</code> when <code>idle-timeout</code> is above 0, and <code>never</code> when it is 0.</td>
 </tr>
+<tr>
+<td><code>prefix { count offered\|installed; }</code></td>
+<td>Per family</td>
+<td>Which prefixes the count compared against <code>maximum</code> holds. Default <code>offered</code>.</td>
+</tr>
 </tbody>
 </table>
 <p>When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code> on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own <code>teardown</code> value, so one family can warn while another stops the session.</p>
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
+
+<p><code>count</code> states which prefixes the number compared against <code>maximum</code> holds, and it changes what happens after <code>teardown false</code> drops an UPDATE. RFC 4271 Section 6.7 does not say whether a prefix limit governs what the peer offered or what the receiver kept, so the operator chooses. <code>offered</code>, the default, keeps a dropped UPDATE's prefixes in the count: the count stays above the maximum, and Ze drops every later announce of that family until the peer withdraws them. <code>installed</code> leaves the count where it was, so the family accepts the next announce that fits. Neither value is the size of the RIB, because import policy can reject a counted prefix. The choice never changes enforcement: both values drop the same UPDATE and send the same NOTIFICATION.</p>
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- applyInstalledPrefixDeltas settles an installed family before the count moves -->
 
 <p>A peer stopped by a prefix limit STAYS DOWN by default. Its state reads <code>idle-hold</code>, <code>ze show warnings</code> carries a <code>prefix-hold</code> warning that names the family, and the log line says <code>peer held down</code>. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.</p>
 <p><code>reconnect backoff</code> asks for the opposite: the peer comes back on its usual connect backoff, 5 to 60 seconds. <code>reconnect timer</code>, or an <code>idle-timeout</code> above 0, waits idle-timeout x 2^(N-1), capped at 1 hour. The wait comes from the family that exceeded its maximum, and resets on a stable session. A <code>reconnect</code> value that contradicts <code>idle-timeout</code> in the same block is a config error.</p>
@@ -327,10 +335,14 @@ straight from each plugin's own YANG module.</p>
 </tr>
 </tbody>
 </table>
-<p>All three checks run after RFC 7606 structural validation but before prefix limit counting.
-Routes failing any check are silently treated as withdrawn (no NOTIFICATION, session stays up).
+<p>All three checks run in one ingress filter at <code>FilterStageProtocol</code>, so they come
+after RFC 7606 structural validation and after prefix limit counting, which both
+run on the session read path before the UPDATE reaches the filter pipeline.
+A route failing any check is dropped silently (no NOTIFICATION, session stays up).
 Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
-<!-- source: internal/component/bgp/reactor/session_validation.go -- detectLoops -->
+<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStageProtocol -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606; internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits -->
 
 <h3 id="capabilities-configuration">Capabilities Configuration</h3>
 <table>
@@ -419,13 +431,13 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
       <span>config-graph.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/config-graph.png?v=f10c574616" aria-label="Find every peer affected by a group change demonstration">
-      <source src="../../../assets/demos/config-graph.webm?v=fbb0bda458" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/config-graph.webm?v=fbb0bda458">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/config-graph.png?v=60a75596e2" aria-label="Find every peer affected by a group change demonstration">
+      <source src="../../../assets/demos/config-graph.webm?v=551b0249a0" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/config-graph.webm?v=551b0249a0">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>1 minute 41 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>1 minute 41 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/config-graph.txt?v=1708ee2fac">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">

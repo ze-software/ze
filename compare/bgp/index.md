@@ -245,7 +245,7 @@ It is also pre-release, first released in 2026, sitting in this table next to im
 
 **Ze is pre-release -- why should I trust it yet?**
 
-Don't take that on faith: it's backed by 21,500+ unit tests, 1,500+ end-to-end tests, 78 fuzz targets, and interop testing against 8 independent BGP implementations. That's evidence you can check, not a promise. What it doesn't have yet is operational mileage -- real deployments, over real time, on real networks. Use it in labs first.
+Don't take that on faith: it's backed by 22,200+ unit tests, 1,500+ end-to-end tests, 78 fuzz targets, and interop testing against 8 independent BGP implementations. That's evidence you can check, not a promise. What it doesn't have yet is operational mileage -- real deployments, over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 

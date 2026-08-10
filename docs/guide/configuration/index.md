@@ -106,7 +106,9 @@ transport (`ff02::5` / `ff02::6`) and the OSPFv3 prefix model
 (Intra-Area-Prefix, Link, AS-External, and NSSA LSAs). Both families install
 selected routes through the shared Loc-RIB -> sysrib -> fibkernel path.
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF, runOSPFEngine -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello, HandleDBDesc, HandleLSUpdate -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
+<!-- source: internal/plugins/ospf/neighbor/lsreq.go -- HandleLSUpdate -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Summary -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- module ze-ospf-conf -->
@@ -155,7 +157,7 @@ The IPv6 address family mirrors the area and interface model under
 instance; `instance-id` defaults to 0 and is used for RFC 5340 per-link
 demultiplexing.
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- address-family ipv6 -->
-<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, parseV6Config -->
+<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, v6AFConfig, v6Families -->
 
 The `router-information` container advertises this router's optional capabilities
 in the RFC 7770 Router Information LSA. `enabled true` originates it; the `scope`
@@ -514,6 +516,65 @@ value uses the default.
 | `teardown` | Per family | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, and the UPDATE that crossed the maximum is dropped whole, not NLRI by NLRI. |
 | `idle-timeout` | Per family | `0` | Seconds to wait before reconnect after this family stopped the session. 0 keeps the peer down. |
 | `reconnect` | Per family | derived | `never`, `backoff` or `timer`. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
+| `count` | Per family | `offered` | Which prefixes the count compared against `maximum` holds. See below. |
+
+#### What the count holds: `offered` or `installed`
+
+The two values count different things. `offered` counts wire events, and
+`installed` counts prefixes. RFC 4271 Section 6.7 does not say whether a prefix
+limit governs what the peer offered or what the receiver kept, so this is an
+operator choice rather than a fixed answer.
+
+```
+peer transit-a {
+    family {
+        ipv4/unicast {
+            prefix {
+                maximum 1000000
+                teardown false
+                count installed
+            }
+        }
+    }
+}
+```
+
+| Value | What the count holds | What a re-announced prefix does |
+|-------|---------------------|--------------------------------|
+| `offered` | Every announcement the peer sends, the announcements of a dropped UPDATE included. It rises on an announcement and falls on a withdrawal, whatever prefix each one names | Raises the count again. The peer holds the same route, and the count says it holds two |
+| `installed` | The set of prefixes this family currently holds. The count is that set's size | Nothing. The prefix is already in the set |
+
+The difference shows up on a peer with route churn, which is every transit
+session. BGP has no way to refresh one route: a peer changing an attribute sends
+the same prefix again, and that replaces the path it sent before (RFC 4271
+Section 3.1). `offered` reads that second announcement as a second prefix.
+`installed` reads it as the prefix it already has.
+
+Pick `offered` to bound how much a peer may SEND you, announcement by
+announcement, and accept that a peer which re-announces will reach the bound
+without ever holding that many routes. Pick `installed` to bound how many
+distinct prefixes a peer may advertise to you at once, which is the number that
+stops moving when the peer only churns attributes.
+
+Neither value is the size of the RIB, and neither is the number
+`show bgp summary` reports. Both counts are taken before import policy runs.
+`show bgp summary` reports `routes-received` and `routes-accepted`, and both are
+the Adj-RIB-In size AFTER that policy, because Ze stores no route the policy
+rejected. A peer whose prefixes the policy rejects therefore reads lower there
+than in either count. Neither value changes enforcement, either: both drop the
+same UPDATE whole, and both send the same NOTIFICATION under `teardown true`.
+
+`installed` keeps one entry per prefix for that family, so it costs memory in
+proportion to what the peer sends, bounded by `maximum` when one is configured.
+`offered` keeps a number.
+
+> **`offered` can be driven below the routes Ze holds.** A withdrawal for a
+> prefix the peer never announced still lowers the count, so a peer sending N of
+> them frees N slots that Ze is still using and the Adj-RIB-In can then pass the
+> maximum. `installed` is immune: a withdrawal of a prefix that is not in the set
+> removes nothing. This is recorded in
+> `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` and is not yet
+> fixed.
 
 #### After a prefix teardown, the peer stays down
 
@@ -695,7 +756,7 @@ be removed. Default filters (e.g., `rfc:no-self-as`) run unless overridden by
 a filter that declares `overrides`.
 
 See [Route Filters](../redistribution/index.md) for details.
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter config design -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
 ## Cross-Protocol Redistribute
 
@@ -872,7 +933,7 @@ data in zefs (not in the config tree) and survive restarts.
 
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- RunFilterIRR, handleFilterUpdate, refreshASN -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->
 
 ### AS-Path Filter
 
@@ -1650,7 +1711,7 @@ On Linux without VPP, a warning is logged and the setting has no effect.
 The legacy `rp-filter 0|1|2` integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 
-<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, RPFMode -->
+<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
 
 ### IPv6 Router Advertisements
@@ -1851,10 +1912,11 @@ The web config editor checks the user's profile before `set`, `add`,
 they mutate a draft.
 
 REST and gRPC without a token or per-user authenticator use the `api`
-identity as read-only. Reads such as `show version` and `bgp summary` work;
+identity as read-only. Reads such as `show version` and `show bgp summary` work;
 write commands and config sessions return 403. Configure
 `environment.api-server.token` or per-user credentials when API clients need
 write access.
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
 Config commits, discards, daemon reloads, and failed logins are recorded in
 the local audit log. See [audit.md](../audit/index.md) for storage and query details.
@@ -1971,7 +2033,7 @@ sysctl {
 
 The `<iface>` placeholder is substituted with the actual interface name at apply time.
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles, ResolveProfileSettings -->
-<!-- source: internal/component/iface/config.go -- applySysctlProfiles -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctlProfiles -->
 
 ## Connection Tracking (Conntrack)
 
@@ -2764,7 +2826,7 @@ Every ze instance has at least one `server` block (for local plugins and SSH).
 Secrets must be at least 32 characters. See [Fleet Configuration](../fleet-config/index.md) for details.
 
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
-<!-- source: internal/component/bgp/config/plugins.go -- ExtractHubConfig -->
+<!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig -->
 
 ## Outbound Source Address
 

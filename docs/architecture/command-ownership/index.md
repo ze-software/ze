@@ -23,8 +23,8 @@ below exists to make them hold.
 ```
 internal/
     core/           # shared primitives, no subsystem knowledge
-    component/      # subsystem implementations + config YANG
-    plugins/        # user-facing command surfaces
+    component/      # shared subsystem implementations and services
+    plugins/        # self-contained command-only and full-subsystem owners
 ```
 
 ### `core/` -- Infrastructure Primitives
@@ -37,45 +37,49 @@ variables), `family` (address families), `health` (health registry), `metrics`
 (prometheus), `events` (event bus), `diagnostic` (doctor codes), `textbuf`
 (string building), `paths` (file locations).
 
-### `component/` -- Subsystem Implementations
+### `component/` -- Shared Subsystem Implementations
 
-Subsystem logic that composes `core/` packages. May depend on each other.
-Owns configuration YANG (the data model parsed from config files).
+Subsystem logic that multiple owners use can compose `core/` and other
+`component/` packages. A component owns configuration YANG when its data model
+belongs to the shared subsystem rather than one removable plugin.
 
-Examples: `bgp` (BGP engine), `config` (config system), `cli` (SSH CLI editor),
-`iface` (interface management), `host` (hardware detection), `firewall`,
-`doctor` (readiness checks), `web`, `l2tp`.
+Examples include `bgp` (BGP engine), `config` (config system), `cli` (SSH CLI
+editor), `iface` (interface management), `host` (hardware detection),
+`firewall`, `doctor` (readiness checks), `web`, and `l2tp`.
 
-Config YANG (`ze-bgp-conf.yang`, `ze-iface-conf.yang`) lives here because it
-defines the subsystem's data model. It is not a user-facing command surface.
+### `plugins/` -- Self-Contained Feature Owners
 
-### `plugins/` -- User-Facing Command Surfaces
+Each folder under `internal/plugins/` owns a removable feature surface. Two
+plugin shapes use this directory:
 
-Everything the user interacts with through CLI commands. Each plugin folder
-contains:
+- A **command-only plugin** owns command YANG, RPC handlers, and CLI
+  registration. It delegates the operation to a `component/` or `core/`
+  package.
+- A **full-subsystem plugin** also owns its protocol or service runtime,
+  configuration, lifecycle, and state in the same folder.
 
-- **YANG command schemas** -- the command tree definitions
-- **RPC handlers** -- the `pluginserver.RegisterRPCs()` handlers for online commands
-- **CLI registration** -- the `registry.RegisterRoot()` / `MustRegisterLocalMeta()`
-  wiring for offline commands
-
-Plugins are thin. They import `component/` or `core/` for the real work.
-A plugin translates a user command into a call to an implementation library.
+Both shapes can own user commands. Removing either folder removes all surfaces
+that belong to that owner.
+<!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
 
 ## Plugin Directory Layout
 
 ```
 internal/plugins/<name>/
-    register.go            # CLI registration (RegisterRoot, MustRegisterLocalMeta)
+    register.go            # lifecycle or offline CLI registration, when needed
+    *.go                   # runtime, config, and state for a full-subsystem plugin
     yang/
-        ze-<name>-cmd.yang             # hand-written YANG command definitions
-        embed.go                       # GENERATED: //go:embed vars
-        register.go                    # GENERATED: yang.RegisterModule() calls
-        self_containment_test.go       # presence test: owner's commands ARE declared
+        ze-<name>-*.yang   # hand-written command or config definitions
+        embed.go           # GENERATED: //go:embed vars
+        register.go        # GENERATED: yang.RegisterModule() calls
     cmd/
-        register.go            # pluginserver.RegisterRPCs() in init()
-        handler.go             # RPC handler functions
+        register.go        # pluginserver.RegisterRPCs() in init()
+        handler.go         # RPC handler functions
 ```
+
+Command-only plugins omit subsystem runtime files. Full-subsystem plugins keep
+their runtime with the command and configuration surfaces that they own.
 
 ### YANG as Data, Not Code
 
@@ -187,8 +191,8 @@ generates the import list.
 
 | Artifact | Location | Hand-written? |
 |----------|----------|---------------|
-| Implementation library | `component/<name>/` or `core/<name>/` | Yes |
-| Config YANG (data model) | `component/<name>/yang/` | Yes |
+| Implementation library | Shared code: `component/<name>/` or `core/<name>/`<br>Full-subsystem plugin: `plugins/<name>/` | Yes |
+| Config YANG (data model) | Shared subsystem: `component/<name>/yang/`<br>Full-subsystem plugin: `plugins/<name>/yang/` | Yes |
 | Command YANG (CLI tree) | `plugins/<name>/yang/` | Yes (`.yang` only) |
 | YANG embed + register | `plugins/<name>/yang/` | Generated |
 | RPC handlers | `plugins/<name>/cmd/` | Yes |

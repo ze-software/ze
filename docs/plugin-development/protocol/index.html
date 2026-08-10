@@ -115,7 +115,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 
 <p><strong>Examples:</strong></p>
 <pre><code># Plugin sends declare-registration (Stage 1)
-#1 ze-plugin-engine:declare-registration {&quot;families&quot;:[{&quot;name&quot;:&quot;ipv4/flow&quot;,&quot;mode&quot;:&quot;both&quot;}]}
+#1 ze-plugin-engine:declare-registration {&quot;families&quot;:[{&quot;name&quot;:&quot;ipv4/flow&quot;,&quot;mode&quot;:&quot;both&quot;,&quot;afi&quot;:1,&quot;safi&quot;:133}]}
 
 # Engine responds OK
 #1 ok
@@ -155,7 +155,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>families</code></td>
 <td><code>[]FamilyDecl</code></td>
-<td>Address families the plugin handles (name + mode)</td>
+<td>Address families the plugin handles (name, mode, AFI, and SAFI)</td>
 </tr>
 <tr>
 <td><code>commands</code></td>
@@ -173,8 +173,23 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td>Config roots the plugin wants to receive</td>
 </tr>
 <tr>
+<td><code>config-operations</code></td>
+<td><code>[]ConfigOperationDecl</code></td>
+<td>Config operation callbacks the plugin supports</td>
+</tr>
+<tr>
+<td><code>verify-budget</code></td>
+<td><code>int</code></td>
+<td>Estimated verify time in seconds (<code>0</code> means trivial)</td>
+</tr>
+<tr>
+<td><code>apply-budget</code></td>
+<td><code>int</code></td>
+<td>Estimated apply time in seconds (<code>0</code> means trivial)</td>
+</tr>
+<tr>
 <td><code>schema</code></td>
-<td><code>SchemaDecl</code></td>
+<td><code>*SchemaDecl</code></td>
 <td>YANG schema (module, namespace, yang-text, handlers)</td>
 </tr>
 <tr>
@@ -192,10 +207,66 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td><code>bool</code></td>
 <td>Whether unordered cache delivery is acceptable</td>
 </tr>
+<tr>
+<td><code>filters</code></td>
+<td><code>[]FilterDecl</code></td>
+<td>Named route filters the plugin provides</td>
+</tr>
+<tr>
+<td><code>doctor-checks</code></td>
+<td><code>[]DoctorCheckDecl</code></td>
+<td>Doctor checks the plugin provides</td>
+</tr>
+<tr>
+<td><code>enrichers</code></td>
+<td><code>[]EnricherDecl</code></td>
+<td>Show enrichers the plugin provides</td>
+</tr>
+<tr>
+<td><code>claims</code></td>
+<td><code>[]string</code></td>
+<td>Exclusive runtime roles the plugin takes over</td>
+</tr>
 </tbody>
 </table>
+<p>Each <code>FamilyDecl</code> has these fields:</p>
+<!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>Canonical <code>afi/safi</code> name</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>string</code></td>
+<td><code>encode</code>, <code>decode</code>, or <code>both</code></td>
+</tr>
+<tr>
+<td><code>afi</code></td>
+<td><code>uint16</code></td>
+<td>RFC 4760 Address Family Identifier</td>
+</tr>
+<tr>
+<td><code>safi</code></td>
+<td><code>uint8</code></td>
+<td>RFC 4760 Subsequent Address Family Identifier</td>
+</tr>
+</tbody>
+</table>
+<p>Set <code>afi</code> and <code>safi</code> for a custom family. A built-in family can omit both numeric fields.</p>
 <p><strong>Wire example:</strong></p>
-<pre><code>#1 ze-plugin-engine:declare-registration {&quot;families&quot;:[{&quot;name&quot;:&quot;ipv4/flow&quot;,&quot;mode&quot;:&quot;both&quot;}],&quot;commands&quot;:[{&quot;name&quot;:&quot;flowspec status&quot;,&quot;description&quot;:&quot;Show FlowSpec status&quot;}],&quot;wants-config&quot;:[&quot;bgp&quot;]}
+<pre><code>#1 ze-plugin-engine:declare-registration {&quot;families&quot;:[{&quot;name&quot;:&quot;ipv4/flow&quot;,&quot;mode&quot;:&quot;both&quot;,&quot;afi&quot;:1,&quot;safi&quot;:133}],&quot;commands&quot;:[{&quot;name&quot;:&quot;flowspec status&quot;,&quot;description&quot;:&quot;Show FlowSpec status&quot;}],&quot;wants-config&quot;:[&quot;bgp&quot;]}
 #1 ok
 </code></pre>
 <h3 id="stage-2-config-engine-to-plugin">Stage 2: Config (Engine to Plugin)</h3>
@@ -400,145 +471,313 @@ callbacks flow through <code>bridge.CallbackCh()</code> instead of the MuxConn.<
 the event loop.</p>
 <h2 id="runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</h2>
 <p>After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches
-these through a generic callback registry (<code>map[string]callbackHandler</code>) -- both
-the pipe and bridge event loops use the same map-based lookup, with no
-transport-specific handler code.</p>
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
+each wire method to its registered handler.</p>
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackBye through callbackPostStartup -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent through OnAllPluginsReady -->
+<!-- source: pkg/plugin/rpc/types.go -- callback input and output types -->
 
 <table>
 <thead>
 <tr>
 <th>Method</th>
+<th>SDK handler</th>
 <th>Input</th>
-<th>Description</th>
+<th>Output</th>
+<th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>ze-plugin-callback:deliver-event</code></td>
-<td><code>{"event":"&lt;json&gt;"}</code></td>
-<td>Single event delivery</td>
+<td><code>OnEvent</code></td>
+<td><code>DeliverEventInput</code></td>
+<td>None</td>
+<td>Deliver one event</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:deliver-batch</code></td>
-<td><code>{"events":[...]}</code></td>
-<td>Batched event delivery</td>
+<td><code>OnEvent</code></td>
+<td><code>{"events":[]}</code></td>
+<td>None</td>
+<td>Deliver an event batch</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:execute-command</code></td>
+<td><code>OnExecuteCommand</code></td>
 <td><code>ExecuteCommandInput</code></td>
-<td>Command execution request</td>
-</tr>
-<tr>
-<td><code>ze-plugin-callback:config-verify</code></td>
-<td><code>ConfigVerifyInput</code></td>
-<td>Config verification (reload)</td>
-</tr>
-<tr>
-<td><code>ze-plugin-callback:config-apply</code></td>
-<td><code>ConfigApplyInput</code></td>
-<td>Config apply (reload)</td>
-</tr>
-<tr>
-<td><code>ze-plugin-callback:validate-open</code></td>
-<td><code>ValidateOpenInput</code></td>
-<td>OPEN message validation</td>
+<td><code>ExecuteCommandOutput</code></td>
+<td>Run a command</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:encode-nlri</code></td>
+<td><code>OnEncodeNLRI</code></td>
 <td><code>EncodeNLRIInput</code></td>
-<td>NLRI encoding request</td>
+<td><code>EncodeNLRIOutput</code></td>
+<td>Encode NLRI</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:decode-nlri</code></td>
+<td><code>OnDecodeNLRI</code></td>
 <td><code>DecodeNLRIInput</code></td>
-<td>NLRI decoding request</td>
+<td><code>DecodeNLRIOutput</code></td>
+<td>Decode NLRI</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:decode-capability</code></td>
+<td><code>OnDecodeCapability</code></td>
 <td><code>DecodeCapabilityInput</code></td>
-<td>Capability decoding request</td>
+<td><code>{"json":...}</code></td>
+<td>Decode a capability</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-verify</code></td>
+<td><code>OnConfigVerify</code></td>
+<td><code>ConfigVerifyInput</code></td>
+<td><code>ConfigVerifyOutput</code></td>
+<td>Verify candidate config</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-apply</code></td>
+<td><code>OnConfigApply</code></td>
+<td><code>ConfigApplyInput</code></td>
+<td><code>ConfigApplyOutput</code></td>
+<td>Apply a config diff</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-rollback</code></td>
+<td><code>OnConfigRollback</code></td>
+<td><code>{"transaction-id":"..."}</code></td>
+<td>None</td>
+<td>Roll back a config transaction</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-operation-decompose</code></td>
+<td><code>OnConfigOperationDecompose</code></td>
+<td><code>ConfigOperationDecomposeInput</code></td>
+<td><code>ConfigOperationDecomposeOutput</code></td>
+<td>Decompose a config transaction</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-operation-verify</code></td>
+<td><code>OnConfigOperationVerify</code></td>
+<td><code>ConfigOperationVerifyInput</code></td>
+<td><code>ConfigOperationVerifyOutput</code></td>
+<td>Verify a config operation</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-operation-apply</code></td>
+<td><code>OnConfigOperationApply</code></td>
+<td><code>ConfigOperationApplyInput</code></td>
+<td><code>ConfigOperationApplyOutput</code></td>
+<td>Apply a config operation</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-operation-rollback</code></td>
+<td><code>OnConfigOperationRollback</code></td>
+<td><code>ConfigOperationRollbackInput</code></td>
+<td><code>ConfigOperationRollbackOutput</code></td>
+<td>Roll back config operations</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-operation-commit</code></td>
+<td><code>OnConfigOperationCommit</code></td>
+<td><code>ConfigOperationCommitInput</code></td>
+<td><code>ConfigOperationCommitOutput</code></td>
+<td>Commit operation journals</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:validate-open</code></td>
+<td><code>OnValidateOpen</code></td>
+<td><code>ValidateOpenInput</code></td>
+<td><code>ValidateOpenOutput</code></td>
+<td>Validate an OPEN message</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:filter-update</code></td>
+<td><code>OnFilterUpdate</code></td>
+<td><code>FilterUpdateInput</code></td>
+<td><code>FilterUpdateOutput</code></td>
+<td>Filter a route update</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:doctor-check</code></td>
+<td><code>OnDoctorCheck</code></td>
+<td><code>DoctorCheckInput</code></td>
+<td><code>DoctorCheckOutput</code></td>
+<td>Run a doctor check</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:enrich-show</code></td>
+<td><code>OnEnrichShow</code></td>
+<td><code>EnrichShowInput</code></td>
+<td><code>EnrichShowOutput</code></td>
+<td>Add data to show output</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:post-startup</code></td>
+<td><code>OnAllPluginsReady</code></td>
+<td>None</td>
+<td>None</td>
+<td>Signal that all plugins are ready</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><code>OnStructuredEvent</code></td>
+<td><code>[]any</code> of <code>*rpc.StructuredEvent</code></td>
+<td>None</td>
+<td>Deliver structured events without JSON</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:bye</code></td>
+<td><code>OnBye</code></td>
 <td><code>ByeInput</code></td>
-<td>Shutdown notification</td>
+<td>None</td>
+<td>Notify the plugin of shutdown</td>
 </tr>
 </tbody>
 </table>
 <h2 id="runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</h2>
-<p>Plugins can call the engine during runtime via these RPCs:</p>
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
+<p>Plugins call the engine during runtime through these SDK methods:</p>
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
+<!-- source: pkg/plugin/rpc/types.go -- plugin-to-engine runtime RPC input and output types -->
+<!-- source: pkg/plugin/rpc/bridge.go -- BatchValidateResult -->
 
 <table>
 <thead>
 <tr>
 <th>Method</th>
+<th>SDK method</th>
 <th>Input</th>
 <th>Output</th>
-<th>Description</th>
+<th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>ze-plugin-engine:update-route</code></td>
+<td><code>UpdateRoute</code>, <code>UpdateRouteWithMeta</code>, <code>UpdateRouteSel</code>, <code>UpdateRouteSelWithMeta</code></td>
 <td><code>UpdateRouteInput</code></td>
 <td><code>UpdateRouteOutput</code></td>
-<td>Inject route to peers</td>
+<td>Send a route update</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:forward-cached</code></td>
+<td><code>ForwardCached</code></td>
+<td><code>ForwardCachedInput</code></td>
+<td>None</td>
+<td>Forward cached UPDATEs</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:release-cached</code></td>
+<td><code>ReleaseCached</code></td>
+<td><code>ReleaseCachedInput</code></td>
+<td>None</td>
+<td>Release cached UPDATEs</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:relay-stored-route</code></td>
+<td><code>RelayStoredRoute</code></td>
+<td><code>RelayStoredRouteInput</code></td>
+<td>None</td>
+<td>Relay stored routes</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:route-install</code></td>
+<td><code>RouteInstall</code></td>
+<td><code>RouteInstallInput</code></td>
+<td><code>RouteInstallOutput</code></td>
+<td>Install routes in the Loc-RIB</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:route-remove</code></td>
+<td><code>RouteRemove</code></td>
+<td><code>RouteRemoveInput</code></td>
+<td><code>RouteRemoveOutput</code></td>
+<td>Remove routes from the Loc-RIB</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:inject-wire-route</code></td>
+<td><code>InjectWireRoute</code></td>
+<td><code>InjectWireRouteInput</code></td>
+<td>None</td>
+<td>Inject a raw BGP UPDATE</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:batch-validate</code></td>
+<td><code>BatchValidate</code></td>
+<td><code>BatchValidateInput</code></td>
+<td><code>BatchValidateResult</code></td>
+<td>Submit route validation decisions</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:dispatch-command</code></td>
+<td><code>DispatchCommand</code></td>
 <td><code>DispatchCommandInput</code></td>
 <td><code>DispatchCommandOutput</code></td>
-<td>Inter-plugin command dispatch</td>
+<td>Dispatch a command string</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:dispatch-command-args</code></td>
+<td><code>DispatchCommandArgs</code></td>
+<td><code>DispatchCommandArgsInput</code></td>
+<td><code>DispatchCommandOutput</code></td>
+<td>Dispatch a command and pre-tokenized arguments</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:emit-event</code></td>
+<td><code>EmitEvent</code></td>
 <td><code>EmitEventInput</code></td>
 <td><code>EmitEventOutput</code></td>
-<td>Push event to subscribers</td>
+<td>Emit an event</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:subscribe-events</code></td>
+<td><code>SubscribeEvents</code></td>
 <td><code>SubscribeEventsInput</code></td>
-<td>-</td>
+<td>None</td>
 <td>Subscribe to events</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:unsubscribe-events</code></td>
-<td>-</td>
-<td>-</td>
+<td><code>UnsubscribeEvents</code></td>
+<td>None</td>
+<td>None</td>
 <td>Unsubscribe from events</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:decode-nlri</code></td>
+<td><code>DecodeNLRI</code></td>
 <td><code>DecodeNLRIInput</code></td>
 <td><code>DecodeNLRIOutput</code></td>
-<td>Decode NLRI via registry</td>
+<td>Decode NLRI through the registry</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:encode-nlri</code></td>
+<td><code>EncodeNLRI</code></td>
 <td><code>EncodeNLRIInput</code></td>
 <td><code>EncodeNLRIOutput</code></td>
-<td>Encode NLRI via registry</td>
+<td>Encode NLRI through the registry</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:decode-mp-reach</code></td>
+<td><code>DecodeMPReach</code></td>
 <td><code>DecodeMPReachInput</code></td>
 <td><code>DecodeMPReachOutput</code></td>
 <td>Decode MP_REACH_NLRI</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:decode-mp-unreach</code></td>
+<td><code>DecodeMPUnreach</code></td>
 <td><code>DecodeMPUnreachInput</code></td>
 <td><code>DecodeMPUnreachOutput</code></td>
 <td>Decode MP_UNREACH_NLRI</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:decode-update</code></td>
+<td><code>DecodeUpdate</code></td>
 <td><code>DecodeUpdateInput</code></td>
 <td><code>DecodeUpdateOutput</code></td>
-<td>Decode full UPDATE message</td>
+<td>Decode a BGP UPDATE</td>
 </tr>
 </tbody>
 </table>

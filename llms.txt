@@ -15,21 +15,21 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 390 CLI commands, 36 config sections, 95 plugin registrations, 40 direct Go dependencies, 34 weekly change entries.
-- Test evidence counts: 21,500+ unit tests, 78 fuzz targets, 1,500+ end-to-end transcript steps, 115 interop scenarios across 8 target implementations.
-- Generated date: 2026-08-05.
+- Test evidence counts: 22,200+ unit tests, 78 fuzz targets, 1,500+ end-to-end transcript steps, 116 interop scenarios across 8 target implementations.
+- Generated date: 2026-08-10.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 21,500+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 22,200+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 78 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 115 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 116 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -891,7 +891,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Configuration](https://ze-software.net/docs/guide/configuration/index.md): Ze uses a JUNOS-like hierarchical configuration format. (web: https://ze-software.net/docs/guide/configuration/)
 - [ZeBGP Debugging Tools](https://ze-software.net/docs/guide/debugging-tools/index.md): This document describes the debugging tools available in ZeBGP for troubleshooting config parsing, BGP message encoding, and session issues. (web: https://ze-software.net/docs/guide/debugging-tools/)
 - [Developer Setup](https://ze-software.net/docs/guide/developer-setup/index.md): Set up a Ze development environment with all build, lint, and test dependencies. (web: https://ze-software.net/docs/guide/developer-setup/)
-- [Environment Variables](https://ze-software.net/docs/guide/environment-variables/index.md): Ze reads environment variables for daemon-wide knobs (pprof, PID file, privilege drop) and BGP protocol tuning. Every variable has a matching YANG path under the `environment { }` config block; the OS env var wins when... (web: https://ze-software.net/docs/guide/environment-variables/)
+- [Environment Variables](https://ze-software.net/docs/guide/environment-variables/index.md): Ze reads environment variables for daemon-wide settings and BGP protocol tuning. Config-backed keys have matching paths under `environment { }`. Bootstrap, safety, and test keys can be environment-only. (web: https://ze-software.net/docs/guide/environment-variables/)
 - [Fleet Configuration](https://ze-software.net/docs/guide/fleet-config/index.md): Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS. (web: https://ze-software.net/docs/guide/fleet-config/)
 - [gNMI Guide](https://ze-software.net/docs/guide/gnmi/index.md): Ze includes a gNMI (gRPC Network Management Interface) server that exposes YANG-modeled configuration over the industry-standard gNMI protocol. This allows management by tools like gnmic, Ansible, and network... (web: https://ze-software.net/docs/guide/gnmi/)
 - [Graceful Restart](https://ze-software.net/docs/guide/graceful-restart/index.md): Graceful Restart (RFC 4724) preserves forwarding state across BGP session restarts. When a peer goes down and comes back, routes are held during the restart window instead of being immediately withdrawn, preventing... (web: https://ze-software.net/docs/guide/graceful-restart/)

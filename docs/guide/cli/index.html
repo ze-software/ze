@@ -72,8 +72,8 @@
 
 <h2 id="usage">Usage</h2>
 <pre><code class="language-bash">ze cli                              # Interactive CLI with tab completion
-ze cli -c &quot;show bgp peer list&quot;   # Execute single command and exit
-ze show peer upstream1 detail         # Read-only query (safe for scripts)
+ze cli -c &quot;show bgp peer list&quot;              # Execute single command and exit
+ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
 ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full access)
 </code></pre>
 <h3 id="modes">Modes</h3>
@@ -147,7 +147,7 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </tbody>
 </table>
 <p><strong>Peer selector:</strong> <code>*</code> (all), exact IP, glob patterns (<code>192.168.*.*</code>), exclusion (<code>!addr</code>), or peer name.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
 <h2 id="route-commands">Route Commands</h2>
 <table>
@@ -167,11 +167,11 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 <td>Hex-format UPDATE</td>
 </tr>
 <tr>
-<td><code>show bgp rib received [peer] [family]</code></td>
+<td><code>show bgp rib received [peer &lt;selector&gt;] [family &lt;family&gt;]</code></td>
 <td>Show Adj-RIB-In</td>
 </tr>
 <tr>
-<td><code>show bgp rib sent [peer] [family]</code></td>
+<td><code>show bgp rib advertised [peer &lt;selector&gt;] [family &lt;family&gt;]</code></td>
 <td>Show Adj-RIB-Out</td>
 </tr>
 <tr>
@@ -184,7 +184,7 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/cmd/update/ -- update RPCs -->
+<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
 
 <p>See <a href="../route-injection/">Route Injection guide</a> for UPDATE syntax details.</p>
 <h2 id="cache-commands">Cache Commands</h2>
@@ -197,19 +197,29 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </thead>
 <tbody>
 <tr>
-<td><code>cache list</code></td>
+<td><code>show cache</code></td>
 <td>List cached messages</td>
 </tr>
 <tr>
-<td><code>cache forward &lt;id&gt; &lt;peer&gt;</code></td>
-<td>Forward cached message to peer</td>
+<td><code>request cache retain &lt;id&gt;</code></td>
+<td>Prevent cache eviction</td>
 </tr>
 <tr>
-<td><code>cache release &lt;id&gt;</code></td>
-<td>Release message from cache</td>
+<td><code>request cache release &lt;id&gt;</code></td>
+<td>Release a cached message</td>
+</tr>
+<tr>
+<td><code>request cache expire &lt;id&gt;</code></td>
+<td>Remove a cached message immediately</td>
+</tr>
+<tr>
+<td><code>request cache forward &lt;id&gt; &lt;peer&gt;</code></td>
+<td>Forward a cached message to a peer</td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
+
 <h2 id="event-subscription">Event Subscription</h2>
 <table>
 <thead>
@@ -220,15 +230,17 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </thead>
 <tbody>
 <tr>
-<td><code>bgp monitor</code></td>
-<td>Stream live events (see <a href="../monitoring/">Monitoring guide</a>)</td>
+<td><code>monitor bgp</code></td>
+<td>Show the live peer dashboard (see <a href="../monitoring/">Monitoring guide</a>)</td>
 </tr>
 <tr>
-<td><code>bgp monitor peer &lt;addr&gt; event &lt;type&gt; direction &lt;dir&gt;</code></td>
-<td>Filtered stream</td>
+<td><code>monitor event peer &lt;addr&gt; include &lt;type&gt; direction &lt;dir&gt;</code></td>
+<td>Stream filtered events</td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
+
 <h2 id="commit-workflow">Commit Workflow</h2>
 <p>Named update windows for atomic route changes:</p>
 <table>
@@ -306,24 +318,29 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 <td>Graceful shutdown</td>
 </tr>
 <tr>
-<td><code>route-refresh &lt;family&gt;</code></td>
-<td>Send route refresh request</td>
+<td><code>request peer &lt;selector&gt; refresh &lt;family&gt;</code></td>
+<td>Send a route refresh request</td>
 </tr>
 <tr>
 <td><code>help</code></td>
 <td>List all commands</td>
 </tr>
 <tr>
-<td><code>command-list</code></td>
+<td><code>show command list</code></td>
 <td>All commands with descriptions</td>
 </tr>
 <tr>
-<td><code>command-help &lt;name&gt;</code></td>
+<td><code>show command help &lt;name&gt;</code></td>
 <td>Detailed help for a command</td>
+</tr>
+<tr>
+<td><code>show event list</code></td>
+<td>List available event types</td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/meta/cmd/help.go -- help/discovery RPCs; internal/component/bgp/plugins/cmd/cache/ -- cache RPCs -->
+<!-- source: internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang -- module ze-refresh-cmd; internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefreshMarker -->
+<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
 
 <h2 id="signals">Signals</h2>
 <table>

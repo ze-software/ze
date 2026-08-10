@@ -224,7 +224,7 @@ ipv6</code> lists each running AF instance with its address family and Instance 
 <p>The three opaque scopes map onto three stores: a Type 9 link-local opaque LSA lives in the per-interface link store and floods only on its arrival link; a Type 10 area opaque LSA lives in the per-area store; a Type 11 AS-wide opaque LSA lives in a dedicated AS-wide opaque store, parallel to the Type 5 AS-External store, and floods AS-wide but never into a stub or NSSA area. The 32-bit Link State ID splits into an 8-bit Opaque Type (an IANA registry selector) and a 24-bit Opaque ID (an application instance identifier). An opaque LSA never becomes an SPF vertex.</p>
 <p>Opaque capability is negotiated with the O-bit in the OSPF Options field. Enable it with <code>ospf { opaque true }</code>: Ze then sets the O-bit in its Database Description packets and floods opaque LSAs only to neighbours that likewise set the O-bit in their DD. The O-bit is a DD-only signal (it is not part of the Hello E/N option match), so enabling it does not break adjacency with a non-opaque peer. Received opaque LSAs are stored and re-flooded per scope regardless of the <code>opaque</code> leaf and regardless of whether a consumer is registered; disabling the leaf only stops advertising opaque capability and originating opaque LSAs. A received Type-11 opaque LSA is treated as usable only while its originating router is reachable (RFC 5250 §5, reusing the ASBR reachability computed for Type 5). Opaque activity is counted by <code>ze_ospf_opaque_lsas{scope,opaque_type}</code>, <code>ze_ospf_opaque_originations_total{opaque_type}</code>, <code>ze_ospf_opaque_received_total{opaque_type,registered}</code>, <code>ze_ospf_opaque_consumer_errors_total{opaque_type}</code>, and <code>ze_ospf_opaque_capable_neighbors{interface}</code>.</p>
 <!-- source: internal/plugins/ospf/lsdb/opaque_as.go -- OriginateOpaque, OpaqueDelivery, OpaqueLSACounts -->
-<!-- source: internal/plugins/ospf/opaque_registry.go -- RegisterOpaqueConsumer, OpaqueScope -->
+<!-- source: internal/plugins/ospf/opaque_registry.go -- registerOpaqueConsumer, OpaqueScope -->
 <!-- source: internal/plugins/ospf/opaque.go -- deliverOpaque, originateOpaqueLSAs, routerReachable -->
 
 <h2 id="traffic-engineering-rfc-3630-rfc-5392">Traffic Engineering (RFC 3630, RFC 5392)</h2>
@@ -264,7 +264,7 @@ ipv6</code> lists each running AF instance with its address family and Instance 
 <p><code>show ospf te-database</code> renders the TED: router addresses and links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and ASBR. <code>show ospf database opaque-area</code> and <code>opaque-as</code> decode any TE LSA body inline. TE activity is counted by <code>ze_ospf_te_lsas{scope,kind}</code>, <code>ze_ospf_te_database_links{area}</code>, <code>ze_ospf_te_originations_total{kind}</code>, <code>ze_ospf_te_received_total{kind,usable}</code>, <code>ze_ospf_te_parse_errors_total{opaque_type}</code>, and <code>ze_ospf_te_unreachable_originators</code>. The read-only TED snapshot is available for a future RSVP-TE admission consumer; CSPF and RSVP-TE signalling are out of scope.</p>
 <!-- source: internal/plugins/ospf/te.go -- registerTEConsumer, teOnReceive, teMetrics -->
 <!-- source: internal/plugins/ospf/te_originate.go -- teOriginateType1, teOriginateType6 -->
-<!-- source: internal/plugins/ospf/te_ted.go -- ted, TEDSnapshot, LookupLink -->
+<!-- source: internal/plugins/ospf/te_ted.go -- ted, tedSnapshot, Snapshot, LookupLink -->
 <!-- source: internal/plugins/ospf/packet/te_lsa.go -- TELSA, DecodeTELSA, TELink -->
 
 <h2 id="router-information-rfc-7770">Router Information (RFC 7770)</h2>
@@ -431,13 +431,13 @@ show ospf border-routers
       <span>ospf-adjacency.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/ospf-adjacency.png?v=0fe4c4366e" aria-label="Diagnose a missing OSPF route demonstration">
-      <source src="../../../assets/demos/ospf-adjacency.webm?v=7121ac6ee4" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/ospf-adjacency.webm?v=7121ac6ee4">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/ospf-adjacency.png?v=ba7b8934e0" aria-label="Diagnose a missing OSPF route demonstration">
+      <source src="../../../assets/demos/ospf-adjacency.webm?v=f3471a25e9" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/ospf-adjacency.webm?v=f3471a25e9">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>1 minute 4 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>1 minute 4 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/ospf-adjacency.txt?v=d82925c752">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">

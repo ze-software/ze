@@ -5,15 +5,15 @@ Source: `scripts/dev/rfc_requirements.py`, `rfc/short/*.md`, `docs/features/rfc-
 ## Current gate output
 
 ```
-rfc-requirements OK: 2950 gated MUST-level requirement(s) across 168 enrolled RFC(s); 3265 test tag(s) resolved.
+rfc-requirements OK: 2954 gated MUST-level requirement(s) across 169 enrolled RFC(s); 3302 test tag(s) resolved.
 ```
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 1 |
-| Gated MUST-level requirements | 2,950 |
-| Enrolled RFCs | 168 |
-| Resolved test tags | 3,265 |
+| Gate issues | 0 |
+| Gated MUST-level requirements | 2,954 |
+| Enrolled RFCs | 169 |
+| Resolved test tags | 3,302 |
 | Declared gaps | 528 |
 | RFCs with declared gaps | 82 |
 | Fresh semantic audit verdicts | 52 |
@@ -24,7 +24,7 @@ rfc-requirements OK: 2950 gated MUST-level requirement(s) across 168 enrolled RF
 
 | Bucket | Count | Share | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 1,210 | 41.0% | `positive tag + negative tag` |
+| Positive and negative tests | 1,214 | 41.1% | `positive tag + negative tag` |
 | One polarity plus reason | 371 | 12.6% | `{single-polarity} annotation + required tag` |
 | Not applicable | 841 | 28.5% | `{not-applicable} annotation` |
 | Declared gap | 528 | 17.9% | `{gap} annotation + public ledger disclosure` |
@@ -68,11 +68,11 @@ rfc-requirements OK: 2950 gated MUST-level requirement(s) across 168 enrolled RF
 
 | Input | Producer | Observed value |
 |---|---|---|
-| Requirement source | `rfc/short/*.md` | 2,950 gated MUST-level requirements |
-| Enrollment | `rfc/enrolled.txt` | 168 enrolled RFCs |
-| Test tags | `internal/, pkg/, test/` | 3,265 resolved tags |
+| Requirement source | `rfc/short/*.md` | 2,954 gated MUST-level requirements |
+| Enrollment | `rfc/enrolled.txt` | 169 enrolled RFCs |
+| Test tags | `internal/, pkg/, test/` | 3,302 resolved tags |
 | Public ledger | `docs/features/rfc-status.md` | 82 RFCs with gaps |
-| Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,898 missing |
+| Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,902 missing |
 | AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | ON |
 | Verify integration | `Makefile` and `scripts/status/verify_run.go` | 2 verify stages |
 
@@ -89,4 +89,4 @@ rfc-requirements OK: 2950 gated MUST-level requirement(s) across 168 enrolled RF
 | Requirement coverage | 0 |
 | Public claim agreement | 0 |
 | Semantic audit freshness | 0 |
-| Generated ledger freshness | 1 |
+| Generated ledger freshness | 0 |

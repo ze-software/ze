@@ -71,6 +71,7 @@ passwords, and connecting as them with the <code>ze</code> CLI.</p>
 <ol>
 <li><a href="#the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</a></li>
 <li><a href="#remote-management-listener-guard">Remote management listener guard</a></li>
+<li><a href="#authentication-on-reload">Authentication on reload</a></li>
 <li><a href="#tab-completion-ze-completion">Tab completion (ze completion)</a></li>
 </ol></li>
 <li><a href="#ssh-public-key-authentication">SSH public key authentication</a>
@@ -265,6 +266,32 @@ variable is caught at startup rather than by these checks.</p>
 <!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
+
+<h3 id="authentication-on-reload">Authentication on reload</h3>
+<p>A config reload rebuilds the credentials of the running REST and gRPC servers.
+Add a token, rotate it, remove it, or edit the user list, and the change takes
+effect on the next reload. The daemon does not restart and the listeners do not
+rebind, so open connections keep working.</p>
+<p>The web and MCP servers choose their authentication once, when they are built.
+A reload that asks either of them for a different mode fails the whole commit:</p>
+<pre><code>&lt;service&gt; cannot change its authentication while running: it is serving
+&lt;mode&gt; and the config asks for &lt;mode&gt;; restart ze to apply it
+</code></pre>
+<p>The reload is refused before anything is applied. No listener moves and no
+credential changes. Restart ze to apply that edit.</p>
+<p>A transport the config does not enable is never built, and a server that does
+not run cannot refuse a reload. An <code>api-server</code> block that enables REST alone
+reloads on the REST server, and says nothing about gRPC.</p>
+<p>The listener guard runs again over the pair each service holds once the reload
+applies, and it reads the rebuilt authentication rather than the mode the server
+started with. A reload that removes the API credentials and moves the same
+listener off loopback is refused for that reason. The refusal restores the
+credentials the reload had already installed, so the daemon keeps serving the
+config it rolled back to.</p>
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- checkAuthRebuildable, applyAuthIntents, checkReloadExposure -->
+<!-- source: internal/component/api/rest/auth.go -- UpdateAuth -->
+<!-- source: internal/component/api/grpc/server.go -- UpdateAuth -->
 
 <h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
 <p>Tab completion runs silently in the shell and does not accept flags. To

@@ -75,9 +75,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../../assets/demos/launcher.webm?v=5f2c9c7ead) · [View the poster](../../../assets/demos/launcher.png?v=bb8520296b) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
+[Play the WebM recording](../../../assets/demos/launcher.webm?v=46c97f8572) · [View the poster](../../../assets/demos/launcher.png?v=cae872cf66) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
 
 ```console
 $ ze
@@ -176,7 +176,7 @@ ze config fmt <file>             # Format and normalize
 are addressed by key). With no path it prints the whole parsed tree; `--json`
 emits the subtree as a JSON object. Shell completion for the path tokens is
 served by the `ze config completion` engine (`ze completion bash|zsh|fish`).
-<!-- source: internal/component/config/cli/cmd_show.go -- cmdShowWithStorage -->
+<!-- source: internal/component/config/cli/cmd_show.go -- cmdShow, showConfig, openShowEditor -->
 
 **Shell completion (`--family`, config sections):**
 
@@ -434,9 +434,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=e3e17ac796) · [View the poster](../../../assets/demos/host-inventory.png?v=c5efe62e66) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=8c89c5019c) · [View the poster](../../../assets/demos/host-inventory.png?v=01c12c6314) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.05 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
+Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -536,8 +536,8 @@ ze support --since 2h                  # Time scope for log collection
 ze support --output /var/support/      # Output directory (default: cwd)
 ```
 
-<!-- source: internal/component/support/support.go -- Run, collect, moduleRegistry -->
-<!-- source: internal/component/support/modules.go -- ModuleNames, ModuleList -->
+<!-- source: internal/component/support/support.go -- Run, collect, SupportManifest -->
+<!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
 
 ### ze interface
 
@@ -547,8 +547,9 @@ Show uses the verb syntax: `ze show interface`.
 ```
 ze show interface                  # List all interfaces (also via daemon SSH)
 ze show interface brief            # One-line-per-interface summary
-ze show interface detail <name>    # Show details for one interface
-ze show interface counters <name>  # Counters only for named interface
+ze show interface scan             # Discover and classify every OS interface
+ze show interface name <n> detail  # Show details for one interface
+ze show interface name <n> counters  # Counters only for named interface
 ze show interface type <type>      # Filter by type (ethernet, bridge, vxlan, wireguard, ...)
 ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
 ze show interface rate             # Per-second rate data for all interfaces
@@ -564,11 +565,22 @@ ze interface addr del <name> unit <id> <cidr>      # Remove IP address
 ze interface migrate ...           # Make-before-break migration (requires daemon)
 ```
 
-**`show interface detail <name>`** (and the standalone `ze interface show <name>`)
-shows the OS device name (`OS Name`) alongside the configured name, and the NIC's
-permanent/factory MAC (`Perm MAC`) alongside the operational MAC, so overriding an
-interface's MAC does not hide the device's stable hardware identity.
+**`show interface name <name> detail`** (and the standalone
+`ze interface show <name>`) shows the OS device name (`OS Name`) alongside the
+configured name, and the NIC's permanent/factory MAC (`Perm MAC`) alongside the
+operational MAC, so overriding an interface's MAC does not hide the device's
+stable hardware identity.
 <!-- source: internal/component/iface/cli/show.go -- showOne / formatInterfaceDetail -->
+
+**Every subcommand above goes to the daemon; only the bare `ze show interface`
+and `ze show interface <name>` are served in-process.** `show interface` is a
+local handler registered at two words
+(internal/component/iface/cli/register.go), and its own arguments are an
+interface name, not a keyword. registry.LookupLocal refuses it for any argv that
+reaches a declared command below it, so `brief`, `scan`, `type`, `errors`,
+`rate` and the two `name ...` forms are answered by the daemon. Before that rule
+existed, all seven reached the in-process handler and were read as interface
+names: `ze show interface brief` looked for an interface called "brief".
 
 **`show interface type <type>`** is case-insensitive; unknown types reject
 with the sorted list of types actually present on the system. Empty-Type
@@ -607,7 +619,7 @@ omitted before the first poll). JSON by default; full pipe operators supported.
 See the [Flow Export guide](../flow-export/index.md).
 
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
-<!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
+<!-- source: internal/plugins/flowexport/exporter.go -- newExporter, exporter.status -->
 
 ### show traffic stat
 <!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
@@ -1231,14 +1243,14 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 
-### show summary
+### show bgp summary
 
 ```
-ze show summary                  # Every configured peer
-ze show summary ipv4             # Expanded to ipv4/unicast
-ze show summary ipv6             # Expanded to ipv6/unicast
-ze show summary l2vpn            # Expanded to l2vpn/evpn
-ze show summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
+ze show bgp summary                  # Every configured peer
+ze show bgp summary ipv4             # Expanded to ipv4/unicast
+ze show bgp summary ipv6             # Expanded to ipv6/unicast
+ze show bgp summary l2vpn            # Expanded to l2vpn/evpn
+ze show bgp summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
 ```
 
 The family argument is validated against the families any peer has
@@ -1246,7 +1258,7 @@ actually negotiated; unknown or un-negotiated families reject with the
 sorted set of currently-negotiated families so the operator sees
 exactly what is reachable on the running daemon.
 
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
 
 ### ping / traceroute
 
@@ -1428,8 +1440,9 @@ Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
 After credentials are stored, ze init discovers OS network interfaces via netlink
 and writes initial interface configuration (ethernet, bridge, veth, dummy, loopback)
 to the database as `ze.conf`.
-<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, defaultHost, defaultPort -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
+<!-- source: internal/component/iface/emit.go -- EmitConfig -->
 
 ### ze install
 
@@ -1579,7 +1592,8 @@ The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) wi
 for localhost, 127.0.0.1, ::1, and the listen address.
 
 See [Web Interface Guide](../web-interface/index.md) for full usage documentation.
-<!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartWebOnly, flagStartInsecureWeb, flagStartMCP -->
+<!-- source: cmd/ze/hub/main.go -- RunWebOnly, resolveWebListeners -->
 
 ### debug (set / delete / show / clear)
 
@@ -1905,8 +1919,8 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `show bgp peer <sel> history` | read-only | FSM transition history |
-| `show summary` | read-only | BGP summary table (all peers) |
-| `show summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show bgp summary` | read-only | BGP summary table (all peers) |
+| `show bgp summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
@@ -1960,7 +1974,8 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 <!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
 <!-- source: internal/component/config/setparser.go -- parseSet structural-only commands -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith, preparePeerTree -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, the source of every key in this table -->
+<!-- source: internal/component/plugin/types_bgp.go -- AddDynamicPeer, which takes the parsed peer-fields tree -->
 
 ### Del Commands
 
@@ -2074,14 +2089,14 @@ a keyword.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `cache list` | read-only | List cached message IDs |
-| `cache retain <id>` | write | Pin in cache (prevent eviction) |
-| `cache release <id>` | write | Release from cache |
-| `cache expire <id>` | write | Remove immediately |
-| `cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
+| `show cache` | read-only | List cached message IDs |
+| `request cache retain <id>` | write | Pin in cache (prevent eviction) |
+| `request cache release <id>` | write | Release from cache |
+| `request cache expire <id>` | write | Remove immediately |
+| `request cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
 
-Batch operations: `cache forward <id1>,<id2> <selector>`.
-<!-- source: internal/component/bgp/plugins/cmd/cache/ -- cache command RPCs -->
+Batch operations: `request cache forward <id1>,<id2> <selector>`.
+<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ### Static Routes
 
@@ -2200,17 +2215,20 @@ malformed AVPs; stderr carries the reason.
 ### Event Monitoring
 
 ```
-monitor event [peer <sel>] [event <types>] [direction <dir>]
+monitor event [include|exclude <types>] [peer <sel>] [direction <dir>]
 ```
 
 | Filter | Values |
 |--------|--------|
 | `peer` | IP address, `*` |
-| `event` | update, open, notification, keepalive, refresh, state, negotiated (comma-separated) |
+| `include` | Comma-separated event types to include: update, open, notification, keepalive, refresh, state, negotiated |
+| `exclude` | Comma-separated event types to exclude: update, open, notification, keepalive, refresh, state, negotiated |
 | `direction` | sent, received |
 
+The `include` and `exclude` filters are mutually exclusive.
+
 Streaming command: use in interactive `ze cli` or via SSH. `monitor bgp` (no `event`) is a separate command: the live peer dashboard, documented in the [Monitoring guide](../monitoring/index.md).
-<!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
+<!-- source: internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
 
 ### Netlink Monitoring
 
@@ -2288,10 +2306,10 @@ active after enabling debug or applying a profile.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `help` | read-only | List available subcommands |
-| `command-list` | read-only | List all commands with descriptions |
-| `command-help <name>` | read-only | Detailed help for a command |
-| `event-list` | read-only | List available event types |
-<!-- source: internal/plugins/meta/cmd/help.go -- help/discovery RPCs -->
+| `show command list` | read-only | List all commands with descriptions |
+| `show command help <name>` | read-only | Detailed help for a command |
+| `show event list` | read-only | List available event types |
+<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
 
 ---
 

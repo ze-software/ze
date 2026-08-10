@@ -215,8 +215,17 @@ when any component is <code>down</code>.</p>
 <td><code>l2tp</code></td>
 <td>L2TP subsystem availability</td>
 </tr>
+<tr>
+<td><code>flow-export</code></td>
+<td>Exporter state and collector send errors</td>
+</tr>
+<tr>
+<td><code>report-bus</code></td>
+<td>Report bus registration</td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 <p>Each check completes within 1 second. Components report <code>healthy</code>, <code>degraded</code>,
 or <code>down</code>. The overall status is the worst of all components.</p>
 <figure class="terminal-demo" data-terminal-demo="health-reports">
@@ -234,13 +243,13 @@ or <code>down</code>. The overall status is the worst of all components.</p>
       <span>health-reports.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/health-reports.png?v=ced713284f" aria-label="Separate live warnings from recent errors demonstration">
-      <source src="../../../assets/demos/health-reports.webm?v=5bf3b2e23e" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/health-reports.webm?v=5bf3b2e23e">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/health-reports.png?v=984ee2cfc9" aria-label="Separate live warnings from recent errors demonstration">
+      <source src="../../../assets/demos/health-reports.webm?v=4820118a77" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/health-reports.webm?v=4820118a77">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>1 minute 20 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>1 minute 20 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/health-reports.txt?v=113557fa9c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">

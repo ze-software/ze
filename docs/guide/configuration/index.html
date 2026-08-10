@@ -64,6 +64,7 @@
 <ol>
 <li><a href="#prefix-limits">Prefix Limits</a>
 <ol>
+<li><a href="#what-the-count-holds-offered-or-installed">What the count holds: offered or installed</a></li>
 <li><a href="#after-a-prefix-teardown-the-peer-stays-down">After a prefix teardown, the peer stays down</a></li>
 </ol></li>
 <li><a href="#protocol-event-capture">Protocol Event Capture</a></li>
@@ -280,7 +281,9 @@ transport (<code>ff02::5</code> / <code>ff02::6</code>) and the OSPFv3 prefix mo
 (Intra-Area-Prefix, Link, AS-External, and NSSA LSAs). Both families install
 selected routes through the shared Loc-RIB -&gt; sysrib -&gt; fibkernel path.</p>
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF, runOSPFEngine -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello, HandleDBDesc, HandleLSUpdate -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
+<!-- source: internal/plugins/ospf/neighbor/lsreq.go -- HandleLSUpdate -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Summary -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- module ze-ospf-conf -->
@@ -327,7 +330,7 @@ range-checked by YANG, including <code>maximum-paths 1..32</code>, interface cos
 instance; <code>instance-id</code> defaults to 0 and is used for RFC 5340 per-link
 demultiplexing.</p>
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- address-family ipv6 -->
-<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, parseV6Config -->
+<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, v6AFConfig, v6Families -->
 
 <p>The <code>router-information</code> container advertises this router's optional capabilities
 in the RFC 7770 Router Information LSA. <code>enabled true</code> originates it; the <code>scope</code>
@@ -794,8 +797,81 @@ value uses the default.</p>
 <td>derived</td>
 <td><code>never</code>, <code>backoff</code> or <code>timer</code>. No value means <code>timer</code> when <code>idle-timeout</code> is above 0, and <code>never</code> when it is 0.</td>
 </tr>
+<tr>
+<td><code>count</code></td>
+<td>Per family</td>
+<td><code>offered</code></td>
+<td>Which prefixes the count compared against <code>maximum</code> holds. See below.</td>
+</tr>
 </tbody>
 </table>
+<h4 id="what-the-count-holds-offered-or-installed">What the count holds: <code>offered</code> or <code>installed</code></h4>
+<p>The two values count different things. <code>offered</code> counts wire events, and
+<code>installed</code> counts prefixes. RFC 4271 Section 6.7 does not say whether a prefix
+limit governs what the peer offered or what the receiver kept, so this is an
+operator choice rather than a fixed answer.</p>
+<pre><code>peer transit-a {
+    family {
+        ipv4/unicast {
+            prefix {
+                maximum 1000000
+                teardown false
+                count installed
+            }
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>What the count holds</th>
+<th>What a re-announced prefix does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>offered</code></td>
+<td>Every announcement the peer sends, the announcements of a dropped UPDATE included. It rises on an announcement and falls on a withdrawal, whatever prefix each one names</td>
+<td>Raises the count again. The peer holds the same route, and the count says it holds two</td>
+</tr>
+<tr>
+<td><code>installed</code></td>
+<td>The set of prefixes this family currently holds. The count is that set's size</td>
+<td>Nothing. The prefix is already in the set</td>
+</tr>
+</tbody>
+</table>
+<p>The difference shows up on a peer with route churn, which is every transit
+session. BGP has no way to refresh one route: a peer changing an attribute sends
+the same prefix again, and that replaces the path it sent before (RFC 4271
+Section 3.1). <code>offered</code> reads that second announcement as a second prefix.
+<code>installed</code> reads it as the prefix it already has.</p>
+<p>Pick <code>offered</code> to bound how much a peer may SEND you, announcement by
+announcement, and accept that a peer which re-announces will reach the bound
+without ever holding that many routes. Pick <code>installed</code> to bound how many
+distinct prefixes a peer may advertise to you at once, which is the number that
+stops moving when the peer only churns attributes.</p>
+<p>Neither value is the size of the RIB, and neither is the number
+<code>show bgp summary</code> reports. Both counts are taken before import policy runs.
+<code>show bgp summary</code> reports <code>routes-received</code> and <code>routes-accepted</code>, and both are
+the Adj-RIB-In size AFTER that policy, because Ze stores no route the policy
+rejected. A peer whose prefixes the policy rejects therefore reads lower there
+than in either count. Neither value changes enforcement, either: both drop the
+same UPDATE whole, and both send the same NOTIFICATION under <code>teardown true</code>.</p>
+<p><code>installed</code> keeps one entry per prefix for that family, so it costs memory in
+proportion to what the peer sends, bounded by <code>maximum</code> when one is configured.
+<code>offered</code> keeps a number.</p>
+<blockquote>
+<p><strong><code>offered</code> can be driven below the routes Ze holds.</strong> A withdrawal for a
+prefix the peer never announced still lowers the count, so a peer sending N of
+them frees N slots that Ze is still using and the Adj-RIB-In can then pass the
+maximum. <code>installed</code> is immune: a withdrawal of a prefix that is not in the set
+removes nothing. This is recorded in
+<code>plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md</code> and is not yet
+fixed.</p>
+</blockquote>
 <h4 id="after-a-prefix-teardown-the-peer-stays-down">After a prefix teardown, the peer stays down</h4>
 <p>A session stopped by a prefix limit does not come back on its own. The peer
 state reads <code>idle-hold</code>, <code>ze show warnings</code> names the family that stopped it,
@@ -1006,7 +1082,7 @@ Mandatory filters (e.g., <code>rfc:otc</code>) always run before user filters an
 be removed. Default filters (e.g., <code>rfc:no-self-as</code>) run unless overridden by
 a filter that declares <code>overrides</code>.</p>
 <p>See <a href="../redistribution/">Route Filters</a> for details.</p>
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter config design -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
 <h2 id="cross-protocol-redistribute">Cross-Protocol Redistribute</h2>
 <p>The <code>redistribute</code> block nests import rules under a destination protocol.
@@ -1234,7 +1310,7 @@ data in zefs (not in the config tree) and survive restarts.</p>
 </table>
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- RunFilterIRR, handleFilterUpdate, refreshASN -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->
 
 <h3 id="as-path-filter">AS-Path Filter</h3>
 <p>Named AS-path regex filters live under <code>bgp { policy { as-path-list NAME { ... } } }</code>.
@@ -2023,7 +2099,7 @@ Reverse Path Forwarding verification. Three modes are available:</p>
 On Linux without VPP, a warning is logged and the setting has no effect.</p>
 <p>The legacy <code>rp-filter 0|1|2</code> integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use <code>rpf-check</code> in new configs.</p>
-<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, RPFMode -->
+<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
 
 <h3 id="ipv6-router-advertisements">IPv6 Router Advertisements</h3>
@@ -2403,10 +2479,12 @@ The web config editor checks the user's profile before <code>set</code>, <code>a
 <code>/show/</code> pages. Terminal-mode web config commands use the same checks before
 they mutate a draft.</p>
 <p>REST and gRPC without a token or per-user authenticator use the <code>api</code>
-identity as read-only. Reads such as <code>show version</code> and <code>bgp summary</code> work;
+identity as read-only. Reads such as <code>show version</code> and <code>show bgp summary</code> work;
 write commands and config sessions return 403. Configure
 <code>environment.api-server.token</code> or per-user credentials when API clients need
 write access.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
+
 <p>Config commits, discards, daemon reloads, and failed logins are recorded in
 the local audit log. See <a href="../audit/">audit.md</a> for storage and query details.</p>
 <!-- source: internal/component/web/handler_config.go -- web config RBAC -->
@@ -2580,7 +2658,7 @@ Multiple profiles per unit are composable; last wins on key overlap.</p>
 </code></pre>
 <p>The <code>&lt;iface&gt;</code> placeholder is substituted with the actual interface name at apply time.</p>
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles, ResolveProfileSettings -->
-<!-- source: internal/component/iface/config.go -- applySysctlProfiles -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctlProfiles -->
 
 <h2 id="connection-tracking-conntrack">Connection Tracking (Conntrack)</h2>
 <p>Declarative connection tracking management under <code>system { conntrack {} }</code>. Covers helper module loading, table sizing, protocol timeouts, and TCP behavior flags:</p>
@@ -3785,7 +3863,7 @@ connections to a remote hub (managed mode).</p>
 <p>Every ze instance has at least one <code>server</code> block (for local plugins and SSH).
 Secrets must be at least 32 characters. See <a href="../fleet-config/">Fleet Configuration</a> for details.</p>
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
-<!-- source: internal/component/bgp/config/plugins.go -- ExtractHubConfig -->
+<!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig -->
 
 <h2 id="outbound-source-address">Outbound Source Address</h2>
 <p>Operators who deploy Ze behind loopback or management interfaces can pin the

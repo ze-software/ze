@@ -57,8 +57,8 @@
 <li><a href="#three-directories-three-roles">Three Directories, Three Roles</a>
 <ol>
 <li><a href="#core-infrastructure-primitives">core/ -- Infrastructure Primitives</a></li>
-<li><a href="#component-subsystem-implementations">component/ -- Subsystem Implementations</a></li>
-<li><a href="#plugins-user-facing-command-surfaces">plugins/ -- User-Facing Command Surfaces</a></li>
+<li><a href="#component-shared-subsystem-implementations">component/ -- Shared Subsystem Implementations</a></li>
+<li><a href="#plugins-self-contained-feature-owners">plugins/ -- Self-Contained Feature Owners</a></li>
 </ol></li>
 <li><a href="#plugin-directory-layout">Plugin Directory Layout</a>
 <ol>
@@ -90,8 +90,8 @@ below exists to make them hold.</p>
 <h2 id="three-directories-three-roles">Three Directories, Three Roles</h2>
 <pre><code>internal/
     core/           # shared primitives, no subsystem knowledge
-    component/      # subsystem implementations + config YANG
-    plugins/        # user-facing command surfaces
+    component/      # shared subsystem implementations and services
+    plugins/        # self-contained command-only and full-subsystem owners
 </code></pre>
 <h3 id="core-infrastructure-primitives"><code>core/</code> -- Infrastructure Primitives</h3>
 <p>Leaf packages that provide reusable services. They depend on nothing else
@@ -100,37 +100,42 @@ internal (or only on other <code>core/</code> packages). No subsystem-specific k
 variables), <code>family</code> (address families), <code>health</code> (health registry), <code>metrics</code>
 (prometheus), <code>events</code> (event bus), <code>diagnostic</code> (doctor codes), <code>textbuf</code>
 (string building), <code>paths</code> (file locations).</p>
-<h3 id="component-subsystem-implementations"><code>component/</code> -- Subsystem Implementations</h3>
-<p>Subsystem logic that composes <code>core/</code> packages. May depend on each other.
-Owns configuration YANG (the data model parsed from config files).</p>
-<p>Examples: <code>bgp</code> (BGP engine), <code>config</code> (config system), <code>cli</code> (SSH CLI editor),
-<code>iface</code> (interface management), <code>host</code> (hardware detection), <code>firewall</code>,
-<code>doctor</code> (readiness checks), <code>web</code>, <code>l2tp</code>.</p>
-<p>Config YANG (<code>ze-bgp-conf.yang</code>, <code>ze-iface-conf.yang</code>) lives here because it
-defines the subsystem's data model. It is not a user-facing command surface.</p>
-<h3 id="plugins-user-facing-command-surfaces"><code>plugins/</code> -- User-Facing Command Surfaces</h3>
-<p>Everything the user interacts with through CLI commands. Each plugin folder
-contains:</p>
+<h3 id="component-shared-subsystem-implementations"><code>component/</code> -- Shared Subsystem Implementations</h3>
+<p>Subsystem logic that multiple owners use can compose <code>core/</code> and other
+<code>component/</code> packages. A component owns configuration YANG when its data model
+belongs to the shared subsystem rather than one removable plugin.</p>
+<p>Examples include <code>bgp</code> (BGP engine), <code>config</code> (config system), <code>cli</code> (SSH CLI
+editor), <code>iface</code> (interface management), <code>host</code> (hardware detection),
+<code>firewall</code>, <code>doctor</code> (readiness checks), <code>web</code>, and <code>l2tp</code>.</p>
+<h3 id="plugins-self-contained-feature-owners"><code>plugins/</code> -- Self-Contained Feature Owners</h3>
+<p>Each folder under <code>internal/plugins/</code> owns a removable feature surface. Two
+plugin shapes use this directory:</p>
 <ul>
-<li><strong>YANG command schemas</strong> -- the command tree definitions</li>
-<li><strong>RPC handlers</strong> -- the <code>pluginserver.RegisterRPCs()</code> handlers for online commands</li>
-<li><strong>CLI registration</strong> -- the <code>registry.RegisterRoot()</code> / <code>MustRegisterLocalMeta()</code>
-  wiring for offline commands</li>
+<li>A <strong>command-only plugin</strong> owns command YANG, RPC handlers, and CLI
+  registration. It delegates the operation to a <code>component/</code> or <code>core/</code>
+  package.</li>
+<li>A <strong>full-subsystem plugin</strong> also owns its protocol or service runtime,
+  configuration, lifecycle, and state in the same folder.</li>
 </ul>
-<p>Plugins are thin. They import <code>component/</code> or <code>core/</code> for the real work.
-A plugin translates a user command into a call to an implementation library.</p>
+<p>Both shapes can own user commands. Removing either folder removes all surfaces
+that belong to that owner.</p>
+<!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
+
 <h2 id="plugin-directory-layout">Plugin Directory Layout</h2>
 <pre><code>internal/plugins/&lt;name&gt;/
-    register.go            # CLI registration (RegisterRoot, MustRegisterLocalMeta)
+    register.go            # lifecycle or offline CLI registration, when needed
+    *.go                   # runtime, config, and state for a full-subsystem plugin
     yang/
-        ze-&lt;name&gt;-cmd.yang             # hand-written YANG command definitions
-        embed.go                       # GENERATED: //go:embed vars
-        register.go                    # GENERATED: yang.RegisterModule() calls
-        self_containment_test.go       # presence test: owner's commands ARE declared
+        ze-&lt;name&gt;-*.yang   # hand-written command or config definitions
+        embed.go           # GENERATED: //go:embed vars
+        register.go        # GENERATED: yang.RegisterModule() calls
     cmd/
-        register.go            # pluginserver.RegisterRPCs() in init()
-        handler.go             # RPC handler functions
+        register.go        # pluginserver.RegisterRPCs() in init()
+        handler.go         # RPC handler functions
 </code></pre>
+<p>Command-only plugins omit subsystem runtime files. Full-subsystem plugins keep
+their runtime with the command and configuration surfaces that they own.</p>
 <h3 id="yang-as-data-not-code">YANG as Data, Not Code</h3>
 <p>YANG files are declarative definitions, not Go code. They live in a <code>yang/</code>
 subfolder (not <code>schema/</code>) to make this clear. The Go glue files in <code>yang/</code>
@@ -227,12 +232,12 @@ generates the import list.</p>
 <tbody>
 <tr>
 <td>Implementation library</td>
-<td><code>component/&lt;name&gt;/</code> or <code>core/&lt;name&gt;/</code></td>
+<td>Shared code: <code>component/&lt;name&gt;/</code> or <code>core/&lt;name&gt;/</code><br>Full-subsystem plugin: <code>plugins/&lt;name&gt;/</code></td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Config YANG (data model)</td>
-<td><code>component/&lt;name&gt;/yang/</code></td>
+<td>Shared subsystem: <code>component/&lt;name&gt;/yang/</code><br>Full-subsystem plugin: <code>plugins/&lt;name&gt;/yang/</code></td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>

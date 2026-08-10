@@ -106,8 +106,8 @@
 ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
 </code></pre>
 <p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.</p>
-<!-- source: cmd/ze/main.go -- cmdStart, webPort/insecureWeb flags -->
-<!-- source: internal/component/web/server.go -- GenerateWebCertWithAddr -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames -->
 
 <table>
 <thead>
@@ -160,7 +160,9 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 <li>Enter username and password. On success, a <code>ze-session</code> cookie is set.</li>
 <li>The cookie is <code>Secure</code>, <code>HttpOnly</code>, and <code>SameSite=Strict</code>.</li>
 <li>Each user can have one active session. Logging in again invalidates the previous session.</li>
+<li>A session lasts 24 hours, and ends earlier if the configuration stops declaring the user. Remove a user and reload, and their open browser tab is refused on its next request. No daemon restart is necessary.</li>
 </ol>
+<p>A user authenticated by RADIUS or TACACS+ keeps their session: the local user list did not grant it and does not end it.</p>
 <h3 id="json-api">JSON API</h3>
 <p>API clients that send <code>Accept: application/json</code> (or append <code>?format=json</code> to the URL) can authenticate with HTTP Basic Auth instead of session cookies. No session is created for Basic Auth requests.</p>
 <pre><code class="language-bash">curl -k -u admin:password https://localhost:8443/show/bgp/?format=json
@@ -320,12 +322,12 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 </tbody>
 </table>
 <p>The <code>+ new</code> button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.</p>
-<!-- source: internal/component/web/handler_config.go -- HandleConfigAdd, HandleConfigAddForm -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigAddForm -->
 <!-- source: internal/component/web/templates/component/add_form_overlay.html -->
 
 <h3 id="breadcrumb-navigation">Breadcrumb Navigation</h3>
 <p>Every page displays a breadcrumb trail from root to the current YANG path. Clicking any breadcrumb segment navigates to that level.</p>
-<!-- source: internal/component/web/handler_config.go -- buildBreadcrumbs -->
+<!-- source: internal/component/web/handler_config_leaf.go -- buildBreadcrumbs -->
 
 <h3 id="content-negotiation">Content Negotiation</h3>
 <p>The response format is determined by:</p>
@@ -404,7 +406,8 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 
 <h3 id="conflict-detection">Conflict Detection</h3>
 <p>When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.</p>
-<!-- source: internal/component/web/handler_config.go -- handleCommitPost, result.Conflicts -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+<!-- source: internal/component/cli/contract/contract.go -- CommitResult.Conflicts, Conflict -->
 
 <h3 id="session-limits">Session Limits</h3>
 <p>The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.</p>
@@ -468,7 +471,7 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 
 <h3 id="terminal-mode">Terminal Mode</h3>
 <p>Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.</p>
-<!-- source: internal/component/web/cli.go -- HandleCLITerminal, executeTerminalCommand -->
+<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand -->
 
 <h3 id="tab-completion">Tab Completion</h3>
 <p>The CLI bar provides tab completion via a JSON endpoint at <code>/cli/complete</code>. Completions are context-aware: when at <code>/show/bgp/peer/london/</code>, typing <code>set</code> + Tab suggests <code>remote</code>, <code>local</code>, <code>timer</code> (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., <code>local/ip</code> accepting an IP address or <code>auto</code>), the enum values are offered as completions.</p>

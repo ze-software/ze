@@ -649,6 +649,19 @@ installer kernel from the cache, or from `build/kernel/Image` only when its
 variant metadata matches the appliance arch/profile/version. `ze appliance
 kernel` and `make -C tools/installer-kernel` both delegate to
 `tools/kernel-builder/`; pass `--kernel` to keep multiple kernels side by side.
+
+The `make -C tools/installer-kernel` build is incremental. It rebuilds when a
+config fragment, a builder file, the Makefile, or
+`internal/appliance/kernel.version` is newer than `build/kernel/Image`. It also
+rebuilds when the requested arch, profile, or builder is different from the last
+build, which it records in `build/kernel/.request`. A repeated build with the
+same request does no work. `make -C gokrazy/kernel` carries the same record for
+the runtime kernel, where an amd64 `vmlinuz` and an arm64 one live at one path.
+
+`ze appliance kernel` is keyed on the cache instead. It deletes both records the
+Makefile writes, `.request` and `.variant`, on every run. The next `make`
+therefore rebuilds rather than trust a record it did not write. `ze appliance
+iso` does not read the replaced image as the profile the old record named.
 <!-- source: internal/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
 <!-- source: tools/installer-kernel/Makefile -- all -->
 

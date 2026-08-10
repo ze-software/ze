@@ -346,8 +346,9 @@ out of scope for v1; see `plan/deferrals/`.
 
 ## Tunnel Reload Behaviour
 
-On config reload (SIGHUP or transaction commit), `applyTunnels` compares each
-tunnel's spec against the previously applied config, indexed by name. Tunnels
+On config reload (SIGHUP or transaction commit), `applyConfig` compares each
+tunnel's spec against the previously applied config, which `indexTunnelSpecs`
+indexes by name. Tunnels
 whose spec is unchanged are left alone; MTU, MAC, and addresses still reconcile
 through later phases, so non-spec changes still take effect. Tunnels whose spec
 changed (encapsulation kind, `local`, `remote`, `key`, `ttl`, `hoplimit`, and
@@ -355,7 +356,7 @@ the rest of the per-case leaves) are deleted and recreated, because Linux does
 not support in-place modification of most tunnel kinds. The recreate briefly
 drops traffic on the changed tunnel only; unrelated tunnels are not disturbed.
 
-<!-- source: internal/component/iface/config.go -- applyTunnels, indexTunnelSpecs -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexTunnelSpecs -->
 
 ## Tunnel Validation Scope
 
@@ -410,7 +411,8 @@ interface {
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list wireguard, ze:sensitive on private-key and peer preshared-key, ze:listener on the list entry -->
 <!-- source: internal/component/iface/wireguard.go -- WireguardSpec / WireguardPeerSpec types -->
-<!-- source: internal/component/iface/config.go -- parseWireguardEntry, applyWireguards, wireguardSpecEqual -->
+<!-- source: internal/component/iface/config.go -- parseWireguardEntry, parseWireguardPeer -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexWireguardSpecs, wireguardSpecEqual -->
 
 ### Key material and `$9$` encoding
 
@@ -432,7 +434,7 @@ MD5 passwords, SSH secrets, MCP tokens, and API tokens.
 
 ### Reconciliation
 
-On reload, `applyWireguards` compares the new spec to the previously
+On reload, `applyConfig` compares the new spec to the previously
 applied spec via `wireguardSpecEqual`. Unchanged entries are a no-op; the
 kernel is not touched and peer handshake state is preserved. Changed
 entries trigger a single `ConfigureWireguardDevice` call with
@@ -449,7 +451,7 @@ freely without affecting the handshake. `ze init` emits discovered peers
 with synthetic names (`peer0`, `peer1`, ...) which operators typically
 rename via `ze config edit`.
 
-<!-- source: internal/component/iface/config.go -- wireguardSpecEqual, wireguardPeerEqual -->
+<!-- source: internal/component/iface/config_apply.go -- wireguardSpecEqual, wireguardPeerEqual -->
 <!-- source: internal/component/iface/backend.go -- CreateWireguardDevice, ConfigureWireguardDevice, GetWireguardDevice interface methods -->
 
 ### Port conflict detection
@@ -460,7 +462,7 @@ TCP services (web, ssh, mcp, etc.) with one Phase-5 extension:
 never clash with a TCP service on the same port. Two wireguards with
 the same `listen-port` are rejected at reload time.
 
-<!-- source: internal/component/config/listener.go -- ListenerEndpoint.Protocol, collectWireguardListeners, conflicts -->
+<!-- source: internal/component/config/listener.go -- ListenerEndpoint.Protocol, buildListenerService, CollectListeners, FindListenerConflict -->
 
 ### Dependencies
 

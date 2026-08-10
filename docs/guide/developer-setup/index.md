@@ -25,6 +25,11 @@ make ze-setup CHECK=1
 Exits 0 if all required tools are present, nonzero if any are missing.
 Useful as a CI preflight check.
 
+Two of the rows are behaviour, not binaries: `gopls-answers` and
+`pyright-answers` run each language server and check that it replies. A server
+on PATH that does not answer fails this check, because every LSP call against
+it fails the same silent way.
+
 ## What It Installs
 
 ### Build and Lint
@@ -41,12 +46,13 @@ Useful as a CI preflight check.
 | `python3` | Runs evidence and dev scripts |
 | `pipx` | Python tool installer |
 | `ruff` | Python linter (via `pipx`) |
+| `pyright` | Python language server behind the agent LSP tool (via `pipx`) |
 
 ### Appliance and Evidence
 
 | Tool | Purpose |
 |------|---------|
-| `uv` | Python package runner for SSH probe (`uv run --with paramiko`) |
+| `uv` | Python package runner for SSH probe (`uv run --with paramiko`, via `pipx`) |
 | `qemu` | QEMU functional and install gate tests |
 | `e2fsprogs` | `mkfs.ext4` and `debugfs` for appliance builds |
 | `xorriso` | ISO image creation |
@@ -63,15 +69,61 @@ Useful as a CI preflight check.
 
 ### macOS
 
-- **e2fsprogs** is keg-only on Homebrew. The Ze code resolves it via the
-  Cellar path; no PATH modification is needed after `brew install e2fsprogs`.
+- **The Homebrew prefix is resolved, never assumed.** It is `/opt/homebrew` on
+  Apple Silicon and `/usr/local` on Intel, so a hardcoded path is absent on half
+  the Macs. Every consumer asks in the same order: `HOMEBREW_PREFIX` when
+  `brew shellenv` has exported it, then the `brew` binary's own location
+  (`<prefix>/bin/brew`), then the two documented defaults. The `brew` link is
+  not followed: on Intel it points into `<prefix>/Homebrew`, which would answer
+  with the wrong prefix.
+- **e2fsprogs** is keg-only on Homebrew, so none of it is linked onto `PATH` and
+  `which` finds nothing however well it is installed. It is looked for under
+  `<prefix>/opt/e2fsprogs/sbin`, the link kept at the current version, and under
+  `<prefix>/Cellar/e2fsprogs/<version>/sbin`, where an interrupted upgrade
+  leaves it with no link. No PATH modification is needed after
+  `brew install e2fsprogs`.
 - **grub** has no first-party Homebrew formula. ISO builds require Linux or
   a container (colima/docker). The setup script skips grub on macOS.
 
+<!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
+<!-- source: scripts/evidence/homebrew.py -- brew_prefixes, brew_keg_dirs -->
+
+
 ### Linux
 
-The script prints `sudo apt-get install ...` commands but never runs `sudo`
-automatically. Copy and run the printed commands to install.
+`make ze-setup` installs the apt packages itself, the same way it installs the
+Homebrew ones on macOS. Each command is echoed before it runs. It takes
+`apt-get update` once per run, because a container image ships no package
+lists, and it sets `DEBIAN_FRONTEND=noninteractive` so a package with a debconf
+prompt cannot stop the run.
+
+**How it reaches root.** The answer is decided before any command runs, and
+`sudo` is always given `-n`, so no path can stop at a password prompt:
+
+| State | What setup does |
+|-------|-----------------|
+| You are root (a container build) | Runs the command directly. `sudo` need not be installed |
+| `sudo` acts with no password | Runs `sudo -n <command>` |
+| `sudo` wants a password, a terminal is attached | Asks once with `sudo -v`, then runs `sudo -n <command>` |
+| `sudo` wants a password, no terminal (CI, an agent session) | Prints the command, installs nothing, exits nonzero |
+
+<!-- source: scripts/dev/dev-setup.py -- privilege_mode, run_privileged, apt_install -->
+
+**uv** is not in the Debian or Ubuntu repositories, so it installs through
+`pipx` on both platforms. One route is one thing to fix, and it keeps
+`curl | sh` off every dev machine.
+
+**GRUB follows your host architecture.** Debian packages one module set per
+architecture: an amd64 host takes `grub-efi-amd64-bin`, an arm64 host takes
+`grub-efi-arm64-bin`. Asking an arm64 host for the amd64 package installs
+nothing at all, `grub-mkstandalone` included. `ze appliance iso` picks its GRUB
+target from the architecture of the image it packs, so building an ISO for the
+OTHER architecture needs that architecture's set too, through
+`dpkg --add-architecture`.
+
+<!-- source: scripts/dev/dev-setup.py -- grub_apt_package -->
+<!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
+
 
 **Unprivileged user namespaces.** Ubuntu 23.10+ ships
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
@@ -85,9 +137,10 @@ echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 ```
 
-The `/etc/sysctl.d` drop-in makes the change survive reboots. If `sudo` is
-unavailable it prints the commands to run by hand instead. `make ze-setup
-CHECK=1` only reports the state, never changes it.
+The `/etc/sysctl.d` drop-in makes the change survive reboots. It goes through
+the same root route as the package installs, so on a root run the echoed lines
+carry no `sudo`, and when root is out of reach it prints the commands to run by
+hand instead. `make ze-setup CHECK=1` only reports the state, never changes it.
 
 **KVM device access.** `/dev/kvm` is `root:kvm` mode 0660, so QEMU-backed
 evidence (the appliance boot proofs and every `ze-qemu-*` target) needs your
@@ -119,7 +172,9 @@ evidence scripts select the Apple hypervisor (`hvf`) by platform.
 
 <!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
 
-These two are the only places setup runs `sudo`.
+These two, and the apt installs above, are every place setup reaches for root.
+All three go through one helper, so the table of states earlier in this section
+governs each of them.
 
 ## After Setup
 

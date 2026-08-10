@@ -97,15 +97,22 @@
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     switch command {
     case &quot;my-plugin status&quot;:
-        return &quot;done&quot;, `{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}`, nil
+        return &quot;done&quot;, map[string]any{
+            &quot;status&quot;: &quot;running&quot;,
+            &quot;uptime&quot;: 3600,
+        }, nil
     case &quot;my-plugin check&quot;:
         if len(args) &lt; 1 {
-            return &quot;error&quot;, &quot;usage: my-plugin check &lt;target&gt;&quot;, nil
+            return &quot;error&quot;, map[string]string{
+                &quot;error&quot;: &quot;usage: my-plugin check &lt;target&gt;&quot;,
+            }, nil
         }
         result := performCheck(args[0])
         return &quot;done&quot;, result, nil
     default:
-        return &quot;error&quot;, &quot;unknown command: &quot; + command, nil
+        return &quot;error&quot;, map[string]string{
+            &quot;error&quot;: &quot;unknown command: &quot; + command,
+        }, nil
     }
 })
 </code></pre>
@@ -118,25 +125,28 @@
 <pre><code>#17 ze-plugin-callback:execute-command {&quot;serial&quot;:&quot;abc123&quot;,&quot;command&quot;:&quot;my-plugin status&quot;,&quot;args&quot;:[],&quot;peer&quot;:&quot;&quot;}
 </code></pre>
 <h3 id="success-response-plugin-to-engine">Success Response (plugin to engine)</h3>
-<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:&quot;{\&quot;status\&quot;:\&quot;running\&quot;}&quot;}
+<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}}
 </code></pre>
 <h3 id="error-response-plugin-to-engine">Error Response (plugin to engine)</h3>
 <pre><code>#17 error {&quot;message&quot;:&quot;execute-command not supported&quot;}
 </code></pre>
 <h2 id="return-values">Return Values</h2>
 <p>The <code>OnExecuteCommand</code> handler returns three values: <code>(status string, data any, err error)</code>.</p>
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleExecuteCommand -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand, executeCommandOutput -->
 
 <h3 id="success-with-data">Success with Data</h3>
-<pre><code class="language-go">return &quot;done&quot;, `{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}`, nil
+<pre><code class="language-go">return &quot;done&quot;, map[string]any{
+    &quot;count&quot;: 42,
+    &quot;items&quot;: []string{&quot;a&quot;, &quot;b&quot;},
+}, nil
 </code></pre>
-<p>The SDK wraps this into an <code>ExecuteCommandOutput</code> and sends:</p>
-<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:&quot;{\&quot;count\&quot;:42,\&quot;items\&quot;:[\&quot;a\&quot;,\&quot;b\&quot;]}&quot;}
+<p>The SDK marshals this value into <code>ExecuteCommandOutput.Data</code> and sends:</p>
+<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}}
 </code></pre>
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 
 <h3 id="success-without-data">Success without Data</h3>
-<pre><code class="language-go">return &quot;done&quot;, &quot;&quot;, nil
+<pre><code class="language-go">return &quot;done&quot;, nil, nil
 </code></pre>
 <p>Response:</p>
 <pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;}
@@ -145,7 +155,8 @@
 
 <h3 id="handler-error">Handler Error</h3>
 <p>If the handler returns a non-nil error, the SDK sends an error response:</p>
-<pre><code class="language-go">return &quot;&quot;, &quot;&quot;, fmt.Errorf(&quot;operation failed: database timeout&quot;)
+<pre><code class="language-go">return &quot;&quot;, nil, fmt.Errorf(&quot;operation failed: database timeout&quot;)
+
 </code></pre>
 <p>Response:</p>
 <pre><code>#17 error {&quot;message&quot;:&quot;operation failed: database timeout&quot;}
@@ -228,13 +239,15 @@
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     if command == &quot;my-plugin get&quot; {
         if len(args) &lt; 1 {
-            return &quot;error&quot;, &quot;usage: my-plugin get &lt;key&gt;&quot;, nil
+            return &quot;error&quot;, map[string]string{
+                &quot;error&quot;: &quot;usage: my-plugin get &lt;key&gt;&quot;,
+            }, nil
         }
         key := args[0]
         value := getValue(key)
-        return &quot;done&quot;, value, nil
+        return &quot;done&quot;, map[string]any{&quot;key&quot;: key, &quot;value&quot;: value}, nil
     }
-    return &quot;error&quot;, &quot;unknown command&quot;, nil
+    return &quot;error&quot;, map[string]string{&quot;error&quot;: &quot;unknown command&quot;}, nil
 })
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
@@ -286,7 +299,7 @@
 <p>Return structured JSON data for API consumers:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     if command == &quot;monitor metrics&quot; {
-        data, _ := json.Marshal(struct {
+        data := struct {
             Checks    int     `json:&quot;checks&quot;`
             Failures  int     `json:&quot;failures&quot;`
             LatencyMs float64 `json:&quot;latency-ms&quot;`
@@ -296,10 +309,10 @@
             Failures:  state.failures,
             LatencyMs: state.latency,
             LastCheck: state.lastCheck.Format(time.RFC3339),
-        })
-        return &quot;done&quot;, string(data), nil
+        }
+        return &quot;done&quot;, data, nil
     }
-    return &quot;error&quot;, &quot;unknown command&quot;, nil
+    return &quot;error&quot;, map[string]string{&quot;error&quot;: &quot;unknown command&quot;}, nil
 })
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
@@ -329,14 +342,13 @@ sdk.CommandDecl{Name: &quot;my-plugin help&quot;, Description: &quot;Show availa
 
 // In handler:
 if command == &quot;my-plugin help&quot; {
-    data, _ := json.Marshal(map[string]any{
+    return &quot;done&quot;, map[string]any{
         &quot;commands&quot;: []string{
             &quot;my-plugin status - Show current status&quot;,
             &quot;my-plugin check &lt;target&gt; - Trigger immediate check&quot;,
             &quot;my-plugin metrics - Show performance metrics&quot;,
         },
-    })
-    return &quot;done&quot;, string(data), nil
+    }, nil
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl -->

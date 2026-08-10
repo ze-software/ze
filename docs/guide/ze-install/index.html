@@ -921,7 +921,7 @@ shell nor strand an unattended box at a prompt nobody can answer.</p>
 <!-- source: internal/core/rescueauth/rescueauth.go -- argonMemory, digestOf -->
 <!-- source: internal/install/disk/rescue_linux.go -- selectFatalBranch -->
 <!-- source: internal/core/rescueauth/rescueauth.go -- Value, Check, NewValue -->
-<!-- source: internal/plugins/imageserver/handler.go -- serveDynamicBootIPXE -->
+<!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE, rescueAuth -->
 
 <h3 id="running-tests">Running Tests</h3>
 <p>The installer logic has Go unit tests alongside each source file in
@@ -989,14 +989,23 @@ make -C tools/installer-kernel PROFILE=hardware ARCH=amd64 # hardware profile, x
 first, then the shared QEMU backend, unless <code>--builder</code> forces one path.</p>
 <p><code>ze appliance kernel</code> resolves the open profile registry in Go, passes the
 resolved fragments to <code>tools/kernel-builder/build.py</code>, reads the emitted
-<code>build/config</code>, and fails loudly if any required symbol is not <code>=y</code>. The
+<code>build/kernel/config</code>, and fails loudly if any required symbol is not <code>=y</code>. The
 installer Makefile keeps its config fragments and <code>.require</code> manifests in
 <code>tools/installer-kernel/</code> and delegates Docker/QEMU execution to
 <code>tools/kernel-builder/</code>. The QEMU path is <code>tools/kernel-builder/qemu-build.py</code>,
 which validates repo-relative builder, source, and output paths before booting
-the VM. Output is <code>build/Image</code> (the kernel) and <code>build/config</code> (the resolved
-config). See <code>tools/installer-kernel/README.md</code> for the full rationale and
-driver lists.</p>
+the VM. Output is <code>build/kernel/Image</code> (the kernel) and <code>build/kernel/config</code>
+(the resolved config). See <code>tools/installer-kernel/README.md</code> for the full
+rationale and driver lists.</p>
+<p>The Makefile is incremental. It rebuilds when a
+fragment, a builder file, the Makefile, or <code>internal/appliance/kernel.version</code>
+is newer than the built image. It also rebuilds when the requested arch,
+profile, or builder is different from the last build, which it records in
+<code>build/kernel/.request</code>. <code>ze appliance kernel</code> deletes that record on every
+installer-target run, so the next <code>make</code> rebuilds. It deletes
+<code>build/kernel/.variant</code> with it: that record says which arch, profile and version
+was BUILT, and <code>ze appliance iso</code> reads it to decide the image in
+<code>build/kernel/</code> is the one it needs.</p>
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
 <!-- source: tools/kernel-builder/build.py -- main -->

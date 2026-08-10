@@ -1,11 +1,11 @@
 {
   "gate": {
-    "ok": false,
-    "error_count": 1,
-    "gated_must": 2950,
-    "enrolled_rfcs": 168,
-    "test_tags": 3265,
-    "message": "rfc-requirements OK: 2950 gated MUST-level requirement(s) across 168 enrolled RFC(s); 3265 test tag(s) resolved."
+    "ok": true,
+    "error_count": 0,
+    "gated_must": 2954,
+    "enrolled_rfcs": 169,
+    "test_tags": 3302,
+    "message": "rfc-requirements OK: 2954 gated MUST-level requirement(s) across 169 enrolled RFC(s); 3302 test tag(s) resolved."
   },
   "satisfaction": [
     {
@@ -13,8 +13,8 @@
       "short": "Test pair",
       "condition": "positive tag + negative tag",
       "key": "both_polarities",
-      "count": 1210,
-      "share": 41.0
+      "count": 1214,
+      "share": 41.1
     },
     {
       "label": "One polarity plus reason",
@@ -172,7 +172,7 @@
     "fresh": 52,
     "shifted": 0,
     "stale": 0,
-    "missing": 2898
+    "missing": 2902
   },
   "checks": [
     {
@@ -222,10 +222,8 @@
     },
     {
       "name": "Generated ledger freshness",
-      "errors": [
-        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index"
-      ],
-      "error_count": 1
+      "errors": [],
+      "error_count": 0
     }
   ],
   "agent_guard": {

@@ -100,7 +100,9 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 </tr>
 </tbody>
 </table>
-<!-- source: cmd/ze/main.go -- chaosSeed, chaosRate global flags; internal/component/bgp/cli/childmode.go -- ze.bgp.chaos.seed/rate -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- chaosSeed, chaosRate global flags -->
+<!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
+<!-- source: internal/component/bgp/cli/childmode.go -- injectChaosFromEnv, ze.bgp.chaos.seed/rate -->
 
 <h2 id="ze-chaos-tool">ze-chaos Tool</h2>
 <p>The <code>ze-chaos</code> tool is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.</p>

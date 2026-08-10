@@ -231,7 +231,9 @@ need on-disk revision history that a piped config does not have.</p>
 <p><strong>File mode</strong> (<code>ze config edit -f</code> or when no zefs database exists): the editor works directly on a config file. <code>commit</code> writes the full configuration tree to disk. All operations (set, delete, load) modify the in-memory tree and the commit serializes the result. This is the simplest path: no change tracking, no conflict detection, no draft files.</p>
 <p><strong>Session mode</strong> (zefs blob store): each editing session gets an identity (<code>user@origin%timestamp</code>) and a per-user change file that records every edit with metadata (who, when, previous value). <code>commit</code> applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the <a href="https://github.com/ze-software/ze/blob/main/docs/research/comparison/freertr/23-concurrent-editing.md" target="_blank" rel="noopener">concurrent editing</a> reference for the full protocol.</p>
 <p>Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:</p>
-<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errInsertNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+<!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
+<!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
 
 <table>
 <thead>
@@ -250,15 +252,11 @@ need on-disk revision history that a piped config does not have.</p>
 <td>Creates structure without write-through</td>
 </tr>
 <tr>
-<td><code>insert</code></td>
-<td>Creates structure without write-through</td>
-</tr>
-<tr>
-<td><code>deactivate</code></td>
+<td><code>deactivate</code> on a leaf or a path</td>
 <td>Requires metadata write-through</td>
 </tr>
 <tr>
-<td><code>activate</code></td>
+<td><code>activate</code> on a leaf or a path</td>
 <td>Requires metadata write-through</td>
 </tr>
 <tr>
@@ -271,6 +269,12 @@ need on-disk revision history that a piped config does not have.</p>
 </tr>
 </tbody>
 </table>
+<p><code>insert</code> is supported in session mode: <code>InsertLeafListValue</code> routes through
+<code>writeThroughMemberOp</code>, and so do <code>deactivate</code> and <code>activate</code> when they name a
+leaf-list member rather than a leaf or a path.</p>
+<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
+<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
+
 <p>Use file mode (<code>ze config edit -f</code>) for these operations.</p>
 <table>
 <thead>
@@ -368,13 +372,13 @@ need on-disk revision history that a piped config does not have.</p>
       <span>commit-confirmed.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/commit-confirmed.png?v=cd8c861d17" aria-label="Watch an unconfirmed change roll back demonstration">
-      <source src="../../../assets/demos/commit-confirmed.webm?v=63f78d0aff" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/commit-confirmed.webm?v=63f78d0aff">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/commit-confirmed.png?v=4e03c49d64" aria-label="Watch an unconfirmed change roll back demonstration">
+      <source src="../../../assets/demos/commit-confirmed.webm?v=21514fce6f" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/commit-confirmed.webm?v=21514fce6f">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>1 minute 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>1 minute 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">

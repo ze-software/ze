@@ -309,7 +309,8 @@ on-change &quot;logger -t healthcheck state=$STATE&quot;
 <li>Hooks have a 30-second timeout (ExaBGP hooks can hang forever).</li>
 <li>Per-state community and as-path variation is not supported. Use separate watchdog groups if needed.</li>
 </ul>
-<!-- source: plan/learned/516-healthcheck-0-umbrella.md -- ExaBGP Feature Mapping -->
+<!-- source: internal/component/bgp/plugins/healthcheck/hooks.go -- hookTimeout, the 30-second hook bound -->
+<!-- source: internal/component/bgp/plugins/healthcheck/config.go -- Disable and the watchdog metric fields -->
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
