@@ -43,9 +43,12 @@ func community(high, low uint16) uint32 {
 // rails produce: every matching control community concatenated into one slice.
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity -- this is the producer half of
-// the arity contract. reactor_api_forward.go:635 and forward_rs.go:342 pass this
-// whole slice to the accumulator as ONE AttrModRemove operation, so the consumer
-// (filter_community.removeValues) must accept a whole number of values.
+// the arity contract. reactor.reactorAPIAdapter.forwardUpdateCore and
+// reactor.reactorForwardRS pass this whole slice to the accumulator as ONE
+// AttrModRemove operation, so the consumer
+// (filter_community.genericCommunityHandler, through filter_community.wholeValues)
+// must admit a whole number of values. Cited by symbol: the line numbers this
+// comment carried named unrelated code by the time anybody read them.
 // PREVENTS: a future change that splits here instead, silently making the
 // consumer's multi-value support dead code and leaving the contract untested.
 func TestStripControlCommunitiesMultiValue(t *testing.T) {

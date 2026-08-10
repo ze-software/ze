@@ -110,10 +110,13 @@ type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[stri
 // covered by the operator's `unknown` token, which makes its export-set
 // suppression a decision (R6-1 / Q-1,
 // plan/spec-fixit-stored-route-relay-hardening.md). LLGREgressFilter
-// (plugins/gr/gr_egress.go) does have a state it cannot evaluate, its plugin
-// state not yet loaded, but it answers ACCEPT there, and a second return would
-// not be read for an accepted route. filter_community's egress filter never
-// suppresses at all.
+// (plugins/gr/gr_egress.go) was the second instance, on an unloaded plugin
+// state; it stopped being one on 2026-08-07, when that state became a DECISION
+// rather than a non-decision. RFC 9494 Section 4.3 keys the answer on whether
+// the LLGR Capability "has been received", and nothing recorded means it has
+// not, so the destination takes the treatment written for a peer known to lack
+// it (plan/spec-fixit-egress-filter-non-decision-channel.md).
+// filter_community's egress filter never suppresses at all.
 //
 // So widening this signature is NOT currently owed. What the seam did owe was
 // smaller: two of the three call sites of safeEgressFilter DISCARDED the
@@ -267,14 +270,19 @@ func (a *ModAccumulator) Reset() {
 //
 // This is stated here because leaving it unstated cost a live defect. The
 // route-server strip path emits every control community as one concatenated
-// buffer (internal/component/bgp/wireu/community.go:141, reaching Op at
-// reactor/reactor_api_forward.go:635 and reactor/forward_rs.go:342), while the
-// COMMUNITY handler's removal helper accepted ONLY a single value and returned
-// the data untouched otherwise -- silently, with the comment "caller bug". Any
-// route carrying two or more control communities therefore had none of them
-// stripped, and nothing anywhere said so. The handler now accepts a whole number
-// of values and warns on anything else; see
-// internal/component/bgp/plugins/filter_community/handler.go removeValues.
+// buffer: wireu.StripControlCommunities builds it, and both rails reach Op with
+// it -- reactor.reactorAPIAdapter.forwardUpdateCore (reactor_api_forward.go) and
+// reactor.reactorForwardRS (forward_rs.go). The COMMUNITY handler's removal
+// helper accepted ONLY a single value and returned the data untouched otherwise
+// -- silently, with the comment "caller bug". Any route carrying two or more
+// control communities therefore had none of them stripped, and nothing anywhere
+// said so. The handler now admits a whole number of values and warns on anything
+// else; see filter_community.wholeValues and its caller
+// filter_community.genericCommunityHandler.
+//
+// Cited by symbol, never by line. The line numbers this comment carried were
+// moved by the same commit that wrote them, and by the time they were read they
+// named unrelated code.
 //
 // Op does NOT validate this. It has no attribute-width table and runs per
 // forwarded UPDATE; the check belongs at the handler that already knows its own

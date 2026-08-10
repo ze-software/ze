@@ -235,10 +235,17 @@ const removalIndexThreshold = 32
 // removing that defect removed the cap with it.
 //
 // The index also collapses duplicates as it is built, so a peer that repeats
-// one control community 16383 times costs the map one entry rather than 16383.
-// That was the failure of an earlier candidate fix, which built a set per
-// destination with no deduplication and traded 326x better on the worst shape
-// for 16.5x worse and up to a megabyte on a duplicate-heavy one.
+// one control community 16383 times stores one entry rather than 16383.
+//
+// Entries stored is not bytes allocated, and this comment used to stop at the
+// entry count. While it did, the map was built with the raw value count as its
+// size hint and inserted every repeat unconditionally: one entry, 939,312 bytes
+// (measured by TestRemovalSetIndexAllocatesByDistinctValues on the same input).
+// That is 93% of the megabyte that got an earlier candidate fix reverted for
+// building a set per destination with no deduplication -- the defect the comment
+// claimed the code avoided. It costs 272 bytes now. The bytes are what the test
+// asserts, because the entry count is what could not see this
+// (ai/rules/evidence.md).
 type removalSet struct {
 	ops       []filterapi.AttrOp
 	valueSize int
@@ -270,7 +277,34 @@ func newRemovalSet(ops []filterapi.AttrOp, valueSize, valueCount int) removalSet
 	if min(valueCount, removals) <= removalIndexThreshold {
 		return set
 	}
-	set.index = make(map[string]struct{}, removals)
+	// No size hint, and the trade that buys is measured on BOTH shapes a peer
+	// can choose. removals counts RAW values, and a hint is allocated in full
+	// before the first insert. TotalAlloc delta for 16383 four-byte values:
+	//
+	//	shape          shipped (no hint)   hint restored
+	//	16383 x 0:0              272 B         873,744 B
+	//	16383 x 0:X        1,812,792 B         939,264 B
+	//
+	// The hint is therefore right for one shape and wrong for the other. On a
+	// duplicate-heavy buffer it sizes the table by the buffer length, the very
+	// quantity the index exists to stop paying for. On an all-distinct buffer
+	// the buffer length IS the distinct count, so the hint is exactly
+	// right-sized, and the hintless map instead grows geometrically and
+	// discards every intermediate table. Peak peer-controlled bytes ROSE,
+	// 939,264 to 1,812,792, 1.93x.
+	//
+	// The trade was taken deliberately. It removes a peer-controlled CPU
+	// quadratic measured at 874 to 889 ms per destination peer (above). It
+	// costs transient memory, freed when the attribute is written, on a path
+	// whose exponent is now linear. Sizing correctly for both shapes needs a
+	// distinct count that does not exist before the walk, and a counting walk
+	// costs a second pass over the same peer-controlled buffer.
+	//
+	// The left column is what ships and both its rows carry a byte ceiling:
+	// TestRemovalSetIndexAllocatesByDistinctValues holds the first,
+	// TestRemovalSetIndexBoundsAllDistinctValues the second. The right column is
+	// the counterfactual, measured with the hint restored in a scratch harness.
+	set.index = make(map[string]struct{})
 	for i := range ops {
 		if ops[i].Action != filterapi.AttrModRemove {
 			continue
@@ -280,7 +314,15 @@ func newRemovalSet(ops []filterapi.AttrOp, valueSize, valueCount int) removalSet
 		}
 		buf := ops[i].Buf
 		for off := 0; off+valueSize <= len(buf); off += valueSize {
-			set.index[string(buf[off:off+valueSize])] = struct{}{}
+			val := buf[off : off+valueSize]
+			// Look up before inserting. A map READ keyed on string(byteslice)
+			// allocates nothing, an insert must copy the key, and the two lines
+			// together are what makes the cost track DISTINCT values: a repeated
+			// value takes the read and stops there.
+			if _, seen := set.index[string(val)]; seen {
+				continue
+			}
+			set.index[string(val)] = struct{}{}
 		}
 	}
 	return set

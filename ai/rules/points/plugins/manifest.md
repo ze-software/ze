@@ -83,6 +83,10 @@ runtime-filter-declaration-planned-stage-1-wire-protocol ## Runtime Filter Decla
   non-cidr-families-blocking-for-filter-plugin-authors
   what-each-family-set-emits-to-a-filter
   pointer-to-the-non-cidr-filter-contract
+modification-accumulator-buffer-arity ## Modification-Accumulator Buffer Arity (BLOCKING for filter plugin authors)
+  pass-a-whole-number-of-wire-values
+  what-one-op-may-carry-per-list-attribute
+  who-checks-the-arity-and-what-a-violation-costs
 renaming-a-registered-name-blocking ## Renaming a Registered Name (BLOCKING)
   a-registered-name-lives-in-many-loose-strings
   the-bgp-subsystem-rename-that-broke-logging

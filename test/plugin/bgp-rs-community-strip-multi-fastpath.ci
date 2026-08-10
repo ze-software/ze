@@ -2,8 +2,11 @@
 # bgp-rs-community-strip-multi, driven through the route-server FAST-PATH rail.
 #
 # VALIDATES: spec-fixit-rs-community-strip-arity AC-6 -- the two rails strip
-# identically. This one covers reactor/forward_rs.go:347, which carries its own
+# identically. This one covers reactor.reactorForwardRS, which carries its own
 # copy of the strip emission; the general rail is covered by the sibling file.
+#
+# Every citation here names a SYMBOL. The line numbers this header used to carry
+# drifted twice, once onto unrelated code.
 #
 # PREVENTS: a fix landing on one rail only. The rails are selected by config
 # (rs-fast-path on the SOURCE peer), so a one-sided fix would leak on whichever
@@ -11,15 +14,15 @@
 # identical and one of them green.
 #
 # PREVENTS: the leak this test was written for. wireu.StripControlCommunities
-# (internal/component/bgp/wireu/community.go:158) accumulates EVERY matching
-# control community into ONE slice, and the rail passes that whole slice as a
-# single AttrModRemove operation. The consuming helper, removeValues in
-# internal/component/bgp/plugins/filter_community/handler.go, used to accept a
-# buffer of EXACTLY one value and otherwise return the list untouched -- silently,
-# with the comment "caller bug, silently preserve data". So a route tagged with
-# two or more control communities had NONE of them removed and the route server's
-# internal steering tags reached its clients. Exactly one worked, which is why
-# this went unnoticed. There was no test on this path at all.
+# accumulates EVERY matching control community into ONE slice, and the rail
+# passes that whole slice as a single AttrModRemove operation. The consuming
+# handler, filter_community.genericCommunityHandler, used to reach a helper that
+# accepted a buffer of EXACTLY one value and otherwise returned the list
+# untouched -- silently, with the comment "caller bug, silently preserve data".
+# So a route tagged with two or more control communities had NONE of them
+# removed and the route server's internal steering tags reached its clients.
+# Exactly one worked, which is why this went unnoticed. There was no test on
+# this path at all.
 #
 # WHY THE RAIL IS THE FAST PATH: rs-fast-path is a SOURCE-side gate
 # (bgp-rs-reactor-fastpath-fallback.ci documents this), so setting it on the
@@ -47,10 +50,10 @@ option=conn_map:value=remote-ip
 #   0000FDE7  0:64999        control -> stripped. Blacklists another absent AS.
 #   FDE8FDEA  65000:65002    control -> stripped. This is the RS:X form, so it
 #                            also exercises the second strip rule. Semantically
-#                            it WHITELISTS 65002 (community.go:128-133), which is
-#                            the receiver, so the route is still forwarded --
-#                            deliberate: it proves the decision keeps working
-#                            while the tag itself is removed.
+#                            it WHITELISTS 65002 (wireu.parseCommunityAttr),
+#                            which is the receiver, so the route is still
+#                            forwarded -- deliberate: it proves the decision
+#                            keeps working while the tag itself is removed.
 #   FDE900C8  65001:200      ORDINARY -> must survive, after 65001:100.
 #
 # Attribute: C0 08 14 (optional transitive, COMMUNITY, 20 bytes) + the five values.
@@ -65,9 +68,9 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # attribute holding EXACTLY the two ordinary values, in order.
 #
 #   D0    flags: optional transitive + extended length. genericCommunityHandler
-#         always writes the extended form (handler.go:128), so the forwarded
-#         attribute header differs from the source's C0 even though the strip is
-#         the only change -- do not "correct" this to C0.
+#         always writes the extended form (filter_community.emitCommunity), so
+#         the forwarded attribute header differs from the source's C0 even
+#         though the strip is the only change -- do not "correct" this to C0.
 #   08    COMMUNITY
 #   0008  eight bytes: TWO values remain of the five sent.
 #   FDE90064 FDE900C8   65001:100 then 65001:200.
@@ -123,10 +126,11 @@ bgp {
 			# LOAD-BEARING, and its absence is why an earlier draft of this test
 			# saw all five communities arrive intact even against the FIXED
 			# binary: session/rs-client defaults to false, and both the strip
-			# emission (reactor_api_forward.go:642 `facts.rsClient`) and the
-			# RFC 7947 policy branch above it are gated on it. Without the leaf
-			# no AttrModRemove is ever accumulated, so there is nothing for the
-			# community handler to do and the attribute is copied through.
+			# emission (`facts.rsClient` in
+			# reactor.reactorAPIAdapter.forwardUpdateCore) and the RFC 7947 policy
+			# branch above it are gated on it. Without the leaf no AttrModRemove is
+			# ever accumulated, so there is nothing for the community handler to do
+			# and the attribute is copied through.
 			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -163,10 +167,11 @@ bgp {
 			# LOAD-BEARING, and its absence is why an earlier draft of this test
 			# saw all five communities arrive intact even against the FIXED
 			# binary: session/rs-client defaults to false, and both the strip
-			# emission (reactor_api_forward.go:642 `facts.rsClient`) and the
-			# RFC 7947 policy branch above it are gated on it. Without the leaf
-			# no AttrModRemove is ever accumulated, so there is nothing for the
-			# community handler to do and the attribute is copied through.
+			# emission (`facts.rsClient` in
+			# reactor.reactorAPIAdapter.forwardUpdateCore) and the RFC 7947 policy
+			# branch above it are gated on it. Without the leaf no AttrModRemove is
+			# ever accumulated, so there is nothing for the community handler to do
+			# and the attribute is copied through.
 			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }

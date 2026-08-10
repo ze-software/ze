@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"log/slog"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -879,9 +880,22 @@ func TestRemovalSetAnswersAgreeAcrossRepresentations(t *testing.T) {
 // candidate fix worse than the defect: a duplicate-heavy removal buffer must not
 // cost one map entry per duplicate.
 //
-// VALIDATES: memory stays bounded by DISTINCT values, not by buffer length.
-// PREVENTS: the 16.5x regression and up-to-a-megabyte growth the reviewers
-// measured against a set built without deduplication.
+// VALIDATES: a duplicate-heavy removal buffer yields one index ENTRY per
+// distinct value, and the collapsed value is still removed.
+// PREVENTS: a representation that carries one entry per buffer value, which a
+// slice or a multiset index would, and a deduplicating build that loses the
+// value it collapsed.
+// CANNOT SEE: bytes. An entry count is a property of a Go map, so this assertion
+// stayed green under the pre-fix build, which allocated 234,864 bytes at this
+// test's 4096 values to store its single entry. That is what the byte ceiling in
+// TestRemovalSetIndexAllocatesByDistinctValues is for, and that test measures the
+// same shape at 16383 values, where the pre-fix build cost 939,312.
+//
+// Those last two digits have now been wrong twice, in opposite directions, in
+// this one comment. 939,312 is the DUPLICATE-HEAVY shape under the pre-fix build
+// (hint plus unconditional insert). 939,264 is the ALL-DISTINCT shape with the
+// hint restored, which is a different test's counterfactual. They differ by 48
+// bytes. Read the table above `newRemovalSet` before changing either.
 func TestRemovalSetDeduplicatesIndexEntries(t *testing.T) {
 	const size = 4
 	const count = 4096
@@ -895,6 +909,96 @@ func TestRemovalSetDeduplicatesIndexEntries(t *testing.T) {
 	require.True(t, set.indexed(), "4096 values must index")
 	assert.Len(t, set.index, 1, "%d identical values must collapse to one entry", count)
 	assert.True(t, set.has(buildCommunityValues(0x0100_0001)), "the one distinct value is still removed")
+}
+
+// maxDistinctIndexBytes bounds what one removalSet index may allocate for a
+// removal buffer holding ONE distinct value. A map with a single entry needs a
+// header, one group and one four-byte key. The bound is loose enough that a
+// runtime map-layout change does not fail it, and two orders of magnitude below
+// what a raw-count size hint costs at the same input.
+const maxDistinctIndexBytes = 8192
+
+// TestRemovalSetIndexAllocatesByDistinctValues measures what the index COSTS,
+// which the entry count above cannot see.
+//
+// VALIDATES: the bytes newRemovalSet allocates track distinct values, not the
+// raw value count of the removal buffer.
+// PREVENTS: sizing the map from the undeduplicated count, and inserting each
+// repeat. A size hint of 16383 allocates the whole table before the first
+// insert: one entry, and 939,312 bytes measured here -- 93% of the megabyte that
+// got the earlier candidate fix reverted, reachable from one peer repeating 0:0.
+// This is the 16.5x regression and the up-to-a-megabyte growth the reviewers
+// measured against a set built without deduplication, and an entry count cannot
+// see either one (ai/rules/evidence.md: entries stored is not bytes allocated).
+func TestRemovalSetIndexAllocatesByDistinctValues(t *testing.T) {
+	const size = 4
+	const count = 16383 // the RFC 4271 attribute ceiling, 65532 octets
+
+	values := make([]uint32, count)
+	for i := range values {
+		values[i] = 0 // 0:0, which StripControlCommunities matches on high == 0
+	}
+	ops := removalOps(buildCommunityValues(values...))
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	set := newRemovalSet(ops, size, count)
+	runtime.ReadMemStats(&after)
+
+	used := after.TotalAlloc - before.TotalAlloc
+	t.Logf("%d identical values indexed in %d bytes (ceiling %d)", count, used, maxDistinctIndexBytes)
+
+	require.True(t, set.indexed(), "16383 values must index, or this measures the scan")
+	assert.Len(t, set.index, 1, "%d identical values must collapse to one entry", count)
+	assert.LessOrEqual(t, used, uint64(maxDistinctIndexBytes),
+		"one distinct value cost %d bytes: the index is sized by the raw value count, "+
+			"so a peer repeating one control community pays for a table it never fills", used)
+}
+
+// maxAllDistinctIndexBytes bounds what one removalSet index may allocate for the
+// shape the dropped size hint made WORSE: 16383 DISTINCT four-byte values, the
+// RFC 4271 attribute ceiling. Here the buffer length IS the distinct count, so a
+// hint would have been exactly right-sized, and the hintless map instead grows
+// geometrically and discards each intermediate table.
+//
+// Measured by the test below on the shipped code: 1,812,792 bytes on a plain
+// build, 2,072,584 under -race. Three mebibytes is 1.52x the worse of the two.
+// That is loose enough for the race detector's own overhead and for a runtime
+// map-layout change, and tight enough to catch what would matter: one further
+// doubling of the table costs about the final table again, near four megabytes,
+// and rebuilding the set per source value costs orders of magnitude more.
+const maxAllDistinctIndexBytes = 3 << 20
+
+// TestRemovalSetIndexBoundsAllDistinctValues bounds the half of the allocation
+// trade that got worse, so it cannot grow further in silence.
+//
+// VALIDATES: an all-distinct removal buffer at the attribute ceiling allocates
+// within maxAllDistinctIndexBytes.
+// PREVENTS: the accepted trade widening unwatched. Dropping the size hint cut
+// the duplicate-heavy shape from 873,744 bytes to 272 and raised this one from
+// 939,264 to 1,812,792, 1.93x. That was accepted to remove a peer-controlled CPU
+// quadratic, not to leave peak peer-controlled memory unmeasured, and this is the
+// only test that can see the raised half.
+func TestRemovalSetIndexBoundsAllDistinctValues(t *testing.T) {
+	const size = 4
+	const count = 16383 // the RFC 4271 attribute ceiling, 65532 octets
+
+	// 0:0 through 0:16382. Every value distinct, and every one a form
+	// StripControlCommunities matches, so this is a shape a peer can send.
+	ops := removalOps(repeatedCommunities(0, count))
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	set := newRemovalSet(ops, size, count)
+	runtime.ReadMemStats(&after)
+
+	used := after.TotalAlloc - before.TotalAlloc
+	t.Logf("%d distinct values indexed in %d bytes (ceiling %d)", count, used, maxAllDistinctIndexBytes)
+
+	require.True(t, set.indexed(), "16383 values must index, or this measures the scan")
+	assert.Len(t, set.index, count, "%d distinct values must each be stored", count)
+	assert.LessOrEqual(t, used, uint64(maxAllDistinctIndexBytes),
+		"%d distinct values cost %d bytes: the shape the size hint used to cover has grown", count, used)
 }
 
 // TestRemovalSetIgnoresMalformedBufferForThreshold proves a refused operation

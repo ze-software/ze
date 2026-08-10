@@ -723,6 +723,28 @@ base path and Prepend is inserted in front of that base. This keeps export
 actions such as `remove-private-as` ordered before the normal EBGP local-AS
 prepend.
 
+**Buffer arity, list-valued attributes (caller obligation).** For an attribute
+whose value is a list of fixed-width wire values -- COMMUNITY (4 octets),
+EXTENDED_COMMUNITY (8), LARGE_COMMUNITY (12) -- `Buf` MUST hold a whole number of
+those values, concatenated. Several values in ONE operation is explicitly
+allowed and means "every one of them". `Op` does not check this: it has no
+attribute-width table and runs per forwarded UPDATE, so the check belongs to the
+handler that already knows its own width. `filter_community.wholeValues` makes
+it, and `filter_community.genericCommunityHandler` refuses the operation, logs
+the producing code and width, and counts
+`ze_bgp_attr_mod_remove_buffer_refused_total`.
+
+The rule is written here because leaving it implicit cost a live leak.
+`wireu.StripControlCommunities` emits every route-server control community as one
+concatenated buffer, both forward rails pass that buffer as a single
+`AttrModRemove`, and the consumer accepted exactly one value and returned the
+list untouched otherwise -- in silence. Every route carrying two or more control
+communities kept all of them.
+
+<!-- source: internal/component/bgp/plugins/filter_community/handler.go -- wholeValues, genericCommunityHandler -->
+<!-- source: internal/component/bgp/wireu/community.go -- StripControlCommunities -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- RecordRemoveBufferRefused -->
+
 ### Progressive Build (applyMods)
 
 When `mods.Len() > 0`, the forward path runs a single-pass progressive build into a pooled buffer.

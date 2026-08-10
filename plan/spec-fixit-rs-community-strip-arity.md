@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | - |
-| Updated | 2026-07-28 |
+| Deferral shard | `plan/deferrals/fixit-rs-community-strip-arity.md` |
+| Updated | 2026-08-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -217,7 +217,7 @@ Option B, in three parts:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Route-server client sends a route tagged with two `0:<asn>` control communities | → | `StripControlCommunities` builds an eight-byte buffer, `removeValues` drops both | `test/plugin/bgp-rs-community-strip-multi.ci` |
+| Route-server client sends a route tagged with two `0:<asn>` control communities | → | `StripControlCommunities` builds an eight-byte buffer, `genericCommunityHandler` accepts it through `wholeValues` and drops both | `test/plugin/bgp-rs-community-strip-multi.ci` |
 | Same route on the route-server fast-path rail | → | `forward_rs.go` operation reaches the same handler | `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` |
 | Route tagged with exactly one control community | → | unchanged single-value path | `test/plugin/bgp-rs-community-strip-multi.ci` (single-value case in the same scenario) |
 | Configured `community { egress strip NAME }` on an ordinary peer | → | per-value operations from `egress.go`, behaviour unchanged | existing `test/plugin/community-strip.ci` |
@@ -547,12 +547,18 @@ reachable.
 ## Review Follow-Up (2026-07-28, session 63608781)
 
 Three INDEPENDENT reviewers (logic, security, tests) were run over the shipped
-commit plus a candidate follow-up fix. RF-2 and RF-3 are fixed here. **RF-1 is
-NOT fixed**: a fix was written, the reviewers found it traded one peer-driven
-cost for another, and it was reverted on owner direction because this code is
-expected to be replaced wholesale by spec-wire-edit-2-edit-apply. **That spec CLOSED on 2026-08-02 without touching this code**, so the contract stands.
+commit plus a candidate follow-up fix. RF-2 and RF-3 were fixed at the time.
 
-### RF-1 (BLOCKER, NOT FIXED): the arity fix removed an accidental O(1) short-circuit and exposed a peer-controlled quadratic
+**RF-1 IS FIXED. The section below is the record of how it stood on 2026-07-28,
+kept because the measurements in it are what the fix had to beat.** A first fix
+was written, the reviewers found it traded one peer-driven cost for another, and
+it was reverted on owner direction because this code was expected to be replaced
+wholesale by spec-wire-edit-2-edit-apply. That spec CLOSED on 2026-08-02 without
+touching this code, so the contract stood and the defect was fixed here instead:
+`newRemovalSet` on 2026-08-05, and its allocation residue (RF-1a) on 2026-08-10.
+Read this section as history, and the Findings-fixed table as the current state.
+
+### RF-1 (BLOCKER, FIXED 2026-08-05): the arity fix removed an accidental O(1) short-circuit and exposed a peer-controlled quadratic
 
 `removeValues` called `containsValue` once per retained value, a nested scan over
 two operands that are BOTH peer-controlled on the route-server path: `data` is
@@ -648,6 +654,103 @@ mutation-verified: the mutation is stated with the result.
 | `data = data[:65535]` truncates mid-value | Already resolved by the rewrite | No truncation exists. The cap is `attrValueMax` in `internal/component/bgp/filterapi/editset.go`, and every site that meets it REFUSES: `AttrPlan.appendFragment`, `AttrPlan.New` and `AttrPlan.NewByte` each call `p.Fail()`. The plugin's own ingress path (`filter.go`) likewise returns nil rather than truncating. |
 | Empty `toRemove` is untested | Fixed | `TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp` pins nil and `[]byte{}`: the attribute is forwarded unchanged, nothing is logged, the refusal counter is not touched. Mutation: `wholeValues` rejects the empty buffer -- red on both the log and the counter assertions. |
 
+## Implementation Summary (closure, 2026-08-10)
+
+The dated section above is the 2026-07-28 record of the first landing and is
+kept as history. This is the shipped state at closure.
+
+### What Was Implemented
+
+- `wholeValues` and a rewritten `genericCommunityHandler`
+  (`internal/component/bgp/plugins/filter_community/handler.go`). A Remove
+  buffer holding N whole values removes all N. A buffer whose length is not a
+  whole multiple of the attribute width is refused per operation, logged with
+  `attribute-code`, `value-size` and `buffer-length`, and counted as
+  `ze_bgp_attr_mod_remove_buffer_refused_total`. The attribute's other
+  operations still apply. The helper the spec named, `removeValues`, is gone:
+  the handler plans retained runs itself.
+- `newRemovalSet` in the same file: the membership representation is chosen ONCE
+  per attribute, above the loop over source values, scanning below
+  `removalIndexThreshold` and answering from a map above it, thresholded on
+  `min(source values, removal values)`. It carries no size hint and reads each
+  value before inserting it, so the index cost tracks DISTINCT values.
+- `filterapi.ModAccumulator.Op` states the arity obligation where the caller
+  reads it, by symbol and never by line
+  (`internal/component/bgp/filterapi/filterapi.go`).
+- The counter and its wiring: `filterapi.RecordRemoveBufferRefused`
+  (`internal/component/bgp/filterapi/metrics.go`), enabled from the reactor's
+  metrics block, in `filterapi` rather than in the plugin because the AttrMod
+  handlers register at `init()` and run whether or not the owning plugin runs.
+- Tests: 26 in `filter_community/handler_test.go`, 6 in `wireu/community_test.go`,
+  4 in `filterapi/metrics_test.go`, and both route-server rails end to end in
+  `test/plugin/bgp-rs-community-strip-multi.ci` and its `-fastpath` sibling.
+- The contract written down where the next author meets it: three points under
+  `ai/rules/points/plugins/modification-accumulator-buffer-arity/`, rendered into
+  `ai/rules/plugins.md`, and the "Buffer arity, list-valued attributes"
+  subsection of `docs/architecture/core-design.md`.
+
+### Bugs Found/Fixed
+
+- The leak itself: a route carrying two or more control communities kept all of
+  them. Covered by both `.ci` files, mutation-verified (restoring the old guard
+  turns both red with the leak printed).
+- The fail-open guard that had hidden it since introduction. Covered by
+  `TestRemoveValuesNonMultipleRefusedLoudly` and
+  `TestGenericCommunityHandlerWarnsOnNonMultiple`.
+- RF-1, a peer-controlled quadratic the arity fix exposed (874 to 889 ms per
+  destination peer). Covered by `TestRemovalSetIndexesOnlyAboveThreshold`.
+- RF-1a, its residue: an index SIZED by the raw value count, 939,312 bytes for
+  one repeated value with one entry stored. Covered by
+  `TestRemovalSetIndexAllocatesByDistinctValues` (272 bytes) and, on the other
+  side of the trade, `TestRemovalSetIndexBoundsAllDistinctValues`.
+- A malformed source value would have emitted an attribute length no peer sent.
+  The handler refuses it and fails the plan:
+  `TestGenericCommunityHandlerRefusesMalformedSourceValue` at all three widths.
+- Three test-quality defects the reviewers found: a vacuous refusal-message
+  assertion, no discriminating coverage at widths 8 and 12, and an untested
+  empty `toRemove`. All three are fixed and each fix is mutation-verified.
+- One find NOT fixed here, and recorded rather than carried: the whole-value
+  check covers the Remove buffer and the source value, but not the Add buffer.
+  It is unreachable today (all three Add producers allocate exactly
+  `len(tokens)*width` or a fixed array), so it is a row in
+  `plan/journal/gate-excludes-part-of-its-population.md` naming the fix it
+  needs, not a change in this commit.
+
+### Documentation Updates
+
+- `docs/guide/bgp-policy.md`: the route-server control-community convention.
+  Landed with the first commit.
+- `docs/plugin-development/metrics.md`: the counter, with a source anchor on
+  `internal/component/bgp/filterapi/metrics.go` (RF-3). Landed with the first
+  commit.
+- `ai/rules/plugins.md` and the three points under
+  `ai/rules/points/plugins/modification-accumulator-buffer-arity/`
+  (Documentation checklist row 8). In this commit.
+- `docs/architecture/core-design.md`, "Buffer arity, list-valued attributes
+  (caller obligation)", with source anchors on
+  `filter_community.wholeValues`, `wireu.StripControlCommunities` and
+  `filterapi.RecordRemoveBufferRefused` (row 12). In this commit.
+- Anchor evidence: `python3 scripts/dev/code_to_docs.py --check` reports
+  "checked 2043 code paths, 500 packages", `ai/CODE-TO-DOCS.md` up to date, "all
+  references valid". `make ze-doc-test` was NOT run in this closure session: the
+  machine carries a temporary memory limit that bars every test suite, and the
+  session was instructed to name any suite it could not run instead of running
+  it.
+
+### Deviations from Plan
+
+- The refusal is reported by the CALLER, not inside the helper the spec named.
+  `removeValues` returned `(data, ok)` for that reason, and the handler rewrite
+  then deleted the helper entirely; `wholeValues` is where the arity is judged
+  today.
+- The refusal counter shipped, contrary to the "Not done" note in the 2026-07-28
+  summary, and it lives in `filterapi` rather than in `filter_community`.
+- `TestRSStripEndToEndBothRails` was superseded by the two `.ci` files, which
+  exercise both rails through the daemon rather than through a Go test.
+- Nothing in the plan anticipated that removing a rejecting guard also removes a
+  cost bound. RF-1 and RF-1a are entirely outside the original design, and they
+  are what turned a one-file fix into four review passes.
+
 ## Mistake Log
 
 | # | What happened | Root cause | Rule that would have caught it |
@@ -656,18 +759,19 @@ mutation-verified: the mutation is stated with the result.
 | 2 | Eleven citations in the commit's own artefacts pointed at lines the same commit moved (RF-2). | Citations were written against the pre-edit file and not re-resolved after the edit. | `ai/rules/evidence.md` mandates the citation form, but no gate covers comments in `.go` or `.ci`. |
 | 3 | The Documentation checklist promised a metrics entry that was never written (RF-3). | The checklist was filled at design time and never re-verified at closure. | The Pre-Commit Verification "Documentation Verified" table, unreached because the closure template was never appended. |
 | 4 | Commit A landed without the closure template, so there was no Review Gate, Implementation Audit or Pre-Commit Verification section to fail. | The two-commit closure was started and abandoned mid-way; the session moved to another spec. | `ai/rules/planning.md` Spec Closure, enforced by `scripts/dev/spec-closure-check.py --spec` (exit 3), which was not run. |
+| 5 | The RF-1 fix sized the map from the raw value count, so the fix for a CPU quadratic allocated 939,312 bytes for one repeated value and stored one entry (RF-1a). | A size hint reads as free, and the input whose SHAPE the fix exists to handle -- a duplicate-heavy buffer -- is exactly the input the hint sizes wrongly. | `ai/rules/performance.md`: a hint is a claim about the distinct count, and the review pass that measured it is what caught it. |
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| A Remove buffer of N values removes all N | done | `handler.go` `removeValues` | Option B as chosen |
+| A Remove buffer of N values removes all N | done | `handler.go` `wholeValues`, consumed by `genericCommunityHandler` | Option B as chosen. The `removeValues` helper the row used to name was deleted by the handler rewrite: the handler plans retained runs itself |
 | A non-multiple length is refused loudly | done | `handler.go` refusal branch, warning plus counter | `filterapi/metrics.go` |
 | The arity obligation documented on `ModAccumulator.Op` | done | `internal/component/bgp/filterapi/filterapi.go` | |
 | The route-server convention documented | done | `docs/guide/bgp-policy.md` | |
 | The refusal is observable | done | `ze_bgp_attr_mod_remove_buffer_refused_total`, now also in `docs/plugin-development/metrics.md` | RF-3 |
-| No peer-controlled quadratic on the strip path | **DONE, elsewhere** | `TestRemovalSetIndexesOnlyAboveThreshold` | RF-1. A fix was written here and then reverted. See the RF-1 section. The shard `plan/deferrals/fixit-rs-community-strip-arity.md` re-homed it, and its RF-1 row now reads `done`. The quadratic went on 2026-08-05 with `newRemovalSet` in `internal/component/bgp/plugins/filter_community/handler.go` |
+| No peer-controlled quadratic on the strip path | done | `newRemovalSet` in `internal/component/bgp/plugins/filter_community/handler.go`, pinned by `TestRemovalSetIndexesOnlyAboveThreshold` | RF-1. A first fix was written here and reverted; the shard `plan/deferrals/fixit-rs-community-strip-arity.md` re-homed it and the quadratic went on 2026-08-05. Its residue, a map sized by the raw value count, is RF-1a and is fixed here |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -691,19 +795,22 @@ mutation-verified: the mutation is stated with the result.
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/component/bgp/plugins/filter_community/handler.go` | done | arity fix only; the RF-1 change was reverted |
+| `internal/component/bgp/plugins/filter_community/handler.go` | done | arity fix, then `newRemovalSet` for RF-1, then the RF-1a allocation fix |
 | `internal/component/bgp/filterapi/filterapi.go` | done | `Op` documents the arity obligation |
 | `internal/component/bgp/wireu/community.go` | done | doc comment states the multi-value return |
 | `internal/component/bgp/reactor/reactor_api_forward.go` and `forward_rs.go` | done | comments naming the contract at both emission sites |
 | `docs/guide/bgp-policy.md` | done | the convention documented |
 | `docs/plugin-development/metrics.md` | done | RF-3 |
 | `internal/component/bgp/filterapi/metrics.go` and `metrics_test.go` | done | beyond plan: the counter |
+| `ai/rules/points/plugins/modification-accumulator-buffer-arity/` and the rendered `ai/rules/plugins.md` | done | Documentation checklist row 8 |
+| `docs/architecture/core-design.md` | done | Documentation checklist row 12 |
 
 ### Audit Summary
 Every AC is demonstrated. Two files were added beyond the plan (the metrics pair)
-and one planned Go test was superseded by stronger functional coverage. The review
-pass found one BLOCKER-severity defect (RF-1) that is NOT fixed here, plus two
-documentation fixes that are.
+and one planned Go test was superseded by stronger functional coverage. The
+review passes found two BLOCKER-severity defects on the same code path, RF-1 and
+its residue RF-1a, and both are fixed and pinned by a test that goes red without
+the fix. Every documentation row answered Yes is written.
 
 ## Goal Validation (BLOCKING)
 
@@ -712,45 +819,77 @@ documentation fixes that are.
 | A route carrying two or more control communities has all of them stripped | Both `.ci` files pass, and the implementing session mutation-verified that restoring the original guard turns both red with the leak visible: `COMMUNITIES: 0:64998 65001:100 0:64999 65000:65002 65001:200` |
 | The single-value path is unchanged | `test/plugin/community-strip.ci` and `TestRemoveValuesSingleUnchanged` green |
 | A contract violation is visible in production | warning plus `ze_bgp_attr_mod_remove_buffer_refused_total`, documented |
-| The strip cannot be turned into a denial of service by a peer | **NOT MET.** Measured on the shipped code: 874-889 ms of CPU per destination peer for a 16383-value all-control COMMUNITY attribute. See RF-1. |
+| The strip cannot be turned into a denial of service by a peer | **MET on CPU, and the memory trade is stated, not hidden.** `newRemovalSet` (`internal/component/bgp/plugins/filter_community/handler.go`) chooses the membership representation ONCE per attribute, above the loop over source values, and answers from a map above `removalIndexThreshold`, so the 874 to 889 ms per destination peer is gone. `TestRemovalSetIndexesOnlyAboveThreshold` pins the representation on both sides of the boundary and on each operand independently, including the measured attack shape. **Allocation moved in both directions**, measured over 16383 four-byte values, the RFC 4271 attribute ceiling: an all-`0:0` buffer fell from 873,744 bytes to 272 (`TestRemovalSetIndexAllocatesByDistinctValues`), and an all-distinct `0:X` buffer ROSE from 939,264 to 1,812,792, 1.93x, because a hintless Go map grows geometrically and discards each intermediate table (`TestRemovalSetIndexBoundsAllDistinctValues`, ceiling 3 MiB). What was traded: a bounded rise in transient memory, freed when the attribute is written, for the removal of a peer-controlled CPU quadratic. Both halves now carry a byte ceiling, so neither can grow in silence. |
 
 ## Deferrals Resolved
 
+The shard is `plan/deferrals/fixit-rs-community-strip-arity.md`, named in the
+metadata table above. It carries three rows and all three are `done`, so it is
+terminal and the closure commit removes it (`ai/rules/planning.md`: a shard
+still holding a live row outlives its source spec; this one holds none). No row
+in it names another spec's shard, so this closure empties no foreign shard.
+
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
-| none | n-a | The metadata table records `Deferral shard: -`; no shard was created, and no file under `plan/deferrals/` names this spec. |
+| 2026-07-28, RF-1: the peer-controlled quadratic | done | RESOLVED 2026-08-05. `newRemovalSet` picks the representation once per attribute; `TestRemovalSetIndexesOnlyAboveThreshold`. The row's own residue, a map sized by the raw value count, is fixed here as RF-1a and measured by `TestRemovalSetIndexAllocatesByDistinctValues` |
+| 2026-07-28, RF-2 remainder: three stale `file:line` citations in the `removeValues` doc comment | done | RESOLVED before 2026-08-05. `removeValues` and its comment no longer exist. The same class in this spec's other artefacts is re-anchored by SYMBOL here: both `.ci` headers, `wireu/community_test.go`, and the `ModAccumulator.Op` contract comment |
+| 2026-07-28, reviewer NOTE: the refusal-message test was vacuous | done | RESOLVED before 2026-08-05. The assertions name `buffer-length=3`, `attribute-code=8` and `value-size=4` |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | NOT RECORDED |
-| `review_gate.py check` | not run |
-| Reviewer lenses used | none qualifying |
+| Artifact | `tmp/review/fixit-rs-community-strip-arity-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean. Exit 0, all six file hashes match, re-run immediately before the closure commit was prepared |
+| Rounds | 4. Round 2 earned the extra passes and `--rounds-reason` names it: RF-1a, a peer-reachable 939,312-byte allocation in `newRemovalSet`, sized by the raw value count while storing one entry. Rounds 3 and 4 each re-read what the previous round's fix wrote |
+| Reviewer lenses used | logic, security and tests over the shipped commit (2026-07-28, three independent reviewers); allocation and cost over the RF-1 fix (2026-08-05); measurement consistency across `handler.go`, `handler_test.go` and this spec (2026-08-10, final pass) |
 
-**This gate is NOT satisfied. The spec MUST NOT be closed until it is.**
+The final pass returned 0 BLOCKER, 0 ISSUE, 3 NOTE. Its verdict is `clean`, it
+holds no edit tools, and it re-read `newRemovalSet` from source: no size hint,
+read before insert, both `wholeValues` guards present, threshold on
+`min(valueCount, removals)`. It also verified that the `handler_test.go` diff
+changes no assertion: it deletes exactly three comment lines and adds the rest.
 
-`scripts/dev/review_gate.py` requires an artifact written by INDEPENDENT
-reviewers, "subagents / a fresh session, never the author's own inline
-reasoning", hash-pinned to the exact file contents being committed.
-`scripts/dev/commit_helper.py` refuses a closure commit without a fresh, clean,
-matching artifact, and any edit after the review invalidates it.
+**Why the earlier passes could not record the artifact.** Session 63608781 wrote
+code in this spec (an RF-1 fix, since reverted), so its own pass did not qualify;
+three independent reviewers ran instead and their findings are under Review
+Follow-Up. The 2026-08-10 pass produced seven findings and its remediation round
+wrote code, and the second remediation round for F1, F2 and F3 wrote code as
+well. Each fix is new code that needs a fresh pass (`ai/rules/planning.md`), so
+each of those rounds hands the artifact to the next pass rather than recording
+its own. The pass recorded above wrote nothing.
 
-Session 63608781 wrote code in this spec (an RF-1 fix, since reverted), so its own
-pass did not qualify; three independent reviewers were run instead and their
-findings are recorded above. The findings recorded under Review Follow-Up came from
-that pass and are real, but they do not substitute for the artifact.
+`internal/component/bgp/filterapi/filterapi.go` also carries a second,
+comment-only hunk from spec-fixit-egress-filter-non-decision-channel, in the
+`EgressFilterFunc` doc comment. The two hunks are disjoint and every symbol
+either one names resolves at HEAD, so whichever spec commits first carries a
+correct, compiling comment for the other. This closure carried the file, so it
+carried that hunk too, and the closure commit body says so.
 
-To satisfy: run an independent review over the five changed files listed in
-Pre-Commit Verification, then record the artifact with `scripts/dev/review_gate.py
-record --spec fixit-rs-community-strip-arity --verdict clean --files ...`.
+### Notes recorded (record-only, no product defect)
+
+The final pass called all three "worth correcting, not blocking". None is a
+defect in shipped behaviour, and none earned another round
+(`ai/rules/planning.md`: a finding in the record is not a finding in the
+product). Each names the next touch of the file as its home, because editing a
+hashed file after the artifact was written invalidates the gate.
+
+| # | Note | Where it lives | Disposition |
+|---|------|----------------|-------------|
+| N-1 | The `-race` allocation figure is stated to the byte and is not run-stable. Three isolated `-race -count=1` runs measured 2,081,184 / 2,081,552 / 2,009,384 bytes: a 1.8% spread, none of them the recorded 2,072,584, and the derived 1.52x headroom is 1.51x at the worst value. The PLAIN figure is exact and reproducible: 1,812,792 on three isolated runs | `maxAllDistinctIndexBytes`'s comment in `internal/component/bgp/plugins/filter_community/handler_test.go` | This spec's copy is corrected to "about 2.07 MB" with the spread (F2 row above). The comment still states the byte figure and should read "about 2.07 MB (measured 2,009,384 to 2,081,552 over three isolated runs)" the next time that file is touched for another reason. The ceiling and its rationale are unaffected: 3 MiB still leaves 1.51x headroom over the worst observed value and still catches one further table doubling |
+| N-2 | "Read the table above `newRemovalSet`" misdirects by one preposition. The two-shape table is INSIDE `newRemovalSet`, above the `set.index = make(...)` line; what sits above the function is the `removalSet` type comment. The symbol is right | the new paragraph in `internal/component/bgp/plugins/filter_community/handler_test.go` | Correct "above" to "inside" on the next touch of that file. Navigation only; the named symbol already leads the reader to the right place |
+| N-3 | `removeValues` is written in the present tense in the "Implementation Summary (2026-07-28, session dd843d81)" section, and that helper no longer exists | this spec, dated-history section | Left as written, deliberately. The section is dated history of a superseded implementation and the audit tables above state explicitly that the helper was deleted by the handler rewrite, so a reader who reaches the heading is not misled |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| RF-1 | BLOCKER | peer-controlled quadratic on the strip path | `filter_community/handler.go` `removeValues` | **NOT FIXED.** Deferred, see the RF-1 section |
+| RF-1 | BLOCKER | peer-controlled quadratic on the strip path | `filter_community/handler.go`, the per-value membership test now in `removedByAny` | **FIXED 2026-08-05.** `newRemovalSet` picks the representation once per attribute, above the per-value loop, and answers from a map above `removalIndexThreshold`. Pinned by `TestRemovalSetIndexesOnlyAboveThreshold` |
+| RF-1a | BLOCKER | the index was SIZED by the raw value count, so one repeated value allocated 939,312 bytes with one entry stored | `filter_community/handler.go` `newRemovalSet` | **FIXED 2026-08-10.** Size hint dropped, and each value is looked up before it is inserted, so the cost tracks distinct values: 272 bytes on the same input. `TestRemovalSetIndexAllocatesByDistinctValues` measures the bytes and goes red against the hint. The comment claiming the index "costs the map one entry rather than 16383" is corrected to say what the code does. What dropping the hint costs on the all-distinct shape is F1 and F2 below |
 | RF-2 | ISSUE | eleven stale self-citations | `handler.go`, both `.ci` files | re-pointed to current positions |
 | RF-3 | ISSUE | new metric undocumented | `docs/plugin-development/metrics.md` | inventory row plus source anchor |
+| F1 | -- | the comment justifying the dropped size hint stated one shape as if it covered both: true for a duplicate-heavy buffer, false for a distinct one where the buffer length IS the distinct count | `filter_community/handler.go` `newRemovalSet` | **FIXED 2026-08-10 (round 2).** The comment now carries both shapes and their measured bytes, the 1.93x rise on the distinct shape, and the reason the trade was taken. The Goal Validation row says the same. No behaviour change: the hint stays dropped by decision |
+| F2 | -- | only the improved shape had a byte ceiling, so the regressed one could grow in silence | `filter_community/handler_test.go` | **FIXED 2026-08-10 (round 2).** `TestRemovalSetIndexBoundsAllDistinctValues` bounds 16383 distinct values at `maxAllDistinctIndexBytes` (3 MiB), measured 1,812,792 bytes on a plain build (exact and reproducible over three isolated runs) and about 2.07 MB under `-race`, where the figure is not run-stable: 2,081,184 / 2,081,552 / 2,009,384 over three isolated runs, a 1.8% spread. See note N-1 below |
+| F3 | -- | the byte-growth `PREVENTS:` line sat on `TestRemovalSetDeduplicatesIndexEntries`, whose entry-count assertion was green under the pre-fix code | `filter_community/handler_test.go` | **FIXED 2026-08-10 (round 2).** The line moved to the byte tests. The entry test now says what an entry count pins, and that it cannot see bytes |
 
 ## Pre-Commit Verification
 
@@ -770,7 +909,7 @@ record --spec fixit-rs-community-strip-arity --verdict clean --files ...`.
 | AC-1, AC-2, AC-6 | all control communities stripped on both rails | functional runner: `pass 2/2 100.0% 2.4s`, tests 86 and 87 |
 | AC-3, AC-4, AC-5, AC-7 | single-value unchanged, empty omits, refusal loud, all widths | `go test ./internal/component/bgp/plugins/filter_community/` ok, 27 tests including all four |
 | AC-8 | forwarding decision unaffected | `go test ./internal/component/bgp/wireu/` ok, includes `TestShouldForwardToUnaffectedByStrip` |
-| RF-1 | NOT satisfied | the quadratic is live in the shipped code; measured 874-889 ms per destination peer at the attribute ceiling |
+| RF-1, RF-1a | satisfied | `newRemovalSet` answers from a map above the threshold and is built once per attribute: `TestRemovalSetIndexesOnlyAboveThreshold`. Its cost tracks distinct values: `TestRemovalSetIndexAllocatesByDistinctValues` measures 272 bytes against 939,312 before the fix, and goes red against the size hint. The other side of that trade is bounded too: `TestRemovalSetIndexBoundsAllDistinctValues` measures 1,812,792 bytes for 16383 distinct values, up from 939,264 with the hint, under a 3 MiB ceiling |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -795,10 +934,13 @@ record --spec fixit-rs-community-strip-arity --verdict clean --files ...`.
 | `docs/plugin-development/metrics.md` lists the counter | inventory row plus a source anchor naming `internal/component/bgp/filterapi/metrics.go`; the doc-anchor validator resolves it | yes |
 | No RFC compliance claim attached to the strip | a search for `RFC 7947` in `internal/component/bgp/plugins/filter_community/handler.go` is empty, as the spec's Required Reading required | yes |
 | Row 9 answered No (no RFC behaviour changed) | RFC 7947 places no requirement on control-community stripping; its compliance checklist has no matching row | yes |
+| Row 8: `ai/rules/plugins.md` states the Remove-buffer arity obligation | new section "Modification-Accumulator Buffer Arity (BLOCKING for filter plugin authors)", authored as three points under `ai/rules/points/plugins/modification-accumulator-buffer-arity/` and rendered by `make ze-rules-render`. It was answered Yes at design time and never written until 2026-08-10 | yes |
+| Row 12: `docs/architecture/core-design.md` records the arity in the modification-accumulator section | new subsection "Buffer arity, list-valued attributes (caller obligation)" under the `AttrOp` table, with source anchors on `filter_community.wholeValues`, `wireu.StripControlCommunities` and `filterapi.RecordRemoveBufferRefused`. Answered Yes at design time and never written until 2026-08-10 | yes |
+| Row 16: no doc anchor names a claim this change falsifies | `code_to_docs.py --check` resolves every anchor this change adds, and regenerating `ai/CODE-TO-DOCS.md` produced a zero diff. Its one reported failure is `docs/guide/ipsec.md:448` naming `vppUnsupportedSelector`, which belongs to a concurrent session editing `internal/component/ike/dataplane/vpp.go`. The `ModAccumulator.Op` contract comment and both `.ci` headers are re-anchored by SYMBOL, so no `file:line` remains to drift | yes |
 
 ## Core Insight
 
-The arity rule joining `StripControlCommunities` to `removeValues` lived in a
+The arity rule joining `StripControlCommunities` to the COMMUNITY handler lived in a
 comment inside one helper, and two of its four producers broke it silently for
 months. Making the rule explicit fixed the leak, but the same edit removed a
 guard that had been doing a second, undocumented job: bounding the cost. A guard

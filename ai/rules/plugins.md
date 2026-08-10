@@ -375,6 +375,27 @@ Filter Text Protocol" for the full contract and
 `internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`,
 `formatMPBlock`) for the implementation.
 
+## Modification-Accumulator Buffer Arity (BLOCKING for filter plugin authors)
+
+- **An egress filter records attribute modifications with `filterapi.ModAccumulator.Op(code, action, buf)`. For an attribute whose value is a LIST of fixed-width wire values, `buf` MUST hold a whole number of those values, concatenated.** Several values in ONE operation is allowed and means "every one of them"; splitting them across operations is allowed too. A buffer that is not a whole number of values is what is forbidden.
+- **A handler MUST NOT assume one value.** `wireu.StripControlCommunities` returns every matching route-server control community as one buffer, and a consumer that accepted only a single value left every route carrying two or more of them unstripped, in silence, for months.
+
+| Attribute | Code | Value width | One `Op` may carry |
+|-----------|------|-------------|--------------------|
+| COMMUNITY | 8 | 4 octets | any number of values, concatenated |
+| EXTENDED_COMMUNITY | 16 | 8 octets | any number of values, concatenated |
+| LARGE_COMMUNITY | 32 | 12 octets | any number of values, concatenated |
+
+`Op` does NOT check this. It holds no attribute-width table and runs once per
+forwarded UPDATE, so the check belongs to the handler that already knows its own
+width: `filter_community.wholeValues`, called from
+`filter_community.genericCommunityHandler`. A violation is refused per
+operation, logged with the attribute code, the value width and the buffer
+length, and counted as `ze_bgp_attr_mod_remove_buffer_refused_total`. The
+attribute's other operations still apply. Contract:
+`filterapi.ModAccumulator.Op`. Architecture:
+`docs/architecture/core-design.md`, "Buffer arity, list-valued attributes".
+
 ## Renaming a Registered Name (BLOCKING)
 
 A plugin or subsystem name is not a single string. It appears in many places
