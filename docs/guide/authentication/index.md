@@ -166,6 +166,38 @@ variable is caught at startup rather than by these checks.
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
 
+#### Upgrading from a release without the guard
+
+The guard is a boot refusal, so a config that started a daemon yesterday can
+stop one today. Two changes break an upgrade. Read them before you upgrade.
+
+**A remote unauthenticated management listener now refuses to boot.** ze exits
+with status 1 and prints one line for each offending listener. The line names
+the service, the address, and the remedy. Nothing binds, so the daemon does not
+half-start. The message looks like this:
+
+```
+error: refusing to start gNMI on non-loopback listener "0.0.0.0:9339" without authentication
+  set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only
+```
+
+Apply the remedy from the table above, or bind the service to `127.0.0.1`.
+
+**The looking glass serves TLS by default.** A `looking-glass` block with no
+`tls` leaf now serves `https://`, so a plaintext client fails the handshake.
+Write `tls false` in the block, or set `ze.looking-glass.tls=false`, to keep
+plaintext. One case still serves plaintext on its own: a box with no blob
+storage that only inherited the default gets a warning naming `ze init` instead
+of a failure, because a hardening default must not remove a working looking
+glass. An explicit `tls true` on such a box is an error.
+
+Run `ze config validate` or `ze doctor --json` over the config first. Both
+report the same exposure offline. Neither reads the daemon's environment, so
+check `ze.gnmi.listen`, `ze.mcp.listen`, and `ze.web.insecure` by hand.
+
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
+<!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
+
 ### Authentication on reload
 
 A config reload rebuilds the credentials of the running REST and gRPC servers.

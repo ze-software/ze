@@ -162,8 +162,8 @@ session, no `Mcp-Session-Id`, no GET stream, and no server-initiated request.
 A typical exchange is:
 
 1. (Optional) `server/discover` to learn the supported versions and capabilities
-2. `tools/list` to discover available tools
-3. `tools/call` with a tool name and arguments
+2. `tools/list` to discover available tools <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+3. `tools/call` with a tool name and arguments <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 Every POST carries three standard headers plus a `_meta` block **inside
 `params`**:
@@ -172,7 +172,7 @@ Every POST carries three standard headers plus a `_meta` block **inside
 |--------|----------|------------|
 | `MCP-Protocol-Version` | Always | `params._meta["io.modelcontextprotocol/protocolVersion"]` |
 | `Mcp-Method` | Always | the body's `method` |
-| `Mcp-Name` | `tools/call`, `resources/read`, `prompts/get` | `params.name` (`tools/call`, `prompts/get`) or `params.uri` (`resources/read`) |
+| `Mcp-Name` | `tools/call`, `resources/read`, `prompts/get` | `params.name` (`tools/call`, `prompts/get`) or `params.uri` (`resources/read`) | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 | `params._meta` key | Required | Purpose |
 |--------------------|----------|---------|
@@ -264,12 +264,12 @@ re-fetching it every turn:
 
 | Method | `ttlMs` | `cacheScope` |
 |--------|---------|--------------|
-| `tools/list` | `60000` (60 s) | `private` |
+| `tools/list` | `60000` (60 s) | `private` | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `server/discover` | `60000` (60 s) | `private` |
 | `resources/list` | `3600000` (1 h) | `private` |
 | `resources/read` | `3600000` (1 h) | `private` |
 
-`tools/call` and the three `tasks/*` methods (`tasks/get`, `tasks/update`,
+`tools/call` and the three `tasks/*` methods (`tasks/get`, `tasks/update`, <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 `tasks/cancel`) carry no hints. Their results are not cacheable.
 
 There is nothing to configure. The two lifetimes match how the underlying data
@@ -301,12 +301,12 @@ the client's MCP connection after the reload.
 <!-- source: internal/component/mcp/tools.go -- auto-generated tools from command registry -->
 
 All MCP tools are **auto-generated** from the YANG command registry at
-`tools/list` time. Each command group (e.g. `rib`, `show config`, `metrics`)
+`tools/list` time. Each command group (e.g. `rib`, `show config`, `metrics`) <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 becomes a tool with an `action` enum listing its subcommands. When a new
 YANG command is registered, it appears as an MCP tool automatically without
 code changes.
 
-Run `tools/list` against a live daemon to see the current tool inventory.
+Run `tools/list` against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 Two handcrafted tools (`ze_execute`, `ze_reference`) provide escape-hatch and
 discovery capabilities alongside the generated tools.
@@ -348,7 +348,7 @@ and asks for one:
 }
 ```
 
-The client then retries the same `tools/call`, under a new id, with
+The client then retries the same `tools/call`, under a new id, with <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 `params.inputResponses` carrying the answer. A client that declared no
 elicitation capability is never prompted. The same is true of a client that
 declared `url` mode only, which Ze does not implement. Both get a tool error
@@ -363,7 +363,7 @@ No parameters. Returns the full machine-readable reference for this daemon
 (CLI commands, daemon API endpoints with dispatch keys, plugins, address
 families, config services) as JSON. This is the same data as `ze help ai --json`,
 assembled from `internal/component/aihelp` so the CLI and MCP never diverge.
-An MCP client sees this tool in `tools/list` on connect, so it can discover the
+An MCP client sees this tool in `tools/list` on connect, so it can discover the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 instance's capabilities without out-of-band documentation.
 
 <!-- source: internal/component/mcp/tools.go -- ze_reference handcrafted tool -->
@@ -450,9 +450,9 @@ Special stdin directives:
 | `wait <duration>` | Pause (for example, `wait 2s`) |
 | `wait-established` | Poll until a BGP peer is Established |
 | `wait-peers` | Poll until at least one peer exists |
-| `wait-tool <name>` | Poll `tools/list` until the named tool appears |
-| `task-call <tool> [<json>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`. Prints the taskId. There is no client-side opt-in: the server decides from `ze:task-support` |
-| `call-sync <tool> [<json>]` | Ordinary `tools/call` the server must answer synchronously (`resultType: "complete"`, no taskId). Prints the result text |
+| `wait-tool <name>` | Poll `tools/list` until the named tool appears | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+| `task-call <tool> [<json>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`. Prints the taskId. There is no client-side opt-in: the server decides from `ze:task-support` | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+| `call-sync <tool> [<json>]` | Ordinary `tools/call` the server must answer synchronously (`resultType: "complete"`, no taskId). Prints the result text | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `task-get <id>` | Get task status |
 | `task-result <id>` | Print the result a terminal task carries. Reads it off `tasks/get`, since `tasks/result` no longer exists |
 | `task-update <id> [<json>]` | Call `tasks/update` with optional `inputResponses`. Requires an empty acknowledgement |

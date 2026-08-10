@@ -34,6 +34,8 @@ The hand-written checklists live under `rfc/short/*.md`. A requirement id such a
 
 The gate treats `MUST`, `MUST NOT`, `SHALL`, `SHALL NOT` and `REQUIRED` as obligations. `SHOULD` and `MAY` can still be recorded, but they do not decide whether a commit is allowed to pass. That distinction matters in operations. A nice-to-have and a must-have are different kinds of promise.
 
+Cloudflare arrived at the same conclusion from the other end. Their standards are internal documents rather than IETF ones, and [How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/) describes giving each statement a stable name which survives edits to the text around it, for the same reason: a rule nobody can point at cannot be checked later. Naming the obligation is what makes everything after it possible, whoever wrote the document. I come back to that convergence in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/).
+
 ## Then check the checklist
 
 A checklist can still miss something. Anyone who has worked with standards, audits or change control knows this failure mode. If the obligation was never written down, every later check can be green while the implementation is still wrong.

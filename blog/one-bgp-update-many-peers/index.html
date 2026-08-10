@@ -56,7 +56,7 @@
                 </div>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
-            <section class="md-content reveal">
+            <section class="md-content reveal" data-table-columns="off" data-code-copy="off">
 <p><a href="https://github.com/Exa-Networks/exabgp" target="_blank" rel="noopener">ExaBGP</a> was never meant to be a router. I wrote it so an ordinary process could speak BGP: announce a service or anycast prefix, inject a blackhole or FlowSpec rule, and turn received messages into text or JSON that another program could use. Most ExaBGP installations use it as a route announcer, and that narrow focus is still one of its strengths.</p>
 <p>There are optional Adj-RIB-In and Adj-RIB-Out caches in the code, mostly to support a peer session and replay announcements. ExaBGP has no Loc-RIB, performs no best-path selection, does not itself forward a route learned from one peer to another, and does not manipulate the FIB. The routing decision belongs to the configuration, or to the process using its API.</p>
 <p>That division of responsibility has solved real operational problems for many years. Its limits also became clear when people wanted to announce large sets of routes, or decode and report a full table. Python's interpreter and object model set a ceiling which careful code could move, though never remove.</p>

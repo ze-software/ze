@@ -233,8 +233,8 @@ session, no <code>Mcp-Session-Id</code>, no GET stream, and no server-initiated 
 <p>A typical exchange is:</p>
 <ol>
 <li>(Optional) <code>server/discover</code> to learn the supported versions and capabilities</li>
-<li><code>tools/list</code> to discover available tools</li>
-<li><code>tools/call</code> with a tool name and arguments</li>
+<li><code>tools/list</code> to discover available tools <!-- doc-links: ignore (JSON-RPC method name, not a path) --></li>
+<li><code>tools/call</code> with a tool name and arguments <!-- doc-links: ignore (JSON-RPC method name, not a path) --></li>
 </ol>
 <p>Every POST carries three standard headers plus a <code>_meta</code> block <strong>inside
 <code>params</code></strong>:</p>
@@ -421,7 +421,7 @@ re-fetching it every turn:</p>
 </tr>
 </tbody>
 </table>
-<p><code>tools/call</code> and the three <code>tasks/*</code> methods (<code>tasks/get</code>, <code>tasks/update</code>,
+<p><code>tools/call</code> and the three <code>tasks/*</code> methods (<code>tasks/get</code>, <code>tasks/update</code>, <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>tasks/cancel</code>) carry no hints. Their results are not cacheable.</p>
 <p>There is nothing to configure. The two lifetimes match how the underlying data
 changes. Ze rebuilds the tool list from the command registry on every call, and
@@ -445,11 +445,11 @@ the client's MCP connection after the reload.</p>
 <!-- source: internal/component/mcp/tools.go -- auto-generated tools from command registry -->
 
 <p>All MCP tools are <strong>auto-generated</strong> from the YANG command registry at
-<code>tools/list</code> time. Each command group (e.g. <code>rib</code>, <code>show config</code>, <code>metrics</code>)
+<code>tools/list</code> time. Each command group (e.g. <code>rib</code>, <code>show config</code>, <code>metrics</code>) <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 becomes a tool with an <code>action</code> enum listing its subcommands. When a new
 YANG command is registered, it appears as an MCP tool automatically without
 code changes.</p>
-<p>Run <code>tools/list</code> against a live daemon to see the current tool inventory.</p>
+<p>Run <code>tools/list</code> against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) --></p>
 <p>Two handcrafted tools (<code>ze_execute</code>, <code>ze_reference</code>) provide escape-hatch and
 discovery capabilities alongside the generated tools.</p>
 <!-- source: internal/component/mcp/tools.go -- handcraftedTools, toolHandlers -->
@@ -496,7 +496,7 @@ and asks for one:</p>
   }
 }
 </code></pre>
-<p>The client then retries the same <code>tools/call</code>, under a new id, with
+<p>The client then retries the same <code>tools/call</code>, under a new id, with <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>params.inputResponses</code> carrying the answer. A client that declared no
 elicitation capability is never prompted. The same is true of a client that
 declared <code>url</code> mode only, which Ze does not implement. Both get a tool error
@@ -509,7 +509,7 @@ naming the missing argument. See <a href="../elicitation/">MCP Elicitation</a>.<
 (CLI commands, daemon API endpoints with dispatch keys, plugins, address
 families, config services) as JSON. This is the same data as <code>ze help ai --json</code>,
 assembled from <code>internal/component/aihelp</code> so the CLI and MCP never diverge.
-An MCP client sees this tool in <code>tools/list</code> on connect, so it can discover the
+An MCP client sees this tool in <code>tools/list</code> on connect, so it can discover the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 instance's capabilities without out-of-band documentation.</p>
 <!-- source: internal/component/mcp/tools.go -- ze_reference handcrafted tool -->
 <!-- source: internal/component/aihelp/aihelp.go -- Build assembles the reference -->

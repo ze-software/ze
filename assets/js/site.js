@@ -1490,6 +1490,7 @@ document.addEventListener("DOMContentLoaded", function () {
         slice(document.querySelectorAll("pre > code")).forEach(function (code) {
             var pre = code.parentNode;
             if (!pre || pre.querySelector(".code-copy-button")) return;
+            if (pre.closest && pre.closest('[data-code-copy="off"]')) return;
             var button = document.createElement("button");
             button.type = "button";
             button.className = "code-copy-button";

@@ -84,28 +84,13 @@ Those twenty-five stages are scar tissue. Almost every one exists because someth
 
 Unit testing is one form of testing. It answers a small question, and it can give a dangerously reassuring answer when the real requirement is larger.
 
-The functional direction asks how far through the system a behaviour has been proved:
-
-| Level | Question |
-|---|---|
-| Function | Does this small piece return the expected result? |
-| Subsystem | Do the connected parts work together? |
-| Application | Can a user achieve the result through the real program? |
-| Interoperability | Does it work with software written by somebody else? |
+The functional direction asks how far through the system a behaviour has been proved. At the shallowest level a small piece of code returns the expected result. Deeper, the connected parts work together as a subsystem. Deeper still, a user achieves the result through the real program. At the far end, the program works with software written by somebody else.
 
 A door is the easy analogy. At function level the handle turns and operates its latch. At subsystem level the handle is fitted to a door, and the door still opens and closes. At application level the door has to secure the building, because a door which works perfectly is still useless if it has been fitted next to a large hole in the wall. At interoperability level the door has to work with a frame and a lock supplied by somebody else.
 
 For Ze, a parser can return the right values in a Go test while the complete daemon sends the wrong message on the wire. Ze can also agree with its own test peer while FRR, BIRD or another implementation rejects the result. Each level catches a class of mistake the level below cannot see.
 
-The other direction asks what happens under unusual, hostile or expensive conditions:
-
-| Technique | What it tries to reveal |
-|---|---|
-| Fuzzing | Inputs the developer did not think to write |
-| Race detection | Failures caused by operations happening at the same time |
-| Mutation testing | Tests which stay green after the code is deliberately broken |
-| Allocation checks | Unexpected memory use in work which runs frequently |
-| Benchmarks | Important work becoming unacceptably slow |
+The other direction asks what happens under unusual, hostile or expensive conditions. Fuzzing looks for the inputs the developer did not think to write, and race detection for the failures caused by operations happening at the same time. Mutation testing looks for the tests which stay green after the code has been deliberately broken. Allocation checks watch for unexpected memory use in work which runs frequently, and benchmarks for important work becoming unacceptably slow.
 
 I group benchmarks with the safety checks rather than with performance work because uncontrolled CPU and memory use becomes an operational failure, and occasionally a denial-of-service weakness.
 
@@ -115,18 +100,9 @@ All of that is ordinary engineering judgement, and judgement is the part an agen
 
 ## Which test a change owes
 
-`ai/rules/testing.md` is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in:
+`ai/rules/testing.md` is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in. A change to BGP wire behaviour owes a `.ci` scenario matching the bytes, in `test/encode/` or `test/decode/`. A new configuration option owes a scenario proving the parse succeeds or fails, in `test/parse/`. A CLI subcommand owes a scenario running the real command, in `test/ui/`, a web endpoint owes one with HTTP expectations, in `test/web/`, a configuration reload owes one driven by SIGHUP, in `test/reload/`, and plugin behaviour owes one exercising the plugin API, in `test/plugin/`.
 
-| Change | Required functional test |
-|---|---|
-| BGP wire behaviour | `.ci` scenario matching the bytes, in `test/encode/` or `test/decode/` |
-| Config option | `.ci` scenario proving the parse succeeds or fails, in `test/parse/` |
-| CLI subcommand | `.ci` scenario running the real command, in `test/ui/` |
-| Web endpoint | `.ci` scenario with HTTP expectations, in `test/web/` |
-| Config reload | `.ci` scenario driven by SIGHUP, in `test/reload/` |
-| Plugin behaviour | `.ci` scenario exercising the plugin API, in `test/plugin/` |
-
-There are further rows for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600 `.ci` scenarios and 160 editor `.et` scenarios are what that produces, next to the Go unit tests.
+The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600 `.ci` scenarios and 160 editor `.et` scenarios are what that produces, next to the Go unit tests.
 
 The test comes first and has to fail before the implementation is written. Each one carries `VALIDATES:` and `PREVENTS:` comments, so a later reader learns what the test proves and which regression it was written against.
 

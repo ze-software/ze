@@ -19,6 +19,57 @@ user-facing behaviour; the wire format is documented in
 <!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
 
+## The dynamic hostname
+
+`hostname` names this router in the IS-IS network. Ze floods it in the Dynamic
+Hostname TLV 137, and a peer renders it wherever it would otherwise print a
+6-octet system ID.
+
+```
+isis {
+  net 49.0001.0000.0000.0001.00
+  hostname core-1.example.net
+}
+```
+
+**Accepted shape.** RFC 5301 section 3 encodes the value in 7-bit ASCII and calls
+its content a domain name. Ze enforces both at the config boundary:
+
+| Rule | Limit |
+|------|-------|
+| Character set | Printable ASCII only, from space (0x20) to tilde (0x7e) |
+| One label | 1 to 63 octets (RFC 2181 section 11) |
+| The whole name | 1 to 255 octets, separators included |
+| Trailing dot | One is permitted, and it marks the root |
+
+The character rule bounds octets, not vocabulary. RFC 2181 section 11 forbids
+restricting WHICH characters a label carries. RFC 5301 section 3 says the value
+can be any string an operator wants. So `core_1` and a name with spaces are both
+accepted.
+
+**A name outside that shape is REFUSED, not repaired.** `ze config validate` and
+a commit both fail, and the error names the offending octet or label:
+
+```
+isis: isis/hostname: "café.example" is not a valid IS-IS hostname for isis/hostname:
+octet 4 is 0xc3. RFC 5301 section 3 encodes the value in 7-bit ASCII, so each
+character must be a printable ASCII character from space (0x20) to tilde (0x7e)
+```
+
+Ze does not apply the IDNA ToASCII algorithm to a Unicode name. Converting it
+would put `xn--caf-dma.example` on the wire while the config file still read
+`café.example`. A name a peer sees must be the name an operator wrote. Use the
+ASCII form directly if that is the name you want advertised.
+
+A hostname a PEER advertises is treated as untrusted. It is accepted whatever its
+octets, and it is only filtered for display. RFC 5301 section 4 permits that.
+Rejecting a peer's LSP over its hostname would hand any neighbor a way to break
+this router.
+
+<!-- source: internal/component/config/validators.go -- ISISHostnameValidator -->
+<!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
+<!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
+
 ## Broadcast LANs: DIS election and pseudo-nodes
 
 On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh

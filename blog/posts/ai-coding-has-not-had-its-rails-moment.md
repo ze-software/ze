@@ -5,32 +5,25 @@ author: Thomas Mangin
 description: Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about themselves. Rails solved that once for people, and nothing equivalent has arrived for agents.
 ---
 
-An agent can open any file in a large repository in under a second, and nothing it finds there tells it which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head.
+An agent can locate and open any file in a large repository in under a second. Nothing it finds there tells it how to work with what it has just opened: which design document explains what that code implements, which rule it is about to break, or which test would catch it if it gets that wrong. That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head.
 
 This is a problem about repository structure, and it is a good deal older than AI.
 
 At the start of the 2000s, Git did not exist. CVS was notorious because you could not rename a folder, a serious limitation when the structure of a project mattered. Subversion was the modern choice if CVS had not already put you off version control.
 
-Project layouts were not very standard either. At the ISP where I worked then, our convention was to put each project's configuration, working data and source code under the same three top-level directories:
+Project layouts were not very standard either. At Exa, our initial convention put each project's configuration in `etc/`, its working data in `data/`, the reusable code in `lib/` and the rest in `src/`. It was not a one to one match with the Filesystem Hierarchy Standard (FHS), but changing `$ETC` and `$DATA` was enough to point a project at the right place on an installed system. During development, the repository acted as the installed root, leaving only a code-test loop.
 
-```text
-project/
-    etc/<project>/
-    data/<project>/
-    src/<project>/
-```
+The same thinking is visible in the [first ExaBGP commit from September 2009](https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532). It had `daemon`, `etc`, `lib` and `test` directories, and a test which announced a route to a Cisco 7204 and kept the connection alive.
 
-Project names let us combine or separate trees as needed. The layout was close enough to the Filesystem Hierarchy Standard (FHS) to map onto the operating system easily. During development, the repository acted as the installed root, leaving only a code-test loop.
+Fast-forward to today, and most repositories on GitHub are well organised for human developers and for the tools we already have, but the reasoning behind that organisation is never written into the tree. People carried it instead. An agent arrives with none of that and no way to ask for it. Then we complain that it fights the developers instead of joining the team.
 
-The same thinking is visible in the [first ExaBGP commit from September 2009](https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532). It had `daemon`, `etc`, `lib` and `test` directories, and a test which announced a route to a Cisco 7204 and kept the connection alive. By 2009 this kind of layout was far more familiar, largely because Ruby on Rails had made project structure part of the framework.
-
-Most repositories on GitHub are well organised for human developers and for the tools we already had, and the reasoning behind that organisation was never written into the tree. People carried it instead. An agent arrives with none of that and no way to ask for it.
+Rails faced the same problem twenty years ago, and it had to teach a whole community to follow the structure the framework expected. That is where I want to start.
 
 *This article was co-authored with Claude. The argument and the conclusions are mine. Claude helped organise the material and draft the text.*
 
 ## Rails made the tree an interface
 
-Rails turned project structure into something people argued about. Its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the idea Convention over Configuration. Running `rails new` creates recognised places for application code, configuration, database changes, libraries and tests.
+By 2009 this kind of layout was far more familiar, largely because Ruby on Rails had made project structure part of the framework. Rails turned project structure into something people argued about. Its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the idea Convention over Configuration. Running `rails new` creates recognised places for application code, configuration, database changes, libraries and tests.
 
 Rails was probably not the first project to lay a tree out like that. It was the first to make the idea popular, and twenty years later the same thing is starting to happen around the plain Markdown files an agent reads. I come back to that at the end.
 

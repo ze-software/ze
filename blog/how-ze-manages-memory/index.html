@@ -56,7 +56,7 @@
                 </div>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
-            <section class="md-content reveal">
+            <section class="md-content reveal" data-table-columns="off" data-code-copy="off">
 <p>The Common Gateway Interface let an HTTP server invoke an external program to produce a webpage. ExaBGP applied the same separation to BGP: it managed the sessions and the wire messages, while ordinary processes exchanged decoded events and route announcements with it.</p>
 <p>That separation worked. Applications received convenient Python objects instead of parsing raw BGP bytes. Transcoding BGP data is expensive, so I wrote ExaBGP with performance in mind from the start, but there is only so much any program can do about the interpreter underneath it. Large announcements and full-table decoding showed where Python's object model spends its memory. An allocation which looks harmless on its own is repeated for every route, every attribute, every value and the cost becomes obvious.</p>
 <p>Ze is written in Go and follows one rule about memory: the received wire representation stays immutable, readers borrow views of it while its owner is alive, a copy happens when the representation or the lifetime changes, and owned storage returns to a bounded pool. The backing arrays still belong to Go's managed heap. Keeping traffic away from the garbage collector, as the title puts it, means that the work Ze repeats thousands of times a second creates almost no new heap objects.</p>

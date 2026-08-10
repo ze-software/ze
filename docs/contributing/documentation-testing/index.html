@@ -108,7 +108,7 @@ checks needed for the current diff and is included in <code>make ze-verify</code
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/check_doc_links.py</code></span></span></td>
 <td><code>ze-doc-links</code>, and the <code>--md-only</code> subset at the end of <code>ze-regen-check</code></td>
-<td>Four checks over the instruction corpus: every backticked path and markdown link in <code>ai/</code>, <code>plan/</code> meta documents resolves; every <code>// Design:</code> target resolves; every backticked <code>*.sh</code> filename and <code>c_*</code>/<code>check_*</code> function name in the hook-describing documents names something in the tree; and every <code>doc-links: ignore</code> marker states a reason. The marker sweep runs over every TRACKED file rather than the walked corpus, so a marker no other check reads is still audited. <code>make ze-doc-test</code> does NOT run this script: <code>ze-doc-links</code> is its own <code>ze-verify</code> stage. <span class="ev-src"><span class="ev-ref"><code>.claude/rules/</code></span></span></td>
+<td>Five checks over the path references in the tree: every backticked path and markdown link in <code>ai/</code>, <code>plan/</code> meta documents resolves; every <code>// Design:</code> target resolves; every backticked <code>*.sh</code> filename and <code>c_*</code>/<code>check_*</code> function name in the hook-describing documents names something in the tree; every <code>doc-links: ignore</code> marker states a reason; and every path reference in every OTHER tracked file resolves too. The last two checks read every TRACKED file, not the walked corpus. A marker no other check reads is audited, and a dead path in any tracked file fails the gate. <code>make ze-doc-test</code> does NOT run this script: <code>ze-doc-links</code> is its own <code>ze-verify</code> stage. <span class="ev-src"><span class="ev-ref"><code>.claude/rules/</code></span></span></td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/digest_check.py</code></span></span></td>
@@ -142,7 +142,7 @@ of code review, not doc review.</p>
 <!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
 <!-- source: scripts/docvalid/commands.go -- main -->
 <!-- source: scripts/dev/code_to_docs.py -- check_anchor_symbols, anchor_symbol_tokens, go_declarations -->
-<!-- source: scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons -->
+<!-- source: scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons, check_tracked_citations, sweep_tracked, check_baseline_growth -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
 <!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
@@ -169,7 +169,7 @@ of code review, not doc review.</p>
 <td><code>make ze-doc-test</code></td>
 </tr>
 <tr>
-<td>After editing <code>ai/</code>, <code>plan/</code> meta document. <span class="ev-src"><span class="ev-ref"><code>.claude/rules/</code></span></span></td>
+<td>After writing a path reference in ANY tracked file</td>
 <td><code>make ze-doc-links</code> (<code>ze-doc-test</code> does not cover it)</td>
 </tr>
 <tr>
@@ -313,10 +313,26 @@ no build context and finds a <code>//go:build linux</code> declaration on a macO
 <code>check_anchor_symbols</code> compares the two, and the <code>report=</code> argument <code>main()</code>
 passes decides whether a finding is printed.</p>
 <p><code>scripts/dev/check_doc_links.py</code> walks the instruction corpus for paths,
-<code>// Design:</code> targets and hook names. Its fourth check, <code>check_ignore_reasons</code>,
-does not use that corpus: it sweeps every file <code>git ls-files</code> names, because a
-<code>doc-links: ignore</code> marker outside the walked corpus suppresses nothing and is
-therefore the one nobody ever audits.</p>
+<code>// Design:</code> targets and hook names. Its last two checks do not use that
+corpus. <code>sweep_tracked</code> reads every file <code>git ls-files</code> names, one time, and
+<code>check_ignore_reasons</code> and <code>check_tracked_citations</code> share that one walk.
+Check 4 reports a <code>doc-links: ignore</code> marker that states no reason, because a
+marker outside the walked corpus suppresses nothing and nobody audits it.
+Check 5 reports a path reference that does not resolve, in any tracked file.
+Two moves remove a finding: repair the reference, or mark its line with a
+marker that states why the path cannot resolve.</p>
+<p>The references that predate check 5 are grandfathered in
+<code>scripts/dev/doc_citation_baseline.txt</code>, one <code>citing file&lt;TAB&gt;dead target</code> pair
+per line. It records pairs rather than bare targets, so a NEW file that cites
+an already-dead target is reported. <code>check_baseline_growth</code> compares the file
+against its own version at HEAD. It fails when the file holds more pairs, so the
+baseline only shrinks.</p>
+<p>Repair a citation to remove its pair, then regenerate the file with
+<code>python3 scripts/dev/check_doc_links.py --write-baseline</code>. A pair the tree no
+longer carries prints a <code>WARN</code> line, and the exit code stays 0. One session's
+repair therefore never reds another session's run. Three roots are outside check 5:
+<code>vendor/</code> and <code>third_party/</code> hold another repository's files, and
+<code>plan/handover/</code> records the tree as it was.</p>
 <p><code>scripts/lint/consistency.go</code> walks <code>.go</code> files, parses <code>// Design:</code>,
 <code>// Detail:</code>, <code>// Overview:</code>, <code>// Related:</code> comments, checks for asymmetries,
 and scans <code>docs/</code>/<code>scripts/</code> for references to packages that no longer exist.</p>
@@ -330,9 +346,11 @@ and scans <code>docs/</code>/<code>scripts/</code> for references to packages th
 <li>Add the new target to <code>scripts/dev/verify_wiring_docs.py</code> if changed files
    should trigger it during <code>make ze-verify</code>.</li>
 <li>Add a row to the table in this file.</li>
-<li>Update <code>ai/rules/repo-maintenance.md</code>, <code>ai/INDEX.md</code>, or
-   <code>ai/NAVIGATION.md</code> when the new check changes what future agents should run
-   or discover.</li>
+<li>Update <code>ai/INDEX.md</code>, and the discovery-surface table of
+   <code>ai/rules/repo-maintenance.md</code>, when the new check changes what future
+   agents should run or discover. That rule file is GENERATED: edit its point
+   file under <code>ai/rules/points/repo-maintenance/</code>, then run
+   <code>make ze-rules-condensed</code>.</li>
 <li>Add a help entry in the Makefile or owning <code>mk/</code> quick reference.</li>
 </ol>
 <h2 id="see-also">See also</h2>

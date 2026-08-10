@@ -192,13 +192,13 @@ what makes the <code>task</code> result type interpretable, because a client can
 <!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
 
 <h3 id="cacheable-results">Cacheable results</h3>
-<p><code>server/discover</code>, <code>tools/list</code>, <code>resources/list</code> and <code>resources/read</code> return
+<p><code>server/discover</code>, <code>tools/list</code>, <code>resources/list</code> and <code>resources/read</code> return <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>ttlMs</code> and <code>cacheScope</code>, so a client can hold a result and does not re-fetch it
 every turn. The tool inventory and the discovery result are fresh for 60
 seconds. The embedded UI assets are fresh for one hour. Every one of them is
 scoped <code>private</code>, so a shared gateway is not permitted to serve one caller's
 response to another.</p>
-<p><code>tools/call</code> and the <code>tasks/*</code> methods return no hints. Their results are not
+<p><code>tools/call</code> and the <code>tasks/*</code> methods return no hints. Their results are not <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 cacheable.</p>
 <p>Ze has no push invalidation. That 60-second TTL is therefore also the window in
 which a client can still offer a command that a config reload has removed. A
@@ -221,7 +221,7 @@ same tools and the same behavior, minus the panel metadata. Ze rejects nothing.<
 synchronization for CI pipelines. It also provides a <code>probe-*</code> directive family,
 which drives deliberately-malformed requests at the conformance surface (header
 mismatch, unsupported version, malformed <code>_meta</code>, GET and DELETE).</p>
-<p>Background execution is driven by <code>task-call</code> (an ordinary <code>tools/call</code> the
+<p>Background execution is driven by <code>task-call</code> (an ordinary <code>tools/call</code> the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 server must answer with a task handle), its twin <code>call-sync</code> (which requires a
 synchronous answer and no taskId), then <code>task-get</code>, <code>task-result</code>,
 <code>task-update</code>, <code>task-cancel</code> and <code>task-wait</code>. The <code>--tasks</code> flag declares the

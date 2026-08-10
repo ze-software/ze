@@ -74,7 +74,11 @@ def render_article(a):
         '                <p class="post-back"><a href="../">&larr; All articles</a></p>',
         "            </section>",
     ]
-    parts.append('            <section class="md-content reveal">')
+    # Articles are read top to bottom: no column selector on their tables and no
+    # copy button on their code blocks.
+    parts.append(
+        '            <section class="md-content reveal" data-table-columns="off" data-code-copy="off">'
+    )
     parts.append(body_html)
     parts.append("            </section>")
     return "\n".join(parts)

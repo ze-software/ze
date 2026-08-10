@@ -76,7 +76,7 @@ that declared nothing.
 
 The same capability shapes the tool descriptor, so a client does not have to
 know this page to find the round trip. Declare form mode, and the `ze_execute`
-entry in `tools/list` omits `command` from its `inputSchema.required`. That
+entry in `tools/list` omits `command` from its `inputSchema.required`. That <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 omission tells a schema-validating host that the argument-less call is legal.
 Declare nothing, or `url` only, and `required` names `command`, which is honest:
 that client will get an error rather than a prompt.
@@ -213,7 +213,7 @@ accepted; this server issues no requestState, so a retry must not carry one
   validator accepts only flat primitive properties, and it emits only a single
   string. Ze uses fewer optional schema forms than the specification offers,
   which is conformant.
-- **Tasks do not elicit.** A task worker runs long after its `tools/call` has
+- **Tasks do not elicit.** A task worker runs long after its `tools/call` has <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
   returned, so an `input_required` result produced there would be stored as the
   task's result and delivered on a later `tasks/get`. Ze prevents that at the
   source. The worker gets a zero capability set, so a handler that would

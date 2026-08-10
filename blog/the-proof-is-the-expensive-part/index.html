@@ -56,7 +56,7 @@
                 </div>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
-            <section class="md-content reveal">
+            <section class="md-content reveal" data-table-columns="off" data-code-copy="off">
 <p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> with this line: the code is cheap, the proof is the expensive part.</p>
 <p>This post is the missing explanation.</p>
 <p>When people hear that Ze is an AI-written network operating system, they usually imagine the worst version of that idea. Ask a model for a routing feature, glance at the diff, run a quick test, merge it. That would be reckless.</p>
@@ -73,6 +73,7 @@
 <p>Ze starts by giving each obligation a name.</p>
 <p>The hand-written checklists live under <code>rfc/short/*.md</code>. A requirement id such as <code>RFC7606-7.1-1</code> is meant to be boring and useful. It says: RFC 7606, section 7.1, first obligation in that section. That lets a test, a known gap, an audit result and a public status row all point to the same rule in the same document.</p>
 <p>The gate treats <code>MUST</code>, <code>MUST NOT</code>, <code>SHALL</code>, <code>SHALL NOT</code> and <code>REQUIRED</code> as obligations. <code>SHOULD</code> and <code>MAY</code> can still be recorded, but they do not decide whether a commit is allowed to pass. That distinction matters in operations. A nice-to-have and a must-have are different kinds of promise.</p>
+<p>Cloudflare arrived at the same conclusion from the other end. Their standards are internal documents rather than IETF ones, and <a href="https://blog.cloudflare.com/engineering-standards-enforcement/" target="_blank" rel="noopener">How Cloudflare enforces engineering standards using AI</a> describes giving each statement a stable name which survives edits to the text around it, for the same reason: a rule nobody can point at cannot be checked later. Naming the obligation is what makes everything after it possible, whoever wrote the document. I come back to that convergence in <a href="../ai-coding-has-not-had-its-rails-moment/">AI coding has not had its Rails moment</a>.</p>
 <h2>Then check the checklist</h2>
 <p>A checklist can still miss something. Anyone who has worked with standards, audits or change control knows this failure mode. If the obligation was never written down, every later check can be green while the implementation is still wrong.</p>
 <p>That is why Ze has extraction sign-offs in <code>rfc/extraction/&lt;stem&gt;.json</code>.</p>

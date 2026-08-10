@@ -58,6 +58,7 @@ user-facing behaviour; the wire format is documented in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/isis.md" target="_blank" rel="noopener"><code>docs/architecture/wire/isis.md</code></a>.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#the-dynamic-hostname">The dynamic hostname</a></li>
 <li><a href="#broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</a></li>
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#redistribution-mesh-with-bgp">Redistribution (mesh with BGP)</a></li>
@@ -83,6 +84,65 @@ the name to its kernel device through the shared iface resolver. See
 </blockquote>
 <!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
+
+<h2 id="the-dynamic-hostname">The dynamic hostname</h2>
+<p><code>hostname</code> names this router in the IS-IS network. Ze floods it in the Dynamic
+Hostname TLV 137, and a peer renders it wherever it would otherwise print a
+6-octet system ID.</p>
+<pre><code>isis {
+  net 49.0001.0000.0000.0001.00
+  hostname core-1.example.net
+}
+</code></pre>
+<p><strong>Accepted shape.</strong> RFC 5301 section 3 encodes the value in 7-bit ASCII and calls
+its content a domain name. Ze enforces both at the config boundary:</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Character set</td>
+<td>Printable ASCII only, from space (0x20) to tilde (0x7e)</td>
+</tr>
+<tr>
+<td>One label</td>
+<td>1 to 63 octets (RFC 2181 section 11)</td>
+</tr>
+<tr>
+<td>The whole name</td>
+<td>1 to 255 octets, separators included</td>
+</tr>
+<tr>
+<td>Trailing dot</td>
+<td>One is permitted, and it marks the root</td>
+</tr>
+</tbody>
+</table>
+<p>The character rule bounds octets, not vocabulary. RFC 2181 section 11 forbids
+restricting WHICH characters a label carries. RFC 5301 section 3 says the value
+can be any string an operator wants. So <code>core_1</code> and a name with spaces are both
+accepted.</p>
+<p><strong>A name outside that shape is REFUSED, not repaired.</strong> <code>ze config validate</code> and
+a commit both fail, and the error names the offending octet or label:</p>
+<pre><code>isis: isis/hostname: &quot;café.example&quot; is not a valid IS-IS hostname for isis/hostname:
+octet 4 is 0xc3. RFC 5301 section 3 encodes the value in 7-bit ASCII, so each
+character must be a printable ASCII character from space (0x20) to tilde (0x7e)
+</code></pre>
+<p>Ze does not apply the IDNA ToASCII algorithm to a Unicode name. Converting it
+would put <code>xn--caf-dma.example</code> on the wire while the config file still read
+<code>café.example</code>. A name a peer sees must be the name an operator wrote. Use the
+ASCII form directly if that is the name you want advertised.</p>
+<p>A hostname a PEER advertises is treated as untrusted. It is accepted whatever its
+octets, and it is only filtered for display. RFC 5301 section 4 permits that.
+Rejecting a peer's LSP over its hostname would hand any neighbor a way to break
+this router.</p>
+<!-- source: internal/component/config/validators.go -- ISISHostnameValidator -->
+<!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
+<!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
 
 <h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
 <p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh

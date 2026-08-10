@@ -56,7 +56,7 @@
                 </div>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
-            <section class="md-content reveal">
+            <section class="md-content reveal" data-table-columns="off" data-code-copy="off">
 <p>Ze is a network operating system spread over 623 Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.</p>
 <p>The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on. So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both. Why I think every serious project ends up building something similar is a separate argument, in <a href="../ai-coding-has-not-had-its-rails-moment/">AI coding has not had its Rails moment</a>.</p>
 <p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> by saying that generated code has to be constrained, reviewed, tested and measured. <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a> explains how Ze ties an RFC claim to requirements, tests, known gaps and commit evidence. This article covers what comes before all of that: helping the agent find the right information before it writes the wrong code.</p>
@@ -102,106 +102,16 @@ Register(&quot;configure&quot;, runConfigure)
 <p>Those twenty-five stages are scar tissue. Almost every one exists because something plausible once passed through a weaker process.</p>
 <h2>Testing has two directions</h2>
 <p>Unit testing is one form of testing. It answers a small question, and it can give a dangerously reassuring answer when the real requirement is larger.</p>
-<p>The functional direction asks how far through the system a behaviour has been proved:</p>
-<table>
-<thead>
-<tr>
-<th>Level</th>
-<th>Question</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Function</td>
-<td>Does this small piece return the expected result?</td>
-</tr>
-<tr>
-<td>Subsystem</td>
-<td>Do the connected parts work together?</td>
-</tr>
-<tr>
-<td>Application</td>
-<td>Can a user achieve the result through the real program?</td>
-</tr>
-<tr>
-<td>Interoperability</td>
-<td>Does it work with software written by somebody else?</td>
-</tr>
-</tbody>
-</table>
+<p>The functional direction asks how far through the system a behaviour has been proved. At the shallowest level a small piece of code returns the expected result. Deeper, the connected parts work together as a subsystem. Deeper still, a user achieves the result through the real program. At the far end, the program works with software written by somebody else.</p>
 <p>A door is the easy analogy. At function level the handle turns and operates its latch. At subsystem level the handle is fitted to a door, and the door still opens and closes. At application level the door has to secure the building, because a door which works perfectly is still useless if it has been fitted next to a large hole in the wall. At interoperability level the door has to work with a frame and a lock supplied by somebody else.</p>
 <p>For Ze, a parser can return the right values in a Go test while the complete daemon sends the wrong message on the wire. Ze can also agree with its own test peer while FRR, BIRD or another implementation rejects the result. Each level catches a class of mistake the level below cannot see.</p>
-<p>The other direction asks what happens under unusual, hostile or expensive conditions:</p>
-<table>
-<thead>
-<tr>
-<th>Technique</th>
-<th>What it tries to reveal</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Fuzzing</td>
-<td>Inputs the developer did not think to write</td>
-</tr>
-<tr>
-<td>Race detection</td>
-<td>Failures caused by operations happening at the same time</td>
-</tr>
-<tr>
-<td>Mutation testing</td>
-<td>Tests which stay green after the code is deliberately broken</td>
-</tr>
-<tr>
-<td>Allocation checks</td>
-<td>Unexpected memory use in work which runs frequently</td>
-</tr>
-<tr>
-<td>Benchmarks</td>
-<td>Important work becoming unacceptably slow</td>
-</tr>
-</tbody>
-</table>
+<p>The other direction asks what happens under unusual, hostile or expensive conditions. Fuzzing looks for the inputs the developer did not think to write, and race detection for the failures caused by operations happening at the same time. Mutation testing looks for the tests which stay green after the code has been deliberately broken. Allocation checks watch for unexpected memory use in work which runs frequently, and benchmarks for important work becoming unacceptably slow.</p>
 <p>I group benchmarks with the safety checks rather than with performance work because uncontrolled CPU and memory use becomes an operational failure, and occasionally a denial-of-service weakness.</p>
 <p>The two directions cross each other. A parser can be tested for correct output and then fuzzed with malformed input. A subsystem can be checked for its normal result and then run under the race detector.</p>
 <p>All of that is ordinary engineering judgement, and judgement is the part an agent is worst at. It has to place a change on both axes before writing a line, and everything about its situation pushes the choice downwards. A unit test is faster to write, faster to run and far easier to turn green. So Ze takes the choice away from it, and testing goes through the same chain as the registration rule above.</p>
 <h2>Which test a change owes</h2>
-<p><code>ai/rules/testing.md</code> is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in:</p>
-<table>
-<thead>
-<tr>
-<th>Change</th>
-<th>Required functional test</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>BGP wire behaviour</td>
-<td><code>.ci</code> scenario matching the bytes, in <code>test/encode/</code> or <code>test/decode/</code></td>
-</tr>
-<tr>
-<td>Config option</td>
-<td><code>.ci</code> scenario proving the parse succeeds or fails, in <code>test/parse/</code></td>
-</tr>
-<tr>
-<td>CLI subcommand</td>
-<td><code>.ci</code> scenario running the real command, in <code>test/ui/</code></td>
-</tr>
-<tr>
-<td>Web endpoint</td>
-<td><code>.ci</code> scenario with HTTP expectations, in <code>test/web/</code></td>
-</tr>
-<tr>
-<td>Config reload</td>
-<td><code>.ci</code> scenario driven by SIGHUP, in <code>test/reload/</code></td>
-</tr>
-<tr>
-<td>Plugin behaviour</td>
-<td><code>.ci</code> scenario exercising the plugin API, in <code>test/plugin/</code></td>
-</tr>
-</tbody>
-</table>
-<p>There are further rows for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600 <code>.ci</code> scenarios and 160 editor <code>.et</code> scenarios are what that produces, next to the Go unit tests.</p>
+<p><code>ai/rules/testing.md</code> is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in. A change to BGP wire behaviour owes a <code>.ci</code> scenario matching the bytes, in <code>test/encode/</code> or <code>test/decode/</code>. A new configuration option owes a scenario proving the parse succeeds or fails, in <code>test/parse/</code>. A CLI subcommand owes a scenario running the real command, in <code>test/ui/</code>, a web endpoint owes one with HTTP expectations, in <code>test/web/</code>, a configuration reload owes one driven by SIGHUP, in <code>test/reload/</code>, and plugin behaviour owes one exercising the plugin API, in <code>test/plugin/</code>.</p>
+<p>The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600 <code>.ci</code> scenarios and 160 editor <code>.et</code> scenarios are what that produces, next to the Go unit tests.</p>
 <p>The test comes first and has to fail before the implementation is written. Each one carries <code>VALIDATES:</code> and <code>PREVENTS:</code> comments, so a later reader learns what the test proves and which regression it was written against.</p>
 <p>The writing happens in an incubator. <code>test/draft/</code> is gitignored and skipped by every repository-wide gate, so a half-finished scenario cannot turn somebody else's verification run red while its author is still iterating on it. A draft ends in one of two moves, promotion into the live suite or deletion, and stopping anywhere else is refused. A scenario sitting in the incubator tells the next session nothing about whether it is abandoned scaffolding or work in progress.</p>
 <h2>A test can gate nothing and still be green</h2>

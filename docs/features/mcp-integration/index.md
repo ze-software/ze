@@ -119,14 +119,14 @@ what makes the `task` result type interpretable, because a client can reject a
 
 ### Cacheable results
 
-`server/discover`, `tools/list`, `resources/list` and `resources/read` return
+`server/discover`, `tools/list`, `resources/list` and `resources/read` return <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 `ttlMs` and `cacheScope`, so a client can hold a result and does not re-fetch it
 every turn. The tool inventory and the discovery result are fresh for 60
 seconds. The embedded UI assets are fresh for one hour. Every one of them is
 scoped `private`, so a shared gateway is not permitted to serve one caller's
 response to another.
 
-`tools/call` and the `tasks/*` methods return no hints. Their results are not
+`tools/call` and the `tasks/*` methods return no hints. Their results are not <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 cacheable.
 
 Ze has no push invalidation. That 60-second TTL is therefore also the window in
@@ -155,7 +155,7 @@ synchronization for CI pipelines. It also provides a `probe-*` directive family,
 which drives deliberately-malformed requests at the conformance surface (header
 mismatch, unsupported version, malformed `_meta`, GET and DELETE).
 
-Background execution is driven by `task-call` (an ordinary `tools/call` the
+Background execution is driven by `task-call` (an ordinary `tools/call` the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 server must answer with a task handle), its twin `call-sync` (which requires a
 synchronous answer and no taskId), then `task-get`, `task-result`,
 `task-update`, `task-cancel` and `task-wait`. The `--tasks` flag declares the

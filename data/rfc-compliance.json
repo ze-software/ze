@@ -1,11 +1,11 @@
 {
   "gate": {
-    "ok": true,
-    "error_count": 0,
-    "gated_must": 2954,
-    "enrolled_rfcs": 169,
-    "test_tags": 3303,
-    "message": "rfc-requirements OK: 2954 gated MUST-level requirement(s) across 169 enrolled RFC(s); 3303 test tag(s) resolved."
+    "ok": false,
+    "error_count": 2,
+    "gated_must": 2963,
+    "enrolled_rfcs": 170,
+    "test_tags": 3331,
+    "message": "rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3331 test tag(s) resolved."
   },
   "satisfaction": [
     {
@@ -13,8 +13,8 @@
       "short": "Test pair",
       "condition": "positive tag + negative tag",
       "key": "both_polarities",
-      "count": 1214,
-      "share": 41.1
+      "count": 1222,
+      "share": 41.2
     },
     {
       "label": "One polarity plus reason",
@@ -22,7 +22,7 @@
       "condition": "{single-polarity} annotation + required tag",
       "key": "single_polarity",
       "count": 371,
-      "share": 12.6
+      "share": 12.5
     },
     {
       "label": "Not applicable",
@@ -30,7 +30,7 @@
       "condition": "{not-applicable} annotation",
       "key": "not_applicable",
       "count": 841,
-      "share": 28.5
+      "share": 28.4
     },
     {
       "label": "Declared gap",
@@ -38,7 +38,7 @@
       "condition": "{gap} annotation + public ledger disclosure",
       "key": "gap",
       "count": 528,
-      "share": 17.9
+      "share": 17.8
     },
     {
       "label": "One polarity, unexcused",
@@ -53,7 +53,7 @@
       "short": "Missing",
       "condition": "no tag, no annotation",
       "key": "missing_unexcused",
-      "count": 0,
+      "count": 1,
       "share": 0.0
     }
   ],
@@ -172,7 +172,7 @@
     "fresh": 52,
     "shifted": 0,
     "stale": 0,
-    "missing": 2902
+    "missing": 2911
   },
   "checks": [
     {
@@ -207,8 +207,10 @@
     },
     {
       "name": "Requirement coverage",
-      "errors": [],
-      "error_count": 0
+      "errors": [
+        "rfc/short/rfc5216.md:311: RFC5216-2.1.1-2 [MUST] has no test and no annotation: \"The EAP-TLS conversation will then begin, with the peer sending an EA"
+      ],
+      "error_count": 1
     },
     {
       "name": "Public claim agreement",
@@ -222,8 +224,10 @@
     },
     {
       "name": "Generated ledger freshness",
-      "errors": [],
-      "error_count": 0
+      "errors": [
+        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index"
+      ],
+      "error_count": 1
     }
   ],
   "agent_guard": {

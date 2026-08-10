@@ -15,7 +15,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 390 CLI commands, 36 config sections, 95 plugin registrations, 40 direct Go dependencies, 35 weekly change entries.
-- Test evidence counts: 22,200+ unit tests, 78 fuzz targets, 1,500+ end-to-end transcript steps, 116 interop scenarios across 8 target implementations.
+- Test evidence counts: 22,200+ unit tests, 78 fuzz targets, 1,500+ end-to-end transcript steps, 117 interop scenarios across 8 target implementations.
 - Generated date: 2026-08-10.
 
 ## Quality and verification model
@@ -29,7 +29,7 @@ Ze uses layered proof because bugs appear at different boundaries.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 116 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 117 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
