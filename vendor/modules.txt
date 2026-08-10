@@ -348,6 +348,8 @@ go.fd.io/govpp/binapi/ip
 go.fd.io/govpp/binapi/ip_neighbor
 go.fd.io/govpp/binapi/ip_types
 go.fd.io/govpp/binapi/ipip
+go.fd.io/govpp/binapi/ipsec
+go.fd.io/govpp/binapi/ipsec_types
 go.fd.io/govpp/binapi/l2
 go.fd.io/govpp/binapi/lcp
 go.fd.io/govpp/binapi/memclnt
