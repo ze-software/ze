@@ -17,7 +17,8 @@ import (
 const maxPoolBufSize = 64 * 1024
 
 // batchBufPool provides reusable buffers for constructing batch RPC frames.
-// Initial capacity 4KB matches buildBufPool used elsewhere.
+// New allocates 4KB of capacity; a larger batch grows the buffer by append,
+// and maxPoolBufSize decides whether it comes back to the pool.
 var batchBufPool = sync.Pool{
 	New: func() any {
 		buf := make([]byte, 0, 4096)
