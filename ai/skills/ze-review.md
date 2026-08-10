@@ -22,6 +22,13 @@ phase itself.
   (`ai/rules/context-economy.md`). Do not run the steps below inline. You do
   not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
   Independent work goes out in ONE message with parallel `Agent` calls.
+- **Write the diff to a file ONCE and hand every reviewer its path.** You already
+  know the scope: you wrote the file list. Left to find it, each agent runs its
+  own `git diff` and reads the changed files again. Measured 2026-08-10: three
+  lenses over a 1000-line diff cost 364k tokens between them. Put the diff under
+  `$(scripts/dev/session-scratch.sh)` and name the path in the prompt.
+  **This replaces the DISCOVERY, never the verification.** A finding still names
+  the producing function, read from source (`ai/rules/evidence.md`).
 - **If you are that agent:** run the steps below. Resolve symbols with the LSP
   tool if your registry carries it and with `gopls` from Bash if it does not
   (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
@@ -47,6 +54,22 @@ phase itself.
 - **Review is not a cost target.** It is the cheapest phase measured, and it
   prevents the most expensive one. Never skip a lens, a step, or a source read
   to make it shorter.
+- **Scale the LENS COUNT to what the change can break.** Run all three lenses
+  when the diff touches any of these:
+  - a guard or a ratchet
+  - a wire format or a protocol path
+  - a generated artifact together with its generator
+  - a security or authorization surface
+  - a test that pins any of the above
+
+  One lens covers everything else. The count is not padding where it applies:
+  on 2026-08-10 each of the three found a real defect. 94 live files
+  grandfathered as dead, a ratchet that disarmed itself on any git error, and
+  two false claims in a module docstring. The artifact is required for every
+  closure commit carrying code, whichever count you run
+  (`scripts/dev/commit_helper.py`, `review_gate_problems`). This scales the
+  WORK and never the requirement, and `--rounds` stays bounded by what the
+  passes FIND.
 
 ## Steps
 
