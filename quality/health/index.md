@@ -107,7 +107,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 **22253 test functions** (ok)
 
-3010 Go test files, 78 fuzz targets, 137 benchmarks, 1598 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3010 Go test files, 78 fuzz targets, 137 benchmarks, 1599 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 

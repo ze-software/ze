@@ -200,6 +200,11 @@ so a service you reached from off-box through the wildcard default now answers
 only where the block says. Delete the `server` entry, or name the address you
 want, to publish on every interface again.
 
+`environment.web insecure` is the one exclusion. It removes authentication, so a
+block that does not start the web server does not supply it. The daemon logs a
+WARN that names the leaf when it drops it. Set `ze.web.insecure=1`, or write
+`enabled true` in the block, to run the web server without authentication.
+
 Run `ze config validate` or `ze doctor --json` over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so
 check `ze.gnmi.listen`, `ze.mcp.listen`, and `ze.web.insecure` by hand.
@@ -207,6 +212,7 @@ check `ze.gnmi.listen`, `ze.mcp.listen`, and `ze.web.insecure` by hand.
 <!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
 <!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
+<!-- source: cmd/ze/hub/main.go -- ExtractWebSettings branch, insecure exclusion and its WARN -->
 
 ### Authentication on reload
 

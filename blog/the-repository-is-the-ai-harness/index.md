@@ -146,7 +146,7 @@ A single edit does the damage, and every later stage then agrees with it, which 
 # test-relax: <why this test/assertion no longer applies>
 ```
 
-Around 750 lines in the tree carry one, and reading them is how I find out what has been given up. The agent writing the relaxation also writes its reason, so what I am reading is its own account of why the test no longer applies. On the tests that matter most, that is not good enough.
+Around 60 lines in the tree carry a genuine one, and reading them is how I find out what has been given up. There are 755 markers across 468 files, so most of them are receipts left by a hook which fires on edits that relax nothing, and separating the two took an audit I should not have needed. The agent writing the relaxation also writes its reason, so what I am reading is its own account of why the test no longer applies. On the tests that matter most, that is not good enough.
 
 A test tagged with an RFC requirement is the evidence behind a public compliance claim, and there the hook refuses outright:
 

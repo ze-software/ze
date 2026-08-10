@@ -1,7 +1,7 @@
 {
   "gate": {
-    "ok": true,
-    "error_count": 0,
+    "ok": false,
+    "error_count": 1,
     "gated_must": 2963,
     "enrolled_rfcs": 170,
     "test_tags": 3339,
@@ -222,8 +222,10 @@
     },
     {
       "name": "Generated ledger freshness",
-      "errors": [],
-      "error_count": 0
+      "errors": [
+        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index"
+      ],
+      "error_count": 1
     }
   ],
   "agent_guard": {
