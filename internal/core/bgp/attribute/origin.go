@@ -257,12 +257,7 @@ func WriteAttributesOrdered(attrs []Attribute, buf []byte, off int) int {
 func AttributesSize(attrs []Attribute) int {
 	totalLen := 0
 	for _, attr := range attrs {
-		attrLen := attr.Len()
-		if attrLen > 255 {
-			totalLen += 4 + attrLen // Extended length header
-		} else {
-			totalLen += 3 + attrLen // Normal header
-		}
+		totalLen += AttrWireLen(attr)
 	}
 	return totalLen
 }
@@ -273,12 +268,7 @@ func AttributesSize(attrs []Attribute) int {
 func AttributesSizeWithContext(attrs []Attribute, ctx *bgpctx.EncodingContext) int {
 	totalLen := 0
 	for _, attr := range attrs {
-		attrLen := attrLenWithContext(attr, ctx)
-		if attrLen > 255 {
-			totalLen += 4 + attrLen // Extended length header
-		} else {
-			totalLen += 3 + attrLen // Normal header
-		}
+		totalLen += attrWireLenWithContext(attr, ctx)
 	}
 	return totalLen
 }
