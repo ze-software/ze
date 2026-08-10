@@ -646,7 +646,9 @@ def run_validate_spec(results: Results) -> None:
     # trailing :line defeated the match. Must now be ACCEPTED.
     rc, err = _run_validate_spec(
         script,
-        base.replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        base.replace(
+            _CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"
+        ),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
         "validate-spec-line-numbered-citation-accepted",
@@ -677,7 +679,9 @@ def run_validate_spec(results: Results) -> None:
         script,
         base.replace(
             _CB,
-            "## Current Behavior\n\n" + long_preamble + "\n\n- [ ] `internal/x/y.go`",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+            "## Current Behavior\n\n"
+            + long_preamble
+            + "\n\n- [ ] `internal/x/y.go`",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ),
     )
     results.check(
@@ -713,7 +717,9 @@ def run_validate_spec(results: Results) -> None:
             "| foo.ci | test/x/ | user runs foo | |",
             "| hook fixtures | `scripts/dev/hook-fixture-check.py` | fixtures drive the hook | |",
         )
-        .replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        .replace(
+            _CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`"
+        )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     rc, err = _run_validate_spec(script, tooling)
     results.check(
@@ -2845,7 +2851,9 @@ def run_design_gate(results: Results) -> None:
 
     # MUST STILL FIRE: a daemon spec written with NOTHING investigated. This is the
     # refusal the gate exists for (inference-written specs, 2026-07-16).
-    r = _design_case("- `internal/x/y.go` - the daemon", ())  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon", ()
+    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-daemon-spec-uninvestigated-blocked", _design_blocked(r), repr(r)
     )
@@ -2855,14 +2863,19 @@ def run_design_gate(results: Results) -> None:
     # kind the spec is about would have let this through -- relaxing the gate for
     # every Go spec in the repository.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon", ("/repo/.claude/hooks/foo.sh",)  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        "- `internal/x/y.go` - the daemon",
+        (
+            "/repo/.claude/hooks/foo.sh",
+        ),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
         "design-gate-daemon-spec-grounded-by-hook-blocked", _design_blocked(r), repr(r)
     )
 
     # ...and the control: the same spec with its own Go read is allowed.
-    r = _design_case("- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",))  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",)
+    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-daemon-spec-reads-its-go", not _design_blocked(r), repr(r)
     )
@@ -2883,12 +2896,16 @@ def run_design_gate(results: Results) -> None:
 
     # A spec that states no source subject (docs, a `.ci`, a bare directory) keeps
     # the pre-scoping bar: any implementation source, and still not nothing.
-    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+    r = _design_case(
+        "- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",)
+    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-subjectless-spec-any-source", not _design_blocked(r), repr(r)
     )
 
-    r = _design_case("- `docs/guide/x.md` - the page", ())  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+    r = _design_case(
+        "- `docs/guide/x.md` - the page", ()
+    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-subjectless-spec-nothing-blocked", _design_blocked(r), repr(r)
     )
@@ -2899,7 +2916,9 @@ def run_design_gate(results: Results) -> None:
     work = _mark_project()
     try:
         _touch_marker(work, f".source-read-{_DESIGN_SID}")
-        r = _write_spec(work, "- `internal/x/y.go` - the daemon")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        r = _write_spec(
+            work, "- `internal/x/y.go` - the daemon"
+        )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-kindless-marker-not-enough-for-subject",
             _design_blocked(r),
@@ -2913,7 +2932,9 @@ def run_design_gate(results: Results) -> None:
     try:
         _read_source(work, "/repo/.claude/hooks/foo.sh")  # a per-kind marker exists
         _touch_marker(work, f".lsp-invoked-{_DESIGN_SID}")
-        r = _write_spec(work, "- `internal/x/y.go` - the daemon")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        r = _write_spec(
+            work, "- `internal/x/y.go` - the daemon"
+        )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-lsp-grounds-go-spec", not _design_blocked(r), repr(r)
         )
@@ -2983,7 +3004,9 @@ def run_design_gate(results: Results) -> None:
 
     # ISSUE 3: a subject the gate cannot read is the one permissive path left, so
     # it must SAY it degraded. Silence is what makes a weakened guard invisible.
-    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+    r = _design_case(
+        "- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",)
+    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check("design-gate-subjectless-write-warns", _design_degraded(r), repr(r))
 
     # ISSUE 3: an un-backticked path in a table row is a subject too. Reading only
@@ -3067,7 +3090,11 @@ def run_design_gate(results: Results) -> None:
     # the weaker any-source bar, and the case goes green -- which is the red.
     # `Makefile` and `.mk` are two rows and so are two cases.
     for label, files_line, read in (
-        ("go", "- `internal/x/y.go` - the daemon", "/repo/.claude/hooks/foo.sh"),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        (
+            "go",
+            "- `internal/x/y.go` - the daemon",
+            "/repo/.claude/hooks/foo.sh",
+        ),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         (
             "py",
             "- `scripts/dev/commit_helper.py` - the helper",
@@ -3188,7 +3215,9 @@ def run_design_gate(results: Results) -> None:
         _read_source(
             work, "/repo/internal/x/y.go", {"file": {"numLines": 1, "totalLines": 900}}
         )
-        r = _write_spec(work, "- `internal/x/y.go` - the daemon")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        r = _write_spec(
+            work, "- `internal/x/y.go` - the daemon"
+        )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-keyhole-read-does-not-ground", _design_blocked(r), repr(r)
         )
@@ -4775,9 +4804,177 @@ def run_phase_gates(results: Results) -> None:
         )
 
 
+# --------------------------------------------------------------------------- #
+# rfc-language: a rule directive states its obligation in RFC 2119 language
+# --------------------------------------------------------------------------- #
+
+
+def _find_point(kind: str) -> str | None:
+    """A real point file of this `kind`, or None when the corpus holds none.
+
+    DISCOVERED rather than hardcoded. The Edit branch reads the file on disk to
+    learn its kind, so it needs a real point, and a hardcoded slug would rot the
+    day somebody reclassifies or renames that one point -- silently, because the
+    fixture would then be asserting the permit path against a `note`.
+    """
+    points = os.path.join(ROOT, "ai", "rules", "points")
+    for rule in sorted(os.listdir(points)):
+        rule_dir = os.path.join(points, rule)
+        if not os.path.isdir(rule_dir):
+            continue
+        for section in sorted(os.listdir(rule_dir)):
+            section_dir = os.path.join(rule_dir, section)
+            if not os.path.isdir(section_dir):
+                continue
+            for slug in sorted(os.listdir(section_dir)):
+                path = os.path.join(section_dir, slug)
+                if not slug.endswith(".md"):
+                    continue
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    if re.search(r"^kind:[ \t]*%s[ \t]*$" % kind, fh.read(400), re.M):
+                        return path
+    return None
+
+
+def _point_body(kind: str, level: str, body: str) -> str:
+    return f"---\nkind: {kind}\nlevel: {level}\nstage:\n---\n{body}\n"
+
+
+def run_rfc_language(results: Results) -> None:
+    print("rfc-language:")
+    points = os.path.join(ROOT, "ai", "rules", "points")
+
+    # A slug no file uses: c_point_overwrite runs FIRST and refuses a Write over
+    # an existing point, so a fixture aimed at this check has to miss that one.
+    free = os.path.join(points, "rule-format", "directives", "zz-fixture-probe.md")
+    results.check(
+        "rfc-language-probe-slug-is-free",
+        not os.path.exists(free),
+        f"{free} exists, so the Write fixtures below would measure c_point_overwrite",
+    )
+
+    # --- Write carries the WHOLE point, so a missing keyword is decidable -----
+    code, err = _writeedit(
+        free, tool="Write", content=_point_body("directive", "", "- Delete it first.")
+    )
+    results.check(
+        "rfc-language-write-without-keyword-refused",
+        code == 2 and "states no RFC 2119 level" in err,
+        repr((code, err)),
+    )
+
+    code, err = _writeedit(
+        free,
+        tool="Write",
+        content=_point_body("directive", "MUST", "- You MUST delete it first."),
+    )
+    results.check(
+        "rfc-language-write-with-keyword-allowed", code == 0, repr((code, err))
+    )
+
+    # Scoped to `kind: directive`. A two-column lookup gains a word and no
+    # obligation from being made to say MUST, so note and table are untouched.
+    for kind in ("note", "table"):
+        code, err = _writeedit(
+            free, tool="Write", content=_point_body(kind, "", "- Delete it first.")
+        )
+        results.check(
+            f"rfc-language-write-{kind}-allowed", code == 0, repr((code, err))
+        )
+
+    # Quoted text is not stated text. A keyword that appears ONLY inside a code
+    # span or a fenced block leaves the point stating nothing, so it is refused
+    # -- the mirror of the permit cases further down, and the pair is what shows
+    # the strip is applied to one polarity as well as the other.
+    code, err = _writeedit(
+        free,
+        tool="Write",
+        content=_point_body("directive", "", "- The error reads `it MUST exist`."),
+    )
+    results.check(
+        "rfc-language-write-keyword-only-in-code-span-refused",
+        code == 2 and "states no RFC 2119 level" in err,
+        repr((code, err)),
+    )
+
+    code, err = _writeedit(
+        free,
+        tool="Write",
+        content=_point_body("directive", "", "- Run it.\n\n```\nit MUST exist\n```"),
+    )
+    results.check(
+        "rfc-language-write-keyword-only-in-fence-refused",
+        code == 2 and "states no RFC 2119 level" in err,
+        repr((code, err)),
+    )
+
+    # --- Edit carries a FRAGMENT, so only the lowercase modal is decidable ----
+    directive = _find_point("directive")
+    note = _find_point("note")
+    results.check(
+        "rfc-language-corpus-has-both-kinds",
+        bool(directive) and bool(note),
+        f"directive={directive!r} note={note!r}",
+    )
+    if not (directive and note):
+        return
+
+    code, err = _writeedit(directive, tool="Edit", content="- You should also do it.")
+    results.check(
+        "rfc-language-edit-lowercase-modal-refused",
+        code == 2 and "lowercase obligation word" in err,
+        repr((code, err)),
+    )
+
+    code, err = _writeedit(
+        directive, tool="Edit", content="- The error reads `it should exist`."
+    )
+    results.check(
+        "rfc-language-edit-modal-in-code-span-allowed", code == 0, repr((code, err))
+    )
+
+    # A fragment legitimately carries no keyword: the one that governs the point
+    # can sit in the part the Edit does not touch. Refusing here would make the
+    # check unusable for every ordinary wording fix.
+    code, err = _writeedit(directive, tool="Edit", content="- Delete it first.")
+    results.check(
+        "rfc-language-edit-without-keyword-allowed", code == 0, repr((code, err))
+    )
+
+    # `must-fix` is a compound, not a modal. Without the trailing-hyphen guard
+    # the word boundary after `must` matches and the check refuses real prose.
+    code, err = _writeedit(
+        directive, tool="Edit", content="- A must-fix defect MUST be fixed."
+    )
+    results.check(
+        "rfc-language-edit-hyphenated-compound-allowed", code == 0, repr((code, err))
+    )
+
+    # The kind is read from the FILE for an Edit, not from the fragment, so a
+    # note keeps its lowercase prose.
+    code, err = _writeedit(note, tool="Edit", content="- You should also do it.")
+    results.check("rfc-language-edit-note-allowed", code == 0, repr((code, err)))
+
+    # --- Discrimination: nothing outside a point file is touched --------------
+    code, err = _writeedit(
+        os.path.join(points, "rule-format", "manifest.md"),
+        tool="Edit",
+        content="- You should also do it.",
+    )
+    results.check("rfc-language-manifest-allowed", code == 0, repr((code, err)))
+
+    code, err = _writeedit(
+        os.path.join(ROOT, "docs", "contributing", "writing-style.md"),
+        tool="Edit",
+        content="- You should also do it.",
+    )
+    results.check("rfc-language-unrelated-doc-allowed", code == 0, repr((code, err)))
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "rendered-rule": run_rendered_rule,
+    "rfc-language": run_rfc_language,
     "validate-spec": run_validate_spec,
     "commit-gate": run_commit_gate,
     "session-id": run_session_id,
