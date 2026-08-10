@@ -72,7 +72,7 @@ FORCE:
 # `ze appliance kernel` also writes $(OUT)/Image, and it does not run this
 # Makefile. It deletes $(REQUEST) on every installer-target run, so the next
 # make here rebuilds rather than trust a record it did not write. The producer is
-# invalidateInstallerKernelRequest in internal/appliance/cmd_kernel.go.
+# invalidateKernelBuildRecords in internal/appliance/cmd_kernel.go.
 REQUESTED := $(ARCH)-$(PROFILE)-$(BUILDER)
 RECORDED := $(shell cat $(REQUEST) 2>/dev/null)
 ifneq ($(REQUESTED),$(RECORDED))

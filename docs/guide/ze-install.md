@@ -780,7 +780,10 @@ fragment, a builder file, the Makefile, or `internal/appliance/kernel.version`
 is newer than the built image. It also rebuilds when the requested arch,
 profile, or builder is different from the last build, which it records in
 `build/kernel/.request`. `ze appliance kernel` deletes that record on every
-installer-target run, so the next `make` rebuilds.
+installer-target run, so the next `make` rebuilds. It deletes
+`build/kernel/.variant` with it: that record says which arch, profile and version
+was BUILT, and `ze appliance iso` reads it to decide the image in
+`build/kernel/` is the one it needs.
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
 <!-- source: tools/kernel-builder/build.py -- main -->

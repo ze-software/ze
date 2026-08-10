@@ -186,7 +186,7 @@ grep -q '^CONFIG_COMPOSE_FIXTURE=y$' "$scratch/build/kernel/config"
 grep -q '^profile=compose-fixture$' "$scratch/build/kernel/kernel.version"
 # The build record, by name and by content. Two languages spell this file:
 # $(REQUEST) in tools/installer-kernel/Makefile writes it, and
-# invalidateInstallerKernelRequest in internal/appliance/cmd_kernel.go deletes
+# invalidateKernelBuildRecords in internal/appliance/cmd_kernel.go deletes
 # it. Renaming either side alone breaks the contract with both suites green
 # unless one of them names the file, so this assertion names it.
 grep -qx 'amd64-compose-fixture-docker' "$scratch/build/kernel/.request"

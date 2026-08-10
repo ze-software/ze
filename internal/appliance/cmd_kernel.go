@@ -328,25 +328,52 @@ func kernelCachePathFor(version, arch, profile, target string) (string, error) {
 	return filepath.Dir(kernelCachePath(version, variant)), nil
 }
 
-// installerKernelRequestFile is the build-system record tools/installer-kernel/Makefile
-// writes beside the image it builds. It holds the arch-profile-builder that was
-// asked for, and that Makefile skips the build while the record still matches.
+// installerKernelRequestFile is the record BOTH kernel Makefiles write beside
+// the artifact they build. It holds the arch-profile-builder that was asked for,
+// and the Makefile skips its build while the record still matches. Producers:
+// $(REQUEST) in tools/installer-kernel/Makefile and in gokrazy/kernel/Makefile.
 const installerKernelRequestFile = ".request"
 
-// invalidateInstallerKernelRequest deletes that record. Every path through
-// resolveInstallerKernel replaces build/kernel/Image, and none of them runs the
-// Makefile. A surviving record would therefore describe an image the Makefile
-// did not produce. `make -C tools/installer-kernel PROFILE=qemu` would report
-// nothing to do, over another profile's kernel.
+// installerKernelVariantFile is the second record, and only the installer target
+// has one. It holds the arch-profile-version-builder that was BUILT.
+// installerKernelBuildMatches in cmd_iso.go reads it to decide whether the image
+// in build/kernel/ is the one an ISO of that arch and profile needs.
+const installerKernelVariantFile = ".variant"
+
+// installerKernelBuildRecords and runtimeKernelBuildRecords name what each target
+// must invalidate.
+var (
+	installerKernelBuildRecords = []string{installerKernelRequestFile, installerKernelVariantFile}
+	runtimeKernelBuildRecords   = []string{installerKernelRequestFile}
+)
+
+// invalidateKernelBuildRecords deletes the records for one target. Every path
+// through resolveInstallerKernel and resolveRuntimeKernel replaces the artifact
+// in the Makefile's output directory, and none of them runs the Makefile. A
+// surviving record therefore describes an artifact the Makefile did not produce.
 //
-// It returns the error, and the caller stops on it. A record this process
-// cannot delete, whose image it is about to replace, is the state the deletion
-// exists to prevent. To continue past it leaves the wrong kernel behind under a
-// success exit code. An absent record is the wanted state, not a failure.
-func invalidateInstallerKernelRequest(outputDir string) error {
-	path := filepath.Join(outputDir, installerKernelRequestFile)
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove stale build record %s: %w", path, err)
+// A stale .request makes the next `make` in that directory report nothing to do
+// over another arch's or another profile's kernel. A stale .variant makes
+// `ze appliance iso` accept the image as this profile's. verifyKernelArch in
+// cmd_iso.go still catches a wrong ARCH. Nothing catches a wrong PROFILE, so the
+// ISO ships a qemu kernel with none of the hardware profile's NIC and NVMe
+// drivers.
+//
+// Deleting .variant rather than rewriting it is enough. This path always
+// populates the XDG cache with the image it places, and isoKernelCachePath reads
+// that cache under the same variant key before it reaches the .variant fallback.
+// That fallback exists for an image `make` built, and `make` writes the record.
+//
+// It returns the error, and the caller stops on it. A record this process cannot
+// delete, whose artifact it is about to replace, is the state the deletion exists
+// to prevent. To continue past it leaves the wrong kernel behind under a success
+// exit code. An absent record is the wanted state, not a failure.
+func invalidateKernelBuildRecords(outputDir string, names []string) error {
+	for _, name := range names {
+		path := filepath.Join(outputDir, name)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove stale build record %s: %w", path, err)
+		}
 	}
 	return nil
 }
@@ -356,7 +383,7 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 	toolsDst := filepath.Join(td.outputDir, td.artifact)
 	// Before any path below replaces the image, so no branch can skip it. The
 	// cache hit is the common repeat path and it returns before any build.
-	if err := invalidateInstallerKernelRequest(td.outputDir); err != nil {
+	if err := invalidateKernelBuildRecords(td.outputDir, installerKernelBuildRecords); err != nil {
 		return "", err
 	}
 
@@ -407,6 +434,13 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
 	cachedDir := kernelTreeCachePath(version, variant)
 	cachedKernel := filepath.Join(cachedDir, td.artifact)
+
+	// Before any path below replaces the vmlinuz tree. gokrazy/kernel/Makefile
+	// skips its build while $(REQUEST) matches. An amd64 vmlinuz and an arm64 one
+	// live at the same path.
+	if err := invalidateKernelBuildRecords(td.outputDir, runtimeKernelBuildRecords); err != nil {
+		return "", err
+	}
 
 	if _, err := os.Stat(cachedKernel); err == nil {
 		if cpErr := copyTree(cachedDir, td.outputDir); cpErr != nil {

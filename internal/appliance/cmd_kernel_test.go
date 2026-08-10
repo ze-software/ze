@@ -340,16 +340,20 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 }
 
 // TestKernelInvalidatesInstallerRequest pins the contract between this path and
-// tools/installer-kernel/Makefile. That Makefile skips a build while
-// build/kernel/.request still names the requested arch-profile-builder. This
-// path replaces build/kernel/Image and never runs it. The record must not
-// survive. If it did, a later `make PROFILE=<other>` would report nothing to do
-// and leave this profile's kernel in place. Producer:
-// invalidateInstallerKernelRequest in cmd_kernel.go.
+// the two records tools/installer-kernel/Makefile writes beside the image.
+// .request is what that Makefile reads to skip a build, and .variant is what
+// installerKernelBuildMatches (cmd_iso.go) reads to decide the image in
+// build/kernel/ belongs to an arch and profile.
+//
+// This path replaces build/kernel/Image and never runs the Makefile, so neither
+// record can survive. A stale .request makes a later `make PROFILE=<other>`
+// report nothing to do. A stale .variant makes `ze appliance iso` ship this
+// image as the profile the record names. Producer:
+// invalidateKernelBuildRecords in cmd_kernel.go.
 //
 // Both branches that replace the image are driven. A cache hit is the common
 // repeat path and it returns before any build. A deletion placed next to the
-// build alone would leave the record behind exactly when it matters most.
+// build alone would leave the records behind exactly when it matters most.
 func TestKernelInvalidatesInstallerRequest(t *testing.T) {
 	const version = "7.1.1"
 	for _, tc := range []struct {
@@ -374,11 +378,17 @@ func TestKernelInvalidatesInstallerRequest(t *testing.T) {
 			tc.populate(t)
 
 			requestPath := filepath.Join(kernelInstallerOutputDir, installerKernelRequestFile)
+			variantPath := filepath.Join(kernelInstallerOutputDir, ".variant")
 			if err := os.MkdirAll(kernelInstallerOutputDir, 0o755); err != nil {
 				t.Fatal(err)
 			}
-			// A record the Makefile left behind for a different profile.
+			// Records the Makefile left behind for a DIFFERENT profile. The
+			// resolve below asks for hardware, so a survivor is a lie about the
+			// image this path is putting in its place.
 			if err := os.WriteFile(requestPath, []byte("amd64-qemu-docker\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(variantPath, []byte(archAMD64+"-qemu-"+defaultKernelVersion+"-docker\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 
@@ -391,6 +401,76 @@ func TestKernelInvalidatesInstallerRequest(t *testing.T) {
 
 			if _, err := os.Stat(requestPath); !os.IsNotExist(err) {
 				t.Errorf("%s survived a kernel resolve (err=%v); a later make would skip the rebuild", requestPath, err)
+			}
+			if _, err := os.Stat(variantPath); !os.IsNotExist(err) {
+				t.Errorf("%s survived a kernel resolve (err=%v); ze appliance iso would ship this image as the qemu profile's", variantPath, err)
+			}
+			// The record is gone, so the consumer that reads it must now refuse
+			// the image rather than accept it under the stale profile. Driven
+			// through the reader, not through os.Stat alone.
+			if installerKernelBuildMatches(archAMD64, "qemu") {
+				t.Error("installerKernelBuildMatches still claims the image is the qemu profile's")
+			}
+		})
+	}
+}
+
+// TestRuntimeKernelInvalidatesRequest is the same contract for the runtime
+// target. gokrazy/kernel/Makefile carries the same $(REQUEST) record.
+// resolveRuntimeKernel replaces tmp/kernel/build/vmlinuz and does not run that
+// Makefile. An amd64 vmlinuz and an arm64 one live at that one path, so a
+// surviving record makes the next `make -C gokrazy/kernel ARCH=<other>` report
+// nothing to do over the wrong architecture's kernel.
+//
+// Both branches that replace the tree are driven. Only the build branch
+// discriminates the deletion: copyTree clears the destination before it renames
+// the staged tree in, so a cache hit removes the record either way. The
+// cache-hit case is kept for the END STATE it asserts, which must hold however
+// it is reached. It is not evidence for the deletion.
+func TestRuntimeKernelInvalidatesRequest(t *testing.T) {
+	const version = "7.1.1"
+	for _, tc := range []struct {
+		name     string
+		populate func(t *testing.T)
+	}{
+		{name: "build", populate: func(*testing.T) {}},
+		{name: "cache-hit", populate: func(t *testing.T) {
+			resolved, err := resolveKernelProfile(runtimeKernelConfigDir, runtimeKernelProfile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cachedDir := kernelTreeCachePath(version, kernelCacheVariantFor(kernelTargetRuntime, archAMD64, resolved))
+			if err := os.MkdirAll(filepath.Join(cachedDir, "lib", "modules"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(cachedDir, "vmlinuz"), []byte("cached-runtime-vmlinuz"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			writeRuntimeKernelRegistry(t)
+			t.Setenv("XDG_CACHE_HOME", t.TempDir())
+			tc.populate(t)
+
+			requestPath := filepath.Join(runtimeKernelOutputDir, installerKernelRequestFile)
+			if err := os.MkdirAll(runtimeKernelOutputDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			// A record the Makefile left behind for the OTHER architecture.
+			if err := os.WriteFile(requestPath, []byte("arm64-runtime-docker\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			setTestKernelBuild(t, fakeRuntimeBuild)
+
+			if _, err := resolveKernel(version, archAMD64, runtimeKernelProfile, "", kernelTargetRuntime); err != nil {
+				t.Fatalf("resolveKernel runtime: %v", err)
+			}
+
+			if _, err := os.Stat(requestPath); !os.IsNotExist(err) {
+				t.Errorf("%s survived a runtime kernel resolve (err=%v); a later make would skip the rebuild", requestPath, err)
 			}
 		})
 	}
@@ -634,6 +714,40 @@ func TestKernelBuildPyInvalidatesCache(t *testing.T) {
 	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
 	if variant1 == variant2 {
 		t.Fatal("build.py change did not change cache variant")
+	}
+}
+
+// TestKernelBuilderModuleInvalidatesCache proves the builder hash is a glob over
+// tools/kernel-builder/ rather than the three-name list it replaced. Both probes
+// name a module that list never held: an EDIT to the QEMU backend, which is the
+// whole builder for `--builder qemu`, and a module ADDED to the directory. A
+// probe on build.py cannot tell the two shapes apart, so it proves neither.
+func TestKernelBuilderModuleInvalidatesCache(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	writeInstallerKernelRegistry(t)
+
+	builderDir := filepath.Join(dir, kernelBuilderDir)
+	qemuBuild := filepath.Join(builderDir, "qemu-build.py")
+	if err := os.WriteFile(qemuBuild, []byte("#!/usr/bin/env python3\nprint('v1')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	variant1 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+
+	if err := os.WriteFile(qemuBuild, []byte("#!/usr/bin/env python3\nprint('v2')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	if variant1 == variant2 {
+		t.Fatal("qemu-build.py change did not change cache variant")
+	}
+
+	if err := os.WriteFile(filepath.Join(builderDir, "newmod.py"), []byte("#!/usr/bin/env python3\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if variant3 := kernelCacheVariant(archAMD64, defaultKernelProfile); variant3 == variant2 {
+		t.Fatal("a module added to the builder directory did not change cache variant")
 	}
 }
 

@@ -1,4 +1,5 @@
-# Test: gokrazy/kernel/Makefile notices shared builder and patch changes.
+# Test: gokrazy/kernel/Makefile notices shared builder and patch changes, and a
+# change of ARCH= or BUILDER=.
 #
 # // test-relax: the build output artifact is redirected to a per-test dir via
 # `make OUT=$work/out` instead of the shared tmp/kernel/build. The old shared
@@ -20,8 +21,16 @@ cd "$repo"
 state="$work/mtimes.json"
 outdir="$work/out"
 
+# probe_module is created in the SHARED tools/kernel-builder/ (this test runs
+# against the real repository root, not a scratch copy), so its removal is in the
+# trap and not only beside the probe. A survivor is a builder module every later
+# reader would hash and depend on: gokrazy/kernel/Makefile globs that directory,
+# and so does kernelBuilderScripts in internal/appliance/cache.go.
+probe_module=tools/kernel-builder/zz-runtime-deps-probe.py
+
 cleanup() {
 	set +e
+	rm -f "$probe_module"
 	python3 - <<'PY' "$state"
 from pathlib import Path
 import json, os, sys
@@ -58,6 +67,7 @@ paths = [
     Path('gokrazy/kernel/kernel.require'),
     Path('gokrazy/kernel/runtime.config'),
     Path('gokrazy/kernel/runtime.require'),
+    Path('gokrazy/kernel/Makefile'),
     Path('gokrazy/kernel/patches/series'),
     Path('gokrazy/kernel/patches/0001-nct6683.patch'),
 ]
@@ -94,13 +104,31 @@ expect_status() {
 	fi
 }
 
+# The build record the recipe writes beside the artifact ($(REQUEST) in
+# gokrazy/kernel/Makefile). The vmlinuz above is fabricated, so this is too: the
+# steady state this test probes is "built with these settings, nothing changed
+# since", and that state is a pair of files, not one. Without the record every
+# probe below would report work to do for the same reason (an unrecorded
+# request), and none of them would discriminate anything.
+printf 'amd64-runtime-docker\n' > "$outdir/.request"
+
 touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build.py tools/kernel-builder/qemu-build.py \
 	tools/kernel-builder/run.py tools/kernel-builder/ksource.py \
 	tools/kernel-builder/common/efi-console.config tools/kernel-builder/common/efi-console.require \
+	gokrazy/kernel/Makefile \
 	gokrazy/kernel/kernel.config gokrazy/kernel/kernel.require gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
 touch -t 202601010100 "$outdir/vmlinuz"
 expect_status 0 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
-expect_status 0 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=qemu
+
+# A different ARCH= or BUILDER= is work to do with every file untouched. Neither
+# can be expressed as a file prerequisite: an amd64 vmlinuz and an arm64 one live
+# at the same path, so the recorded request is the only thing that tells them
+# apart. Each probe changes exactly one of the two.
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=qemu
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" ARCH=arm64 BUILDER=docker
+# The probes above left the steady state intact: the comparison reads the record
+# and writes nothing, so asking twice gives the same answer.
+expect_status 0 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
 touch -t 202601010200 tools/kernel-builder/Dockerfile
 expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
@@ -113,13 +141,35 @@ touch -t 202601010000 tools/kernel-builder/run.py
 touch -t 202601010200 tools/kernel-builder/common/efi-console.config
 expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
+# The prerequisite list is builder-independent, so this probes the FILE and not
+# the BUILDER= it is named after: the request stays the recorded docker one.
 touch -t 202601010000 tools/kernel-builder/common/efi-console.config
 touch -t 202601010200 tools/kernel-builder/qemu-build.py
-expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=qemu
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
+# The Makefile itself. Its recipe names the arch, the builder and the run.py
+# argument list, so editing it changes the build as much as editing a config
+# fragment does.
 touch -t 202601010000 tools/kernel-builder/qemu-build.py
+touch -t 202601010200 gokrazy/kernel/Makefile
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
+
+touch -t 202601010000 gokrazy/kernel/Makefile
 touch -t 202601010200 gokrazy/kernel/patches/0001-nct6683.patch
 expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
+
+# A builder module ADDED to tools/kernel-builder/ is work to do. The file is new
+# on purpose: touching run.py passes against a prerequisite list that names the
+# modules one by one, so it cannot tell the glob from the list it replaced. Only
+# a module the old list never named discriminates.
+touch -t 202601010000 gokrazy/kernel/patches/0001-nct6683.patch
+: > "$probe_module"
+touch -t 202601010200 "$probe_module"
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
+rm -f "$probe_module"
+
+# Every probe restored what it changed, so the steady state is the last word.
+expect_status 0 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
 echo OK
 EOF_SH

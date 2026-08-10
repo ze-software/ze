@@ -78,16 +78,29 @@ func kernelTreeCachePath(version, variant string) string {
 	return filepath.Join(resolveCacheDir(), runtimeKernelCacheDir, tb.Str(version).Byte('-').Str(variant).String())
 }
 
-func cacheFileHash(dir string, names []string) (string, bool) {
-	h := sha256.New()
-	for _, name := range names {
-		data, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // constant base dir + validated names
-		if err != nil {
-			return "", false
-		}
-		h.Write(data)
+// kernelBuilderScripts lists every Python module under kernelBuilderDir, sorted
+// so the hash is stable regardless of directory walk order. ok is false if the
+// directory cannot be read, so the caller falls back to a builder-independent
+// variant.
+//
+// Found rather than named, for the reason tools/installer-kernel/Makefile globs
+// the same directory: a hand-written list stops covering the builder the day
+// somebody adds a module to it. This one had already stopped. It named build.py,
+// run.py and ksource.py, so an edit to qemu-build.py -- the whole QEMU backend --
+// left the key unchanged and served a kernel the old backend had built.
+func kernelBuilderScripts() (paths []string, ok bool) {
+	entries, err := os.ReadDir(kernelBuilderDir)
+	if err != nil {
+		return nil, false
 	}
-	return hex.EncodeToString(h.Sum(nil))[:8], true
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".py") {
+			continue
+		}
+		paths = append(paths, filepath.Join(kernelBuilderDir, e.Name()))
+	}
+	sort.Strings(paths)
+	return paths, true
 }
 
 func cacheFileHashPaths(paths []string) (string, bool) {
@@ -115,13 +128,18 @@ func kernelCacheVariant(arch, profile string) string {
 // Image) and runtime (vmlinuz tree) artifacts never collide, and by the config
 // + builder-script hashes so profile/fragment/builder changes invalidate stale
 // artifacts. The resolved Fragments already include any # ze-include shared
-// fragment, so editing the shared fragment invalidates the cache too.
+// fragment, so editing the shared fragment invalidates the cache too. The
+// builder hash covers every module under kernelBuilderDir, the QEMU backend
+// included (kernelBuilderScripts).
 func kernelCacheVariantFor(target, arch string, profile kernelProfileResolution) string {
 	var tb textbuf.Buffer
 	configInputs := append([]string{}, profile.Fragments...)
 	configInputs = append(configInputs, profile.Manifests...)
 	configHash, configOK := cacheFileHashPaths(configInputs)
-	builderHash, builderOK := cacheFileHash(kernelBuilderDir, []string{"build.py", "run.py", "ksource.py"})
+	builderHash, builderOK := "", false
+	if scripts, found := kernelBuilderScripts(); found {
+		builderHash, builderOK = cacheFileHashPaths(scripts)
+	}
 	if !configOK || !builderOK {
 		return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).String()
 	}
