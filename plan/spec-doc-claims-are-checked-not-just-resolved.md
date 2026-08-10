@@ -364,3 +364,232 @@ inside its make target over the real tree, plus the existing suites staying gree
 - [ ] Journal row written for anything this teaches
 - [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-doc-claims-are-checked-not-just-resolved.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `check_anchor_symbols` in `scripts/dev/code_to_docs.py`, called from `main()`'s
+  anchor walk, verifies the tokens after an anchor's `--` against the anchored
+  `.go` file. `anchor_symbol_tokens` keeps a token only when it is an identifier
+  or a dotted chain, `go_declarations` reads the file's own text for top-level
+  declarations, and `claim_is_declared` compares the two. The scan takes no build
+  context, so a `//go:build linux` declaration resolves on a macOS host.
+- `check_ignore_reasons` in `scripts/dev/check_doc_links.py` requires every
+  `doc-links: ignore` marker to state a reason. It sweeps every TRACKED file, not
+  the walked corpus, because a marker outside the corpus is the one nobody audits.
+- `ze-validate-tree` in `Makefile`, and its stage in `stagesForMode`
+  (`scripts/status/verify_run.go`), give `validate.py`'s three tree-wide checks
+  their first automatic caller. The two changed-file checks stay out: in a shared
+  checkout they judge other sessions' half-written files. `main()` in
+  `scripts/dev/validate.py` selects on the flag being GIVEN rather than on the
+  truthiness of the list it built, so an empty `--changed-file` value is an empty
+  set by construction.
+- The `/ze-review-docs` obligation is a point file,
+  `ai/rules/points/planning/documentation-update-checklist-blocking/a-new-page-or-a-changed-claim-owes-an-independent-reader.md`,
+  rendered into `ai/rules/planning.md:952`. It landed in HEAD through commit
+  `e693617ee`.
+- Both new gates are registered in the discovery surface
+  (`ai/rules/points/repo-maintenance/discovery-updates/the-discovery-surface-that-answers-each-need.md`)
+  and in `ai/INDEX.md`.
+
+### Bugs Found/Fixed
+- The rule corpus asserted that `make ze-doc-links` was "folded into
+  `make ze-doc-test`". The `ze-doc-test` recipe runs no part of it. Corrected in
+  the discovery-surface point file and in `ai/INDEX.md`. This is the spec's own
+  subject matter: a claim above a resolving reference.
+- `check_ignore_reasons` failed closed on a file deleted between the
+  `git ls-files` listing and the read. Two sessions closing specs hit that window
+  on 2026-08-10. A vanished file is now skipped; a file that EXISTS and cannot be
+  read still fails closed. Covered by
+  `test_a_file_deleted_mid_sweep_is_not_a_finding` and
+  `test_unreadable_file_is_a_finding`.
+- `CHECKLIST_SECTIONS` in `.claude/hooks/validate-spec.sh` blocked edits to 34
+  non-skeleton specs carrying neither heading, including other sessions' work.
+  The two headings now warn. Warnings print their text, which they did not before.
+
+### Documentation Updates
+- `docs/contributing/documentation-testing.md`: the anchor-symbol half, the
+  fourth `check_doc_links.py` check, and a repair row per finding message.
+  Anchors: `scripts/dev/code_to_docs.py -- check_anchor_symbols, anchor_symbol_tokens, go_declarations`
+  and `scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons`.
+- 46 further `docs/` pages: anchor repairs found by the armed check, each
+  repointed at the file that DECLARES the symbol, plus the false sentences those
+  anchors were lending credibility to (`docs/architecture/api/text-format.md`,
+  `docs/guide/config-editor.md`, `docs/architecture/api/architecture.md`).
+- `ai/CODE-TO-DOCS.md` regenerated (`make ze-doc-index`) because the anchors moved.
+- `make ze-doc-test` PASSED, its last line being `Documentation tests PASSED`.
+
+### Deviations from Plan
+- The TDD plan named `test_anchor_naming_an_absent_symbol_fails` and
+  `test_member_token_is_not_flagged`. Implementation split each across the unit
+  and the armed-gate layer: `test_absent_symbol_is_reported` plus
+  `test_check_fails_on_an_anchor_naming_an_absent_symbol` for the first, and
+  `test_rule_2_demotes_a_member_reached_through_a_receiver`,
+  `test_rule_2_demotes_a_call_the_anchored_file_makes` and
+  `test_rule_2_demotes_a_string_key` for the second. Behaviour is unchanged; the
+  names are.
+- The spec named no `Makefile`, `verify_run.go` or `validate.py` work.
+  `ze-validate-tree` was added because the Wiring Test's own reasoning (a check
+  reached by no stage is enforced by nothing) applied to `validate.py` as well,
+  which held the design phase's rejected home for the symbol check. Review round 3
+  then took `main()`'s changed-set selection off a truthiness accident.
+- A-1 is broken as stated. Two severity rules were derived from the measurement
+  rather than the assumed false-positive rate. See Known Limitations.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed the false-positive rate was manageable without classification | 372 of 4779 claims were unresolved and 250 of them were the legitimate non-declaration shape | phase 2 measured the whole tree before arming | two severity rules, both measured and both pinned by a cost test |
+| approach | The design phase put the symbol check in `scripts/dev/validate.py` | No stage reached `validate.py` at all, so the check would have been enforced by nothing | reading `stagesForMode` in `scripts/status/verify_run.go` | the check moved to `code_to_docs.py`, and `ze-validate-tree` gave `validate.py` a caller |
+| approach | The `ze-validate-tree` recipe declared its empty changed set through a list that happened to be truthy | `main()` read the empty set as "no flag given" the moment anything normalised the list, restoring the `git diff HEAD` fallback | independent review round 3, reading `main()` rather than the comment above the recipe | `--changed-file` defaults to `None`; the flag being given decides, and two tests pin `main()` |
+| approach | `CHECKLIST_SECTIONS` was armed as BLOCKING for every spec | 34 non-skeleton specs carry neither heading, so the gate froze other sessions' edits | reviewer probe on `plan/spec-fixit-mgmt-listener-auth-guard.md`, rc=2 | downgraded to warnings, with the arming condition recorded in the hook |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Change 1: the source-anchor gate verifies the symbols it already carries | Done | `check_anchor_symbols`, `scripts/dev/code_to_docs.py:222`; called at `:384` | Runs in the walk `make ze-doc-test` reaches |
+| Change 2: a suppression carries a reason a gate reads | Done | `check_ignore_reasons`, `scripts/dev/check_doc_links.py:551`; called at `:630` | Sweeps every tracked file |
+| Change 3: an independent reader is mandatory where prose makes claims | Done | `ai/rules/points/planning/documentation-update-checklist-blocking/a-new-page-or-a-changed-claim-owes-an-independent-reader.md`, rendered into the Documentation Update Checklist section of `ai/rules/planning.md` | Landed in HEAD via `e693617ee` |
+| The owner-requested documentation-currency audit | Done | Deferral shard row 2 | 14 findings: 2 folded in here, the rest homed |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test_absent_symbol_is_reported`, `test_check_fails_on_an_anchor_naming_an_absent_symbol` | The finding names the doc, the anchor path and the symbol |
+| AC-2 | Done | `test_anchor_naming_a_declared_symbol_passes`, `test_check_passes_when_the_named_symbol_is_declared` | |
+| AC-3 | Done | `test_rule_2_demotes_a_call_the_anchored_file_makes`, `test_rule_2_demotes_a_member_reached_through_a_receiver`, `test_rule_2_demotes_a_string_key`, `test_single_lowercase_word_is_prose_not_a_claim` | The severity chosen from phase 2's count, not guessed |
+| AC-4 | Done | `test_ignore_marker_without_a_reason_fails`, `test_empty_parentheses_are_not_a_reason` | |
+| AC-5 | Done | `ai/rules/planning.md:952` | The point file is committed at HEAD |
+| AC-6 | Done | `make ze-doc-test` PASSED; `make ze-validate-tree` rc=0; `make ze-doc-links` rc=0 | `make ze-validate` also runs two changed-file checks whose subject is other sessions' uncommitted files in this shared checkout, so the tree-wide half is the honest measure |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `test_anchor_naming_an_absent_symbol_fails` | Changed | `test_absent_symbol_is_reported` and `test_check_fails_on_an_anchor_naming_an_absent_symbol`, both in `scripts/dev/code_to_docs_test.py` | Split into a unit and an armed-gate test |
+| `test_anchor_naming_a_declared_symbol_passes` | Done | `scripts/dev/code_to_docs_test.py:185` | |
+| `test_member_token_is_not_flagged` | Changed | the three `test_rule_2_demotes_*` tests in `scripts/dev/code_to_docs_test.py` | One test per demoted shape |
+| `test_ignore_marker_without_a_reason_fails` | Done | `scripts/dev/check_doc_links_test.py:391` | |
+| `make ze-doc-test` | Done | `tmp/close2-doctest.log` | PASSED |
+| `make ze-plugin-test` | Skipped | - | No daemon path changed: the diff is Python gates, a Makefile target, one `verify_run.go` stage, docs and rules. `make ze-doc-test`, `ze-doc-links`, `ze-validate-tree` and `ze-hook-test` are the owning gates and all pass |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `scripts/dev/code_to_docs.py` | Done | `check_anchor_symbols` and its three helpers |
+| `scripts/dev/code_to_docs_test.py` | Done | 40 tests, all pass |
+| `scripts/dev/check_doc_links.py` | Done | `check_ignore_reasons` |
+| `scripts/dev/check_doc_links_test.py` | Done | 33 tests, all pass |
+| `ai/rules/planning.md` (via its point files) | Done | Landed at HEAD in `e693617ee` |
+| `ai/rules/repo-maintenance.md` (via its point files) | Done | Both gates registered; the false "folded into ze-doc-test" sentence corrected |
+| `scripts/dev/validate.py`, `scripts/dev/validate_test.py` | Changed | Not in the plan. `main()`'s changed-set selection, and the two tests that pin it, came out of review round 3 |
+
+### Audit Summary
+- **Total items:** 20
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 1 (`make ze-plugin-test`: no daemon path in the diff)
+- **Changed:** 2 (two TDD test names, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An anchor's symbols are checked, not only its path | functional (gate in its make target) | `make ze-doc-test` runs `check_anchor_symbols` over every `docs/` anchor, and reports `Documentation tests PASSED`. It discriminates: a deliberate bad anchor made the target fail, and reverting it made it pass. `test_a_finding_never_enters_the_generated_content` pins that a finding cannot be laundered into the index |
+| A suppression states a reason a gate reads | functional | `make ze-doc-links` rc=0 with `check_ignore_reasons` armed over every tracked file. `test_real_corpus_has_no_unreasoned_marker` re-asserts it against the real tree, and `test_marker_outside_the_walked_corpus_is_still_swept` proves the sweep is wider than the corpus |
+| A reader is mandatory where prose makes claims | rule with a recorded gate | `ai/rules/planning.md:952`; `/ze-close` records the pass in Documentation Verified, which this closure fills |
+| The 82 measured false anchors are repaired | data correctness | 47 `docs/` pages repaired, each anchor repointed at the DECLARING file. `make ze-doc-test` is green with the check armed, which was impossible before the repairs |
+| The documentation-currency audit Thomas asked for | audit report | Deferral shard row 2: 14 findings, 2 folded into this spec, the rest homed in specs that this closure commits |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Every doc-freshness gate verifies reference integrity and none verifies claim truth | done | This spec. Both checks armed and reached by `make ze-verify` |
+| Full audit of whether the rule corpus keeps design documentation current | done | Ran in the research phase: 14 findings, 2 folded in, 3 specs written |
+| Code can land with no design doc: 85 package directories with no anchor | deferred | `plan/spec-code-can-land-with-no-design-doc.md`, committed by this closure so the destination exists. Thomas keeps it |
+| 451 dead `plan/learned/<id>-*.md` citations outside the walked corpus | deferred | `plan/spec-dead-learned-citations-outside-the-walked-corpus.md`, committed by this closure so the destination exists |
+
+The shard still holds two live rows, so it is NOT removed. No foreign shard was
+emptied by these resolutions.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/doc-claims-are-checked-not-just-resolved-dd4824d0-d096-46a7-8005-28cd3c86b04e.md` |
+| `review_gate.py check` | clean (`review_gate: OK`, hashes match, 13 files pinned) |
+| Rounds | 3 |
+| Reviewer lenses used | Three independent `ze-read` subagents: the code half (gate logic, fail-closed behaviour, commit scoping), the documentation half (claim truth above every repaired anchor), and the `ze-validate-tree` wiring (`Makefile`, `verify_run_test.go`, read against `main()` in `validate.py`). None wrote the diff. Round 3 earned itself: it found a product defect, finding 9 |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `CHECKLIST_SECTIONS` blocked edits to 34 non-skeleton specs, freezing other sessions | `.claude/hooks/validate-spec.sh` | Downgraded both headings to warnings; warnings now print their text; probe rc=0 after |
+| 2 | BLOCKER | Three Go files carry another session's `SendContext` unexport, whose declaration moves in an uncommitted `peer.go` | `internal/component/bgp/reactor/reactor_api_batch.go` and two siblings | Commit-scoping: excluded from this spec's `--file` list, so `make ze-tracked-build-check` cannot break |
+| 5 | ISSUE | `enforceRFC7606, checkPrefixLimits` anchored at a file that only CALLS both | `docs/features/configuration.md` | Repointed at `session_validation.go` and `session_prefix.go` |
+| 6 | ISSUE | `FilterStageProtocol` anchored at a file that writes `filterapi.FilterStageProtocol` | `docs/features/configuration.md` | Repointed at `internal/component/bgp/filterapi/filterapi.go` |
+| 7 | ISSUE | "All verified against `format/text.go:formatAttributeText()`", a symbol that exists nowhere, one line above a repaired anchor | `docs/architecture/api/text-format.md` | Sentence now names `appendAttributeText` in `text_human.go` |
+| 8 | ISSUE | The repair guidance told the reader to reword a token into prose so the classifier reads it as free text | `docs/contributing/documentation-testing.md` | The row now says to point the anchor at the declaring file, and states why prose is never the answer to a `CLAIM:` finding |
+| 3, 4 | ISSUE | Receiver-blind dotted claims; the salvage awk tearing a handoff that quotes `## Session:` | `code_to_docs.py`, `session-end-summary.sh` | Recorded as journal rows per the 2026-08-10 owner directive: a found problem gets a row, not a same-session fix |
+| 9 | ISSUE | The `ze-validate-tree` selection rested on the truthiness of `['']`, so any cleanup that empties or normalises the list silently restored the `git diff HEAD` fallback and put both changed-file checks back inside `make ze-verify`. Nothing pinned `main()` | `main()`, `scripts/dev/validate.py` | `--changed-file` now defaults to `None`: the flag being GIVEN decides the set, and an empty value yields an empty list by construction. `test_empty_changed_set_runs_neither_changed_file_check` and `test_a_named_changed_file_still_reaches_the_changed_file_checks` pin both halves, and the fixture discriminates |
+| 13 | ISSUE | `check_ignore_reasons` failed closed on a file deleted between listing and read | `scripts/dev/check_doc_links.py` | A vanished file is skipped, an existing unreadable file still fails; two tests pin both halves |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `scripts/dev/code_to_docs.py` | Yes | `check_anchor_symbols` at `:222`, called at `:384` |
+| `scripts/dev/check_doc_links.py` | Yes | `check_ignore_reasons` at `:551`, called at `:630` |
+| `ai/rules/points/repo-maintenance/hook-to-rule-mapping/ze-verify-runs-the-tree-wide-half-of-ze-validate.md` | Yes | New point file, listed in `ai/rules/points/repo-maintenance/manifest.md` |
+| `ai/rules/points/repo-maintenance/hook-to-rule-mapping/the-validate-checks-and-which-half-the-gate-runs.md` | Yes | Same manifest |
+| `ai/rules/points/repo-maintenance/hook-to-rule-mapping/why-two-validate-checks-stay-out-of-the-gate.md` | Yes | Same manifest |
+| `plan/spec-code-can-land-with-no-design-doc.md` | Yes | Deferral destination, committed by this closure |
+| `plan/spec-dead-learned-citations-outside-the-walked-corpus.md` | Yes | Deferral destination, committed by this closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | An absent symbol is reported with its file, anchor and symbol | `python3 scripts/dev/code_to_docs_test.py`: 40 tests, OK. `test_absent_symbol_is_reported:191`, `test_check_fails_on_an_anchor_naming_an_absent_symbol:457` |
+| AC-2 | A declared symbol yields no finding | Same run; `test_anchor_naming_a_declared_symbol_passes:185` |
+| AC-3 | A call, member or string key is not flagged | Same run; `:313`, `:325`, `:331`, `:140` |
+| AC-4 | An unreasoned marker fails the gate and names the line | `python3 scripts/dev/check_doc_links_test.py`: 33 tests, OK. `test_ignore_marker_without_a_reason_fails:391` |
+| AC-5 | A new page or a changed claim owes `/ze-review-docs` | `grep -n ze-review-docs ai/rules/planning.md` -> `:952` |
+| AC-6 | The tree is green under both gates | `make ze-doc-test` PASSED; `make ze-doc-links` rc=0; `make ze-validate-tree` rc=0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-doc-test` | none (a make target, not a `.ci`) | Yes: the recipe runs `code_to_docs.py --check`, whose `main()` calls `check_anchor_symbols` at `:384`. Proved discriminating by a deliberate bad anchor that made the target fail, then reverted |
+| `make ze-doc-links` | none | Yes: `main()` calls `check_ignore_reasons` at `:630`; rc=0 with the check armed, and `test_real_corpus_has_no_unreasoned_marker` re-asserts it |
+| `make ze-verify` -> `ze-validate-tree` | none | Yes: `stagesForMode` in `scripts/status/verify_run.go` names it in both mode branches, pinned by `TestStagesForModeIncludesValidateTree`, which also asserts the Makefile target exists and keeps `--changed-file ''`. The Python half is pinned by `test_empty_changed_set_runs_neither_changed_file_check`; `python3 scripts/dev/validate_test.py` runs 29 tests, OK |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | 372 unresolved of 4779 claims over 5315 segments; 250 were the legitimate non-declaration shape. Two measured severity rules carry the rest. Mistake Log row 1; Known Limitations prices the 70 real defects the rules demote |
+| A-2 | confirmed | `go_declarations` reads file text and takes no `GOOS` input, so no sweep can differ. Over 56 linux-only anchored files it resolves 124 of 145 claims, and none of the 21 remaining is a hidden declaration |
+| A-3 | confirmed | 6 unreasoned markers at HEAD, being 3 written twice (point file plus render). Each hid a dead `plan/learned/` citation; each was repaired by deleting the citation with its marker. `make ze-doc-links` rc=0 with no unreasoned marker left |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #10 test infrastructure: `docs/contributing/documentation-testing.md` | Anchors name `check_anchor_symbols, anchor_symbol_tokens, go_declarations` and `check_markdown, check_design_refs, check_hook_names, check_ignore_reasons`; every one is a top-level `def` in its file | Yes |
+| #15 inventory: `ai/INDEX.md` and the `repo-maintenance` gate list | The `check_doc_links.py` row now says four checks, and the `ze-doc-test` row no longer claims to run it. `mk/inventory.mk`'s `ze-doc-test` recipe runs no `check_doc_links.py` | Yes |
+| #16 changed source files referenced by existing anchors | 47 `docs/` pages repaired; `ai/CODE-TO-DOCS.md` regenerated by `make ze-doc-index` | Yes |
+| `/ze-review-docs` pass over the changed claims | Reviewer subagent 2 (documentation half) read every repaired anchor's page and falsified three prose claims (findings 5-8), all fixed | Yes |
+| #1-9, #11-14, #17 answered No | The diff adds no user-facing feature, no config, CLI, API, plugin, wire, SDK or RFC surface: it is Python gates, one Makefile target, one `verify_run.go` stage, docs and rules | Yes |
+
+## Core Insight
+
+A resolving reference is what makes a false sentence credible. Every gate in this
+repository checked that the pointer resolved, which is the half a machine finds
+easy, and the half that lends the other half its authority. Arming the cheap half
+over the symbols the anchors ALREADY carried found 82 false anchors in a tree
+every gate called green, and each repair exposed a sentence above it that no gate
+can ever judge. That is why change 3 is a reader, not a checker.

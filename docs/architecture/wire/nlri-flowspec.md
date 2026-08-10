@@ -3,8 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/flow.py`
 **Family:** AFI 1/2, SAFI 133 (flow_ip) or 134 (flow_vpn)
 
-<!-- source: internal/core/bgp/nlri/nlri.go -- SAFIFlowSpec -->
-<!-- source: internal/core/bgp/nlri/constants.go -- SAFIFlowSpecVPN -->
+<!-- source: internal/core/family/family.go -- SAFIFlowSpec, SAFIFlowSpecVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- IPv4FlowSpec, IPv6FlowSpec, IPv4FlowSpecVPN, IPv6FlowSpecVPN -->
 
 ---
 
@@ -152,7 +152,7 @@ Common to all non-prefix components:
 | 11 | diff (not exact match) |
 
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowOperator type and flags -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_numeric.go -- NumericComponent -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_numeric.go -- numericComponent, parseNumericComponent -->
 
 ---
 

@@ -129,4 +129,4 @@ that peer's routes server-side instead of fetching everything and counting
 client-side.
 
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
-<!-- source: internal/component/command/pipe.go -- FoldFilters, lookupPipeFilters -->
+<!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->

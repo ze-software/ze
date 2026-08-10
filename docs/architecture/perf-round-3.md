@@ -4,9 +4,8 @@
 <!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- communityList, communityByteList -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs, parseFilterAttrs -->
 
-Third optimization round after campaigns 771 (91ms to 71ms) and 859 (71ms to 62ms).
-Prior work is documented in `plan/learned/771-performance-optimization-campaign.md`
-and `plan/learned/859-perf-hot-alloc-reduction.md`.
+Third optimization round. The first campaign took the convergence benchmark from
+91ms to 71ms, and the second took it from 71ms to 62ms.
 
 This round targeted three paths identified through source audit and arithmetic,
 not speculative profiling. Each change preserves wire bytes, JSON output, and
@@ -146,8 +145,7 @@ Files: `filter_chain.go`, `filter_delta.go`, `policy_dryrun.go`.
 
 An audit investigated seven additional candidates and rejected all of them.
 The evidence is recorded in `plan/spec-perf-next-0-umbrella.md` (Negative
-Findings table) and `plan/learned/900-perf-next-round-3.md` so future
-sessions do not re-investigate them:
+Findings table) so future sessions do not re-investigate them:
 
 - Engine event dispatch slice copy: BGP events never reach engine subscribers.
   Dispatch rate is approximately 0.1/s operational.

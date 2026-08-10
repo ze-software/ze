@@ -147,7 +147,8 @@ Each peer has a `connection` setting:
 Each peer's FSM runs as a goroutine with a `switch` on `fsm.state`. The FSM
 notifies the reactor on ESTABLISHED transitions (triggering initial route sends)
 and on session close (triggering peer-down events to plugins).
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.Run, FSM callback -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer, StartWithContext -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- run, runOnce, SetCallback closure -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
 
 TCP sockets are tuned for BGP: `TCP_NODELAY` (messages are application-framed),

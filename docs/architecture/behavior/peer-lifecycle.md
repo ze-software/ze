@@ -112,7 +112,7 @@ for {
 | `reconnectMin` override | None. `NewPeer` sets `DefaultReconnectMin` and no config leaf changes it. `settings.ConnectRetry` is the connect TIMEOUT, not the backoff floor: wiring it in made floor(120s) exceed ceiling(60s) and stranded peers `connecting` for two minutes (spec-fixit-redistribute-establishment-stall). | `peer.go` `NewPeer` |
 | `reconnectMax` override | `DefaultReconnectMax` (no setting yet) | `peer.go` |
 
-<!-- source: internal/component/bgp/reactor/peer.go — DefaultReconnectMin, DefaultReconnectMax, NewPeer, SetReconnect -->
+<!-- source: internal/component/bgp/reactor/peer.go — DefaultReconnectMin, DefaultReconnectMax, NewPeer, SetReconnectDelay -->
 
 **Per-attempt accounting:**
 
@@ -374,7 +374,7 @@ always either reconnects or is stopped via context cancellation.
 |---------|------|--------|
 | Peer struct, constructor, state enum | `internal/component/bgp/reactor/peer.go` | `Peer`, `NewPeer`, `PeerState`, `setState` |
 | Start / Stop / Teardown API | `internal/component/bgp/reactor/peer.go` | `Start`, `StartWithContext`, `Stop`, `Teardown` |
-| Reconnect defaults and overrides | `internal/component/bgp/reactor/peer.go` | `DefaultReconnectMin`, `DefaultReconnectMax`, `SetReconnect` |
+| Reconnect defaults and overrides | `internal/component/bgp/reactor/peer.go` | `DefaultReconnectMin`, `DefaultReconnectMax`, `SetReconnectDelay` |
 | Outer run loop and backoff | `internal/component/bgp/reactor/peer_run.go` | `run`, `safeRunOnce` |
 | Per-attempt session lifecycle | `internal/component/bgp/reactor/peer_run.go` | `runOnce` |
 | FSM state-change callback | `internal/component/bgp/reactor/peer_run.go` | `SetCallback` closure inside `runOnce` |
@@ -382,7 +382,7 @@ always either reconnects or is stopped via context cancellation.
 | Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `SetInboundConnection`, `takeInboundConnection` |
 | RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `SetPendingConnection`, `ResolvePendingCollision`, `AcceptConnectionWithOpen` |
 
-<!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, PeerState, Start, Stop, Teardown, SetReconnect, DefaultReconnectMin, DefaultReconnectMax -->
+<!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, PeerState, Start, Stop, Teardown, SetReconnectDelay, DefaultReconnectMin, DefaultReconnectMax -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, safeRunOnce, runOnce, cleanup -->
 <!-- source: internal/component/bgp/reactor/peer_connection.go — SetInboundConnection, takeInboundConnection, SetPendingConnection, ResolvePendingCollision, AcceptConnectionWithOpen -->
 

@@ -132,6 +132,30 @@ for section in "${REQUIRED_SECTIONS[@]}"; do
     fi
 done
 
+# === CHECKLIST SECTIONS ===
+# plan/TEMPLATE.md ships both, and the documentation one calls itself BLOCKING.
+# Until 2026-08-09 no check read either: REQUIRED_SECTIONS above named neither,
+# so the strongest word this repository has bound a reader and nothing else.
+# They WARN, they do not block, and the reason is a measurement rather than a
+# preference: 34 non-skeleton specs on disk carry neither heading, so blocking
+# froze every edit to all of them the moment this check landed. A gate that
+# stops other sessions editing work this repository never asked them to fix is
+# a worse defect than the one it closes. The warning still tells the author,
+# which is the whole gap: until 2026-08-09 nothing read either heading at all.
+# Blocking becomes correct once the backlog is zero, and not before.
+# The headings are matched without their `(BLOCKING)` suffix so both the
+# template's spelling and the bare one satisfy the check.
+CHECKLIST_SECTIONS=(
+    "### Integration Checklist"
+    "### Documentation Update Checklist"
+)
+
+for section in "${CHECKLIST_SECTIONS[@]}"; do
+    if ! grep -q "^${section}" "$FILE_PATH"; then
+        WARNINGS+=("Missing section: $section (plan/TEMPLATE.md -- answer every row Yes / No / N-A; a No needs a source-aware check, not a guess)")
+    fi
+done
+
 # === CURRENT BEHAVIOR CHECK ===
 # Ensure source files were actually read (not just placeholders).
 # Read the WHOLE section (not a fixed 30-line window): a long section's
@@ -451,6 +475,13 @@ fi
 
 if [[ ${#WARNINGS[@]} -gt 0 ]]; then
     echo -e "${YELLOW}⚠ Spec: ${#WARNINGS[@]} warnings${RESET}" >&2
+    # A count alone is not a warning: nobody can act on "7 warnings". The
+    # errors above print their text and the warnings did not, so a downgrade
+    # from error to warning silently deleted the message. Same cap of 5.
+    for warn in "${WARNINGS[@]:0:5}"; do
+        echo -e "  ${YELLOW}!${RESET} $warn" >&2
+    done
+    [[ ${#WARNINGS[@]} -gt 5 ]] && echo -e "  ... +$((${#WARNINGS[@]}-5)) more" >&2
 fi
 
 exit 0

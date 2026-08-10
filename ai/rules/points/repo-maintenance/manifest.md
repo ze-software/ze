@@ -79,6 +79,9 @@ hook-to-rule-mapping ## Hook-to-Rule Mapping
   changed-file-gates-inside-ze-verify-wiring-docs
   these-gates-are-make-targets-scoped-to-changed-files
   the-wiring-docs-gates-and-what-each-one-blocks
+  ze-verify-runs-the-tree-wide-half-of-ze-validate
+  the-validate-checks-and-which-half-the-gate-runs
+  why-two-validate-checks-stay-out-of-the-gate
   prose-gate-asd-ste100
   the-prose-gate-compares-each-file-with-its-own-head
   the-prose-gate-checks-and-what-each-one-does

@@ -158,7 +158,7 @@ reconnect interval before redialing, so a flapping collector cannot drive a
 dump loop.
 
 <!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- primeSender -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- requestLocRIBDump, sendLocRIBEndOfRIB, closeEmptyDump -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- requestLocRIBDump, sendLocRIBEndOfRIB, closeDumpFamilies -->
 <!-- source: internal/component/bgp/plugins/bmp/sender.go -- run, onConnected -->
 
 #### A Slow Collector Cannot Stall BGP

@@ -3,7 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/bgpls/`
 **Family:** AFI 16388 (BGP-LS), SAFI 71 (bgp_ls) or 72 (bgp_ls_vpn)
 
-<!-- source: internal/core/bgp/nlri/nlri.go -- AFIBGPLS, SAFIBGPLinkState, SAFIBGPLinkStateVPN -->
+<!-- source: internal/core/family/family.go -- AFIBGPLS, SAFIBGPLinkState, SAFIBGPLinkStateVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSFamily, BGPLSVPNFamily -->
 
 ---
 

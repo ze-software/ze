@@ -75,7 +75,7 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 
 ### Attribute Formats
 
-All verified against `format/text.go:formatAttributeText()`. Text output uses short aliases.
+All verified against `appendAttributeText` in `internal/component/bgp/format/text_human.go`. Text output uses short aliases.
 
 | Attribute | Keyword (output) | Long form | Format | Delimiter |
 |-----------|-------------------|-----------|--------|-----------|
@@ -88,7 +88,7 @@ All verified against `format/text.go:formatAttributeText()`. Text output uses sh
 | LARGE_COMMUNITY | `l-com` | `large-community` | `l-com 65001:1:2,65002:3:4` | comma-separated |
 | EXT_COMMUNITY | `x-com` | `extended-community` | `x-com 0002000a0b0c0d0e` | comma-separated hex |
 | Unknown | `attr-<code>` | — | `attr-42 deadbeef` | scalar hex |
-<!-- source: internal/component/bgp/format/text.go -- formatAttributeText -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendAttributeText, appendAttributesText -->
 
 Note: keywords are singular (`s-com`, not `communities`). Lists use comma separation (no brackets, no spaces in values).
 Shared keyword constants defined in `textparse/keywords.go`. The alias `e-com` is accepted as input but the formatter always outputs `x-com`.

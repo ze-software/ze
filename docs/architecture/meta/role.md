@@ -83,7 +83,9 @@ The OPEN is the ordering-safe place to do this. A session-down clear is not: the
 
 The clear is symmetric with the set on the reject path: the role is recorded even when `validateOpenRolePair` refuses the session, so it is dropped on refusal too.
 
-<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, clearFilterRemoteRole, filterKeyLocked -->
+`recordNoRemoteRole` writes an empty role rather than deleting the entry, so "this peer's OPEN declared no role" stays distinct from "no OPEN was ever recorded for this peer". `remoteRoleRecorded` reads that distinction for the drop reason. Both resolve to the configured complement for the RFC 9234 gates.
+
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent -->
 
 ## Observability

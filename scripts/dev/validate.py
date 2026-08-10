@@ -645,9 +645,14 @@ def main() -> int:
     parser.add_argument(
         "--changed-file",
         action="append",
-        default=[],
+        default=None,
         dest="changed_files",
-        help="changed file to check (repeatable; default: git diff)",
+        help=(
+            "changed file to check (repeatable). Give it once with an empty "
+            "value to declare an explicitly EMPTY changed set, which runs the "
+            "three tree-wide checks and neither changed-file check. Omit it "
+            "and the set comes from git diff"
+        ),
     )
     args = parser.parse_args()
 
@@ -659,7 +664,15 @@ def main() -> int:
         )
         return 2
 
-    changed = args.changed_files if args.changed_files else changed_files(root)
+    # The flag being GIVEN selects the set, never the truthiness of the list it
+    # built. `make ze-validate-tree` passes `--changed-file ''` to declare an
+    # empty set, and an empty list is falsy: reading it as "no flag" would send
+    # that target back to git diff and put both changed-file checks inside
+    # `make ze-verify`, where they judge other sessions' half-written files.
+    if args.changed_files is None:
+        changed = changed_files(root)
+    else:
+        changed = [f for f in args.changed_files if f]
     findings = run_checks(root, changed)
 
     if not findings:

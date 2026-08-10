@@ -109,12 +109,13 @@ Location: `internal/component/bgp/plugins/hostname/hostname_test.go`
 
 | Test | Validates |
 |------|-----------|
-| `TestHostnamePluginParseConfig` | JSON config parsing |
+| `TestExtractHostnameCapabilities` | JSON config parsing |
 | `TestHostnamePluginEncode` | Wire format encoding |
-| `TestHostnamePluginMultiplePeers` | Per-peer config isolation |
+| `TestExtractHostnameCapabilitiesMultiplePeers` | Per-peer config isolation |
 | `TestHostnamePluginBoundary` | 255-byte length limits |
-| `TestHostnamePluginDeclarations` | Startup protocol messages |
-<!-- source: internal/component/plugin/server/config_test.go -- TestConfigTreeStructure, TestHostnamePluginFullFlow -->
+| `TestHostnamePluginYANG` | YANG schema registration |
+<!-- source: internal/component/bgp/plugins/hostname/hostname_test.go -- TestExtractHostnameCapabilities, TestHostnamePluginEncode, TestHostnamePluginBoundary, TestHostnamePluginYANG -->
+<!-- source: internal/component/plugin/server/config_test.go -- TestConfigTreeStructure, TestHostnamePluginCapabilityInjection -->
 
 Run:
 ```bash

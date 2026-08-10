@@ -189,9 +189,9 @@ ze-test bgp encode --count 10 1 2
 # Run tests under development from test/draft/<suite> instead of test/<suite>
 ze-test bgp plugin --draft --all
 ```
-<!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
-<!-- source: internal/test/cli/ci_runner.go -- runCISubcommand common options -->
-<!-- source: internal/test/cli/cmd_editor.go -- editorMain common options -->
+<!-- source: internal/test/cli/cmd_bgp.go -- zeTestParseRunCLI, zeTestPrintRunUsage -->
+<!-- source: internal/test/cli/ci_runner.go -- RunCISubcommand common options -->
+<!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain common options -->
 
 ---
 ## Writing a Test: Draft First
@@ -1237,7 +1237,8 @@ appliance kernel/initrd/ISO build commands. The QEMU evidence entries run Python
 that self-skip when external prerequisites are missing, printing either
 `INSTALL-QEMU: SKIP` or `INSTALL-ISO-QEMU: SKIP` while exiting successfully.
 Real failures exit non-zero.
-<!-- source: internal/test/cli/register.go -- installCmd -->
+<!-- source: internal/test/cli/register.go -- the install CI root -->
+<!-- source: internal/test/cli/dispatch.go -- registerCIRoot -->
 <!-- source: test/install/qemu-full.ci -- PXE installer evidence entry -->
 <!-- source: test/install/qemu-iso.ci -- ISO installer evidence entry -->
 
@@ -1258,7 +1259,7 @@ Real failures exit non-zero.
 | `kernel-qemu-arch-alias.ci` | `tools/kernel-builder/qemu-build.py` accepts `aarch64` as an alias for `arm64` and continues to later path validation |
 | `kernel-builder-packages.ci` | Shared runtime builder package lists include host tools needed for `CONFIG_KERNEL_ZSTD=y` images and `modules_install` output (`zstd`, `kmod`) in both Docker and QEMU backends |
 | `kernel-builder-no-shell.ci` | `build.py`/`qemu-build.py`/`run.py`/`ksource.py` use no `shell=` subprocess argument; `enforce_required_symbols` + `embed_firmware` behave |
-| `kernel-runtime-deps.ci` | `gokrazy/kernel/Makefile` treats the builder scripts (incl. `run.py`, `ksource.py`), the shared fragment, Dockerfile, and tracked patches as rebuild inputs |
+| `kernel-runtime-deps.ci` | `gokrazy/kernel/Makefile` treats the builder scripts (a module ADDED to `tools/kernel-builder/` included), the shared fragment, Dockerfile, tracked patches, and the Makefile itself as rebuild inputs, and a change of `ARCH=` or `BUILDER=` as work to do with every file untouched |
 | `kernel-tarball-dedup.ci` | The `cdn.kernel.org` URL + `vN.x` series construction lives only in `ksource.py`, imported by both `build.py` and `qemu-build.py` (AC-11) |
 | `kernel-version-single-reader.ci` | No Makefile reads `kernel.version`; one variable name (`KERNEL_VERSION`) at the builder env boundary; `run.py` self-locates the version file (AC-14/AC-15) |
 | `kernel-version-provenance.ci` | Every build emits a `build/kernel.version` provenance sidecar; a malformed or pre-7 version is rejected before any build (AC-16/AC-17) |
@@ -1393,10 +1394,10 @@ Common run options:
 | `--port N` | Base port for BGP/VPP `.ci` runners |
 | `-c`, `--count N` | BGP `.ci` stress mode, run each selected test N times |
 | `--server ID`, `--client ID` | BGP `.ci` manual split-debug modes |
-<!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
-<!-- source: internal/test/cli/ci_runner.go -- runCISubcommand -->
-<!-- source: internal/test/cli/cmd_vpp.go -- parseVPPCLI, printVPPUsage -->
-<!-- source: internal/test/cli/cmd_editor.go -- editorMain -->
+<!-- source: internal/test/cli/cmd_bgp.go -- zeTestParseRunCLI, zeTestPrintRunUsage -->
+<!-- source: internal/test/cli/ci_runner.go -- RunCISubcommand -->
+<!-- source: internal/test/cli/cmd_vpp.go -- zeTestParseVPPCLI, zeTestPrintVPPUsage -->
+<!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain -->
 <!-- source: internal/test/cli/cmd_web.go -- cmdWebMain -->
 
 ### Replaying a captured BGP session
@@ -2167,7 +2168,7 @@ uv run --with paramiko bin/ze-test exabgp --all --timeout 180s
 ## Per-Test Timing Baseline
 
 `ze-test` maintains a rolling timing baseline in `tmp/test-timings.json` that enables two features:
-<!-- source: internal/test/runner/timing.go -- TimingEntry, LoadTimings, SaveTimings -->
+<!-- source: internal/test/runner/timing.go -- TimingEntry, LoadTimings, Timings.Save -->
 
 **Auto-timeout:** Each test's timeout is calculated as `min(global_timeout, max(5s, 5x baseline_avg))`. A test that normally takes 500ms gets a 5s timeout instead of the default 15s. This catches hangs in seconds rather than waiting for the global timeout. Explicit `option=timeout:value=` in the `.ci` file always takes precedence.
 
@@ -2202,7 +2203,7 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-editor-test` or `bin/ze-test editor --all`; select one with `bin/ze-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
-<!-- source: internal/test/cli/cmd_editor.go -- editorMain selection flags -->
+<!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain selection flags -->
 
 ### Key Directives
 

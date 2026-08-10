@@ -135,7 +135,7 @@ Certificates are persisted in zefs (`meta/web/cert`, `meta/web/key`) via the `Ce
 
 TLS handshake errors from browsers rejecting self-signed certs are suppressed in the server error log.
 
-<!-- source: internal/component/web/server.go -- GenerateWebCertWithAddr, LoadOrGenerateCert, addInterfaceIPs -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, LoadOrGenerateCert, addInterfaceIPs, CertStore -->
 
 ## Security Headers
 

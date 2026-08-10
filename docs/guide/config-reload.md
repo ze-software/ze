@@ -59,7 +59,8 @@ If a plugin reload fails:
 5. For each new peer: creates session, initiates connection
 6. For each changed peer: tears down old session, starts new one
 7. Plugins receive config-verify then config-apply callbacks
-<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree; internal/component/bgp/reactor/reactor_api.go -- PeersFromTree, config diff -->
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree, config diff -->
 
 ## Best Practices
 

@@ -245,12 +245,12 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 | SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` (BGP path only) |
 | SIGQUIT | Goroutine dump + exit | Go runtime default (not caught -- useful for debugging) |
 <!-- source: internal/component/bgp/reactor/signal.go -- handleSignal, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
-<!-- source: cmd/ze/hub/main.go -- runBGPInProcess, runOrchestratorWithData -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, runOrchestratorWithData -->
 
 ### Daemon Liveness
 
 Daemon liveness is detected by TCP dial to the SSH port. CLI tools (`ze signal stop`, `ze signal reload`, `ze signal status`) connect via SSH to send commands. No PID files or Unix sockets are used.
-<!-- source: internal/plugins/signal/main.go -- Run, cmdSignalReload, cmdSignalStop -->
+<!-- source: internal/plugins/signal/main.go -- Run, RunStatus, cmdSSHExec -->
 
 ### `ze signal` CLI
 
@@ -270,12 +270,12 @@ Usage: `ze signal <command>`
 
 ### Startup Paths
 
-**BGP in-process** (`runBGPInProcess`):
+**BGP in-process** (`runYANGConfig`):
 1. Load config via YANG parser
 2. Start SSH server (binds configured listen addresses)
 3. Start reactor with `SignalHandler` (handles SIGHUP/SIGUSR1)
 4. Wait for SIGTERM/SIGINT or reactor done
-<!-- source: cmd/ze/hub/main.go -- runBGPInProcess -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 **Hub orchestrator** (`runOrchestratorWithData`):
 1. Parse hub config

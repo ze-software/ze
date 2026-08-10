@@ -581,13 +581,13 @@ per principal (concurrent tasks, retained terminal tasks, task TTL).
 
 ## History
 
-| Landed | Summary | Delivered |
-|--------|---------|-----------|
-| MCP 1 | `plan/learned/636-mcp-1-streamable-http.md` | The Streamable HTTP transport |
-| MCP 2 | `plan/learned/638-mcp-2-remote-oauth.md` | Remote binding, OAuth 2.1, per-identity bearer list |
-| MCP 3 | `plan/learned/640-mcp-3-elicitation.md` | Server-initiated `elicitation/create` (the push model, deleted by the 2026-07-28 cutover) |
-| 2026-2 | `plan/spec-mcp2026-2-mrtr.md` | Multi Round-Trip Requests: elicitation returns as an `InputRequiredResult` value, with no `requestState` |
-| MCP 4 | `plan/learned/681-mcp-4-tasks.md` | The original task surface: client-directed `tools/call`, the `tasks/*` methods, the task registry. Superseded by the extension cutover below |
-| MCP 5 | `plan/learned/682-mcp-5-apps.md` | Resources capability, `ui://` UI-resource scheme |
-| 2026-4 | `plan/spec-mcp2026-4-caching-apps.md` | Cacheable results (SEP-2549) and MCP Apps as the `io.modelcontextprotocol/ui` extension (SEP-1865) |
-| Gate | `plan/learned/987-feature-gate-5-mcp.md` | The `ze_mcp` compile-out feature gate |
+| Landed | Delivered |
+|--------|-----------|
+| MCP 1 | The Streamable HTTP transport |
+| MCP 2 | Remote binding, OAuth 2.1, per-identity bearer list |
+| MCP 3 | Server-initiated `elicitation/create` (the push model, deleted by the 2026-07-28 cutover) |
+| 2026-2 | Multi Round-Trip Requests: elicitation returns as an `InputRequiredResult` value, with no `requestState` |
+| MCP 4 | The original task surface: client-directed `tools/call`, the `tasks/*` methods, the task registry. Superseded by the extension cutover below |
+| MCP 5 | Resources capability, `ui://` UI-resource scheme |
+| 2026-4 | Cacheable results (SEP-2549) and MCP Apps as the `io.modelcontextprotocol/ui` extension (SEP-1865) |
+| Gate | The `ze_mcp` compile-out feature gate |

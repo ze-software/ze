@@ -80,12 +80,12 @@ ze daemon (registry-driven YANG runtime)
 | Abstraction | Purpose | Location |
 |-------------|---------|----------|
 | `WireUpdate` | Lazy-parsed BGP UPDATE: iterators over wire bytes, no intermediate structs | `internal/component/bgp/wireu/` |
-| `PackContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH) | `internal/core/bgp/context/` |
+| `EncodingContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, extended next hop) | `internal/core/bgp/context/` |
 | `ContextID` | uint16 hash of capabilities. Same ID = forward wire bytes unchanged. | `internal/core/bgp/context/` |
 | `Pool` / `Handle` | Per-attribute-type pools with refcounted handles and incremental compaction | `internal/component/bgp/attrpool/` |
 | `DirectBridge` | Bypasses IPC serialization for internal plugins (direct function calls) | `pkg/plugin/rpc/` |
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
-<!-- source: internal/core/bgp/context/context.go -- PackContext -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 

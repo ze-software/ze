@@ -167,7 +167,7 @@ and "Sibling Call-Site Audit") but give it no durable sink.
 
 **Evidence.**
 - The 1082 learned summaries are per-completed-spec, historical, append-only. They are
-  excellent as a record (`plan/learned/1065-...` has decisions, consequences, gotchas,
+  excellent as a record (each had decisions, consequences, gotchas and
   files) but they answer "why did we change this in spec N", not "how does subsystem X
   work right now".
 - `docs/architecture/*.md` is curated canonical design, human-gated, prescriptive

@@ -75,17 +75,24 @@ The editor operates in one of two modes depending on the storage backend.
 
 Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
 
-<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errInsertNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+<!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
+<!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
 
 | Blocked command | Reason |
 |-----------------|--------|
 | `load` | Replaces tree without generating per-leaf change entries |
 | `copy` | Creates structure without write-through |
-| `insert` | Creates structure without write-through |
-| `deactivate` | Requires metadata write-through |
-| `activate` | Requires metadata write-through |
+| `deactivate` on a leaf or a path | Requires metadata write-through |
+| `activate` on a leaf or a path | Requires metadata write-through |
 | `commit confirmed` | Needs session-aware rollback |
 | `commit force` | Needs session-aware rollback |
+
+`insert` is supported in session mode: `InsertLeafListValue` routes through
+`writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a
+leaf-list member rather than a leaf or a path.
+<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
+<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
 
 Use file mode (`ze config edit -f`) for these operations.
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Stop hook: Write a compact session snapshot to per-spec session state file.
-# Keeps the three most recent summaries. Does NOT release the session's spec
+# Keeps the three most recent summaries, and every block that is not a summary
+# (phase handoffs, notes) verbatim. Does NOT release the session's spec
 # claim: this hook fires between every turn, so releasing here killed the claim
 # after turn one. That moved to session-end-scratch.sh, on SessionEnd.
 
@@ -70,24 +71,76 @@ fi)
 SNAP
 )
 
-# Extract the two most recent snapshots from existing file
-PREVIOUS=""
+# Salvage everything the new snapshot does not replace: the two most recent
+# snapshots, PLUS every block that is not a snapshot at all.
+#
+# A snapshot is recognised by its own grammar, never by its position: the
+# `## Session:` heading, then the lines this hook writes under it (Branch, Last
+# commit, Spec, the `Uncommitted:`/`Staged:` headings, their `- \`path\`` items,
+# blank lines, and the `---` separators between blocks). The FIRST line that
+# fits none of those ends the snapshot, so a phase handoff appended at the end
+# of the file (ai/skills/ze-implement.md, "Phase handoff"), the
+# `## Last Compaction` marker pre-compact-save.sh inserts, and any note a
+# session wrote by hand all survive verbatim.
+#
+# The old salvage took a POSITION: print from the first `## Session:` line, exit
+# at the third. Once two snapshots existed, everything after them was outside
+# that window and the `>` below deleted it. On 2026-08-09 that destroyed a phase
+# 4 handoff and a set of main-thread notes, and .claude/rules/post-compaction.md
+# makes this file Tier 1 recovery, so the next phase had to re-derive them.
+PRESERVED=""
 if [ -f "$STATE_FILE" ]; then
-    PREVIOUS=$(awk '
-        /^## Session:/ { block++; if (block > 2) exit }
-        block >= 1 { print }
+    PRESERVED=$(awk -v keep=2 '
+        function emit(block) {
+            if (emitted++) { print ""; print "---" }
+            print block
+        }
+        function flush(   t) {
+            if (kind == "") return
+            t = cur
+            # Trailing blank lines are re-added by the writer, so trimming them
+            # is what stops one blank line accruing per rewrite. A snapshot also
+            # sheds the `---` this hook itself put after it.
+            if (kind == "snap") {
+                while (t ~ /\n[ \t]*(---)?[ \t]*$/) sub(/\n[ \t]*(---)?[ \t]*$/, "", t)
+                snaps++
+                if (snaps <= keep) snap[snaps] = t
+            } else {
+                while (t ~ /\n[ \t]*$/) sub(/\n[ \t]*$/, "", t)
+                while (t ~ /^[ \t]*\n/) sub(/^[ \t]*\n/, "", t)
+                if (t != "") other[++others] = t
+            }
+            cur = ""; kind = ""
+        }
+        # The writer re-emits the file header, so drop the one already there.
+        /^# Session State[ \t]*$/ { flush(); next }
+        /^## Session:/            { flush(); kind = "snap"; cur = $0; next }
+        kind == "snap" && ($0 ~ /^(Branch|Last commit|Spec):/ ||
+                           $0 ~ /^(Uncommitted|Staged):[ \t]*$/ ||
+                           $0 ~ /^- `[^`]*`[ \t]*$/ ||
+                           $0 ~ /^[ \t]*$/ ||
+                           $0 ~ /^---[ \t]*$/) { cur = cur "\n" $0; next }
+        {
+            if (kind == "snap") flush()
+            if (kind == "") { kind = "other"; cur = $0 } else { cur = cur "\n" $0 }
+        }
+        END {
+            flush()
+            for (i = 1; i <= snaps && i <= keep; i++) emit(snap[i])
+            for (j = 1; j <= others; j++) emit(other[j])
+        }
     ' "$STATE_FILE")
 fi
 
-# Write: header + new snapshot + up to 2 previous snapshots
+# Write: header + new snapshot + the salvaged blocks
 {
     echo "# Session State"
     echo ""
     echo "$NEW_SNAPSHOT"
-    if [ -n "$PREVIOUS" ]; then
+    if [ -n "$PRESERVED" ]; then
         echo ""
         echo "---"
-        echo "$PREVIOUS"
+        echo "$PRESERVED"
     fi
 } > "$STATE_FILE"
 

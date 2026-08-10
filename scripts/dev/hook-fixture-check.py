@@ -511,6 +511,16 @@ Fixture spec exercising validate-spec.sh arrow handling.
 
 - `internal/x/y.go` - fixture feature file
 
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| CLI commands/flags | No | fixture spec adds no command |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | No | fixture spec ships nothing |
+
 ## Implementation Steps
 
 1. Implement the handler.
@@ -798,6 +808,46 @@ def run_validate_spec(results: Results) -> None:
         "validate-spec-where-data-enters-alone-caught",
         rc == 2 and "Entry Point contains placeholder" in err,
         f"rc={rc} err={err[:200]!r}",
+    )
+
+    # --- the two checklists plan/TEMPLATE.md ships --------------------------
+    # "Documentation Update Checklist (BLOCKING)" bound a reader and nothing
+    # else: REQUIRED_SECTIONS named neither it nor the Integration Checklist, so
+    # no check read either. They are status-aware for the same reason the
+    # placeholder guards are -- a skeleton fills only `## Task`.
+    _no_doc_checklist = base.replace(
+        "### Documentation Update Checklist (BLOCKING)", "### Something Else"
+    )
+    rc, err = _run_validate_spec(
+        script,
+        _no_doc_checklist.replace("| Status | in-progress |", "| Status | design |"),
+    )
+    results.check(
+        "validate-spec-design-missing-doc-checklist-warns",
+        rc == 0 and "Documentation Update Checklist" in err,
+        f"rc={rc} err={err[:300]!r}",
+    )
+
+    rc, err = _run_validate_spec(
+        script,
+        _no_doc_checklist.replace("| Status | in-progress |", "| Status | skeleton |"),
+    )
+    results.check(
+        "validate-spec-skeleton-missing-doc-checklist-warns",
+        rc == 0 and "warning" in err.lower(),
+        f"rc={rc} err={err[:300]!r}",
+    )
+
+    rc, err = _run_validate_spec(
+        script,
+        base.replace("### Integration Checklist", "### Something Else").replace(
+            "| Status | in-progress |", "| Status | design |"
+        ),
+    )
+    results.check(
+        "validate-spec-design-missing-integration-checklist-warns",
+        rc == 0 and "Integration Checklist" in err,
+        f"rc={rc} err={err[:300]!r}",
     )
 
 
@@ -1330,8 +1380,8 @@ def run_commit_gate(results: Results) -> None:
 
         # C: the index is regenerated WITH the concurrent session's untracked
         # source and then committed -> it would publish a row for a file absent
-        # from HEAD. This is how plan/learned/1282-*.md reached HEAD's committed
-        # index, and a working-tree check calls this state "fresh".
+        # from HEAD. A never-committed summary reached HEAD's committed index
+        # this way, and a working-tree check calls this state "fresh".
         _regen_docs_to_code(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
@@ -3676,6 +3726,166 @@ def run_delegation(results: Results) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# session-state: what survives a rewrite of the per-spec state file
+# --------------------------------------------------------------------------- #
+
+_HANDOFF = """## Phase 4 handoff
+
+Files changed:
+- `internal/x/y.go` (380L): the reactor hook. Key: `Run()`, `handleOpen()`.
+
+Acceptance criteria covered: AC-3, proven by TestForwardRail.
+
+Do not assume: the stub in `z.go` is gone.
+"""
+
+
+def _snapshot(stamp: str, path: str = "a.go") -> str:
+    """One block in the exact shape session-end-summary.sh writes."""
+    return (
+        f"## Session: {stamp}\n"
+        "\n"
+        "Branch: `main`\n"
+        "Last commit: abc1234 fixture\n"
+        "Spec: `spec-fixture.md`\n"
+        "\n"
+        "Uncommitted:\n"
+        f"- `{path}`\n"
+    )
+
+
+def _state_project(body: str) -> tuple[str, str]:
+    """A fixture project whose per-spec state file already holds `body`, with a
+    dirty git tree so session-end-summary.sh runs its whole path instead of
+    returning early on a clean tree."""
+    work = _deleg_project(spec="spec-fixture.md")
+    subprocess.run(["git", "init", "-q", "."], cwd=work, capture_output=True)
+    with open(os.path.join(work, "dirty.txt"), "w") as fh:
+        fh.write("uncommitted\n")
+    state = os.path.join(
+        work, "tmp", "session", f"session-state-fixture-{_DELEG_SID}.md"
+    )
+    with open(state, "w", encoding="utf-8") as fh:
+        fh.write("# Session State\n\n" + body)
+    return work, state
+
+
+def _run_state_hook(work: str, hook: str) -> int:
+    r = subprocess.run(
+        ["bash", os.path.join(HOOKS, hook)],
+        input="{}",
+        text=True,
+        capture_output=True,
+        env=_deleg_env(work),
+        timeout=60,
+    )
+    return r.returncode
+
+
+def run_session_state(results: Results) -> None:
+    """session-end-summary.sh rewrites the per-spec state file on every Stop.
+    Its salvage used to be POSITIONAL -- print from the first `## Session:`
+    line, stop at the third -- so once two snapshots existed, everything after
+    them was outside the window and the rewrite deleted it. Phase agents append
+    their handoffs at the END of that file (ai/skills/ze-implement.md) and
+    .claude/rules/post-compaction.md makes it Tier 1 recovery, so on 2026-08-09
+    a phase 4 handoff and a set of main-thread notes were destroyed and the next
+    phase had to re-derive them from the tree."""
+    print("session-state:")
+
+    # The reported failure, in the shape the writer itself produces: this hook
+    # keeps THREE snapshots, and the old window closed at the third `## Session:`
+    # heading, so a handoff appended after them was outside it. Two snapshots
+    # would NOT reproduce the loss -- with no third heading the old awk ran to
+    # EOF and carried the handoff through, so a two-snapshot fixture passes with
+    # the bug restored (ai/rules/interop-and-goal-validation.md).
+    body = "\n---\n".join(
+        [
+            _snapshot("2026-08-09T09:00:00+01:00", "f1.go"),
+            _snapshot("2026-08-09T08:00:00+01:00", "f2.go"),
+            _snapshot("2026-08-09T07:00:00+01:00", "f3.go"),
+            _HANDOFF,
+        ]
+    )
+    work, state = _state_project(body)
+    try:
+        rc = _run_state_hook(work, "session-end-summary.sh")
+        text = open(state, encoding="utf-8").read()
+        results.check(
+            "session-state-handoff-after-the-kept-snapshots-survives",
+            rc == 0 and "## Phase 4 handoff" in text and "handleOpen()" in text,
+            f"rc={rc} the Stop hook dropped the handoff:\n{text}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # Position must not decide either way: a handoff BETWEEN snapshots is kept
+    # because it is not a snapshot, and the snapshots around it still rotate.
+    # It sits after the third heading here for the reason above -- that is where
+    # the old window closed, so this is the placement that discriminates.
+    body = "\n---\n".join(
+        [
+            _snapshot("2026-08-09T09:00:00+01:00", "f1.go"),
+            _snapshot("2026-08-09T08:00:00+01:00", "f2.go"),
+            _snapshot("2026-08-09T07:00:00+01:00", "f3.go"),
+            _HANDOFF,
+            _snapshot("2026-08-09T06:00:00+01:00", "f4.go"),
+        ]
+    )
+    work, state = _state_project(body)
+    try:
+        rc = _run_state_hook(work, "session-end-summary.sh")
+        text = open(state, encoding="utf-8").read()
+        results.check(
+            "session-state-handoff-between-snapshots-survives",
+            rc == 0
+            and "## Phase 4 handoff" in text
+            and "handleOpen()" in text
+            and text.count("## Session:") == 3,
+            f"rc={rc} snapshots={text.count('## Session:')}:\n{text}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # MUST-NOT-FIRE the other way: preserving everything is not the fix either.
+    # Snapshots still rotate to the newest plus two, so four old ones leave two.
+    body = "\n---\n".join(
+        _snapshot(f"2026-08-09T0{i}:00:00+01:00", f"f{i}.go") for i in range(4, 0, -1)
+    )
+    work, state = _state_project(body)
+    try:
+        rc = _run_state_hook(work, "session-end-summary.sh")
+        text = open(state, encoding="utf-8").read()
+        kept = text.count("## Session:")
+        results.check(
+            "session-state-four-snapshots-rotate-to-three",
+            rc == 0 and kept == 3 and "f1.go" not in text and "f2.go" not in text,
+            f"rc={rc} kept={kept} (want the new snapshot plus the two newest):\n{text}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # pre-compact-save.sh writes the same header over the same file. It carries
+    # the whole file through today; this pins that it keeps doing so, since a
+    # PreCompact rewrite lands exactly when the handoff is most needed.
+    body = "\n---\n".join([_snapshot("2026-08-09T09:00:00+01:00"), _HANDOFF])
+    work, state = _state_project(body)
+    try:
+        rc = _run_state_hook(work, "pre-compact-save.sh")
+        text = open(state, encoding="utf-8").read()
+        results.check(
+            "session-state-precompact-keeps-handoff",
+            rc == 0
+            and "## Phase 4 handoff" in text
+            and "handleOpen()" in text
+            and "## Last Compaction" in text,
+            f"rc={rc} pre-compact-save.sh dropped the handoff:\n{text}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------- #
 # subagent-context: what the spawn-time injection carries (AC-5)
 # The delegation section above pins that the block names the parent's spec.
 # This one pins its CONTENT: the context-economy directives, and the per-spec
@@ -4233,6 +4443,7 @@ SECTIONS = {
     "mark-source-read": run_mark_source_read,
     "design-gate": run_design_gate,
     "delegation": run_delegation,
+    "session-state": run_session_state,
     "subagent-context": run_subagent_context,
     "delegation-reminder": run_delegation_reminder,
     "phase-gates": run_phase_gates,

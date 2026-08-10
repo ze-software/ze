@@ -36,6 +36,7 @@ The looking glass includes a server-side SVG graph that visualizes AS path topol
 | Node cap | Graphs limited to 100 nodes to prevent resource exhaustion |
 | HTMX integration | Loaded as an inline SVG fragment via `GET /lg/graph?prefix=X` |
 
-<!-- source: internal/component/lg/graph.go -- buildGraph, deduplicateASPath -->
+<!-- source: internal/component/lg/graph.go -- buildGraph, extractASPath -->
+<!-- source: internal/graph/graph.go -- BuildGraphFromPaths, DeduplicateASPath -->
 <!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
 <!-- source: internal/component/lg/handler_graph.go -- handleGraph endpoint -->

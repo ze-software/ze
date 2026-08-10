@@ -35,27 +35,32 @@ PATH_PREFIX = (
 DESC_SEP = re.compile(r"\s+(?:--|-|\u2014)\s+")
 
 
-def extract_paths(content: str) -> list[str]:
-    """Extract code paths from a source anchor's full content.
+def extract_anchor_segments(content: str) -> list[tuple[list[str], str]]:
+    """Split a source anchor's content into (code paths, description) segments.
 
     Handles two formats:
       - Semicolon-separated: path1 -- desc1; path2 -- desc2
       - Comma-separated with relative paths: dir/file1.go, file2.go, dir2/file3.go
+
+    The description is what follows the `--` separator. It is a claim about the
+    segment's paths, so it is kept beside them: check_anchor_symbols verifies
+    the symbols it names. One description covers every path of its segment.
     """
-    segments = content.split(";")
-    paths = []
-    for seg in segments:
+    segments: list[tuple[list[str], str]] = []
+    for seg in content.split(";"):
         seg = seg.strip()
         if not seg:
             continue
-        # Strip description after accepted source-anchor separators.
-        seg_path = DESC_SEP.split(seg, maxsplit=1)[0].strip()
+        # Split the description off at an accepted source-anchor separator.
+        parts = DESC_SEP.split(seg, maxsplit=1)
+        seg_path = parts[0].strip()
+        description = parts[1].strip() if len(parts) > 1 else ""
 
         # Handle comma-separated paths within a segment
         # e.g. "internal/component/cmd/show/ipsec.go, ipsec_monitor.go"
-        parts = [p.strip() for p in seg_path.split(",")]
+        paths: list[str] = []
         last_dir = ""
-        for part in parts:
+        for part in (p.strip() for p in seg_path.split(",")):
             if not part:
                 continue
             if any(part.startswith(p) for p in PATH_PREFIX):
@@ -66,14 +71,233 @@ def extract_paths(content: str) -> list[str]:
             elif last_dir and not part.startswith("/"):
                 # Relative to last full path's directory
                 paths.append(f"{last_dir}/{part}")
+        if paths:
+            segments.append((paths, description))
+    return segments
 
-    return paths
+
+def extract_paths(content: str) -> list[str]:
+    """Extract code paths from a source anchor's full content."""
+    return [path for paths, _ in extract_anchor_segments(content) for path in paths]
 
 
 def check_path_exists(root: Path, code_path: str) -> bool:
     """Check if a code path exists (file or directory)."""
     target = root / code_path
     return target.exists()
+
+
+# A declaration claim: an identifier, or a dotted chain of them, and nothing
+# else. Everything else a description can hold -- a phrase, a hyphenated binary
+# name, a range such as StateIdle..StateEstablished -- describes the file
+# rather than naming a declaration in it, and is never checked.
+SYMBOL_CLAIM_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+LINE_SUFFIX_RE = re.compile(r":\d+$")
+
+# Severity rule 1. A single lowercase word -- no capital, no `_`, no `.` -- is
+# an English noun in a prose list, not an identifier. Measured over the whole
+# tree: of 372 claims that resolved against no declaration, 105 are this shape,
+# and every one sampled was prose ("link, address, and route control").
+# The separators are what keep the rule narrow: `sa_count` and `ze.storage.blob`
+# carry no capital either, and both name something a doc really claims, so
+# neither is prose. The cost is priced and accepted: an all-lowercase Go
+# declaration (`run`, `main`) can no longer be claimed by an anchor.
+PROSE_WORD_RE = re.compile(r"^[a-z][a-z0-9]*$")
+
+# gofmt puts every top-level declaration at column 0 and closes it at column 0,
+# so indentation alone separates a declaration from a function body.
+GO_FUNC_DECL_RE = re.compile(
+    r"^func\s+(?:\(\s*\w*\s*\*?(?P<recv>[A-Za-z_]\w*)(?:\[[^\]]*\])?\s*\)\s*)?"
+    r"(?P<name>[A-Za-z_]\w*)"
+)
+GO_TYPE_BODY_RE = re.compile(
+    r"^type\s+(?P<name>[A-Za-z_]\w*)(?:\[[^\]]*\])?\s+(?:struct|interface)\s*\{\s*$"
+)
+GO_TOP_DECL_RE = re.compile(
+    r"^(?:type|var|const)\s+(?P<names>[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)"
+)
+GO_GROUP_OPEN_RE = re.compile(r"^(?:type|var|const)\s*\(\s*$")
+GO_MEMBER_RE = re.compile(r"^(?P<names>[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)")
+
+
+def anchor_symbol_tokens(description: str) -> list[str]:
+    """The declaration claims in an anchor description, in order.
+
+    The description is a comma-separated list. A token is a claim when it names
+    a declaration and only that; a token holding a space, a hyphen, or any
+    other non-identifier text is prose about the file and is dropped. A single
+    lowercase word is dropped for the same reason (PROSE_WORD_RE).
+    """
+    claims: list[str] = []
+    for raw in description.split(","):
+        token = raw.strip()
+        if token.endswith("()"):
+            token = token[:-2].rstrip()
+        if not token or not SYMBOL_CLAIM_RE.match(token):
+            continue
+        if PROSE_WORD_RE.match(token):
+            continue
+        claims.append(token)
+    return claims
+
+
+def go_declarations(text: str) -> tuple[set[str], set[str]]:
+    """Names one Go file declares, as (simple names, Recv.Member names).
+
+    A text scan, not a type check: it has no build context, so a declaration
+    behind `//go:build linux` is found on any host. It reads declarations only
+    -- funcs, methods, types, vars, consts, struct fields, interface methods --
+    and never a function body.
+    """
+    names: set[str] = set()
+    dotted: set[str] = set()
+    owner: str | None = None  # the type whose body we are inside
+    in_group = False
+    for line in text.splitlines():
+        # A blank line separates members inside a declaration body; it neither
+        # opens nor closes one. Testing column 0 first would read "" as a
+        # top-level line and drop every member after the first blank one.
+        if not line.strip():
+            continue
+        if line[:1] not in (" ", "\t"):
+            owner, in_group = None, False
+            match = GO_FUNC_DECL_RE.match(line)
+            if match:
+                names.add(match.group("name"))
+                if match.group("recv"):
+                    dotted.add(f"{match.group('recv')}.{match.group('name')}")
+                continue
+            match = GO_TYPE_BODY_RE.match(line)
+            if match:
+                names.add(match.group("name"))
+                owner = match.group("name")
+                continue
+            if GO_GROUP_OPEN_RE.match(line):
+                in_group = True
+                continue
+            match = GO_TOP_DECL_RE.match(line)
+            if match:
+                names.update(n.strip() for n in match.group("names").split(","))
+            continue
+        if owner is None and not in_group:
+            continue
+        member = line.strip()
+        if not member or member.startswith("//"):
+            continue
+        match = GO_MEMBER_RE.match(member)
+        if not match:
+            continue
+        for name in (n.strip() for n in match.group("names").split(",")):
+            names.add(name)
+            if owner is not None:
+                dotted.add(f"{owner}.{name}")
+    return names, dotted
+
+
+def claim_is_declared(claim: str, names: set[str], dotted: set[str]) -> bool:
+    """True when the anchored files declare what the claim names."""
+    if "." not in claim:
+        return claim in names
+    # A dotted claim resolves when the files declare the member itself, or
+    # declare the member's name on its own. It does NOT resolve on the prefix:
+    # a package-qualified call such as events.Register names another package's
+    # declaration, which these files do not hold.
+    return claim in dotted or claim.rsplit(".", 1)[1] in names
+
+
+def claim_appears_as_word(claim: str, texts: list[str]) -> bool:
+    """True when one anchored file's text holds the claim as a whole word.
+
+    Severity rule 2. A reader who follows the anchor and searches for the name
+    finds it, so the anchor is not lying even though the file declares nothing
+    by that name: a call, a member reached through a receiver, a string key, a
+    local, a comment. `\\b` treats `.` as a boundary, so `Run` is found inside
+    `p.Run()` and `events.Register` only inside that exact dotted text.
+    """
+    return any(
+        re.search(r"\b" + re.escape(claim) + r"\b", text) is not None for text in texts
+    )
+
+
+def check_anchor_symbols(
+    root: Path,
+    anchors: list[tuple[str, int, list[str], str]],
+) -> list[str]:
+    """Verify that every symbol a source anchor names is declared where it points.
+
+    `anchors` holds one (doc file, line number, code paths, description) entry
+    per anchor segment, collected by the walk in main() so nothing walks docs/
+    a second time. A path that does not exist is left to the stale-reference
+    check, which already owns it.
+
+    A claim the files do not declare is reported only when their text does not
+    hold it either (claim_appears_as_word). That is severity rule 2: it demotes
+    the 230 findings of the call, receiver-member, string-key and comment
+    shapes, which are accurate enough for the reader the anchor sends.
+
+    Every finding is returned. What to do with them is the caller's decision:
+    main() prints them as CLAIM: lines and exits 1.
+    """
+    problems: list[str] = []
+    # path -> (declared simple names, declared Recv.Member names, file text),
+    # or None when the file cannot be read. The text is cached beside the
+    # declarations so rule 2 costs no second read.
+    declarations: dict[str, tuple[set[str], set[str], str] | None] = {}
+    for doc_file, line_no, paths, description in anchors:
+        claims = anchor_symbol_tokens(description)
+        if not claims:
+            continue
+        go_paths = [
+            clean
+            for clean in (LINE_SUFFIX_RE.sub("", path) for path in paths)
+            if clean.endswith(".go") and (root / clean).is_file()
+        ]
+        if not go_paths:
+            continue
+        names: set[str] = set()
+        dotted: set[str] = set()
+        texts: list[str] = []
+        unreadable: list[str] = []
+        for path in go_paths:
+            if path not in declarations:
+                try:
+                    text = (root / path).read_text(encoding="utf-8")
+                    declarations[path] = (*go_declarations(text), text)
+                except (OSError, UnicodeDecodeError):
+                    declarations[path] = None
+            decls = declarations[path]
+            if decls is None:
+                unreadable.append(path)
+                continue
+            names |= decls[0]
+            dotted |= decls[1]
+            texts.append(decls[2])
+        # Fail closed: an anchored file we cannot read is a finding, never a
+        # pass. Its symbols are unverifiable, which is what this check is for.
+        for path in unreadable:
+            problems.append(
+                f"{doc_file}:{line_no}: source anchor {path}: cannot read the "
+                "anchored file, so its symbols are unverifiable"
+            )
+        where = ", ".join(go_paths)
+        for claim in claims:
+            if claim_is_declared(claim, names, dotted):
+                continue
+            # An unreadable file makes an unresolved claim UNKNOWN, not absent.
+            # Saying "not declared" here would be the false claim this check
+            # exists to catch; the unreadable finding above already stands.
+            if unreadable:
+                continue
+            # Rule 2: the file does not DECLARE it, but its text names it, so
+            # the reader the anchor sends there finds it. Reported at no
+            # severity, which is what the tree can carry (spec AC-3).
+            if claim_appears_as_word(claim, texts):
+                continue
+            problems.append(
+                f"{doc_file}:{line_no}: source anchor {where} names "
+                f"'{claim}', which is not declared there"
+            )
+    return problems
 
 
 def package_dir(path: str) -> str:
@@ -131,23 +355,33 @@ def main():
 
     # code_path -> set of (doc_file, line_number)
     index: dict[str, set[tuple[str, int]]] = defaultdict(set)
+    # (doc_file, line_number, code paths, description) per anchor segment: the
+    # symbol check reads this rather than walking docs/ again.
+    anchors: list[tuple[str, int, list[str], str]] = []
 
     for md_file in filter_gitignored(root, sorted(docs_dir.rglob("*.md"))):
         rel_doc = str(md_file.relative_to(root))
         with open(md_file, encoding="utf-8", errors="replace") as f:
             for line_no, line in enumerate(f, 1):
                 for match in ANCHOR_RE.finditer(line):
-                    paths = extract_paths(match.group(1))
-                    for path in paths:
-                        index[path].add((rel_doc, line_no))
+                    for paths, description in extract_anchor_segments(match.group(1)):
+                        anchors.append((rel_doc, line_no, paths, description))
+                        for path in paths:
+                            index[path].add((rel_doc, line_no))
 
     # Check for stale references
     stale: list[tuple[str, str, int]] = []  # (code_path, doc_file, line)
+    unproven_claims: list[str] = []
     if check_mode:
         for code_path, refs in sorted(index.items()):
             if not check_path_exists(root, code_path):
                 for doc_file, line_no in sorted(refs):
                     stale.append((code_path, doc_file, line_no))
+        # The tree was measured (372 unresolved claims over 4779), the two
+        # severity rules cut that to 122, and all 122 were repaired. A finding
+        # here fails the gate, at the bottom of this function. It is REPORTED,
+        # never added to `content` -- see the NOTE below.
+        unproven_claims = check_anchor_symbols(root, anchors)
 
     # Group by package directory
     pkg_index: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
@@ -258,6 +492,14 @@ def main():
                     print(f"           <- {ref}")
                 if len(refs) > 3:
                     print(f"           ... and {len(refs) - 3} more")
+            sys.exit(1)
+        # A symbol an anchor names but its file does not declare. Reported on
+        # the same terms as a stale path: a claim nobody can verify is the same
+        # defect as a pointer nobody can follow.
+        if unproven_claims:
+            print(f"{len(unproven_claims)} anchor symbol(s) not declared where named")
+            for problem in unproven_claims:
+                print(f"  CLAIM: {problem}")
             sys.exit(1)
         print(f"{output_file} up to date")
         print("all references valid")

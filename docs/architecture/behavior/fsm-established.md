@@ -148,7 +148,7 @@ grants no reprieve to a CPU-congested daemon.
 | Message type handlers | `internal/component/bgp/reactor/session_handlers.go` | `handleUpdate`, `handleKeepalive`, `handleNotification`, `handleRouteRefresh`, `handleUnknownType` |
 | RFC 7606 validation | `internal/component/bgp/reactor/session_read.go` | `processMessage` (calls `enforceRFC7606`) |
 | Prefix-limit enforcement (RFC 4486 / RFC 7607) | `internal/component/bgp/reactor/session_prefix.go` | `checkPrefixLimits` |
-| Hold/keepalive/send-hold timer callbacks | `internal/component/bgp/reactor/session.go` | `newSession` |
+| Hold/keepalive/send-hold timer callbacks | `internal/component/bgp/reactor/session.go` | `NewSession` |
 | State-change callback into peer run loop | `internal/component/bgp/reactor/peer_run.go` | `fsm.SetCallback` closure |
 | Timer primitives | `internal/component/bgp/fsm/timer.go` | `StartHoldTimer`, `ResetHoldTimer`, `StartKeepaliveTimer` |
 
@@ -156,7 +156,7 @@ grants no reprieve to a CPU-congested daemon.
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleUpdate, handleKeepalive, handleNotification, handleRouteRefresh, handleUnknownType -->
 <!-- source: internal/component/bgp/reactor/session_prefix.go — checkPrefixLimits -->
-<!-- source: internal/component/bgp/reactor/session.go — newSession -->
+<!-- source: internal/component/bgp/reactor/session.go — NewSession -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback closure -->
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer, ResetHoldTimer, StartKeepaliveTimer -->
 

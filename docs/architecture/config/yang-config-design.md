@@ -289,7 +289,7 @@ When the cursor is at a leaf value position, three sources are checked in priori
 | 2 | YANG enum values | Leaf type is `enumeration` | `origin`: igp, egp, incomplete |
 | 3 | Type hint | Neither of the above | `<ipv4-address>`, `<0-65535>` |
 
-<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, typeHint -->
+<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, TypeHint -->
 
 **Why `ze:validate` takes priority over enum:** If a developer sets `ze:validate` on an enum leaf,
 they want dynamic completion from runtime state, not the static enum values. The `CompleteFn`

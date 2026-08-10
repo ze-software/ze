@@ -1,3 +1,4 @@
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
 | 2026-08-09 | kernel-compose-make-q-assertion-is-vacuous | installer kernel build | an unconditional rebuild was replaced by a precise trigger. Three cases it had silently covered were left with no trigger at all | enumerated what the blanket mechanism covered, then gave each case its own trigger and its own probe |
+| 2026-08-10 | doc-claims-are-checked-not-just-resolved | Stop hook | the snapshot classifier in `.claude/hooks/session-end-summary.sh` treats any line matching `^## Session:` as a block start, so a phase handoff QUOTING that heading is torn in two and part of it deleted. The session most likely to write it is one working on that hook | not fixed, needs the heading to count only at a block start outside an existing block |

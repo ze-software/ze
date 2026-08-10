@@ -160,7 +160,7 @@ ze config fmt <file>             # Format and normalize
 are addressed by key). With no path it prints the whole parsed tree; `--json`
 emits the subtree as a JSON object. Shell completion for the path tokens is
 served by the `ze config completion` engine (`ze completion bash|zsh|fish`).
-<!-- source: internal/component/config/cli/cmd_show.go -- cmdShowWithStorage -->
+<!-- source: internal/component/config/cli/cmd_show.go -- cmdShow, showConfig, openShowEditor -->
 
 **Shell completion (`--family`, config sections):**
 
@@ -498,8 +498,8 @@ ze support --since 2h                  # Time scope for log collection
 ze support --output /var/support/      # Output directory (default: cwd)
 ```
 
-<!-- source: internal/component/support/support.go -- Run, collect, moduleRegistry -->
-<!-- source: internal/component/support/modules.go -- ModuleNames, ModuleList -->
+<!-- source: internal/component/support/support.go -- Run, collect, SupportManifest -->
+<!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
 
 ### ze interface
 
@@ -581,7 +581,7 @@ omitted before the first poll). JSON by default; full pipe operators supported.
 See the [Flow Export guide](flow-export.md).
 
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
-<!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
+<!-- source: internal/plugins/flowexport/exporter.go -- newExporter, exporter.status -->
 
 ### show traffic stat
 <!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
@@ -1402,8 +1402,9 @@ Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
 After credentials are stored, ze init discovers OS network interfaces via netlink
 and writes initial interface configuration (ethernet, bridge, veth, dummy, loopback)
 to the database as `ze.conf`.
-<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, defaultHost, defaultPort -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
+<!-- source: internal/component/iface/emit.go -- EmitConfig -->
 
 ### ze install
 
@@ -1553,7 +1554,8 @@ The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) wi
 for localhost, 127.0.0.1, ::1, and the listen address.
 
 See [Web Interface Guide](web-interface.md) for full usage documentation.
-<!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartWebOnly, flagStartInsecureWeb, flagStartMCP -->
+<!-- source: cmd/ze/hub/main.go -- RunWebOnly, resolveWebListeners -->
 
 ### debug (set / delete / show / clear)
 
@@ -1934,7 +1936,8 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 <!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
 <!-- source: internal/component/config/setparser.go -- parseSet structural-only commands -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith, preparePeerTree -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, the source of every key in this table -->
+<!-- source: internal/component/plugin/types_bgp.go -- AddDynamicPeer, which takes the parsed peer-fields tree -->
 
 ### Del Commands
 

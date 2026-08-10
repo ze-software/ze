@@ -534,11 +534,18 @@ def check_hook_names(
 
 
 def tracked_files() -> list[str]:
-    """Every tracked path the marker sweep reads."""
+    """Every tracked path the marker sweep reads.
+
+    A path git tracks but the working tree no longer holds is skipped, not
+    reported: the sweep judges the working tree, and a file somebody is part
+    way through deleting carries no marker to audit. Several sessions share
+    this checkout, so a staged deletion is an ordinary state. The fail-closed
+    branch below still owns a file that EXISTS and cannot be read.
+    """
     out = subprocess.run(
         ["git", "ls-files"], capture_output=True, text=True, check=True
     ).stdout.splitlines()
-    return [f for f in out if f and f not in MARKER_SWEEP_EXCLUDE]
+    return [f for f in out if f and f not in MARKER_SWEEP_EXCLUDE and os.path.exists(f)]
 
 
 def check_ignore_reasons(
@@ -559,9 +566,17 @@ def check_ignore_reasons(
         try:
             with open(path, "rb") as fh:
                 raw = fh.read()
+        except FileNotFoundError:
+            # The file was listed and then deleted before this read. Several
+            # sessions share this checkout and a spec closure deletes its spec
+            # mid-run, so the window is real and hit twice on 2026-08-10. A
+            # file that is GONE carries no marker to audit, which is the same
+            # reason tracked_files skips a staged deletion.
+            continue
         except OSError as err:
-            # Fail closed: an unreadable file is a finding, never a skip. A
-            # marker it carries would otherwise pass by being unreadable.
+            # Fail closed: a file that EXISTS and cannot be read is a finding,
+            # never a skip. A marker it carries would otherwise pass by being
+            # unreadable.
             findings.append(
                 f"{path}: cannot read for the ignore-marker sweep: {err} -- "
                 f"every marker it carries would go unaudited"

@@ -17,8 +17,8 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 ```
 
 When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.
-<!-- source: cmd/ze/main.go -- cmdStart, webPort/insecureWeb flags -->
-<!-- source: internal/component/web/server.go -- GenerateWebCertWithAddr -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames -->
 
 | Flag | Description |
 |------|-------------|
@@ -137,13 +137,13 @@ Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"
 | Delete button | Removes the entry after confirmation |
 
 The `+ new` button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.
-<!-- source: internal/component/web/handler_config.go -- HandleConfigAdd, HandleConfigAddForm -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigAddForm -->
 <!-- source: internal/component/web/templates/component/add_form_overlay.html -->
 
 ### Breadcrumb Navigation
 
 Every page displays a breadcrumb trail from root to the current YANG path. Clicking any breadcrumb segment navigates to that level.
-<!-- source: internal/component/web/handler_config.go -- buildBreadcrumbs -->
+<!-- source: internal/component/web/handler_config_leaf.go -- buildBreadcrumbs -->
 
 ### Content Negotiation
 
@@ -205,7 +205,8 @@ Text and number fields auto-save 1 second after the user stops typing, in additi
 ### Conflict Detection
 
 When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.
-<!-- source: internal/component/web/handler_config.go -- handleCommitPost, result.Conflicts -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+<!-- source: internal/component/cli/contract/contract.go -- CommitResult.Conflicts, Conflict -->
 
 ### Session Limits
 
@@ -240,7 +241,7 @@ The prompt shows the current context path: `ze[bgp peer]# `.
 ### Terminal Mode
 
 Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.
-<!-- source: internal/component/web/cli.go -- HandleCLITerminal, executeTerminalCommand -->
+<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand -->
 
 ### Tab Completion
 

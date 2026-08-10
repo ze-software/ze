@@ -353,18 +353,25 @@ The `RPCParams` struct does not carry a username field. Authorization checks use
 
 ### Socket Clients
 
+`Server` itself owns no listener: plugin processes reach it over their own
+pipes (see Subprocess below). The socket path in this package is
+`ManagedServer`, which serves managed fleet clients over TLS.
+
 ```go
-type Client struct {
-    id     string
-    conn   net.Conn
-    server *Server
-    ctx    context.Context
-    cancel context.CancelFunc
+type ManagedServer struct {
+    svc       *ManagedConfigService
+    addrs     []string
+    cert      tls.Certificate
+    conns     map[string]*rpc.MuxConn // Connected client name -> mux
+    listeners []net.Listener
+    // ... plus lookup, mu, notifyCh, sem, wg, ctx
 }
 ```
 
-Flow: `acceptLoop()` → `handleClient()` → `clientLoop()` → `processCommand()`
-<!-- source: internal/component/plugin/server/server.go -- Server, Client -->
+Flow: `acceptLoop()` → `handleConn()` → `serve()` → `handleRequest()`. One
+goroutine per connection, bounded by `managedMaxConns`.
+<!-- source: internal/component/plugin/server/server.go -- Server, NewServer -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedServer, acceptLoop, handleConn, handleRequest -->
 
 ### Subprocess (Process)
 
@@ -1183,22 +1190,28 @@ The current flow builds UPDATEs with each peer's `PackContext`, which is RFC-cor
 
 ## Peer Lifecycle Callbacks
 
-The reactor notifies observers when peers change state via the `PeerLifecycleObserver` interface:
+The reactor notifies observers when peers change state via the unexported
+`peerLifecycleObserver` interface:
 
 ```go
-type PeerLifecycleObserver interface {
+type peerLifecycleObserver interface {
     OnPeerEstablished(peer *Peer)
     OnPeerClosed(peer *Peer, reason string)
 }
 ```
-<!-- source: internal/component/bgp/reactor/reactor.go -- PeerLifecycleObserver -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- peerLifecycleObserver -->
 
 ### Registration
 
+An observer outside the reactor package cannot name `*Peer`, so it registers
+the any-typed `registry.PeerLifecycleCallback` instead. `callbackAdapter`
+wraps it as a `peerLifecycleObserver` and `addPeerObserver` appends it.
+
 ```go
-reactor.AddPeerObserver(observer)
+reactor.AddPeerLifecycleCallback(callback)
 ```
-<!-- source: internal/component/bgp/reactor/reactor_notify.go -- AddPeerObserver -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- AddPeerLifecycleCallback, callbackAdapter, addPeerObserver -->
+<!-- source: internal/component/plugin/registry/interfaces.go -- PeerLifecycleCallback -->
 
 Observers are called synchronously in registration order. Implementations MUST NOT block.
 

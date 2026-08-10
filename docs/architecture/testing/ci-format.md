@@ -172,7 +172,7 @@ stdin=<name>:text=<text-value>
 | `terminator` | End marker for multi-line content |
 | `hex` | Hex-encoded content (single-line) |
 | `text` | Plain text content (single-line, newline appended) |
-<!-- source: internal/test/tmpfs/tmpfs.go -- StdinBlocks map, parseStdin -->
+<!-- source: internal/test/tmpfs/tmpfs.go -- StdinBlocks map, parseStdinBlock -->
 
 ### Examples
 
@@ -527,7 +527,7 @@ can be satisfied by a different command than the one intended, and
 `reject=stdout:pattern=` trips on any command's output. When a reject must apply to
 one command, keep that command in its own file (see `test/vrrp/vrrp-doctor-quiet.ci`).
 <!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
-<!-- source: internal/test/runner/record_parse.go -- parseCmdExec, exitMarker -->
+<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, exitMarker -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
 
 <!-- test: internal/test/runner/record_newformat_test.go TestParseCmdExec -- exit= parsing, marker order, 0..255 bounds -->

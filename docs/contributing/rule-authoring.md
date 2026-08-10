@@ -230,8 +230,7 @@ inclusion. Every rule keeps a line in `TRIGGERS.md`. A rule whose body is not
 loaded is therefore still named in every session, one Read away.
 
 That is what makes the `**When:**` trigger load-bearing. It is also why
-`ai/rules/INDEX.md` can be derived instead of hand-written. The measurements are
-in `plan/learned/1228-rule-format-condensed-eager-load.md`.
+`ai/rules/INDEX.md` can be derived instead of hand-written.
 
 ## Why one instruction is one file
 

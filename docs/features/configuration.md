@@ -123,11 +123,15 @@ Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, defau
 | ORIGINATOR_ID loop | RFC 4456 Section 8 | iBGP only | ORIGINATOR_ID matches local Router ID |
 | CLUSTER_LIST loop | RFC 4456 Section 8 | iBGP only | Local Router ID found in CLUSTER_LIST |
 
-All three checks run after RFC 7606 structural validation but before prefix limit counting.
-Routes failing any check are silently treated as withdrawn (no NOTIFICATION, session stays up).
+All three checks run in one ingress filter at `FilterStageProtocol`, so they come
+after RFC 7606 structural validation and after prefix limit counting, which both
+run on the session read path before the UPDATE reaches the filter pipeline.
+A route failing any check is dropped silently (no NOTIFICATION, session stays up).
 Cluster ID defaults to Router ID per RFC 4456 Section 7.
 
-<!-- source: internal/component/bgp/reactor/session_validation.go -- detectLoops -->
+<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStageProtocol -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606; internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits -->
 
 ### Capabilities Configuration
 

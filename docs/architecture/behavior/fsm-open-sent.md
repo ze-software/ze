@@ -95,7 +95,8 @@ In order:
    timer with the negotiated value.
 
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen -->
-<!-- source: internal/component/bgp/reactor/session.go — negotiateWith, openValidator wiring -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go — negotiateWith -->
+<!-- source: internal/component/bgp/reactor/session.go — openValidator, SetOpenValidator -->
 
 ## Timers running in this state
 

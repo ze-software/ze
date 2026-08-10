@@ -188,7 +188,7 @@ LAUNCHER_OPT_WITH_ARG = {"-k", "--kill-after", "-s", "--signal", "-n", "--adjust
 # test did not match it, so that invocation slipped straight past this gate.
 # No duration is named here on purpose: ai/rules/git-safety.md ("Running
 # ze-verify") sets the policy, and a number copied into a comment is the drift
-# this repo keeps paying for (plan/learned/1359). A bare
+# this repo keeps paying for. A bare
 # negative niceness (`nice -5 make ...`) is a flag and the operand at once, hence
 # the optional leading `-`.
 LAUNCHER_OPERAND = re.compile(r"^-?\d+(?:\.\d+)?[smhd]?$")

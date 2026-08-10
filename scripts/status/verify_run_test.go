@@ -495,6 +495,7 @@ var goldenStagesZeVerify = []string{
 	"ze-verify-wiring-docs",
 	"ze-doc-test",
 	"ze-doc-links",
+	"ze-validate-tree",
 	"ze-regen-check-readonly",
 	"ze-vet-evidence",
 	"ze-hook-test",
@@ -522,6 +523,7 @@ var goldenStagesZeVerifyChanged = []string{
 	"ze-verify-wiring-docs",
 	"ze-doc-test",
 	"ze-doc-links",
+	"ze-validate-tree",
 	"ze-regen-check-readonly",
 	"ze-hook-test",
 	"ze-unit-test-changed",
@@ -675,6 +677,47 @@ func TestStagesForModeIncludesRegenCheck(t *testing.T) {
 		if names["ze-regen-check"] {
 			t.Errorf("stagesForMode(%q) wires the MUTATING ze-regen-check; it runs ze-regen and would leave verify with a dirty tree", mode)
 		}
+	}
+}
+
+// TestStagesForModeIncludesValidateTree pins the ze-validate half that a shared
+// checkout can carry into BOTH mode branches.
+//
+// VALIDATES: `make ze-validate-tree` runs under `make ze-verify` and
+// `make ze-verify-changed`, and the target it names exists.
+// PREVENTS: the five validate.py checks going back to having no automatic
+// caller at all. Until 2026-08-09 nothing ran them: no Makefile target depended
+// on ze-validate, no hook called it, commit_helper.py did not, and stagesForMode
+// named neither. Their only callers were two sentences of prose in
+// ai/skills/ze-review.md and ai/skills/ze-close.md.
+// PREVENTS: the whole `ze-validate` target being wired instead. Two of its five
+// checks (check_cross_package_wiring, check_cli_handler_coverage in
+// scripts/dev/validate.py) take `changed_files` -- `git diff HEAD` plus
+// untracked files -- as their subject. Several sessions share this checkout, so
+// those files are largely another session's half-written work, and both checks
+// demand a completeness (a cross-package caller, a .ci test) that a file mid-edit
+// cannot show. Wiring them would red a verify run whose author changed none of
+// the files being judged.
+func TestStagesForModeIncludesValidateTree(t *testing.T) {
+	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+		names := map[string]bool{}
+		for _, st := range stagesForMode(mode, "make") {
+			names[st.Name] = true
+		}
+		if !names["ze-validate-tree"] {
+			t.Errorf("stagesForMode(%q) missing ze-validate-tree; the source-anchor and spec-AC checks would run nowhere", mode)
+		}
+		if names["ze-validate"] {
+			t.Errorf("stagesForMode(%q) wires the full ze-validate; its two changed-file checks judge other sessions' uncommitted files in this shared checkout", mode)
+		}
+	}
+
+	corpus := makefileCorpus(t)
+	if !strings.Contains(corpus, "\nze-validate-tree:\n") {
+		t.Error("no ze-validate-tree target in the Makefile corpus: the stage would fail with 'No rule to make target'")
+	}
+	if !strings.Contains(corpus, "--changed-file ''") {
+		t.Error("ze-validate-tree no longer declares an empty changed set; without it validate.py falls back to git diff HEAD and the two changed-file checks come back")
 	}
 }
 

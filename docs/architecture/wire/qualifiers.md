@@ -208,7 +208,7 @@ class Labels:
 
 Format: `[ [label_value, raw_24bit_value], ... ]`
 
-<!-- source: internal/core/bgp/nlri/nlri.go -- ParseLabelStack, EncodeLabelStack -->
+<!-- source: internal/core/bgp/nlri/rd.go -- ParseLabelStack, EncodeLabelStack -->
 
 ---
 

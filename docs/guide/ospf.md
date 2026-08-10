@@ -167,7 +167,7 @@ The three opaque scopes map onto three stores: a Type 9 link-local opaque LSA li
 
 Opaque capability is negotiated with the O-bit in the OSPF Options field. Enable it with `ospf { opaque true }`: Ze then sets the O-bit in its Database Description packets and floods opaque LSAs only to neighbours that likewise set the O-bit in their DD. The O-bit is a DD-only signal (it is not part of the Hello E/N option match), so enabling it does not break adjacency with a non-opaque peer. Received opaque LSAs are stored and re-flooded per scope regardless of the `opaque` leaf and regardless of whether a consumer is registered; disabling the leaf only stops advertising opaque capability and originating opaque LSAs. A received Type-11 opaque LSA is treated as usable only while its originating router is reachable (RFC 5250 §5, reusing the ASBR reachability computed for Type 5). Opaque activity is counted by `ze_ospf_opaque_lsas{scope,opaque_type}`, `ze_ospf_opaque_originations_total{opaque_type}`, `ze_ospf_opaque_received_total{opaque_type,registered}`, `ze_ospf_opaque_consumer_errors_total{opaque_type}`, and `ze_ospf_opaque_capable_neighbors{interface}`.
 <!-- source: internal/plugins/ospf/lsdb/opaque_as.go -- OriginateOpaque, OpaqueDelivery, OpaqueLSACounts -->
-<!-- source: internal/plugins/ospf/opaque_registry.go -- RegisterOpaqueConsumer, OpaqueScope -->
+<!-- source: internal/plugins/ospf/opaque_registry.go -- registerOpaqueConsumer, OpaqueScope -->
 <!-- source: internal/plugins/ospf/opaque.go -- deliverOpaque, originateOpaqueLSAs, routerReachable -->
 
 ## Traffic Engineering (RFC 3630, RFC 5392)
@@ -216,7 +216,7 @@ traffic-engineering {
 `show ospf te-database` renders the TED: router addresses and links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and ASBR. `show ospf database opaque-area` and `opaque-as` decode any TE LSA body inline. TE activity is counted by `ze_ospf_te_lsas{scope,kind}`, `ze_ospf_te_database_links{area}`, `ze_ospf_te_originations_total{kind}`, `ze_ospf_te_received_total{kind,usable}`, `ze_ospf_te_parse_errors_total{opaque_type}`, and `ze_ospf_te_unreachable_originators`. The read-only TED snapshot is available for a future RSVP-TE admission consumer; CSPF and RSVP-TE signalling are out of scope.
 <!-- source: internal/plugins/ospf/te.go -- registerTEConsumer, teOnReceive, teMetrics -->
 <!-- source: internal/plugins/ospf/te_originate.go -- teOriginateType1, teOriginateType6 -->
-<!-- source: internal/plugins/ospf/te_ted.go -- ted, TEDSnapshot, LookupLink -->
+<!-- source: internal/plugins/ospf/te_ted.go -- ted, tedSnapshot, Snapshot, LookupLink -->
 <!-- source: internal/plugins/ospf/packet/te_lsa.go -- TELSA, DecodeTELSA, TELink -->
 
 ## Router Information (RFC 7770)

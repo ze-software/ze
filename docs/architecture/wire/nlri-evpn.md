@@ -3,7 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/evpn/`
 **Family:** AFI 25 (L2VPN), SAFI 70 (EVPN)
 
-<!-- source: internal/core/bgp/nlri/nlri.go -- AFIL2VPN, SAFIEVPN, L2VPNEVPN -->
+<!-- source: internal/core/family/family.go -- AFIL2VPN, SAFIEVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- L2VPNEVPN -->
 
 ---
 

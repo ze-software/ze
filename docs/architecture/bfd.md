@@ -179,10 +179,8 @@ The remaining implementation and verification gaps are:
 
 ## Stage 2 complete (production transport hardening)
 
-Stage 0 (skeleton, commit `e5a4add9`), Stage 1 (lifecycle wiring,
-`plan/learned/556-bfd-1-wiring.md`), and Stage 2 (transport hardening,
-tracked in the latest `plan/learned/NNN-bfd-2-transport-hardening.md`)
-are all merged. The production path is now:
+Stage 0 (skeleton, commit `e5a4add9`), Stage 1 (lifecycle wiring), and
+Stage 2 (transport hardening) are all merged. The production path is now:
 
 | Layer | File | Responsibility |
 |-------|------|----------------|

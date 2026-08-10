@@ -561,7 +561,7 @@ For non-CIDR families the engine emits a marker block of the form
 The marker tells a text-mode filter plugin that the family is present in
 the update without forcing the engine to generate a family-specific text
 format.
-<!-- source: internal/component/bgp/reactor/filter_format.go — FormatUpdateForFilter -->
+<!-- source: internal/component/bgp/reactor/filter_format.go — AppendUpdateForFilter, appendNLRIBlock -->
 <!-- source: internal/component/bgp/reactor/filter_format.go — isCIDRFamily -->
 
 A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST

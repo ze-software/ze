@@ -469,10 +469,27 @@ class IgnoreMarkerTest(unittest.TestCase):
         self.assertNotIn("states no reason", res.stdout)
 
     def test_unreadable_file_is_a_finding(self) -> None:
-        """Fail closed: a file the sweep cannot read is never a silent pass."""
-        found = cdl.check_ignore_reasons(files=("no/such/file.md",))
+        """Fail closed: a file that EXISTS and cannot be read is never a silent pass."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "locked.md"
+            path.write_text("<!-- doc-links: ignore -->\n", encoding="utf-8")
+            path.chmod(0o000)
+            try:
+                found = cdl.check_ignore_reasons(files=(str(path),))
+            finally:
+                path.chmod(0o600)
         self.assertEqual(len(found), 1, found)
         self.assertIn("cannot read", found[0])
+
+    def test_a_file_deleted_mid_sweep_is_not_a_finding(self) -> None:
+        """A path that is GONE carries no marker to audit.
+
+        Several sessions share this checkout, so a spec closure deletes its
+        spec between `git ls-files` and the read. That window produced a false
+        red twice on 2026-08-10; a vanished file is skipped, an unreadable one
+        above still fails closed.
+        """
+        self.assertEqual(cdl.check_ignore_reasons(files=("no/such/file.md",)), [])
 
 
 class DesignRefTest(unittest.TestCase):

@@ -84,11 +84,11 @@ Idle).
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleConnect` |
 | Dial and socket setup | `internal/component/bgp/reactor/session_connection.go` | `Connect`, `connectionEstablished` |
 | Outer reconnect loop | `internal/component/bgp/reactor/peer_run.go` | run loop (backoff + session recreate) |
-| Passive/active decision | `internal/component/bgp/reactor/session.go` | `newSession` setting `fsm.SetPassive` |
+| Passive/active decision | `internal/component/bgp/reactor/session.go` | `NewSession` setting `fsm.SetPassive` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleConnect -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — Connect, connectionEstablished -->
-<!-- source: internal/component/bgp/reactor/session.go — newSession -->
+<!-- source: internal/component/bgp/reactor/session.go — NewSession -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — peer run loop -->
 
 ## RFC deviations

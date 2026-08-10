@@ -1,7 +1,7 @@
 .PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean clean-all fmt vet tidy generate help
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
-.PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-smoke ze-ci ze-all ze-all-test
+.PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-validate-tree ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record
@@ -583,8 +583,8 @@ ze-test-sensitivity-check:
 	@$(GO) run scripts/checks/inert_tests.go --selftest
 	@$(GO) run scripts/checks/inert_tests.go --check
 
-# Tracked-build gate (plan/learned/1342-tracked-build-gate.md): compile the tree
-# GIT HOLDS, which is the one population no other check here compiles. Every
+# Tracked-build gate (docs/architecture/testing/tracked-build-gate.md): compile
+# the tree GIT HOLDS, which is the one population no other check compiles. Every
 # other gate builds the working tree, so a consumer committed without its
 # producer is green for its author and broken for anybody who builds the commit
 # -- four commits broke `make ze` at HEAD that way on 2026-08-04.
@@ -629,6 +629,31 @@ ze-platform-vet:
 
 ze-validate:
 	@python3 scripts/dev/validate.py --root .
+
+# The half of ze-validate that `make ze-verify` runs (stagesForMode,
+# scripts/status/verify_run.go). Three of the five checks read the tree:
+# check_source_anchor_line_numbers and check_source_anchor_stale_paths walk
+# docs/**/*.md, check_spec_ac_completeness walks plan/spec-*.md. They judge the
+# same working tree every other verify stage judges.
+#
+# The other two scope themselves to `git diff HEAD` plus untracked files
+# (changed_files in scripts/dev/validate.py). Several sessions share this
+# checkout, so that list is mostly OTHER sessions' half-written files, and both
+# checks hold their subject to a completeness standard that a file in the middle
+# of an edit cannot meet: check_cross_package_wiring wants a cross-package
+# caller for every new exported symbol, check_cli_handler_coverage wants a .ci
+# test naming every newly registered command. That already happened once with
+# the checker run by hand (plan/spec-session-scoped-build-artifacts.md: 10
+# pre-existing findings pulled into one session's scope), and inside ze-verify
+# it would red a run whose author changed none of it. Same reasoning as
+# ze-ste-check, which stays out of ze-doc-test for the same reason (mk/inventory.mk).
+#
+# Declaring an EMPTY changed set is what selects the tree-wide three: both
+# changed-file checks return no findings before reading anything, and the other
+# three take --root and are untouched. Run `make ze-validate` to get all five
+# over your own tree.
+ze-validate-tree:
+	@python3 scripts/dev/validate.py --root . --changed-file ''
 
 ze-all: ze-verify ze-chaos-verify
 	@echo "All verification passed (ze + chaos)"
@@ -952,7 +977,8 @@ help-test:
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"
 	@echo "    ze-verify                 Pre-commit gate: lint + wiring/docs + unit (two-pass) + functional + exabgp"
 	@echo "    ze-verify-changed         Scoped: changed packages + wiring/docs + functional + exabgp"
-	@echo "    ze-validate               Post-verify: source anchors, wiring, spec completeness (~0.2s)"
+	@echo "    ze-validate               All five checks: source anchors, wiring, spec completeness (~0.2s)"
+	@echo "    ze-validate-tree          The three tree-wide checks of ze-validate; runs inside ze-verify"
 	@echo "    ze-test                   All ze tests including fuzz"
 	@echo "    ze-all                    ze-verify + chaos-verify"
 	@echo "    ze-all-test               ze-test + chaos-verify"

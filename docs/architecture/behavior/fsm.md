@@ -416,22 +416,28 @@ session.fsm.SetCallback(func(from, to fsm.State) {
 <!-- source: internal/component/bgp/reactor/peer.go -- SetCallback on fsm -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
 
-### PeerLifecycleObserver
+### Peer lifecycle observers
 
-Reactor maintains a list of observers notified on state changes:
+Reactor maintains a list of observers notified on state changes. The interface
+and its registration are both internal to the reactor package:
 
 ```go
-type PeerLifecycleObserver interface {
+type peerLifecycleObserver interface {
     OnPeerEstablished(peer *Peer)
     OnPeerClosed(peer *Peer, reason string)
 }
 
-// Register observer
-reactor.AddPeerObserver(observer)
+// Register an in-package observer
+reactor.addPeerObserver(observer)
 ```
 
-The `apiStateObserver` is registered automatically when API server starts, emitting state messages to external processes.
-<!-- source: internal/component/bgp/reactor/reactor_notify.go -- PeerLifecycleObserver, AddPeerObserver -->
+A plugin outside the package registers through `AddPeerLifecycleCallback`, which
+wraps a `registry.PeerLifecycleCallback` in `callbackAdapter`.
+
+The `apiStateObserver` is registered by `startAPIServer`, emitting state messages to external processes.
+<!-- source: internal/component/bgp/reactor/reactor.go -- peerLifecycleObserver -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- addPeerObserver, AddPeerLifecycleCallback, callbackAdapter -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- apiStateObserver -->
 
 **See:** `docs/architecture/api/ARCHITECTURE.md` for full details.
 

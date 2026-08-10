@@ -8,6 +8,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -16,6 +17,7 @@ from validate import (
     check_source_anchor_line_numbers,
     check_source_anchor_stale_paths,
     check_spec_ac_completeness,
+    main,
 )
 
 
@@ -83,6 +85,23 @@ class TestStaleAnchorPath(unittest.TestCase):
             self.assertEqual(len(findings), 1)
             self.assertEqual(findings[0].severity, "ISSUE")
             self.assertIn("non-existent", findings[0].message)
+
+    def test_detects_missing_file_outside_the_code_to_docs_roots(self):
+        # This check resolves ANY repo-relative anchor. The gated walk in
+        # code_to_docs.py (extract_paths) keeps only paths under nine
+        # PATH_PREFIX roots, so 74 anchors in docs/ -- under tools/, gokrazy/,
+        # ai/, demos/, .github/ and docs/ itself -- are seen by this check
+        # alone. It reaches the gate through `make ze-validate-tree`, a stage of
+        # both verify modes (stagesForMode, scripts/status/verify_run.go).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "test.md").write_text(
+                "<!-- source: tools/gone/helper.py -- retired -->\n"
+            )
+            findings = check_source_anchor_stale_paths(root)
+            self.assertEqual(len(findings), 1)
+            self.assertIn("tools/gone/helper.py", findings[0].message)
 
     def test_passes_for_existing_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -504,6 +523,60 @@ class TestSpecACCompleteness(unittest.TestCase):
             )
             findings = check_spec_ac_completeness(root)
             self.assertEqual(findings, [])
+
+
+class TestChangedFileSelection(unittest.TestCase):
+    """`make ze-validate-tree` declares an EMPTY changed set.
+
+    The Makefile recipe is `validate.py --root . --changed-file ''`, and the
+    stage runs inside both `make ze-verify` modes (stagesForMode,
+    scripts/status/verify_run.go). Which checks run must be decided by the flag
+    being GIVEN. An empty list is falsy, so a selection written on truthiness
+    reads the empty set as "no flag", falls back to git diff, and puts
+    check_cross_package_wiring and check_cli_handler_coverage back inside the
+    gate -- where, in a shared checkout, they judge other sessions'
+    half-written files. Nothing else pins main(): the Go test can only see the
+    string the recipe passes.
+    """
+
+    def _repo(self, root: Path) -> None:
+        (root / "go.mod").write_text("module example.com/x\n")
+        (root / "docs").mkdir()
+        (root / "plan").mkdir()
+        pkg = root / "internal" / "alpha"
+        pkg.mkdir(parents=True)
+        (pkg / "handler.go").write_text("package alpha\n\nfunc UnusedExport() {}\n")
+
+    def test_empty_changed_set_runs_neither_changed_file_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._repo(root)
+
+            # The fixture discriminates: the same file IS a finding when the
+            # changed set holds it, so a green main() means the check was
+            # skipped rather than satisfied.
+            self.assertEqual(
+                len(check_cross_package_wiring(root, ["internal/alpha/handler.go"])), 1
+            )
+
+            argv = ["validate.py", "--root", str(root), "--changed-file", ""]
+            with mock.patch.object(sys, "argv", argv):
+                self.assertEqual(main(), 0)
+
+    def test_a_named_changed_file_still_reaches_the_changed_file_checks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._repo(root)
+
+            argv = [
+                "validate.py",
+                "--root",
+                str(root),
+                "--changed-file",
+                "internal/alpha/handler.go",
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                self.assertEqual(main(), 1)
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ depends on it), so the offline parsers cannot import it.
 | `ParsePrefixesAFI` | Packed NLRI for a given address family |
 | `ParseMPReach` / `ParseMPUnreach` | Full RFC 4760 MP_REACH / MP_UNREACH |
 | `ParseMPReachRIBEntry` | The abbreviated MP_REACH inside a RIB entry |
-<!-- source: internal/mrt/bgp_attribute.go — MP_REACH, aggregator and community decoders -->
+<!-- source: internal/mrt/bgp_attribute.go — MPReach, MPUnreach, AttrAggregator, AttrCommunity -->
 
 Two RFC 6396 constraints shape this API and are easy to get wrong:
 

@@ -100,7 +100,7 @@ broader protocol support, and a plugin ecosystem.
 | Abstract when you can | Two concrete implementations justify an abstraction; abstract at the second, don't wait for a third. Boring code that obviously works over clever code that might. |
 | YANG-modeled everything | All RPCs and config schemas are YANG-defined. CLI dispatch, plugin registration, schema discovery, and config parsing all flow from YANG modules. |
 
-<!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->
+<!-- source: internal/component/bgp/reactor/session.go -- bufMuxStd, bufMuxExt, getBuildBuf -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- Pool, per-attribute-type dedup -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle opaque reference -->
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate byte buffer with lazy accessors -->
@@ -188,17 +188,19 @@ No intermediate struct is ever built to iterate once.
 
 ### Buffer-First Encoding
 
-All wire writing follows the `WriteTo(buf, off) int` pattern. Buffers come from pools
-sized to RFC maximums:
+All wire writing follows the `WriteTo(buf, off) int` pattern. Buffers come from two
+block-backed multiplexers sized to RFC maximums:
 
-| Pool | Size | Purpose |
-|------|------|---------|
-| `readBufPool4K` | 4,096 | Standard message reads |
-| `readBufPool64K` | 65,535 | Extended message reads |
-| `buildBufPool` | 4,096 | UPDATE building |
-| Per-plugin `nlriBufPool` | 4,096 | NLRI encoding |
+| Multiplexer | Buffer size | Purpose |
+|-------------|-------------|---------|
+| `bufMuxStd` | 4,096 (`message.MaxMsgLen`) | Standard message reads, and UPDATE attribute and NLRI building through `getBuildBuf` |
+| `bufMuxExt` | 65,535 (`message.ExtMsgLen`) | Message reads after Extended Message negotiation (RFC 8654) |
 
-<!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->
+Each multiplexer hands out a `BufHandle` from a block of `bufMuxBlockSize` buffers, and
+both share one byte budget.
+
+<!-- source: internal/component/bgp/reactor/session.go -- bufMuxStd, bufMuxExt, getBuildBuf, putBuildBuf -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- BufMux, BufHandle, combinedBudget -->
 
 The skip-and-backfill pattern handles variable-length sections: write fixed bytes, skip
 the length field, write payload forward, backfill the length at the saved position.
@@ -209,9 +211,9 @@ This avoids the `Len()`-then-`WriteTo()` double traversal in the hot path.
 Each peer's negotiated capabilities (ASN4, ADD-PATH, Extended Next Hop) are hashed into
 a `ContextID` (uint16). When source and destination peers share the same ContextID, the
 engine forwards the cached wire bytes unchanged. When they differ, the engine re-encodes
-through `PackContext`.
+through `EncodingContext`.
 <!-- source: internal/core/bgp/context/registry.go -- ContextID type and hashing -->
-<!-- source: internal/core/bgp/context/context.go -- PackContext encoding rules -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext encoding rules -->
 
 ### Pool-Based Deduplication
 
@@ -430,7 +432,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/plugins/rsvpte/register.go -- rsvp-te plugin -->
 <!-- source: internal/plugins/isis/register.go -- isis plugin -->
 <!-- source: internal/plugins/ospf/register.go -- ospf plugin -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello, HandleDBDesc -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- Table.HandleDBDesc -->
 <!-- source: internal/component/ike/engine/register.go -- ike plugin -->
 <!-- source: internal/plugins/copp/register.go -- copp plugin -->
 <!-- source: internal/plugins/ddos/detect/register.go -- ddos-detect plugin -->
@@ -489,12 +492,12 @@ plugin {
 graph LR
     F["Config File"] --> T["Tokenizer"] --> Tree["Tree"] --> R["ResolveBGPTree()"]
     R --> Peers["PeersFromTree()"] --> Reactor["Reactor"]
-    R --> Plugins["ExtractPluginsFromTree()"] --> PI["Plugin Infrastructure"]
+    Tree --> Plugins["ExtractPluginsFromTree()"] --> PI["Plugin Infrastructure"]
 ```
 
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree() -->
 <!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree() -->
-<!-- source: internal/component/bgp/config/plugins.go -- ExtractPluginsFromTree() -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, ExtractPluginsFromTree -->
 
 ### Inheritance
 
@@ -597,9 +600,9 @@ and registering it.
 | Software Version | 75 | draft-ietf-idr-software-version | Implemented |
 | Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | Implemented |
 
-<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing -->
-<!-- source: internal/core/bgp/capability/encoding.go -- ASN4, AddPath, ExtendedMsg, ExtNH -->
-<!-- source: internal/core/bgp/capability/session.go -- GR, RouteRefresh, Role -->
+<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing, CodeRole -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps, ASN4, AddPathMode, ExtendedMessage, ExtendedNextHop -->
+<!-- source: internal/core/bgp/capability/session.go -- SessionCaps, RouteRefresh, GracefulRestart -->
 
 ### Path Attributes
 
@@ -625,7 +628,7 @@ and registering it.
 <!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN attribute -->
 <!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH attribute -->
 <!-- source: internal/core/bgp/attribute/simple.go -- NEXT_HOP, MED, LOCAL_PREF, etc. -->
-<!-- source: internal/core/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->
+<!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI -->
 
 ### Negotiated Capabilities and Encoding
@@ -635,7 +638,7 @@ The same wire bytes parse differently depending on negotiated capabilities:
 - `AS_PATH [00 01 FD E8]` = ASN 65000 (4-byte ASN) or two ASNs 1 + 64488 (2-byte)
 - NLRI `[00 00 00 01 18 0a 00 00]` = path-id + prefix (ADD-PATH) or two prefixes (no ADD-PATH)
 
-Each peer's capabilities are hashed into a `ContextID`. PackContext carries the
+Each peer's capabilities are hashed into a `ContextID`. `EncodingContext` carries the
 encoding rules (ASN4, ADD-PATH mode per family, Extended Next Hop mappings) needed
 to encode/decode correctly for that peer.
 
@@ -976,14 +979,14 @@ This is not zero-copy in the kernel-bypass sense that Rust with `bytes::Bytes` o
 | Abstraction | Purpose |
 |-------------|---------|
 | `WireUpdate` | Lazy-parsed BGP UPDATE (iterators over wire bytes, no intermediate structs) |
-| `PackContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH) |
+| `EncodingContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, extended next hop) |
 | `ContextID` | If source and dest peers share ContextID, forward wire bytes unchanged |
 | `Pool` | Per-attribute-type pools with refcounted handles and incremental compaction |
 | `Handle` | Opaque reference into a pool (buffer bit + pool index + slot) |
 | `DirectBridge` | Bypasses IPC serialization for internal plugins (direct function calls) |
 
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
-<!-- source: internal/core/bgp/context/context.go -- PackContext -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext, NewEncodingContext -->
 <!-- source: internal/core/bgp/context/registry.go -- ContextID -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- Pool -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->

@@ -11,9 +11,9 @@ document IS the record, not an index to one. For the 888 summaries numbered
 
 A bare three-digit number at or below 400, such as (059), names a retired
 summary. That file is no longer in this directory and nothing here depends on
-it. To read the original, `git log --diff-filter=D --name-only --
-'plan/learned/059-*'` names the commit that deleted it, and `git show
-<sha>^:<path>` prints the file.
+it. To read the original, `git log --diff-filter=D --name-only -- plan/learned/`
+names the commit that deleted the corpus, and `git show <sha>^:<path>` prints the
+file.
 
 See also: `METHODOLOGY.md` (how individual summaries are written),
 `../../ai/LEARNED-INDEX.md` (curated index by topic).
