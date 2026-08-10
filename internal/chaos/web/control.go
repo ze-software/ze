@@ -298,16 +298,6 @@ func (d *Dashboard) SetPropertyResults(results []PropertyBadge) {
 	d.state.mu.Unlock()
 }
 
-// controlChannel returns the chaos control command channel, or nil if not configured.
-func (d *Dashboard) controlChannel() <-chan ControlCommand {
-	return d.control
-}
-
-// routeControlChannel returns the route dynamics control command channel, or nil if not configured.
-func (d *Dashboard) routeControlChannel() <-chan ControlCommand {
-	return d.routeControl
-}
-
 // writeControlStrip renders the horizontal control strip between header and content.
 // Contains: status dot, pause/resume, rate slider, stop, optional speed, optional restart.
 func writeControlStrip(w io.Writer, cs *ControlState) {

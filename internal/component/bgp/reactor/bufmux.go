@@ -433,12 +433,6 @@ func (p *probedPool) Stats() (allocated, inUse int) {
 	return p.mux.Stats()
 }
 
-// setMaxBlocks limits the number of blocks in the underlying BufMux.
-// Must be called before concurrent use.
-func (p *probedPool) setMaxBlocks(n int) {
-	p.mux.setMaxBlocks(n)
-}
-
 // setBudget sets the shared budget on the underlying BufMux.
 // Must be called before concurrent use.
 func (p *probedPool) setBudget(cb *combinedBudget) {

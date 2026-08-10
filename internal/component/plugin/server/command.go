@@ -63,11 +63,6 @@ func AllBuiltinRPCs() []RPCRegistration {
 	return registeredRPCs
 }
 
-// builtinCount returns the number of registered builtin handlers.
-func builtinCount() int {
-	return len(AllBuiltinRPCs())
-}
-
 // LoadBuiltins registers all builtin handlers with the dispatcher.
 // The wireToPath map provides the dispatch key for each handler, derived from
 // the YANG command tree (WireMethod -> CLI path). pathToDesc provides YANG

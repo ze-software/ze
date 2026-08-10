@@ -166,17 +166,6 @@ func (sm *SubscriptionManager) GetMatching(ns events.NamespaceID, et events.Even
 	return result
 }
 
-// getSubscriptions returns all subscriptions for a process.
-func (sm *SubscriptionManager) getSubscriptions(proc *process.Process) []*Subscription {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-
-	subs := sm.subscriptions[proc]
-	result := make([]*Subscription, len(subs))
-	copy(result, subs)
-	return result
-}
-
 // ParseSubscription parses a subscribe/unsubscribe command.
 // Format: [peer <sel> | plugin <name>] [<namespace>] event <type> [direction received|sent|both].
 // Namespace defaults to "bgp" when peer is set.

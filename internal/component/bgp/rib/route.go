@@ -146,11 +146,6 @@ func (r *Route) WireBytes() []byte {
 	return r.wireBytes
 }
 
-// nLRIWireBytes returns the cached NLRI wire bytes (may be nil).
-func (r *Route) nLRIWireBytes() []byte {
-	return r.nlriWireBytes
-}
-
 // SourceCtxID returns the source context ID.
 func (r *Route) SourceCtxID() bgpctx.ContextID {
 	return r.sourceCtxID

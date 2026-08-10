@@ -134,12 +134,6 @@ func (b *Builder) AddExtendedCommunity(ec ExtendedCommunity) *Builder {
 	return b
 }
 
-// setAtomicAggregate sets the ATOMIC_AGGREGATE attribute.
-func (b *Builder) setAtomicAggregate(v bool) *Builder {
-	b.atomicAggregate = v
-	return b
-}
-
 // setAIGP sets the AIGP attribute with the given metric value.
 func (b *Builder) setAIGP(metric uint64) *Builder { //nolint:unparam // fluent-builder contract: every Builder setter returns *Builder so calls chain (SetOrigin ... setWire). builder_parse.go ends its chain here, but a setter that returns nothing cannot sit in the middle of one
 	b.aigp = NewAIGPMetric(metric)

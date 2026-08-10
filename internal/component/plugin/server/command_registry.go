@@ -478,13 +478,6 @@ func (r *CommandRegistry) Complete(partial string) []Completion {
 	return completions
 }
 
-// isBuiltin returns true if the command name is a builtin.
-func (r *CommandRegistry) isBuiltin(name string) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.builtins[strings.ToLower(name)]
-}
-
 // lookupDeprecatedPrefix finds the longest deprecated alias that is a prefix
 // of lowerInput (already lowercased by the caller). Returns the canonical
 // RegisteredCommand and the matched prefix length, or (nil, 0) if no

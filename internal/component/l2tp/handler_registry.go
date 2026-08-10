@@ -10,27 +10,12 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
-// PoolStats carries the current state of the IP address pool for
-// "show l2tp pool" CLI output.
-type PoolStats struct {
-	Name      string `json:"name"`
-	RangeStr  string `json:"range"`
-	Total     int    `json:"total"`
-	Allocated int    `json:"allocated"`
-	Available int    `json:"available"`
-}
-
-// PoolStatsProvider returns the current pool statistics. Registered by
-// the l2tp-pool plugin at init time.
-type PoolStatsProvider func() []PoolStats
-
-// Prefix handlers and pool stats remain L2TP-scoped (they use
-// TunnelID/SessionID tuples). Auth and pool delegate to subscriber.
+// Prefix handlers remain L2TP-scoped (they use TunnelID/SessionID tuples).
+// Auth and pool delegate to subscriber.
 var (
-	handlerMu         sync.RWMutex
-	prefixHandler     PrefixHandler
-	prefixReleaser    PrefixReleaser
-	poolStatsProvider PoolStatsProvider
+	handlerMu      sync.RWMutex
+	prefixHandler  PrefixHandler
+	prefixReleaser PrefixReleaser
 )
 
 // RegisterAuthHandler delegates to subscriber.RegisterAuthHandler,
@@ -133,38 +118,4 @@ func GetPrefixReleaser() PrefixReleaser {
 	r := prefixReleaser
 	handlerMu.RUnlock()
 	return r
-}
-
-// unregisterPrefixHandler removes the prefix handler. Only for use in tests.
-func unregisterPrefixHandler() {
-	handlerMu.Lock()
-	prefixHandler = nil
-	handlerMu.Unlock()
-}
-
-// unregisterPrefixReleaser removes the prefix releaser. Only for use in tests.
-func unregisterPrefixReleaser() {
-	handlerMu.Lock()
-	prefixReleaser = nil
-	handlerMu.Unlock()
-}
-
-// registerPoolStatsProvider registers the function that returns pool
-// statistics for "show l2tp pool". Called from the l2tp-pool plugin
-// init(). Ignores nil providers.
-func registerPoolStatsProvider(p PoolStatsProvider) {
-	if p == nil {
-		return
-	}
-	handlerMu.Lock()
-	poolStatsProvider = p
-	handlerMu.Unlock()
-}
-
-// getPoolStatsProvider returns the registered pool stats provider, or nil.
-func getPoolStatsProvider() PoolStatsProvider {
-	handlerMu.RLock()
-	p := poolStatsProvider
-	handlerMu.RUnlock()
-	return p
 }

@@ -129,12 +129,6 @@ func (h *Hub) ProcessConfig(ctx context.Context, blocks []ConfigBlock) error {
 	return nil
 }
 
-// routeRollback sends a rollback command to a plugin.
-// Format: <namespace> rollback.
-func (h *Hub) routeRollback(ctx context.Context, namespace string) error {
-	return h.routeTransaction(ctx, namespace, "rollback")
-}
-
 // routeTransaction sends a transaction command (commit/rollback) to a plugin.
 func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) error {
 	schema, _ := h.registry.FindHandler(namespace)

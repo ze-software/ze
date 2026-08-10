@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -41,15 +40,6 @@ type WriterOption func(*Writer)
 // WithInterval sets the file rotation interval. Zero disables rotation.
 func WithInterval(d time.Duration) WriterOption {
 	return func(w *Writer) { w.interval = d }
-}
-
-// withBufSize sets the write buffer size in bytes.
-func withBufSize(n int) WriterOption {
-	return func(w *Writer) {
-		if n > 0 {
-			w.bufSize = n
-		}
-	}
 }
 
 // NewWriter creates a Writer that expands strftime codes in pattern for
@@ -228,10 +218,4 @@ func writePadded(b *textbuf.Buffer, v, width int) {
 		b.Byte('0')
 	}
 	b.Str(s)
-}
-
-// expandPatternTableName replaces %N in an already-expanded path with the
-// given table name.
-func expandPatternTableName(path, tableName string) string {
-	return strings.ReplaceAll(path, "%N", tableName)
 }

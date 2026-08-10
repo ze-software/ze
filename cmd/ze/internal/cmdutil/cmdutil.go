@@ -566,11 +566,3 @@ func DescribeCommand(cmd *cli.Command) string {
 	var tb textbuf.Buffer
 	return tb.Str("subcommands: ").Join(subs, ", ").String()
 }
-
-// printCommandList writes the formatted command list to stderr.
-func printCommandList(tree *cli.Command) {
-	entries := commandList(tree)
-	for _, e := range entries {
-		fmt.Fprintf(os.Stderr, "  %-16s %s\n", e.Name, e.Desc)
-	}
-}

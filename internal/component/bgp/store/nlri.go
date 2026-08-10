@@ -118,11 +118,6 @@ func nlriEqual[T NLRIHashable](a, b T) bool {
 	return true
 }
 
-// internDirect performs synchronous interning.
-func (s *FamilyStore[T]) internDirect(value T) T {
-	return s.internSync(value)
-}
-
 // Release decrements the reference count for an NLRI.
 func (s *FamilyStore[T]) Release(value T) bool {
 	hash := HashBytes(value.Key())
@@ -215,12 +210,6 @@ func (n *NLRIStore[T]) GetOrCreate(familyKey uint32) *FamilyStore[T] {
 func (n *NLRIStore[T]) Intern(value T) T {
 	store := n.GetOrCreate(value.FamilyKey())
 	return store.Intern(value)
-}
-
-// internDirect performs synchronous interning.
-func (n *NLRIStore[T]) internDirect(value T) T {
-	store := n.GetOrCreate(value.FamilyKey())
-	return store.internDirect(value)
 }
 
 // Release decrements the reference count for an NLRI.

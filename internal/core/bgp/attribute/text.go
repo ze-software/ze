@@ -21,11 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/stringsx"
 )
 
-var (
-	errMissingAsPathValue         = errors.New("missing as-path value")
-	errMissingCommunityValue      = errors.New("missing community value")
-	errMissingLargeCommunityValue = errors.New("missing large-community value")
-)
+var errMissingAsPathValue = errors.New("missing as-path value")
 
 // wellKnownCanonicalNames is the sorted, deterministic list of canonical
 // (kebab-case) well-known community names. Built once from communityNames.
@@ -123,21 +119,6 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 	}, nil
 }
 
-// parseOriginText parses origin string to uint8.
-// RFC 4271: ORIGIN attribute.
-func parseOriginText(s string) (uint8, error) {
-	switch strings.ToLower(s) {
-	case "igp":
-		return 0, nil
-	case "egp":
-		return 1, nil
-	case "incomplete":
-		return 2, nil
-	default:
-		return 0, fmt.Errorf("invalid origin %q: expected igp, egp, or incomplete", s)
-	}
-}
-
 // ParseBracketedList parses a list of tokens from command args.
 // Supports:
 //   - Bracketed: [token1 token2 ...] or [token1,token2,...]
@@ -217,46 +198,6 @@ func ParseASPathText(args []string) ([]uint32, int, error) {
 	}
 
 	return asPath, consumed, nil
-}
-
-// ParseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
-// Returns the parsed communities and how many tokens were consumed.
-func parseCommunitiesText(args []string) ([]uint32, int, error) {
-	if len(args) == 0 {
-		return nil, 0, errMissingCommunityValue
-	}
-
-	tokens, consumed := ParseBracketedList(args)
-	comms := make([]uint32, 0, len(tokens))
-	for _, tok := range tokens {
-		comm, err := ParseCommunity(tok)
-		if err != nil {
-			return nil, consumed, err
-		}
-		comms = append(comms, comm)
-	}
-
-	return comms, consumed, nil
-}
-
-// ParseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
-// Returns the parsed communities and how many tokens were consumed.
-func parseLargeCommunitiesText(args []string) ([]LargeCommunity, int, error) {
-	if len(args) == 0 {
-		return nil, 0, errMissingLargeCommunityValue
-	}
-
-	tokens, consumed := ParseBracketedList(args)
-	lcomms := make([]LargeCommunity, 0, len(tokens))
-	for _, tok := range tokens {
-		lc, err := ParseLargeCommunity(tok)
-		if err != nil {
-			return nil, consumed, err
-		}
-		lcomms = append(lcomms, lc)
-	}
-
-	return lcomms, consumed, nil
 }
 
 // Text formatting for BGP attributes lives in text_append.go (attribute-level

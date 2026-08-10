@@ -46,13 +46,6 @@ func (s *ConfigStore) setEdit(cfg map[string]any) {
 	s.edit = cfg
 }
 
-// setLive sets the live configuration directly.
-func (s *ConfigStore) setLive(cfg map[string]any) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.live = cfg
-}
-
 // Apply makes the edit configuration become the live configuration.
 func (s *ConfigStore) Apply() {
 	s.mu.Lock()
@@ -81,20 +74,6 @@ func (s *ConfigStore) Query(state ConfigState, path string) (any, error) {
 	}
 
 	return queryPath(cfg, path)
-}
-
-// getLive returns the entire live configuration.
-func (s *ConfigStore) getLive() map[string]any {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.live
-}
-
-// getEdit returns the entire edit configuration.
-func (s *ConfigStore) getEdit() map[string]any {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.edit
 }
 
 // queryPath navigates to a specific path in the config.

@@ -525,21 +525,6 @@ func (t *Transport) CircuitInfo(name string) (ifindex int, hwaddr [MACLen]byte, 
 	return c.handle.IfIndex(), c.handle.HWAddr(), c.handle.MTU(), true
 }
 
-// circuitNameByIfIndex returns the interface name of the open circuit with the
-// given ifindex, so the engine can route a received PDU (delivered keyed by
-// ifindex) to the matching circuit. The boolean is false when no open circuit
-// has that ifindex.
-func (t *Transport) circuitNameByIfIndex(ifindex int) (string, bool) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for name, c := range t.circuits {
-		if c.handle.IfIndex() == ifindex {
-			return name, true
-		}
-	}
-	return "", false
-}
-
 // ObserveNeighborFrame records the size of a received (padded-Hello) frame and,
 // if the inferred neighbor MTU differs from the local interface MTU, invokes the
 // MTU-mismatch callback. ISO/IEC 10589 sec 8.2.3: a router that receives a

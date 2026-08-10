@@ -6,19 +6,8 @@ import (
 	"sort"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 )
-
-// RouteGroup represents routes that share identical attributes.
-// Routes in the same group can be sent in a single UPDATE message.
-type RouteGroup struct {
-	Key        string                // Unique key for this attribute set
-	Family     family.Family         // Address family
-	NextHop    []byte                // Next-hop address bytes
-	Attributes []attribute.Attribute // Shared path attributes
-	Routes     []*Route              // Routes in this group
-}
 
 // AttributeGroup represents routes sharing the same non-AS_PATH attributes.
 // This is level 1 of the two-level grouping hierarchy.
@@ -42,60 +31,6 @@ type ASPathGroup struct {
 	Key    string            // AS_PATH hash for grouping
 	ASPath *attribute.ASPath // nil = no AS_PATH (locally originated)
 	Routes []*Route          // Routes/NLRIs with this AS_PATH
-}
-
-// NLRIs returns all NLRIs in this group.
-func (g *RouteGroup) NLRIs() []nlri.NLRI {
-	nlris := make([]nlri.NLRI, len(g.Routes))
-	for i, r := range g.Routes {
-		nlris[i] = r.NLRI()
-	}
-	return nlris
-}
-
-// groupByAttributes groups routes by their attribute set.
-// Routes with identical attributes (including next-hop) can share a single UPDATE.
-//
-// The grouping key is: Family + NextHop + sorted attribute bytes.
-// This ensures routes with the same attributes are grouped together.
-func groupByAttributes(routes []*Route) []RouteGroup {
-	if len(routes) == 0 {
-		return nil
-	}
-
-	// Map of group key -> group
-	groups := make(map[string]*RouteGroup)
-
-	for _, route := range routes {
-		key := buildGroupKey(route)
-
-		if g, ok := groups[key]; ok {
-			// Add to existing group
-			g.Routes = append(g.Routes, route)
-		} else {
-			// Create new group
-			groups[key] = &RouteGroup{
-				Key:        key,
-				Family:     route.NLRI().Family(),
-				NextHop:    route.NextHop().AsSlice(),
-				Attributes: route.Attributes(),
-				Routes:     []*Route{route},
-			}
-		}
-	}
-
-	// Convert to slice and sort for deterministic ordering
-	result := make([]RouteGroup, 0, len(groups))
-	for _, g := range groups {
-		result = append(result, *g)
-	}
-
-	// Sort by key for deterministic ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Key < result[j].Key
-	})
-
-	return result
 }
 
 // buildGroupKey creates a unique key for grouping routes.

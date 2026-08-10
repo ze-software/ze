@@ -73,13 +73,6 @@ func (l *txLock) drainSIGHUP() bool {
 	return had
 }
 
-// txLocked reports whether a config transaction is in progress.
-func (s *Server) txLocked() bool {
-	s.txLock.mu.Lock()
-	defer s.txLock.mu.Unlock()
-	return s.txLock.locked
-}
-
 // QueueSIGHUP queues a SIGHUP for later processing if a transaction is active.
 func (s *Server) QueueSIGHUP() {
 	s.txLock.queueSIGHUP()

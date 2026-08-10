@@ -5,11 +5,8 @@
 package message
 
 import (
-	"sort"
-
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Type aliases so message package code uses family types directly without casts.
@@ -41,24 +38,3 @@ const (
 	FamilyIPv4Multicast = "ipv4/multicast"
 	FamilyIPv6Multicast = "ipv6/multicast"
 )
-
-// validFamilyConfigNames returns a sorted list of valid config family names.
-// Queries the nlri registry for all registered family names.
-func validFamilyConfigNames() string {
-	names := family.RegisteredFamilyNames()
-	sort.Strings(names)
-	var b textbuf.Buffer
-	for i, n := range names {
-		if i > 0 {
-			b.Str(", ")
-		}
-		b.Str(n)
-	}
-	return b.String()
-}
-
-// aFISAFIToFamily converts AFI/SAFI to canonical family string.
-// Returns strings like "ipv4/unicast", "ipv6/flow", "l2vpn/evpn".
-func aFISAFIToFamily(afi AFI, safi SAFI) string {
-	return family.Family{AFI: afi, SAFI: safi}.String()
-}

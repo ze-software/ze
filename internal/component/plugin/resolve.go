@@ -222,9 +222,3 @@ func deriveName(parts []string) string {
 func IsInternalPlugin(name string) bool {
 	return registry.Has(name)
 }
-
-// internalPluginCommand returns the command to run an internal plugin.
-// For internal plugins, this is "ze plugin <name>".
-func internalPluginCommand(name string) []string {
-	return []string{"ze", cmdPlugin, name}
-}

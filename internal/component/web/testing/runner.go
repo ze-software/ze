@@ -347,11 +347,6 @@ func (b *Browser) Screenshot(path string) error {
 	return b.runAgent("screenshot", path)
 }
 
-// getText returns the full page text.
-func (b *Browser) getText() (string, error) {
-	return b.runAgentOutput("get", "text", "body")
-}
-
 // getHTML returns the full page HTML.
 func (b *Browser) getHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "body")

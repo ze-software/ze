@@ -142,16 +142,6 @@ func IsAS4Subtype(subtype uint16) bool {
 	return false
 }
 
-// isLocalSubtype reports whether a BGP4MP subtype indicates locally generated messages.
-func isLocalSubtype(subtype uint16) bool {
-	switch subtype {
-	case BGP4MPMessageLocal, BGP4MPMessageAS4Local,
-		BGP4MPMessageLocalAP, BGP4MPMessageAS4LocalAP:
-		return true
-	}
-	return false
-}
-
 // isStateChangeSubtype reports whether a BGP4MP subtype is a state change.
 func isStateChangeSubtype(subtype uint16) bool {
 	return subtype == BGP4MPStateChange || subtype == BGP4MPStateChangeAS4

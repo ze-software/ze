@@ -672,20 +672,3 @@ func (s *Server) GetDecodeFamilies() []string {
 	}
 	return s.registry.GetDecodeFamilies()
 }
-
-// getSchemaDeclarations returns all schema declarations from registered plugins.
-// Used for two-phase config parsing to extend the schema before parsing peer config.
-// Should be called after Stage 1 (Registration) completes for all plugins.
-func (s *Server) getSchemaDeclarations() []plugin.SchemaDeclaration {
-	pm := s.procManager.Load()
-	if pm == nil {
-		return nil
-	}
-
-	var declarations []plugin.SchemaDeclaration
-	for _, proc := range pm.AllProcesses() {
-		reg := proc.Registration()
-		declarations = append(declarations, reg.SchemaDeclarations...)
-	}
-	return declarations
-}

@@ -121,12 +121,6 @@ func shortForm(canonical string) string {
 	return canonical
 }
 
-// longForm returns the canonical (long) form for display.
-// This is identity for canonical names; for aliases it resolves first.
-func longForm(token string) string {
-	return ResolveAlias(token)
-}
-
 // attributeKeywords are keywords that introduce an attribute value in commands
 // and act as section boundaries in event parsing.
 var attributeKeywords = map[string]bool{

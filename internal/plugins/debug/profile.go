@@ -55,13 +55,16 @@ func (p *Profile) Module(name string) *ModuleEntry {
 }
 
 // toggleModule adds a module entry if absent, removes it if present.
-func (p *Profile) toggleModule(name string) bool {
+//
+// It reports nothing: no caller has ever read the added-or-removed answer, and
+// Module(name) gives it to one that needs it without every other caller paying
+// for a result it discards.
+func (p *Profile) toggleModule(name string) {
 	if _, ok := p.Modules[name]; ok {
 		delete(p.Modules, name)
-		return false
+		return
 	}
 	p.Modules[name] = &ModuleEntry{Level: "debug"}
-	return true
 }
 
 // SetLevel sets the log level for a module. Creates the entry if absent.

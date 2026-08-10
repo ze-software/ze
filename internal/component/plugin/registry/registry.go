@@ -388,20 +388,6 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 	return nil
 }
 
-// pluginForFilterType returns the plugin process name that owns the given
-// YANG filter list type (e.g., "prefix-list" -> "bgp-filter-prefix").
-// Returns "" if no plugin has registered that filter type.
-//
-// Used by the config layer to canonicalize short chain refs. A user can
-// write `filter import [ CUSTOMERS ]` or `[ prefix-list:CUSTOMERS ]` and
-// the config layer looks up the filter type via this function and rewrites
-// the ref to the full `<plugin>:<filter>` form consumed by runtime dispatch.
-func pluginForFilterType(filterType string) string {
-	mu.RLock()
-	defer mu.RUnlock()
-	return filterTypes[filterType]
-}
-
 // FilterTypesMap returns a copy of the (filter-type -> plugin-name) map.
 // Used by config validation to enumerate known filter types.
 func FilterTypesMap() map[string]string {
@@ -865,18 +851,6 @@ func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS u
 
 	if reg := familyIndex[family]; reg != nil && reg.InProcessRouteEncoder != nil {
 		return reg.InProcessRouteEncoder
-	}
-	return nil
-}
-
-// configNLRIBuilder finds the plugin registered for a family and returns
-// its config NLRI builder. Returns nil if no builder is registered.
-func configNLRIBuilder(family string) func(map[string][]string, bool, bool) []byte {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	if reg := familyIndex[family]; reg != nil && reg.InProcessConfigNLRIBuilder != nil {
-		return reg.InProcessConfigNLRIBuilder
 	}
 	return nil
 }

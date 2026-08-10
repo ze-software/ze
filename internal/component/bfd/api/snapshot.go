@@ -76,12 +76,3 @@ type ProfileState struct {
 	RequiredMinRxUs uint32 `json:"required-min-rx-us"`
 	Passive         bool   `json:"passive"`
 }
-
-// stateLabel returns the canonical string for a packet.State as used in
-// SessionState.State, TransitionRecord.From / .To, and Prometheus
-// label values. Exposed so consumers format states identically to the
-// engine.
-func stateLabel(s State) string { return s.String() }
-
-// diagLabel returns the canonical string for a packet.Diag.
-func diagLabel(d Diag) string { return d.String() }

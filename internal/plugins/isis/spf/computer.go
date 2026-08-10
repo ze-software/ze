@@ -439,13 +439,6 @@ func (c *Computer) SnapshotV6() []RouteSnapshotEntry {
 	return Snapshot(routes)
 }
 
-// routesV6 returns a copy of the currently installed IPv6 route set (isis-12).
-func (c *Computer) routesV6() []RouteEntry {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return append([]RouteEntry(nil), c.lastV6...)
-}
-
 // SetSPFLogTrigger records the reason the next recorded SPF run will report in
 // `show isis spf-log` (spec-isis-13). The engine debounce path passes
 // "lsdb-change"; a direct Run with no trigger set reports "manual". Safe to call

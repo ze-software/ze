@@ -45,33 +45,6 @@ type fwdDedupMetrics struct {
 // recorder guards its use and a build with metrics disabled costs one nil load.
 var fwdDedupMetricsPtr atomic.Pointer[fwdDedupMetrics]
 
-// setForwardDedupMetrics creates the fan-out dedup metrics from the given
-// registry. A nil registry is a no-op, leaving the Prometheus half disabled; the
-// atomics above are unconditional and keep working either way.
-func setForwardDedupMetrics(reg metrics.Registry) {
-	if reg == nil {
-		return
-	}
-	fwdDedupMetricsPtr.Store(&fwdDedupMetrics{
-		materializations: reg.Counter(
-			"ze_bgp_update_materializations_total",
-			"Per-destination UPDATE payload rebuilds performed while forwarding.",
-		),
-		dedupHits: reg.Counter(
-			"ze_bgp_update_dedup_hits_total",
-			"Forward destinations that reused another destination's rebuild because their edit sets were equal.",
-		),
-		dedupCollisions: reg.Counter(
-			"ze_bgp_update_dedup_collisions_total",
-			"Fingerprint matches refused by the full edit-set equality check. A non-zero value is a hash collision, never a wire error.",
-		),
-		dedupCapacity: reg.Counter(
-			"ze_bgp_update_dedup_capacity_drops_total",
-			"Equality classes not recorded because the forward call's digest arena was full. Those destinations rebuild on their own.",
-		),
-	})
-}
-
 // recordMaterialization counts one per-destination payload rebuild.
 func recordMaterialization() {
 	fwdMaterializations.Add(1)

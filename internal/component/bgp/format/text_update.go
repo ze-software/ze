@@ -515,7 +515,7 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 
 	hasContent := false
 	// Write raw components directly from WireUpdate sections, without
-	// allocating the RawUpdateComponents struct or its per-family maps.
+	// allocating an intermediate struct or its per-family maps.
 	if msg.WireUpdate != nil {
 		buf, hasContent = appendRawSectionsJSON(buf, msg.WireUpdate, ctx)
 	}
@@ -565,7 +565,7 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 }
 
 // appendRawSectionsJSON writes the "raw" object contents directly from
-// WireUpdate sections, without allocating RawUpdateComponents or its maps.
+// WireUpdate sections, without allocating an intermediate struct or its maps.
 // Returns the updated buf and whether any content was written.
 func appendRawSectionsJSON(buf []byte, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) ([]byte, bool) {
 	hasContent := false
