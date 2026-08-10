@@ -284,6 +284,13 @@ func (li *linuxInstance) v6SourceLocked() (netip.Addr, bool) {
 	return src, ok
 }
 
+// Transport.AnnounceMaster reaches warmV6Source through a comma-ok assertion,
+// which cannot report a break: when 3c9644e15 unexported the method and left
+// the interface declaring the exported name, nothing satisfied v6SourceWarmer,
+// the assertion stopped matching and the warm silently never ran. This check
+// turns that same mistake into a build error.
+var _ v6SourceWarmer = (*linuxInstance)(nil)
+
 // warmV6Source resolves and caches the macvlan link-local on the caller's
 // goroutine (v6SourceWarmer). The orchestrator calls it at AnnounceMaster so the
 // announcer worker never performs the netlink resolution itself: netlink sockets

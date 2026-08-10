@@ -391,7 +391,17 @@ func (t *Transport) SendAdvert(key InstanceKey) error {
 // query and netlink sockets land in the calling THREAD's network namespace, so
 // doing it at the entry point also keeps netns-scoped tests (and any future
 // multi-netns embedding) correct.
-type v6SourceWarmer interface{ WarmV6Source() }
+// The method is unexported because the only implementation is in this package.
+// It was WarmV6Source() until 3c9644e15 unexported the implementing method and
+// left this declaration alone: nothing satisfied the interface after that, the
+// comma-ok assertion below simply stopped matching, and the warm silently never
+// ran. The compile-time check under it is what makes that unfixable in silence
+// again -- a type assertion cannot report a break, so the break has to be a
+// build error instead.
+// The compile-time check that the Linux handle still satisfies this lives in
+// backend_linux.go, beside the only implementation: linuxInstance exists only
+// under the linux build tag and this file carries none.
+type v6SourceWarmer interface{ warmV6Source() }
 
 // AnnounceMaster enqueues a GARP/NA burst for the given VIPs on a Master
 // transition (spec-vrrp-2). Announcers fire ONLY on this explicit engine call,
@@ -404,7 +414,7 @@ func (t *Transport) AnnounceMaster(key InstanceKey, vips []netip.Addr) {
 		return
 	}
 	if w, ok := inst.handle.(v6SourceWarmer); ok && inst.spec.Family == packet.V6 {
-		w.WarmV6Source()
+		w.warmV6Source()
 	}
 	if !inst.ann.enqueue(vips) {
 		logger().Warn("vrrp/transport: announce queue full, dropping burst", "interface", key.Interface, "vrid", key.VRID)
