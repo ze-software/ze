@@ -32,7 +32,7 @@ func TestParseFaultParam(t *testing.T) {
 // the QEMU fault-injection scenario, not here: it deliberately blocks the
 // caller and reboots.
 func TestInjectFaultNoopForUnknown(t *testing.T) {
-	cfg := InstallConfig{Source: sourceHTTP}
+	cfg := installConfig{Source: sourceHTTP}
 	injectFault(cfg, "")            // empty: nothing armed
 	injectFault(cfg, "not-a-fault") // unknown: logged and ignored
 	// Reaching here without blocking or panicking is the assertion.

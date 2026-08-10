@@ -14,7 +14,7 @@ import (
 // under the ze_installer_fault build tag, so the shipping installer initrd
 // never contains it (the production build uses just ze_installer; the QEMU
 // evidence harness sets ZE_INITRD_FAULT=1 to add the tag).
-func maybeInjectFault(cfg InstallConfig) {
+func maybeInjectFault(cfg installConfig) {
 	injectFault(cfg, cmdlineFault())
 }
 
@@ -28,7 +28,7 @@ func maybeInjectFault(cfg InstallConfig) {
 // FATAL/reboot path; a broken one lets the runtime kill PID 1 and the kernel's
 // panic=-1 reboots without that marker. Either way the box reboots instead of
 // hanging, which is the property R-6 demands.
-func injectFault(cfg InstallConfig, fault string) {
+func injectFault(cfg installConfig, fault string) {
 	switch fault {
 	case "":
 		return
@@ -61,7 +61,7 @@ func triggerRuntimeFault() {
 }
 
 // cmdlineFault returns the ze.fault value from /proc/cmdline, or "" if absent.
-// The fault hook parses the cmdline itself so the production InstallConfig and
+// The fault hook parses the cmdline itself so the production installConfig and
 // its parser carry no evidence-only field.
 func cmdlineFault() string {
 	data, err := os.ReadFile("/proc/cmdline")

@@ -8,4 +8,4 @@ package disk
 // hook (fault_linux.go) is compiled in only under the ze_installer_fault build
 // tag, used by the QEMU fault-injection evidence harness; the production build
 // carries no fault-injection code path at all.
-func maybeInjectFault(_ InstallConfig) {}
+func maybeInjectFault(_ installConfig) {}

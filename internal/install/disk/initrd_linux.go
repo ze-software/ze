@@ -17,7 +17,7 @@ import (
 // install logic. It never returns; all exit paths end in reboot,
 // poweroff, or the recovery console.
 func RunInitrd() {
-	cfg := InstallConfig{Source: sourceHTTP}
+	cfg := installConfig{Source: sourceHTTP}
 	var tb textbuf.Buffer
 
 	defer func() {

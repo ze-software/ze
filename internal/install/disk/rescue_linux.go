@@ -70,7 +70,7 @@ func selectFatalBranch(rescueAuth, source string) fatalBranch {
 
 // fatalInitrd implements the three-branch rescue policy from
 // tools/installer-initrd/init:217-227 and never returns.
-func fatalInitrd(cfg InstallConfig, msg string) {
+func fatalInitrd(cfg installConfig, msg string) {
 	slog.Error("FATAL", "error", msg)
 
 	branch := selectFatalBranch(cfg.RescueAuth, cfg.Source)
@@ -99,7 +99,7 @@ func fatalInitrd(cfg InstallConfig, msg string) {
 	select {}
 }
 
-func rescueOnConsoles(cfg InstallConfig, gated bool) {
+func rescueOnConsoles(cfg installConfig, gated bool) {
 	data, err := os.ReadFile("/sys/class/tty/console/active")
 	if err != nil {
 		rescueSession(os.Stdin, os.Stdout, cfg, gated)
@@ -138,7 +138,7 @@ func rescueOnConsoles(cfg InstallConfig, gated bool) {
 	}
 }
 
-func rescueSession(r io.Reader, w io.Writer, cfg InstallConfig, gated bool) {
+func rescueSession(r io.Reader, w io.Writer, cfg installConfig, gated bool) {
 	if gated {
 		if !gateWithRescueToken(r, w, cfg.RescueAuth) {
 			return
@@ -191,7 +191,7 @@ func echoOn(f *os.File) {
 	unix.IoctlSetTermios(fd, unix.TCSETS, termios) //nolint:errcheck // best-effort terminal control
 }
 
-func rescueMenu(r io.Reader, w io.Writer, _ InstallConfig) {
+func rescueMenu(r io.Reader, w io.Writer, _ installConfig) {
 	fmt.Fprintln(w, "\n[ze-install] Recovery Console") //nolint:errcheck // console output to recovery terminal
 	fmt.Fprintln(w, "  1) Retry network + install")    //nolint:errcheck // console output to recovery terminal
 	fmt.Fprintln(w, "  2) Show network state")         //nolint:errcheck // console output to recovery terminal
