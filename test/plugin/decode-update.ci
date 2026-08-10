@@ -1,13 +1,15 @@
 # Test: Plugin→engine decode-update RPC
 # Validates plugin can decode full UPDATE message body via engine RPC (Socket A)
 # UPDATE: ORIGIN=IGP, NEXT_HOP=192.168.1.1, NLRI=10.0.0.0/24
-# Plugin decodes, validates ze-bgp JSON result, sends EOR as success signal
+# Plugin decodes, then announces a route BUILT FROM the decoded ze-bgp JSON.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# Plugin sends EOR after successful decode-update validation
-cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The announced NEXT_HOP (C0A80101) and NLRI (18 0A0000) are read back out of
+# the ze-bgp JSON decode-update produced. ze has no other source for them, so
+# this message cannot appear unless the RPC decoded the UPDATE body correctly.
+cmd=api:conn=1:seq=1:text=peer * update text nhop 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C0A8010140050400000064180A0000
 EOF_PEER
 
 # Python plugin script
@@ -16,14 +18,16 @@ tmpfs=decode-update.run:mode=755:terminator=EOF_RUN
 """Test decode-update RPC: plugin calls engine to decode full UPDATE body."""
 
 import json
-import sys
-from ze_api import API
+from ze_api import API, runtime_fail
 
 
 def main() -> None:
     api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
     api.ready()
-    # // test-relax: dropped unused 'import time' + pre-RPC sleep(0.1); decode-update _call_engine is synchronous
 
     # UPDATE body (after 19-byte BGP header):
     # Withdrawn Routes Length=0(0000), Attr Length=11(000B),
@@ -35,20 +39,17 @@ def main() -> None:
 
     result = resp.get('result')
     if result is None:
-        print('ERROR: decode-update returned no result', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail('decode-update returned no result')
 
     json_str = result.get('json', '')
     if not json_str:
-        print('ERROR: decode-update returned empty json', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail('decode-update returned empty json')
 
     # Parse the ze-bgp JSON and validate content
     try:
         update = json.loads(json_str)
     except json.JSONDecodeError as e:
-        print(f'ERROR: invalid JSON from decode-update: {e}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'invalid JSON from decode-update: {e}')
 
     # Check for expected content in ze-bgp JSON
     update_data = update.get('update', {})
@@ -57,24 +58,42 @@ def main() -> None:
     # Ze native JSON wraps each attribute with RFC 4271 flag booleans.
     origin_attr = attr.get('origin', {})
     if not isinstance(origin_attr, dict) or origin_attr.get('value') != 'igp':
-        print(f'ERROR: expected origin value igp, got {origin_attr}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'expected origin value igp, got {origin_attr}')
 
     if origin_attr.get('transitive') is not True:
-        print(f'ERROR: origin must be transitive, got {origin_attr}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'origin must be transitive, got {origin_attr}')
 
     if origin_attr.get('optional') is not False:
-        print(f'ERROR: origin must not be optional, got {origin_attr}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'origin must not be optional, got {origin_attr}')
 
     if '10.0.0.0/24' not in json_str:
-        print(f'ERROR: expected 10.0.0.0/24 in update JSON', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail('expected 10.0.0.0/24 in update JSON')
 
-    # Success: send EOR to signal completion
-    api.send('peer * update text nlri ipv4/unicast eor')
+    # Success signal: rebuild the announce from the decoded JSON itself, never
+    # from a literal. ze has no other source for these bytes, so the expect=bgp
+    # line cannot match unless decode-update produced the right JSON. A bare EOR
+    # was the old signal and could not discriminate: ze emits its own
+    # initial-sync EOR, so that assertion passed with the plugin dead.
+    next_hop = attr.get('next-hop', {}).get('value')
+    families = update_data.get('nlri', {})
+    if not isinstance(families, dict) or len(families) != 1:
+        runtime_fail(f'expected exactly one decoded family, got {families!r}')
+    family = next(iter(families))
+    entries = families[family]
+    if not isinstance(entries, list) or not entries:
+        runtime_fail(f'expected a non-empty entry list for {family}, got {entries!r}')
+    prefixes = entries[0].get('nlri')
+    # Exactly one, so a decoder that over-reads the NLRI field and returns a
+    # trailing extra prefix is caught here. Only prefixes[0] reaches the wire,
+    # so the expect=bgp line below cannot see that particular defect.
+    if not isinstance(prefixes, list) or len(prefixes) != 1:
+        runtime_fail(f'expected exactly one decoded prefix, got {prefixes!r}')
+
+    api.send(f'peer * update text nhop {next_hop} nlri {family} add {prefixes[0]}')
+    # The quiesce barrier returns only once the announce above is on the wire,
+    # so asking for shutdown here cannot race the expect=bgp match.
     api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    api.shutdown_fire_and_forget()
     api.wait_for_shutdown()
 
 

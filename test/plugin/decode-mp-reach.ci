@@ -1,13 +1,15 @@
 # Test: Plugin→engine decode-mp-reach RPC
 # Validates plugin can decode MP_REACH_NLRI via engine RPC (Socket A)
 # MP_REACH_NLRI: IPv4 unicast, NH=192.168.1.1, NLRI=10.0.0.0/24
-# Plugin decodes, validates result, sends EOR as success signal
+# Plugin decodes, then announces a route BUILT FROM the decoded fields.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# Plugin sends EOR after successful decode-mp-reach validation
-cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The announced NEXT_HOP (C0A80101) and NLRI (18 0A0000) are the values
+# decode-mp-reach returned. ze has no other source for them, so this message
+# cannot appear unless the RPC decoded the MP_REACH_NLRI correctly.
+cmd=api:conn=1:seq=1:text=peer * update text nhop 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C0A8010140050400000064180A0000
 EOF_PEER
 
 # Python plugin script
@@ -15,14 +17,16 @@ tmpfs=decode-mp-reach.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Test decode-mp-reach RPC: plugin calls engine to decode MP_REACH_NLRI."""
 
-import sys
-from ze_api import API
+from ze_api import API, runtime_fail
 
 
 def main() -> None:
     api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
     api.ready()
-    # // test-relax: dropped 0.1 pre-RPC pad + unused 'import time'; decode-mp-reach RPC is synchronous
 
     # MP_REACH_NLRI for IPv4 unicast:
     # AFI=1(0001), SAFI=1(01), NHLen=4(04), NH=192.168.1.1(C0A80101),
@@ -33,25 +37,36 @@ def main() -> None:
 
     result = resp.get('result')
     if result is None:
-        print('ERROR: decode-mp-reach returned no result', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail('decode-mp-reach returned no result')
 
     if result.get('family') != 'ipv4/unicast':
-        print(f'ERROR: expected family ipv4/unicast, got {result.get("family")}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'expected family ipv4/unicast, got {result.get("family")}')
 
     if result.get('next-hop') != '192.168.1.1':
-        print(f'ERROR: expected next-hop 192.168.1.1, got {result.get("next-hop")}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'expected next-hop 192.168.1.1, got {result.get("next-hop")}')
 
-    nlri = result.get('nlri', '')
+    nlri = result.get('nlri')
+    # Exactly one, so a decoder that over-reads the NLRI field and returns a
+    # trailing extra prefix is caught here. Only nlri[0] reaches the wire, so
+    # the expect=bgp line below cannot see that particular defect.
+    if not isinstance(nlri, list) or len(nlri) != 1:
+        runtime_fail(f'expected exactly one decoded prefix, got {nlri!r}')
     if '10.0.0.0/24' not in str(nlri):
-        print(f'ERROR: expected 10.0.0.0/24 in nlri, got {nlri}', file=sys.stderr)
-        sys.exit(1)
+        runtime_fail(f'expected 10.0.0.0/24 in nlri, got {nlri}')
 
-    # Success: send EOR to signal completion
-    api.send('peer * update text nlri ipv4/unicast eor')
+    # Success signal: announce a route whose family, next hop and prefix are the
+    # RPC's OWN answer, never a literal. ze has no other source for those bytes,
+    # so the expect=bgp line above cannot match unless decode-mp-reach worked.
+    # A bare EOR was the old signal and could not discriminate: ze emits its own
+    # initial-sync EOR, so that assertion passed with the plugin dead.
+    api.send(
+        f'peer * update text nhop {result["next-hop"]} '
+        f'nlri {result["family"]} add {nlri[0]}'
+    )
+    # The quiesce barrier returns only once the announce above is on the wire,
+    # so asking for shutdown here cannot race the expect=bgp match.
     api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    api.shutdown_fire_and_forget()
     api.wait_for_shutdown()
 
 
