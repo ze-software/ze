@@ -711,11 +711,20 @@ the glob is what stops the next file from rotting.
 ## Temporary Files
 
 Use project `tmp/` (gitignored) for scratch files, never `/tmp`.
-Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep artifacts isolated.
+A subfolder per debugging task (`tmp/watchdog-debug/`) isolates artifacts from each
+other, but not from a sibling session: put it under your session's own directory
+(below), unless the artifact must outlive the session.
 
-**Prefer your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)` gives
-`tmp/s/<session-id>/`, which is removed at SessionEnd, so scratch cannot outlive its
-owner or collide with a sibling session (`ai/rules/commands.md`).
+**Write it under your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)`
+gives the `scratch/` subdirectory of `tmp/session/<YYYY-MM-DD>-<session-id>/`, so scratch
+never collides with a sibling session (`ai/rules/commands.md`). Nothing removes it for you:
+the date in the directory name is what lets the operator find it later, with
+`make ze-clean-sessions BEFORE=<YYYY-MM-DD>`. A fixed name at
+the `tmp/` ROOT is the failure this replaces: `tmp/` is keyed per checkout, so
+`tmp/out.log` names the same file for every session in it.
+A file at that root is refused: `check_scratch_path`
+(`.claude/hooks/pretool-bash.py`) on a redirect, `c_scratch_path_we`
+(`.claude/hooks/pretool-writeedit.py`) on Write and Edit.
 
 The functional-test runner already writes there: its per-run and per-test working
 directories (configs, sockets, daemon pid/ready files) root at

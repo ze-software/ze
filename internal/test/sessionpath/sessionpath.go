@@ -6,8 +6,17 @@
 // Concurrent AI sessions share one working tree. Anything written to a fixed path
 // (bin/ze, $TMPDIR/ze-functional-*) is therefore either clobbered by a sibling
 // session mid-run, or left behind with no owner. This package routes those
-// artifacts into the per-session root tmp/s/<session-id>/ that
-// scripts/dev/session-scratch.sh already creates and SessionEnd already reaps.
+// artifacts into the per-session root tmp/session/<YYYY-MM-DD>-<session-id>/,
+// the same directory mk/session.mk builds into and
+// scripts/dev/session-scratch.sh writes scratch under.
+//
+// THE DIRECTORY IS LOOKED UP, NEVER RECOMPUTED. The dated name is not a pure
+// function of the id, so Root takes the single directory matching
+// tmp/session/????-??-??-<id> and names a new one with today's date only on a
+// miss. Recomputing from today's date would move a session's directory at
+// midnight and orphan the binaries that session is running. make and shell
+// implement the same rule, and TestMakeAndGoAgreeOnBinDir
+// (scripts/dev/session_bin_dir_test.py) is what stops the three drifting.
 //
 // Off-session (a human shell, CI) every helper returns exactly the path used
 // before this package existed, so nothing changes for anyone but an AI session.
@@ -24,6 +33,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -31,7 +41,7 @@ import (
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         "ze.session.id",
 	Type:        "string",
-	Description: "AI session id scoping build/test artifacts to tmp/s/<id> (set by mk/session.mk; empty means shared paths)",
+	Description: "AI session id scoping build/test artifacts to tmp/session/<date>-<id> (set by mk/session.mk; empty means shared paths)",
 })
 
 // sidSafe mirrors _SID_SAFE_RE in .claude/hooks/lib/session_id.py: an id is used
@@ -61,17 +71,50 @@ func ID() string {
 	return id
 }
 
+// sessionRoot is the ONE root for per-session state: the dated directories sit
+// beside the flat marker files the hooks write (.sid-by-pid-<clipid>,
+// .closure-ack-<stem>, and the gate markers). Everything keyed by session alone
+// lives INSIDE the dated directory: bin/, scratch/, and the per-spec digest
+// under state/ (.claude/hooks/lib/state-file.sh).
+const sessionRoot = "session"
+
 // Root returns this session's private directory under baseDir, or "" off-session.
+//
+// The name is <YYYY-MM-DD>-<id>, and it is LOOKED UP rather than recomputed: an
+// existing dated directory for this id wins, and today's date names a new one
+// only when this session has none. Root CREATES nothing, so asking for the path
+// never mints a directory; EnsureScratchRoot is the caller that creates it, and
+// make's recipes do the same on their side.
+//
+// A tree that somehow holds two dated directories for one id resolves to the
+// older of them: filepath.Glob returns its matches sorted, and the dates are
+// lexically ordered by construction.
 func Root(baseDir string) string {
 	id := ID()
 	if id == "" {
 		return ""
 	}
-	return filepath.Join(baseDir, "tmp", "s", id)
+	root := filepath.Join(baseDir, "tmp", sessionRoot)
+	// The id is refused above unless it matches [A-Za-z0-9._-]+, so it carries
+	// no glob metacharacter and cannot widen the pattern.
+	//
+	// Only a DIRECTORY counts, which is what the shell copy's `[ -d ]` and the
+	// python copy's isdir already required. Without the check a regular file of
+	// the dated shape would be this copy's answer and not theirs, and the four
+	// implementations would disagree on the one input that splits them.
+	if dated, err := filepath.Glob(filepath.Join(root, "????-??-??-"+id)); err == nil {
+		for _, candidate := range dated {
+			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+				return candidate
+			}
+		}
+	}
+	return filepath.Join(root, time.Now().Format("2006-01-02")+"-"+id)
 }
 
 // BinDir returns the directory to build test binaries into: the session's own
-// bin/ under tmp/s/<id>/, or the shared <baseDir>/bin off-session.
+// bin/ under tmp/session/<YYYY-MM-DD>-<id>/, or the shared <baseDir>/bin
+// off-session.
 //
 // The final element is always "bin" because ze derives its config/DB directory
 // from a parent directory named bin or sbin (internal/core/paths/paths.go
@@ -174,8 +217,8 @@ func DefaultScratchRoot() string {
 // caches -- and those caches hold further foreign go.mod files. A
 // presence-only walk starting anywhere under tmp/ therefore stops at the
 // sentinel and reports tmp/ as the checkout root, making the scratch root
-// tmp/tmp/s/<id>: a real directory, returned with no error, and outside
-// everything SessionEnd removes.
+// tmp/tmp/session/<date>-<id>: a real directory, returned with no error, and
+// owned by nothing.
 const moduleDirective = "module github.com/ze-software/ze"
 
 // repoRoot walks up from the working directory to the ze checkout root.
@@ -216,8 +259,11 @@ func isRepoRoot(dir string) bool {
 // to hand the result to os.MkdirTemp (which requires an existing parent).
 //
 // A creation failure is reported as "" rather than an error: falling back to the
-// system temp dir keeps the test running, and the only thing lost is the
-// automatic session-end cleanup.
+// system temp dir keeps the test running, and the only thing lost is the run's
+// place in the session's own directory. Nothing under tmp/session/ is removed
+// automatically, so what that costs is attribution, not cleanup: the fallback
+// dir is an unowned $TMPDIR/ze-functional-* that no operator can tie to a
+// session, while `make ze-clean-sessions BEFORE=<date>` takes the rest.
 func EnsureScratchRoot(baseDir string) string {
 	root := scratchRoot(baseDir)
 	if root == "" {

@@ -91,9 +91,10 @@ ifeq ($(ZE_TEST_CANONICAL),)
     # (make ze-encode-test ze-plugin-test, even under -j) never lets one
     # target's cleanup trap delete another target's binaries. Throwaway, rm on
     # exit.
-    # $(ZE_SCRATCH_DIR) is tmp/ off-session and tmp/s/<session-id>/ under an AI
-    # session (mk/session.mk), so the throwaway set is owned by the session and
-    # swept at SessionEnd even if this trap never fires (crash, kill -9). The
+    # $(ZE_SCRATCH_DIR) is tmp/ off-session and this session's own dated
+    # directory under an AI session (mk/session.mk), so the throwaway set is
+    # owned by the session and lands beside its binaries even if this trap never
+    # fires (crash, kill -9). The
     # pid-<PPID>-<target> scoping stays INSIDE that root: it still separates two
     # concurrent make invocations of the same target within one session.
     ZE_RUN_SUFFIX := pid-$(shell echo $$PPID)

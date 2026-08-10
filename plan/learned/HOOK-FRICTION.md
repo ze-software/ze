@@ -1552,7 +1552,8 @@ already has a "never reached a test" hint path, and it did not fire here.
 targets do:
 
 ```
-env ZE_BIN=$PWD/bin/ze-<sid> ZE_TEST_BIN=$PWD/bin/ze-test-<sid> \
+bindir=$PWD/$(dirname "$(make -s ze-path)")
+env ZE_BIN=$bindir/ze ZE_TEST_BIN=$bindir/ze-test \
     python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
 ```
 
@@ -1562,7 +1563,8 @@ env ZE_BIN=$PWD/bin/ze-<sid> ZE_TEST_BIN=$PWD/bin/ze-test-<sid> \
    only on a recognised signature. The usage message was already in hand.
 2. Refuse to start when the resolved binary is older than the newest `.go` or
    `.ci` under the suite, naming the path and its mtime. Under an AI session the
-   canonical binary is `bin/<name>-<session-id>`, so a bare `bin/ze-test` is
+   canonical binary lives in that session's own directory,
+   `tmp/session/<YYYY-MM-DD>-<session-id>/bin/`, so a bare `bin/ze-test` is
    nearly always the wrong one (`ai/rules/commands.md`).
 3. Treat "exit non-zero with empty output" as a tooling error rather than a
    reproduction: no test ran, so nothing was reproduced.

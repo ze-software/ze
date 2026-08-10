@@ -13,6 +13,8 @@ Exit codes: 0 allow, 1 non-blocking warning, 2 block. Most severe wins when
 several checks fire. Fails OPEN (exit 0) on an unexpected internal error.
 """
 
+import datetime
+import glob
 import importlib.util
 import os
 import re
@@ -175,7 +177,8 @@ def _tail_under(base, path):
 # The session id is resolved by the ONE shared resolver, .claude/hooks/lib/
 # session_id.py -- the SAME code the shell hooks run (via the lib/session-id.sh
 # shim) to WRITE the markers this file READS (.lsp-invoked-<sid>, .source-read-<sid>,
-# .session-<sid>, session-state-<sid>.md). One implementation, so the two ends
+# .session-<sid>, and the per-session directory holding the digest). One
+# implementation, so the two ends
 # cannot drift; a disagreement fails CLOSED, blocking work already done (incident
 # 2026-07-16, spec-fixit-session-id-collision). state_file() below is the local
 # path-naming twin of lib/state-file.sh's _state_file().
@@ -186,6 +189,18 @@ _SID_MODULE_PATH = os.path.join(
 _sid_spec = importlib.util.spec_from_file_location("ze_session_id", _SID_MODULE_PATH)
 _ze_session_id = importlib.util.module_from_spec(_sid_spec)
 _sid_spec.loader.exec_module(_ze_session_id)
+
+# Which `tmp/` paths a session may write, shared with pretool-bash.py so a path
+# refused in a redirect cannot land through the Write tool. Resolved relative to
+# THIS FILE for the reason above.
+_SCRATCH_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "lib", "scratch_path.py"
+)
+_scratch_spec = importlib.util.spec_from_file_location(
+    "ze_scratch_path", _SCRATCH_MODULE_PATH
+)
+_scratch_path = importlib.util.module_from_spec(_scratch_spec)
+_scratch_spec.loader.exec_module(_scratch_path)
 
 # "The tagged unit" has exactly ONE definition, shared with the RFC coverage gate
 # (scripts/dev/rfc_tagged_scope.py). Resolved relative to THIS FILE, never through
@@ -226,7 +241,31 @@ def session_id():
     return _ze_session_id.session_id()
 
 
+def session_dir(sid):
+    """This session's directory, `tmp/session/<YYYY-MM-DD>-<sid>`.
+
+    The glob-then-name rule of `.claude/hooks/lib/session-dir.sh`: take the
+    directory that already carries this id, whatever its date, and name a new
+    one with today's date only on a miss. Recomputing from today would move a
+    live session's directory at midnight. Creates nothing -- this hook only
+    reads.
+    """
+    root = os.path.join(PROJECT_DIR, "tmp", "session")
+    for d in sorted(glob.glob(os.path.join(root, f"????-??-??-{sid}"))):
+        if os.path.isdir(d):
+            return d
+    return os.path.join(root, f"{datetime.date.today().isoformat()}-{sid}")
+
+
 def state_file(sid):
+    """Where this session's per-spec digest is, for the gates that require one.
+
+    The digest LANDS at `<session-dir>/state/` (lib/state-file.sh `_state_file`).
+    A digest written before that move sits flat under `tmp/session/`, and this
+    is a reader, so it accepts the flat file when the session has one and no
+    other. Reading both is what stops these gates blocking every session whose
+    digest predates the move; only the WRITER is single-location.
+    """
     marker = os.path.join(PROJECT_DIR, "tmp/session", f".session-{sid}")
     spec = ""
     if os.path.isfile(marker):
@@ -237,10 +276,16 @@ def state_file(sid):
             spec = ""
     if spec and spec != "unassigned":
         stem = re.sub(r"\.md$", "", re.sub(r"^spec-", "", spec))
-        return os.path.join(
-            PROJECT_DIR, "tmp/session", f"session-state-{stem}-{sid}.md"
-        )
-    return os.path.join(PROJECT_DIR, "tmp/session", f"session-state-{sid}.md")
+        name = f"session-state-{stem}-{sid}.md"
+    else:
+        name = f"session-state-{sid}.md"
+    current = os.path.join(session_dir(sid), "state", name)
+    if os.path.isfile(current):
+        return current
+    legacy = os.path.join(PROJECT_DIR, "tmp/session", name)
+    if os.path.isfile(legacy):
+        return legacy
+    return current
 
 
 # --------------------------------------------------------------------------- #
@@ -2131,6 +2176,30 @@ def c_system_tmp_we(ctx):
     return None
 
 
+# The Write half of check_scratch_path (.claude/hooks/pretool-bash.py). The
+# check above sends every session to the project `tmp/`, whose ROOT is keyed per
+# CHECKOUT: a fixed name there is one file for every session in this tree, and
+# nothing removes it. Both surfaces call one module, so a path a redirect is
+# refused cannot land through the Write tool instead.
+# ze point: commands/write-ad-hoc-scratch-under-your-per-session-dir/write-ad-hoc-scratch-under-this-session-s-private-directory
+def c_scratch_path_we(ctx):
+    """ai/rules/commands.md: ad-hoc scratch belongs under this session's own dir."""
+    fp = ctx["fp"]
+    if not fp or not _scratch_path.is_ad_hoc_root_file(fp, PROJECT_DIR):
+        return None
+    return (
+        2,
+        f"{RED}{BOLD}❌ Refused: ad-hoc scratch at the tmp/ root: {fp}{RESET}\n"
+        "  -- tmp/ is keyed per CHECKOUT, so that name is one file for every "
+        "session in this tree, and nothing removes it.\n"
+        "  -- Write it under this session's own directory instead:\n"
+        "     dir=$(scripts/dev/session-scratch.sh)\n"
+        "  -- A subdirectory passes, and so do the root names that are shared by "
+        "design: ze-verify*, commit-*, delete-*, mutation*, test-timings*\n"
+        "  -- ai/rules/commands.md, 'Write Ad-Hoc Scratch Under Your Per-Session Dir'",
+    )
+
+
 # Intentionally BROADER than the original shell-hook (which only blocked outright
 # deletion on Edit). c_test_weakening also catches the quiet ways a failing test
 # gets neutered instead of the code being fixed: adding t.Skip, dropping *some*
@@ -2749,6 +2818,7 @@ CHECKS = (
     c_enforce_naming,
     c_check_existing_tests,
     c_system_tmp_we,
+    c_scratch_path_we,
 )
 
 

@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-10 | - | hooks | 351 loose scratch files at the `tmp/` root in one day: the two hooks that correct a path (`check_pipe_tail`, `check_system_tmp`) named `tmp/out-$$.log` and `tmp/<subfolder>/` in their own remediation text, so the enforcement layer taught the shape `ai/rules/commands.md` bans | remediation text now names `scripts/dev/session-scratch.sh`; `check_scratch_path` and `c_scratch_path_we` refuse a fixed name at the `tmp/` root on Bash and on Write, deciding it in one shared module; the same line went into the subagent contract |

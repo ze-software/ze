@@ -34,7 +34,7 @@ phase itself.
   evidence that would overturn it, never the search. Under 40 lines
   (`ai/rules/writing.md`).
 - **Read the per-spec state file first.** When a spec is claimed,
-  `tmp/session/session-state-<spec-stem>-<SID>.md` already carries each
+  `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md` already carries each
   implementation phase's handoff: files changed with a digest, which AC-N are
   covered, what is green. `_find_latest_state_for_spec` in
   `.claude/hooks/lib/state-file.sh` resolves it. Read it before the diff. Do not

@@ -401,9 +401,11 @@ func resolveRev(ctx context.Context, repo, rev string) (string, error) {
 }
 
 // scratchTree returns an EMPTY directory to extract into, under this session's
-// scratch dir (scripts/dev/session-scratch.sh) so a SessionEnd sweep reclaims it
-// and two concurrent sessions never share one. Never /tmp: a hook refuses it,
-// and this repository keeps its scratch inside the checkout on purpose.
+// scratch dir (scripts/dev/session-scratch.sh) so two concurrent sessions never
+// share one and `make ze-clean-sessions BEFORE=<date>` reclaims it with the rest
+// of that session. Nothing under tmp/session/ is removed automatically. Never
+// /tmp: a hook refuses it, and this repository keeps its scratch inside the
+// checkout on purpose.
 func scratchTree(ctx context.Context, repo string) (string, error) {
 	base := filepath.Join(repo, "tmp")
 	out, err := exec.CommandContext(ctx, filepath.Join(repo, "scripts", "dev", "session-scratch.sh")).Output()
@@ -831,7 +833,9 @@ func tagWhy(name string) string {
 // gate (ai/rules/evidence.md: drive the guard from its entry point).
 func runSelftest() error {
 	// Under tmp/, never the system temp dir: this repository keeps its scratch
-	// inside the checkout so a session sweep can reclaim it.
+	// inside the checkout so it is visible to the operator and covered by
+	// `make ze-clean-tmp`. No session sweep reclaims it; nothing is removed
+	// automatically any more.
 	if err := os.MkdirAll("tmp", 0o750); err != nil {
 		return fmt.Errorf("create tmp/: %w", err)
 	}

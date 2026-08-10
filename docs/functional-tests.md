@@ -613,8 +613,15 @@ uniform isolated set). Overrides:
 
 The only shared residue in every mode is `tmp/test-timings.json` (the display
 baseline), last-writer-wins as for any two concurrent `ze-test` invocations.
-An interrupted run (SIGKILL) can leave its `tmp/testbin-*` directory behind;
-`make ze-clean-tmp` sweeps directories older than 24h.
+Every `tmp/testbin-<id>/` path above is the off-session one. Under an AI session
+the throwaway root is that session's own directory,
+`tmp/session/<YYYY-MM-DD>-<session-id>/testbin-<id>/`, and the dev binary the
+isolation protects is `$(make ze-path)` rather than `bin/ze`.
+
+An interrupted run (SIGKILL) can leave its `testbin-*` directory behind.
+Off-session `make ze-clean-tmp` sweeps directories older than 24h; on-session
+nothing is removed automatically, and `make ze-clean-sessions BEFORE=<YYYY-MM-DD>`
+takes the whole session directory when the operator asks for it.
 <!-- source: mk/test-functional.mk -- isolated-binary block, inline ZE_ALT_BUILD, per-recipe trap -->
 <!-- source: internal/test/runner/runner.go -- ze.bin/ze.test.bin/ze.test.no.build env, Build/verifyPrebuilt -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name ze/ze-test resolution, PATH prepend -->
@@ -1892,10 +1899,11 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 
 ### Run a single test
 
-These commands drive `bin/ze-test` directly (build it with `make test`), so
-unlike the `make ze-<suite>-test` targets they do **not** isolate: the runner
-rebuilds `bin/ze` in place. While actively editing, prefer the make targets
-(they build into `tmp/testbin-<id>/bin/` and leave `bin/ze` alone — see
+These commands drive `ze-test` directly (build it with `make test`; the binary is
+beside `$(make ze-path)`), so unlike the `make ze-<suite>-test` targets they do
+**not** isolate: the runner rebuilds your `ze` in place. While actively editing,
+prefer the make targets (they build into a throwaway `testbin-<id>/bin/` and
+leave your `ze` alone — see
 [Test binaries are isolated from your dev binary](#test-binaries-are-isolated-from-your-dev-binary-automatic)),
 or export `ZE_TEST_NO_BUILD=1 ZE_BIN=<path>` to pin a prebuilt binary.
 

@@ -40,6 +40,8 @@ BASH_CMDS = [
     "go build ./cmd/ze",
     "go build -o bin/ze ./cmd/ze",
     "go build ./...",
+    "go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze",
+    "go build -o tmp/s/abc123/bin/ze ./cmd/ze",
     "grep x | tail -5",
     "git log --oneline | tail -3",
     "go test ./... | head -50",
@@ -52,6 +54,13 @@ BASH_CMDS = [
     "go test ./... 2>&1 |\n  grep -c FAIL",
     "make ze-verify \\\n  | tail -40",
     "./bin/ze-test bgp plugin | grep FAIL",
+    # The same producer in this session's own directory (mk/session.mk
+    # ZE_BIN_DIR). Relative is what `make ze-path` prints; absolute is what a
+    # subagent told to use absolute paths passes.
+    "tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL",
+    "/home/u/ze/tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL",
+    # A directory that merely looks like one: no date, so no session binary.
+    "tmp/session/abc123/bin/ze-test bgp plugin | grep FAIL",
     # "any test/verify/build command" (commands.md): the repo's own gates count,
     # cheap utilities in the same directory do not.
     "python3 scripts/dev/hook-parity-check.py | tail -25",
@@ -89,7 +98,7 @@ BASH_CMDS = [
     # loop that terminates by construction or a one-shot pgrep.
     "until ! pgrep -f qemu; do sleep 5; done",
     "while pgrep -q qemu; do :; done",
-    "timeout 600 bash -c 'until [ -f tmp/s/x/ready ]; do sleep 30; done'",
+    "timeout 600 bash -c 'until [ -f tmp/session/2026-08-10-x/ready ]; do sleep 30; done'",
     "while read -r f; do echo $f; done < tmp/list",
     "pgrep -f qemu",
     # Naming a sleep is not calling one: the word must be a COMMAND, or every
@@ -104,13 +113,55 @@ BASH_CMDS = [
     # A `-timeout` FLAG bounds a test binary, never a loop. A `timeout` with no
     # duration bounds nothing at all.
     "go test -timeout 300s ./... | while read l; do sleep 5; done",
-    "timeout bash -c 'until [ -f tmp/s/x/r ]; do sleep 30; done'",
+    "timeout bash -c 'until [ -f tmp/session/2026-08-10-x/r ]; do sleep 30; done'",
     # A keyword inside a search PATTERN is text. Without this the rule could not
     # be audited from Bash, since its own summary quotes the banned loop.
     "grep -rn 'until ! pgrep' ai/rules",
     # Precision of the sleep operand, and the Python spelling of the same wait.
     "while read -r line; do echo no-sleep-here; done < tmp/list",
     "python3 -c 'import time; while True: time.sleep(5)'",
+    # Ad-hoc scratch is refused at the per-session dir's expense
+    # (ai/rules/commands.md). tmp/ is keyed per CHECKOUT, so a fixed name at its
+    # root is one file for every session in the tree; a subdirectory, either
+    # session layout, and the shared-by-design root names are not.
+    "grep -rn foo ai/rules > tmp/notes.txt",
+    # The SAME file, spelled three ways. The harness hands agents absolute paths
+    # and `./` is what a shell completes to, so a guard anchored on the literal
+    # `tmp/` refused one spelling and passed two. @PROJECT@ is substituted with
+    # the fixture root at feed time (run_corpus); the golden key keeps the token,
+    # so it is stable across runs. The last row is the control that proves the
+    # widened CANDIDATE did not widen the REFUSAL: `sub/tmp/` is not this
+    # checkout's tmp/, so it is allowed.
+    #
+    # Three spellings, not every spelling. A path the SHELL builds -- `$PWD/tmp/x`,
+    # `~/tmp/x`, a redirect through a symlink to tmp/ -- is out of reach of any
+    # regex over command text, exactly as it is for check_pipe_tail. The guard
+    # covers what an agent writes, not what bash later resolves.
+    "echo probe > ./tmp/notes.txt",
+    "echo probe > @PROJECT@/tmp/notes.txt",
+    "tee @PROJECT@/tmp/notes.txt",
+    "echo probe > sub/tmp/notes.txt",
+    'make ze-unit-test-changed > "$dir/unit.log" 2>&1',
+    "go test ./... 2>&1 | tee tmp/s/abc123/t.log",
+    "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log",
+    "make ze-doc-test > tmp/verify/out.log 2>&1",
+    "make ze-doc-test > tmp/ze-verify.log 2>&1",
+    "make ze-doc-test > tmp/.ze-verify-duration.txt 2>&1",
+    "make ze-doc-test > tmp/commit-abc123.log 2>&1",
+    "make ze-doc-test > tmp/delete-abc123.sh 2>&1",
+    "make ze-doc-test > tmp/mutation-survivors.md 2>&1",
+    "make ze-doc-test > tmp/test-timings.json 2>&1",
+    # A redirect quoted as a SEARCH argument is text, so the ban stays auditable
+    # from Bash. The unquoted redirect above it is the discriminator: `grep` in
+    # command position exempts nothing on its own.
+    "grep -rn '> tmp/out.log' ai/rules",
+    'bash -c "make ze-doc-test > tmp/out.log"',
+    # A heredoc body a non-shell READS is data: writing a document that quotes
+    # the banned shape is how this rule gets explained. A shell RUNS what it is
+    # fed, and a redirect outside the body is a redirect.
+    "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF",
+    "bash <<'EOF'\nmake ze-doc-test > tmp/out.log\nEOF",
+    "cat > tmp/out.log <<'EOF'\nhello\nEOF",
 ]
 
 CLEAN_GO = "package foo\n\nfunc Hello() string {\n\treturn greeting\n}\n"
@@ -274,6 +325,19 @@ WE_CASES = [
         "internal/component/bgp/af.go",
         "package af\nfunc ParseAndValidate() {}\n",
     ),
+    # The Write half of the scratch guard, on the same policy the Bash cases
+    # pin: the tmp/ root is refused, both session layouts pass, a producer's
+    # own folder passes, and the shared-by-design root names pass. The runner
+    # sends an ABSOLUTE path here, which is what the Write tool sends too.
+    ("scratch tmp root", "tmp/notes.md", "# notes\n"),
+    ("scratch session dir", "tmp/s/abc123/notes.md", "# notes\n"),
+    (
+        "scratch dated session dir",
+        "tmp/session/2026-08-10-abc123/notes.md",
+        "# notes\n",
+    ),
+    ("scratch producer folder", "tmp/evidence/run.log", "boot ok\n"),
+    ("scratch shared root name", "tmp/ze-verify.log", "verify ok\n"),
 ]
 
 # 700 lines is UNDER the only file-size threshold (1000) -- see ai/rules/go-standards.md.
@@ -432,10 +496,18 @@ def _fixture_root():
 def run_corpus():
     work = tempfile.mkdtemp(prefix="fixture-", dir=_fixture_root())
     env = dict(os.environ, CLAUDE_PROJECT_DIR=work)
+    # @PROJECT@ stands for the fixture root, a fresh temp path every run. The
+    # delimiters matter: a bare word would rewrite any future command that
+    # happened to contain it.
+    # The golden is keyed on the token so it stays stable; only the payload the
+    # hook sees carries the real absolute path.
     bash = {
         c: feed(
             os.path.join(HOOKS, "pretool-bash.py"),
-            {"tool_name": "Bash", "tool_input": {"command": c}},
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": c.replace("@PROJECT@", work)},
+            },
             env,
         )
         for c in BASH_CMDS
@@ -539,6 +611,12 @@ BASH_GOLDEN = {
     "go build -o bin/ze ./cmd/ze": 0,
     "go build ./...": 0,
     "go build ./cmd/ze": 2,
+    # A session builds into its own dated directory (mk/session.mk,
+    # internal/test/sessionpath). The retired tmp/s/<id>/ root is not a binary
+    # directory any producer writes into, so it is refused like every other
+    # path outside bin/.
+    "go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze": 0,
+    "go build -o tmp/s/abc123/bin/ze ./cmd/ze": 2,
     "grep -n x f.log": 0,
     # A lossy pipe is blocked on an EXPENSIVE producer only (commands.md).
     # `grep x | tail` and `git log | tail` are cheap: blocking them was a false
@@ -546,7 +624,10 @@ BASH_GOLDEN = {
     "grep x | tail -5": 0,
     "git log --oneline | tail -3": 0,
     "go test ./... | head -50": 2,
-    "go test ./... 2>&1 | tee tmp/t.log": 0,
+    # `tee` keeps the whole stream, so pipe-tail passes it. The 2 is
+    # check_scratch_path refusing `tmp/t.log`, a fixed name at the shared tmp/
+    # root: one file for every session in this checkout.
+    "go test ./... 2>&1 | tee tmp/t.log": 2,
     "bin/ze-test bgp plugin | grep FAIL": 2,
     # Each STATEMENT is judged on its own: a cheap pipeline beside an expensive
     # command is fine, the expensive command's own lossy pipe is not.
@@ -555,13 +636,19 @@ BASH_GOLDEN = {
     "go test ./... 2>&1 |\n  grep -c FAIL": 2,
     "make ze-verify \\\n  | tail -40": 2,
     "./bin/ze-test bgp plugin | grep FAIL": 2,
+    # AC-11: the session's own binaries are the same producer as bin/ze-test and
+    # are blocked identically, relative or absolute. The date is load-bearing --
+    # without it the path names no session directory mk/session.mk can produce.
+    "tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL": 2,
+    "/home/u/ze/tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL": 2,
+    "tmp/session/abc123/bin/ze-test bgp plugin | grep FAIL": 0,
     "python3 scripts/dev/hook-parity-check.py | tail -25": 2,
     "python3 scripts/dev/spec-session.sh wip | head -5": 0,
     "git diff scripts/dev/hook-fixture-check.py | head -60": 0,
     "make ze-verify |& tail -5": 2,
     "scripts/dev/verify-status.sh check | tail -1": 0,
     "ls -la": 0,
-    "make ze-verify 2>&1 | tee tmp/v.log": 0,
+    "make ze-verify 2>&1 | tee tmp/v.log": 2,
     "make ze-verify | grep X": 2,
     # A launcher's own operands (a suffixed duration, a flag with an argument)
     # sit in front of the command word; the producer behind them is still `make`.
@@ -576,7 +663,7 @@ BASH_GOLDEN = {
     "until ! pgrep -f qemu; do sleep 5; done": 2,
     "while pgrep -q qemu; do :; done": 2,
     # Bounded by a `timeout` in front of the loop: it ends on its own.
-    "timeout 600 bash -c 'until [ -f tmp/s/x/ready ]; do sleep 30; done'": 0,
+    "timeout 600 bash -c 'until [ -f tmp/session/2026-08-10-x/ready ]; do sleep 30; done'": 0,
     # Loops that are not waits, and a pgrep that runs once.
     "while read -r f; do echo $f; done < tmp/list": 0,
     "pgrep -f qemu": 0,
@@ -589,11 +676,43 @@ BASH_GOLDEN = {
     "while true; do sleep 5; timeout 10 curl -s localhost; done": 2,
     # A `-timeout` flag is not a bound, and `timeout` with no duration is not one.
     "go test -timeout 300s ./... | while read l; do sleep 5; done": 2,
-    "timeout bash -c 'until [ -f tmp/s/x/r ]; do sleep 30; done'": 2,
+    "timeout bash -c 'until [ -f tmp/session/2026-08-10-x/r ]; do sleep 30; done'": 2,
     # Searching for the pattern stays possible; the sleep operand stays precise.
     "grep -rn 'until ! pgrep' ai/rules": 0,
     "while read -r line; do echo no-sleep-here; done < tmp/list": 0,
     "python3 -c 'import time; while True: time.sleep(5)'": 2,
+    # Scratch placement. Only a fixed name at the tmp/ ROOT is refused; both
+    # session layouts, any subdirectory, and the shared-by-design root names
+    # pass. Both layouts are here because the rename to
+    # tmp/session/<YYYY-MM-DD>-<sid>/ lands while sessions run on tmp/s/<sid>/,
+    # and refusing the old one mid-flight would stop them (spec-session-bin-directory).
+    "grep -rn foo ai/rules > tmp/notes.txt": 2,
+    # One file, three spellings, one verdict -- and a control proving the
+    # candidate widened without the refusal widening.
+    "echo probe > ./tmp/notes.txt": 2,
+    "echo probe > @PROJECT@/tmp/notes.txt": 2,
+    "tee @PROJECT@/tmp/notes.txt": 2,
+    "echo probe > sub/tmp/notes.txt": 0,
+    'make ze-unit-test-changed > "$dir/unit.log" 2>&1': 0,
+    "go test ./... 2>&1 | tee tmp/s/abc123/t.log": 0,
+    "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log": 0,
+    "make ze-doc-test > tmp/verify/out.log 2>&1": 0,
+    "make ze-doc-test > tmp/ze-verify.log 2>&1": 0,
+    "make ze-doc-test > tmp/.ze-verify-duration.txt 2>&1": 0,
+    "make ze-doc-test > tmp/commit-abc123.log 2>&1": 0,
+    "make ze-doc-test > tmp/delete-abc123.sh 2>&1": 0,
+    "make ze-doc-test > tmp/mutation-survivors.md 2>&1": 0,
+    "make ze-doc-test > tmp/test-timings.json 2>&1": 0,
+    # Auditability, and its discriminator: a QUOTED redirect opening a search
+    # command is text; the unquoted `> tmp/notes.txt` above still blocks, and
+    # quoting a real command to run-shape does not buy an escape.
+    "grep -rn '> tmp/out.log' ai/rules": 0,
+    'bash -c "make ze-doc-test > tmp/out.log"': 2,
+    # Heredoc: data for a non-shell reader, a script for a shell, and the
+    # redirect that opens the heredoc is judged on its own.
+    "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF": 0,
+    "bash <<'EOF'\nmake ze-doc-test > tmp/out.log\nEOF": 2,
+    "cat > tmp/out.log <<'EOF'\nhello\nEOF": 2,
 }
 WE_GOLDEN = {
     "Edit|and function": 2,
@@ -630,6 +749,14 @@ WE_GOLDEN = {
     "Edit|panic unreachable ok": 2,
     "Edit|println": 2,
     "Edit|raw ansi": 2,
+    # The Write surface answers the tmp/ root exactly as the Bash surface does:
+    # the root is refused, both session layouts and any other subdirectory pass,
+    # and so do the shared-by-design root names (c_scratch_path_we).
+    "Edit|scratch dated session dir": 0,
+    "Edit|scratch producer folder": 0,
+    "Edit|scratch session dir": 0,
+    "Edit|scratch shared root name": 0,
+    "Edit|scratch tmp root": 2,
     "Edit|scripts os.exit ok": 2,
     "Edit|sprintf": 2,
     "Edit|strconv format": 2,
@@ -672,6 +799,11 @@ WE_GOLDEN = {
     "Write|panic unreachable ok": 2,
     "Write|println": 2,
     "Write|raw ansi": 2,
+    "Write|scratch dated session dir": 0,
+    "Write|scratch producer folder": 0,
+    "Write|scratch session dir": 0,
+    "Write|scratch shared root name": 0,
+    "Write|scratch tmp root": 2,
     "Write|scripts os.exit ok": 2,
     "Write|sprintf": 2,
     "Write|strconv format": 2,

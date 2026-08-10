@@ -7,25 +7,13 @@ cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 # Load helpers
 source .claude/hooks/lib/state-file.sh
 
-# Clean up stale markers from dead sessions
-_cleanup_stale_markers
-
-# Clean up old tmp/ scratch files (>24h) silently.
-#
-# go.mod is EXCLUDED: tmp/go.mod is a tracked, committed sentinel marking tmp/ as
-# a nested module so `go list ./...` skips the caches under it. It is old by
-# definition, top-level, and a regular file, so it matched this reaper exactly --
-# every session start silently deleted a tracked file, and until something ran
-# scripts/dev/ensure-links.py again `go list ./...` walked the caches the
-# sentinel exists to hide. Keep this exclusion in sync with `make ze-clean-tmp`.
-find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
-find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
-
-# Backstop: reap per-session scratch dirs (tmp/s/<sid>/) from sessions that
-# ended without firing SessionEnd (crash/kill). SessionEnd is the primary
-# cleanup; --reap removes only dirs with no file activity in the last 24h, so a
-# live long-running session is never reaped. See scripts/dev/session-scratch.sh.
-scripts/dev/session-scratch.sh --reap 2>/dev/null || true
+# This hook DELETES NOTHING. It once swept tmp/ and tmp/session/ on an age
+# timer, and reaped the dated session directories of sessions that never fired
+# SessionEnd. Every one of those removed the operator's own files without being
+# asked, and one of them deleted the tracked tmp/go.mod sentinel on every start.
+# Cleanup is now operator-invoked only: `make ze-clean-tmp` for the tmp/ root,
+# `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` for the dated session directories
+# (owner decision, 2026-08-03).
 
 # --- Read this session's claimed spec (set via scripts/dev/spec-session.sh) ---
 # Each session records its spec in its OWN marker; there is no shared file, so

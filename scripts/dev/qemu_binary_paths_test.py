@@ -2,14 +2,14 @@
 """The QEMU DUT binaries must be passed to their driver, never re-derived.
 
 mk/test-integration.mk cross-compiles the in-VM binaries as $(ZE_QEMU_BIN) /
-$(ZE_QEMU_STRIPPED_BIN) / $(ZE_QEMU_TEST_BIN). Those names carry this session's
-id under an AI session ($(ZE_BIN_SUFFIX), mk/session.mk), so the literal
+$(ZE_QEMU_STRIPPED_BIN) / $(ZE_QEMU_TEST_BIN). Those paths sit in this session's
+own directory under an AI session ($(ZE_BIN_DIR), mk/session.mk), so the literal
 `bin/ze-test-linux-<arch>` is NOT the built path in general.
 
 scripts/evidence/netns_qemu.py used to rebuild that literal itself and exec it.
 Off-session the two spellings coincide and nothing looked wrong; under a session
-the make target wrote `...-<session-id>` and the driver exec'd a file that did
-not exist. Nothing caught it: the ze-qemu-* targets run in no automated CI
+the make target wrote into tmp/session/<date>-<id>/bin/ and the driver exec'd a
+file that did not exist. Nothing caught it: the ze-qemu-* targets run in no automated CI
 (ai/rules/platform-linux.md), so the mismatch only surfaces when a human runs it.
 
 These tests pin both halves of the contract: the make target hands the paths
@@ -33,19 +33,18 @@ DRIVER = ROOT / "scripts" / "evidence" / "netns_qemu.py"
 QEMU_BIN_VARS = ("ZE_QEMU_BIN", "ZE_QEMU_STRIPPED_BIN", "ZE_QEMU_TEST_BIN")
 
 
-class TestQemuBinariesCarrySessionSuffix(unittest.TestCase):
-    """The built names must be session-scoped, or two sessions clobber them."""
+class TestQemuBinariesAreSessionScoped(unittest.TestCase):
+    """The built paths must be session-scoped, or two sessions clobber them."""
 
-    def test_each_qemu_bin_var_carries_the_suffix(self):
+    def test_each_qemu_bin_var_is_under_the_session_bin_dir(self):
         text = MK.read_text(encoding="utf-8")
         for var in QEMU_BIN_VARS:
             m = re.search(rf"^{var}\s*:?=\s*(.+)$", text, re.M)
             self.assertIsNotNone(m, f"{var} is not defined in {MK.name}")
             value = m.group(1).strip()
-            self.assertIn(
-                "$(ZE_BIN_SUFFIX)",
-                value,
-                f"{var} = {value!r} has no $(ZE_BIN_SUFFIX): two concurrent "
+            self.assertTrue(
+                value.startswith("$(ZE_BIN_DIR)/"),
+                f"{var} = {value!r} is not under $(ZE_BIN_DIR): two concurrent "
                 f"sessions cross-compiling for the VM would overwrite each "
                 f"other's DUT binary mid-run",
             )
@@ -64,7 +63,7 @@ class TestNetnsDriverTakesThePathsItIsGiven(unittest.TestCase):
                 f'{var}="$({var})"',
                 invocation,
                 f"the netns target does not pass {var} to netns_qemu.py, so the "
-                f"driver cannot know the real (session-suffixed) path",
+                f"driver cannot know the real (session-scoped) path",
             )
 
     def test_driver_reads_each_path_from_the_environment(self):
@@ -90,8 +89,8 @@ class TestNetnsDriverTakesThePathsItIsGiven(unittest.TestCase):
             [],
             offenders,
             "hardcoded cross-compiled binary name(s) outside the _qemu_bin "
-            "fallback; these ignore the session suffix and exec a path the make "
-            "target never wrote:\n" + "\n".join(offenders),
+            "fallback; these ignore the session directory and exec a path the "
+            "make target never wrote:\n" + "\n".join(offenders),
         )
 
     def test_env_override_wins_over_the_default(self):
@@ -103,9 +102,9 @@ class TestNetnsDriverTakesThePathsItIsGiven(unittest.TestCase):
         env = {
             **os.environ,
             "QEMU_GOARCH": "arm64",
-            "ZE_QEMU_BIN": "bin/ze-linux-arm64-sid",
-            "ZE_QEMU_STRIPPED_BIN": "bin/ze-stripped-linux-arm64-sid",
-            "ZE_QEMU_TEST_BIN": "bin/ze-test-linux-arm64-sid",
+            "ZE_QEMU_BIN": "tmp/session/2026-08-10-sid/bin/ze-linux-arm64",
+            "ZE_QEMU_STRIPPED_BIN": "tmp/session/2026-08-10-sid/bin/ze-stripped-linux-arm64",
+            "ZE_QEMU_TEST_BIN": "tmp/session/2026-08-10-sid/bin/ze-test-linux-arm64",
         }
         out = subprocess.run(
             [sys.executable, "-c", probe],
@@ -117,9 +116,9 @@ class TestNetnsDriverTakesThePathsItIsGiven(unittest.TestCase):
         ).stdout.split()
         self.assertEqual(
             [
-                "bin/ze-linux-arm64-sid",
-                "bin/ze-stripped-linux-arm64-sid",
-                "bin/ze-test-linux-arm64-sid",
+                "tmp/session/2026-08-10-sid/bin/ze-linux-arm64",
+                "tmp/session/2026-08-10-sid/bin/ze-stripped-linux-arm64",
+                "tmp/session/2026-08-10-sid/bin/ze-test-linux-arm64",
             ],
             out,
         )

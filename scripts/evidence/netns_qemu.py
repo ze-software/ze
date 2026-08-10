@@ -57,8 +57,8 @@ def _qemu_bin(env_key, name):
     """Path of a binary mk/test-integration.mk cross-compiled for the VM.
 
     Those are built as $(ZE_QEMU_BIN) / $(ZE_QEMU_STRIPPED_BIN) /
-    $(ZE_QEMU_TEST_BIN), whose file names carry this session's id under an AI
-    session ($(ZE_BIN_SUFFIX), mk/session.mk). So `bin/<name>-linux-<arch>` is
+    $(ZE_QEMU_TEST_BIN), which sit in this session's own directory under an AI
+    session ($(ZE_BIN_DIR), mk/session.mk). So `bin/<name>-linux-<arch>` is
     NOT the built path in general -- hardcoding it makes this script exec a file
     the make target never wrote. The target passes the real paths in through
     these variables; the literal remains the default for a standalone run.

@@ -27,6 +27,15 @@ the VM in ~15s and runs tests in ~30-60s.
 mounts the repository via virtio-9p, installs Go, and runs `go test` with
 `-tags integration` inside the VM via SSH.
 
+A share of the repository hands the guest a symlink as a symlink. So when
+`tmp/` is a symlink to an out-of-tree scratch directory
+(`scripts/dev/ensure-links.py`), `qemu-run.py` adds a second 9p share of the
+link's target and mounts it at the path the link names. Without it
+`/workspace/tmp` dangles in the guest, and every path below it fails to
+resolve: the session's own binaries (`tmp/session/<YYYY-MM-DD>-<id>/bin/ze`,
+`mk/session.mk`) most of all. `scratch_share` decides this and
+`qemu-run.py --selftest` covers both layouts.
+
 ```
 macOS                          QEMU Alpine VM
 ─────                          ──────────────
@@ -34,6 +43,7 @@ make ze-qemu-integration-test
   └─ qemu-run.py
        ├─ boots Alpine ISO      → login as root
        ├─ virtio-9p mount       → /workspace (repo)
+       ├─ virtio-9p mount       → the tmp/ target, when tmp/ is a symlink
        ├─ SSH tunnel (port 2222)
        ├─ installs Go + packages
        └─ ssh: go test -tags integration ...

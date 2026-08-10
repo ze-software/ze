@@ -3,7 +3,8 @@
 # Keeps the three most recent summaries, and every block that is not a summary
 # (phase handoffs, notes) verbatim. Does NOT release the session's spec
 # claim: this hook fires between every turn, so releasing here killed the claim
-# after turn one. That moved to session-end-scratch.sh, on SessionEnd.
+# after turn one. No hook releases it now -- `spec-session.sh release` does, from
+# /ze-close, when the spec closes.
 
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 
@@ -35,8 +36,9 @@ BRANCH=$(git branch --show-current 2>/dev/null)
 # hook fires between EVERY turn, and a clean-tree pause mid-session (e.g. right
 # after a commit) is not session end: deleting the state file here deadlocked the
 # next edit against the pretool session-state gate, which requires the file after
-# a compaction. The 24h orphan sweep (lib/state-file.sh _cleanup_stale_markers)
-# reclaims it once its marker is gone.
+# a compaction. Nothing reclaims it either: no timer and no hook deletes anything
+# under tmp/session/, so the file this hook writes outlives the session that
+# wrote it and `make ze-clean-sessions BEFORE=<date>` is what removes it.
 #
 # The test was `-z "$HAS_CHANGES" && -z "$SELECTED_SPEC"`. SELECTED_SPEC read a
 # marker path nothing writes, so it was ALWAYS empty and the test reduced to the
@@ -154,8 +156,10 @@ fi
 # suffered worst: it can only exit 3 after commit A lands, which is many turns
 # after the claim, so it was unreachable in the situation it exists for.
 #
-# The release now runs in session-end-scratch.sh, on the SessionEnd event, which
-# is what this file's own comment above already called for.
+# The release now runs in `spec-session.sh release`, called by /ze-close when
+# the spec closes. It briefly lived on SessionEnd instead; that hook is gone,
+# because its other job was deleting tmp/session/, which is now banned outright
+# (plan/spec-session-bin-directory.md AC-7).
 rm -f ".claude/.compaction-detected-${SID}"
 
 exit 0

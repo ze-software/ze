@@ -21,12 +21,13 @@ write-ad-hoc-scratch-under-your-per-session-dir ## Write Ad-Hoc Scratch Under Yo
   a-fixed-name-in-tmp-collides-between-sessions
   write-ad-hoc-scratch-under-this-session-s-private-directory
   session-scratch-sh-gives-you-a-private-directory
-  what-is-swept-at-session-end-and-what-stays
-your-binaries-are-session-suffixed-ask-for-the-path ## Your Binaries Are Session-Suffixed -- Ask For The Path
-  every-binary-is-built-with-a-session-suffix
+  nothing-is-deleted-automatically-and-what-stays-put
+your-binaries-live-in-this-session-s-directory ## Your Binaries Live In This Session's Directory -- Ask For The Path
+  every-binary-is-built-in-this-session-s-directory
   never-hardcode-bin-ze-ask-for-the-path
   use-make-ze-path-to-get-the-binary
-  why-the-suffixed-binaries-stay-in-bin
+  why-the-binaries-live-with-the-session
+  the-session-store-is-seeded-on-the-first-build
   why-test-binaries-live-in-a-private-bin
 never-launch-a-functional-suite-by-running-the-runner-binary ## Never Launch a Functional Suite By Running The Runner Binary
   running-the-runner-binary-gives-a-false-red

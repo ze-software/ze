@@ -210,16 +210,16 @@ symbol, which costs about one second per file, so split the list and run the
 parts at the same time.
 
 ```
-find internal cmd -name '*.go' ! -name '*_test.go' | sort > tmp/unexport-gofiles.txt
 mkdir -p tmp/unexport-chunks
-split -n l/12 tmp/unexport-gofiles.txt tmp/unexport-chunks/c
+find internal cmd -name '*.go' ! -name '*_test.go' | sort > tmp/unexport-chunks/gofiles.txt
+split -n l/12 tmp/unexport-chunks/gofiles.txt tmp/unexport-chunks/c
 for c in tmp/unexport-chunks/c*; do
   sed 's/^/--changed-file /' "$c" > "$c.args"
   ( xargs python3 scripts/dev/validate.py --root . < "$c.args" > "$c.log" 2>&1 ) &
 done
 wait
 
-python3 - <<'PY' > tmp/unexport-worklist.tsv
+python3 - <<'PY' > tmp/unexport-chunks/worklist.tsv
 import re, pathlib
 for log in sorted(pathlib.Path('tmp/unexport-chunks').glob('*.log')):
     for l in log.read_text(errors='replace').splitlines():
@@ -228,7 +228,7 @@ for log in sorted(pathlib.Path('tmp/unexport-chunks').glob('*.log')):
             f, ln, s = m.group(1), m.group(2), m.group(3)
             print(f"{f}\t{ln}\t{s}\t{pathlib.Path(f).parent}")
 PY
-wc -l tmp/unexport-worklist.tsv
+wc -l tmp/unexport-chunks/worklist.tsv
 ```
 
 ### Step 1: pick one package

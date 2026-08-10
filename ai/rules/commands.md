@@ -75,47 +75,82 @@ the `tmp/` root -- `tmp/out.log`, `tmp/stdout`, `tmp/gotest.log` -- collides wit
 a sibling session writing the same name, and is never cleaned when your session
 ends.
 
+**A file at the `tmp/` root is REFUSED, on both surfaces that create one**:
+`check_scratch_path` on a Bash redirect or `tee`, `c_scratch_path_we` on Write
+and Edit. Both call `.claude/hooks/lib/scratch_path.py`, so the two surfaces
+answer alike. A path carrying a directory component passes, which covers
+`tmp/s/<sid>/`, `tmp/session/<YYYY-MM-DD>-<sid>/` and every producer's own
+folder. The root names that are session-keyed or shared by design pass too:
+`ze-verify*`, `.ze-verify*`, `commit-*`, `commit-msg-*`, `delete-*`,
+`mutation*`, `test-timings*`.
+
 Write ad-hoc scratch under this session's private directory instead:
 
 ```
-dir=$(scripts/dev/session-scratch.sh)          # tmp/s/<session-id>/, created for you
+dir=$(scripts/dev/session-scratch.sh)          # <session-dir>/scratch/, created for you
 make ze-unit-test-changed > "$dir/unit.log" 2>&1
 ```
 
-The whole directory is removed at session end (`.claude/hooks/session-end-scratch.sh`,
-with a 24h backstop in `session-start.sh`), so your scratch is self-contained and
-disposable. Do NOT relocate artifacts that are already session-keyed (commit
-scripts `tmp/commit-<sid>.sh`, session state `tmp/session/*-<SID>*`) or shared by
-design (`tmp/ze-verify.*`, the durable `cache/`) -- those stay put. `GOCACHE` is
-`cache/go-cache` (`Makefile`), on the durable side.
+**Nothing under `tmp/session/` is ever deleted automatically**: not at session
+end, not on an age timer, not by a hook. Your directory outlives your session,
+so a log you wrote is still there tomorrow. Cleanup is the operator's:
+`make ze-clean-sessions BEFORE=<YYYY-MM-DD>` removes the session directories
+dated strictly before that date, and `make clean` removes your own. Do NOT
+relocate artifacts that are already session-keyed (commit scripts
+`tmp/commit-<sid>.sh`) or shared by design (`tmp/ze-verify.*`, the durable
+`cache/`) -- those stay put. `GOCACHE` is `cache/go-cache` (`Makefile`), on the
+durable side.
 
-## Your Binaries Are Session-Suffixed -- Ask For The Path
+## Your Binaries Live In This Session's Directory -- Ask For The Path
 
-Under an AI session every canonical binary is built as `bin/<name>-<session-id>`
-(`mk/session.mk`), so a sibling session's `make ze` cannot overwrite the binary
-you are testing against. Off-session (a human shell, CI) the name is the plain
-`bin/ze` it always was.
+Under an AI session every canonical binary is built into this session's own
+directory, under its BARE name:
+`tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze` (`mk/session.mk`). A sibling
+session's `make ze` therefore cannot overwrite the binary you are testing
+against. Off-session (a human shell, CI) the path is the plain `bin/ze` it
+always was.
 
 **Do not hardcode `bin/ze`** in a command, script, or doc. Ask:
 
 ```
-$(make ze-path) show version          # bin/ze-<session-id>, or bin/ze off-session
+$(make ze-path) show version          # <session-dir>/bin/ze, or bin/ze off-session
 ```
 
-The suffixed binaries stay in `bin/` on purpose: a binary's location decides where
-`ze` resolves its config and database (`internal/core/paths/paths.go`
-`ConfigDirFromBinary`), so moving them under `tmp/s/<id>/` would repoint the daemon
-away from the repository's live `etc/ze`. They are swept by name at session end
-(`scripts/dev/session-scratch.sh` `reap_binaries`).
+The directory carries the id, so the file name does not. That is what keeps
+argv[0] personality dispatch working (`cmd/ze/dispatch.go` `binarySuffixRoot`
+reads the segment after the last `-`) and lets a `.ci` test exec `ze` by bare
+name off one PATH entry. A binary's location also decides where `ze` resolves
+its config and database (`internal/core/paths/paths.go` `ConfigDirFromBinary`),
+so a session's `ze` reads `<session-dir>/etc/ze` and the repository's `etc/ze`
+is the human's alone.
 
-Test binaries take the opposite trade-off -- a private `bin/` subdir under
-`tmp/s/<id>/` -- because `.ci` tests exec them by bare name and an isolated
-`etc/ze` is what a test wants (`mk/test-functional.mk`, `internal/test/sessionpath`).
+The directory is LOOKED UP, never recomputed: every consumer takes the single
+directory matching `tmp/session/????-??-??-<id>`, and names a new one with
+today's date only on a miss. Recomputing from today's date would move a
+session's directory at midnight and orphan the binaries it is running.
+
+That session-local `etc/ze` is SEEDED, once, by the first ze_core binary this
+session builds (`scripts/dev/session-seed-store.sh`, called from the `ze`,
+`ze-appliance` and `ze-stripped` recipes -- the three that link
+`internal/plugins/init` and the silent `NewBlob` path). An
+unseeded store is not red: `NewBlob`
+(`internal/component/config/storage/blob.go`) creates the blob and returns a nil
+error when it is absent, so `ze` would start with no users and a fresh SSH host
+key rather than fail. The credentials are generated per session -- user `admin`,
+and a random password at `<session-dir>/etc/ze/.dev-password`, mode 0600 under a
+gitignored root -- so nothing is tracked and two sessions never share one. A
+second `make ze` reseeds nothing and rotates nothing.
+
+Test binaries take the same shape one level in -- a private `bin/` subdir of a
+throwaway directory under `$(ZE_SCRATCH_DIR)` -- because `.ci` tests exec them by
+bare name and an isolated `etc/ze` is what a test wants
+(`mk/test-functional.mk`, `internal/test/sessionpath`).
 
 ## Never Launch a Functional Suite By Running The Runner Binary
 
-`bin/ze-test-<id> bgp plugin 145` is **not** equivalent to `make ze-plugin-test`,
-and the difference produces a convincing false red.
+Running this session's `ze-test` binary yourself (`$(ZEBIN_TEST) bgp plugin 145`)
+is **not** equivalent to `make ze-plugin-test`, and the difference produces a
+convincing false red.
 
 `mk/test-functional.mk` builds an ISOLATED, BARE-NAMED pair into
 `$(ZE_ALT_BIN)`, and the daemon it builds carries the **`zetest`** build tag

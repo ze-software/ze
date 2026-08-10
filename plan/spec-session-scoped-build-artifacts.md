@@ -5,7 +5,26 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 1/4 |
-| Updated | 2026-07-25 |
+| Updated | 2026-08-10 |
+
+## SUPERSEDED IN PART (2026-08-10) -- read this before acting on anything below
+
+**`spec-session-bin-directory` reversed this spec's binary-location decision, with
+owner approval, and its implementation has landed.** Everything below that names a
+NAME SUFFIX is a record of what this repository USED to do, not an instruction.
+
+| This spec says | The tree does now |
+|----------------|-------------------|
+| Dev binaries are `bin/<name>-<sid>` (`ZE_BIN_SUFFIX`, `ZE_BIN_NAMES`) | `tmp/session/<YYYY-MM-DD>-<sid>/bin/<bare-name>`. Both variables are deleted |
+| The per-session scratch root is `tmp/s/<sid>/` | `tmp/session/<YYYY-MM-DD>-<sid>/`, with `bin/`, `scratch/` and `state/` inside it |
+| `reap_binaries` and the SessionEnd sweep remove a session's artifacts | Nothing under `tmp/session/` is removed automatically. `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` is the operator's cleanup |
+| A binary's suffix keeps `<repo>/etc/ze` as the config dir it resolves | A session resolves its own `<session-dir>/etc/ze`, seeded on the first `ze_core` build |
+
+The reasoning this spec recorded for the suffix is preserved verbatim in the
+superseding spec's Key Design Decisions, together with the owner decision that
+dissolved it (`ai/rules/planning.md`, spec preservation). What survives here and is
+still live: objective 1's remaining phases, and everything about test-binary
+isolation and functional-test scratch, which the superseding spec did not touch.
 
 ## Post-Compaction Recovery
 

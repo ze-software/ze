@@ -343,17 +343,17 @@ ze-deployment-preflight:
 # reads back with its expiry, and the VM survives a following `nft flush
 # ruleset`. The stock Alpine 6.12.13-0-virt kernel is the one that cannot take
 # it, and no target runs on it any more.
-# Cross-compiled binaries go to bin/ze-linux-<arch> so $(ZEBIN_ZE) stays the
+# Cross-compiled binaries take the name ze-linux-<arch> so $(ZEBIN_ZE) stays the
 # host-native binary. No need to run `make ze test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
-# $(ZE_BIN_SUFFIX) (mk/session.mk) is empty off-session and this session's id
-# under an AI session, so two sessions cross-compiling for the VM at once cannot
-# overwrite each other's DUT binaries mid-run. Every consumer below goes through
-# these three variables, so the suffix reaches the 9p share and the in-VM
-# ZE_BIN/ZE_TEST_BIN without any literal name needing to know about it.
-ZE_QEMU_BIN := bin/ze-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
-ZE_QEMU_STRIPPED_BIN := bin/ze-stripped-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
-ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
+# $(ZE_BIN_DIR) (mk/session.mk) is bin/ off-session and this session's own
+# directory under an AI session, so two sessions cross-compiling for the VM at
+# once cannot overwrite each other's DUT binaries mid-run. Every consumer below
+# goes through these three variables, so the directory reaches the 9p share and
+# the in-VM ZE_BIN/ZE_TEST_BIN without any literal name needing to know about it.
+ZE_QEMU_BIN := $(ZE_BIN_DIR)/ze-linux-$(QEMU_GOARCH)
+ZE_QEMU_STRIPPED_BIN := $(ZE_BIN_DIR)/ze-stripped-linux-$(QEMU_GOARCH)
+ZE_QEMU_TEST_BIN := $(ZE_BIN_DIR)/ze-test-linux-$(QEMU_GOARCH)
 # Exported so helper scripts print and use the paths this run actually built,
 # rather than re-deriving an unsuffixed literal (scripts/evidence/qemu-run.py's
 # copy-paste hint, scripts/evidence/netns_qemu.py's exec).
@@ -445,7 +445,7 @@ ZE_QEMU_TEST_TAGS := ze_test $(ZE_FEATURES) $(ZE_TAGS)
 # sixth target cannot build a partial set.
 define ze-qemu-crossbuild
 @echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
-@mkdir -p bin
+@mkdir -p $(ZE_BIN_DIR)
 CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_STRIPPED_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_TEST_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze

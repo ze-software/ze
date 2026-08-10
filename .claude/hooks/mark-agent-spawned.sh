@@ -9,10 +9,10 @@
 # a month. Check the Stop array in .claude/settings.json before you describe
 # either side as live.
 #
-# The consumer also touch -c's this marker, because two reapers delete it at 24h
-# (lib/state-file.sh:92 and the unfiltered find at session-start.sh:22). Without
-# that, a session older than a day that delegated yesterday would lose only this
-# marker and be told it never delegated.
+# The consumer also touch -c's this marker, so its mtime dates the delegation
+# rather than the claim. Nothing deletes it: no reaper survives under
+# tmp/session/ (owner decision 2026-08-03), so the marker outlives the session
+# and the mtime is the only thing that says when an Agent last ran.
 #
 # Companion to mark-lsp-invoked.sh / mark-source-read.sh, same marker convention.
 # Marker path: tmp/session/.agent-spawned-<SID>. Content: ISO-8601 timestamp.

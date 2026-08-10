@@ -34,7 +34,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 ### Step R: Resume Existing Spec
 
 1. Read the spec file from `plan/`
-2. Read per-session state (most recent `tmp/session/session-state-<spec-stem>-*.md`) for digests
+2. Read per-session state (most recent `tmp/session/*/state/session-state-<spec-stem>-*.md`) for digests
 3. Determine current phase by checking spec completeness:
    - No `→ Decision:` / `→ Constraint:` annotations → still in RESEARCH
    - Data Flow section empty → still in RESEARCH

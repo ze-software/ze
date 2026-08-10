@@ -74,7 +74,7 @@ phase itself.
 ### Phase handoff: the per-spec state file
 
 Every phase agent ends by APPENDING its handoff to the per-spec state file
-`tmp/session/session-state-<spec-stem>-<SID>.md`, the path `_state_file`
+`tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md`, the path `_state_file`
 computes in `.claude/hooks/lib/state-file.sh` and `_find_latest_state_for_spec`
 recovers across sessions. That file already exists and already carries digests
 after compaction. Write into it. A new handoff file family is layering

@@ -136,18 +136,6 @@
         ]
       }
     ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-scratch.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
     "SubagentStart": [
       {
         "matcher": "",

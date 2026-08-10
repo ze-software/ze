@@ -145,7 +145,7 @@ RACE ?= 1
 
 # Nested makes must stay QUIET, exactly as they are under ze-verify, which runs
 # every stage with --no-print-directory. A test that shells out to make and
-# compares stdout byte for byte (scripts/dev/session_bin_suffix_test.py runs
+# compares stdout byte for byte (scripts/dev/session_bin_dir_test.py runs
 # `make ze-path`) otherwise sees a "make[1]: Entering directory" banner here and
 # not there, so the same package passes in ze-verify and fails in this target.
 # A scoped target whose verdict disagrees with the full gate is worse than no

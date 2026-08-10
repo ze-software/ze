@@ -45,7 +45,7 @@ fi
 
 # Only process real spec files: plan/spec-*.md at a path segment boundary.
 # Anchor `plan` to `^` or `/` so per-session state files like
-# tmp/session/session-state-plan/spec-<stem>-<SID>.md (created by the Go
+# <session-dir>/state/session-state-plan/spec-<stem>-<SID>.md (created by the Go
 # pre-write hook when the selected spec lives under plan/) are NOT treated
 # as specs. The unanchored pattern matched the substring `plan/spec-...md`
 # inside those state paths and emitted spurious validation errors.

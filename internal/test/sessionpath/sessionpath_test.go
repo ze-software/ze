@@ -4,9 +4,22 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 )
+
+// testSID is the session id every test below resolves paths for.
+const testSID = "sid-one"
+
+// wantSessionDir is the directory Root must resolve for testSID under base when
+// the session owns none yet: today's date names the new one.
+//
+// Spelled out here rather than taken from Root, so the test states the layout
+// instead of agreeing with whatever the code computed.
+func wantSessionDir(base string) string {
+	return filepath.Join(base, "tmp", "session", time.Now().Format("2006-01-02")+"-"+testSID)
+}
 
 // setSession points the resolver at id for the duration of one test.
 // env caches os.Environ() on first read, so the cache must be reset too
@@ -41,7 +54,7 @@ func TestSessionBinDirIsolatesSessions(t *testing.T) {
 			t.Errorf("bin dir must be named bin, got %q", got)
 		}
 	}
-	if want := filepath.Join(base, "tmp", "s", "sid-one", "bin"); first != want {
+	if want := filepath.Join(wantSessionDir(base), "bin"); first != want {
 		t.Errorf("BinDir = %q, want %q", first, want)
 	}
 }
@@ -86,12 +99,58 @@ func TestScratchRootUnderSession(t *testing.T) {
 	base := t.TempDir()
 	setSession(t, "sid-one")
 
-	want := filepath.Join(base, "tmp", "s", "sid-one")
+	want := wantSessionDir(base)
 	if got := scratchRoot(base); got != want {
 		t.Errorf("scratchRoot = %q, want %q", got, want)
 	}
 	if got, want := ID(), "sid-one"; got != want {
 		t.Errorf("ID = %q, want %q", got, want)
+	}
+}
+
+// VALIDATES: AC-13 -- the dated directory is LOOKED UP, never recomputed.
+// PREVENTS: a resolver that rebuilds <today>-<id> from the clock moving a
+// session's directory at midnight and orphaning the binaries it is running.
+func TestRootPrefersAnExistingDatedDirectory(t *testing.T) {
+	base := t.TempDir()
+	setSession(t, "sid-one")
+
+	root := filepath.Join(base, "tmp", "session")
+	planted := filepath.Join(root, time.Now().AddDate(0, 0, -1).Format("2006-01-02")+"-sid-one")
+	if err := os.MkdirAll(planted, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := Root(base); got != planted {
+		t.Errorf("Root = %q, want the directory this session already owns %q", got, planted)
+	}
+	if got, want := BinDir(base), filepath.Join(planted, "bin"); got != want {
+		t.Errorf("BinDir = %q, want %q", got, want)
+	}
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("resolving the session directory created another one: %v", entries)
+	}
+}
+
+// VALIDATES: Root resolves a path without creating it, so make and Go can both
+// ask for the directory and neither mints one (make's recipes and
+// EnsureScratchRoot are the two places that create it).
+// PREVENTS: `make ze-path` or a runner probe leaving an empty dated directory
+// behind for every id it was ever asked about.
+func TestRootCreatesNothing(t *testing.T) {
+	base := t.TempDir()
+	setSession(t, "sid-one")
+
+	if got, want := Root(base), wantSessionDir(base); got != want {
+		t.Errorf("Root = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(filepath.Join(base, "tmp", "session")); !os.IsNotExist(err) {
+		t.Errorf("Root created the session root: stat err = %v", err)
 	}
 }
 
@@ -126,7 +185,7 @@ func TestDefaultScratchRootFallsBackToRepoRoot(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	setSession(t, "sid-one")
 
-	want := filepath.Join(repo, "tmp", "s", "sid-one")
+	want := wantSessionDir(repo)
 	got := DefaultScratchRoot()
 	// t.TempDir may hand back a symlinked path (/var -> /private/var on macOS);
 	// compare resolved paths so the assertion is about the location, not the spelling.
@@ -208,15 +267,16 @@ func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {
 // VALIDATES: the checkout root is found past tmp/'s tracked sentinel module.
 // PREVENTS: repoRoot stopping at tmp/go.mod (`module ze-tmp-scratch`, written by
 // scripts/dev/ensure-links.py so `go list ./...` skips the caches) and reporting
-// tmp/ as the root -- which puts the scratch root at tmp/tmp/s/<id>, a real
-// directory returned with no error and outside everything SessionEnd removes.
+// tmp/ as the root -- which puts the scratch root at
+// tmp/tmp/session/<date>-<id>, a real directory returned with no error and
+// owned by nothing.
 func TestRepoRootSkipsTmpSentinelModule(t *testing.T) {
 	repo := t.TempDir()
 	if err := os.WriteFile(filepath.Join(repo, "go.mod"), []byte(moduleDirective+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	// The sentinel: a REAL go.mod for a different module, exactly as the repo ships.
-	session := filepath.Join(repo, "tmp", "s", "sid-one")
+	session := wantSessionDir(repo)
 	if err := os.MkdirAll(session, 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +294,7 @@ func TestRepoRootSkipsTmpSentinelModule(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	setSession(t, "sid-one")
 	scratch, _ := filepath.EvalSymlinks(DefaultScratchRoot())
-	wantScratch, _ := filepath.EvalSymlinks(filepath.Join(repo, "tmp", "s", "sid-one"))
+	wantScratch, _ := filepath.EvalSymlinks(wantSessionDir(repo))
 	if scratch != wantScratch {
 		t.Errorf("DefaultScratchRoot = %q, want %q (not nested under tmp/)", scratch, wantScratch)
 	}

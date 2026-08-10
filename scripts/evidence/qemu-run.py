@@ -98,6 +98,59 @@ def cache_dir(root: Path) -> Path:
     return d
 
 
+SCRATCH_MOUNT_TAG = "zescratch"
+
+
+def scratch_share(root: Path) -> tuple[Path, str] | None:
+    """The second 9p share a symlinked tmp/ needs, or None when tmp/ is real.
+
+    `-virtfs local,path=<root>` exports the checkout, and 9p with
+    security_model=none gives the guest a symlink as a symlink. So once
+    scripts/dev/ensure-links.py has pointed tmp/ at an out-of-tree scratch
+    directory, /workspace/tmp dangles in the guest: nothing under it resolves,
+    the DUT binary at tmp/session/<YYYY-MM-DD>-<id>/bin/ze (mk/session.mk
+    ZE_BIN_DIR) included, and the run fails before it can exec anything.
+
+    Returns (host path to export, guest mount point). The two differ on
+    purpose. The exported path is fully resolved, because that is what QEMU
+    opens on the host. The mount point is the LINK'S OWN TEXT, because that is
+    what the guest kernel resolves /workspace/tmp to, and mounting anywhere
+    else leaves the link dangling.
+    """
+    tmp = root / "tmp"
+    if not tmp.is_symlink():
+        return None
+    link = os.readlink(tmp)
+    # ensure-links.py always writes an absolute target ($TMPDIR/ze/<checkout-id>,
+    # else /tmp/ze/<checkout-id>). A relative one is resolved the way the guest
+    # resolves it: against the directory holding the link, which is /workspace.
+    guest = link if os.path.isabs(link) else os.path.normpath("/workspace/" + link)
+    return Path(os.path.realpath(tmp)), guest
+
+
+def virtfs_args(root: Path) -> list[str]:
+    """Every 9p export this run needs: the checkout, plus tmp/ when it is a link.
+
+    Pure, and separate from qemu_args so the selftest can read it on a host with
+    no QEMU and no UEFI firmware installed.
+    """
+    args = [
+        "-virtfs",
+        f"local,path={root},mount_tag=workspace,security_model=none,id=ws0,readonly=off",
+    ]
+    share = scratch_share(root)
+    if share is not None:
+        host, _guest = share
+        args.extend(
+            [
+                "-virtfs",
+                f"local,path={host},mount_tag={SCRATCH_MOUNT_TAG},"
+                "security_model=none,id=ws1,readonly=off",
+            ]
+        )
+    return args
+
+
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, check=False, **kwargs)
 
@@ -202,8 +255,7 @@ def qemu_args(iso: Path, root: Path, kernel: Path | None = None) -> list[str]:
             f"user,id=net0,hostfwd=tcp::{SSH_PORT}-:22",
             "-device",
             "virtio-net-pci,netdev=net0",
-            "-virtfs",
-            f"local,path={root},mount_tag=workspace,security_model=none,id=ws0,readonly=off",
+            *virtfs_args(root),
         ]
     )
 
@@ -426,6 +478,24 @@ def run_in_vm(
                 "echo \"CONNTRACK-SETUP: acct=$(cat /proc/sys/net/netfilter/nf_conntrack_acct 2>/dev/null || echo MISSING) rules=$(nft list ruleset 2>/dev/null | grep -c 'ct state' || echo 0)\"",
                 "mkdir -p /workspace",
                 "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace",
+            ]
+        )
+        # A symlinked tmp/ leaves /workspace/tmp dangling in the guest, so the
+        # scratch share is mounted at the path the link names -- before anything
+        # below touches /workspace/tmp (scratch_share). Nothing to do when tmp/
+        # is a real directory: the workspace share already carries it.
+        share = scratch_share(root)
+        if share is not None:
+            _host, guest = share
+            setup_parts.extend(
+                [
+                    f"mkdir -p {shell_quote(guest)}",
+                    "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
+                    f"{SCRATCH_MOUNT_TAG} {shell_quote(guest)}",
+                ]
+            )
+        setup_parts.extend(
+            [
                 "cd /workspace",
                 "mkdir -p /workspace/tmp/qemu/go-dl",
                 f'GO_TAR="/workspace/tmp/qemu/go-dl/go{GO_VERSION}.linux-{go_arch}.tar.gz"',
@@ -488,7 +558,7 @@ def run_in_vm(
                 flush=True,
             )
             # Print the paths the caller actually cross-compiled. Under an AI
-            # session those carry a session-id suffix ($(ZE_BIN_SUFFIX),
+            # session those sit in the session's own directory ($(ZE_BIN_DIR),
             # mk/session.mk), so a literal bin/ze-linux-<arch> here would be a
             # copy-paste hint pointing at a file that does not exist.
             hint_ze = os.environ.get("ZE_QEMU_BIN", "bin/ze-linux-arm64")
@@ -529,6 +599,78 @@ def run_in_vm(
     finally:
         proc.kill()
         proc.wait()
+
+
+def _selftest_scratch_share() -> list[str]:
+    """Fixture tests for the second 9p share (scratch_share, virtfs_args).
+
+    A symlinked tmp/ is the migrated layout (`make ze-migrate-scratch`), and on
+    a checkout that has migrated, every session path -- the DUT binary at
+    tmp/session/<YYYY-MM-DD>-<id>/bin/ze most of all -- lives behind that link.
+    A share of the repo root alone leaves it dangling in the guest, and the
+    failure is silent until somebody migrates, so it is pinned here.
+    """
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+
+        real_root = d / "real"
+        (real_root / "tmp").mkdir(parents=True)
+        if scratch_share(real_root) is not None:
+            failures.append("a real tmp/ asked for a second share it does not need")
+        if virtfs_args(real_root).count("-virtfs") != 1:
+            failures.append("a real tmp/ produced more than one -virtfs export")
+
+        link_root = d / "linked"
+        link_root.mkdir()
+        target = d / "out-of-tree"
+        (target / "session" / "2026-08-10-abc123" / "bin").mkdir(parents=True)
+        (link_root / "tmp").symlink_to(target)
+
+        share = scratch_share(link_root)
+        if share is None:
+            failures.append(
+                "a symlinked tmp/ got no second share: the guest cannot "
+                "resolve /workspace/tmp/session/<dated>/bin/ze"
+            )
+        else:
+            host, guest = share
+            if host != Path(os.path.realpath(target)):
+                failures.append(f"second share exports {host}, not the tmp/ target")
+            # The mount point must be the link's own text: that is the path the
+            # guest resolves /workspace/tmp to, so mounting anywhere else leaves
+            # the link dangling however correct the exported directory is.
+            if guest != str(target):
+                failures.append(
+                    f"second share mounts at {guest}, not at the target the link "
+                    f"names ({target}); /workspace/tmp would still dangle"
+                )
+            args = virtfs_args(link_root)
+            exports = [a for a in args if a.startswith("local,path=")]
+            if len(exports) != 2:
+                failures.append("a symlinked tmp/ did not add a second -virtfs export")
+            tags = {e.split("mount_tag=")[1].split(",")[0] for e in exports}
+            ids = {e.split("id=")[1].split(",")[0] for e in exports}
+            if len(tags) != len(exports) or len(ids) != len(exports):
+                failures.append(
+                    f"the two 9p exports share a mount_tag or an id: {exports}"
+                )
+
+        # A relative link is not what ensure-links.py writes, but the guest
+        # resolves one against the directory holding it, which is /workspace.
+        rel_root = d / "relative"
+        rel_root.mkdir()
+        (d / "sibling").mkdir()
+        (rel_root / "tmp").symlink_to("../sibling")
+        rel = scratch_share(rel_root)
+        if rel is None or rel[1] != "/sibling":
+            got = None if rel is None else rel[1]
+            failures.append(
+                f"a relative tmp/ link resolves to {got}, not to /sibling, the way "
+                "the guest resolves it against /workspace"
+            )
+
+    return failures
 
 
 def _selftest() -> int:
@@ -573,6 +715,8 @@ def _selftest() -> int:
             failures.append(
                 "stale hit: a version bump reused the previous ISO's initramfs"
             )
+
+    failures.extend(_selftest_scratch_share())
 
     for f in failures:
         print(f"selftest FAILED: {f}", file=sys.stderr)

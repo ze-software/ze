@@ -9,7 +9,7 @@ Rationale: `ai/rationale/session-start.md`
 [ ] 1. Load LSP tool (`ToolSearch query="select:LSP"`). UNCONDITIONAL FIRST ACTION.
 [ ] 2. Run `scripts/dev/spec-session.sh current` to see this session's claimed spec
 [ ] 3. Read plan/<spec-name> (if a spec is claimed)
-[ ] 4. Read per-spec session state (tmp/session/session-state-<spec-stem>-<SID>.md) if exists
+[ ] 4. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
 [ ] 5. Check git status
 [ ] 6. If user provides a handoff: complete Receiving a Handoff (below) BEFORE any plan
 [ ] 7. Start working

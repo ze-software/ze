@@ -1,32 +1,44 @@
-# Session-scoped binary names.
+# Session-scoped binary directory.
 #
 # Concurrent AI sessions share ONE working tree, so a fixed output path like
 # bin/ze means session B's `make ze` overwrites the binary session A is running
-# tests against, mid-run. Every canonical binary therefore carries this session's
-# id as a NAME suffix: bin/ze-<session-id>.
+# tests against, mid-run. Every canonical binary therefore goes into this
+# session's OWN directory, under its BARE name:
+# tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze.
 #
-# Why a suffix and not a per-session directory: `ze` derives its config and
-# database directory from its OWN location (internal/core/paths/paths.go,
-# ConfigDirFromBinary -> <prefix>/etc/ze, where <prefix> is the parent of bin/).
-# Moving the binary to tmp/s/<id>/bin/ would silently repoint the daemon at an
-# empty, session-local etc/ze that SessionEnd then deletes, while the live
-# database in <repo>/etc/ze went unused. A suffix keeps the binary in bin/, so
-# config/DB resolution is byte-for-byte what it is today.
+# Why a directory and not a name suffix: a directory gives each session its own
+# namespace. No id can reproduce another binary's name, so no collision guard is
+# needed; argv[0] personality dispatch keeps working (cmd/ze/dispatch.go
+# binarySuffixRoot reads the segment after the last '-'); and a .ci test can exec
+# `ze` by bare name off one PATH entry. Cleanup is one directory the operator
+# identifies by date and removes, rather than a glob over a name pattern that
+# misses everything it does not match.
 #
-# TEST binaries take the opposite trade-off on purpose: they live in a private
-# bin/ subdir (mk/test-functional.mk, internal/test/sessionpath) because .ci
-# tests exec them by BARE name and an isolated etc/ze is desirable there.
+# `ze` derives its config and database directory from its OWN location
+# (internal/core/paths/paths.go, ConfigDirFromBinary -> <prefix>/etc/ze, where
+# <prefix> is the parent of bin/), so a session's binary resolves the
+# session-local <session-dir>/etc/ze. That isolation is the intent, not an
+# accident: <repo>/etc/ze becomes the human's alone.
 #
-# Off-session -- a human shell, CI -- ZE_BIN_SUFFIX is empty and every path below
-# is exactly the path used before this file existed. Nothing changes for anyone
-# but an AI session.
+# THE DIRECTORY IS LOOKED UP, NEVER RECOMPUTED. <YYYY-MM-DD>-<sid> is not a pure
+# function of the id, so every consumer takes the single directory matching
+# tmp/session/????-??-??-<sid>, and names a new one with today's date only on a
+# miss. Recomputing from today's date would move a session's directory at
+# midnight and orphan the binaries that session is running. make, Go
+# (internal/test/sessionpath) and shell (scripts/dev/session-scratch.sh) each
+# implement this rule, and TestMakeAndGoAgreeOnBinDir
+# (scripts/dev/session_bin_dir_test.py) is what stops the three drifting.
+#
+# Off-session -- a human shell, CI -- ZE_BIN_DIR is bin and every path below is
+# exactly the path used before this file existed. Nothing changes for anyone but
+# an AI session.
 #
 # Source of the id: CLAUDE_CODE_SESSION_ID, which the Claude CLI exports into
 # every child process (.claude/hooks/lib/session_id.py, source 1 -- "always set
 # on current CLIs"). We deliberately do NOT shell out to session_id.py here:
 # its last-resort source 4 MINTS an id keyed on the topmost process ancestor
 # when none is found, so calling it from a human's `make` would invent a session
-# and suffix that human's binaries. Presence of the exported variable is the
+# and move that human's binaries. Presence of the exported variable is the
 # correct, side-effect-free signal that an AI session is driving this build.
 
 # `?=` so an explicit `make ZE_SESSION_ID=x` (or an id exported by a parent make)
@@ -34,19 +46,21 @@
 ZE_SESSION_ID ?= $(CLAUDE_CODE_SESSION_ID)
 
 # Reject an id that is unusable as a filename component before it reaches a path.
-# Whitespace shows up as a word count other than 1; '/' would escape bin/; '.'
-# and '..' would alias it. Anything rejected falls through to the shared paths,
-# so a malformed id degrades to today's behavior rather than to a bad path.
+# Whitespace shows up as a word count other than 1; '/' would escape the session
+# root; '.' and '..' would alias it. Anything rejected falls through to the
+# shared paths, so a malformed id degrades to today's behavior rather than to a
+# bad path. The id is now a path COMPONENT rather than a name suffix, so this
+# check is what keeps a hostile id inside tmp/session/.
 #
 # The validation deliberately runs on the RESOLVED id, not on
 # CLAUDE_CODE_SESSION_ID: a command-line assignment overrides every file
 # assignment in make, so validating only the environment source would leave
-# `make ze ZE_SESSION_ID=../../etc` writing outside bin/.
+# `make ze ZE_SESSION_ID=../../etc` writing outside the session root.
 # The charset check MUST match Go's sidSafe (internal/test/sessionpath, itself a
 # mirror of _SID_SAFE_RE in .claude/hooks/lib/session_id.py). A weaker check here
-# is not cosmetic: make would build bin/ze-a+b while Go's ID() rejected the same
-# id and looked in the shared bin/, so the build and the test runner would
-# disagree about which artifacts belong to this session -- exactly the drift the
+# is not cosmetic: make would build into a directory Go's ID() rejected while Go
+# looked in the shared bin/, so the build and the test runner would disagree
+# about which artifacts belong to this session -- exactly the drift the
 # single-resolver design exists to prevent.
 #
 # `tr -d` deletes every accepted character; a non-empty remainder means the id
@@ -62,18 +76,23 @@ ZE_SESSION_ID ?= $(CLAUDE_CODE_SESSION_ID)
 #
 # Interpolation is made safe by refusing, in pure make, the ONE character that
 # can terminate the single-quoted shell literal below. Inside '...' every other
-# character -- $ ` \ " -- is literal, so a quote-free id cannot inject shell.
+# character -- $ ` \ " -- is literal, so a quote-free id cannot inject SHELL.
 # The guard wraps the assignment rather than following it, because `:=` is
 # expanded at parse time and would otherwise run the command before any check.
+#
+# It bounds the shell layer only, and MAKE's own layer sits above it. ZE_SESSION_ID
+# is recursively expanded, so `$(...)` inside the incoming value is expanded by
+# make at the first reference -- which is this guard. Verified:
+# CLAUDE_CODE_SESSION_ID='$(shell touch X)' created X at parse time while the id
+# was still rejected and the path still resolved to bin/. The PATH is safe either
+# way, which is what this file owes. Anyone who can set that variable in your
+# environment can already run commands as you, so make's layer crosses no
+# privilege boundary and is not guarded here -- but do not read the paragraph
+# above as covering it.
 ZE_SESSION_BAD := contains-a-quote
 ifeq ($(findstring ',$(ZE_SESSION_ID)),)
 ZE_SESSION_BAD := $(shell printf '%s' '$(ZE_SESSION_ID)' | tr -d 'A-Za-z0-9._-')
 endif
-
-# The canonical binary base names. ONE list: the ZEBIN_* paths below are built
-# from it, and so is the collision check, so a new binary cannot be added without
-# the guard learning about it.
-ZE_BIN_NAMES := ze ze-appliance ze-setup ze-stripped ze-test ze-chaos ze-analyze ze-perf
 
 ZE_SESSION_SAFE :=
 ifeq ($(words $(ZE_SESSION_ID)),1)
@@ -81,12 +100,7 @@ ifeq ($(words $(ZE_SESSION_ID)),1)
     ifeq ($(ZE_SESSION_BAD),)
       ifneq ($(ZE_SESSION_ID),.)
         ifneq ($(ZE_SESSION_ID),..)
-          # A suffix that reproduces another binary's name would make `make ze`
-          # write OVER it: ZE_SESSION_ID=test turns bin/ze-<id> into bin/ze-test,
-          # the real test-runner binary. Reject rather than overwrite.
-          ifeq ($(filter ze-$(ZE_SESSION_ID),$(ZE_BIN_NAMES)),)
-            ZE_SESSION_SAFE := $(ZE_SESSION_ID)
-          endif
+          ZE_SESSION_SAFE := $(ZE_SESSION_ID)
         endif
       endif
     endif
@@ -104,34 +118,80 @@ endif
 override ZE_SESSION_ID := $(ZE_SESSION_SAFE)
 export ZE_SESSION_ID
 
-ifeq ($(ZE_SESSION_ID),)
-ZE_BIN_SUFFIX :=
-else
-ZE_BIN_SUFFIX := -$(ZE_SESSION_ID)
-endif
+# The ONE root for per-session state: this session's dated directory sits beside
+# the flat marker files the hooks write (.claude/hooks/lib/state-file.sh).
+ZE_SESSION_ROOT := tmp/session
 
-# The canonical binaries. Every recipe and every reference uses these variables
-# rather than a literal bin/<name>, so the suffix cannot be applied in one place
-# and forgotten in another (a build writing bin/ze-<id> while a test target
-# depends on bin/ze would rebuild forever).
-ZEBIN_ZE        := bin/ze$(ZE_BIN_SUFFIX)
-ZEBIN_APPLIANCE := bin/ze-appliance$(ZE_BIN_SUFFIX)
-ZEBIN_SETUP     := bin/ze-setup$(ZE_BIN_SUFFIX)
-ZEBIN_STRIPPED  := bin/ze-stripped$(ZE_BIN_SUFFIX)
-ZEBIN_TEST      := bin/ze-test$(ZE_BIN_SUFFIX)
-ZEBIN_CHAOS     := bin/ze-chaos$(ZE_BIN_SUFFIX)
-ZEBIN_ANALYZE   := bin/ze-analyze$(ZE_BIN_SUFFIX)
-ZEBIN_PERF      := bin/ze-perf$(ZE_BIN_SUFFIX)
-
-# Root for throwaway scratch that make targets create (isolated test binary sets,
-# and anything else a target wants swept with the session). Off-session this is
-# plain tmp/, exactly as before. Under a session it is the session's own
-# directory, which .claude/hooks/session-end-scratch.sh already removes wholesale
-# at SessionEnd -- so scratch that used to outlive its owner now cannot.
+# ZE_SCRATCH_DIR is this session's own directory -- binaries, isolated test
+# binary sets, and anything else a target wants kept with the session. Off-session
+# it is plain tmp/, exactly as before.
+#
+# The dated name is resolved by the glob-then-create rule in the header. Nothing
+# is created here: the recipes that write into the directory mkdir it, exactly as
+# they did for bin/, so asking for a path never mints a directory.
+#
+# $(wildcard) rather than a shell glob costs no fork, and the id reaching it is
+# already refused unless it matches [A-Za-z0-9._-]+, which carries no glob
+# metacharacter. $(firstword) makes a tree that somehow holds two dated
+# directories for one id resolve deterministically to the older of them.
+#
+# The TRAILING SLASH in the pattern is what restricts the match to DIRECTORIES,
+# which is make's own idiom for it and is the rule the shell copy spells `[ -d ]`
+# and the python copy spells isdir. $(patsubst) takes the slash back off, because
+# every consumer wants the plain directory name. Without it a regular file of the
+# dated shape would be make's answer and nobody else's.
 ifeq ($(ZE_SESSION_ID),)
 ZE_SCRATCH_DIR := tmp
+ZE_BIN_DIR := bin
 else
-ZE_SCRATCH_DIR := tmp/s/$(ZE_SESSION_ID)
+ZE_SCRATCH_DIR := $(patsubst %/,%,$(firstword $(wildcard $(ZE_SESSION_ROOT)/????-??-??-$(ZE_SESSION_ID)/)))
+ifeq ($(ZE_SCRATCH_DIR),)
+ZE_SCRATCH_DIR := $(ZE_SESSION_ROOT)/$(shell date +%Y-%m-%d)-$(ZE_SESSION_ID)
+endif
+ZE_BIN_DIR := $(ZE_SCRATCH_DIR)/bin
+endif
+
+# The canonical binaries, every one a BARE name under $(ZE_BIN_DIR). Every recipe
+# and every reference uses these variables rather than a literal bin/<name>, so
+# the directory cannot be applied in one place and forgotten in another (a build
+# writing the session directory while a test target depends on bin/ze would
+# rebuild forever). The final element of $(ZE_BIN_DIR) is always `bin`, or ze
+# cannot resolve a config directory at all (internal/core/paths/paths.go
+# isBinDir).
+ZEBIN_ZE        := $(ZE_BIN_DIR)/ze
+ZEBIN_APPLIANCE := $(ZE_BIN_DIR)/ze-appliance
+ZEBIN_SETUP     := $(ZE_BIN_DIR)/ze-setup
+ZEBIN_STRIPPED  := $(ZE_BIN_DIR)/ze-stripped
+ZEBIN_TEST      := $(ZE_BIN_DIR)/ze-test
+ZEBIN_CHAOS     := $(ZE_BIN_DIR)/ze-chaos
+ZEBIN_ANALYZE   := $(ZE_BIN_DIR)/ze-analyze
+ZEBIN_PERF      := $(ZE_BIN_DIR)/ze-perf
+
+# Seeding this session's store. The binaries above resolve their config and
+# database directory from their own location (internal/core/paths/paths.go
+# ConfigDirFromBinary), so a session's ze reads $(ZE_SCRATCH_DIR)/etc/ze rather
+# than the repository's etc/ze. Isolation is the intent; an EMPTY store is not.
+# internal/component/config/storage/blob.go NewBlob creates the blob and returns
+# a nil error when it is absent, so an unseeded session is silently empty rather
+# than red. The first ze_core binary this session builds therefore seeds it, and
+# every failure of that seeding is loud (scripts/dev/session-seed-store.sh).
+#
+# Called with the binary the recipe just built, because ze, ze-appliance and
+# ze-stripped are equal seeders: each links internal/core/resolve (the silent
+# path), internal/component/ssh (the host key) and internal/plugins/init
+# (`ze init`, registered under //go:build ze_core). Seeding from the binary in
+# hand is what stops `make ze-stripped` leaving an empty store, and it asks no
+# recipe to build a binary nobody wanted. ze-setup, ze-test, ze-chaos,
+# ze-analyze and ze-perf link no init and reach no silent path, so they do not
+# call this.
+#
+# Off-session the macro expands to NOTHING, and a recipe line that expands to
+# nothing is neither printed nor executed, so a human's `make ze` stays the
+# command it always was -- `make -n ze` included.
+ifeq ($(ZE_SESSION_ID),)
+ZE_SEED_SESSION_STORE =
+else
+ZE_SEED_SESSION_STORE = @scripts/dev/session-seed-store.sh $(1)
 endif
 
 # Print the path of this session's ze binary. Scripts, docs and agents that used

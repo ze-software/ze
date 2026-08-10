@@ -3,9 +3,16 @@
 # Usage: source this file (after session-id.sh), then call _state_file
 #
 # Reads the session marker (tmp/session/.session-<ID>) to find this session's spec.
-# Returns tmp/session/session-state-<spec-stem>-<SID>.md (session-scoped).
+# Returns <session-dir>/state/session-state-<spec-stem>-<SID>.md, where
+# <session-dir> is tmp/session/<YYYY-MM-DD>-<SID> resolved by the one shell rule
+# in lib/session-dir.sh. The digest lives in the directory of the session that
+# wrote it, beside that session's bin/ and scratch/.
 # Multiple sessions on different specs each get their own state file.
 # Sessions on the same spec also get separate files (avoids write races).
+#
+# Cross-session reading costs nothing: _find_latest_state_for_spec below walks
+# every session directory's state/ (plan/spec-session-bin-directory.md, AC-20
+# and AC-21).
 
 # Ensure session-id helper is loaded
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,33 +20,53 @@ if ! type _session_id &>/dev/null; then
     # shellcheck source=session-id.sh
     source "$SCRIPT_DIR/session-id.sh"
 fi
+if ! type _session_dir &>/dev/null; then
+    # shellcheck source=session-dir.sh
+    source "$SCRIPT_DIR/session-dir.sh"
+fi
 
 _state_file() {
-    local sid spec stem marker
+    local sid spec stem marker dir
     sid=$(_session_id)
     mkdir -p tmp/session
     marker="tmp/session/.session-${sid}"
     if [ -f "$marker" ]; then
         spec=$(head -1 "$marker" 2>/dev/null)
     fi
+    # Every caller either writes this file or tests it for existence, so the
+    # directory is created here rather than in each of them.
+    dir="$(_session_dir "$sid")/state"
+    mkdir -p "$dir"
     if [ -n "$spec" ] && [ "$spec" != "unassigned" ]; then
         # Strip spec- prefix and .md suffix to form the stem
         stem=$(echo "$spec" | sed 's/^spec-//; s/\.md$//')
-        echo "tmp/session/session-state-${stem}-${sid}.md"
+        echo "$dir/session-state-${stem}-${sid}.md"
     else
-        echo "tmp/session/session-state-${sid}.md"
+        echo "$dir/session-state-${sid}.md"
     fi
 }
 
 # Find the most recent session state file for a given spec stem.
-# Used at session start to recover state from a previous session.
-# Checks new per-session format first, then falls back to old per-spec format.
+# Used at session start, and at agent spawn, to recover state a previous session
+# or an earlier phase wrote.
+#
+# FOUR locations are read, newest first across the first two:
+#   1. <session-dir>/state/ of EVERY session -- where the digest lands today.
+#   2. tmp/session/ flat -- where every digest written before the state/ move
+#      still sits. Dropping this branch makes those unreachable, and a resolver
+#      that returns nothing looks exactly like a spec with no prior phase.
+#   3. .claude/session-state-<stem>-<SID>.md -- the location before tmp/session/.
+#   4. .claude/session-state-<stem>.md -- the per-spec form before the SID.
+# Nothing is migrated: a digest is read where its writer left it.
 _find_latest_state_for_spec() {
     local stem="$1"
     mkdir -p tmp/session
-    # New format: session-state-<stem>-<SID>.md (per-session)
     local latest
-    latest=$(ls -t tmp/session/session-state-${stem}-*.md 2>/dev/null | head -1)
+    # An unmatched glob reaches ls as its literal self; ls reports it on stderr
+    # and still lists the patterns that did match, so one call orders both
+    # locations by mtime.
+    latest=$(ls -t tmp/session/????-??-??-*/state/session-state-${stem}-*.md \
+                   tmp/session/session-state-${stem}-*.md 2>/dev/null | head -1)
     if [ -n "$latest" ]; then
         echo "$latest"
         return
@@ -67,52 +94,14 @@ _claim_spec() {
     echo "$spec" > "$marker"
 }
 
-# Remove this session's marker (called at session end).
+# Remove this session's marker. Called ONLY from `spec-session.sh release`, the
+# operator-invoked step /ze-close runs when a spec closes. No hook releases a
+# claim, and nothing removes a marker on a timer: a claim whose session is gone
+# ages out of relevance in place, and block-premature-stop.sh refreshes a live
+# one with `touch -c` so its mtime says which is which.
 _release_session() {
     local sid marker
     sid=$(_session_id)
     marker="tmp/session/.session-${sid}"
     rm -f "$marker"
-}
-
-# Clean up stale markers and state files (sessions that ended without cleanup).
-# Removes markers and per-session state files older than 24 hours.
-_cleanup_stale_markers() {
-    mkdir -p tmp/session
-    find tmp/session/ -maxdepth 1 -name '.session-*' -mmin +1440 -delete 2>/dev/null
-    find tmp/session/ -maxdepth 1 -name '.compaction-detected-*' -mmin +1440 -delete 2>/dev/null
-    # Minted-fallback id caches (session_id.py source 4). A live session keeps its
-    # cache fresh (session_id.py touches it on every hit), so only a dead session's
-    # cache ages out here -- after which PID reuse can no longer alias its id.
-    find tmp/session/ -maxdepth 1 -name '.sid-by-pid-*' -mmin +1440 -delete 2>/dev/null
-    # Freshness markers written by the PostToolUse mark-*.sh hooks. Every reader
-    # of these checks a window far tighter than 24h (the design-without-lsp gate
-    # uses 30 minutes), so ageing them out here can never widen a gate; it only
-    # stops one marker per session accumulating forever.
-    find tmp/session/ -maxdepth 1 -name '.agent-spawned-*' -mmin +1440 -delete 2>/dev/null
-    find tmp/session/ -maxdepth 1 -name '.source-read-*' -mmin +1440 -delete 2>/dev/null
-    find tmp/session/ -maxdepth 1 -name '.lsp-invoked-*' -mmin +1440 -delete 2>/dev/null
-    # Also clean legacy .claude/ location
-    find .claude/ -maxdepth 1 -name '.session-*' -mmin +1440 -delete 2>/dev/null
-    find .claude/ -maxdepth 1 -name '.compaction-detected-*' -mmin +1440 -delete 2>/dev/null
-    # Clean up orphaned session state files (no matching session marker)
-    for state in tmp/session/session-state-*-*.md; do
-        [ -f "$state" ] || continue
-        # Extract SID from filename: session-state-<stem>-<SID>.md or session-state-<SID>.md.
-        # The SID is a UUID (8-4-4-4-12) in the normal case; grab that trailing shape so a
-        # hyphenated <stem> is not mistaken for the id. Fall back to the last hyphen group
-        # for a non-UUID id (a bare "${fname##*-}" mangled every UUID into its final group).
-        local fname sid marker
-        fname=$(basename "$state" .md)
-        if [[ "$fname" =~ -([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$ ]]; then
-            sid="${BASH_REMATCH[1]}"
-        else
-            sid="${fname##*-}"
-        fi
-        marker="tmp/session/.session-${sid}"
-        # If marker doesn't exist and state file is older than 24h, remove
-        if [ ! -f "$marker" ]; then
-            find "$state" -mmin +1440 -delete 2>/dev/null
-        fi
-    done
 }

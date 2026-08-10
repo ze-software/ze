@@ -178,8 +178,11 @@ type Runner struct {
 func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	// Root this run's scratch in the session's own directory when an AI session
 	// is active, so the working dirs, configs and sockets a suite leaves behind
-	// are attributable and die with the session instead of accumulating as
-	// unowned $TMPDIR/ze-functional-* dirs. EnsureScratchRoot returns "" when no
+	// are attributable and go with that session's directory when the operator
+	// removes it, instead of accumulating as unowned $TMPDIR/ze-functional-*
+	// dirs. They do not "die with the session": nothing under tmp/session/ is
+	// removed automatically, and `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` is
+	// the route. EnsureScratchRoot returns "" when no
 	// session is active, which is exactly what MkdirTemp reads as "use the
 	// system temp dir" -- so a human or CI run is unchanged.
 	tmpDir, err := os.MkdirTemp(sessionpath.EnsureScratchRoot(baseDir), "ze-functional-*")
@@ -258,15 +261,16 @@ func (r *Runner) Cleanup() {
 // Putting filepath.Dir(r.zePath) there instead -- which is what the runner did
 // until this existed -- is wrong twice over:
 //
-//   - Under an AI session the binary is named ze-<session-id> (mk/session.mk),
-//     so there is no bare `ze` in that directory at all. A test doing
-//     subprocess(["ze", ...]) then resolves whatever unrelated `ze` is left in
-//     bin/ from some earlier build.
-//   - Driving the QEMU VM from a darwin host, bin/ holds BOTH architectures
-//     (bin/ze is darwin, bin/ze-linux-arm64-<id> is the VM's). The VM picked up
-//     the darwin one and died with "OSError: [Errno 8] Exec format error: 'ze'"
-//     (test/static/005-table-interface.ci). The same hazard is called out at
-//     internal/component/plugin/process/process.go:540.
+//   - A cross-compiled binary carries its target in the name
+//     (ze-linux-arm64, mk/test-integration.mk ZE_QEMU_BIN), and ZE_BIN points
+//     at it directly, so there is no bare `ze` in that directory at all. A test
+//     doing subprocess(["ze", ...]) then resolves whatever unrelated `ze` is
+//     left in bin/ from some earlier build.
+//   - Driving the QEMU VM from a darwin host, one directory holds BOTH
+//     architectures (ze is darwin, ze-linux-arm64 is the VM's). The VM picked
+//     up the darwin one and died with "OSError: [Errno 8] Exec format error:
+//     'ze'" (test/static/005-table-interface.ci). The same hazard is called out
+//     at internal/component/plugin/process/process.go:540.
 //
 // Symlinks rather than copies so this stays cheap on a slow 9p mount, and
 // because they are transparent to ze's own path resolution: DefaultConfigDir
@@ -418,7 +422,7 @@ func (r *Runner) verifyPrebuilt() error {
 		return buildErr
 	}
 	// After the paths above are final: this is the branch where they most often
-	// are NOT <repo>/bin/ze (ZE_BIN cross-compiles, session-suffixed names), so
+	// are NOT <repo>/bin/ze (ZE_BIN names a cross-compiled ze-linux-<arch>), so
 	// it is the branch that most needs the bare-name shims.
 	if err := r.setupBinShims(); err != nil {
 		r.display.buildStatus(false, err)

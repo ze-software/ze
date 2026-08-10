@@ -149,21 +149,17 @@ SID=$(_session_id 2>/dev/null || echo "")
 if [ -n "$SID" ]; then
     MARKER="tmp/session/.session-${SID}"
     if [ -f "$MARKER" ]; then
-        # Liveness heartbeat. _cleanup_stale_markers (lib/state-file.sh:82) deletes
-        # a marker whose MTIME is over 24h old, and it runs from session-start.sh
-        # on every session start in this checkout. _claim_spec sets that mtime once
-        # and nothing else ever rewrites it, so a session running longer than 24h
-        # had its LIVE claim swept the moment any other session started. Reading
-        # the claim here proves this session is alive, so refresh it on the way past.
-        #
-        # Unreachable before the release moved to SessionEnd: the claim used to die
-        # on the first Stop, so it never survived long enough to age out.
+        # Liveness heartbeat. Nothing deletes a claim on a timer any more (owner
+        # decision 2026-08-03: nothing under tmp/session/ is removed
+        # automatically), so a marker left by a dead session sits beside a live
+        # one and only the MTIME tells them apart. _claim_spec writes that mtime
+        # once. Reading the claim here proves this session is alive, so refresh
+        # it on the way past and the date stays honest.
         #
         # -c so a MISSING marker is never created. Plain touch creates the path,
-        # so if a sibling session's sweep deleted the marker between the -f test
-        # above and this line, the hook would resurrect it EMPTY. An empty marker
-        # makes every gate below skip silently, and it also blocks the orphan
-        # state-file reclaim at state-file.sh:114.
+        # so a claim released by `spec-session.sh release` between the -f test
+        # above and this line would come back EMPTY. An empty marker makes every
+        # gate below skip silently.
         touch -c "$MARKER" 2>/dev/null || true
         SPEC=$(head -1 "$MARKER" 2>/dev/null || true)
         if [ -n "$SPEC" ] && [ "$SPEC" != "unassigned" ] && [ -f "plan/$SPEC" ]; then
@@ -203,13 +199,12 @@ if [ -n "$SID" ]; then
             #
             # Heartbeat this marker too, for the same reason as the claim above.
             # mark-agent-spawned.sh rewrites it only when an Agent actually runs,
-            # and TWO reapers delete it at 24h: lib/state-file.sh:92 and the
-            # unfiltered find at session-start.sh:22. A session older than a day
-            # that delegated yesterday but not today now KEEPS its claim, so
-            # without this it would lose only the spawn marker and the nudge would
-            # fire falsely, telling a properly supervising session it never
-            # delegated. -c again, so a missing marker is never created: creating
-            # it would silence the nudge for a session that really did work inline.
+            # so without this the mtime would date the LAST delegation rather
+            # than the session, and a reader could not tell a marker this session
+            # wrote from one left in place by a session that ended days ago.
+            # Nothing deletes it either way. -c again, so a missing marker is
+            # never created: creating it would silence the nudge for a session
+            # that really did work inline.
             SPAWNED="tmp/session/.agent-spawned-${SID}"
             touch -c "$SPAWNED" 2>/dev/null || true
             if [ ! -f "$SPAWNED" ]; then

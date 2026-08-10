@@ -325,7 +325,7 @@ means "no rule applies".
 | Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Spawn reviewer subagents, loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
 | Finish Go edits | `ai/rules/commands.md` -- run `make ze-lint-changed` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
-| Run any test/build/lint command | `ai/rules/commands.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after |
+| Run any test/build/lint command | `ai/rules/commands.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after; write the log under `$(scripts/dev/session-scratch.sh)`, never at the `tmp/` root |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
 | Complete work autonomously | `ai/rules/completion.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
 | Decide whether to stop, ask, delegate, or continue when two rules disagree | `ai/rules/rule-precedence.md` -- one ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy. Stopping at a phase boundary is not asking permission; a forced question is always "which way", never "may I skip it" |

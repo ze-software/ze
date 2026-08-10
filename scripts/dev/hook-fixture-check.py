@@ -33,6 +33,7 @@ Exit 0 = every fixture matched its expectation, 1 = a hook regressed.
 from __future__ import annotations
 
 import argparse
+import datetime
 import importlib.util
 import glob
 import json
@@ -1645,9 +1646,9 @@ def _run_session_id_mint(results: Results) -> None:
     mod = _load_session_id_module()
     cache = tempfile.mkdtemp(prefix="ze-sid-mint-", dir=_fixture_root())
     try:
-        a1 = mod._mint_cached(cache, 111)
-        a2 = mod._mint_cached(cache, 111)  # same key -> stable
-        b1 = mod._mint_cached(cache, 222)  # distinct key -> unique
+        a1 = mod._mint_cached(cache, "111-4242")
+        a2 = mod._mint_cached(cache, "111-4242")  # same key -> stable
+        b1 = mod._mint_cached(cache, "222-4242")  # distinct key -> unique
         results.check(
             "session-id-mint-stable",
             a1 == a2 and _UUID_RE.match(a1) is not None,
@@ -1669,11 +1670,11 @@ def _run_session_id_mint(results: Results) -> None:
         # "" from the empty file, hit FileExistsError on the O_EXCL create, and returned
         # a FRESH uuid on every call (never healed until 24h cleanup): the session
         # stopped matching its own markers and gates re-blocked already-done work.
-        empty = os.path.join(cache, ".sid-by-pid-333")
+        empty = os.path.join(cache, ".sid-by-pid-333-4242")
         with open(empty, "w"):
             pass  # zero bytes, exactly what a crashed O_EXCL create leaves
-        c1 = mod._mint_cached(cache, 333)
-        c2 = mod._mint_cached(cache, 333)
+        c1 = mod._mint_cached(cache, "333-4242")
+        c2 = mod._mint_cached(cache, "333-4242")
         results.check(
             "session-id-mint-heals-empty-cache",
             c1 == c2
@@ -1685,51 +1686,97 @@ def _run_session_id_mint(results: Results) -> None:
         shutil.rmtree(cache, ignore_errors=True)
 
 
-def _run_session_id_cleanup_reparse(results: Results) -> None:
-    """R-11: _cleanup_stale_markers must recover a FULL UUID sid, not its last group.
+def _run_session_id_cache_key(results: Results) -> None:
+    """AC-17/AC-18: the minted-id cache is keyed on the PID *and* its START TIME.
 
-    A live session's state file (its .session-<sid> marker exists) that happens to be
-    older than the 24h threshold must SURVIVE. The pre-fix `${fname##*-}` mangled the
-    UUID, looked for a marker that never existed, called the live file an orphan, and
-    deleted it."""
-    work = tempfile.mkdtemp(prefix="ze-sid-cleanup-", dir=_fixture_root())
+    R-9: the key used to be the CLI-ancestor PID alone, and only the 24h age sweep
+    stopped a reused PID from reading a DEAD session's id -- with it, that session's
+    spec claim and gate markers (incidents 1162, 1246). Nothing under tmp/session/
+    ages out any more, so the invalidation moved into the key itself: a reused PID
+    carries a different start time, so the stale entry is never looked up again.
+
+    The reuse case cannot be produced by waiting for the kernel to hand back a PID,
+    so the dead session's start time is substituted for the length of one mint. The
+    LIVE half uses the real reader, on both platforms' branches.
+    """
+    mod = _load_session_id_module()
+    pid = os.getpid()
+    cache = tempfile.mkdtemp(prefix="ze-sid-key-", dir=_fixture_root())
     try:
-        sess = os.path.join(work, "tmp", "session")
-        os.makedirs(sess)
-        sid = "8d3d7c6b-fbad-4077-8f06-4678828041d0"
-        state = os.path.join(sess, f"session-state-spec-vrrp-4-transport-{sid}.md")
-        with open(state, "w") as fh:
-            fh.write("spec-vrrp-4-transport\n")
-        with open(os.path.join(sess, f".session-{sid}"), "w") as fh:
-            fh.write("spec-vrrp-4-transport\n")
-        old = time.time() - 26 * 3600  # older than the 1440-min cleanup threshold
-        os.utime(state, (old, old))
-        subprocess.run(
-            [
-                "bash",
-                "-c",
-                'source "$1"; _cleanup_stale_markers',
-                "_",
-                os.path.join(HOOKS, "lib", "state-file.sh"),
-            ],
-            cwd=work,
-            capture_output=True,
-            text=True,
+        # AC-18, Linux branch: /proc/<pid>/stat field 22 answers for a live process,
+        # is usable as a filename component, and does not move between two calls.
+        live = mod._pstart(pid)
+        results.check(
+            "session-id-start-time-readable",
+            bool(live) and mod._sid_safe(live) == live and live == mod._pstart(pid),
+            f"live={live!r}",
+        )
+        # AC-18, macOS/BSD branch: `ps -o lstart=` answers for the same process and
+        # is equally stable once squeezed to a token. One runner cannot be on both
+        # platforms, so the branch the other one takes is exercised directly rather
+        # than left to the reader's confidence.
+        ps_start = mod._path_token(mod._ps("lstart=", pid))
+        results.check(
+            "session-id-start-time-ps-branch",
+            bool(ps_start)
+            and mod._sid_safe(ps_start) == ps_start
+            and ps_start == mod._path_token(mod._ps("lstart=", pid)),
+            f"ps_start={ps_start!r}",
+        )
+
+        # AC-18: a LIVE session hits its own cache entry and resolves the same id.
+        key = mod._cache_key(pid)
+        results.check(
+            "session-id-cache-key-carries-start-time",
+            key == f"{pid}-{live}",
+            f"key={key!r} pid={pid} live={live!r}",
+        )
+        first = mod._mint_cached(cache, key)
+        second = mod._mint_cached(cache, mod._cache_key(pid))
+        results.check(
+            "session-id-live-cache-hit-stable",
+            first == second and _UUID_RE.match(first) is not None,
+            f"first={first!r} second={second!r}",
         )
         results.check(
-            "session-id-cleanup-keeps-live-uuid-state",
-            os.path.isfile(state),
-            "live UUID state file wrongly deleted (sid mis-parse)",
+            "session-id-cache-file-named-by-key",
+            os.path.isfile(os.path.join(cache, f".sid-by-pid-{key}")),
+            f"key={key!r} files={sorted(os.listdir(cache))}",
+        )
+
+        # AC-17: PID REUSE. The dead session held this PID with an earlier start
+        # time, and its cache entry is still on disk because nothing sweeps
+        # tmp/session/ any more. The new session MUST mint a fresh id.
+        real_pstart = mod._pstart
+        try:
+            mod._pstart = lambda _pid: "1"  # the dead session's start time
+            dead_key = mod._cache_key(pid)
+            dead_id = mod._mint_cached(cache, dead_key)
+        finally:
+            mod._pstart = real_pstart
+        live_id = mod._mint_cached(cache, mod._cache_key(pid))
+        results.check(
+            "session-id-reused-pid-mints-fresh-id",
+            dead_key != key and dead_id != live_id,
+            f"dead_key={dead_key!r} live_key={key!r} dead={dead_id!r} live={live_id!r}",
+        )
+        # The dead entry is not deleted, only unreachable: this fix replaces an
+        # expiry sweep, it does not reintroduce one under another name.
+        results.check(
+            "session-id-reused-pid-leaves-dead-entry",
+            mod._read_cached(os.path.join(cache, f".sid-by-pid-{dead_key}")) == dead_id,
+            f"dead_key={dead_key!r} dead={dead_id!r}",
         )
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        shutil.rmtree(cache, ignore_errors=True)
 
 
 def run_session_id(results: Results) -> None:
     """Lock the shell writer and the Python reader to ONE session id.
 
     These two ends key the same marker files (.lsp-invoked-<sid>,
-    .source-read-<sid>, .session-<sid>, session-state-<stem>-<sid>.md): the shell
+    .source-read-<sid>, .session-<sid>) and the same session directory
+    (<YYYY-MM-DD>-<sid>/state/session-state-<stem>-<sid>.md): the shell
     hooks WRITE them, pretool-writeedit.py READS them. Any disagreement fails
     CLOSED -- the reader looks for a file nothing wrote and blocks work that was in
     fact done (real incident, 2026-07-16; see session_id.__doc__).
@@ -1792,7 +1839,8 @@ def run_session_id(results: Results) -> None:
 
     # With no id source at all, the resolver MUST NOT collapse onto a shared
     # constant (the collision this spec fixes, AC-10/AC-11): it mints a per-session
-    # UUID cached by the CLI-ancestor PID, stable across hook subprocesses. Both ends
+    # UUID cached by the CLI-ancestor PID and its start time, stable across hook
+    # subprocesses. Both ends
     # resolve the SAME id -- one CLI ancestor, one project dir, so bash mints and
     # python reads the same cache. A dedicated project dir keeps the minted cache out
     # of the live repo and makes the assertion deterministic.
@@ -1845,7 +1893,7 @@ def run_session_id(results: Results) -> None:
     )
 
     _run_session_id_mint(results)
-    _run_session_id_cleanup_reparse(results)
+    _run_session_id_cache_key(results)
 
 
 # --------------------------------------------------------------------------- #
@@ -3187,6 +3235,30 @@ def _deleg_env(work: str) -> dict:
     return dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=_DELEG_SID)
 
 
+def _deleg_state_dir(work: str) -> str:
+    """The fixture session's `state/` directory, created.
+
+    The same glob-then-name rule the shell (`lib/session-dir.sh`), make and Go
+    use: the dated directory that already carries this id, else today's. A
+    fixture that spelled `tmp/session/` flat would pin the location the digest
+    left (plan/spec-session-bin-directory.md, AC-20).
+    """
+    root = os.path.join(work, "tmp", "session")
+    found = sorted(
+        d
+        for d in glob.glob(os.path.join(root, f"????-??-??-{_DELEG_SID}"))
+        if os.path.isdir(d)
+    )
+    session = (
+        found[0]
+        if found
+        else os.path.join(root, f"{datetime.date.today().isoformat()}-{_DELEG_SID}")
+    )
+    state = os.path.join(session, "state")
+    os.makedirs(state, exist_ok=True)
+    return state
+
+
 def _run_stop_hook(work: str, message: str | None = None) -> tuple[int, str]:
     """Drive block-premature-stop.sh. The default message carries no stop phrases,
     so only the STATE reasons can fire. Pass `message` to drive the phrase scan."""
@@ -3328,10 +3400,10 @@ def run_delegation(results: Results) -> None:
     # tmp/session/.session-<SID> (lib/state-file.sh) on every Stop event.
     # block-premature-stop.sh reads that marker to decide whether to run the
     # closure gate, the in-progress warning and this delegation nudge, so it must
-    # still run first. The release now happens on SessionEnd instead, which is
-    # what keeps the claim alive past turn one; `delegation-claim-survives-stop`
-    # below pins that half, and this fixture pins the ordering half. Neither
-    # alone makes the three gates work.
+    # still run first. No hook releases the claim now: `spec-session.sh release`
+    # does, from /ze-close, which is what keeps the claim alive past turn one.
+    # `delegation-claim-survives-stop` below pins that half, and this fixture
+    # pins the ordering half. Neither alone makes the three gates work.
     def _index(suffix: str) -> int:
         for i, c in enumerate(stop):
             if c.endswith(suffix):
@@ -3595,7 +3667,7 @@ def run_delegation(results: Results) -> None:
             summary.returncode == 0
             and os.path.isfile(
                 os.path.join(
-                    work, "tmp", "session", f"session-state-fixture-{_DELEG_SID}.md"
+                    _deleg_state_dir(work), f"session-state-fixture-{_DELEG_SID}.md"
                 )
             ),
             "session-end-summary.sh did not run its full path, so the release "
@@ -3616,38 +3688,31 @@ def run_delegation(results: Results) -> None:
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
-    # The OFF half of the same lifetime. Moving the release to SessionEnd is only
-    # half a fix if nothing asserts the release still happens: deleting the line
-    # outright left the whole suite green, so a future session could "fix a leak"
-    # by removing the release and get a clean bar. SessionEnd resolves its id from
-    # stdin, not the environment, so drive it the way the harness does.
-    def _session_end(work: str, sid: str, reason: str) -> None:
-        subprocess.run(
-            ["bash", os.path.join(HOOKS, "session-end-scratch.sh")],
-            input=json.dumps({"session_id": sid, "reason": reason}),
-            text=True,
-            capture_output=True,
-            env=_deleg_env(work),
-            timeout=60,
-        )
+    # The OFF half of the same lifetime, inverted on 2026-08-10.
+    #
+    # The claim used to be released at SessionEnd, by a hook whose other job was
+    # `rm -rf` of the whole session directory. Both are gone: nothing under
+    # tmp/session/ is ever removed automatically, at any event or on any timer
+    # (owner decision 2026-08-03, plan/spec-session-bin-directory.md AC-7). The
+    # claim now ages out of RELEVANCE rather than existence, and the heartbeat
+    # below is what dates it.
+    #
+    # Deletion at that event can only come back through settings.json, so that
+    # is what this reads. A hook file nobody registers runs never, and a
+    # registered one runs on every session end in this checkout.
+    with open(os.path.join(ROOT, ".claude", "settings.json")) as fh:
+        session_end_hooks = json.load(fh).get("hooks", {}).get("SessionEnd", [])
+    results.check(
+        "delegation-no-session-end-hook-registered",
+        session_end_hooks == [],
+        f"a SessionEnd hook is registered again: {session_end_hooks!r}. The only "
+        "work that event ever did here was deleting tmp/session/, which AC-7 bans",
+    )
 
-    work = _deleg_project(spec="spec-fixture.md")
-    try:
-        marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
-        _session_end(work, _DELEG_SID, "other")
-        results.check(
-            "delegation-claim-released-at-session-end",
-            not os.path.isfile(marker),
-            "SessionEnd did not release the claim, so claims leak forever",
-        )
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-    # A live session's claim must not age out. _cleanup_stale_markers deletes a
-    # marker over 24h old and runs at every session start, while _claim_spec sets
-    # the mtime once. A session running longer than a day lost its claim, and all
-    # three marker-gated checks with it, as soon as any other session started.
-    # Reaching a Stop proves the session is alive, so the hook refreshes it.
+    # The claim's mtime is a LIVENESS date, so a session that is still working
+    # must refresh it: reaching a Stop proves the session is alive. Nothing
+    # deletes a stale claim any more, so the mtime is the only thing that tells
+    # a live claim from one a dead session left behind.
     work = _deleg_project(spec="spec-fixture.md", spawned=False)
     try:
         marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
@@ -3657,44 +3722,72 @@ def run_delegation(results: Results) -> None:
         results.check(
             "delegation-claim-heartbeat-on-stop",
             os.path.getmtime(marker) > old + 3600,
-            "the hook did not refresh the claim, so a >24h session loses it to "
-            "_cleanup_stale_markers the next time any session starts",
+            "the hook did not refresh the claim, so a >24h session cannot be "
+            "told from a dead one that left its claim behind",
         )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
-        # And the refresh must actually save it from the sweep.
-        #
-        # A control marker rides the SAME sweep. Asserting only that the live
-        # claim survived is one-sided: it passes whether the heartbeat saved it
-        # or the sweep simply never ran. The control is aged and never touched,
-        # so it MUST be gone. If both survive, the sweep is broken or was never
-        # invoked, and this fixture says so instead of going green.
-        control = os.path.join(work, "tmp", "session", ".session-dead-fixture-sid")
-        with open(control, "w") as fh:
-            fh.write("spec-fixture.md\n")
-        os.utime(control, (old, old))
+    # SessionStart deletes NOTHING. It once ran a seven-`find` sweep over
+    # tmp/session/, reclaimed "orphaned" state files, and reaped whole dated
+    # session directories whose files were 24h idle. Every one of those removed
+    # the operator's data without being asked, and the orphan reclaim deleted a
+    # LIVE session's state file whenever the sid parse missed (incident R-11).
+    #
+    # Everything planted here is aged past the old 24h threshold and would have
+    # been swept by name. Each survivor is one deleted `find`, so this fixture
+    # goes red the moment any of them is written back, whatever it is called.
+    work = _deleg_project(spec="spec-fixture.md", spawned=True)
+    try:
+        sess = os.path.join(work, "tmp", "session")
+        old = time.time() - 26 * 3600
+        uuid_sid = "8d3d7c6b-fbad-4077-8f06-4678828041d0"
+        planted = [
+            # The claim, and the gate markers the mark-*.sh hooks write.
+            os.path.join(sess, f".session-{_DELEG_SID}"),
+            os.path.join(sess, f".agent-spawned-{_DELEG_SID}"),
+            os.path.join(sess, ".compaction-detected-dead-fixture-sid"),
+            os.path.join(sess, ".source-read-dead-fixture-sid"),
+            os.path.join(sess, ".lsp-invoked-dead-fixture-sid"),
+            # The minted-id cache. Its expiry was the one sweep doing real work,
+            # and session_id.py `_cache_key` replaced it with a start-time key.
+            os.path.join(sess, ".sid-by-pid-4242-99"),
+            # A state file with NO marker beside it: the orphan the reclaim took.
+            os.path.join(sess, f"session-state-spec-vrrp-4-transport-{uuid_sid}.md"),
+        ]
+        for path in planted:
+            if not os.path.exists(path):
+                with open(path, "w") as fh:
+                    fh.write("planted\n")
+            os.utime(path, (old, old))
+        # A whole session directory, idle past the threshold: what --reap took.
+        dead_dir = os.path.join(sess, "2026-01-02-dead-fixture-sid")
+        os.makedirs(os.path.join(dead_dir, "bin"), exist_ok=True)
+        binary = os.path.join(dead_dir, "bin", "ze")
+        with open(binary, "w") as fh:
+            fh.write("binary\n")
+        for path in (binary, os.path.join(dead_dir, "bin"), dead_dir):
+            os.utime(path, (old, old))
 
-        sweep = subprocess.run(
-            [
-                "bash",
-                "-c",
-                "source .claude/hooks/lib/state-file.sh; _cleanup_stale_markers",
-            ],
-            cwd=work,
+        start = subprocess.run(
+            ["bash", os.path.join(HOOKS, "session-start.sh")],
+            input="{}",
+            text=True,
             capture_output=True,
             env=_deleg_env(work),
             timeout=60,
         )
+        gone = [os.path.basename(p) for p in planted if not os.path.exists(p)]
         results.check(
-            "delegation-stale-sweep-actually-ran",
-            sweep.returncode == 0 and not os.path.isfile(control),
-            "the sweep did not run or reaped nothing, so the survival check "
-            f"below proves nothing (rc={sweep.returncode}, "
-            f"control_present={os.path.isfile(control)})",
+            "delegation-session-start-deletes-no-marker",
+            start.returncode == 0 and not gone,
+            f"SessionStart removed {gone} (rc={start.returncode}); nothing under "
+            "tmp/session/ may be deleted automatically",
         )
         results.check(
-            "delegation-claim-survives-stale-sweep",
-            os.path.isfile(marker),
-            "the 24h sweep deleted a live session's claim",
+            "delegation-session-start-reaps-no-session-dir",
+            os.path.isfile(binary),
+            "SessionStart reaped a dated session directory and the binaries in it",
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -3719,9 +3812,9 @@ def run_delegation(results: Results) -> None:
         shutil.rmtree(work, ignore_errors=True)
 
     # The heartbeat must never CREATE a marker. A bare touch would resurrect a
-    # claim deleted by a sibling session's sweep as an EMPTY file, which silently
-    # skips every gate below it, and would invent a spawn marker for a session
-    # that never delegated, silencing the nudge it exists to raise.
+    # claim released by `spec-session.sh release` as an EMPTY file, which
+    # silently skips every gate below it, and would invent a spawn marker for a
+    # session that never delegated, silencing the nudge it exists to raise.
     work = _deleg_project(spec="spec-fixture.md", spawned=False)
     try:
         spawned = os.path.join(work, "tmp", "session", f".agent-spawned-{_DELEG_SID}")
@@ -3730,19 +3823,6 @@ def run_delegation(results: Results) -> None:
             "delegation-heartbeat-never-creates-spawn-marker",
             not os.path.isfile(spawned) and "Delegation:" in err,
             "the heartbeat invented a spawn marker, silencing the nudge",
-        )
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-    # A session ending only to be resumed is not over, so it keeps its claim.
-    work = _deleg_project(spec="spec-fixture.md")
-    try:
-        marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
-        _session_end(work, _DELEG_SID, "resume")
-        results.check(
-            "delegation-claim-survives-resume",
-            os.path.isfile(marker),
-            "a resumed session lost its claim",
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -3786,7 +3866,7 @@ def _state_project(body: str) -> tuple[str, str]:
     with open(os.path.join(work, "dirty.txt"), "w") as fh:
         fh.write("uncommitted\n")
     state = os.path.join(
-        work, "tmp", "session", f"session-state-fixture-{_DELEG_SID}.md"
+        _deleg_state_dir(work), f"session-state-fixture-{_DELEG_SID}.md"
     )
     with open(state, "w", encoding="utf-8") as fh:
         fh.write("# Session State\n\n" + body)
@@ -3909,6 +3989,250 @@ def run_session_state(results: Results) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# session-state-location: WHERE the digest lands, and where it is found
+# (plan/spec-session-bin-directory.md AC-20, AC-21, AC-22)
+# --------------------------------------------------------------------------- #
+
+
+def _run_state_lib(work: str, snippet: str) -> subprocess.CompletedProcess:
+    """Drive lib/state-file.sh directly, from the fixture project root.
+
+    The functions are the producers AC-20 and AC-21 are about, so the fixture
+    calls them rather than asserting over a path this file spelled itself.
+    """
+    return subprocess.run(
+        ["bash", "-c", "source .claude/hooks/lib/state-file.sh\n" + snippet],
+        cwd=work,
+        text=True,
+        capture_output=True,
+        env=_deleg_env(work),
+        timeout=60,
+    )
+
+
+def _plant(path: str, body: str = "# state\n", age_hours: float = 0.0) -> str:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    if age_hours:
+        old = time.time() - age_hours * 3600
+        os.utime(path, (old, old))
+    return path
+
+
+def run_session_state_location(results: Results) -> None:
+    """The per-spec digest lives in the directory of the session that wrote it.
+
+    It used to sit flat under tmp/session/, because _find_latest_state_for_spec
+    reads it ACROSS sessions and a per-session directory looked like it would
+    hide it. A glob that walks every session directory's state/ reads it equally
+    well, so the digest joined bin/ and scratch/ under
+    tmp/session/<YYYY-MM-DD>-<sid>/ (owner decision 2026-08-10).
+
+    Digests written before that move still sit flat, this spec's own among them.
+    The resolver reads both locations newest-first: deleting the flat branch
+    makes every one of them unreachable, and a resolver that returns nothing
+    looks exactly like a spec with no prior phase.
+    """
+    print("session-state-location:")
+
+    # AC-20: the digest path names the session's own directory, under state/.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        r = _run_state_lib(work, "_state_file")
+        path = r.stdout.strip()
+        want = os.path.join(
+            f"{datetime.date.today().isoformat()}-{_DELEG_SID}",
+            "state",
+            f"session-state-fixture-{_DELEG_SID}.md",
+        )
+        results.check(
+            "session-state-digest-lands-in-the-session-directory",
+            r.returncode == 0 and path.endswith(want),
+            f"rc={r.returncode} path={path!r} want tail {want!r}",
+        )
+        results.check(
+            "session-state-digest-directory-is-created",
+            os.path.isdir(os.path.join(work, os.path.dirname(path))),
+            f"_state_file named {path!r} without creating its directory",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # AC-20, the other half: the writers put NOTHING flat under tmp/session/.
+    # A Stop and a PreCompact both rewrite the digest, so both are driven.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        subprocess.run(["git", "init", "-q", "."], cwd=work, capture_output=True)
+        _plant(os.path.join(work, "dirty.txt"), "uncommitted\n")
+        for hook in ("session-end-summary.sh", "pre-compact-save.sh"):
+            _run_state_hook(work, hook)
+        flat = glob.glob(os.path.join(work, "tmp", "session", "session-state-*.md"))
+        nested = glob.glob(
+            os.path.join(work, "tmp", "session", "*", "state", "session-state-*.md")
+        )
+        results.check(
+            "session-state-nothing-is-written-flat",
+            not flat and len(nested) == 1,
+            f"flat={[os.path.basename(p) for p in flat]} nested={len(nested)}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # AC-13's rule applies here too: the directory is LOOKED UP. A session whose
+    # directory was made on an earlier day keeps writing into that directory,
+    # rather than starting a second one at midnight.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        os.makedirs(
+            os.path.join(work, "tmp", "session", f"2026-01-02-{_DELEG_SID}", "state")
+        )
+        r = _run_state_lib(work, "_state_file")
+        results.check(
+            "session-state-digest-reuses-an-existing-dated-directory",
+            r.returncode == 0 and f"2026-01-02-{_DELEG_SID}/state/" in r.stdout,
+            r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # AC-21: an earlier session's digest, inside that session's own directory,
+    # is found by stem. The flat digest planted beside it is OLDER, so the
+    # newest-first order is what decides -- and it must be the nested one.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        sess = os.path.join(work, "tmp", "session")
+        _plant(
+            os.path.join(sess, "session-state-fixture-oldsession.md"),
+            "# flat digest\n",
+            age_hours=48,
+        )
+        nested = _plant(
+            os.path.join(
+                sess, "2026-08-01-oldsession", "state", "session-state-fixture-old2.md"
+            ),
+            "# nested digest\n",
+            age_hours=1,
+        )
+        r = _run_state_lib(work, '_find_latest_state_for_spec "fixture"')
+        results.check(
+            "session-state-resolver-walks-every-session-directory",
+            r.returncode == 0
+            and r.stdout.strip().endswith("session-state-fixture-old2.md"),
+            f"want the nested digest {nested!r}, got {r.stdout.strip()!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # BACK-COMPATIBILITY, and the reason the flat branch is not deleted: a
+    # digest written before the move is the ONLY one a resuming session has.
+    # This case is what goes red if that branch goes away.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        flat = _plant(
+            os.path.join(work, "tmp", "session", "session-state-fixture-oldsession.md"),
+            "# the only digest this spec has\n",
+        )
+        r = _run_state_lib(work, '_find_latest_state_for_spec "fixture"')
+        results.check(
+            "session-state-resolver-still-finds-a-flat-digest",
+            r.returncode == 0
+            and r.stdout.strip().endswith("session-state-fixture-oldsession.md"),
+            f"the pre-move digest {flat!r} is unreachable; the resolver said "
+            f"{r.stdout.strip()!r}, which reads as a spec with no prior phase",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The reverse order proves the same branch is not simply first: a nested
+    # digest alone resolves too.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        _plant(
+            os.path.join(
+                work,
+                "tmp",
+                "session",
+                "2026-08-01-oldsession",
+                "state",
+                "session-state-fixture-old2.md",
+            )
+        )
+        r = _run_state_lib(work, '_find_latest_state_for_spec "fixture"')
+        results.check(
+            "session-state-resolver-finds-a-nested-digest-alone",
+            r.returncode == 0
+            and r.stdout.strip().endswith("session-state-fixture-old2.md"),
+            r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The two .claude/ fallbacks predate tmp/session/ entirely and still resolve.
+    for name, want in (
+        ("session-state-fixture-ancientsid.md", "session-state-fixture-ancientsid.md"),
+        ("session-state-fixture.md", "session-state-fixture.md"),
+    ):
+        work = _deleg_project(spec="spec-fixture.md")
+        try:
+            _plant(os.path.join(work, ".claude", name))
+            r = _run_state_lib(work, '_find_latest_state_for_spec "fixture"')
+            results.check(
+                f"session-state-resolver-legacy-{name}",
+                r.returncode == 0 and r.stdout.strip().endswith(want),
+                r.stdout,
+            )
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+    # AC-22: the two files that CANNOT move stay flat, and nothing this change
+    # touches puts them anywhere else. .sid-by-pid-<clipid> mints the id the
+    # directory is named for, and .closure-ack-<stem> is keyed by spec stem, so
+    # it outlives every session that reads it. The gate markers stay flat too
+    # (2026-08-03 decision, unchanged): the whole session-start run is driven
+    # here so a marker moved by any hook shows up.
+    work = _deleg_project(spec="spec-fixture.md", spawned=True)
+    try:
+        sess = os.path.join(work, "tmp", "session")
+        planted = [
+            ".sid-by-pid-4242-99",
+            ".closure-ack-fixture",
+            f".lsp-loaded-{_DELEG_SID}",
+            f".source-read-{_DELEG_SID}",
+            f".model-ack-{_DELEG_SID}",
+            f".compaction-detected-{_DELEG_SID}",
+        ]
+        for name in planted:
+            _plant(os.path.join(sess, name), "planted\n")
+        # _deleg_project wrote these two; re-planting .session-<sid> would
+        # destroy the spec claim session-start.sh is about to read.
+        flat_names = planted + [
+            f".session-{_DELEG_SID}",
+            f".agent-spawned-{_DELEG_SID}",
+        ]
+        subprocess.run(
+            ["bash", os.path.join(HOOKS, "session-start.sh")],
+            input="{}",
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+        moved = [n for n in flat_names if not os.path.isfile(os.path.join(sess, n))]
+        strays = [
+            os.path.basename(p)
+            for p in glob.glob(os.path.join(sess, "*", "state", ".*"))
+        ]
+        results.check(
+            "session-state-flat-markers-do-not-move",
+            not moved and not strays,
+            f"missing from tmp/session/: {moved}; found under state/: {strays}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------- #
 # subagent-context: what the spawn-time injection carries (AC-5)
 # The delegation section above pins that the block names the parent's spec.
 # This one pins its CONTENT: the context-economy directives, and the per-spec
@@ -3975,7 +4299,7 @@ def run_subagent_context(results: Results) -> None:
     # lib/state-file.sh, never spelled a second time by the hook.
     work = _deleg_project(spec="spec-fixture.md")
     state = os.path.join(
-        work, "tmp", "session", f"session-state-fixture-{_DELEG_SID}.md"
+        _deleg_state_dir(work), f"session-state-fixture-{_DELEG_SID}.md"
     )
     try:
         with open(state, "w", encoding="utf-8") as fh:
@@ -4467,6 +4791,7 @@ SECTIONS = {
     "design-gate": run_design_gate,
     "delegation": run_delegation,
     "session-state": run_session_state,
+    "session-state-location": run_session_state_location,
     "subagent-context": run_subagent_context,
     "delegation-reminder": run_delegation_reminder,
     "phase-gates": run_phase_gates,

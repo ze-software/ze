@@ -92,6 +92,11 @@ You are a subagent under ai/rules/planning.md. Your contract:
   ai/rules/CORE.md is already loaded in full and needs no read.
 - Never claim done with work remaining (ai/rules/completion.md), and
   never park a blocker or weaken a test to reach green (ai/rules/completion.md).
+- Write every log, capture and scratch file under
+  dir=$(scripts/dev/session-scratch.sh), which is the scratch/ subdirectory of
+  tmp/session/<YYYY-MM-DD>-<session-id>/. tmp/ is keyed per CHECKOUT, so a fixed name at its root
+  (tmp/out.log, tmp/agentA.log) is the same file for every session working this
+  tree, and nothing cleans it. Full rule: ai/rules/commands.md.
 - Batch independent tool calls into ONE message: 85% of measured API calls
   carried exactly one tool call.
 - Read the range you were given; where none was, Grep first and Read the range

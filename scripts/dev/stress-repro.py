@@ -134,8 +134,9 @@ def _bin_from_env(key, default):
     so `ze.bin` and `ZE_BIN` are the same setting; accept both spellings.
 
     This MUST honour the environment. Under an AI session every canonical binary is
-    built session-suffixed (mk/session.mk) and the functional make targets run against
-    an isolated pair under tmp/ (mk/test-functional.mk), exporting ZE_BIN/ZE_TEST_BIN
+    built into that session's own directory (mk/session.mk ZE_BIN_DIR) and the
+    functional make targets run against an isolated pair under tmp/
+    (mk/test-functional.mk), exporting ZE_BIN/ZE_TEST_BIN
     to point at it. Hardcoding bin/ze made this tool silently stress a STALE binary:
     a fix under test looked "still reproducing" because the run never contained it,
     which is the same false-red class ai/rules/commands.md documents for bare

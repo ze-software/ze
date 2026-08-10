@@ -1540,12 +1540,11 @@ def _sweep_stale_commit_views(repo: Path) -> None:
     and nothing else in the repo reaps them: they accumulate in the project tmp/
     at ~190MB apiece.
 
-    Deliberately HERE rather than beside the other stale-marker sweeps in
-    `_cleanup_stale_markers` (.claude/hooks/lib/state-file.sh): that function runs
-    only from Claude Code session hooks and only knows tmp/session/ markers, while
-    commit_helper.py is a standalone tool that humans, CI, and the fixture tests
-    also run. Sweeping in the producer means whatever next reaches the code that
-    creates these directories also collects them, with no harness required.
+    Deliberately in the PRODUCER, so whatever next reaches the code that creates
+    these directories also collects them, with no harness required. No session
+    hook could do it anyway: nothing under tmp/session/ is ever swept, and these
+    trees are not under it -- they sit at the tmp/ root, which only the
+    operator's own `make ze-clean-tmp` reaps.
 
     One day old, so a concurrent session's LIVE view (which lasts seconds) can
     never be in scope.

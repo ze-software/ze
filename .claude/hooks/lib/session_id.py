@@ -2,7 +2,8 @@
 """The ONE session-id resolver for the .claude/hooks harness.
 
 Every hook that names a per-session marker under tmp/session/ (.lsp-loaded-<sid>,
-.lsp-invoked-<sid>, .source-read-<sid>, .session-<sid>, session-state-<sid>.md)
+.lsp-invoked-<sid>, .source-read-<sid>, .session-<sid>) or the session directory
+holding the digest (tmp/session/<YYYY-MM-DD>-<sid>/state/session-state-*.md)
 resolves the <sid> HERE, and only here. Two faces:
 
   * an importable ``session_id()`` for the in-process Python callers
@@ -27,10 +28,12 @@ Precedence:
      `ps` on macOS/BSD.
   3. CLAUDE_CODE_SESSION_ACCESS_TOKEN JWT session_id claim, when present (empty for
      subscription auth).
-  4. A UUID minted once and cached at tmp/session/.sid-by-pid-<clipid>, keyed by the
-     long-lived CLI-ancestor PID. Per-session unique AND stable across the many
-     short-lived hook subprocesses -- it replaces the old shared constant
-     "claude-session-fallback", which every concurrent session collided on.
+  4. A UUID minted once and cached at tmp/session/.sid-by-pid-<clipid>-<starttime>,
+     keyed by the long-lived CLI-ancestor PID AND that process's start time.
+     Per-session unique AND stable across the many short-lived hook subprocesses --
+     it replaces the old shared constant "claude-session-fallback", which every
+     concurrent session collided on. The start time is what retires a dead session's
+     entry (see _cache_key): a reused PID never reads it.
 
 An id from any source is used only when it is safe as a filename component
 ([A-Za-z0-9._-]); anything else falls through rather than being rewritten, so the
@@ -49,10 +52,21 @@ import uuid
 # rewrite, so two callers cannot silently diverge on the resulting marker path.
 _SID_SAFE_RE = re.compile(r"\A[A-Za-z0-9._-]+\Z")
 
+# A cache-key part is a filename component too, so anything outside that charset is
+# squeezed rather than carried through: `ps -o lstart=` prints "Mon Aug  3 00:59:30
+# 2026", spaces included. This applies to the cache FILE name only. The id itself is
+# still rejected rather than rewritten (_sid_safe).
+_TOKEN_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
 
 def _sid_safe(sid: str) -> str:
     """Return sid when it is usable as a filename component, else ''."""
     return sid if sid and _SID_SAFE_RE.match(sid) else ""
+
+
+def _path_token(value: str) -> str:
+    """Squeeze value into a filename component, or '' when nothing usable is left."""
+    return _TOKEN_UNSAFE_RE.sub("_", value.strip()).strip("_")
 
 
 def _project_dir() -> str:
@@ -113,6 +127,29 @@ def _pcomm(pid: int) -> str:
         except Exception:
             return ""
     return _ps("comm=", pid)
+
+
+def _pstart(pid: int) -> str:
+    """Start time of pid as a filename token, via /proc (Linux) or ps (macOS/BSD).
+
+    Linux: field 22 of /proc/<pid>/stat, the start time in clock ticks since boot.
+    The scan begins after the LAST ')' because field 2 is the parenthesised command
+    name and can itself hold spaces and parentheses, which a plain split() mis-counts.
+    macOS/BSD: `ps -o lstart=`, whose "Mon Aug  3 00:59:30 2026" becomes a token.
+
+    Returns '' when neither source answers.
+    """
+    stat = f"/proc/{pid}/stat"
+    if os.path.isfile(stat):
+        try:
+            with open(stat) as fh:
+                raw = fh.read()
+            # Field 3 (state) is the first one after the command name, so field 22
+            # sits at index 19 of the remainder.
+            return _path_token(raw[raw.rindex(")") + 1 :].split()[19])
+        except Exception:
+            return ""
+    return _path_token(_ps("lstart=", pid))
 
 
 def _session_id_from_argv(argv: list[str]) -> str:
@@ -192,8 +229,10 @@ def _cli_ancestor_pid() -> int:
     Walk the process tree and return the nearest ancestor that looks like the CLI
     (_is_cli: `claude` as comm basename or an argv path component). It is stable
     across a session's short-lived hook subprocesses and distinct between concurrent
-    top-level sessions. The PID is never itself the id, only the cache key, so PID
-    reuse cannot alias a stale marker set once the cache file ages out.
+    top-level sessions. The PID is never itself the id, only part of the cache key:
+    _cache_key pairs it with this process's start time, so a REUSED PID yields a
+    different key and cannot alias the dead session's id or its markers. That pairing
+    is what makes the entry self-invalidating; it does not depend on any sweep.
 
     Fallback: if NO ancestor looks like the CLI, key on the topmost walkable
     ancestor. Known limitation (source-4 only): two sessions launched from ONE shell,
@@ -226,28 +265,46 @@ def _read_cached(path: str) -> str:
         return ""
 
 
-def _mint_cached(cache_dir: str, clipid: int) -> str:
-    """Return a per-clipid UUID from cache_dir, minting on first miss (source 4).
+def _cache_key(clipid: int) -> str:
+    """Cache key for the minted id: the CLI-ancestor PID AND its start time.
 
-    Stable: the same (cache_dir, clipid) always yields the same id, so every
+    A PID alone is reusable. The kernel hands the same number to a new process once
+    the old one is gone, and a session keyed on it would read the DEAD session's
+    cached id -- adopting its spec claim and its gate markers (incidents 1162, 1246).
+    Pairing the PID with the start time makes the entry self-invalidating: a reused
+    PID carries a different start time, so the stale entry is never looked up again
+    and needs no expiry to retire it.
+
+    'unknown' when neither /proc nor `ps` answers. That is the pre-2026-08-10 PID-only
+    key, and the alias window with it. Both supported platforms answer, and spelling
+    the degraded case out keeps it visible in `ls tmp/session/`.
+    """
+    return f"{clipid}-{_pstart(clipid) or 'unknown'}"
+
+
+def _mint_cached(cache_dir: str, key: str) -> str:
+    """Return a per-key UUID from cache_dir, minting on first miss (source 4).
+
+    Stable: the same (cache_dir, key) always yields the same id, so every
     short-lived hook subprocess of one session resolves identically. Unique:
-    distinct clipid yields a distinct minted UUID, so concurrent sessions never
-    share a marker set. A cache hit refreshes the file mtime so a live session's
-    cache does not age out from under it.
+    a distinct key yields a distinct minted UUID, so concurrent sessions never
+    share a marker set. A cache hit refreshes the file mtime. Nothing ages the
+    file out any more, so the touch no longer defends against a sweep; it dates
+    the entry, which is how an operator tells a live cache from a dead one.
 
     The published cache file is NEVER empty or partial: the id is written to a
     per-pid temp file and atomically os.replace()d into place, so a reader always
     sees either the previous file or the fully-written new one. A plain O_EXCL create
     leaves an EMPTY file visible between create and the separate write; a reader (or
     the writer after a crash there) would then read "", fall through, and mint a fresh
-    id on every call -- the session never matches its own markers until the 24h
-    cleanup. Treating an empty/garbage cache as a miss and overwriting it atomically
+    id on every call -- the session never matches its own markers, and nothing sweeps
+    the poison away. Treating an empty/garbage cache as a miss and overwriting it atomically
     heals that poison. Residual (acceptable for a last-resort fallback): two source-4
     subprocesses of the SAME session that both miss at the same instant may
     os.replace() different ids; last writer wins and the cache is stable from the next
     call on.
     """
-    cache = os.path.join(cache_dir, f".sid-by-pid-{clipid}")
+    cache = os.path.join(cache_dir, f".sid-by-pid-{key}")
     existing = _read_cached(cache)
     if existing:
         try:
@@ -261,7 +318,7 @@ def _mint_cached(cache_dir: str, clipid: int) -> str:
     except OSError:
         pass
     minted = str(uuid.uuid4())
-    tmp = os.path.join(cache_dir, f".sid-by-pid-{clipid}.{os.getpid()}.tmp")
+    tmp = os.path.join(cache_dir, f".sid-by-pid-{key}.{os.getpid()}.tmp")
     try:
         with open(tmp, "w") as fh:
             fh.write(minted + "\n")
@@ -276,7 +333,7 @@ def _mint_cached(cache_dir: str, clipid: int) -> str:
 
 
 def _sid_minted() -> str:
-    return _mint_cached(_session_dir(), _cli_ancestor_pid())
+    return _mint_cached(_session_dir(), _cache_key(_cli_ancestor_pid()))
 
 
 def session_id() -> str:

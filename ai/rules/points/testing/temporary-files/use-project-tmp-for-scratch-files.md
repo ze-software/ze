@@ -4,4 +4,6 @@ level:
 stage:
 ---
 Use project `tmp/` (gitignored) for scratch files, never `/tmp`.
-Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep artifacts isolated.
+A subfolder per debugging task (`tmp/watchdog-debug/`) isolates artifacts from each
+other, but not from a sibling session: put it under your session's own directory
+(below), unless the artifact must outlive the session.

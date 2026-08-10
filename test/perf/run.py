@@ -70,17 +70,15 @@ def config_path(filename):
 
 
 # ZE_PERF_BIN lets the caller name the host binary. Under an AI session every
-# canonical binary is built session-suffixed (mk/session.mk ZE_BIN_SUFFIX), so
-# `make ze-perf-bench` passes $(ZEBIN_PERF) rather than relying on a bare name
-# a sibling session could be rebuilding underneath this run.
-ZE_PERF_SRC = os.environ.get("ZE_PERF_BIN") or os.path.join(
-    PROJECT_ROOT, "bin", "ze-perf"
-)
+# canonical binary is built into that session's own directory (mk/session.mk
+# ZE_BIN_DIR) under its BARE name, so `make ze-perf-bench` passes $(ZEBIN_PERF)
+# rather than relying on a bare name a sibling session could be rebuilding
+# underneath this run. The basename stays `ze-perf` either way, which is what
+# argv[0] personality dispatch needs (cmd/ze/dispatch.go binarySuffixRoot).
+ZE_PERF = os.environ.get("ZE_PERF_BIN") or os.path.join(PROJECT_ROOT, "bin", "ze-perf")
 ZE_PERF_LINUX = os.path.join(PROJECT_ROOT, "bin", "ze-perf-linux")
 # Scratch dir for anything this run materialises on the host.
 RUN_DIR = os.path.join(PROJECT_ROOT, "tmp", "perf-run")
-# Rebound in main() to a path whose basename is exactly `ze-perf` (bare_named_perf).
-ZE_PERF = ZE_PERF_SRC
 
 # ze-perf is cmd/ze selected by build tag, not its own cmd/ directory (folded in
 # by eac6ec186). ze_perf drives an in-process BGP reactor, so it must force
@@ -275,9 +273,10 @@ def generate_to_file(cmd, dest):
     as f: subprocess.run(..., check=False, stdout=f)` empties the file BEFORE the
     generator runs and then ignores its exit code, so a generator that fails for
     any reason leaves nothing behind -- that is how a failing `ze-perf report`
-    (unknown subcommand, see bare_named_perf) silently emptied the committed
-    docs/performance.md to zero bytes. Write to a sibling temp file, check the
-    exit code, and only then move it into place.
+    (unknown subcommand: argv[0] did not end in `ze-perf`, so personality
+    dispatch never ran) silently emptied the committed docs/performance.md to
+    zero bytes. Write to a sibling temp file, check the exit code, and only then
+    move it into place.
     """
     tmp = dest + ".new"
     os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -297,31 +296,6 @@ def generate_to_file(cmd, dest):
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)
-
-
-def bare_named_perf(src):
-    """Return a path to `src` whose basename is exactly `ze-perf`.
-
-    ze-perf is cmd/ze under a build tag, and WHICH personality it runs is decided
-    by argv[0]: binarySuffixRoot (cmd/ze/dispatch.go:127) takes the name segment
-    after the LAST '-' and dispatches it only when it names a registered root
-    command. A session-suffixed bin/ze-perf-<session-id> ends in the session id,
-    so nothing is prepended and `ze-perf report ...` dies with
-    "unknown command: report". The Linux binary is already bind-mounted into the
-    container as /usr/local/bin/ze-perf for exactly this reason; give the host
-    binary the same treatment through a symlink in our own scratch dir rather
-    than clobbering the shared bare bin/ze-perf that a sibling session may be
-    running.
-    """
-    if os.path.basename(src) == "ze-perf":
-        return src
-    link_dir = os.path.join(RUN_DIR, "bin")
-    os.makedirs(link_dir, exist_ok=True)
-    link = os.path.join(link_dir, "ze-perf")
-    if os.path.islink(link) or os.path.exists(link):
-        os.remove(link)
-    os.symlink(os.path.abspath(src), link)
-    return link
 
 
 def build_linux_binary():
@@ -945,15 +919,12 @@ def main():
         return 0
 
     # Check prerequisites.
-    if not os.path.isfile(ZE_PERF_SRC):
+    if not os.path.isfile(ZE_PERF):
         print(
-            f"error: ze-perf not found at {ZE_PERF_SRC}. Run: make ze-perf",
+            f"error: ze-perf not found at {ZE_PERF}. Run: make ze-perf",
             file=sys.stderr,
         )
         return 1
-
-    global ZE_PERF
-    ZE_PERF = bare_named_perf(ZE_PERF_SRC)
 
     build_linux_binary()
 

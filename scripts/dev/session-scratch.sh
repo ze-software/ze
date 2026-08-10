@@ -7,28 +7,43 @@
 # therefore collides with a sibling session's identical name and is never
 # cleaned when a session ends.
 #
-# This helper hands each session its OWN subdir, tmp/s/<session-id>/, so:
-#   * two sessions never clobber each other's scratch, and
-#   * the whole session's scratch is one `rm -rf` at session end
-#     (.claude/hooks/session-end-scratch.sh); `--reap` (from session-start.sh)
-#     is the backstop for sessions that crash before SessionEnd fires.
+# Every session owns one directory, tmp/session/<YYYY-MM-DD>-<session-id>/, and
+# everything that session writes lands in a subdirectory of it:
+#
+#   bin/      this session's binaries, and the etc/ze they resolve (mk/session.mk,
+#             internal/test/sessionpath)
+#   scratch/  ad-hoc logs, probes, captures -- what this helper prints
+#   state/    the per-spec digest session-state-<stem>-<sid>.md
+#             (.claude/hooks/lib/state-file.sh)
+#
+# So two sessions never clobber each other's scratch, and an operator reads the
+# age of a session off its name and removes it by date, with
+# `make ze-clean-sessions BEFORE=<YYYY-MM-DD>`.
+#
+# NOTHING under tmp/session/ is ever removed automatically (owner decision,
+# 2026-08-03): not at session end, not on an age timer, not by a hook. The price
+# is growth; the price of the alternative was deleting the operator's data
+# unasked. --clean below is the one removal this script performs, and only when
+# a person or `make clean` asks for it.
+#
+# THE DIRECTORY IS LOOKED UP, NEVER RECOMPUTED, and the rule lives in ONE shell
+# file, .claude/hooks/lib/session-dir.sh (_session_dir), which this helper and
+# the hooks' state-file.sh both source. make (mk/session.mk) and Go
+# (internal/test/sessionpath) implement the same rule for their own callers, and
+# TestMakeAndGoAgreeOnBinDir (scripts/dev/session_bin_dir_test.py) is what stops
+# the three drifting.
 #
 # <session-id> is the canonical id the hooks resolve (.claude/hooks/lib/session-id.sh),
-# so this helper and the cleanup hook agree on the path whenever the CLI exports
-# $CLAUDE_CODE_SESSION_ID (the normal case; the --reap backstop covers the rest).
+# so this helper and every other consumer of the directory agree on the path.
 #
 # Usage (run from the checkout root; the printed path is root-relative):
-#   dir=$(scripts/dev/session-scratch.sh)          # tmp/s/<id>/, created for you
+#   dir=$(scripts/dev/session-scratch.sh)   # <session-dir>/scratch/, created for you
 #   make ze-unit-test-changed > "$dir/unit.log" 2>&1
-#   scripts/dev/session-scratch.sh --path          # print the path WITHOUT creating it
-#   scripts/dev/session-scratch.sh --reap          # remove dead sessions' dirs (backstop)
-#   scripts/dev/session-scratch.sh --clean         # remove THIS session's dir (`make clean`)
+#   scripts/dev/session-scratch.sh --path   # print the path WITHOUT creating it
+#   scripts/dev/session-scratch.sh --clean  # remove THIS session's dir (`make clean`)
 #
-# --reap and --clean also remove the session-suffixed binaries mk/session.mk
-# builds (bin/ze-<id>, bin/ze-test-<id>, ...). Those cannot live under tmp/s/<id>/
-# because a binary's location determines where ze resolves its config and
-# database (internal/core/paths/paths.go ConfigDirFromBinary), so they are swept
-# by name instead. See plan/spec-session-scoped-build-artifacts.md.
+# --clean removes the WHOLE session directory, binaries included: it is what
+# `make clean` runs, and `make clean` removes bin/ for an off-session build.
 #
 # No `set -u`: session-id.sh reads $CLAUDE_CODE_SESSION_ID and
 # $CLAUDE_CODE_SESSION_ACCESS_TOKEN without defaults (matches spec-session.sh).
@@ -38,90 +53,22 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../.claude/hooks/lib/session-id.sh
 source "$SCRIPT_DIR/../../.claude/hooks/lib/session-id.sh"
+# shellcheck source=../../.claude/hooks/lib/session-dir.sh
+source "$SCRIPT_DIR/../../.claude/hooks/lib/session-dir.sh"
 
 # Operate at the checkout root. Prefer $CLAUDE_PROJECT_DIR so this agrees with
-# the SessionEnd cleanup hook (which uses it); otherwise the git toplevel of the
-# caller's cwd (a test's throwaway repo resolves to itself here).
+# the hooks (which use it); otherwise the git toplevel of the caller's cwd (a
+# test's throwaway repo resolves to itself here).
 root="${CLAUDE_PROJECT_DIR:-}"
 if [ -z "$root" ]; then
     root=$(git rev-parse --show-toplevel 2>/dev/null) || root="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
 cd "$root" || exit 1
 
-# reap_dead removes per-session scratch dirs left by sessions that ended without
-# firing SessionEnd (crash/kill). It reaps a dir only when NOTHING inside was
-# modified in the last 24h -- keyed on file activity (find -mmin), never the
-# dir's own mtime, which an append/overwrite into an existing file does not
-# update. So a session still writing is never reaped mid-run; a session idle for
-# 24h is treated as dead and self-heals (mkdir -p recreates the dir on next use).
-reap_dead() {
-    [ -d tmp/s ] || return 0
-    local d sid
-    for d in tmp/s/*/; do
-        [ -d "$d" ] || continue
-        if [ -z "$(find "$d" -mmin -1440 -print -quit 2>/dev/null)" ]; then
-            sid=$(basename "$d")
-            rm -rf "$d"
-            reap_binaries "$sid" 1
-        fi
-    done
-}
-
-# reap_binaries removes the session-suffixed binaries mk/session.mk built for
-# <sid> (bin/ze-<sid>, bin/ze-test-<sid>, bin/ze-linux-arm64-<sid>, ...).
-#
-# Those live in bin/ rather than under tmp/s/<sid>/ on purpose: a binary's
-# location decides where ze looks for its config and database
-# (internal/core/paths/paths.go ConfigDirFromBinary), so moving them would
-# repoint the daemon away from the repository's live etc/ze. The trade-off is
-# that they are outside the directory SessionEnd deletes, so they are swept here
-# instead -- otherwise bin/ would accumulate one full binary set per dead session.
-#
-# Only the exact `-<sid>` suffix is matched, so the shared bin/ze that humans and
-# CI build is never a candidate.
-# require_idle=1 (the --reap backstop) additionally requires the BINARY itself to
-# be untouched for 24h. Scratch can be reaped on the dir's inactivity alone
-# because it is recreated on demand (mkdir -p); a binary is not -- nothing
-# rebuilds it, and the next run just fails to exec. So a session whose scratch
-# went quiet but which rebuilt recently keeps its binary.
-reap_binaries() {
-    local sid="$1" require_idle="${2:-0}" f
-    case "$sid" in
-        "" | */* | . | ..) return 0 ;;
-    esac
-    [ -d bin ] || return 0
-
-    # The SHARED binary names, derived from mk/session.mk rather than repeated
-    # here, so the two cannot drift. make already refuses a session id whose
-    # `ze-<sid>` collides with one of them (mk/session.mk, the ZE_BIN_NAMES
-    # filter); this reaper had no such guard, so `--clean` with sid `test`
-    # matched bin/ze-test on the glob below and deleted the shared test runner
-    # that humans and CI build. rm -f is irreversible, which is why the guard
-    # belongs on this side too and not only on the side that creates names.
-    local shared
-    shared=" $(sed -n 's/^ZE_BIN_NAMES *:*= *//p' mk/session.mk | head -1) "
-
-    for f in bin/*-"$sid"; do
-        [ -f "$f" ] || continue
-        case "$shared" in
-            *" $(basename "$f") "*) continue ;;
-        esac
-        if [ "$require_idle" = "1" ] && [ -n "$(find "$f" -mmin -1440 -print -quit 2>/dev/null)" ]; then
-            continue
-        fi
-        rm -f "$f"
-    done
-}
-
-if [ "${1:-}" = "--reap" ]; then
-    reap_dead
-    exit 0
-fi
-
 sid=$(_session_id)
 # Refuse an id that is empty, path-bearing, or a dot entry, so we can never
-# escape tmp/s/ (mirrors session-end-scratch.sh). _sid_safe already drops '/',
-# globs and whitespace, but it permits '.' and '..'.
+# escape tmp/session/ under --clean. _sid_safe already drops
+# '/', globs and whitespace, but it permits '.' and '..'.
 case "$sid" in
     "" | */* | . | ..)
         echo "session-scratch: unsafe session id '${sid}'" >&2
@@ -129,14 +76,16 @@ case "$sid" in
         ;;
 esac
 
-dir="tmp/s/${sid}"
+session=$(_session_dir "$sid")
+dir="$session/scratch"
 
 case "${1:-}" in
-    # Remove THIS session's scratch AND its suffixed binaries, print nothing.
-    --clean) rm -rf "$dir"; reap_binaries "$sid"; exit 0 ;;
+    # Remove THIS session's whole directory -- binaries and scratch -- and print
+    # nothing. `make clean` runs this, and it removes bin/ off-session.
+    --clean) rm -rf "$session"; exit 0 ;;
     --path) ;;                        # print only, do not create
     "") mkdir -p "$dir" || { echo "session-scratch: cannot create $dir" >&2; exit 1; } ;;
-    *) echo "usage: session-scratch.sh [--path|--reap|--clean]" >&2; exit 2 ;;
+    *) echo "usage: session-scratch.sh [--path|--clean]" >&2; exit 2 ;;
 esac
 
 printf '%s\n' "$dir"

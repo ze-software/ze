@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3269 files
+Total: 261 design docs, 3268 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3054,7 +3054,6 @@ Total: 261 design docs, 3269 files
 | `internal/component/bgp/rib/outgoing.go` | RIB wire storage |
 | `internal/component/bgp/rib/route.go` | RIB wire storage |
 | `internal/component/bgp/rib/store.go` | RIB wire storage |
-| `internal/component/bgp/rib/update.go` | RIB wire storage |
 | `internal/component/bgp/store/attribute.go` | attribute and NLRI storage |
 | `internal/component/bgp/store/nlri.go` | attribute and NLRI storage |
 

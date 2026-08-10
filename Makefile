@@ -2,7 +2,7 @@
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-validate-tree ze-smoke ze-ci ze-all ze-all-test
-.PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
+.PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-clean-sessions ze-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record
 .PHONY: ze-tracked-build-check
@@ -164,7 +164,7 @@ ZE_PACKAGES = $$(go list ./... | grep -v '^github.com/ze-software/ze$$'$(if $(ZE
 .DEFAULT_GOAL := help
 
 # ─── Include split Makefile modules ─────────────────────────────────────────
-# Session-scoped binary names (ZEBIN_*, ZE_BIN_SUFFIX). Must come FIRST: every
+# Session-scoped binary directory (ZEBIN_*, ZE_BIN_DIR). Must come FIRST: every
 # include below refers to the binaries through these variables.
 include mk/session.mk
 include mk/test-unit.mk
@@ -235,77 +235,83 @@ build: generate $(ZEBIN_ZE) $(ZEBIN_APPLIANCE) $(ZEBIN_SETUP) $(ZEBIN_STRIPPED) 
 	@echo "All binaries built"
 
 ze:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
+	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_ZE))
 
 ze-appliance:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
+	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_APPLIANCE))
 
 ze-setup-bin:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
 ze-stripped:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
+	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_STRIPPED))
 
 # ze-chaos and ze-perf drive an in-process BGP reactor, so they force ze_bgp on:
 # their own tags (ze_chaos / ze_perf) do not include ZE_FEATURES, and without it
 # the BGP plugins would silently register nothing rather than fail to build.
 chaos:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
 test:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
 analyze:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
 perf:
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
 
 $(ZEBIN_ZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
+	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_ZE))
 
 $(ZEBIN_APPLIANCE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-appliance..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
+	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_APPLIANCE))
 
 $(ZEBIN_SETUP): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-setup..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
 $(ZEBIN_STRIPPED): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
+	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_STRIPPED))
 $(ZEBIN_TEST): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
 $(ZEBIN_CHAOS): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
 $(ZEBIN_ANALYZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-analyze..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
 $(ZEBIN_PERF): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-perf..."
-	@mkdir -p bin
+	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
 
 # ─── Docker ────────────────────────────────────────────────────────────────
@@ -791,14 +797,18 @@ ze-regen-check: ze-regen
 ze-doc-links:
 	@python3 scripts/dev/check_doc_links.py
 
-# clean removes bin/, coverage, and THIS session's scratch (tmp/s/<session-id>/, via
-# scripts/dev/session-scratch.sh --clean), leaving the shared Go build caches and every
-# other concurrent session's scratch/state intact, so a sibling session keeps its work --
-# though bin/ and coverage are shared, rebuildable build outputs it does remove. For the
-# full per-checkout wipe (bin/ + ALL of tmp/, shared caches
-# included) use `make clean-all`. See plan/spec-relocate-scratch-and-cache.md.
+# clean removes bin/, coverage, and THIS session's WHOLE directory
+# tmp/session/<YYYY-MM-DD>-<session-id>/ (via scripts/dev/session-scratch.sh --clean),
+# which is all three subdirectories and not only scratch/: the session's binaries and
+# the etc/ze store they resolve, its scratch/, and its state/ per-spec digest. Losing
+# the digest costs the spec handoff .claude/rules/post-compaction.md reads, so run
+# `make clean` between specs rather than inside one. Every other concurrent session's
+# directory and the shared Go build caches are left intact, so a sibling session keeps
+# its work -- though bin/ and coverage are shared, rebuildable outputs it does remove.
+# For the full per-checkout wipe (bin/ + ALL of tmp/, shared caches included) use
+# `make clean-all`. See plan/spec-relocate-scratch-and-cache.md.
 clean:
-	@echo "Cleaning this session (bin/, coverage, tmp/s/<session>)..."
+	@echo "Cleaning this session (bin/, coverage, this session's whole directory: bin/, scratch/, state/)..."
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 	@scripts/dev/session-scratch.sh --clean 2>/dev/null || true
@@ -821,13 +831,78 @@ clean-all:
 # scripts/dev/ensure-links.py). Being committed, it is always older than 24h, so
 # an unqualified reap silently deletes a tracked file. Keep this exclusion in
 # sync with the identical one in .claude/hooks/session-start.sh.
+# -mindepth 1 on the directory sweep is load-bearing, not decoration. `find tmp/`
+# yields tmp/ ITSELF at depth 0, and its basename is `tmp`, so neither -not -name
+# excludes it: without the bound, a tmp/ whose own mtime is older than 24h is a
+# match and `rm -rf` takes the entire scratch tree, tmp/session/ and every
+# session's binaries, seeded store and state/ digest with it. The exclusions
+# below only ever protect tmp/session/ and tmp/kernel/ from being removed as
+# CHILDREN. Reproduced in a fixture, 2026-08-10.
 ze-clean-tmp:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
 	@find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
-	@find tmp/ -maxdepth 1 -type d -not -name session -not -name kernel \
+	@find tmp/ -mindepth 1 -maxdepth 1 -type d -not -name session -not -name kernel \
 		-mmin +1440 -exec rm -rf {} + 2>/dev/null || true
-	@find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 	@echo "Done. $$(ls -1 tmp/ 2>/dev/null | wc -l | tr -d ' ') entries remain."
+
+# tmp/session/ is EXCLUDED above and swept by nothing else. Nothing under that
+# root is ever removed automatically -- not at session end, not on an age timer,
+# not by a hook (owner decision, 2026-08-03). It holds a session's binaries, its
+# scratch, and the markers that carry a spec claim across a compaction, and an
+# automatic sweep of any of them deletes the operator's own data unasked.
+#
+# ze-clean-sessions is the operator's route, and BEFORE is what makes it one: a
+# date the person types, never a default and never "now minus a window". The
+# YYYY-MM-DD- prefix every session directory carries turns "older than" into an
+# integer comparison, so the target needs no clock and no stat.
+#
+# Three properties bound what it can remove, and scripts/dev/session_bin_dir_test.py
+# drives the target itself to prove each one:
+#   1. The glob is $(ZE_SESSION_ROOT)/????-??-??-*, so the DATED SHAPE is what
+#      bounds a candidate. A flat marker file beside them (.sid-by-pid-*,
+#      .closure-ack-*, .session-*) matches neither the shape nor the -d test, and
+#      `.` and `..` cannot match the shape at all. The shape is the bound, not
+#      the root: ZE_SESSION_ROOT is a plain `:=`, so a caller can point it
+#      elsewhere, and session_bin_dir_test.py's CleanSessionsCase does exactly
+#      that to drive the real target against a temporary tree. Read property 1 as
+#      "only a dated directory inside the root it is given".
+#   2. Without BEFORE the target exits 2 having removed nothing, so a bare
+#      invocation, or a typo that empties the variable, deletes no session.
+#   3. The comparison is strict, so a directory dated exactly BEFORE survives.
+#
+# BEFORE reaches the recipe through the ENVIRONMENT ($$BEFORE), never spliced
+# into the shell text as $(BEFORE). Interpolating it put the operator's typing
+# inside a double-quoted shell literal BEFORE the format check could see it, so
+# `make ze-clean-sessions 'BEFORE=";touch pwn;x"'` ran that touch and only then
+# reported a bad date. mk/session.mk refuses a quote in the session id for this
+# exact reason one file away. `export` is what makes $$BEFORE readable here.
+#
+# That closes the SHELL layer. Make's own layer sits above it and is not closed:
+# `export` expands the value, so `BEFORE=$(shell …)` runs at that point, before
+# any check. mk/session.mk records the same residual for ZE_SESSION_ID, and the
+# same reason applies -- BEFORE is the operator's own command line, so it crosses
+# no privilege boundary. $(ZE_SESSION_ROOT) below is spliced for the same reason:
+# it is a test seam a caller sets deliberately.
+export BEFORE
+ze-clean-sessions:
+	@if [ -z "$$BEFORE" ]; then \
+		echo "ze-clean-sessions: BEFORE=<YYYY-MM-DD> is required, and removes session directories dated strictly before it"; \
+		echo "  example: make ze-clean-sessions BEFORE=$$(date +%Y-%m-01)"; \
+		exit 2; \
+	fi
+	@case "$$BEFORE" in \
+		[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; \
+		*) echo "ze-clean-sessions: BEFORE must be YYYY-MM-DD, got '$$BEFORE'"; exit 2 ;; \
+	esac
+	@cutoff=$$(echo "$$BEFORE" | tr -d -); removed=0; \
+	for d in $(ZE_SESSION_ROOT)/????-??-??-*; do \
+		[ -d "$$d" ] || continue; \
+		stamp=$$(basename "$$d" | cut -c1-10 | tr -d -); \
+		[ "$$stamp" -lt "$$cutoff" ] 2>/dev/null || continue; \
+		rm -rf "$$d"; \
+		removed=$$((removed + 1)); \
+	done; \
+	echo "Removed $$removed session director$$([ $$removed -eq 1 ] && echo y || echo ies) dated before $$BEFORE."
 
 check: fmt vet
 	@echo "Quick check passed"
@@ -1087,6 +1162,7 @@ help-dev:
 	@echo "    ze-check-vendor-web      Check for newer web asset versions"
 	@echo ""
 	@echo "  Cleanup:"
-	@echo "    clean                    Session-safe: bin/, coverage, tmp/s/<session> only"
+	@echo "    clean                    Session-safe: bin/, coverage, this session's scratch only"
 	@echo "    clean-all                Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions)"
 	@echo "    ze-clean-tmp             Remove tmp/ scratch files older than 24h"
+	@echo "    ze-clean-sessions        Remove session dirs dated before BEFORE=<YYYY-MM-DD>"

@@ -30,6 +30,7 @@ On an unexpected internal error the hook fails OPEN (exit 0) so a bug here can
 never brick every Bash command; the traceback is printed to stderr.
 """
 
+import importlib.util
 import json
 import os
 import re
@@ -40,6 +41,17 @@ RED = "\033[31m"
 YELLOW = "\033[33m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
+
+# Which `tmp/` paths a session may write, shared with pretool-writeedit.py.
+# Resolved relative to THIS FILE, never through CLAUDE_PROJECT_DIR: that
+# variable can point at a fixture tree while the hook itself always sits in
+# .claude/hooks/.
+_scratch_spec = importlib.util.spec_from_file_location(
+    "ze_scratch_path",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib", "scratch_path.py"),
+)
+_scratch_path = importlib.util.module_from_spec(_scratch_spec)
+_scratch_spec.loader.exec_module(_scratch_path)
 
 # A check returns None to pass, or (code, message) where code is 1 or 2.
 #
@@ -109,11 +121,12 @@ def check_root_build(cmd, _ctx):
         return None
     if re.search(r"-o\s+bin/", cmd):
         return None
-    # This session's own bin/, tmp/s/<session-id>/bin/ (internal/test/sessionpath).
-    # Same intent as bin/: a real binary directory, not the repo root -- and it is
-    # swept at SessionEnd. The trailing bin/ is required, because ze derives its
-    # config/DB dir from a parent dir named bin (internal/core/paths/paths.go).
-    if re.search(r"-o\s+tmp/s/[A-Za-z0-9._-]+/bin/", cmd):
+    # This session's own bin/, tmp/session/<YYYY-MM-DD>-<session-id>/bin/
+    # (mk/session.mk, internal/test/sessionpath). Same intent as bin/: a real
+    # binary directory, not the repo root, and one the operator can identify by
+    # date. The trailing bin/ is required, because ze derives its config/DB dir
+    # from a parent dir named bin (internal/core/paths/paths.go).
+    if re.search(r"-o\s+tmp/session/\d{4}-\d{2}-\d{2}-[A-Za-z0-9._-]+/bin/", cmd):
         return None
     if re.search(r"go\s+build\s+\./\.\.\.", cmd):
         return None
@@ -143,6 +156,12 @@ EXPENSIVE_COMMAND = re.compile(
     r"pytest|"
     r"ze-test|"
     r"(\./)?bin/ze[\w-]*|"
+    # The same binaries in this session's own directory,
+    # tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze* (mk/session.mk ZE_BIN_DIR,
+    # internal/test/sessionpath). `make ze-path` prints a path relative to the
+    # checkout, and an agent told to use absolute paths passes the whole thing,
+    # so both spellings reach this check and both name the same producer.
+    r"([\w./-]*/)?tmp/session/\d{4}-\d{2}-\d{2}-[A-Za-z0-9._-]+/bin/ze[\w-]*|"
     # "or any test/verify/build command" (ai/rules/commands.md): the repo's own
     # gates, whose output IS the verdict. Everything under scripts/evidence/ counts
     # (QEMU boots, docker interop labs); elsewhere it is by role in the filename, so
@@ -274,7 +293,7 @@ def check_pipe_tail(cmd, _ctx):
                 f"filter ({segment.strip().split()[0]})\n"
                 "  -- The truncated output is what you would judge the run by.\n"
                 "  -- Use: make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-$$.log\n"
-                "  -- Or:  <command> 2>&1 | tee tmp/out-$$.log\n"
+                '  -- Or:  dir=$(scripts/dev/session-scratch.sh); <command> 2>&1 | tee "$dir/out.log"\n'
                 "  -- Then: Read the log with offset/limit",
             )
     return None
@@ -378,9 +397,154 @@ def check_system_tmp(cmd, _ctx):
         return (
             2,
             "❌ Blocked: /tmp access is forbidden\n"
-            "Use project tmp/ instead: tmp/<subfolder>/",
+            "Use this session's own scratch dir instead:\n"
+            "  dir=$(scripts/dev/session-scratch.sh)   # <session-dir>/scratch/\n"
+            '  <command> > "$dir/<name>"',
         )
     return None
+
+
+# The /tmp block above sends every session somewhere, and that somewhere was the
+# `tmp/` ROOT, which is keyed per CHECKOUT: a fixed name there collides with a
+# sibling session's identical name and is never cleaned. This check closes the
+# loop by naming the per-session directory at the moment the path is chosen. It
+# REFUSES the command (owner decision, 2026-08-10): one session wrote 351 ad-hoc
+# files to the root in a day while the warning was the whole enforcement
+# (plan/journal/guard-message-teaches-the-violation.md).
+#
+# Which paths are refused is decided in .claude/hooks/lib/scratch_path.py, and
+# c_scratch_path_we (.claude/hooks/pretool-writeedit.py) calls the same module:
+# a path this surface refuses must not land through the Write tool.
+#
+# The path group accepts a LEADING DIRECTORY PREFIX, so `./tmp/x` and the
+# absolute `/home/.../<checkout>/tmp/x` are candidates too. All three spell the
+# same file, and the harness hands agents absolute paths, so anchoring on the
+# literal `tmp/` was a door in the guard: the Write surface refused the absolute
+# form while this one passed it. Widening the CANDIDATE cannot widen the
+# REFUSAL, because is_ad_hoc_root_file decides on the resolved parent -- a
+# `foo/tmp/x` or a `/elsewhere/tmp/x` resolves to a parent that is not this
+# checkout's tmp/ and is allowed. EXPENSIVE_COMMAND carries the same prefix for
+# the same reason.
+_SCRATCH_WRITE = re.compile(
+    r"(?:>>?\s*|\btee\s+(?:-a\s+)?)(?P<q>['\"]?)"
+    r"(?P<path>[\w./-]*tmp/[^\s;|&)'\"]+)(?P=q)"
+)
+
+
+def _quoted_spans(cmd):
+    """The character ranges of `cmd` that sit inside a quoted string.
+
+    An UNTERMINATED quote opens no span, so a stray quote cannot silence the
+    guard over the rest of the command.
+    """
+    spans = []
+    quote = ""
+    start = 0
+    i = 0
+    while i < len(cmd):
+        char = cmd[i]
+        if char == "\\" and (quote == "" or quote == '"'):
+            i += 2
+            continue
+        if quote == "":
+            if char in "'\"":
+                quote, start = char, i
+        elif char == quote:
+            spans.append((start, i))
+            quote = ""
+        i += 1
+    return spans
+
+
+def _statement_command(cmd, pos):
+    """The command word of the statement `pos` sits in, without its directory."""
+    head = cmd[:pos]
+    cuts = [m.end() for m in STATEMENT_SEPARATOR.finditer(head)]
+    words = (head[cuts[-1] :] if cuts else head).split()
+    return words[0].split("/")[-1] if words else ""
+
+
+# A heredoc body is DATA on the command's stdin, so a `>` in it redirects
+# nothing -- unless the reader is a shell, which runs what it is fed. The reader
+# is the command word of the statement that opens the heredoc.
+HEREDOC_OPEN = re.compile(r"<<-?\s*(?P<q>['\"]?)(?P<tag>[A-Za-z_]\w*)(?P=q)")
+SHELL_COMMANDS = {"bash", "sh", "dash", "ksh", "zsh", "eval", "source"}
+
+
+def _heredoc_text_spans(cmd):
+    """The character ranges of `cmd` that a non-shell reads as heredoc DATA.
+
+    A heredoc whose delimiter never appears runs to the end of the command, and
+    one fed to a shell yields no span at all: `bash <<'EOF' ... > tmp/x ... EOF`
+    is a write.
+    """
+    spans = []
+    for match in HEREDOC_OPEN.finditer(cmd):
+        if _statement_command(cmd, match.start()) in SHELL_COMMANDS:
+            continue
+        newline = cmd.find("\n", match.end())
+        if newline == -1:
+            continue
+        body = newline + 1
+        close = re.compile(
+            r"^[ \t]*" + re.escape(match.group("tag")) + r"[ \t]*$", re.M
+        )
+        found = close.search(cmd, body)
+        spans.append((body, found.start() if found else len(cmd)))
+    return spans
+
+
+def _is_text_not_a_write(cmd, pos, quoted, heredocs):
+    """True when the redirect at `pos` writes nothing, so the guard passes it.
+
+    Two shapes qualify. A heredoc body a non-shell reads is data, which is what
+    lets a session quote this rule in a document it writes with `cat >> file`.
+    And a QUOTED redirect opening a search command is a search argument, so
+    `grep -rn '> tmp/out.log' ai/rules` reads the rule instead of breaking it;
+    without it the ban could not be audited from Bash (check_poll_loop keeps the
+    same property for its own keyword).
+
+    The search shape needs BOTH conditions. `grep foo ai/rules > tmp/notes.txt`
+    writes for real and its redirect is unquoted, so the command word alone
+    cannot tell the two apart, and `bash -c "... > tmp/x"` stays refused for the
+    reason F22 refuses a quoted wait loop.
+    """
+    if any(a <= pos < b for a, b in heredocs):
+        return True
+    if not any(a < pos < b for a, b in quoted):
+        return False
+    return _statement_command(cmd, pos) in SEARCH_COMMANDS
+
+
+# ze point: commands/write-ad-hoc-scratch-under-your-per-session-dir/write-ad-hoc-scratch-under-this-session-s-private-directory
+def check_scratch_path(cmd, ctx):
+    """ai/rules/commands.md: ad-hoc scratch belongs under this session's own dir."""
+    if not cmd:
+        return None
+    offenders = []
+    quoted = _quoted_spans(cmd)
+    heredocs = _heredoc_text_spans(cmd)
+    for match in _SCRATCH_WRITE.finditer(cmd):
+        path = match.group("path")
+        if path in offenders or _is_text_not_a_write(
+            cmd, match.start(), quoted, heredocs
+        ):
+            continue
+        if _scratch_path.is_ad_hoc_root_file(path, ctx["dir"]):
+            offenders.append(path)
+    if not offenders:
+        return None
+    return (
+        2,
+        f"{RED}{BOLD}❌ Refused: the command writes ad-hoc scratch at the "
+        f"tmp/ root: {', '.join(offenders)}{RESET}\n"
+        "  -- tmp/ is keyed per CHECKOUT, so that name is one file for every "
+        "session in this tree, and nothing removes it.\n"
+        '  -- Use: dir=$(scripts/dev/session-scratch.sh); <command> > "$dir/out.log"\n'
+        "  -- A subdirectory passes, and so do the root names that are shared by "
+        "design: ze-verify*, commit-*, delete-*, mutation*, test-timings*\n"
+        "  -- ai/rules/commands.md, 'Write Ad-Hoc Scratch Under Your Per-Session Dir'",
+    )
 
 
 DRAFT_DIR = "test/draft/"
@@ -448,6 +612,7 @@ CHECKS = (
     check_pipe_tail,
     check_poll_loop,
     check_system_tmp,
+    check_scratch_path,
     check_test_deletion,
 )
 

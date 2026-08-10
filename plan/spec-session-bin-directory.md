@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-session-scoped-build-artifacts.md` (supersedes one of its decisions) |
-| Phase | - |
+| Phase | 10/10 (0, 1, E2, 2, 3, 3a, 4, 5, E1, 6 green; AC-27 is owner-held open) |
 | Deferral shard | `-` (create `plan/deferrals/session-bin-directory.md` on the first deferral) |
-| Updated | 2026-08-03 |
+| Updated | 2026-08-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -70,7 +70,7 @@ inside a per-session directory at all:
 |------|----------|--------------------|
 | `.sid-by-pid-<clipid>` | CLI-ancestor PID | It *mints* the session id (`session_id.py` source 4). A directory named after the id cannot hold the file that produces the id |
 | `.closure-ack-<stem>` | spec stem | Outlives the session that wrote it; a later session on the same spec must read it |
-| `session-state-<stem>-<sid>.md` | spec + session | Read ACROSS sessions for handoff (`state-file.sh` globs other sessions' files) |
+| `session-state-<stem>-<sid>.md` | spec + session | **Superseded 2026-08-10 (see "Scope extension" below): it moved into `<session-dir>/state/`.** The reason recorded here was that it is read ACROSS sessions for handoff; a glob that walks every session directory's `state/` reads it equally well |
 
 The remaining gate markers (`.lsp-loaded-`, `.source-read-`, `.agent-spawned-`,
 `.model-ack-`, `.compaction-detected-`, `.session-`) *could* move inside, and deliberately
@@ -97,6 +97,83 @@ rather than the accident. The rationale must survive into the superseding record
 Non-goals: `bin/gok`, `ze-host`, and the cross-compiled installer keep their current
 locations (already Known Limitations of the predecessor spec). No change to what a human or
 CI sees.
+
+## Scope extension (2026-08-10): three subdirectories, and a guard on the `tmp/` root
+
+Two owner decisions extend this spec. Neither changes the surviving root, the directory
+name, or the no-automatic-deletion policy recorded above. Both were taken after a session
+wrote 351 ad-hoc files to the `tmp/` root in one day
+(`plan/journal/guard-message-teaches-the-violation.md`).
+
+**Decision 1: the session directory carries three subdirectories.**
+
+| Subdirectory | Holds | Producer |
+|--------------|-------|----------|
+| `bin/` | this session's binaries, and the `etc/ze` they resolve | `mk/session.mk`, `internal/test/sessionpath` |
+| `scratch/` | ad-hoc logs, probes, captures | `scripts/dev/session-scratch.sh` |
+| `state/` | the per-spec digest `session-state-<stem>-<sid>.md` | `.claude/hooks/lib/state-file.sh` |
+
+This reverses one row of the 2026-08-03 table above. That row kept the per-spec digest flat
+because `_find_latest_state_for_spec` reads it ACROSS sessions. A glob that walks every
+session directory reads it equally well, so the cross-session property costs nothing and the
+digest joins the directory of the session that wrote it. The other two rows stand:
+`.sid-by-pid-<clipid>` produces the id the directory is named for, so it cannot live inside
+one, and `.closure-ack-<stem>` is keyed by spec stem rather than by session.
+
+**Decision 2: a file at the `tmp/` root is REFUSED, not warned.** `tmp/` is keyed per
+checkout, so a fixed name there is one file shared by every session in the tree, and nothing
+cleans it. The guard covers both surfaces an agent creates a file with: a Bash redirect or
+`tee`, and the Write tool. A path with a directory component passes; a bare `tmp/<file>`
+does not.
+
+**The guard accepts BOTH layouts through the transition.** `tmp/s/<id>/` and
+`tmp/session/<YYYY-MM-DD>-<sid>/` are equally acceptable until a grep proves no producer and
+no live tree writes to `tmp/s/` any more. Refusing the old layout while the rename is in
+flight would block sessions that are mid-run in a shared checkout, which is the one failure
+this spec must not cause. Removing the legacy acceptance is its own step, gated on that
+grep, and is AC-27.
+
+**Root files that stay.** The guard exempts the root names that are session-keyed or shared
+by design: `ze-verify*`, `.ze-verify*`, `commit-*`, `commit-msg-*`, `delete-*`, `mutation*`,
+`test-timings*`. These are named by tooling that predates the session directory, and moving
+them is not in this spec.
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-19 | any consumer resolves the session directory | it holds `bin/`, `scratch/` and `state/`; `session-scratch.sh` prints the `scratch/` path, and finds the parent by the same glob-then-create rule as AC-13 |
+| AC-20 | a hook writes a per-spec digest | it lands at `<session-dir>/state/session-state-<stem>-<sid>.md`; nothing writes `session-state-*` flat under `tmp/session/` |
+| AC-21 | a later session resumes a spec an earlier session digested | `_find_latest_state_for_spec` finds that digest by walking every session directory's `state/`, newest first, and its two legacy fallbacks still resolve |
+| AC-22 | `.sid-by-pid-<clipid>` and `.closure-ack-<stem>` | still flat under `tmp/session/`, unmoved and unrenamed |
+| AC-23 | Bash: a redirect or `tee` names `tmp/<file>` | refused, exit 2, naming `session-scratch.sh` as the route |
+| AC-24 | Write or Edit: the path is `tmp/<file>` | refused, exit 2, same message |
+| AC-25 | Bash or Write: the path carries a directory component under `tmp/` | allowed, for `tmp/s/<id>/…`, `tmp/session/<dated-id>/…`, and every producer-backed folder (`verify/`, `review/`, `kernel/`, `gokrazy/`, `qemu/`, `evidence/`, `stress-repro/`, `rule-coverage/`) |
+| AC-26 | Bash or Write: the path is an exempt root file (`tmp/ze-verify.log`, `tmp/commit-<sid>.sh`) | allowed |
+| AC-27 | grep for `tmp/s/` across producers and rules, after the rename lands | no hit; the guard's legacy acceptance of `tmp/s/` is then removed, and its fixture becomes a refusal |
+
+**AC-27 IS HELD OPEN ON PURPOSE, by owner instruction (2026-08-10): both layouts stay
+accepted "until it does not trigger as fully ironed out".** The rename landed in the working
+tree during phases 2 to E1, and it is NOT committed. Sibling sessions share this checkout, so
+refusing `tmp/s/` now would break a session mid-run, which the scope extension names as the
+one failure this spec must not cause. `tmp/s/<id>/` is accepted BY CONSTRUCTION in
+`.claude/hooks/lib/scratch_path.py`, which names no layout at all, so nothing has to be added
+to keep it. AC-27 is a deliberate follow-up, gated on the commit landing and on the grep
+being clean, and it is the one AC this spec closes with open. Do not let a later phase or a
+review "tidy" it: removing the acceptance early is a regression, not a completion.
+| AC-28 | the parity corpus and the fixture runner | every row above is pinned: allowed paths exit 0, refused paths exit 2, and both layouts appear |
+
+**Files this extension adds to the change set.**
+
+| File | Change |
+|------|--------|
+| `.claude/hooks/pretool-bash.py` | `check_scratch_path` becomes blocking, and learns both layouts |
+| `.claude/hooks/pretool-writeedit.py` | the same guard on the Write and Edit surface, which today refuses only absolute `/tmp` |
+| `.claude/hooks/subagent-context.sh` | the scratch line every spawned agent reads |
+| `.claude/hooks/lib/state-file.sh` | the digest path, and the cross-session resolver's glob |
+| `.claude/hooks/lib/session-dir.sh` | NEW: the one shell definition of the glob-then-create rule, shared by `state-file.sh` and `session-scratch.sh` |
+| `.claude/hooks/pretool-writeedit.py` | `state_file()`, the reader the Go and spec gates block on, which also accepts a digest written before the move |
+| `ai/rules/points/commands/**`, `ai/rules/points/testing/**`, `ai/rules/points/repo-maintenance/**` | the rule text and the check table |
+| `ai/INSTRUCTIONS.md` | the dispatch row for running a test or build command |
+| `scripts/dev/hook-parity-check.py`, `scripts/dev/hook-fixture-check.py` | the fixtures that pin AC-23 to AC-28 |
 
 ## Required Reading
 
@@ -218,7 +295,7 @@ N/A — build tooling, no protocol behavior.
 |----|------|--------------|----------------------|
 | R-1 | **A session's `ze` uses an unseeded store.** The severity SPLITS by entry point, measured not assumed: the `zefs.Open` paths (`ze data`, CLI credentials) fail **loudly** (exit 2, verified); the `NewBlob` paths (`resolve.Storage`, `ResolveSSHStorage`) create an empty store and return `err == nil` (A-2, read but not yet run) — those are the silent ones. A relocated binary also creates `etc/ze/crash/` as a side effect even on a failed command (verified) | `ze data ls` exit 2; or a daemon that starts with zero users | AC-8: `make ze` seeds the session store on first build via the `printf \| ze init` pattern (A-7), and the seeding is asserted, not assumed |
 | R-2 | **A new SSH host key per session.** `ResolveSSHStorage` writes a fresh key into the session store, so pinned clients fail verification | host-key mismatch on `ze connect` | Same seeding step; documented as intended isolation in `ai/rules/commands.md` |
-| R-3 | **QEMU 9p cannot see `tmp/session/` on a migrated checkout.** `ensure-links.py` can make `tmp/` a symlink to `$TMPDIR/ze/<id>`; the share covers the repo root only, so `/workspace/tmp/session/<sid>/bin/ze` would not resolve in the guest | `ze-qemu-*` fails to exec the DUT; latent today (A-5) | AC-9: share the resolved `tmp/` target as a second 9p mount when `tmp/` is a symlink. A latent silent break is the worst shape, so this is fixed, not deferred |
+| R-3 | **QEMU 9p cannot see `tmp/session/` on a migrated checkout.** `ensure-links.py` can make `tmp/` a symlink to `$TMPDIR/ze/<id>`; the share covers the repo root only, so `/workspace/tmp/session/<sid>/bin/ze` would not resolve in the guest | `ze-qemu-*` fails to exec the DUT; latent today (A-5) | AC-9: share the resolved `tmp/` target as a second 9p mount when `tmp/` is a symlink. A latent silent break is the worst shape, so this is fixed, not deferred. **Closed in phase 5**: `scratch_share` and `virtfs_args` in `scripts/evidence/qemu-run.py`, mounted at the path the link names. Proven by a live QEMU boot over a fixture checkout whose `tmp/` IS a symlink: the DUT under `/workspace/tmp/session/<dated>/bin/` execs; with the second share removed the same boot cannot resolve `/workspace/tmp/` at all |
 | R-4 | ~~**`make ze-clean-tmp` reaps a live session's binaries.**~~ **DISSOLVED 2026-08-03** by the root rename: `ze-clean-tmp` already excludes `session` (`Makefile:747`, `-not -name session -not -name kernel`), so moving scratch under `tmp/session/` puts it inside the existing exclusion. AC-10 becomes an assertion of something already true rather than a change | — | — |
 | R-9 | **PID reuse aliases a dead session's id.** `session_id.py` source 4 caches a minted id at `.sid-by-pid-<clipid>`, keyed on the CLI-ancestor PID. Its own docstring says reuse "cannot alias a stale marker set **once the cache file ages out**" — so the 24h sweep at `state-file.sh` is CORRECTNESS, not housekeeping. Removing automatic deletion removes it, and a reused PID then makes a new session adopt a dead session's spec claim and gate markers: incident 1162/1246 reopened | a session resolves an id it never minted; a spec claim it did not make | AC-17/AC-18: key the cache on **PID + process start time** (`/proc/<pid>/stat` field 22; `ps -o lstart=` on macOS/BSD). A reused PID carries a different start time, so the entry self-invalidates and needs no expiry at all — strictly better than the timer it replaces. This is the ONLY file under `tmp/session/` whose expiry did real work; `state-file.sh` records the rest as pure accumulation control |
 | R-10 | **`tmp/session/` grows without bound.** With no automatic deletion, each session leaves a dated directory (hundreds of MB once binaries move into it) plus ~7 small markers. The predecessor already measured ~600 MB of orphans under the old scheme | disk pressure; `du -sh tmp/session` | Accepted by owner decision (2026-08-03): growth is the price of never deleting the operator's data unasked. Mitigated by making cleanup EASY rather than automatic — the `YYYY-MM-DD-` prefix (AC-14) and `make ze-clean-sessions BEFORE=…` (AC-15). Both are operator-invoked |
@@ -279,22 +356,24 @@ convention (verified: the research pass found zero hits for it under `docs/`).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestZePathIsSessionDirectory` | `scripts/dev/session_bin_dir_test.py` | AC-1 | |
-| `TestZePathOffSessionIsSharedBin` | same | AC-2 | |
+| `TestZePathIsSessionDirectory` | `scripts/dev/session_bin_dir_test.py` | AC-1 | written, RED (phase 1) |
+| `TestZePathOffSessionIsSharedBin` | same | AC-2 | written, GREEN today and must stay (phase 1) |
 | `TestSessionBuildCreatesItsOwnDirectory` | same | AC-3 | |
 | `TestUnsafeIDFallsBackToSharedBin` | same | AC-5 (all 7 rejected forms) | |
 | `TestValidationDoesNotRunShell` | same | AC-5, quote-bearing id neither builds nor executes (carried over) | |
-| `TestMakeAndGoAgreeOnBinDir` | same | make's `ze-path` dir == `sessionpath.BinDir` | |
-| `TestNoSuffixVocabularyRemains` | same | AC-12, greps for the retired tokens | |
+| `TestMakeAndGoAgreeOnBinDir` | same | make's `ze-path` dir == `sessionpath.BinDir` | written, RED (phase 1) |
+| `TestNoSuffixVocabularyRemains` | same | AC-12, greps eight trees for the four retired identifiers and the suffixed-binary path shape; `plan/`, `RETIRED.md` and `*_test.py` are records rather than claims | written, GREEN (phase 6) |
 | `TestCleanTmpPreservesSessionRoot` | `scripts/dev/session_scratch_test.py` | AC-10 | |
 | `TestSessionEndDeletesNothing` | same | AC-7 — a SessionEnd payload leaves the dated dir, its `bin/`, and every marker in place | |
 | `TestNoAutomaticDeletionRemains` | same | AC-16, greps `.claude/hooks/` + `scripts/dev/` for `-mmin +N -delete`, `reap_dead`, `reap_binaries` | |
-| `TestSessionDirIsStableAcrossMidnight` | `scripts/dev/session_bin_dir_test.py` | AC-13 — resolve twice across a simulated date change, same dir | |
-| `TestSessionDirsSortByDate` | same | AC-14 — dated prefix, lexical order, glob selects one month | |
+| `TestSessionDirIsStableAcrossMidnight` | `scripts/dev/session_bin_dir_test.py` | AC-13 — resolve twice across a simulated date change, same dir | written, RED (phase 1) |
+| `TestSessionStoreIsSeeded` | same | AC-8 — every ze_core recipe (`ze`, `ze-appliance`, `ze-stripped`) seeds and no other does; a real stripped-only build leaves a seeded store; the password is generated and 0600; a second build neither reseeds nor rotates; an init that leaves no store fails the build; a binary outside `tmp/session/` is refused | written, GREEN (phase 4) |
+| `TestSessionDirsSortByDate` | same | AC-14 — dated prefix, lexical order, glob selects one month. Names come from `make ze-path`, not a fixture | written, GREEN (phase 6) |
 | `TestCleanSessionsRefusesWithoutBefore` | same | AC-15 — no `BEFORE`, no deletion | |
 | `TestCleanSessionsRemovesOnlyOlder` | same | AC-15 — boundary: a dir dated exactly `BEFORE` survives | |
-| `TestMintedIdSurvivesLiveSession` | `scripts/dev/hook_session_id_test.py` | AC-18 — cache hit returns the same id | |
-| `TestReusedPidMintsFreshId` | same | AC-17 — same PID, different start time, different id | |
+| `session-id-live-cache-hit-stable`, `session-id-start-time-readable`, `session-id-start-time-ps-branch` | `scripts/dev/hook-fixture-check.py` (`session-id`) | AC-18 — cache hit returns the same id; both the `/proc` and the `ps` reader answer | PASS |
+| `session-id-reused-pid-mints-fresh-id` | same | AC-17 — same PID, different start time, different id | PASS |
+| `session-id-cache-key-carries-start-time`, `session-id-cache-file-named-by-key`, `session-id-reused-pid-leaves-dead-entry` | same | AC-17 — the key IS `<pid>-<starttime>`, and the dead entry is unreachable rather than swept | PASS |
 | existing `sessionpath_test.go` | `internal/test/sessionpath/` | unchanged; already asserts the target layout | |
 
 ### Boundary Tests (numeric inputs)
@@ -382,6 +461,7 @@ N/A — build tooling, no wire-visible behavior.
 
 ## Files to Create
 - `scripts/dev/session_bin_dir_test.py` - the layout gate (replaces the suffix gate)
+- `scripts/dev/session-seed-store.sh` - the AC-8 seeding step, called from the `ze` recipe
 - `plan/deferrals/session-bin-directory.md` - deferral shard
 
 ### Integration Checklist
@@ -468,7 +548,16 @@ N/A — build tooling, no wire-visible behavior.
    - Tests: AC-8
    - Files: `mk/session.mk` or the `ze` recipe
    - Shape (proven, A-7): `printf '%s\n' <user> <pass> 127.0.0.1 2222 <name> | $(ZEBIN_ZE)
-     init --force --yes --seed`, guarded so it runs ONLY on-session and ONLY when
+     init --seed`, guarded so it runs ONLY on-session and ONLY when
+     → **Corrected 2026-08-10, and `--force --yes` is now BANNED here.** The prototype
+     line named them; a recipe must never carry them. `--force` calls `moveAsideDB`
+     (`internal/plugins/init/main.go` `Run`), which RENAMES an existing database to
+     `.replaced-<date>` — including the operator's own `<repo>/etc/ze` if the guard
+     ever resolves the shared `bin/ze`. `--yes` is read only inside `if *forceFlag`,
+     so it does nothing on its own. Without `--force`, `runInit` refuses with
+     "database already exists", which is the failure this recipe WANTS. This is not
+     theoretical: during phase 4 the script reached the real `bin/ze` while a guard
+     was mutated, and the operator's database survived only because `--force` was absent
      `$(ZE_BIN_DIR)/../etc/ze/database.zefs` is absent. `--yes` alone does not suffice
    - Open sub-decision for the implementer: where the dev credentials come from. A fixed
      literal is simplest and the store is throwaway, but it lands a password in a tracked
@@ -627,6 +716,353 @@ N/A — no protocol behavior.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-session-bin-directory.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/spec-session-bin-directory.md` only
+- [ ] Journal rows written. The numbered `plan/learned/NNN-*.md` route this line named
+      no longer exists: that corpus was deleted, and a closure's lesson is now one row in
+      `plan/journal/<class>.md` (owner directive 2026-08-10, `ai/rules/planning.md`)
+- [ ] **Commit A:** code + tests + docs + spec + journal rows
+- [ ] ~~**Commit B:** `git rm plan/spec-session-bin-directory.md` only~~ **NOT RUN.**
+      AC-27 is held open by owner instruction (recorded under the AC table), so this spec
+      stays in `plan/` with Status `in-progress` and the claim stays unreleased. Removing
+      it would destroy the record of the one outstanding item (`ai/rules/completion.md`)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Ten phases, all green (0, 1, E2, 2, 3, 3a, 4, 5, E1, 6). One AC is open on purpose.
+
+| Area | Change |
+|------|--------|
+| Binary location | `mk/session.mk` gained `ZE_SESSION_ROOT` and `ZE_BIN_DIR`; every `ZEBIN_*` is `$(ZE_BIN_DIR)/<bare-name>`. `ZE_BIN_SUFFIX`, `ZE_BIN_NAMES` and the collision `ifeq` are DELETED. `Makefile` turned 16 `mkdir -p bin` into `mkdir -p $(ZE_BIN_DIR)`; `mk/test-integration.mk` rebuilt `ZE_QEMU_*` on it |
+| One root, dated | `tmp/s/<sid>/` became `tmp/session/<YYYY-MM-DD>-<sid>/`. The dated directory is LOOKED UP by glob and created only on a miss, in four languages: `mk/session.mk` (`ZE_SCRATCH_DIR`), `internal/test/sessionpath/sessionpath.go` (`Root`), `.claude/hooks/lib/session-dir.sh` (`_session_dir`), `.claude/hooks/pretool-writeedit.py` (`session_dir`) |
+| Three subdirectories | `bin/` (binaries and the `etc/ze` they resolve), `scratch/` (`session-scratch.sh` prints it), `state/` (the per-spec digest, moved by `_state_file` in `.claude/hooks/lib/state-file.sh`) |
+| No automatic deletion | `.claude/hooks/session-end-scratch.sh` DELETED with its `SessionEnd` registration; `_cleanup_stale_markers` DELETED from `state-file.sh`; `reap_dead`, `reap_binaries` and `--reap` DELETED from `session-scratch.sh`; both `-mmin +1440 -delete` lines DELETED from `session-start.sh`; `ze-clean-tmp` lost its `find tmp/session/ … -delete` |
+| Operator cleanup | NEW `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` (`Makefile`), which refuses without `BEFORE` and removes only strictly-older dated directories |
+| Session store seeded | NEW `scripts/dev/session-seed-store.sh`, called through `ZE_SEED_SESSION_STORE` from all six `ze_core` recipes. Generates a 0600 per-session password from `/dev/urandom`, takes an atomic lock, and runs `ze init --seed`. No `--force` |
+| PID-reuse safety | `.claude/hooks/lib/session_id.py`: the minted-id cache key became `<clipid>-<starttime>` (`_pstart`, `_cache_key`), so it self-invalidates and needs no age-out |
+| `tmp/` root guard | NEW `.claude/hooks/lib/scratch_path.py` (`is_ad_hoc_root_file`), driven from `check_scratch_path` (Bash) and `c_scratch_path_we` (Write and Edit). A bare `tmp/<file>` is REFUSED, exit 2, in all three of its spellings |
+| QEMU | `scripts/evidence/qemu-run.py` gained `scratch_share`/`virtfs_args`: a second 9p share, mounted at the link's own text, whenever `tmp/` is a symlink |
+| Shims retired | `bare_named_perf` DELETED from `test/perf/run.py` with `ZE_PERF_SRC`; the session-name rationale retired from `internal/test/runner/runner.go` `setupBinShims` |
+
+### Bugs Found/Fixed
+
+| Bug | Covered by |
+|-----|-----------|
+| `reap_binaries` read `ZE_BIN_NAMES` out of `mk/session.mk` with `sed`. AC-6 deletes that variable, so the guard would have degraded to an EMPTY list silently, and `ZE_SESSION_ID=test` (legal under AC-6) would then have made `--clean` run `rm -f bin/*-test` over the shared `bin/ze-test` | the mechanism was deleted rather than repaired (`ai/rules/no-layering.md`); `TestNoAutomaticDeletionRemains` refuses its return |
+| The seeding step named `ze init --force --yes` from the prototype. `--force` calls `moveAsideDB` (`internal/plugins/init/main.go` `Run`), which RENAMES an existing database. Reached live during mutation testing: the script hit the real `bin/ze` and ran `init` against the operator's `<repo>/etc/ze` | `--force` is banned in `session-seed-store.sh` and the reason is in its header. `plan/journal/mutating-a-guard-runs-the-unguarded-path.md` |
+| Only `ze` seeded. `ze-appliance` and `ze-stripped` reach the same silent `NewBlob` path, so a stripped-only session got an empty store | measured with `go list -deps` per tag set; all six `ze_core` recipes now call it, and `test_a_stripped_only_build_seeds_its_store` runs the real build |
+| Two hooks that CORRECT a path named `tmp/out-$$.log` and `tmp/<subfolder>/` in their own remediation text, teaching the shape the rules ban. 351 loose files at the `tmp/` root in one day | remediation text now names `session-scratch.sh`; `plan/journal/guard-message-teaches-the-violation.md` |
+| **`make ze-clean-tmp` could delete the entire scratch tree.** `find tmp/ -maxdepth 1 -type d` yields `tmp/` ITSELF at depth 0, whose basename is `tmp`, so neither `-not -name session` nor `-not -name kernel` excluded it. A `tmp/` whose own mtime was older than 24h was a match, and `rm -rf` took `tmp/session/` with every session's binaries, seeded store and `state/` digest. Pre-existing at HEAD; in scope because AC-10 asserts this target preserves the session root, and because this spec's diff adds a comment beneath it claiming exactly that | `-mindepth 1`, and `TestCleanTmpPreservesSessionRoot.test_a_stale_tmp_root_is_not_swept_as_its_own_child`. MUTATION-VERIFIED |
+| **The `tmp/`-root guard passed two of the three spellings of the same file.** `check_scratch_path` anchored on a literal `tmp/`, so `./tmp/x` and the absolute `<repo>/tmp/x` were allowed while the Write surface refused them. The harness hands agents absolute paths, and the same diff had already widened `EXPENSIVE_COMMAND` for that spelling | `_SCRATCH_WRITE` takes a leading directory prefix; the shared module already decided on the resolved parent, so the candidate widened and the refusal did not. Four new parity rows including an allow-control. MUTATION-VERIFIED |
+| **`make -j build` raced three seeders on one database.** `build` names `$(ZEBIN_ZE)`, `$(ZEBIN_APPLIANCE)` and `$(ZEBIN_STRIPPED)`, each calling the seeder, and there is no `.NOTPARALLEL`. The existence test was a check-then-act: all three saw no database and all three reached `ze init` | an atomic `mkdir` lock with a bounded wait on the winner's postcondition. `test_a_parallel_build_seeds_exactly_once` asserts `ze init` ran ONCE. MUTATION-VERIFIED: without the lock it runs three times |
+| **`BEFORE` reached a shell before its own format check.** `ze-clean-sessions` spliced `$(BEFORE)` into a double-quoted shell literal, so `make ze-clean-sessions 'BEFORE=";touch pwn;x"'` ran that `touch` and only then reported a bad date | `export BEFORE` and `$$BEFORE`, so the value is data. `test_a_before_that_is_shell_metacharacters_runs_nothing`. MUTATION-VERIFIED |
+| **A dated regular file split the four resolvers.** make and Go took the first glob match of any type; the shell and python copies required a directory | the make wildcard took a trailing slash (its own directories-only idiom) with `$(patsubst %/,%,…)`, and `Root` skips non-directories. `test_a_dated_regular_file_is_no_session_directory_in_any_copy`. MUTATION-VERIFIED in both |
+| Three rule points and `.claude/hooks/README.md` claimed the spec claim is released at `SessionEnd`. Verified against `_release_session`: its only caller is `scripts/dev/spec-session.sh release`, which `/ze-close` runs | corrected in phase 6; fixture counts re-measured 35 to 36 |
+| Nine live instructions across `scripts/evidence/netns_qemu.py`, `qemu-run.py`, `scripts/checks/tracked_build.go`, `scripts/dev/stress-repro.py`, `plan/learned/HOOK-FRICTION.md`, `ai/INDEX.md`, `mk/test-unit.mk`, `internal/test/runner/runner.go` and `internal/test/sessionpath/sessionpath.go` still named the retired design, the age-out, or the session-end sweep | phase 6's sweep plus the closure sweep; `TestNoSuffixVocabularyRemains` (AC-12) refuses the vocabulary's return |
+
+### Documentation Updates
+
+| File | What changed | Anchor |
+|------|--------------|--------|
+| `docs/functional-tests.md` | `tmp/testbin-<id>/` is now named as the OFF-session spelling with the on-session one beside it; the cleanup sentence splits `ze-clean-tmp` (off-session) from `ze-clean-sessions` (on-session); "Run a single test" no longer says the runner rebuilds `bin/ze` | existing `<!-- source: mk/test-functional.mk … -->` and `<!-- source: internal/test/runner/runner.go … -->` anchors re-read and still true |
+| `docs/architecture/testing/qemu-integration.md` | the mount diagram gained the conditional second 9p share, with one paragraph saying why | `scripts/evidence/qemu-run.py` `scratch_share` |
+| `ai/INDEX.md` | the `make ze-path`, `session-scratch.sh` and `stress-repro.py` rows | — |
+| `ai/INSTRUCTIONS.md` | the dispatch row for running a test or build command | — |
+| `.claude/hooks/README.md` | NEW "The session directory" subsection; the source-4 resolution row; the marker list no longer calls the digest flat | — |
+| `ai/rules/commands.md`, `testing.md`, `repo-maintenance.md`, `planning.md`, `context-economy.md` | rendered from their points by `make ze-rules-render`; digests by `ze-rules-condensed` and `ze-rules-index` | generated, never hand-edited |
+
+`make ze-doc-test` rc=2. Sole driver: `WARNING: ai/DOCS-TO-CODE.md is stale`, FOREIGN
+(evidence in Pre-Commit Verification). Both `NOT AT HEAD` notices name this closure's own
+journal files and clear when the commit records them.
+
+### Deviations from Plan
+
+| Planned | Done | Why |
+|---------|------|-----|
+| Phase 2 leaves `reap_binaries` and the SessionEnd `bin/*-<sid>` loop standing for phase 3 | both DELETED in phase 2 | their subject (`bin/<name>-<sid>`) is what phase 2 deletes, and `reap_binaries` would have degraded to an empty list silently. Keeping it was layering plus an irreversible `rm` |
+| Phase 3 leaves `.claude/hooks/session-end-scratch.sh` as a no-op | the FILE and its `settings.json` registration DELETED | both of its statements are banned by AC-7, and AC-16 says these are "gone, not disabled". `TestSessionEndDeletesNothing` iterates whatever `settings.json` registers, so it goes red the moment a deleting hook returns |
+| AC-16 scopes the deletion ban to `tmp/session/` | phase 3 also removed the `tmp/` ROOT age sweep from `.claude/hooks/session-start.sh` | it was hook-driven, so it was automatic, and it deleted `tmp/delete-<sid>.sh` and `tmp/commit-*.sh` under the operator. Its operator-invoked twin survives untouched as `make ze-clean-tmp`. Wider than the AC asked for, and recorded here rather than left as an unexplained removal |
+| Seed with `ze init --force --yes --seed` | `ze init --seed` | `--force` moves an existing database aside. See Bugs Found |
+| `scripts/dev/hook_session_id_test.py` for AC-17/AC-18 | the existing `scripts/dev/hook-fixture-check.py` `session-id` section | the file never existed; creating a second runner for one section is layering |
+| `plan/deferrals/session-bin-directory.md` created | not created | no deferral was taken. See Deferrals Resolved |
+| Commit B removes the spec | not run | AC-27 is held open by owner instruction. See the Closure checklist above |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | **A-11 BROKEN.** The spec assumed deleting `_cleanup_stale_markers` broke no caller | one LIVE caller (`.claude/hooks/session-start.sh`) and three fixtures invoking it BY NAME, one of which asserted a live session's claim must NOT age out, an assertion that becomes vacuous once nothing ages out. Two further files carried comments describing the sweep | `grep -rn _cleanup_stale_markers .claude/ scripts/`, during the 2026-08-03 design pass, before any deletion | phase 3 REWROTE the three fixtures to assert the new contract rather than deleting them (`ai/rules/testing.md`), and corrected the stale comments in `session-end-summary.sh`, `block-premature-stop.sh`, `mark-agent-spawned.sh`, `commit_helper.py`, `README.md` |
+| assumption | **A-7 confirmed with a correction.** `ze init --yes` was taken as non-interactive | `--yes` is read only inside `if *forceFlag`, so it does nothing on its own; credentials arrive as five stdin lines | ran it, 2026-08-02: exit 1, `username is required` | the recipe pipes five lines and carries neither `--force` nor `--yes` |
+| approach | mutation-testing the seed script's path guard EXECUTED the unguarded path for real, reaching the shared `bin/ze` and running `ze init` against the operator's own `etc/ze` | the operator's database survived only because the recipe carries no `--force`. The command a guard protects must be non-destructive on its own | the probe ran; `etc/ze/crash/` appeared in the repository's config dir | `plan/journal/mutating-a-guard-runs-the-unguarded-path.md`; `--force` is banned in the script and the reason is in its header |
+| escalation | two hooks whose whole job is to correct a path named the banned shape in their own remediation text, and a session then wrote 351 loose files to the `tmp/` root in one day | an enforcement message is read as an instruction, so a guard that spells the violation teaches it | counted the `tmp/` root | `plan/journal/guard-message-teaches-the-violation.md`; the messages now name `session-scratch.sh`, and the shape itself is refused on both surfaces |
+| approach | phase 4's first landing seeded only from the `ze` recipe | `ze-appliance` and `ze-stripped` link the same silent `NewBlob` path and can each seed themselves; a stripped-only session got an empty store | `go list -deps` over each recipe's own tag set, after review | the script takes the BINARY rather than the bin directory, all six `ze_core` recipes call it, and `test_a_stripped_only_build_seeds_its_store` drives a real build |
+| escalation | **A guard was written on ONE spelling of its subject, and its own test corpus used that spelling.** `check_scratch_path` refused `tmp/x` and passed `./tmp/x` and the absolute `<repo>/tmp/x`; 196 parity rows were green because every row spelled it the refused way | the shared module already resolved the parent correctly. Only the regex that decided what to HAND it was narrow, and the sibling surface refused all three, so the two dispatchers disagreed under a docstring saying they must not | the Review Gate, round 1, by driving the hook with each spelling rather than reading the corpus | the candidate regex widened, four parity rows added including an allow-control, mutation-verified. The lesson generalizes past this guard: a corpus written by the guard's author tests the shape the author had in mind |
+| approach | the closure sweep found THREE defects the ten implementation phases had not: a `find` that could remove `tmp/` itself, a check-then-act race under `make -j`, and operator input reaching a shell before its own validator | each was pre-existing or newly reachable rather than newly written, which is why phase-scoped review missed all three: none sat on a line any phase edited | the Review Gate's independent lenses | all three fixed at the source with a mutation-verified regression test each. `ai/rules/planning.md`: the gate exists to find what nobody planned for, and a phase's own review cannot |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| On-session `make ze` writes `<session-dir>/bin/ze`, a bare name in a private directory | Done | `mk/session.mk` `ZE_BIN_DIR`, `Makefile` `ze` recipe | live build verified |
+| Off-session `make ze` writes `bin/ze`, byte-for-byte today's behavior | Done | `mk/session.mk` off-session branch | `make -n` diffed against `git archive HEAD`, re-run at closure |
+| `bin/` holds only what a human or CI built | Done | same | the suffix that put session binaries there is deleted |
+| One session root, `tmp/session/<YYYY-MM-DD>-<sid>/` | Done | `mk/session.mk`, `sessionpath.go` `Root`, `session-dir.sh` `_session_dir`, `pretool-writeedit.py` `session_dir` | four implementations, pinned against each other by `TestMakeAndGoAgreeOnBinDir` |
+| Three subdirectories `bin/`, `scratch/`, `state/` | Done | `session-scratch.sh`, `state-file.sh` `_state_file` | AC-19, AC-20 |
+| No automatic deletion under `tmp/session/` | Done | deletions listed in Implementation Summary | AC-7, AC-16 |
+| Cleanup is one directory the operator identifies by date | Done | `Makefile` `ze-clean-sessions` | AC-14, AC-15 |
+| A file at the `tmp/` root is REFUSED, not warned | Done | `.claude/hooks/lib/scratch_path.py` `is_ad_hoc_root_file` | AC-23..AC-26, in all three spellings after the Review Gate |
+| The superseded `owner-selected` rationale survives into the record | Done | Key Design Decisions, quoted verbatim; and a supersession block now heads `plan/spec-session-scoped-build-artifacts.md` | `ai/rules/planning.md` spec preservation |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestZePathIsSessionDirectory` (2 tests); live `make ze ZE_SESSION_ID=zesbd-build-probe` wrote `tmp/session/2026-08-10-zesbd-build-probe/bin/ze` and left `bin/ze` untouched | |
+| AC-2 | Done | `TestZePathOffSessionIsSharedBin`; `make -n` for `ze`, `ze-appliance`, `ze-stripped`, `ze-setup-bin` and `build` diffed against the same commands over `git archive HEAD Makefile mk`, `buildDate` normalised: byte-identical | |
+| AC-3 | Done | the recipe's `mkdir -p $(ZE_BIN_DIR)`, driven live by `test_a_stripped_only_build_seeds_its_store` | |
+| AC-4 | Done | `TestMakeAndGoAgreeOnBinDir`, `TestSessionBinDirIsolatesSessions` (Go) | |
+| AC-5 | Done | `TestZePathOffSessionIsSharedBin.test_unsafe_id_falls_back_to_the_shared_bin` (10 forms), `TestValidationDoesNotRunShell`, `TestSessionPathsRejectUnsafeID` (Go) | |
+| AC-6 | Done | `TestZePathIsSessionDirectory.test_an_id_equal_to_a_binary_suffix_is_accepted` (`test`, `perf`); `ZE_BIN_NAMES` and the collision guard are gone | |
+| AC-7 | Done | `TestSessionEndDeletesNothing` (2 tests) plus fixtures `delegation-no-session-end-hook-registered`, `delegation-session-start-deletes-no-marker`, `delegation-session-start-reaps-no-session-dir` | `_release_session` still `rm -f`s the claim marker, and is the ONE removal AC-7's wording does not carve out. It is operator-invoked, from `scripts/dev/spec-session.sh release` under `/ze-close`, so it is not automatic deletion. Read AC-7 as "no deletion a hook or a timer drives" |
+| AC-8 | Done | `TestSessionStoreIsSeeded` (9 tests) including a real `make ze-stripped` and the parallel-build case; live `<session-dir>/bin/ze data ls` listed 7 seeded keys | |
+| AC-9 | Done | live QEMU boot over a fixture checkout whose `tmp/` IS a symlink; control with `scratch_share` neutered fails to resolve `/workspace/tmp/` | |
+| AC-10 | Done | `TestCleanTmpPreservesSessionRoot` (2 tests), one with two controls that MUST be swept and one with the `tmp/` root itself stale | the second was added at closure and found a real defect |
+| AC-11 | Done | `hook-parity-check.py` rows for the relative and absolute session paths (=2), plus a dateless negative control (=0). Mutation-verified | |
+| AC-12 | Done | `TestNoSuffixVocabularyRemains`: eight trees, five patterns, zero offenders. Re-run at closure, clean | |
+| AC-13 | Done | `TestSessionDirIsStableAcrossMidnight`, `TestRootPrefersAnExistingDatedDirectory` (Go), `TestSessionDirIsLookedUp` (shell). Mutation-verified in make AND Go | |
+| AC-14 | Done | `TestSessionDirsSortByDate` (2 tests): names come from `make ze-path`, ids ordered against the dates, and a `2026-07-*` glob selects exactly July | |
+| AC-15 | Done | `TestCleanSessionsRefusesWithoutBefore` (4), `TestCleanSessionsRemovesOnlyOlder` (4). Mutation-verified on the `-lt`/`-le` boundary and on the `BEFORE` interpolation | |
+| AC-16 | Done | `TestNoAutomaticDeletionRemains`; the grep re-run at closure over `.claude/hooks/` and `scripts/dev/` is EMPTY | |
+| AC-17 | Done | `session-id-reused-pid-mints-fresh-id`, `session-id-cache-key-carries-start-time`, `session-id-reused-pid-leaves-dead-entry`. Mutation-verified: the PID-only key makes a dead session's id be adopted | |
+| AC-18 | Done | `session-id-live-cache-hit-stable`, `session-id-start-time-readable`, `session-id-start-time-ps-branch`, `session-id-cache-file-named-by-key` | |
+| AC-19 | Done | `session-state-digest-lands-in-the-session-directory`, `session-state-digest-reuses-an-existing-dated-directory`; `scratch/` and `state/` now resolve through the SAME `_session_dir` | |
+| AC-20 | Done | `session-state-nothing-is-written-flat` drives both `session-end-summary.sh` and `pre-compact-save.sh`, then asserts zero flat and exactly one nested | |
+| AC-21 | Done | five `session-state-resolver-*` checks covering the `state/` walk, the flat fallback and both `.claude/` legacy forms | |
+| AC-22 | Done | `session-state-flat-markers-do-not-move`: eight flat markers survive a full `session-start.sh` run | |
+| AC-23 | Done | `hook-parity-check.py` BASH goldens `tee tmp/t.log`, `tee tmp/v.log`, `grep … > tmp/notes.txt` = 2, plus `./tmp/notes.txt`, the absolute form and `tee` of the absolute form = 2 | the last three were added at closure and found a real defect |
+| AC-24 | Done | WE goldens `Write\|scratch tmp root` = 2, `Edit\|scratch tmp root` = 2, on the ABSOLUTE path the Write tool sends | |
+| AC-25 | Done | goldens = 0 for `tmp/s/<id>/`, `tmp/session/<dated>/`, all eight producer folders on both surfaces, and `sub/tmp/notes.txt` as the widening control | |
+| AC-26 | Done | goldens = 0 for `ze-verify.log`, `.ze-verify-duration.txt`, `commit-*`, `delete-*`, `mutation*`, `test-timings*` | |
+| AC-27 | **OPEN, owner-held** | not implemented, on purpose | The owner instructed on 2026-08-10 that both layouts stay accepted "until it does not trigger as fully ironed out". The rename lives only in the working tree; sibling sessions share this checkout, so refusing `tmp/s/` before the commit lands would break one mid-run, which the scope extension names as the one failure this spec must not cause. `tmp/s/<id>/` is accepted BY CONSTRUCTION in `scratch_path.py`, which names no layout, so nothing had to be added to keep it. This is the one item this spec closes with open, and it is why commit B is not run |
+| AC-28 | Done | `hook-parity-check.py` 200/200, both layouts present on both surfaces | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestZePathIsSessionDirectory` | Done | `scripts/dev/session_bin_dir_test.py` | |
+| `TestZePathOffSessionIsSharedBin` | Done | same | green before and after the rename, as required |
+| `TestSessionBuildCreatesItsOwnDirectory` | Changed | same, as `TestSessionStoreIsSeeded.test_a_stripped_only_build_seeds_its_store` | AC-3 is proven by a REAL build rather than by a class of that name |
+| `TestUnsafeIDFallsBackToSharedBin` | Changed | same, as `TestZePathOffSessionIsSharedBin.test_unsafe_id_falls_back_to_the_shared_bin` | one class, 10 forms, rather than a second class |
+| `TestValidationDoesNotRunShell` | Done | same | carried over from the retired suffix gate |
+| `TestMakeAndGoAgreeOnBinDir` | Done | same | extended at closure to all FOUR resolvers, plus the dated-regular-file case |
+| `TestNoSuffixVocabularyRemains` | Done | same | |
+| `TestCleanTmpPreservesSessionRoot` | Done | `scripts/dev/session_scratch_test.py` | |
+| `TestSessionEndDeletesNothing` | Done | same | |
+| `TestNoAutomaticDeletionRemains` | Done | same | |
+| `TestSessionDirIsStableAcrossMidnight` | Done | `scripts/dev/session_bin_dir_test.py` | |
+| `TestSessionStoreIsSeeded` | Done | same | 9 tests |
+| `TestSessionDirsSortByDate` | Done | same | |
+| `TestCleanSessionsRefusesWithoutBefore` | Done | same | |
+| `TestCleanSessionsRemovesOnlyOlder` | Done | same | |
+| the AC-17/AC-18 `session-id-*` checks | Done | `scripts/dev/hook-fixture-check.py` | 7 checks |
+| existing `sessionpath_test.go` | Changed | `internal/test/sessionpath/` | the `tmp/s/<id>` cases were retargeted; NEW `TestRootPrefersAnExistingDatedDirectory`, `TestRootCreatesNothing` |
+| `test/parse` + `test/encode` suites | Done | `test/parse/*.ci`, `test/encode/*.ci` | bare-name exec regression gate; `make ze-parse-test` ran 308/308 on-session during the review |
+| `test/ui/ze-stripped-surface.ci` | Changed | `test/ui/` | the pre-existing `ZE_TEST_CANONICAL=1` gap is unchanged and stays a Known Limitation |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `mk/session.mk`, `Makefile`, `mk/test-integration.mk` | Done | |
+| `mk/appliance.mk`, `mk/gokrazy.mk` | Changed | NOT modified. Their `mkdir -p bin` serves `bin/ze-installer-*` and `bin/gok`, which the Non-goals keep in `bin/`, so the mkdir still matches where the `-o` goes. The "Files to Modify" row naming them contradicted this spec's own Non-goals |
+| `internal/test/sessionpath/sessionpath.go` + `_test.go` | Done | |
+| `scripts/dev/session-scratch.sh`, `session_scratch_test.py` | Done | |
+| `.claude/hooks/pretool-bash.py`, `pretool-writeedit.py`, `subagent-context.sh`, `lib/state-file.sh`, `lib/session_id.py`, `session-start.sh` | Done | |
+| `.claude/hooks/session-end-scratch.sh` | Changed | DELETED entirely, not edited. See Deviations |
+| `.claude/hooks/lib/session-dir.sh` | Done | NEW |
+| `.claude/hooks/lib/scratch_path.py` | Done | NEW, and not in the original file table: the extension's guard needed ONE definition shared by the Bash and the Write surface |
+| `scripts/dev/session_bin_dir_test.py` | Done | NEW; `session_bin_suffix_test.py` DELETED |
+| `scripts/dev/session-seed-store.sh` | Done | NEW |
+| `scripts/dev/hook-parity-check.py`, `hook-fixture-check.py`, `qemu_binary_paths_test.py` | Done | |
+| `scripts/evidence/qemu-run.py`, `netns_qemu.py` | Done | |
+| `test/perf/run.py`, `internal/test/runner/runner.go` | Done | |
+| `ai/rules/points/**`, `ai/rules/points/RETIRED.md`, `ai/INDEX.md`, `ai/INSTRUCTIONS.md` | Done | rendered and digested by `make ze-rules-render` / `-condensed` / `-index` |
+| `plan/learned/HOOK-FRICTION.md`, `docs/functional-tests.md` | Done | |
+| `ai/rules/CONDENSED.md` | Changed | that file no longer exists; the digests are `ai/rules/TRIGGERS.md` and `CORE.md`, both regenerated |
+| `ai/PACKAGE-MAP.md` / `ai/DOCS-TO-CODE.md` | Changed | deliberately NOT in this commit. `PACKAGE-MAP.md` is fresh; `DOCS-TO-CODE.md` is stale on a sibling session's deleted file. See Pre-Commit Verification |
+| `plan/deferrals/session-bin-directory.md` | Changed | not created; no deferral was taken |
+| `mk/test-unit.mk`, `scripts/checks/tracked_build.go`, `scripts/dev/stress-repro.py`, `.claude/hooks/README.md`, `block-premature-stop.sh`, `session-end-summary.sh`, `mark-agent-spawned.sh`, `validate-spec.sh`, `.claude/settings.json`, `.claude/rules/session-start.md`, `post-compaction.md`, `ai/skills/ze-{implement,review,spec,debrief}.md`, `docs/architecture/testing/qemu-integration.md`, `scripts/dev/commit_helper.py`, `mk/test-functional.mk` | Done | not in the plan's file list; each was reached by the stale-comment and stale-path sweeps the plan required (`ai/rules/stale-comments.md`) |
+| `plan/spec-fixit-unexport-package-private-symbols.md` | Done | not in the plan's file list. A sibling session's in-progress spec whose worklist recipe wrote `tmp/unexport-gofiles.txt` and `tmp/unexport-worklist.tsv` at the `tmp/` ROOT, which AC-23 now refuses. Both moved into the `tmp/unexport-chunks/` the same recipe already creates. Nothing else in that spec changed |
+| `plan/spec-session-scoped-build-artifacts.md` | Done | not in the plan's file list. The Goal Gate requires the predecessor not be left claiming a decision this spec reversed; a supersession block now heads it |
+
+### Audit Summary
+- **Total items:** 28 AC + 9 Task requirements + 20 TDD rows + 22 file rows = 79
+- **Done:** 71
+- **Partial:** 0
+- **Skipped:** 0
+- **Open by owner instruction:** 1 (AC-27)
+- **Changed:** 7 (recorded in Deviations and in the tables above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A session's binaries live in that session's own dated directory, with everything else that session wrote | functional (real build) | `make ze ZE_SESSION_ID=zesbd-build-probe` produced `tmp/session/2026-08-10-zesbd-build-probe/bin/ze`, 85 MB, bare name. `bin/ze` unchanged. Re-run at closure: `make ze-path ZE_SESSION_ID=zesbd-close-probe` prints `tmp/session/2026-08-10-zesbd-close-probe/bin/ze` and creates nothing |
+| Cleanup is one directory the operator can identify by date and remove when they choose | functional | `TestSessionDirsSortByDate.test_a_month_glob_selects_exactly_that_month` plants 2026-07-31 and 2026-08-01 and proves `2026-07-*` selects exactly July. `TestCleanSessionsRemovesOnlyOlder` proves the boundary (a directory dated exactly `BEFORE` survives) and that flat markers and out-of-root paths are untouched. Mutation-verified: `-lt` to `-le` reds the boundary test |
+| `bin/` holds only what a human or CI built | grep + build diff | AC-12's `TestNoSuffixVocabularyRemains` finds zero live uses of `ZE_BIN_SUFFIX`, `ZE_BIN_NAMES`, `reap_binaries`, `bare_named_perf` or the `bin/<name>-<sid>` path shape across eight trees. Mutation-verified by writing `ZE_BIN_SUFFIX` back into `test/perf/run.py` |
+| Off-session behaviour is byte-for-byte today's | build diff | `make -n` for `ze`, `ze-appliance`, `ze-stripped`, `ze-setup-bin` (2 lines each) and `build` (29 lines), diffed against the same commands run over `git archive HEAD Makefile mk` with `buildDate` normalised: byte-identical. Re-run at closure after every fix: `mkdir -p bin` and `-o bin/<bare-name>`, with no seed line |
+| One session root, resolved identically by make, Go, shell and python | cross-implementation test | `TestMakeAndGoAgreeOnBinDir.test_every_implementation_resolves_the_same_session_directory` drives all FOUR against a directory dated YESTERDAY, so a copy that ignored the glob would answer today and be caught. `test_a_dated_regular_file_is_no_session_directory_in_any_copy` covers the one input that split them. MUTATION-VERIFIED four ways: break the shell glob, neuter the python glob, revert make's directories-only wildcard, revert Go's IsDir check, each reds the pair and each was restored byte-identically |
+| A session's store is isolated AND seeded, never silently empty (R-1, R-2) | functional (real binary) | `make ze-stripped ZE_SESSION_ID=zesbd-strip-probe` in a session with no `ze` binary seeded in 7 s; `<session-dir>/bin/ze-stripped data ls` exited 0 and listed the 7 keys. Isolation proven both ways: `bin/ze … data ls` unchanged before and after, `etc/ze/database.zefs` still 1205 B dated Jul 29 while the session store is 629 B. Mutation-verified: deleting the recipe call reds `test_a_stripped_only_build_seeds_its_store` with "a stripped-only session got an empty store". A parallel `make -j` seeds exactly once, mutation-verified against a lock-free script that seeds three times |
+| Nothing under `tmp/session/` is removed automatically (owner decision) | grep + fixture | AC-16's grep over `.claude/hooks/` and `scripts/dev/` for `-mmin +1440`, `reap_dead`, `reap_binaries` and `rm -rf … tmp/session` is EMPTY, re-run at closure. `TestSessionEndDeletesNothing` iterates whatever `settings.json` registers on `SessionEnd`, drives each with a real payload, and diffs the whole tree, so it goes red the moment any deleting hook is registered again. Mutation-verified: putting the age sweep back in `session-start.sh` reds two checks. And the one path that could still have taken the whole root, `ze-clean-tmp` matching `tmp/` as its own child, is closed and mutation-verified |
+| Removing the age-out cannot reopen the PID-reuse incident (R-9) | fixture + mutation | `session-id-reused-pid-mints-fresh-id`. MUTATION-VERIFIED: restoring the PID-only cache key makes a new session adopt a dead session's id (`dead == live`), which is incident 1162/1246 exactly |
+| QEMU still reaches the DUT when `tmp/` is a symlink (R-3) | live boot + control | a real QEMU boot over a fixture checkout whose `tmp/` IS a symlink: the DUT under `/workspace/tmp/session/2026-08-10-ac9probe/bin/` execs and prints its marker, `QEMU VM: PASS`. CONTROL, same fixture with `scratch_share` neutered: `mkdir: can't create directory '/workspace/tmp/'`, exit 1, marker absent |
+| A file at the `tmp/` root is refused, on both surfaces an agent writes with | golden corpus + mutation | 200/200 parity rows, covering all three spellings of the root path on the Bash surface and the absolute one on Write and Edit. MUTATION-VERIFIED four ways: the Bash guard made to allow reds 4 goldens; the Write guard made to allow reds 2; the search-argument exemption removed reds the audit golden; the regex narrowed back to the literal `tmp/` reds exactly the 3 new refuse rows and leaves the allow-control green |
+
+Interop: N-A. Build tooling, no wire-visible behaviour, no protocol peer
+(`ai/rules/interop-and-goal-validation.md`, "When interop tests are NOT required").
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| *(no shard exists)* | n-a | `plan/deferrals/session-bin-directory.md` was never created: no phase took a deferral. `ls plan/deferrals/session-bin-directory.md` gives No such file or directory. The spec metadata carries `-` for the shard field, which is the "create on first deferral" state |
+| `test/ui/ze-stripped-surface.ci` under `ZE_TEST_CANONICAL=1` | deferred, and NOT this spec's | Pre-existing and recorded under Known Limitations. This spec makes correct resolution MORE likely (bare names) and does not prove it. It was found in passing before implementation began |
+| `internal/component/doctor/checks_storage.go` `checkStoreIntegrity` fails open | deferred, needs its own home | Pre-existing, found in passing, unrelated to this work. Recorded under Known Limitations |
+| `ai/rules/repo-maintenance.md` and `planning.md` call `block-premature-stop.sh` inert | done | Corrected in phase 6 as a stale-comment fix: the hook IS registered on `Stop` with `blocking: true`. The Known Limitation is now historical |
+| `internal/test/runner/runner.go` `TestHelperBuildTags` has no cross-package non-test caller | deferred, and already homed | `make ze-validate`'s one issue. PROVEN pre-existing: `git archive HEAD` into a clean tree and `python3 scripts/dev/validate.py` there reports the identical single issue. `plan/spec-fixit-unexport-package-private-symbols.md` (in-progress, phase 7/8) was created from this check's own log of 467 such findings and its AC-3 is that none remains, so this row belongs to that spec's remainder |
+
+No foreign shard was emptied by these resolutions, so none is removed.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/session-bin-directory-ad6179cd-01b3-45c8-a280-7857979322ce.md`, 77 files hashed, verdict `clean` |
+| `review_gate.py check` | `OK (33 code files, clean, hashes match)` |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1: logic+wiring; security+edge-cases; spec-completeness (AC-1..AC-28, no-layering, stale comments, assumption re-validation). Round 2: scoped to the fixes round 1 drove and what they touched |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `make ze-clean-tmp` can `rm -rf` the whole scratch tree. `find tmp/ -maxdepth 1 -type d` yields `tmp/` itself at depth 0 and neither `-not -name` excludes it, so a stale root mtime takes `tmp/session/` with every session's binaries, store and digest. The diff adds a comment beneath it claiming the opposite | `Makefile` `ze-clean-tmp` | `-mindepth 1`. Regression: `TestCleanTmpPreservesSessionRoot.test_a_stale_tmp_root_is_not_swept_as_its_own_child`, which makes the ROOT stale rather than a child. Mutation-verified |
+| 2 | BLOCKER | The `tmp/`-root guard fails open on two of the three spellings of the same file: `./tmp/x` and the absolute `<repo>/tmp/x` pass on Bash while the Write surface refuses them, under a shared-module docstring saying both surfaces must refuse the same paths | `.claude/hooks/pretool-bash.py` `check_scratch_path`, via `_SCRATCH_WRITE` | the candidate regex takes a leading directory prefix; `is_ad_hoc_root_file` already resolved the parent, so the refusal did not widen. Four parity rows including an allow-control (`sub/tmp/notes.txt`). Mutation-verified |
+| 3 | ISSUE | Four file headers state that `TestMakeAndGoAgreeOnBinDir` is what stops the language copies drifting, while the test drove two of the four. R-11 is this spec's own named risk, and the claim is the shield that stops the next reviewer checking | `scripts/dev/session_bin_dir_test.py` `TestMakeAndGoAgreeOnBinDir` | the test now drives all four, against a directory dated YESTERDAY so the lookup branch is the one under test. Mutation-verified in the shell and python copies |
+| 4 | ISSUE | Check-then-act in the seeder: `make -j build` runs three `ze_core` recipes that each call it, so three `ze init` runs race on one database and the losers fail the build | `scripts/dev/session-seed-store.sh` | an atomic `mkdir` lock, a bounded wait on the winner's postcondition, and a re-check under the lock. `test_a_parallel_build_seeds_exactly_once` asserts `ze init` ran once. Mutation-verified |
+| 5 | ISSUE | `make clean` destroys this session's per-spec digest, and the comment beside it says it removes only `scratch/`. Phase E1 moved the digest inside the dated directory; `--clean` has always taken the whole directory | `Makefile` `clean` | the comment and the echo now state all three subdirectories and name what losing the digest costs. The behaviour is correct: `make clean` is operator-invoked and says "clean this session" |
+| 6 | ISSUE | Five comments still describe the deleted age-out or session-end sweep as live, and one names the test file this diff deletes | `.claude/hooks/lib/session_id.py` `_mint_cached`; `internal/test/sessionpath/sessionpath.go` `EnsureScratchRoot`; `internal/test/runner/runner.go` `NewRunner`; `scripts/checks/tracked_build.go` `runSelftest`; `mk/test-unit.mk` | each rewritten against the producing code (`ai/rules/stale-comments.md`) |
+| 7 | NOTE, fixed | `BEFORE` is spliced into a double-quoted shell literal before its own format check, so `make ze-clean-sessions 'BEFORE=";touch pwn;x"'` runs that `touch` and only then reports a bad date | `Makefile` `ze-clean-sessions` | `export BEFORE` and `$$BEFORE`, so the value is data. `test_a_before_that_is_shell_metacharacters_runs_nothing`. Mutation-verified against the real injection point |
+| 8 | NOTE, fixed | make and Go take the first glob match of ANY type; the shell and python copies require a directory. A dated regular file splits the four | `mk/session.mk` `ZE_SCRATCH_DIR`; `internal/test/sessionpath/sessionpath.go` `Root` | make's wildcard took its directories-only trailing slash with `$(patsubst %/,%,…)`; `Root` skips non-directories. `test_a_dated_regular_file_is_no_session_directory_in_any_copy`. Mutation-verified in both |
+| 9 | NOTE, fixed | The quote guard's comment claims "a quote-free id cannot inject shell", which is true of the shell layer only: make expands `$(…)` in the incoming value at the first reference, which is the guard itself | `mk/session.mk` (the id-validation block) | the comment now bounds its own claim and says why make's layer crosses no privilege boundary |
+| 10 | NOTE, fixed | "the session directory carries three subdirectories" under-describes it: `testbin-<id>/` and `ze-functional-*/` are siblings of the three | `.claude/hooks/lib/session-dir.sh` (header) | the header names them |
+| 11 | NOTE, fixed | `ze-clean-sessions` property 1 says "only a dated directory inside that root", but `ZE_SESSION_ROOT` is a plain `:=` a caller can override, which the tests themselves do | `Makefile` (the `ze-clean-sessions` comment) | property 1 now says the SHAPE is the bound, not the root, and names the test that relies on it |
+| 12 | NOTE, not fixed | AC-7's wording ("no marker deletion anywhere in `.claude/hooks/`") is broader than what was built: `_release_session` still `rm -f`s the claim marker | `.claude/hooks/lib/state-file.sh` `_release_session` | correct as built and operator-invoked from `/ze-close`. Recorded in the AC-7 audit row so a later reader does not "fix" the release path |
+| 13 | NOTE, not fixed | AC-4 says "two session ids build CONCURRENTLY"; no test runs two builds at once | `scripts/dev/session_bin_dir_test.py` | what is proven is stronger in practice: the path is a pure function of the validated id, so two ids name two directories and neither can write the other's path |
+| 14 | NOTE, not fixed | `internal/test/runner/runner.go` `TestHelperBuildTags` has no cross-package non-test caller, so `make ze-validate` reports one issue | `internal/test/runner/runner.go` | PRE-EXISTING at HEAD, proven by running `validate.py` over a pristine `git archive HEAD` tree. Homed at `plan/spec-fixit-unexport-package-private-symbols.md`, whose AC-3 owns the whole class. Fixing it here would collide with that live session and fold an unrelated change into a closing commit |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `scripts/dev/session_bin_dir_test.py` | Yes | `ls -l` reports a regular file, 37 KB |
+| `scripts/dev/session-seed-store.sh` | Yes | `ls -l` reports mode `-rwxrwxr-x`, executable as the recipe requires |
+| `.claude/hooks/lib/session-dir.sh` | Yes | `ls -l` reports a regular file |
+| `.claude/hooks/lib/scratch_path.py` | Yes | `ls -l` reports a regular file |
+| `plan/deferrals/session-bin-directory.md` | No, correctly | `ls` gives No such file or directory; no deferral was taken |
+| `scripts/dev/session_bin_suffix_test.py` | No, correctly | deleted by phase 2; `git ls-files` still lists it until the commit records the removal |
+| `test/parse/*.ci`, `test/encode/*.ci` | Yes | the suites named in the Wiring Test are the repository's existing ones; this spec adds no `.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-3, AC-4, AC-5, AC-6, AC-8, AC-12, AC-13, AC-14, AC-15 | the layout, the seeding, the cleanup target and the retired vocabulary | `python3 scripts/dev/session_bin_dir_test.py` gives `Ran 33 tests … OK`, run after every closure fix |
+| AC-2 | off-session is `bin/ze` | `env -u CLAUDE_CODE_SESSION_ID -u ZE_SESSION_ID make ze-path` gives `bin/ze`; and `make -n` for `ze`, `ze-appliance`, `ze-stripped`, `ze-setup-bin` gives `mkdir -p bin` with `-o bin/<bare-name>` and no seed line |
+| AC-1 (no side effect) | `ze-path` creates nothing | `make ze-path ZE_SESSION_ID=zesbd-close-probe` printed the path; `ls -d tmp/session/2026-08-10-zesbd-close-probe` gives No such file or directory |
+| AC-7, AC-10, AC-16 | no automatic deletion survives, and the operator sweep cannot take the root | `python3 scripts/dev/session_scratch_test.py` gives `Ran 14 tests … OK` |
+| AC-12 | the retired vocabulary is gone | `grep -rn 'ZE_BIN_SUFFIX\|ZE_BIN_NAMES\|reap_binaries\|bare_named_perf' Makefile mk/ scripts/ .claude/ internal/ test/ ai/ docs/`, excluding `*_test.py` and `RETIRED.md`: EMPTY, run at closure |
+| AC-16 | the four banned deletion idioms are gone | `grep -rn 'mmin +1440\|reap_dead\|rm -rf .*tmp/session' .claude/hooks/ scripts/dev/`, excluding `*_test.py`: EMPTY, run at closure |
+| AC-17..AC-22 | id cache key, digest location, flat markers | `python3 scripts/dev/hook-fixture-check.py` gives `356/356 passed`, run after every closure fix |
+| AC-11, AC-23..AC-26, AC-28 | the guards refuse and allow exactly the pinned corpus | `python3 scripts/dev/hook-parity-check.py` gives `200/200 match`, and `make ze-hook-test` OK, both run after every closure fix |
+| AC-27 | held OPEN by owner instruction | `.claude/hooks/lib/scratch_path.py` names no layout, so `tmp/s/<id>/` is accepted by construction; the parity corpus still carries both layouts. Nothing was added to keep it and nothing was removed |
+| every rule point and digest | fresh | `make ze-rules-lint` 28 conform; `ze-rules-condensed-check`, `ze-rules-render-check`, `ze-rules-index-check`, `ze-rules-points-roundtrip` all rc=0; `ze-rules-gate-map` DANGLING 0, PUBLISHED 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-path ZE_SESSION_ID=<id>` to `mk/session.mk` `ZE_BIN_DIR` | `TestZePathIsSessionDirectory` (python, not `.ci`) | Yes, inside the 33/33 pass, and invoked directly: `tmp/session/2026-08-10-zesbd-close-probe/bin/ze` |
+| `make ze-path` with no session id to the off-session branch | `TestZePathOffSessionIsSharedBin` | Yes, and invoked directly with the env var unset: `bin/ze` |
+| `make ze ZE_SESSION_ID=<id>` to `mkdir -p $(dir …)` + `-o` | `TestSessionStoreIsSeeded.test_a_stripped_only_build_seeds_its_store` runs the REAL `make ze-stripped` | Yes, plus a live 85 MB `make ze` in phase 2 |
+| `ze-test` under a session, `sessionpath.BinDir` agreeing with make | `TestMakeAndGoAgreeOnBinDir` | Yes. The test compiles a throwaway Go probe printing `sessionpath.BinDir(".")` and compares make's directory to it, and now compares the shell and python resolvers too |
+| a `.ci` suite under a session, bare-name exec off one PATH entry | `test/parse/*.ci`, `test/encode/*.ci` | Yes. The suites exec `ze`/`ze-stripped` by bare name off the runner's single PATH entry (`internal/test/runner/runner_exec.go` `childPathEnv`), which is what A-4 confirms and what bare naming preserves. `make ze-parse-test` ran 308/308 on-session during the review, building into `tmp/session/<dated>/testbin-…/bin/` |
+| a Bash redirect or a Write naming `tmp/<file>`, in any of its three spellings, to a refusal | `hook-parity-check.py` goldens | Yes, read row by row on both surfaces, exit 2, with `sub/tmp/notes.txt` as the allow-control. This gate fired on this closure session itself, which is why every log here is under `$(scripts/dev/session-scratch.sh)` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `internal/core/paths/paths.go` `isBinDir` / `ConfigDirFromBinary` read; reproduced empirically, a session binary resolves `<session-dir>/etc/ze` |
+| A-2 | confirmed | `internal/component/config/storage/blob.go` `NewBlob` read: `zefs.Create` then `err == nil`. This is why AC-8 exists |
+| A-3 | confirmed | timed: 18.54 s to build, 4.91 s to a different `-o` path, `cmp` byte-identical |
+| A-4 | confirmed | `runner_exec.go` / `runner.go` `childPathEnv` read; `make ze-parse-test` ran 308/308 on bare names during the review |
+| A-5 | confirmed | `ls -ld tmp` gives a real directory in this checkout. AC-9 was therefore proven on a FIXTURE checkout whose `tmp/` is a symlink, not on this one |
+| A-6 | confirmed | working prototype: seeding works, isolation holds both ways |
+| A-7 | confirmed, with a correction | `--yes` alone exits 1 (`username is required`); credentials arrive as five stdin lines. Recorded in the Mistake Log |
+| A-8 | confirmed | `Makefile` `ze-clean-tmp` excludes `session` from its `-type d` sweep, and after the Review Gate the sweep can no longer match `tmp/` itself. `TestCleanTmpPreservesSessionRoot` pins both, with controls that MUST be swept |
+| A-9 | confirmed, with a correction | the `-type f` sweeps never match a directory and the one `-type d` sweep excludes `session`, but it DID match `tmp/` itself at depth 0, which the assumption's wording missed. Closed with `-mindepth 1` and a mutation-verified test rather than by narrowing the claim |
+| A-10 | confirmed | `/proc/<pid>/stat` field 22 and `ps -o lstart=` both answered; `session-id-start-time-readable` and `-ps-branch` pin both readers |
+| A-11 | **BROKEN** | one live caller and three fixtures invoking `_cleanup_stale_markers` by name. Mistake Log row written; Deviations records that phase 3 REWROTE the fixtures rather than deleting them. Re-verified at closure: `grep -rn _cleanup_stale_markers .claude/ scripts/` is empty and `hook-fixture-check.py` is 356/356 |
+| A-12 | confirmed | `git check-ignore -v <session-dir>/etc/ze/.dev-password` resolves `.gitignore` `tmp/*`; `git status --porcelain` never shows it; the test asserts mode 0600 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1 New user-facing feature? No | no shipped code path changed; `internal/core/paths` is untouched | Yes |
+| 2 Config syntax? No | no YANG, no parser change | Yes |
+| 3 CLI command? No | `ze-path` and `ze-clean-sessions` are make targets, not `ze` commands | Yes |
+| 4 API/RPC? No | none | Yes |
+| 5 Plugin? No | none | Yes |
+| 6 User guide page? No | grep of `docs/` for the session-binary convention finds only `docs/functional-tests.md`, which row 10 owns | Yes |
+| 7 Wire format? No | none | Yes |
+| 8 Plugin SDK? No | none | Yes |
+| 9 RFC behaviour? No | no protocol code in the diff; `docs/features/rfc-status.md` untouched and unimplicated | Yes |
+| 10 Test infrastructure? **Yes** | `docs/functional-tests.md`: the `tmp/testbin-<id>/` paragraphs now name the off-session spelling with the on-session one beside it, and the cleanup sentence splits `ze-clean-tmp` from `ze-clean-sessions`. Its `<!-- source: mk/test-functional.mk … -->` and `<!-- source: internal/test/runner/runner.go … -->` anchors were re-read against the changed files and still hold | Yes |
+| 11 Daemon comparison? No | `docs/comparison.md` states no build-artifact convention | Yes |
+| 12 Internal architecture? **Yes** | `ai/rules/commands.md` (rendered from its points), `ai/INDEX.md` rows for `make ze-path`, `session-scratch.sh` and `stress-repro.py`, the `mk/session.mk` header, `.claude/hooks/README.md`'s new "The session directory" subsection, and `docs/architecture/testing/qemu-integration.md`'s second 9p share | Yes |
+| 13 Route metadata? No | none | Yes |
+| 14 Prometheus counters? No | none | Yes |
+| 15 Registered plugin/command inventory? No | no registry surface; `ze-rules-gate-map` PUBLISHED 0 | Yes |
+| 16 Doc source anchors on changed files? **Yes** | grepped `docs/` and `ai/` for `source:` anchors naming every changed file. Hits: `internal/test/runner/runner.go` (4), `mk/test-integration.mk` (6), `mk/test-functional.mk` (4), `Makefile` (8), `scripts/checks/tracked_build.go` (1), `test/perf/run.py` (1). Each anchored claim re-read: none names a binary path, a suffix, or a sweep, so none went stale. The one that did, `docs/functional-tests.md`'s testbin paragraph, was rewritten in phase 6 | Yes |
+| 17 Existing examples for this area? **Yes** | `docs/functional-tests.md` command examples are the off-session spelling and are still accurate; the on-session note now sits beside them rather than leaving them reading as universal | Yes |
+| Doctor check | No new runtime dependency | `scripts/dev/session-seed-store.sh` runs at BUILD time from a make recipe. It adds no file path, socket, port, module, cert or external binary the daemon needs at run time, so `ai/rules/repo-maintenance.md`'s doctor rule does not fire. `internal/core/diagnostic/codes.go` is untouched | Yes |
+| `make ze-doc-test` | rc=2, sole driver FOREIGN | The only failing line is `WARNING: ai/DOCS-TO-CODE.md is stale`. Re-verified at closure rather than assumed, and again after the closure fixes touched three `.go` files: regenerated with `make ze-discovery-index`, diffed against the committed file, restored. The delta is ONE row, the removal of `internal/component/bgp/rib/update.go`, a file a SIBLING session deleted. `docs_to_code.py` reads `// Design:` headers, and no closure edit touched one. `ai/PACKAGE-MAP.md` is fresh (623 packages, up to date). Both are kept OUT of the commit. The two `NOT AT HEAD` lines name this closure's own journal files and clear when the commit records them | Yes |
+| `make ze-validate` | rc=2, 1 issue, FOREIGN and PRE-EXISTING | `internal/test/runner/runner.go` `TestHelperBuildTags` has no cross-package non-test caller. PROVEN pre-existing rather than assumed: `git archive HEAD` into a clean tree and `python3 scripts/dev/validate.py` there reports the identical single issue. This diff changes only a doc comment in that file and touches neither the symbol nor any caller. Already homed at `plan/spec-fixit-unexport-package-private-symbols.md`, whose AC-3 owns the class | Yes |
+| `make ze-spec-citation-check` | rc=0 | green. `grep -rn "plan/spec-session-bin-directory" plan/*.md` finds ONE hit, this spec's own Closure checklist. The spec is not being removed, so that citation resolves and nothing needs repointing | Yes |
+| `make ze-lint-changed` | rc=0 | `0 issues` over `./internal/test/cli`, `./internal/test/runner`, `./internal/test/sessionpath`, re-run after the closure fixes | Yes |
+
+## Core Insight
+
+**A per-session NAME is a shared namespace; a per-session DIRECTORY is not.** Every
+guard this spec deleted existed to police that namespace: the binary-name collision
+check, the argv[0] personality-dispatch shim, and the name-glob sweeper that had to
+parse `ZE_BIN_NAMES` out of a makefile to know what it must not delete. A directory
+retires all three at once, which is why a change that adds a feature is mostly
+deletion.
+
+The sweeper generalizes past this spec. Its 600 MB of misses were not a bug in the
+glob. Removal keyed on a NAME can only reach what it still recognizes, so anything
+named by a process that died, or named slightly differently, is invisible to it
+forever. Removal keyed on a CONTAINER has no such blind spot. Once that was true,
+automatic deletion stopped paying for itself, and the owner could remove it: the
+operator reads the directory by eye, because it is dated, and removes it by glob.
+
+The Review Gate added a third, and it is about guards rather than cleanup. **A guard
+is written on one spelling of its subject, and its author's own corpus uses that
+spelling.** Both blockers this closure fixed have that shape: `check_scratch_path`
+refused `tmp/x` and passed `./tmp/x` and the absolute path, with 196 green rows that
+all spelled it the refused way; `ze-clean-tmp`'s two `-not -name` exclusions read as
+covering `tmp/session/`, while `find`'s depth-0 entry was a spelling of the root that
+neither name could match. In both cases the decision function was already correct and
+only the thing that FED it was narrow. The test that finds this is never another row
+in the same corpus. It is enumerating the spellings of the subject, then driving the
+guard from its entry point with each one.
