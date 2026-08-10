@@ -968,7 +968,7 @@ def _shard_is_struck(shard: Path) -> bool:
 def collect_known_failures(root: Path) -> Metric:
     """Tests logged as known-red. Debt that is tracked but still debt.
 
-    The single `plan/known-failures.md` file was sharded into
+    The single `plan/known-failures.md` file was sharded into <!-- doc-links: ignore (the pre-sharding file, named as history) -->
     `plan/known-failures/` (spec-fixit-shared-plan-file-contention) so concurrent
     sessions never cross-commit each other's rows. One file per LIVE failure;
     RESOLVED.md archives the history verbatim; README.md holds the logging

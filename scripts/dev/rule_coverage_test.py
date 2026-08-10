@@ -187,7 +187,7 @@ class TestDetector(DetectorCase):
         derived from the block's first line, and four of the real corpus's 2316
         slugs already equal a rule stem (`architecture`, `completion`,
         `git-safety`, `testing`). Under a bare prefix test, opening
-        `ai/rules/points/plugins/directives/architecture.md` would mark the blocking rule
+        `ai/rules/points/plugins/directives/architecture.md` would mark the blocking rule <!-- doc-links: ignore (constructed example: a point slug equal to a rule stem) -->
         `ai/rules/architecture.md` as consulted.
         """
         write_rule(
@@ -249,9 +249,9 @@ class TestDetector(DetectorCase):
         for name in names:
             body += (
                 f"## {name}\n"
-                f"`ai/rules/{name}`\n"
+                f"`ai/rules/{name}`\n"  # <!-- doc-links: ignore (format template, not a path) -->
                 "**When:** always\n\n"
-                f"Fix the root cause (`ai/rules/{cites}`), never record it.\n\n"
+                f"Fix the root cause (`ai/rules/{cites}`), never record it.\n\n"  # <!-- doc-links: ignore (format template, not a path) -->
             )
         (self.rules / "CORE.md").write_text(body, encoding="utf-8")
 

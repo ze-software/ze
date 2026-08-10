@@ -19,7 +19,7 @@ ze skills get <name> [--full]
 ```
 
 Driving ze over MCP instead of the CLI? Call the `ze_reference` tool (it appears
-in `tools/list` on connect) for the same `ze help ai --json` reference.
+in `tools/list` on connect) for the same `ze help ai --json` reference. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 ## Version-Matched Skills
 

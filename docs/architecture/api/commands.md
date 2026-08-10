@@ -1195,7 +1195,7 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
 
 `Hidden` commands still dispatch when typed in full. They never appear in
-completion, in help, in the MCP `tools/list` result, or in the API command list.
+completion, in help, in the MCP `tools/list` result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 `buildCommandMeta` is the one producer of the last two surfaces, and it skips
 every hidden plugin command.
 
@@ -1309,8 +1309,8 @@ speaks in its own `params._meta`.
 | Method | Direction | Purpose |
 |--------|-----------|---------|
 | `server/discover` | Client -> server | Advertise `supportedVersions`, `capabilities` (including `extensions["io.modelcontextprotocol/ui"]` for MCP Apps and `extensions["io.modelcontextprotocol/tasks"]` for background tasks), and `instructions`. Mandatory for a server to implement, and optional for a client to call |
-| `tools/list` | Client -> server | The tool inventory, derived from the command registry at call time, in a deterministic order. A descriptor carries `_meta.ui` only when the request declared the `io.modelcontextprotocol/ui` extension compatibly |
-| `tools/call` | Client -> server | Run a tool. Answers `resultType: "task"` when the command's `ze:task-support` annotation is `required` and the request declared the tasks extension. Answers `resultType: "input_required"` when the tool needs a value the call did not supply |
+| `tools/list` | Client -> server | The tool inventory, derived from the command registry at call time, in a deterministic order. A descriptor carries `_meta.ui` only when the request declared the `io.modelcontextprotocol/ui` extension compatibly | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+| `tools/call` | Client -> server | Run a tool. Answers `resultType: "task"` when the command's `ze:task-support` annotation is `required` and the request declared the tasks extension. Answers `resultType: "input_required"` when the tool needs a value the call did not supply | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 <!-- source: internal/component/mcp/streamable_tools.go -- runMethod dispatch switch -->
 <!-- source: internal/component/mcp/discover.go -- serverDiscover -->
@@ -1322,7 +1322,7 @@ required.
 
 `elicitation/create` survives, but no longer as a method. `elicitation/create`
 is now a **value** inside the `inputRequests` map of an `InputRequiredResult`. A
-server RETURNS that result from `tools/call` (or `resources/read`), and the
+server RETURNS that result from `tools/call` (or `resources/read`), and the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 server does not send it. The client then retries the original request with
 `inputResponses`. See [MCP Elicitation](../../guide/mcp/elicitation.md) for the
 full round trip.
@@ -1333,7 +1333,7 @@ for how capabilities are declared per request.
 ## MCP Task Methods
 
 These are the `io.modelcontextprotocol/tasks` extension, not core protocol. A
-`tools/call` on a command annotated `ze:task-support required` creates a
+`tools/call` on a command annotated `ze:task-support required` creates a <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 background worker and returns a `CreateTaskResult` immediately. The client then
 polls for status, and the server pushes nothing.
 
@@ -1360,7 +1360,7 @@ HTTP 400, carrying `data.requiredCapabilities` in the extension shape.
 <!-- source: internal/component/mcp/streamable_tools.go -- tasksGet, tasksUpdate, tasksCancel, failMissingTasksCapability -->
 <!-- source: internal/component/mcp/meta.go -- parseClientCapabilities -->
 
-Task creation is server-directed. There is no `task` member on `tools/call`
+Task creation is server-directed. There is no `task` member on `tools/call` <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 params. The server decides per tool from the YANG `ze:task-support` annotation:
 `required` always, `forbidden` never, and `optional` synchronous. A client that
 did not declare the extension gets the ordinary synchronous result, not an
@@ -1398,7 +1398,7 @@ no method can omit them. `resultType` is `complete` for a finished result.
 when it needs a value the request did not supply. The shared helper preserves
 `input_required` and does not overwrite it. And a guard on the single path out
 of dispatch refuses to emit `input_required` on any method other than
-`prompts/get`, `resources/read` and `tools/call`.
+`prompts/get`, `resources/read` and `tools/call`. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 <!-- source: internal/component/mcp/streamable_tools.go -- ok, resultMeta, runMethod -->
 <!-- source: internal/component/mcp/mrtr.go -- guardInputRequired, permitsInputRequired -->
@@ -1409,18 +1409,18 @@ Four methods additionally carry the `CacheableResult` fields, `ttlMs` and
 | Method | `ttlMs` | `cacheScope` |
 |--------|---------|--------------|
 | `server/discover` | `60000` | `private` |
-| `tools/list` | `60000` | `private` |
+| `tools/list` | `60000` | `private` | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `resources/list` | `3600000` | `private` |
 | `resources/read` | `3600000` | `private` |
 
-`tools/call` and every `tasks/*` method carry neither field, in either result
-shape. Three reasons make that correct. `tools/call` is absent from the
+`tools/call` and every `tasks/*` method carry neither field, in either result <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+shape. Three reasons make that correct. `tools/call` is absent from the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 specification's cacheable-operation list. Interim `input_required` results are
 explicitly not cacheable. And a result produced by an MRTR retry must not be
 cached at all.
 
 Ze therefore applies the hints from a per-method table on the way out of
-dispatch. The shared `ok()` responder does not apply them, because `tools/call`
+dispatch. The shared `ok()` responder does not apply them, because `tools/call` <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 also uses it.
 
 `cacheScope` is `private` on every cacheable result, which forbids a shared
@@ -1448,7 +1448,7 @@ with the body:
 
 - `MCP-Protocol-Version` mirrors the `_meta` protocol version.
 - `Mcp-Method` mirrors `method`.
-- `Mcp-Name` mirrors `params.name` for `tools/call` and `prompts/get`, and it
+- `Mcp-Name` mirrors `params.name` for `tools/call` and `prompts/get`, and it <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
   mirrors `params.uri` for `resources/read`.
 
 Ze decodes the `=?base64?...?=` sentinel in `Mcp-Name` first, then compares the
@@ -1456,7 +1456,7 @@ decoded value with the body.
 
 <!-- source: internal/component/mcp/headers.go — mcpNameSource -->
 
-Tool descriptors in `tools/list` carry `_meta.ui.resourceUri` when the command
+Tool descriptors in `tools/list` carry `_meta.ui.resourceUri` when the command <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 group has a `ze:ui-resource` YANG extension. The `_meta.ui` block is emitted
 unconditionally, and the `ui://` asset it points at is readable by every caller.
 

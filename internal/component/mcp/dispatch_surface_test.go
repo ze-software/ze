@@ -249,7 +249,7 @@ func TestResultBearingMethodsMatchDispatchSwitch(t *testing.T) {
 // VALIDATES: the parsed set resolves named constants to wire names and contains
 // the methods this server certainly dispatches.
 // PREVENTS: the const-resolution step regressing to returning identifier names
-// (`methodToolsList` instead of `tools/list`), which would make every membership
+// (`methodToolsList` instead of `tools/list`), which would make every membership  // <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 // check above compare two disjoint vocabularies and report nothing.
 func TestDispatchSwitchMethodsReadsRealNames(t *testing.T) {
 	inSwitch := dispatchSwitchMethods(t)

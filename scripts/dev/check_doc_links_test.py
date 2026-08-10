@@ -111,6 +111,22 @@ class DocLinksGateTest(unittest.TestCase):
         res = run(repo)
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
 
+    def test_digest_line_number_run_is_stripped(self) -> None:
+        """AC-8: `path,62,152,169` names the file, and the file is checked.
+
+        `ai/digests/*.md` writes several line numbers as a comma run. The run
+        is not part of the path, so a live file must pass. The second half is
+        the negative control: the strip must not turn the check off, so a dead
+        file written the same way is still reported, under its stripped name.
+        """
+        repo = self._repo(
+            "Live `ai/rules/sample.md,62,152,169`, dead `ai/rules/absent.md,7`.\n"
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("broken path reference: ai/rules/absent.md", res.stdout)
+        self.assertNotIn("reference: ai/rules/sample.md", res.stdout)
+
 
 class InRepo:
     """Run a block with the process cwd at the repository root.
@@ -447,8 +463,12 @@ class IgnoreMarkerTest(unittest.TestCase):
         res = run(repo)
         self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
         self.assertIn("docs/architecture/sample.md:1", res.stdout)
-        # `check_markdown` never walks docs/, so the marker is the only finding.
+        self.assertIn("states no reason", res.stdout)
+        # `check_markdown` still never walks docs/, so check 1 reports nothing
+        # here. Check 5 reads the same file and reports the reference the
+        # unreasoned marker failed to excuse.
         self.assertNotIn("broken path reference", res.stdout)
+        self.assertIn("dead path reference: ai/rules/absent.md", res.stdout)
 
     def test_backticked_marker_is_an_example_not_a_marker(self) -> None:
         """A code span showing the syntax must not suppress its own line.
@@ -490,6 +510,269 @@ class IgnoreMarkerTest(unittest.TestCase):
         above still fails closed.
         """
         self.assertEqual(cdl.check_ignore_reasons(files=("no/such/file.md",)), [])
+
+
+BASELINE_REL = "scripts/dev/doc_citation_baseline.txt"
+
+
+class TrackedCitationTest(unittest.TestCase):
+    """Check 5: a path reference in ANY tracked file, behind a baseline.
+
+    VALIDATES: AC-1, AC-2, AC-5, AC-6, AC-7 and AC-9 of spec
+               dead-learned-citations-outside-the-walked-corpus.
+    PREVENTS:  the hole that spec measured. `MD_GLOBS` names fourteen globs,
+               so a dead citation in `docs/`, in a `plan/spec-*.md`, in the
+               `Makefile` or in a hook was read by no gate at all, and 2704
+               of them had collected.
+    """
+
+    def _repo(
+        self,
+        files: dict[str, str],
+        baseline: str | None = None,
+        commit: bool = False,
+    ) -> Path:
+        """A throwaway git repo holding `files`, all tracked.
+
+        `baseline` is written before the commit, so a test can commit one
+        baseline and then grow the working-tree copy against it.
+        """
+        d = tempfile.mkdtemp(prefix="tracked-citation-")
+        self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
+        repo = Path(d)
+        subprocess.run(
+            ["git", "init", "-q"], cwd=str(repo), check=True, capture_output=True
+        )
+        (repo / ".gitignore").write_text(IGNORED_PATHS, encoding="utf-8")
+        for rel, body in files.items():
+            doc = repo / rel
+            doc.parent.mkdir(parents=True, exist_ok=True)
+            doc.write_text(body, encoding="utf-8")
+        if baseline is not None:
+            self._write_baseline(repo, baseline)
+        # The sweep reads TRACKED files, so the fixture has to be tracked.
+        # A throwaway repo under tempfile: no shared index is touched.
+        subprocess.run(
+            ["git", "add", "-A"], cwd=str(repo), check=True, capture_output=True
+        )
+        if commit:
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "-c",
+                    "user.email=fixture@example.invalid",
+                    "-c",
+                    "user.name=fixture",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "fixture",
+                ],
+                cwd=str(repo),
+                check=True,
+                capture_output=True,
+            )
+        return repo
+
+    @staticmethod
+    def _write_baseline(repo: Path, body: str) -> None:
+        path = repo / BASELINE_REL
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+
+    def test_dead_citation_outside_md_globs_is_reported(self) -> None:
+        """AC-1: the gate names the file, the line and the path, and exits 1."""
+        repo = self._repo(
+            {"docs/architecture/sample.md": "Read `internal/absent/thing.go`.\n"}
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn(
+            "docs/architecture/sample.md:1: dead path reference: "
+            "internal/absent/thing.go",
+            res.stdout,
+        )
+        # The two ways out are on the line the author reads.
+        self.assertIn("repair the reference", res.stdout)
+        self.assertIn("doc-links: ignore", res.stdout)
+
+    def test_live_citation_outside_md_globs_passes(self) -> None:
+        """AC-2: the same file, citing a path that resolves, is no finding."""
+        repo = self._repo(
+            {
+                "docs/architecture/sample.md": "Read `internal/x/thing.go`.\n",
+                "internal/x/thing.go": "package x\n",
+            }
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+    def test_baselined_pair_is_not_reported(self) -> None:
+        """AC-5: the grandfathered population passes."""
+        repo = self._repo(
+            {"docs/architecture/sample.md": "Read `internal/absent/thing.go`.\n"},
+            baseline="docs/architecture/sample.md\tinternal/absent/thing.go\n",
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("1 citation pair(s) baselined", res.stdout)
+
+    def test_stale_baseline_entry_is_reported_as_drift(self) -> None:
+        """AC-6: a pair the tree no longer holds is a WARN, never a failure.
+
+        Drift is what makes the baseline shrinkable: the gate says which entry
+        to delete, and it does not fail the run of the author who repaired it.
+        """
+        repo = self._repo(
+            {"docs/architecture/sample.md": "Nothing is cited here.\n"},
+            baseline="docs/architecture/sample.md\tinternal/absent/thing.go\n",
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn(
+            "WARN scripts/dev/doc_citation_baseline.txt: "
+            "docs/architecture/sample.md no longer cites internal/absent/thing.go",
+            res.stdout,
+        )
+        self.assertIn("1 stale baseline entry(s)", res.stdout)
+
+    def test_new_citer_of_baselined_target_is_reported(self) -> None:
+        """AC-7: the baseline holds PAIRS, so rot cannot spread to a new file.
+
+        The discriminating fixture: one file's pair is baselined and passes,
+        and a second file citing the SAME dead target fails. A baseline keyed
+        on the bare target would pass both.
+        """
+        repo = self._repo(
+            {
+                "docs/architecture/sample.md": "Read `internal/absent/thing.go`.\n",
+                "docs/architecture/second.md": "Also `internal/absent/thing.go`.\n",
+            },
+            baseline="docs/architecture/sample.md\tinternal/absent/thing.go\n",
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn(
+            "docs/architecture/second.md:1: dead path reference: "
+            "internal/absent/thing.go",
+            res.stdout,
+        )
+        self.assertNotIn("docs/architecture/sample.md:1", res.stdout)
+
+    def test_baseline_that_grew_against_head_is_refused(self) -> None:
+        """AC-9: shrink-only, enforced against HEAD.
+
+        Both directions are asserted. Growing the committed baseline fails,
+        and shrinking it passes -- without the second half the check could be
+        refusing every baseline and still look correct.
+        """
+        repo = self._repo(
+            {
+                "docs/architecture/sample.md": "Read `internal/absent/thing.go`.\n",
+                "docs/architecture/second.md": "Also `internal/absent/other.go`.\n",
+            },
+            baseline="docs/architecture/sample.md\tinternal/absent/thing.go\n",
+            commit=True,
+        )
+        self._write_baseline(
+            repo,
+            "docs/architecture/sample.md\tinternal/absent/thing.go\n"
+            "docs/architecture/second.md\tinternal/absent/other.go\n",
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("1 baseline pair(s) are new against HEAD", res.stdout)
+        self.assertIn("shrink-only", res.stdout)
+        # The failure names the pair, so an author acts on it without a rerun.
+        self.assertIn(
+            "docs/architecture/second.md -> internal/absent/other.go", res.stdout
+        )
+
+        # The negative control: a baseline that shrank is accepted, and the
+        # citation it stopped covering is what fails instead.
+        self._write_baseline(repo, "")
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertNotIn("shrink-only", res.stdout)
+        self.assertIn("dead path reference: internal/absent/thing.go", res.stdout)
+
+    def test_baseline_pair_absent_from_head_is_refused_at_equal_size(self) -> None:
+        """AC-9 is over the PAIRS, so a same-size baseline is not exempt.
+
+        The discriminating fixture: one baselined citation is repaired and its
+        pair is dropped, and a new dead citation's pair takes its place. The
+        total is unchanged, so a check comparing sizes passes the swap and
+        grandfathers a pair the sweep had just failed on.
+        """
+        repo = self._repo(
+            {
+                "docs/architecture/sample.md": "Read `internal/absent/thing.go`.\n",
+                "docs/architecture/second.md": "Plain prose, no reference.\n",
+            },
+            baseline="docs/architecture/sample.md\tinternal/absent/thing.go\n",
+            commit=True,
+        )
+        # The repair: the old citation is gone. The new dead one replaces it.
+        (repo / "docs/architecture/sample.md").write_text(
+            "Plain prose, no reference.\n", encoding="utf-8"
+        )
+        (repo / "docs/architecture/second.md").write_text(
+            "Also `internal/absent/other.go`.\n", encoding="utf-8"
+        )
+        self._write_baseline(
+            repo, "docs/architecture/second.md\tinternal/absent/other.go\n"
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("1 baseline pair(s) are new against HEAD", res.stdout)
+        self.assertIn(
+            "docs/architecture/second.md -> internal/absent/other.go", res.stdout
+        )
+
+    def test_no_head_baseline_yet_passes(self) -> None:
+        """The first commit of the baseline has nothing to compare against.
+
+        `git show HEAD:<baseline>` fails in a repo whose HEAD never held the
+        file, and in a repo with no commit at all. Both must pass rather than
+        crash: the gate would be unrunnable on the commit that arms it.
+        """
+        repo = self._repo(
+            {"docs/architecture/sample.md": "Read `internal/absent/thing.go`.\n"},
+            baseline="docs/architecture/sample.md\tinternal/absent/thing.go\n",
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+    def test_vendored_and_handover_citations_are_not_swept(self) -> None:
+        """The two excluded roots, each for the reason stated in the source.
+
+        A vendored file's references point into its upstream repo, so nobody
+        here can repair one. `plan/handover/` describes the tree as it was.
+        """
+        repo = self._repo(
+            {
+                "vendor/x/README.md": "Read `internal/absent/thing.go`.\n",
+                "third_party/y/README.md": "Read `internal/absent/thing.go`.\n",
+                "plan/handover/old.md": "Read `internal/absent/thing.go`.\n",
+            }
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+    def test_unreadable_file_is_a_finding(self) -> None:
+        """Fail closed, as the marker sweep does: unreadable is never a pass."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "locked.md"
+            path.write_text("Read `internal/absent/thing.go`.\n", encoding="utf-8")
+            path.chmod(0o000)
+            try:
+                found = cdl.check_tracked_citations(files=(str(path),), baseline=set())
+            finally:
+                path.chmod(0o600)
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("cannot read", found[0])
 
 
 class DesignRefTest(unittest.TestCase):
@@ -598,6 +881,110 @@ class RealCorpusTest(unittest.TestCase):
             )
         with InRepo():
             self.assertEqual(cdl.check_hook_names(), [])
+
+    def test_real_corpus_has_no_dead_learned_citation(self) -> None:
+        """AC-3: no citation of the retired numbered corpus survives anywhere.
+
+        VALIDATES: `plan/learned/` holds three aggregate documents, and every
+                   reference to it in the tree names one of them.
+        PREVENTS:  this spec's own subject returning. 451 citations of
+                   `plan/learned/<id>-*.md` outlived commit 2cff2050a, which
+                   retired the numbered corpus, and no gate read one.
+
+        Three assertions, because the first two are about an ABSENCE. The
+        third counts the `plan/learned/` citations the grammar DOES read, so
+        a sweep that saw nothing at all cannot pass this test.
+        """
+        learned = "plan/learned/"
+        with InRepo():
+            _unreadable, _markers, dead = cdl.sweep_tracked(markers=False)
+            corpus_dead = [
+                f"{where}: {path}"
+                for where, path in cdl.check_markdown(False)
+                if path.startswith(learned)
+            ]
+            baselined = sorted(
+                pair for pair in cdl.load_baseline() if pair[1].startswith(learned)
+            )
+            read = 0
+            named = subprocess.run(
+                ["git", "grep", "-l", learned],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.split()
+            for rel in named:
+                try:
+                    text = Path(rel).read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                for line in text.splitlines():
+                    read += sum(
+                        1
+                        for target in cdl.line_citations(line)
+                        if target.startswith(learned) and cdl.path_resolves(target)
+                    )
+        surviving = [
+            f"{citer}:{lineno}: {target}"
+            for citer, lineno, target in dead
+            if target.startswith(learned)
+        ]
+        self.assertEqual(surviving + corpus_dead, [], surviving + corpus_dead)
+        self.assertEqual(
+            baselined,
+            [],
+            "a plan/learned/ citation is repaired, never grandfathered",
+        )
+        self.assertGreater(
+            read, 0, "no plan/learned/ citation was read: the sweep proves nothing"
+        )
+
+    def test_baseline_header_is_what_the_generator_writes(self) -> None:
+        """The committed baseline's header is `write_baseline`'s own text.
+
+        VALIDATES: the artifact and its generator carry ONE header.
+        PREVENTS:  the divergence that shipped on 2026-08-10. The shrink-only
+                   rule changed from a count to a set comparison, the header on
+                   disk was corrected BY HAND, and the generator kept the old
+                   text. Every gate stayed green: none of them reads a comment.
+                   The next `--write-baseline` would have reverted the
+                   correction and restored a description that is now false.
+
+        The second assertion is what makes the first discriminate: comparing a
+        header against itself passes over an empty file too.
+        """
+        disk = (REPO / cdl.BASELINE_REL).read_text(encoding="utf-8")
+        self.assertTrue(
+            disk.startswith(cdl.BASELINE_HEADER),
+            "the baseline header was hand-edited: regenerate it with "
+            "`python3 scripts/dev/check_doc_links.py --write-baseline`, or "
+            "correct BASELINE_HEADER, whichever text is right",
+        )
+        self.assertIn("SHRINK-ONLY", cdl.BASELINE_HEADER)
+
+    def test_a_baseline_line_with_no_tab_is_reported(self) -> None:
+        """A malformed baseline entry names itself.
+
+        VALIDATES: `baseline_format_problems` reports a line with no TAB.
+        PREVENTS:  a silent typo. Such a line grandfathers nothing, so the
+                   citation it was written for is reported anyway, and the
+                   author reads that as a gate ignoring its own baseline.
+
+        The live file is asserted clean in the same test, so the reporter
+        cannot be one that fires on everything.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "baseline.txt"
+            bad.write_text(
+                "# comment\n\ndocs/a.md\tinternal/gone.go\ndocs/b.md missing tab\n",
+                encoding="utf-8",
+            )
+            problems = cdl.baseline_format_problems(str(bad))
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("docs/b.md missing tab", problems[0])
+        self.assertIn("no TAB", problems[0])
+        with InRepo():
+            self.assertEqual(cdl.baseline_format_problems(), [])
 
     def test_real_corpus_has_no_unreasoned_marker(self) -> None:
         """Every surviving marker in the tree states why (spec A-3).

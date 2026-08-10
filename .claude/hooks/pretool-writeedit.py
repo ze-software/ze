@@ -1342,8 +1342,9 @@ def c_rendered_rules(ctx):
         return None
     # Named from the ON-DISK spelling, never the one the payload typed. A
     # symlink from outside is correctly blocked either way, and the refusal has
-    # to name the file the author must actually edit. `ai/rules/index.md` opens
-    # INDEX.md here, and the fix line has to send them to rules_index.py.
+    # to name the file the author must actually edit. A case-insensitive
+    # filesystem opens INDEX.md for `ai/rules/index.md`.  <!-- doc-links: ignore (the lowercase spelling an author types; the file on disk is INDEX.md) -->
+    # The fix line has to send them to rules_index.py.
     base = tail[0]
     if not base.endswith(".md"):
         return None
@@ -1656,7 +1657,7 @@ def _subject_lines(body):
     """The part of each line that states a FILE, with description prose dropped.
 
     A `## Files to Modify` table is `| path | what changes |`, and the second
-    cell is prose: "mirrors `scripts/dev/foo.py`" in a description used to make
+    cell is prose: "mirrors `scripts/dev/foo.py`" in a description used to make <!-- doc-links: ignore (example path in a docstring, deliberately absent) -->
     `py` a requirement of a spec that modifies no Python. Heading depth already
     keeps a `### Checklist` row from becoming a subject; this is the same hole
     one row further in. Only the first cell of a table row is a path column, so

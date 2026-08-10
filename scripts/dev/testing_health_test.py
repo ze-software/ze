@@ -402,10 +402,10 @@ class TestKnownFailures(unittest.TestCase):
             self._write_dir(
                 root,
                 {
-                    "ze-unit-test-pkg-a.md": "### `pkg/a` -- flaky under load\n\nbody\n",
-                    "reload-pkg-d.md": "### `pkg/d` -- deterministic panic\n\nbody\n",
+                    "ze-unit-test-pkg-a.md": "### `pkg/a` -- flaky under load\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
+                    "reload-pkg-d.md": "### `pkg/d` -- deterministic panic\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
                 },
-                ["`pkg/b` -- fixed", "`pkg/c` -- long gone", "`pkg/e` -- resolved"],
+                ["`pkg/b` -- fixed", "`pkg/c` -- long gone", "`pkg/e` -- resolved"],  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
             )
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 2)
@@ -417,7 +417,7 @@ class TestKnownFailures(unittest.TestCase):
         """A directory with no live shard is zero live debt, and OK, not UNKNOWN."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_dir(root, {}, ["`pkg/x` -- gone"])
+            self._write_dir(root, {}, ["`pkg/x` -- gone"])  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 0)
             self.assertEqual(m.data["resolved"], 1)
@@ -441,10 +441,10 @@ class TestKnownFailures(unittest.TestCase):
             self._write_dir(
                 root,
                 {
-                    "live-one.md": "### `pkg/a` -- flaky under load\n\nbody\n",
-                    "stray-struck.md": "### ~~`pkg/z` -- fixed in place~~ -- FIXED\n\nbody\n",
+                    "live-one.md": "### `pkg/a` -- flaky under load\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
+                    "stray-struck.md": "### ~~`pkg/z` -- fixed in place~~ -- FIXED\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
                 },
-                ["`pkg/c` -- long gone"],
+                ["`pkg/c` -- long gone"],  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
             )
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 1, "a struck shard must not count as live")

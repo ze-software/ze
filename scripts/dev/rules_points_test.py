@@ -824,7 +824,8 @@ Prose after the table, which ends it.
             self.assertIn("its bindings say no rule", problems[0])
 
             # A rule OUTSIDE this corpus is free text, not a claim about a point.
-            doc = self.HOOK_DOC.replace("`alpha.md`", "`.claude/rules/alpha.md`")
+            outside = "`.claude/rules/alpha.md`"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+            doc = self.HOOK_DOC.replace("`alpha.md`", outside)
             self.assertEqual(len(self._hook_problems(tmp, doc=doc, src=src)), 0)
 
     def test_hook_table_missing_or_empty_is_never_success(self):
@@ -1424,7 +1425,10 @@ class RenderAllTest(unittest.TestCase):
             self.assertIn("orphan.md: no point directory", failures[0])
 
     def test_a_point_directory_named_for_a_generated_artifact_is_a_failure(self):
-        """`ai/rules/points/CORE/` would render OVER a file rules_condensed owns."""
+        """A point directory named for a generated artifact is refused.
+
+        `ai/rules/points/CORE/` renders OVER a file rules_condensed owns. <!-- doc-links: ignore (illegal directory the check refuses, never in the tree) -->
+        """
         with tempfile.TemporaryDirectory() as tmp:
             rules, points = self._tree(tmp, stems=("alpha",))
             rules_points.write_split(

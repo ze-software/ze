@@ -36,6 +36,6 @@ Use `ze help ai --json` for the full generated command reference.
 MCP tools are auto-generated from the YANG command registry.
 Use `ze help ai --json` to see the same data in machine-readable form.
 
-Over MCP, call the `ze_reference` tool (visible in `tools/list` on connect) to
+Over MCP, call the `ze_reference` tool (visible in `tools/list` on connect) to <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 get that same reference as JSON without leaving the protocol. `ze_execute` runs
 any command; `ze_commands` lists them.

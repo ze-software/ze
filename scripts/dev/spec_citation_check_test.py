@@ -85,7 +85,7 @@ class CitationGateTest(unittest.TestCase):
             repo,
             "plan/spec-a.md",
             SPEC_HEAD.format(name="a")
-            + "This depends on `plan/spec-gone.md` for the wire format.\n",
+            + "This depends on `plan/spec-gone.md` for the wire format.\n",  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
         )
         r = run(repo)
         out = r.stdout + r.stderr
@@ -99,7 +99,7 @@ class CitationGateTest(unittest.TestCase):
         write(
             repo,
             "plan/spec-a.md",
-            SPEC_HEAD.format(name="a") + "Superseded `plan/spec-gone.md`.\n",
+            SPEC_HEAD.format(name="a") + "Superseded `plan/spec-gone.md`.\n",  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
         )
         write(
             repo,
@@ -127,7 +127,7 @@ class CitationGateTest(unittest.TestCase):
         write(
             repo,
             "plan/learned/1000-thing.md",
-            "# 1000 thing\n\nImplements `plan/spec-thing.md` (now closed).\n",
+            "# 1000 thing\n\nImplements `plan/spec-thing.md` (now closed).\n",  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
         )
         r = run(repo)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

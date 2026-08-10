@@ -135,7 +135,7 @@ class TestCheckDigest(unittest.TestCase):
     def test_broken_full_path_link_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            p = digest(root, "x.md", "see also `docs/architecture/gone.md`\n")
+            p = digest(root, "x.md", "see also `docs/architecture/gone.md`\n")  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
             errors, _ = check_digest(root, p)
             self.assertEqual(len(errors), 1)
             self.assertIn("does not exist", errors[0]["problem"])

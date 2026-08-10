@@ -9,7 +9,7 @@
 
 ## Task
 
-The MCP listener answers `tools/list` before the plugin command registry is
+The MCP listener answers `tools/list` before the plugin command registry is <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 frozen, so an early client caches a tool set that is missing commands.
 
 Found 2026-07-30 during the deferrals review that closed the MCP 2026-07-28
@@ -26,7 +26,7 @@ The producing path, read rather than inferred:
 | The tool list re-reads the registry on every call | `commandMetaSource` (`cmd/ze/hub/command_meta.go`) |
 
 `buildServices` runs at line 961 and the wait runs at line 1123. Every plugin
-command that registers between those two points is absent from a `tools/list`
+command that registers between those two points is absent from a `tools/list` <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 answered in the window. The list is not cached inside the daemon.
 It is rebuilt per call from `d.Registry().All()`, so two calls inside the window
 legitimately differ.
@@ -91,12 +91,12 @@ legitimately differ.
 
 | Id | Assumption | Basis | Validation | Status |
 |----|------------|-------|------------|--------|
-| A-1 | The window is reachable by a real client, not only by a test | `buildServices` binds the listener at `main.go`, before the wait at `:1123` | Connect an MCP client during startup and call `tools/list` twice | unvalidated |
+| A-1 | The window is reachable by a real client, not only by a test | `buildServices` binds the listener at `main.go`, before the wait at `:1123` | Connect an MCP client during startup and call `tools/list` twice | unvalidated | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | A-2 | No other service in `buildServices` depends on binding before the freeze | Not yet read. The product fix moves every service in that call, not only MCP | Read `buildServices` and list what it starts | unvalidated |
 
 | Id | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-1 | A client caches the incomplete list for a full minute. `tools/list` advertises `ttlMs` 60000 (`ttlRegistryDerivedMs`, `internal/component/mcp/caching.go`), which the MCP 2026-07-28 caching work added. Before that work the client re-fetched at will, so the same race healed on the next call | An MCP client offers fewer tools than `ze show commands` lists, and keeps doing so for about a minute after start | The product direction closes the window. The test direction does NOT: it leaves this consequence in place |
+| R-1 | A client caches the incomplete list for a full minute. `tools/list` advertises `ttlMs` 60000 (`ttlRegistryDerivedMs`, `internal/component/mcp/caching.go`), which the MCP 2026-07-28 caching work added. Before that work the client re-fetched at will, so the same race healed on the next call | An MCP client offers fewer tools than `ze show commands` lists, and keeps doing so for about a minute after start | The product direction closes the window. The test direction does NOT: it leaves this consequence in place | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | R-2 | Delaying the bind turns an incomplete answer into a refused connection | A client that connects during startup fails instead of degrading | Decide deliberately which failure an operator prefers, and document it |
 
 ## Blast Radius

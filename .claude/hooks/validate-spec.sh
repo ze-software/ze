@@ -180,7 +180,7 @@ if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
     if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE "^[[:space:]]*-[[:space:]]*\[[[:space:]]*\][[:space:]]*${_CB_SRC}"; then
         # No unchecked source files - check for checked ones
         if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE "^[[:space:]]*-[[:space:]]*\[x\][[:space:]]*${_CB_SRC}"; then
-            ERRORS+=("Current Behavior section must list source files read (e.g., '- [ ] \`path/to/file.go\`' or '- [ ] \`scripts/dev/foo.py:42\`')")
+            ERRORS+=("Current Behavior section must list source files read (e.g., '- [ ] \`path/to/file.go\`' or '- [ ] \`scripts/dev/foo.py:42\`')")  # <!-- doc-links: ignore (example path in an error message, deliberately absent) -->
         fi
     fi
 

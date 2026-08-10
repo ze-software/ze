@@ -14,7 +14,7 @@ one protocol revision: the `2026-07-28` Streamable HTTP profile (`streamable.go`
 `streamable.go`). It is stateless: no `initialize` handshake, no session, no GET stream, and
 no server-initiated request. Every POST carries its own protocol version, client capabilities and
 credential, and is validated, authenticated and dispatched on its own.
-Tools are never hand-registered per command: `tools/list` derives one MCP tool per
+Tools are never hand-registered per command: `tools/list` derives one MCP tool per <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 command-group at call time from the live command registry plus YANG-derived
 parameter/task-support/UI metadata, so new commands appear automatically without touching this
 package.
@@ -93,7 +93,7 @@ package.
    each task itself.
 8. **Header validation.** `validateStandardHeaders` (`headers.go`) requires
    `MCP-Protocol-Version` and `Mcp-Method` on every POST (`headers.go` for the names). It
-   requires `Mcp-Name` for `tools/call`, which mirrors `params.name`, and for `resources/read`
+   requires `Mcp-Name` for `tools/call`, which mirrors `params.name`, and for `resources/read` <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
    and `prompts/get`, which mirror `params.uri`, through `mcpNameSource` (`headers.go`). It
    decodes the `=?base64?...?=` sentinel first, then compares (`decodeSentinel`,
    `headers.go`). And it rejects an `Mcp-Param-*` value that carries octets RFC 9110 forbids
@@ -105,8 +105,8 @@ package.
 9. **Method dispatch.** `Streamable.runMethod` (`streamable_tools.go`) switches on
    `req.Method` over the constant set at `streamable_tools.go`:
    - `server/discover` to `serverDiscover` (`discover.go`).
-   - `tools/list` to `allTools` (`streamable_tools.go`).
-   - `tools/call` to `callTool`.
+   - `tools/list` to `allTools` (`streamable_tools.go`). <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+   - `tools/call` to `callTool`. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
    - `tasks/get|update|cancel`.
    - `resources/list|read` (`resources.go`, `:157`).
 
@@ -170,16 +170,16 @@ package.
 14b. **Cache hints are stamped beside `ok()`, never inside it.** `runMethod` wraps the dispatch
     switch in `stampCacheHints` (`caching.go`). It adds `ttlMs` and `cacheScope` when the method
     is a key of `cacheTTLByMethod` AND the result's `resultType` is `"complete"`.
-    `server/discover` and `tools/list` get 60 s, because both are registry-derived and re-read
+    `server/discover` and `tools/list` get 60 s, because both are registry-derived and re-read <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
     per call. `resources/list` and `resources/read` get 1 h, because both are embedded assets,
     fixed for the binary's lifetime.
 
-    It is NOT folded into `ok()` because `tools/call` shares that responder, and no shape of a
-    `tools/call` result can carry a caching hint. An interim `input_required` result is not
+    It is NOT folded into `ok()` because `tools/call` shares that responder, and no shape of a <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+    `tools/call` result can carry a caching hint. An interim `input_required` result is not <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
     cacheable, and an MRTR retry must not be cached. `cacheScope` is the constant `"private"` on
     every surface, and no `"public"` constant exists in the package.
 
-    **A caching hint is the (`ttlMs`, `cacheScope`) PAIR.** A `tools/call` answered with
+    **A caching hint is the (`ttlMs`, `cacheScope`) PAIR.** A `tools/call` answered with <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
     `resultType: "task"` carries `ttlMs` and `pollIntervalMs` from `retentionHints` (`tasks.go`).
     Those two are the tasks extension's own retention fields, and they never come with a
     `cacheScope`. `cacheScope` is the discriminator. Never delete the `ttlMs` of a
@@ -201,7 +201,7 @@ package.
 
     `ok()` preserves a handler-set `resultType` rather than overwrite it. And
     `guardInputRequired`, wrapped around `dispatchMethod` inside `runMethod`, turns an
-    `input_required` on any method other than `prompts/get`, `resources/read` and `tools/call`
+    `input_required` on any method other than `prompts/get`, `resources/read` and `tools/call` <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
     into `-32603` plus a WARN.
 
     The client answers with a retry of the SAME request, under a new id, with

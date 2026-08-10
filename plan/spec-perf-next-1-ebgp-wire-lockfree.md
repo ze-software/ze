@@ -358,7 +358,7 @@ protocol-enforcing code is added. Keep existing references intact.
 
 ### Bugs Found/Fixed
 - Closure fixed four prose defects the independent review found: the `EBGPWire` doc comment's false SourceCtxID claim, and three sites plus a doc section that still called the path a live RS fan-out hot path (see Review Gate).
-- Closure cleared a `make ze-doc-test` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `scripts/dev/learned_staleness.py` two references over its shrink-only ceiling. The two dead lines were deleted, per `plan/learned/METHODOLOGY.md`.
+- Closure cleared a `make ze-doc-test` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `scripts/dev/learned_staleness.py` two references over its shrink-only ceiling. The two dead lines were deleted: a record must not cite a spec that closure removed.
 
 ### Documentation Updates
 - `docs/architecture/buffer-architecture.md`: "EBGP Variant Cache" section describing the lock-free publication and eviction contract, plus the reachability note added at closure

@@ -17,7 +17,7 @@ an optional extension, and both the negotiation and the method set changed.
 This is the change most likely to surprise you if you used the earlier revision.
 
 There is no per-call opt-in. A client no longer passes `task: {}` on a
-`tools/call` to request background execution. Instead the **server** decides,
+`tools/call` to request background execution. Instead the **server** decides, <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 per tool, from the `ze:task-support` annotation on the command's YANG. The
 client declares once per request that it understands task handles, and then
 handles whichever result shape arrives.
@@ -107,7 +107,7 @@ refusal carries `data.requiredCapabilities`, which names the extension.
 
 ## Creating a task
 
-Nothing special: an ordinary `tools/call`.
+Nothing special: an ordinary `tools/call`. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
 ```json
 {

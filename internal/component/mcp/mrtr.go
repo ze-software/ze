@@ -312,7 +312,7 @@ func isInputRequiredResult(result map[string]any) bool {
 // InputRequiredResult on this JSON-RPC method.
 //
 // MCP 2026-07-28 basic/patterns/mrtr Section "Supported Requests" lists exactly
-// three: `prompts/get`, `resources/read` and `tools/call`. "Servers MUST NOT
+// three: `prompts/get`, `resources/read` and `tools/call`. "Servers MUST NOT  // <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 // send InputRequiredResult responses on any other client requests."
 //
 // The predicate mirrors the specification rather than Ze's current reach. Ze

@@ -140,7 +140,7 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 // rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change to
 // the RFC-tagged OAuth tests during the MCP 2026-07-28 cutover
 // (spec-mcp2026-1-stateless-core). The request that carries the token changed
-// from `initialize` to `tools/list`. `initialize` is no longer a method this
+// from `initialize` to `tools/list`. `initialize` is no longer a method this  // <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 // server implements. Header validation would reject the old carrier before it
 // reached the OAuth layer. Every RFC assertion is unchanged: tag count 12
 // before and after, no polarity lost, and `make ze-rfc-check` reports no
@@ -193,7 +193,7 @@ func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
 
 // rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change
 // during the MCP 2026-07-28 cutover (spec-mcp2026-1-stateless-core): the request
-// body moved from `initialize` to `tools/list` and gained the two now-required
+// body moved from `initialize` to `tools/list` and gained the two now-required  // <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 // headers. The RFC9728-5.1-1 assertion below -- that the 401 WWW-Authenticate
 // challenge carries resource_metadata -- is untouched.
 func TestNewStreamable_OAuth_RejectsMissingBearer(t *testing.T) {
@@ -395,7 +395,7 @@ func TestAudClaim_MatchesCanonicalVariants(t *testing.T) {
 
 // rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change
 // during the MCP 2026-07-28 cutover (spec-mcp2026-1-stateless-core): the request
-// body moved from `initialize` to `tools/list` and gained the two now-required
+// body moved from `initialize` to `tools/list` and gained the two now-required  // <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 // headers. Both RFC8707 assertions below -- that a trailing-slash-divergent aud
 // still authenticates and returns 200 OK -- are untouched.
 func TestNewStreamable_OAuth_AcceptsSlashDivergentAudience(t *testing.T) {

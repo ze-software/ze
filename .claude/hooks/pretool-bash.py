@@ -554,7 +554,7 @@ def _draft_only(cmd):
     """True when every test path `cmd` names sits in the draft incubator.
 
     A test path is a token that carries a `test/` segment or a `_test.go` name,
-    and it is normalized before it is matched. So `internal/x/y_test.go` counts
+    and it is normalized before it is matched. So `internal/x/y_test.go` counts <!-- doc-links: ignore (example path, deliberately absent) -->
     with no `test/` directory above it, and `test/draft/../plugin/live.ci` counts
     as the live test it reaches. The incubator root is itself a draft, which
     keeps `rm -r test/draft/` free of approval.

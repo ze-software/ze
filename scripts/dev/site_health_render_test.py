@@ -2,9 +2,9 @@
 """Tests for the website's testing-health renderer (../gh-pages/tools/render-test-health.py).
 
 These live HERE, not in the gh-pages worktree, on purpose. Nothing in gh-pages
-executes its `tools/test_*.py` files: `tools/build.py`, `update-website.sh` and
-gh-pages' own `.github/workflows/pages.yml` contain no test invocation, so
-`tools/test_render_doc.py` has never run. Adding a second unexecuted test file would have been an ironic way
+executes its `tools/test_*.py` files: `tools/build.py`, `update-website.sh` and <!-- doc-links: ignore (path in the sibling gh-pages worktree, not this repository) -->
+gh-pages' own `.github/workflows/pages.yml` contain no test invocation, so <!-- doc-links: ignore (path in the sibling gh-pages worktree, not this repository) -->
+`tools/test_render_doc.py` has never run. Adding a second unexecuted test file would have been an ironic way <!-- doc-links: ignore (path in the sibling gh-pages worktree, not this repository) -->
 to ship a tool whose job is to find tests nothing runs.
 
 Placed under scripts/dev/, TestPythonUnitTests (scripts/dev/python_tests_test.go)

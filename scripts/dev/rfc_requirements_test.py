@@ -1434,7 +1434,10 @@ class TestLedgerEvidenceTier(unittest.TestCase):
                 _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
             ]
         )
-        self.assertIn("`internal/x_test.go:3` (unit/verify)", out)
+        self.assertIn(
+            "`internal/x_test.go:3` (unit/verify)",  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
+            out,
+        )
         self.assertIn(f"`{_CI_FILE}:7` (functional/verify)", out)
 
     def test_interop_link_is_labelled_nightly(self):
@@ -9818,15 +9821,21 @@ class TestDebtStatusHonesty(unittest.TestCase):
 
     def test_the_two_rows_that_were_wrong_are_the_ones_this_governs(self):
         """The discriminating half: the invariant above would also pass if NO declared stem had
-        a row at all, which is the state that made the two wrong rows survive. rfc1035 and
-        rfc5301 are the only DEBT stems the page rows, so they are the only two it can judge --
-        and both must now read the word the glossary supplies."""
+        a row at all, which is the state that made the two wrong rows survive. Only a DEBT stem
+        the page also rows can be judged here, and such a stem must read the word the glossary
+        supplies.
+
+        The set was ["rfc1035", "rfc5301"] when spec-rfcgate-4-ledger closed. rfc5301 left it
+        on 2026-08-10 by ENROLLING (spec-fixit-isis-hostname-ascii), which is the one discharge
+        rfc/not-enrolled.txt allows, so the set is asserted non-empty rather than frozen: a
+        stem leaving by the front door must not redden this, and a stem leaving by having its
+        row deleted still must."""
         rowed = sorted(
             stem
             for stem, disp in self.dispositions.items()
             if disp.kind != R.DISPOSITION_NON_NORMATIVE and stem in self.rows
         )
-        self.assertEqual(rowed, ["rfc1035", "rfc5301"], rowed)
+        self.assertIn("rfc1035", rowed, rowed)
         for stem in rowed:
             self.assertEqual(self.rows[stem]["status"].strip(), "Partial", stem)
 
@@ -9836,7 +9845,12 @@ class TestDebtStatusHonesty(unittest.TestCase):
         was to correct the Status word and nothing else."""
         self.assertIn("512-octet", self.rows["rfc1035"]["remaining"])
         self.assertIn("TC bit", self.rows["rfc1035"]["remaining"])
-        self.assertIn("7-bit ASCII", self.rows["rfc5301"]["remaining"])
+        # rfc5301 carried the third and fourth of these until 2026-08-10, when
+        # spec-fixit-isis-hostname-ascii met the three unmet obligations and
+        # enrolled the stem. A row that stops being debt stops owing a named
+        # missing subset; what it owes instead is asserted above, in
+        # test_the_declared_remainder_is_debt_not_a_decision.
+        self.assertNotIn("rfc5301", R.load_dispositions())
 
     def test_a_status_that_narrows_the_platform_still_claims_implementation(self):
         """The predicate's boundary, in both directions. "Supported on Linux" narrows WHERE,
@@ -10825,14 +10839,21 @@ class TestFourStemEnrolmentRealTree(unittest.TestCase):
         self.assertIn("rfc3765", R.load_enrolled())
 
     def test_the_declared_remainder_is_debt_not_a_decision(self):
-        """OC-4: rfc1035 and rfc5301 are declared `backlog` while their obligations are
-        escalated, and `backlog` renders as DEBT and excuses nothing. The spec may not close
-        while either is still declared rather than enrolled."""
+        """OC-4: a stem whose obligations are escalated is declared `backlog`, which renders as
+        DEBT and excuses nothing. A stem is in exactly one of the two files, never neither and
+        never both.
+
+        rfc1035 is still declared. rfc5301 was declared beside it until 2026-08-10, when
+        spec-fixit-isis-hostname-ascii met its three unmet obligations and ENROLLED it, so it
+        is asserted on the other side of the partition now. Both halves are checked, because
+        the failure this guards against is a stem falling out of both files."""
         dispositions = R.load_dispositions()
-        for stem in ("rfc1035", "rfc5301"):
-            self.assertIn(stem, dispositions, stem)
-            self.assertEqual(dispositions[stem].kind, "backlog", stem)
-            self.assertNotIn(stem, R.load_enrolled(), stem)
+        enrolled = R.load_enrolled()
+        self.assertIn("rfc1035", dispositions)
+        self.assertEqual(dispositions["rfc1035"].kind, "backlog")
+        self.assertNotIn("rfc1035", enrolled)
+        self.assertIn("rfc5301", enrolled)
+        self.assertNotIn("rfc5301", dispositions)
 
     def test_no_id_a_test_references_was_lost(self):
         """A-11, R-9. Ids WERE replaced here, deliberately: all six `-x-` anchors in rfc3765

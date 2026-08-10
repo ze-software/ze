@@ -487,12 +487,12 @@ Fixture spec exercising validate-spec.sh arrow handling.
 
 ## Required Reading
 
-- [ ] `internal/x/y.go`
+- [ ] `internal/x/y.go` <!-- doc-links: ignore (fixture spec body, deliberately absent) -->
   @ARROW@ Constraint: fixture only.
 
 ## Current Behavior
 
-- [ ] `internal/x/y.go`
+- [ ] `internal/x/y.go` <!-- doc-links: ignore (fixture spec body, deliberately absent) -->
 
 **Behavior to preserve:** the existing y.go output stays byte-identical.
 
@@ -533,7 +533,7 @@ Fixture spec exercising validate-spec.sh arrow handling.
 
 ## Files to Modify
 
-- `internal/x/y.go` - fixture feature file
+- `internal/x/y.go` - fixture feature file <!-- doc-links: ignore (fixture spec body, deliberately absent) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -639,14 +639,14 @@ def run_validate_spec(results: Results) -> None:
     )
 
     base = _VALID_SPEC.replace("@ARROW@", "->")
-    _CB = "## Current Behavior\n\n- [ ] `internal/x/y.go`"
+    _CB = "## Current Behavior\n\n- [ ] `internal/x/y.go`"  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
 
     # T-1 (AC-1): a citation carrying a line number is the form evidence.md
     # mandates; the old regex required the backtick to END in the extension, so a
     # trailing :line defeated the match. Must now be ACCEPTED.
     rc, err = _run_validate_spec(
         script,
-        base.replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"),
+        base.replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
         "validate-spec-line-numbered-citation-accepted",
@@ -660,7 +660,7 @@ def run_validate_spec(results: Results) -> None:
         script,
         base.replace(
             _CB,
-            "## Current Behavior\n\n- [ ] `.claude/hooks/foo.sh`\n- [ ] `Makefile:12`",
+            "## Current Behavior\n\n- [ ] `.claude/hooks/foo.sh`\n- [ ] `Makefile:12`",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ),
     )
     results.check(
@@ -677,7 +677,7 @@ def run_validate_spec(results: Results) -> None:
         script,
         base.replace(
             _CB,
-            "## Current Behavior\n\n" + long_preamble + "\n\n- [ ] `internal/x/y.go`",
+            "## Current Behavior\n\n" + long_preamble + "\n\n- [ ] `internal/x/y.go`",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ),
     )
     results.check(
@@ -706,14 +706,14 @@ def run_validate_spec(results: Results) -> None:
     # is used, so this exercises the daemon-scoping path, not the keyword escape.
     tooling = (
         base.replace(
-            "- `internal/x/y.go` - fixture feature file",
-            "- `scripts/dev/foo.py` - fixture tooling file",
+            "- `internal/x/y.go` - fixture feature file",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+            "- `scripts/dev/foo.py` - fixture tooling file",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         )
         .replace(
             "| foo.ci | test/x/ | user runs foo | |",
             "| hook fixtures | `scripts/dev/hook-fixture-check.py` | fixtures drive the hook | |",
         )
-        .replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`")
+        .replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     rc, err = _run_validate_spec(script, tooling)
     results.check(
@@ -726,7 +726,7 @@ def run_validate_spec(results: Results) -> None:
     # naming only a Go unit test (no .ci, no opt-out keyword) must be REJECTED.
     daemon = base.replace(
         "| foo.ci | test/x/ | user runs foo | |",
-        "| foo unit | `internal/x/y_test.go` | user runs foo | |",
+        "| foo unit | `internal/x/y_test.go` | user runs foo | |",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     rc, err = _run_validate_spec(script, daemon)
     results.check(
@@ -740,7 +740,7 @@ def run_validate_spec(results: Results) -> None:
     # blocks it. internal/x/y.go stays in Files to Modify, so it is a daemon spec.
     daemon_py = base.replace(
         "| foo.ci | test/x/ | user runs foo | |",
-        "| py surface | `scripts/dev/foo.py` | user runs foo | |",
+        "| py surface | `scripts/dev/foo.py` | user runs foo | |",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     rc, err = _run_validate_spec(script, daemon_py)
     results.check(
@@ -1018,7 +1018,7 @@ def run_commit_gate(results: Results) -> None:
             "plan/deferrals/foo.md",
             _DEFERRALS_HEADER
             + "| 2026-07-09 | abc | thing | reason | spec-foo.md | open |\n"
-            + "| 2026-07-09 | abc | thing2 | reason | `plan/spec-foo.md` | open |\n",
+            + "| 2026-07-09 | abc | thing2 | reason | `plan/spec-foo.md` | open |\n",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         )
         problems = ch.deferral_unassigned_problems(Path(repo))
         results.check("commit-gate-deferral-assigned-ok", not problems, repr(problems))
@@ -2832,7 +2832,7 @@ def run_design_gate(results: Results) -> None:
 
     # Same shape for a YANG spec and a dev-script spec.
     r = _design_case(
-        "- `internal/component/iface/yang/ze-iface.yang` - the model",
+        "- `internal/component/iface/yang/ze-iface.yang` - the model",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/internal/component/iface/yang/ze-iface.yang",),
     )
     results.check(
@@ -2849,7 +2849,7 @@ def run_design_gate(results: Results) -> None:
 
     # MUST STILL FIRE: a daemon spec written with NOTHING investigated. This is the
     # refusal the gate exists for (inference-written specs, 2026-07-16).
-    r = _design_case("- `internal/x/y.go` - the daemon", ())
+    r = _design_case("- `internal/x/y.go` - the daemon", ())  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-daemon-spec-uninvestigated-blocked", _design_blocked(r), repr(r)
     )
@@ -2859,14 +2859,14 @@ def run_design_gate(results: Results) -> None:
     # kind the spec is about would have let this through -- relaxing the gate for
     # every Go spec in the repository.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon", ("/repo/.claude/hooks/foo.sh",)
+        "- `internal/x/y.go` - the daemon", ("/repo/.claude/hooks/foo.sh",)  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
         "design-gate-daemon-spec-grounded-by-hook-blocked", _design_blocked(r), repr(r)
     )
 
     # ...and the control: the same spec with its own Go read is allowed.
-    r = _design_case("- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",))
+    r = _design_case("- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",))  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-daemon-spec-reads-its-go", not _design_blocked(r), repr(r)
     )
@@ -2877,7 +2877,7 @@ def run_design_gate(results: Results) -> None:
     # meets it: the refusal is what they get, and a guard tested only through its
     # helper is not tested (ai/rules/evidence.md).
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/internal/x/y.go",),
         read_response={"type": "file_unchanged", "file": {"filePath": "/repo/x.go"}},
     )
@@ -2887,12 +2887,12 @@ def run_design_gate(results: Results) -> None:
 
     # A spec that states no source subject (docs, a `.ci`, a bare directory) keeps
     # the pre-scoping bar: any implementation source, and still not nothing.
-    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))
+    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-subjectless-spec-any-source", not _design_blocked(r), repr(r)
     )
 
-    r = _design_case("- `docs/guide/x.md` - the page", ())
+    r = _design_case("- `docs/guide/x.md` - the page", ())  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-subjectless-spec-nothing-blocked", _design_blocked(r), repr(r)
     )
@@ -2903,7 +2903,7 @@ def run_design_gate(results: Results) -> None:
     work = _mark_project()
     try:
         _touch_marker(work, f".source-read-{_DESIGN_SID}")
-        r = _write_spec(work, "- `internal/x/y.go` - the daemon")
+        r = _write_spec(work, "- `internal/x/y.go` - the daemon")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-kindless-marker-not-enough-for-subject",
             _design_blocked(r),
@@ -2917,7 +2917,7 @@ def run_design_gate(results: Results) -> None:
     try:
         _read_source(work, "/repo/.claude/hooks/foo.sh")  # a per-kind marker exists
         _touch_marker(work, f".lsp-invoked-{_DESIGN_SID}")
-        r = _write_spec(work, "- `internal/x/y.go` - the daemon")
+        r = _write_spec(work, "- `internal/x/y.go` - the daemon")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-lsp-grounds-go-spec", not _design_blocked(r), repr(r)
         )
@@ -2987,7 +2987,7 @@ def run_design_gate(results: Results) -> None:
 
     # ISSUE 3: a subject the gate cannot read is the one permissive path left, so
     # it must SAY it degraded. Silence is what makes a weakened guard invisible.
-    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))
+    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check("design-gate-subjectless-write-warns", _design_degraded(r), repr(r))
 
     # ISSUE 3: an un-backticked path in a table row is a subject too. Reading only
@@ -3002,7 +3002,7 @@ def run_design_gate(results: Results) -> None:
     # ISSUE 3: a MultiEdit carries its text only in `edits`. A spec authored that
     # way used to reach the gate with no visible subject at all.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/scripts/dev/foo.py",),
         on_disk=False,
         tool="MultiEdit",
@@ -3014,10 +3014,10 @@ def run_design_gate(results: Results) -> None:
     # checklist `.yang` stand in for the Go this spec is actually about.
     _CHECKLIST = (
         "\n\n### Documentation Checklist\n\n"
-        "- [ ] `internal/component/iface/yang/ze-iface.yang` documented\n"
+        "- [ ] `internal/component/iface/yang/ze-iface.yang` documented\n"  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/internal/component/iface/yang/ze-iface.yang",),
         trailer=_CHECKLIST,
     )
@@ -3032,7 +3032,7 @@ def run_design_gate(results: Results) -> None:
     r = _design_case(
         "- `docs/features.md` - the feature row",
         ("/repo/scripts/dev/foo.py",),
-        trailer="\n\n## Files to Create\n\n- `internal/plugins/anomaly/detect.go` - new",
+        trailer="\n\n## Files to Create\n\n- `internal/plugins/anomaly/detect.go` - new",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
         "design-gate-files-to-create-is-a-subject", _design_blocked(r), repr(r)
@@ -3041,7 +3041,7 @@ def run_design_gate(results: Results) -> None:
     # ...and its companion: the checklist must not ADD a kind either, so the Go
     # read alone clears the same spec.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/internal/x/y.go",),
         trailer=_CHECKLIST,
     )
@@ -3052,7 +3052,7 @@ def run_design_gate(results: Results) -> None:
     # A Write of a NEW spec has no file on disk, so the subject can only come from
     # the payload. Reading only the disk would silently fall back to "no subject".
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/.claude/hooks/foo.sh",),
         on_disk=False,
     )
@@ -3071,7 +3071,7 @@ def run_design_gate(results: Results) -> None:
     # the weaker any-source bar, and the case goes green -- which is the red.
     # `Makefile` and `.mk` are two rows and so are two cases.
     for label, files_line, read in (
-        ("go", "- `internal/x/y.go` - the daemon", "/repo/.claude/hooks/foo.sh"),
+        ("go", "- `internal/x/y.go` - the daemon", "/repo/.claude/hooks/foo.sh"),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         (
             "py",
             "- `scripts/dev/commit_helper.py` - the helper",
@@ -3084,7 +3084,7 @@ def run_design_gate(results: Results) -> None:
         ),
         (
             "yang",
-            "- `internal/component/iface/yang/ze-iface.yang` - the model",
+            "- `internal/component/iface/yang/ze-iface.yang` - the model",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
             "/repo/internal/x/y.go",
         ),
         ("makefile", "- `Makefile` - the entry point", "/repo/internal/x/y.go"),
@@ -3153,7 +3153,7 @@ def run_design_gate(results: Results) -> None:
     r = _design_case(
         "- `docs/features.md` - the feature row",
         ("/repo/scripts/dev/foo.py",),
-        trailer="\n\n## Files to Create\n\n- `internal/plugins/anomaly/detect.go` - new",
+        trailer="\n\n## Files to Create\n\n- `internal/plugins/anomaly/detect.go` - new",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
         "design-gate-message-names-both-sections",
@@ -3166,7 +3166,7 @@ def run_design_gate(results: Results) -> None:
     # same hole one row further in, where a description mentioning a helper made
     # that helper's kind a requirement of a spec that modifies no Python.
     r = _design_case(
-        "| `internal/x/y.go` | port the logic out of `scripts/dev/foo.py` |",
+        "| `internal/x/y.go` | port the logic out of `scripts/dev/foo.py` |",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/internal/x/y.go",),
     )
     results.check(
@@ -3178,7 +3178,7 @@ def run_design_gate(results: Results) -> None:
     # ...and the first cell of that same row still IS one, so the fix narrowed the
     # scan without blinding it.
     r = _design_case(
-        "| `scripts/dev/foo.py` | port the logic out of it |",
+        "| `scripts/dev/foo.py` | port the logic out of it |",  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         ("/repo/internal/x/y.go",),
     )
     results.check(
@@ -3192,7 +3192,7 @@ def run_design_gate(results: Results) -> None:
         _read_source(
             work, "/repo/internal/x/y.go", {"file": {"numLines": 1, "totalLines": 900}}
         )
-        r = _write_spec(work, "- `internal/x/y.go` - the daemon")
+        r = _write_spec(work, "- `internal/x/y.go` - the daemon")  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-keyhole-read-does-not-ground", _design_blocked(r), repr(r)
         )
@@ -3553,7 +3553,7 @@ def run_delegation(results: Results) -> None:
         # above SCAN_PATTERNS in the hook for what that cost when it was tried.
         rc, err = _run_stop_hook(
             work,
-            "Closed and committed. New spec: `plan/bgp-med-strip.md`. "
+            "Closed and committed. New spec: `plan/bgp-med-strip.md`. "  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
             "Implement it? (yes / not now)",
         )
         results.check(
@@ -3569,7 +3569,7 @@ def run_delegation(results: Results) -> None:
         # this assertion with or without such a filter and would pin nothing.
         rc, err = _run_stop_hook(
             work,
-            "New spec: `plan/bgp-med-strip.md`. Implement it? (yes / not now) "
+            "New spec: `plan/bgp-med-strip.md`. Implement it? (yes / not now) "  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
             "Would you like me to run the tests first?",
         )
         results.check(
@@ -3835,7 +3835,7 @@ def run_delegation(results: Results) -> None:
 _HANDOFF = """## Phase 4 handoff
 
 Files changed:
-- `internal/x/y.go` (380L): the reactor hook. Key: `Run()`, `handleOpen()`.
+- `internal/x/y.go` (380L): the reactor hook. Key: `Run()`, `handleOpen()`. <!-- doc-links: ignore (fixture handoff body, deliberately absent) -->
 
 Acceptance criteria covered: AC-3, proven by TestForwardRail.
 

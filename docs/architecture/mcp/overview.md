@@ -101,7 +101,7 @@ legacy HTTP+SSE one that does not host the endpoint) and `-32021` becomes HTTP
 |--------|-----------|-----------|
 | `MCP-Protocol-Version` | Client -> server | Required on every POST. Must equal `params._meta["io.modelcontextprotocol/protocolVersion"]` when the body declares one. Absence and mismatch are the same verdict: there is no handshake to fall back on, so a missing header never defaults to a revision |
 | `Mcp-Method` | Client -> server | Required on every POST. Must equal the body's `method`. Header *names* are matched case-insensitively. Header *values* are compared exactly |
-| `Mcp-Name` | Client -> server | Required for `tools/call` and `prompts/get` (mirror `params.name`) and for `resources/read` (mirrors `params.uri`). Which field applies follows the request type: `CallToolRequest` and `GetPromptRequest` carry `name`, only `ReadResourceRequest` carries `uri`. Ze decodes the `=?base64?...?=` sentinel, then compares |
+| `Mcp-Name` | Client -> server | Required for `tools/call` and `prompts/get` (mirror `params.name`) and for `resources/read` (mirrors `params.uri`). Which field applies follows the request type: `CallToolRequest` and `GetPromptRequest` carry `name`, only `ReadResourceRequest` carries `uri`. Ze decodes the `=?base64?...?=` sentinel, then compares | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `Mcp-Param-{Name}` | Client -> server | Ze annotates no tool parameter with `x-mcp-header`, so no `Mcp-Param-*` header has a body field to compare against. The character half of the rule is still enforced: a value carrying octets RFC 9110 does not permit in a field value is rejected |
 | `Content-Type: application/json` | Client -> server (POST) | Required when present. CSRF guard: rejects `text/plain` form submissions from browsers |
 | `Origin` | Client -> server | Validated against `StreamableConfig.AllowedOrigins`. An empty allowlist accepts only loopback-shaped origins. A non-matching origin is rejected with 403 first, before every other check on the endpoint path |
@@ -153,7 +153,7 @@ non-declaration are the same verdict.
 
 | Field | Source member | Consumer |
 |-------|---------------|----------|
-| `Tasks` | `extensions["io.modelcontextprotocol/tasks"]: {}` only. The bare `tasks` member the earlier revision used is no longer accepted. `tasks` is not a `ClientCapabilities` member. A server that honored it would push an unsolicited task handle at a client that only agreed to the client-directed model | `tasks/get`, `tasks/update`, `tasks/cancel`, and whether `tools/call` can answer with a task handle at all |
+| `Tasks` | `extensions["io.modelcontextprotocol/tasks"]: {}` only. The bare `tasks` member the earlier revision used is no longer accepted. `tasks` is not a `ClientCapabilities` member. A server that honored it would push an unsolicited task handle at a client that only agreed to the client-directed model | `tasks/get`, `tasks/update`, `tasks/cancel`, and whether `tools/call` can answer with a task handle at all | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `ElicitForm` | `clientCapabilities.elicitation`, resolved for FORM mode | whether a handler that needs input can emit an `inputRequests` entry, or must return the missing-argument error |
 
 `ElicitForm` is the one field that is not a presence check. The capability is
@@ -210,13 +210,13 @@ own concurrency, retention, and TTL caps.
 | Method | Purpose |
 |--------|---------|
 | `server/discover` | Advertise supported versions, capabilities, and instructions |
-| `tools/list` | The tool inventory, derived at call time |
-| `tools/call` | Run a tool. Answers `resultType: "task"` when the command is annotated `ze:task-support required` and the request declared the tasks extension |
+| `tools/list` | The tool inventory, derived at call time | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+| `tools/call` | Run a tool. Answers `resultType: "task"` when the command is annotated `ze:task-support required` and the request declared the tasks extension | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `tasks/get`, `tasks/update`, `tasks/cancel` | Task lifecycle, scoped to the authenticated principal. `tasks/list` and `tasks/result` were removed this revision and now answer `-32601` |
 | `resources/list`, `resources/read` | Embedded UI assets under `ui://` |
 
-`server/discover`, `tools/list`, `resources/list` and `resources/read` carry
-caching hints. `tools/call` and every `tasks/*` method carry none (see Cacheable
+`server/discover`, `tools/list`, `resources/list` and `resources/read` carry <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+caching hints. `tools/call` and every `tasks/*` method carry none (see Cacheable <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 Results).
 
 Any other method returns `-32601` with HTTP 404. `initialize` is recognized for
@@ -268,7 +268,7 @@ breaches nothing.
 
 | Surface | `ttlMs` | Mutability class |
 |---------|---------|------------------|
-| `tools/list`, `server/discover` | `60000` (60 s) | Registry-derived: the command list is re-read from the dispatcher on every call, so it changes when a plugin registers or a config reload lands |
+| `tools/list`, `server/discover` | `60000` (60 s) | Registry-derived: the command list is re-read from the dispatcher on every call, so it changes when a plugin registers or a config reload lands | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `resources/list`, `resources/read` | `3600000` (1 h) | Embedded asset: `cachedResources` is built once at construction and the bytes come from `//go:embed`, so they are fixed for the binary's lifetime |
 
 Both are compile-time constants with no YANG leaf and no env var. The right
@@ -289,7 +289,7 @@ therefore removes a branch that a later change would have to get right.
 
 The hints are applied from ONE site, on the way out of dispatch, driven by
 `cacheTTLByMethod`. They are deliberately not folded into the shared `ok()`
-responder. `tools/call` rides that responder and must carry no hints in either
+responder. `tools/call` rides that responder and must carry no hints in either <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 result shape. Interim `input_required` results "are not cacheable and carry no
 caching hints", and MRTR retries "MUST NOT be cached".
 
@@ -329,7 +329,7 @@ stamps two envelope fields:
 
 | Field | Value |
 |-------|-------|
-| `resultType` | `"complete"`, unless the handler already set `"input_required"` (the Multi Round-Trip interim result), which `ok()` preserves rather than overwrites. A guard on the single path out of `runMethod` refuses `"input_required"` on any method other than `prompts/get`, `resources/read` and `tools/call`. Those are the three the specification permits it on |
+| `resultType` | `"complete"`, unless the handler already set `"input_required"` (the Multi Round-Trip interim result), which `ok()` preserves rather than overwrites. A guard on the single path out of `runMethod` refuses `"input_required"` on any method other than `prompts/get`, `resources/read` and `tools/call`. Those are the three the specification permits it on | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `_meta["io.modelcontextprotocol/serverInfo"]` | `{name, version}`. The name is `ze-mcp`, or the provider's own name in Provider mode |
 
 The caller's map is copied, not stamped in place. `tasks/get` returns the map
@@ -396,7 +396,7 @@ Schema from each command's YANG RPC metadata, and emits an MCP tool named
 a raw dispatch escape hatch, and `ze_reference` returns the machine-readable
 daemon reference.
 
-Tools are derived at every `tools/list` call, so newly registered commands
+Tools are derived at every `tools/list` call, so newly registered commands <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 become available without any MCP code changes (rule: `derive-not-hardcode`).
 
 A command that a plugin registers with `Hidden` never becomes a tool.
@@ -412,7 +412,7 @@ same commands.
 
 Background tasks are the `io.modelcontextprotocol/tasks` extension, not core
 protocol. Creation is **server-directed**: there is no `task` member on
-`tools/call` params, and the client cannot opt a call into background execution.
+`tools/call` params, and the client cannot opt a call into background execution. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 The server decides per tool from the YANG `ze:task-support` annotation, and the
 client declares once per request that it can read a task handle.
 
@@ -507,7 +507,7 @@ The server advertises `resources: {}` in its `server/discover` capabilities and
 accepts `resources/list` and `resources/read` from every caller. There is no
 client-capability gate. `resources` is a `ServerCapabilities` member, so no
 conformant client can declare it. A gate on it would refuse every conformant
-caller, while `tools/list` advertised `_meta.ui.resourceUri` that points at the
+caller, while `tools/list` advertised `_meta.ui.resourceUri` that points at the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 very assets refused.
 
 UI assets are embedded at compile time via `//go:embed` in
@@ -548,7 +548,7 @@ Anything malformed answers no.
 When the gate says no the descriptor is emitted **without** `_meta` and is
 otherwise identical: the tool is still listed and still callable. That is the
 "revert to core protocol behavior" branch of the specification's two permitted
-fallbacks. A rejection of a whole `tools/list`, because the host cannot render
+fallbacks. A rejection of a whole `tools/list`, because the host cannot render <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 HTML panels, would break every non-Apps client for no benefit.
 
 The gate is applied to the assembled tool list, not inside the descriptor
@@ -587,7 +587,7 @@ per principal (concurrent tasks, retained terminal tasks, task TTL).
 | MCP 2 | Remote binding, OAuth 2.1, per-identity bearer list |
 | MCP 3 | Server-initiated `elicitation/create` (the push model, deleted by the 2026-07-28 cutover) |
 | 2026-2 | Multi Round-Trip Requests: elicitation returns as an `InputRequiredResult` value, with no `requestState` |
-| MCP 4 | The original task surface: client-directed `tools/call`, the `tasks/*` methods, the task registry. Superseded by the extension cutover below |
+| MCP 4 | The original task surface: client-directed `tools/call`, the `tasks/*` methods, the task registry. Superseded by the extension cutover below | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | MCP 5 | Resources capability, `ui://` UI-resource scheme |
 | 2026-4 | Cacheable results (SEP-2549) and MCP Apps as the `io.modelcontextprotocol/ui` extension (SEP-1865) |
 | Gate | The `ze_mcp` compile-out feature gate |

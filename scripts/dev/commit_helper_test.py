@@ -249,7 +249,7 @@ class TestDeferralDestination(unittest.TestCase):
     def test_existing_spec_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(
-                tmp, self._row("`plan/spec-rib-deferred-ipv6-coverage.md`")
+                tmp, self._row("`plan/spec-rib-deferred-ipv6-coverage.md`")  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
             )
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
@@ -275,7 +275,7 @@ class TestDeferralDestination(unittest.TestCase):
     def test_missing_spec_file_flagged(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(
-                tmp, self._row("`plan/spec-rib-deferred-nobody-wrote-it.md`")
+                tmp, self._row("`plan/spec-rib-deferred-nobody-wrote-it.md`")  # <!-- doc-links: ignore (negative fixture: the destination is deliberately absent) -->
             )
             problems = ch.deferral_unassigned_problems(root)
             self.assertEqual(len(problems), 1)
@@ -292,7 +292,7 @@ class TestDeferralDestination(unittest.TestCase):
             root = self._repo(
                 tmp,
                 self._row(
-                    "`plan/spec-rib-deferred-ipv6-coverage.md` (re-homed 2026-07-16: "
+                    "`plan/spec-rib-deferred-ipv6-coverage.md` (re-homed 2026-07-16: "  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
                     "the original destination `spec-lg-birdwatcher-peer-fields.md` "
                     "was deleted at closure, orphaning this row)"
                 ),
@@ -304,7 +304,7 @@ class TestDeferralDestination(unittest.TestCase):
     # plan/learned/1127-x.md and calling a real destination "no file".
     def test_nested_plan_path_destination_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp, self._row("`plan/learned/1127-rib-arch-2.md`"))
+            root = self._repo(tmp, self._row("`plan/learned/1127-rib-arch-2.md`"))  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
             (root / "plan" / "learned").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "learned" / "1127-rib-arch-2.md").write_text("# L\n")
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
@@ -633,8 +633,8 @@ class TestDeferralUnassigned(unittest.TestCase):
             _deferral_gate(
                 [
                     ("`plan/spec-finish-l2tp.md` (work item added)", "deferred"),
-                    ("`plan/spec-fixit-x.md` (F4)", "open"),
-                    ("`plan/learned/1127-rib-arch-2.md`", "in-progress (spec)"),
+                    ("`plan/spec-fixit-x.md` (F4)", "open"),  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                    ("`plan/learned/1127-rib-arch-2.md`", "in-progress (spec)"),  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
                 ]
             ),
             [],
@@ -1327,11 +1327,11 @@ class TestDeferralSharding(unittest.TestCase):
             b = "plan/deferrals/spec-b.md"
             (root / a).write_text(
                 DEFERRALS_HEADER
-                + "| 2026-07-21 | spec-a | work A | reason | `plan/spec-a.md` | deferred |\n"
+                + "| 2026-07-21 | spec-a | work A | reason | `plan/spec-a.md` | deferred |\n"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
             )
             (root / b).write_text(
                 DEFERRALS_HEADER
-                + "| 2026-07-21 | spec-b | work B | reason | `plan/spec-b.md` | deferred |\n"
+                + "| 2026-07-21 | spec-b | work B | reason | `plan/spec-b.md` | deferred |\n"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
             )
             # Both shards are dirty in the same working tree. Session A stages and
             # commits ONLY its own shard.
@@ -1359,8 +1359,8 @@ class TestDeferralSharding(unittest.TestCase):
             shared = "plan/deferrals-single.md"
             (root / shared).write_text(
                 DEFERRALS_HEADER
-                + "| 2026-07-21 | spec-a | work A | reason | `plan/spec-a.md` | deferred |\n"
-                + "| 2026-07-21 | spec-b | work B | reason | `plan/spec-b.md` | deferred |\n"
+                + "| 2026-07-21 | spec-a | work A | reason | `plan/spec-a.md` | deferred |\n"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                + "| 2026-07-21 | spec-b | work B | reason | `plan/spec-b.md` | deferred |\n"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
             )
             _git(root, "add", shared)
             _git(root, "commit", "-q", "-m", "session A commits the shared file")
@@ -1384,7 +1384,7 @@ class TestDeferralSharding(unittest.TestCase):
             (root / "plan" / "spec-real.md").write_text("# Spec\n")
             (root / "plan" / "deferrals" / "clean.md").write_text(
                 DEFERRALS_HEADER
-                + "| 2026-07-21 | spec-real | ok | reason | `plan/spec-real.md` | deferred |\n"
+                + "| 2026-07-21 | spec-real | ok | reason | `plan/spec-real.md` | deferred |\n"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
             )
             (root / "plan" / "deferrals" / "unhomed.md").write_text(
                 DEFERRALS_HEADER
@@ -1456,7 +1456,7 @@ class TestPreCommitVerificationFilled(unittest.TestCase):
         spec = _pcv(
             files="| `a.go` | yes | ls output |\n",
             ac="| AC-1 | parses | TestParse pass |\n",
-            wiring="| config | `test/parse/a.ci` | read, covers path |\n",
+            wiring="| config | `test/parse/a.ci` | read, covers path |\n",  # <!-- doc-links: ignore (fixture path in a wiring row, not a real test) -->
         )
         self.assertEqual(ch.pre_commit_verification_gaps(spec), [])
 

@@ -112,7 +112,7 @@ class TriggerIndexTest(unittest.TestCase):
                 cells = [c.strip() for c in line.strip().strip("|").split("|")]
                 self.assertEqual(len(cells), 3, line)
                 path, severity, trigger = cells
-                self.assertRegex(path, r"^`ai/rules/[a-z0-9-]+\.md`$")
+                self.assertRegex(path, r"^`ai/rules/[a-z0-9-]+\.md`$")  # <!-- doc-links: ignore (regular expression, not a path) -->
                 self.assertIn(severity.split(",")[0].strip(), ("blocking", "advisory"))
                 self.assertGreater(len(trigger), 0, line)
 

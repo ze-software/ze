@@ -1731,7 +1731,7 @@ def discovery_index_problems(
     # Verify EVERY index the repo can judge, not just the ones `fed` names.
     # `indexes_fed_by` recognizes a PACKAGE-MAP source by a `// Package` header or
     # a register.go filename, but package_map.build keys its rows on DIRECTORY
-    # existence (scripts/dev/package_map.py build()): a new `internal/x/thing.go`
+    # existence (scripts/dev/package_map.py build()): a new `internal/x/thing.go` <!-- doc-links: ignore (example path in a comment, deliberately absent) -->
     # carrying only `// Design:` adds a PACKAGE-MAP row while feeding only
     # DOCS-TO-CODE. Narrowing the check to `fed` therefore let that commit land
     # and leave HEAD incoherent. The view is already built; checking all three
@@ -1932,7 +1932,7 @@ def deferral_destination_problem(repo: Path, dest: str) -> str | None:
     spec nobody created loses the work just as completely -- both lose the work,
     so both are rejected.
 
-    Both spellings of a destination are accepted, `plan/spec-x.md` and a bare
+    Both spellings of a destination are accepted, `plan/spec-x.md` and a bare <!-- doc-links: ignore (example destination spelling, not a real spec) -->
     `spec-x.md` resolved against plan/, because both name the same file and the
     rule is about the work having a home, not about path punctuation.
 
@@ -2044,7 +2044,7 @@ def deferral_shard_removal_problems(
     The `plan/deferrals/` prefix test assumes normalized repo-relative paths, and
     that holds because every path reaching a gate has been through normalize_path
     above: `os.path.normpath` strips a `./` prefix, and an absolute path is
-    resolved and made relative. Nested shards (`plan/deferrals/sub/x.md`) are in
+    resolved and made relative. Nested shards (`plan/deferrals/sub/x.md`) are in <!-- doc-links: ignore (example shard path, not a real shard) -->
     scope, matching deferral_shard_paths, whose glob is recursive for the same
     reason.
     """

@@ -73,7 +73,7 @@ RESOLVERS = {
 
 SOURCE_SUFFIXES = (".go", ".py", ".sh", ".mk", ".bash", ".zsh")
 
-# `.claude/worktrees` holds whole checkouts of this repository, so walking it
+# `.claude/worktrees` holds whole checkouts of this repository, so walking it <!-- doc-links: ignore (worktree root, present only when a worktree exists) -->
 # would report every site twice and pin another branch's content. `.claude`
 # itself is NOT skipped: its hooks are tracked .py and .sh files that this
 # scan must cover.
@@ -86,7 +86,7 @@ SKIP_DIRS = {
     "bin",
     "backups",
 }
-# Whole trees that are not this repository's source. `.claude/worktrees` holds
+# Whole trees that are not this repository's source. `.claude/worktrees` holds <!-- doc-links: ignore (worktree root, present only when a worktree exists) -->
 # entire checkouts, and `gokrazy/modcache` holds ~25,900 gitignored third-party
 # Go files: walking it was most of this file's runtime, and one upstream module
 # spelling the prefix would red the gate with an offender only fixable by

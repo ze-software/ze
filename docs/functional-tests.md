@@ -935,7 +935,7 @@ client does not accommodate it quietly.
 
 <!-- source: internal/test/cli/cmd_mcp_mrtr.go — send retry loop, answerElicitRequest, elicitDirective -->
 
-`tools-order-stable [<calls>]` calls `tools/list` `<calls>` times (default 3)
+`tools-order-stable [<calls>]` calls `tools/list` `<calls>` times (default 3) <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 against an unchanged daemon and prints
 `tools-order stable=<true|false> calls=<n> tools=<n> digest=<hex>`. The
 comparison is over the RAW bytes of the `tools` array, not over the tool names.
@@ -996,14 +996,14 @@ Most pass the `--tasks` flag to `ze-test mcp`, which declares the
 client which never declared the extension still gets its answer synchronously,
 not a task handle.
 
-Task creation is server-directed. The client sends an ordinary `tools/call`, and
+Task creation is server-directed. The client sends an ordinary `tools/call`, and <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 the daemon decides from the command's `ze:task-support` YANG annotation whether
 to answer with a task handle. There is no per-call opt-in field to set.
 
 | Directive | Purpose |
 |-----------|---------|
-| `task-call <tool> [<args>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`. Prints the taskId |
-| `call-sync <tool> [<args>]` | Ordinary `tools/call` the server must answer synchronously (`resultType: "complete"`, no taskId) |
+| `task-call <tool> [<args>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`. Prints the taskId | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+| `call-sync <tool> [<args>]` | Ordinary `tools/call` the server must answer synchronously (`resultType: "complete"`, no taskId) | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `task-get <id>` | Call `tasks/get`, print the status |
 | `task-result <id>` | Print the result a terminal task carries, read off `tasks/get` |
 | `task-update <id> [<json>]` | Call `tasks/update` with optional `inputResponses`. Requires an empty acknowledgement |

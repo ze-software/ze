@@ -185,7 +185,7 @@ def build(rules_dir):
         "|------|--------------|----------|------|",
     ]
     for name, title, summary, severity in rows:
-        lines.append(f"| {title} | {summary} | {severity} | `ai/rules/{name}` |")
+        lines.append(f"| {title} | {summary} | {severity} | `ai/rules/{name}` |")  # <!-- doc-links: ignore (format template, not a path) -->
     lines.append("")
     return "\n".join(lines), missing
 

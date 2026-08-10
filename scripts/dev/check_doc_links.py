@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check that path references in the instruction corpus resolve.
 
-Four checks:
+Five checks:
   1. Markdown corpus: backtick path references and markdown links in the
      normative agent-instruction files (ai/, .claude/rules/, plan/ meta docs)
      must point at files/dirs that exist. Historical records (plan/handover/)
@@ -18,8 +18,13 @@ Four checks:
      must carry a reason. Checks 1 and 3 are the only readers of the marker,
      and between them they walk `MD_GLOBS` and `NAME_LINT_FILES` -- a small
      fraction of the tree. A marker anywhere else was decoration no gate read.
+  5. Tracked citations: a path reference in any other TRACKED file must
+     resolve too, under check 1's grammar. The population that predates this
+     check is grandfathered in `scripts/dev/doc_citation_baseline.txt`, which
+     is shrink-only: the gate compares the SETS and refuses each pair HEAD
+     does not hold. Checks 4 and 5 share ONE read of each tracked file.
 
-A line is skipped by checks 1 and 3 when it carries the marker inside an HTML
+A line is skipped by checks 1, 3 and 5 when it carries the marker inside an HTML
 comment AND that marker states a reason:
 
     <!-- doc-links: ignore (why this path cannot resolve) -->
@@ -38,6 +43,7 @@ working tree that has run the generator and are absent from a fresh checkout,
 so their absence is a property of the checkout, not a broken reference.
 
 Usage: scripts/dev/check_doc_links.py [--md-only|--design-only] [-v]
+       scripts/dev/check_doc_links.py --write-baseline
 Called by: make ze-doc-links, make ze-regen-check
 Exit codes: 0 = all resolve, 1 = broken references found.
 """
@@ -128,6 +134,10 @@ MD_EXCLUDE = {"ai/CODE-TO-DOCS.md"}
 BACKTICK = re.compile(r"`([^`]+)`")
 MD_LINK = re.compile(r"\]\(([^)#][^)]*)\)")
 LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
+# `ai/digests/*.md` writes several line numbers as a comma run:
+# `forward_body.go,47,64,82`. The FILE still has to resolve, so this strips the
+# run and leaves the path, exactly as LINE_SUFFIX strips `:12`.
+LINE_RUN_SUFFIX = re.compile(r"(?:,\d+)+$")
 # `file.go:Symbol` / `pkg.Symbol` references: strip the symbol, check the path.
 SYMBOL_COLON = re.compile(r":[A-Za-z_][\w.]*$")
 SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
@@ -146,9 +156,10 @@ IGNORE_MARKER = re.compile(r"<!--(?:(?!-->).)*?doc-links:\s*ignore((?:(?!-->).)*
 IGNORE_REASON = re.compile(r"\(([^)]*)\)")
 # Cheap pre-filter for the tracked-file sweep: the bytes every marker contains.
 MARKER_BYTES = b"doc-links: ignore"
-# This checker and its tests OWN the marker: their occurrences are the
-# implementation and its fixtures, never suppressions of a reference.
-MARKER_SWEEP_EXCLUDE = frozenset(
+# This checker and its tests OWN the marker and the path grammar: their
+# occurrences are the implementation and its fixtures, never a suppression of
+# a reference and never a citation.
+SWEEP_EXCLUDE = frozenset(
     {
         "scripts/dev/check_doc_links.py",
         "scripts/dev/check_doc_links_test.py",
@@ -234,6 +245,7 @@ def candidate_paths(raw: str) -> list[str]:
     token = raw.strip().split()[0] if raw.strip() else ""
     token = token.rstrip(".,;:)('\"")
     token = token.split("#")[0]
+    token = LINE_RUN_SUFFIX.sub("", token)
     token = LINE_SUFFIX.sub("", token)
     token = SYMBOL_COLON.sub("", token)
     if not os.path.exists(token):
@@ -287,29 +299,44 @@ def drop_generated(broken: list[tuple[str, str]]) -> list[str]:
     ]
 
 
-def check_markdown(verbose: bool) -> list[tuple[str, str]]:
-    errors = []
-    files = []
+def md_corpus_files() -> list[str]:
+    """The files check 1 walks: `MD_GLOBS` expanded, minus `MD_EXCLUDE`.
+
+    Check 5 skips this set. Check 1 already reports every dead reference in
+    it, and it does so with no baseline to grandfather one.
+    """
+    files: list[str] = []
     for pattern in MD_GLOBS:
         files.extend(sorted(globmod.glob(pattern)))
-    for md in files:
-        if md in MD_EXCLUDE:
+    return [f for f in files if f not in MD_EXCLUDE]
+
+
+def line_citations(line: str) -> list[str]:
+    """Every repo path one line cites: backtick spans and markdown links.
+
+    Checks 1 and 5 share this grammar, so a token one of them reads is a
+    token the other reads.
+    """
+    out: list[str] = []
+    for raw in BACKTICK.findall(line) + MD_LINK.findall(line):
+        if raw.startswith(("http://", "https://", "mailto:")):
             continue
+        out.extend(candidate_paths(raw))
+    return out
+
+
+def check_markdown(verbose: bool) -> list[tuple[str, str]]:
+    errors = []
+    for md in md_corpus_files():
         with open(md, encoding="utf-8") as fh:
             for lineno, line in enumerate(fh, 1):
                 if suppressed(line):
                     continue
-                tokens = BACKTICK.findall(line) + MD_LINK.findall(line)
-                for raw in tokens:
-                    if raw.startswith(("http://", "https://", "mailto:")):
-                        continue
-                    for path in candidate_paths(raw):
-                        if not path_resolves(path):
-                            errors.append(
-                                (f"{md}:{lineno}: broken path reference", path)
-                            )
-                        elif verbose:
-                            print(f"ok {md}:{lineno}: {path}")
+                for path in line_citations(line):
+                    if not path_resolves(path):
+                        errors.append((f"{md}:{lineno}: broken path reference", path))
+                    elif verbose:
+                        print(f"ok {md}:{lineno}: {path}")
     return errors
 
 
@@ -533,8 +560,208 @@ def check_hook_names(
     return findings
 
 
+# --- Check 5: dead citations in every tracked file --------------------------
+BASELINE_REL = "scripts/dev/doc_citation_baseline.txt"
+# Two roots the citation check never reads, for one reason each.
+# `vendor/` and `third_party/` hold another repository's files: their
+# references point into their own upstream tree, so nobody here can repair one
+# and the baseline could never shrink. `go_files` excludes vendor the same
+# way, by naming the roots it walks.
+# `plan/handover/` is a historical record: it describes the tree as it was,
+# which is why check 1 skips it too (see the module docstring).
+CITATION_EXCLUDE_PREFIXES = ("vendor/", "third_party/", "plan/handover/")
+# How many new baseline pairs a growth failure names before it counts the rest.
+BASELINE_GROWTH_SHOWN = 10
+
+
+def parse_baseline(text: str) -> set[tuple[str, str]]:
+    """The `citing file<TAB>target path` pairs `text` lists.
+
+    Blank lines and `#` comments are skipped. A line with no TAB yields an
+    empty target, which matches no citation and so grandfathers nothing.
+    `baseline_format_problems` is what REPORTS such a line: a parser that
+    silently drops it would leave a typo looking like a grandfathered pair.
+    """
+    pairs: set[tuple[str, str]] = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        citer, _, target = line.partition("\t")
+        pairs.add((citer.strip(), target.strip()))
+    return pairs
+
+
+def load_baseline(path: str = BASELINE_REL) -> set[tuple[str, str]]:
+    """The grandfathered pairs on disk. A missing file grandfathers nothing."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return parse_baseline(fh.read())
+    except OSError:
+        return set()
+
+
+def head_baseline(path: str = BASELINE_REL) -> set[tuple[str, str]] | None:
+    """The baseline as HEAD holds it, or `None` when HEAD holds no such file.
+
+    `None` is the state of a first commit and of a fresh checkout with no
+    history, and it passes: there is nothing to compare against yet.
+    """
+    proc = subprocess.run(
+        ["git", "show", f"HEAD:{path}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return None
+    return parse_baseline(proc.stdout)
+
+
+def baseline_format_problems(path: str = BASELINE_REL) -> list[str]:
+    """Report every baseline line that is not `citer<TAB>target`.
+
+    A line with no TAB grandfathers nothing, so the citation it was written
+    for is reported anyway. The author sees the citation they thought they had
+    covered and no reason for it, which reads as a gate that ignores its own
+    baseline. Naming the malformed line turns that into one obvious fix.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return []
+    problems = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "\t" not in stripped:
+            problems.append(
+                f"{path}:{lineno}: baseline line has no TAB: {stripped} -- "
+                f"write it as `<citing file><TAB><target path>`, or delete it"
+            )
+    return problems
+
+
+def check_baseline_growth(path: str = BASELINE_REL) -> list[str]:
+    """Refuse a baseline pair that HEAD does not already hold.
+
+    The baseline is shrink-only. Without this check `--write-baseline` is one
+    command that absorbs every new dead citation, which is an escape from
+    every other property this gate has.
+
+    The comparison is over the PAIRS, not over their number. A count lets a
+    swap through: repair one citation, add one dead citation, regenerate, and
+    the total is unchanged while a pair the sweep failed on is grandfathered.
+    """
+    head = head_baseline(path)
+    if head is None:
+        return []
+    added = sorted(load_baseline(path) - head)
+    if not added:
+        return []
+    shown = added[:BASELINE_GROWTH_SHOWN]
+    lines = [f"  {citer} -> {target}" for citer, target in shown]
+    if len(added) > len(shown):
+        lines.append(f"  ... and {len(added) - len(shown)} more")
+    listing = "\n".join(lines)
+    return [
+        f"{path}: {len(added)} baseline pair(s) are new against HEAD -- the "
+        f"baseline is shrink-only:\n{listing}\n"
+        f"Repair each citation, or mark its line `<!-- doc-links: ignore (why "
+        f"this path cannot resolve) -->`. Never regenerate the baseline to "
+        f"absorb it"
+    ]
+
+
+def drop_ignored(dead: list[tuple[str, int, str]]) -> list[tuple[str, int, str]]:
+    """`dead` minus the references to gitignored (generated) targets."""
+    ignored = gitignored(sorted({target for _, _, target in dead}))
+    return [
+        (citer, lineno, target)
+        for citer, lineno, target in dead
+        if target.rstrip("/") not in ignored and target not in ignored
+    ]
+
+
+def baseline_findings(
+    dead: list[tuple[str, int, str]],
+    baseline: set[tuple[str, str]],
+    verbose: bool = False,
+    drift: bool = False,
+) -> tuple[list[str], list[str]]:
+    """(findings, drift warnings) for the sweep's dead citations.
+
+    A pair the baseline lists is grandfathered. The baseline holds PAIRS, so a
+    NEW file that cites an already-dead target is still reported.
+
+    Drift is the reverse direction: a pair the baseline lists that the tree no
+    longer holds. It is a WARN and it is asked for only after a whole-tree
+    sweep, because a sweep over some of the files misses most pairs.
+    """
+    live = drop_ignored(dead)
+    findings: list[str] = []
+    for citer, lineno, target in live:
+        if (citer, target) in baseline:
+            if verbose:
+                print(f"baselined {citer}:{lineno}: {target}")
+            continue
+        findings.append(
+            f"{citer}:{lineno}: dead path reference: {target} -- repair the "
+            f"reference, or mark the line `<!-- doc-links: ignore (why this "
+            f"path cannot resolve) -->`"
+        )
+    if not drift:
+        return findings, []
+    seen = {(citer, target) for citer, _, target in live}
+    stale = [
+        f"WARN {BASELINE_REL}: {citer} no longer cites {target} -- delete the "
+        f"entry, so the baseline shrinks"
+        for citer, target in sorted(baseline - seen)
+    ]
+    return findings, stale
+
+
+def write_baseline(path: str = BASELINE_REL) -> int:
+    """Write today's dead citations as the grandfathered population."""
+    _unreadable, _markers, dead = sweep_tracked(markers=False)
+    pairs = sorted({(citer, target) for citer, _, target in drop_ignored(dead)})
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(BASELINE_HEADER + "".join(f"{c}\t{t}\n" for c, t in pairs))
+    print(f"wrote {path} with {len(pairs)} grandfathered citation pair(s)")
+    return 0
+
+
+# The header `write_baseline` emits, and the ONE place its text lives. It sat
+# inline in that function until 2026-08-10, when the shrink-only rule changed
+# from a count to a set comparison: the file on disk was corrected by hand and
+# the generator was not, so the next `--write-baseline` would have reverted the
+# correction and restored a description that is now false.
+# `test_baseline_header_is_what_the_generator_writes` compares the two.
+BASELINE_HEADER = (
+    "# Doc citation baseline: the dead path references this tree already\n"
+    "# carried when check 5 of scripts/dev/check_doc_links.py was armed.\n"
+    "#\n"
+    "# One pair per line: the citing file, a TAB, and the target that does\n"
+    "# not resolve. The gate skips a pair this file lists and reports every\n"
+    "# other one. Pairs, never bare targets: a new file that cites an\n"
+    "# already-dead target is reported, so the rot cannot spread.\n"
+    "#\n"
+    "# The list is SHRINK-ONLY. The gate compares it against its own\n"
+    "# version at HEAD and fails on each pair HEAD does not hold. It\n"
+    "# compares the SETS, so a repair and a new dead pair in one commit\n"
+    "# is refused although the total did not move. Remove a pair by\n"
+    "# repairing the citation, or by marking its line\n"
+    "# `<!-- doc-links: ignore (why this path cannot resolve) -->`.\n"
+    "#\n"
+    "# Regenerate with: python3 scripts/dev/check_doc_links.py"
+    " --write-baseline\n"
+)
+
+
 def tracked_files() -> list[str]:
-    """Every tracked path the marker sweep reads.
+    """Every tracked path the tracked-file sweep reads.
 
     A path git tracks but the working tree no longer holds is skipped, not
     reported: the sweep judges the working tree, and a file somebody is part
@@ -545,23 +772,34 @@ def tracked_files() -> list[str]:
     out = subprocess.run(
         ["git", "ls-files"], capture_output=True, text=True, check=True
     ).stdout.splitlines()
-    return [f for f in out if f and f not in MARKER_SWEEP_EXCLUDE and os.path.exists(f)]
+    return [f for f in out if f and f not in SWEEP_EXCLUDE and os.path.exists(f)]
 
 
-def check_ignore_reasons(
-    files: tuple[str, ...] | None = None, verbose: bool = False
-) -> list[str]:
-    """Report every `doc-links: ignore` marker that states no reason.
+def sweep_tracked(
+    files: tuple[str, ...] | None = None,
+    verbose: bool = False,
+    markers: bool = True,
+    citations: bool = True,
+) -> tuple[list[str], list[str], list[tuple[str, int, str]]]:
+    """Read every tracked file ONCE and run checks 4 and 5 over each line.
+
+    Returns three lists: the files that exist and cannot be read, the markers
+    that state no reason, and the `(citing file, line, dead target)` triples.
+    An unreadable file belongs to both checks, so it is reported once and
+    every caller adds it.
 
     The sweep covers every TRACKED file, not the `MD_GLOBS` corpus. A marker
     outside that corpus suppresses nothing today, which is exactly why it is
     worth reading: nobody audits it, and the reference under it rots unseen.
-    Scoping this check to the walked corpus would leave that hole open.
+    Scoping either check to the walked corpus leaves that hole open.
 
     Reading is a two-step: the raw bytes are searched for `MARKER_BYTES`
     first, so a binary or vendored file costs one read and no decode.
     """
-    findings: list[str] = []
+    unreadable: list[str] = []
+    marker_findings: list[str] = []
+    dead: list[tuple[str, int, str]] = []
+    corpus = set(md_corpus_files()) if citations else set()
     for path in tracked_files() if files is None else files:
         try:
             with open(path, "rb") as fh:
@@ -575,37 +813,77 @@ def check_ignore_reasons(
             continue
         except OSError as err:
             # Fail closed: a file that EXISTS and cannot be read is a finding,
-            # never a skip. A marker it carries would otherwise pass by being
-            # unreadable.
-            findings.append(
-                f"{path}: cannot read for the ignore-marker sweep: {err} -- "
-                f"every marker it carries would go unaudited"
+            # never a skip. A marker or a citation it carries would otherwise
+            # pass by being unreadable.
+            unreadable.append(
+                f"{path}: cannot read for the tracked-file sweep: {err} -- "
+                f"every marker and every path reference it carries would go "
+                f"unchecked"
             )
             continue
-        if MARKER_BYTES not in raw:
+        read_markers = markers and MARKER_BYTES in raw
+        read_citations = (
+            citations
+            and path not in corpus
+            and not path.startswith(CITATION_EXCLUDE_PREFIXES)
+        )
+        if not read_markers and not read_citations:
             continue
         for lineno, line in enumerate(
             raw.decode("utf-8", errors="replace").splitlines(), 1
         ):
-            for tail in ignore_markers(line):
-                reason = marker_reason(tail)
-                if reason:
-                    if verbose:
-                        print(f"reasoned {path}:{lineno}: {reason}")
-                    continue
-                findings.append(
-                    f"{path}:{lineno}: doc-links: ignore marker states no "
-                    f"reason -- write it as `<!-- doc-links: ignore (why this "
-                    f"path cannot resolve) -->`, or delete the marker and fix "
-                    f"the reference it hides"
-                )
-    return findings
+            if read_markers:
+                for tail in ignore_markers(line):
+                    reason = marker_reason(tail)
+                    if reason:
+                        if verbose:
+                            print(f"reasoned {path}:{lineno}: {reason}")
+                        continue
+                    marker_findings.append(
+                        f"{path}:{lineno}: doc-links: ignore marker states no "
+                        f"reason -- write it as `<!-- doc-links: ignore (why "
+                        f"this path cannot resolve) -->`, or delete the marker "
+                        f"and fix the reference it hides"
+                    )
+            if not read_citations or suppressed(line):
+                continue
+            for target in line_citations(line):
+                if not path_resolves(target):
+                    dead.append((path, lineno, target))
+    return unreadable, marker_findings, dead
+
+
+def check_ignore_reasons(
+    files: tuple[str, ...] | None = None, verbose: bool = False
+) -> list[str]:
+    """Report every `doc-links: ignore` marker that states no reason."""
+    unreadable, marker_findings, _ = sweep_tracked(
+        files=files, verbose=verbose, citations=False
+    )
+    return unreadable + marker_findings
+
+
+def check_tracked_citations(
+    files: tuple[str, ...] | None = None,
+    verbose: bool = False,
+    baseline: set[tuple[str, str]] | None = None,
+) -> list[str]:
+    """Report every dead path reference the baseline does not grandfather."""
+    unreadable, _, dead = sweep_tracked(files=files, verbose=verbose, markers=False)
+    if baseline is None:
+        baseline = load_baseline()
+    return unreadable + baseline_findings(dead, baseline, verbose)[0]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--md-only", action="store_true")
     parser.add_argument("--design-only", action="store_true")
+    parser.add_argument(
+        "--write-baseline",
+        action="store_true",
+        help="record today's dead citations as the grandfathered population",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -618,6 +896,9 @@ def main() -> int:
         ).stdout.strip()
     )
 
+    if args.write_baseline:
+        return write_baseline()
+
     broken: list[tuple[str, str]] = []
     if not args.design_only:
         broken += check_markdown(args.verbose)
@@ -625,10 +906,20 @@ def main() -> int:
         broken += check_design_refs(args.verbose)
     errors = drop_generated(broken)
 
+    baseline: set[tuple[str, str]] = set()
+    stale: list[str] = []
     if not args.design_only:
         errors += check_hook_names(verbose=args.verbose)
-        errors += check_ignore_reasons(verbose=args.verbose)
+        # Checks 4 and 5 read each tracked file once, together.
+        unreadable, marker_findings, dead = sweep_tracked(verbose=args.verbose)
+        baseline = load_baseline()
+        found, stale = baseline_findings(dead, baseline, args.verbose, drift=True)
+        errors += unreadable + marker_findings + found
+        errors += baseline_format_problems()
+        errors += check_baseline_growth()
 
+    for warn in stale:
+        print(warn)
     for err in errors:
         print(err)
     if errors:
@@ -638,7 +929,13 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("all corpus path references resolve")
+    summary = "all corpus path references resolve"
+    if baseline:
+        summary += f" ({len(baseline)} citation pair(s) baselined"
+        if stale:
+            summary += f", {len(stale)} stale baseline entry(s)"
+        summary += ")"
+    print(summary)
     return 0
 
 

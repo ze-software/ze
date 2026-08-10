@@ -44,7 +44,7 @@ from pathlib import Path
 PLAN_DIR = "plan"
 BASELINE_REL = "plan/.citation-baseline"
 
-# A reference to a spec file, e.g. ``plan/spec-foo-bar.md`` (optionally :line).
+# A reference to a spec file, e.g. ``plan/spec-foo-bar.md`` (optionally :line). <!-- doc-links: ignore (example spec name in a comment, not a real spec) -->
 SPEC_REF_RE = re.compile(r"plan/spec-[a-z0-9][a-z0-9-]*\.md")
 # A backtick-quoted ``path:line`` citation, e.g. `internal/x/foo.go:104`.
 CITATION_RE = re.compile(r"`([^`\s]+?):(\d+)`")
