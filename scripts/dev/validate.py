@@ -13,6 +13,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -138,6 +139,16 @@ def check_source_anchor_stale_paths(root: Path) -> list[Finding]:
             if path.startswith(("http://", "https://", "~", "/")) or "/" not in path:
                 continue
             path_clean = re.sub(r":\d+$", "", path)
+            # A path that climbs out of the repository root names a SIBLING
+            # checkout (`../gh-pages/tools/build.py` is the website's), so it is
+            # external in the same way a `~` or absolute path is. Whether it
+            # resolves says where the reader keeps their checkouts, not whether
+            # the documentation is fresh: it exists on a machine that clones
+            # both repositories side by side and never on a CI runner that
+            # clones one. Escaping the root is the PROPERTY that makes an anchor
+            # unresolvable here; the spellings above are three instances of it.
+            if os.path.normpath(path_clean).startswith(".."):
+                continue
             if not (root / path_clean).exists():
                 rel = md_file.relative_to(root)
                 findings.append(

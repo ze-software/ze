@@ -148,6 +148,35 @@ class TestStaleAnchorPath(unittest.TestCase):
             findings = check_source_anchor_stale_paths(root)
             self.assertEqual(findings, [])
 
+    def test_skips_sibling_checkout_anchors(self):
+        # The website lives in a sibling checkout, so docs/contributing/gh-pages.md
+        # anchors `../gh-pages/tools/build.py`. Resolving that says whether the
+        # reader keeps both clones side by side, and a CI runner clones one:
+        # seven such anchors turned ze-validate-tree red on the runner and green
+        # on the author's machine, from identical bytes.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "test.md").write_text(
+                "<!-- source: ../gh-pages/tools/build.py -- site build -->\n"
+            )
+            findings = check_source_anchor_stale_paths(root)
+            self.assertEqual(findings, [])
+
+    def test_still_reports_a_missing_path_that_only_looks_like_it_climbs(self):
+        # The carve-out is over paths that ESCAPE the root, not over paths that
+        # contain a `..` segment. `docs/../internal/gone.go` normalizes back
+        # inside the repository, so it stays the stale in-repo anchor it is.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "test.md").write_text(
+                "<!-- source: docs/../internal/gone.go -- retired -->\n"
+            )
+            findings = check_source_anchor_stale_paths(root)
+            self.assertEqual(len(findings), 1)
+            self.assertIn("non-existent", findings[0].message)
+
 
 class TestCrossPackageWiring(unittest.TestCase):
     """AC-3: Exported symbol with no cross-package non-test caller."""
