@@ -36,7 +36,7 @@ already carries an MVPN relaxation lower down, then run
 which is the OLD token. The new one is never shown.
 
 **How it was found.** An independent reviewer of
-`plan/spec-fixit-vacuous-eor-family-tests.md` noticed the audit quoting a
+`spec-fixit-vacuous-eor-family-tests` noticed the audit quoting a
 justification unrelated to that spec's change. Nothing in that spec depends on the
 audit's text, so the defect blocks no goal and is written up here rather than
 fixed there (`ai/rules/completion.md`, "A problem you FIND gets a SPEC").

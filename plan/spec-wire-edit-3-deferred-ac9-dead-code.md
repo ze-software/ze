@@ -14,9 +14,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 **This spec is the single owner of the EBGP wire cache deletion, as of
-2026-08-05.** `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`
+2026-08-05.** `spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal`
 described the same deletion, listed the same four symbols, and cited the same
-AC-9 of `plan/learned/1319-wire-edit-3-aspath-fold.md`. Two specs for one change
+AC-9 of the wire-edit-3 AS_PATH fold spec. Two specs for one change
 means two closures, two reviews and a race over the same files, so the duplicate
 was removed rather than kept in step. This file survived because it carries the
 nuance the other omitted: the two slot fields DO have non-test readers in
@@ -43,9 +43,11 @@ go with it. The concurrent session's uncommitted comment already says the entry
 
 The AS-path fold that landed in `ddf04953a` and `e2037e598` moved eBGP AS-path
 prepending onto the edit-set path. The per-`ReceivedUpdate` EBGP wire cache it
-replaced was left in the tree. `plan/learned/1319-wire-edit-3-aspath-fold.md` recorded
-its AC-9 as **Partial** for this reason, and closed. The learned summary is
-`plan/learned/1319-wire-edit-3-aspath-fold.md`.
+replaced was left in the tree. The fold spec `spec-wire-edit-3-aspath-fold`
+recorded its AC-9 as **Partial** for this reason, and closed. Its closure record
+went with the learned corpus (`2cff2050a`). What survives is row 6 of
+`plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, which homes the deletion
+here.
 
 The work is to delete the cache. It is dead code with no behavioral effect, and
 deleting it is a separate reviewable change rather than a tail on the fold.
@@ -93,7 +95,8 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 6.
   → Decision: this spec is the deferred second half of that rule for the AS-path fold.
 - [ ] `ai/rules/stale-comments.md` - a comment describing removed behavior is removed with it
   → Constraint: `wireu/aspath_rewrite.go` names the cache and must be corrected.
-- [ ] `plan/learned/1319-wire-edit-3-aspath-fold.md` - the fold's closure record and the Partial AC-9
+- [ ] `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` row 6 - what survives of the
+  fold spec's Partial AC-9, after its closure record went with the learned corpus
   → Constraint: AC-9's remaining half is exactly this delete.
 
 **Key insights:**

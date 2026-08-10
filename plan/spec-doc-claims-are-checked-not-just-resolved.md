@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-fixit-dead-design-pointers-in-tests.md` |
-| Phase | - |
+| Depends | `spec-fixit-dead-design-pointers-in-tests`, closed 2026-08-10 (`90082fb08`) |
+| Phase | 5/5 (implementation green; closure is `/ze-close` on the review model) |
 | Deferral shard | `plan/deferrals/doc-claims-are-checked-not-just-resolved.md` |
 | Updated | 2026-08-09 |
 
@@ -18,7 +18,7 @@ INTEGRITY and none verifies CLAIM TRUTH. A path that exists, a line inside a
 file, a pointer that resolves: all checked. Whether the sentence above the
 anchor describes what the named function does: never checked.
 
-Measured while closing `plan/spec-problem-journal.md`, which moved 1155
+Measured while closing `spec-problem-journal`, which moved 1155
 `// Design:` pointers and wrote about 130 new architecture documents:
 
 | Evidence | Number |
@@ -36,9 +36,11 @@ Three changes. The `_test.go` blindness in `check_design_refs` is the fourth and
 it has its own spec, named in Depends.
 
 1. **The source-anchor gate verifies the symbols it already carries.** An anchor
-   is `<!-- source: <path> -- Sym1, Sym2 -->`. `check_source_anchor_stale_paths`
-   in `scripts/dev/validate.py` verifies `<path>` and ignores everything after
-   the `--`. Verify the symbols too.
+   is `<!-- source: <path> -- Sym1, Sym2 -->`. Both anchor walkers verify
+   `<path>` and discard everything after the `--`: `check_source_anchor_stale_paths`
+   in `scripts/dev/validate.py`, and `extract_paths` in `scripts/dev/code_to_docs.py`.
+   Verify the symbols too, in `code_to_docs.py`, because that is the walker
+   `make ze-verify` reaches (see Integration Points).
 2. **A suppression carries a reason a gate reads.** `doc-links: ignore` is
    honoured by `check_doc_links.py` and read by nothing else, so 98 dead
    citations sat behind it while `digest_check.py` was hard red on the same
@@ -46,6 +48,16 @@ it has its own spec, named in Depends.
 3. **An independent reader is mandatory where prose makes claims.** Only a
    reader can falsify a sentence. `/ze-review-docs` exists; nothing requires it
    when a spec touches a subsystem document.
+
+**The research phase carries one more item, and it is an owner request rather
+than a derivation from the three above.** Thomas asked on 2026-08-09 for a full
+audit of whether the rule corpus keeps design documentation current as code and
+features are added, to run at the end of the problem-journal work rather than
+during it. It is the second row of this spec's deferral shard. The three changes
+above came from the gates that were READ while moving 1155 pointers; the audit
+asks the wider question that reading never covered, so answering the three does
+not answer it. Research reports it as its own finding set, and every change it
+drives is either named here or homed in its own spec before this one closes.
 
 ## Required Reading
 
@@ -64,7 +76,8 @@ it has its own spec, named in Depends.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/validate.py` - `check_source_anchor_stale_paths()` verifies the path only; `SOURCE_ANCHOR_RE` captures it
+- [ ] `scripts/dev/code_to_docs.py` - `main()` check mode walks every anchor under `docs/`; `ANCHOR_RE` captures the whole body and `extract_paths()` splits segments on `;`, drops the tail at `DESC_SEP`, and keeps paths under `PATH_PREFIX` only. This is the walk `make ze-doc-test` runs
+- [ ] `scripts/dev/validate.py` - `check_source_anchor_stale_paths()` verifies the path only; `SOURCE_ANCHOR_RE` captures it. `run_checks` calls it, and `stagesForMode` in `scripts/status/verify_run.go` reaches neither
 - [ ] `scripts/dev/check_doc_links.py` - `check_design_refs()`, `path_resolves()`, and the `doc-links: ignore` handling
 - [ ] `scripts/dev/digest_check.py` - `check_digest()` verifies `file:line` exists and is in range, and does NOT read `doc-links: ignore`
 - [ ] `ai/skills/ze-review-docs.md` - the reader that can falsify a claim
@@ -90,10 +103,15 @@ it has its own spec, named in Depends.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Gate ↔ Go type information | `gopls symbols`, or a declaration scan | No |
+| Gate ↔ Go type information | a declaration scan of the anchored file's own text, never `gopls` | Yes: `code_to_docs.py` shells out to nothing, so the gate needs no language server and no build context |
 
 ### Integration Points
-- `scripts/dev/validate.py` - extend `check_source_anchor_stale_paths` or add a sibling check beside it
+- `scripts/dev/code_to_docs.py` - extend the anchor walk in `main()`: `ANCHOR_RE` already
+  captures the whole anchor body and `extract_paths()` already segments it on `;` and
+  discards the tail after `--`. The symbols are in hand there and are thrown away.
+- The design phase named `scripts/dev/validate.py` `check_source_anchor_stale_paths`.
+  Rejected on evidence: that walk is a SECOND walk over `docs/`, it reads only the first
+  path of a multi-path anchor, and no gate reaches it.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -109,9 +127,9 @@ it has its own spec, named in Depends.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The false-positive rate is manageable, because a token after `--` may legitimately name a call or a field rather than a declaration | 18 of 82 flagged tokens were accurate on inspection | the gate cries wolf and gets ignored | run the check over the whole tree before arming it, and count | unvalidated |
-| A-2 | Symbols behind a build tag resolve | `gopls` uses one build context, which already cost this work an anchor error | linux-only declarations read as absent | run the sweep under `GOOS=linux` too and diff the finding sets | unvalidated |
-| A-3 | Every `doc-links: ignore` marker in the tree today can be given a reason or removed | the 98 in `ai/digests/` were removed outright, none needed a reason | arming the check reds the tree | count the surviving markers first | unvalidated |
+| A-1 | The false-positive rate is manageable, because a token after `--` may legitimately name a call or a field rather than a declaration | 18 of 82 flagged tokens were accurate on inspection | the gate cries wolf and gets ignored | run the check over the whole tree before arming it, and count | **broken as stated**: 372 unresolved of 4779 claims checked over 5315 anchor segments, and 250 (67%) are the legitimate non-declaration shape (prose noun 105, string key 63, in-file text 34, call 26, receiver member 24). R-1's classification is what makes it carryable: drop all-lowercase single-word tokens, and report only a claim the anchored file's text does not hold anywhere. That leaves 122 over 43 doc files (`tmp/anchor-claims-worklist.md`), of which 81 name a symbol declared nowhere in the repo |
+| A-2 | Symbols behind a build tag resolve | `gopls` uses one build context, which already cost this work an anchor error | linux-only declarations read as absent | run the sweep under `GOOS=linux` too and diff the finding sets | **confirmed**: `go_declarations` reads file text and takes no `GOOS` input, so no sweep can differ. Measured on darwin, it extracts 27, 15, 14 and 8 declarations from `manage_linux.go`, `netlink_linux.go`, `attach_linux.go` and `tuning_linux.go`; over 56 linux-only anchored files it resolves 124 of 145 claims and none of the 21 remaining is a hidden declaration (`IP_TTL`, `SO_BINDTODEVICE`, `ebpf.NewCollection`). The row's `gopls` basis did not reproduce: `gopls symbols` returned the same sets on darwin for the same four files |
+| A-3 | Every `doc-links: ignore` marker in the tree today can be given a reason or removed | at HEAD, 46 hits over 19 files: 37 markers in 18 files, of which 31 already state a reason, plus 9 prose mentions of the words, all inside this spec. The 6 unreasoned markers are 3, each written twice (a point file and the rule rendered from it), and each hid a dead `plan/learned/<id>-*.md` citation | arming the check reds the tree | counted twice, by the checker's own grammar over `git ls-files` and over `git grep HEAD`; the 3 were repaired by deleting the dead citation with its marker, and `make ze-doc-links` is green with no unreasoned marker left | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -131,8 +149,14 @@ it has its own spec, named in Depends.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-validate` | → | `validate.py` symbol-anchor check | `test_anchor_naming_an_absent_symbol_fails` |
-| `make ze-doc-test` | → | `check_doc_links.py` marker-reason check | `test_ignore_marker_without_a_reason_fails` |
+| `make ze-doc-test` | → | `code_to_docs.py` anchor symbol check | `test_anchor_naming_an_absent_symbol_fails` |
+| `make ze-doc-links` | → | `check_doc_links.py` marker-reason check | `test_ignore_marker_without_a_reason_fails` |
+
+Both entry points are stages of `make ze-verify`: `stagesForMode` in
+`scripts/status/verify_run.go` lists `ze-doc-test` and `ze-doc-links` in the
+`ze-verify-changed` and full-verify branches. `make ze-validate`, which the
+design phase named, is in NEITHER branch and has no other caller, so a check
+placed there is enforced by nothing. That is why the symbol check moved.
 
 ## Acceptance Criteria
 
@@ -150,9 +174,9 @@ it has its own spec, named in Depends.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `test_anchor_naming_an_absent_symbol_fails` | `scripts/dev/validate_test.py` | AC-1 | |
-| `test_anchor_naming_a_declared_symbol_passes` | `scripts/dev/validate_test.py` | AC-2 | |
-| `test_member_token_is_not_flagged` | `scripts/dev/validate_test.py` | AC-3 | |
+| `test_anchor_naming_an_absent_symbol_fails` | `scripts/dev/code_to_docs_test.py` | AC-1 | |
+| `test_anchor_naming_a_declared_symbol_passes` | `scripts/dev/code_to_docs_test.py` | AC-2 | |
+| `test_member_token_is_not_flagged` | `scripts/dev/code_to_docs_test.py` | AC-3 | |
 | `test_ignore_marker_without_a_reason_fails` | `scripts/dev/check_doc_links_test.py` | AC-4 | |
 
 ### Functional Tests
@@ -166,8 +190,8 @@ inside its make target over the real tree, plus the existing suites staying gree
 | `make ze-plugin-test` | `test/plugin/*.ci` | the gate change breaks no daemon behaviour | |
 
 ## Files to Modify
-- `scripts/dev/validate.py` - the symbol check
-- `scripts/dev/validate_test.py` - its tests
+- `scripts/dev/code_to_docs.py` - the symbol check, inside the anchor walk `make ze-doc-test` runs
+- `scripts/dev/code_to_docs_test.py` - its tests
 - `scripts/dev/check_doc_links.py` - the marker-reason requirement
 - `scripts/dev/check_doc_links_test.py` - its test
 - `ai/rules/planning.md` (via its point files) - when `/ze-review-docs` is owed
@@ -188,7 +212,7 @@ inside its make target over the real tree, plus the existing suites staying gree
 | Functional test for new RPC/API | N-A | no RPC |
 | Pipe completeness | N-A | no route output |
 | Env var registration | N-A | no env var |
-| Doctor check for runtime dependencies | Yes | `gopls` is a runtime dependency of the check if it shells out; `make ze-setup` installs it |
+| Doctor check for runtime dependencies | N-A | the check scans the anchored file's text and shells out to nothing, so it adds no runtime dependency |
 | Prometheus counters/metrics | N-A | no daemon state |
 | BGP family surface | N-A | no protocol surface |
 
@@ -217,8 +241,8 @@ inside its make target over the real tree, plus the existing suites staying gree
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the check exists and is reachable, reporting nothing
    - Tests: `test_anchor_naming_a_declared_symbol_passes`
-   - Files: `scripts/dev/validate.py`, `validate_test.py`
-   - Verify: `make ze-validate` runs the new check and the tree is unchanged
+   - Files: `scripts/dev/code_to_docs.py`, `code_to_docs_test.py`
+   - Verify: `make ze-doc-test` runs the new check and the tree is unchanged
 2. **Phase: Measure before arming** -- run the check over the whole tree, under both `GOOS` values, and count
    - Verify: A-1 and A-2 answered with numbers, and the severity chosen from them rather than guessed
 3. **Phase: Arm the symbol check** -- fix or reclassify what it finds, then let it fail the gate
@@ -228,6 +252,13 @@ inside its make target over the real tree, plus the existing suites staying gree
    - Verify: count the surviving markers first, per A-3
 5. **Phase: The reader** -- `/ze-review-docs` owed when a spec creates a doc or changes a claim
    - Files: the point files under `ai/rules/points/planning/`, then `make ze-rules-condensed`
+   - Also: register both new checks in the gate list, and correct the false sentence
+     the audit found. `ai/rules/repo-maintenance.md` and its point file
+     `ai/rules/points/repo-maintenance/discovery-updates/the-discovery-surface-that-answers-each-need.md`
+     both state that `make ze-doc-links` is "folded into `make ze-doc-test`". The
+     `ze-doc-test` recipe in `mk/inventory.mk` runs no `check_doc_links.py`, and
+     `ze-doc-links` is its own verify stage. A rule asserting a gate that does not
+     fire is this spec's own subject matter, so it is corrected here rather than deferred
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -241,8 +272,8 @@ inside its make target over the real tree, plus the existing suites staying gree
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The symbol check exists and fails on an absent symbol | `python3 scripts/dev/validate_test.py` |
-| The tree is clean under it | `make ze-validate` |
+| The symbol check exists and fails on an absent symbol | `python3 scripts/dev/code_to_docs_test.py` |
+| The tree is clean under it | `make ze-doc-test` and `make ze-doc-links` |
 | No unreasoned suppression survives | `git grep -n 'doc-links: ignore'` reviewed against the gate |
 
 ### Security Review Checklist
@@ -275,12 +306,38 @@ inside its make target over the real tree, plus the existing suites staying gree
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Check the symbols already in the anchors | Invent a new annotation | The convention exists and is populated. This is a gate that stopped short |
+| Put the check in `code_to_docs.py`, not `validate.py` | Keep the design-phase home; or wire `ze-validate` into `make ze-verify` | `stagesForMode` in `scripts/status/verify_run.go` runs neither `ze-validate` nor anything that depends on it, so the design-phase home is unenforced. Wiring `ze-validate` in would arm five unrelated checks at once, which is a separate defect and gets its own spec |
+| Resolve symbols by scanning the anchored file's text | `gopls symbols` | A text scan has no build context, so a `//go:build linux` declaration is found rather than reported absent. It answers A-2 by construction and removes the `gopls` runtime dependency the Integration Checklist flagged |
 | Measure before arming | Arm and fix the fallout | 82 findings were real, but 18 flagged tokens were accurate. Arming first would teach everyone to ignore the gate |
 | Keep the human reader for claim truth | Try to verify prose mechanically | A sentence is falsifiable only by reading the producer. The gate buys the cheap half |
+| Rule 1 drops a token only when it carries no capital AND no `_` and no `.` | Drop every token with no capital | The narrow form is what phase 2 measured: it removes 105 prose nouns. The wide form removes 118, and the 13 extra include `sa_count`, `tunnel_up` and `ze.storage.blob`, which are true findings the worklist keeps. A separator says identifier even with no capital |
+| Rule 2 searches the anchored file's text with a word boundary | Search for a substring; or keep reporting every undeclared claim | `\b` treats `.` as a boundary, so `Run` is found in `p.Run()` while `Runner` does not satisfy a claim on `Run`. Reporting all 372 floods the gate, which is R-1 |
 
 ## Known Limitations
 - A symbol that exists and a sentence that is wrong about it still passes. This
   closes the anchor half, not the prose half.
+- **The two severity rules demote 250 of the 372 unresolved claims, and 70 of
+  those are a real defect the gate now stays silent about.** Rule 1 drops 105
+  single lowercase words. Rule 2 drops 230 claims the anchored file names
+  without declaring. They overlap on 85. Of the 230, 70 point at the WRONG
+  FILE: 46 name a declaration in a sibling file of the same package, and 24
+  name one in another package (`tmp/anchor-claims-worklist.md`, shape table).
+  Both shapes send the reader to a file that mentions the symbol but does not
+  hold it. R-1's mitigation is "gate on declarations first", so 70 is the
+  population a later tightening starts from, not zero.
+- **Rule 2 passes a rename whose old name survives in a comment of the same
+  file.** The check cannot separate a stale claim from an accurate one about a
+  call or a comment, because both read as text in the file. Pinned by
+  `test_rule_2_costs_the_claim_a_file_only_mentions`.
+- **Rule 1 gives up the all-lowercase Go declaration.** An anchor can no longer
+  claim `run` or `main`, because nothing separates them from an English word in
+  a prose list. Pinned by `test_rule_1_costs_the_all_lowercase_go_declaration`.
+- AC-5 arms the reader when a spec CREATES a `docs/architecture/` page or CHANGES
+  a claim in one. A spec that adds a package with NO page does neither, so AC-5
+  stays silent on the blindest case. Widening it here would order a review of a
+  document that does not exist. The case is homed in
+  `spec-code-can-land-with-no-design-doc`, which makes the page owed in
+  the first place.
 
 ## Checklist
 

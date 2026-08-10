@@ -3,15 +3,23 @@
 
 Driven end-to-end through the real entry point (subprocess) per the guard test
 corollary in ai/rules/evidence.md: the exit code IS the gate, so the
-gate -- not a helper -- is what gets asserted. Each fixture builds a throwaway
-repo under a tempdir with its own plan/ tree and (optionally) a baseline, so a
-test never depends on the real repo's rot.
+gate -- not a helper -- is what gets asserted. Each synthetic fixture builds a
+throwaway repo under a tempdir with its own plan/ tree and (optionally) a
+baseline, so a test never depends on the real repo's rot.
+
+One fixture is different, and it is the wiring test:
+test_real_corpus_has_no_dangling_spec_citation runs the gate against THIS
+repository. It is the only test in this file that reads the real tree.
 
 Coverage:
   AC-1  test_citation_dangling_spec_fails       spec -> absent spec, no baseline
         test_citation_baselined_passes          same, but the target is baselined
         test_removing_baselined_ref_is_fine     baseline entry no longer cited
         test_learned_reference_not_fatal        learned -> closed spec is expected
+        test_real_corpus_has_no_dangling_spec_citation
+                                                the REAL repo, the only fixture
+                                                that reads it, wiring test for
+                                                `make ze-spec-citation-check`
   AC-2  test_citation_line_drift_warns          quoted token no longer on the line
         test_citation_line_token_present_no_warn token still present -> silent
 """
@@ -27,6 +35,20 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "spec-citation-check.py"
+
+
+def repo_root() -> Path:
+    """The real repository root: the nearest ancestor that holds plan/ and mk/.
+
+    A wrong answer here would hand the gate a tree with no specs in it, and the
+    gate is green over an empty corpus. Both markers are checked, and a miss
+    raises rather than returns a guess.
+    """
+    for candidate in (HERE, *HERE.parents):
+        if (candidate / "plan").is_dir() and (candidate / "mk").is_dir():
+            return candidate
+    raise AssertionError(f"no repository root above {HERE}: none holds plan/ and mk/")
+
 
 SPEC_HEAD = (
     "# Spec: {name}\n\n| Field | Value |\n|-------|-------|\n| Status | design |\n\n"
@@ -109,6 +131,29 @@ class CitationGateTest(unittest.TestCase):
         )
         r = run(repo)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_real_corpus_has_no_dangling_spec_citation(self):
+        # Wiring test for `make ze-spec-citation-check` (mk/inventory.mk:34).
+        # The make target runs the script over THIS repository, so this fixture
+        # runs the same entry point over the same tree. It is the only test in
+        # this file that reads the real corpus; every other one builds a
+        # throwaway repo. Spec closure removes a spec file and every sibling
+        # citation of it survives the removal, so this row goes red the moment a
+        # closure lands without clearing its citers.
+        root = repo_root()
+        specs = sorted((root / "plan").glob("spec-*.md"))
+        self.assertTrue(
+            specs,
+            f"{root}/plan holds no spec-*.md: the gate is green over an empty"
+            " corpus, so this test would pass without reading anything",
+        )
+        r = run(root)
+        out = r.stdout + r.stderr
+        self.assertEqual(
+            r.returncode,
+            0,
+            f"spec-citation-check is RED over {root} ({len(specs)} specs):\n{out}",
+        )
 
     # --- AC-2: line-token drift is a non-fatal WARN -------------------------
 

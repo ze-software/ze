@@ -2,42 +2,44 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Deferral shard | `plan/deferrals/fixit-dead-design-pointers-in-tests.md` |
-| Updated | 2026-08-09 |
+| Updated | 2026-08-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`make ze-spec-citation-check` is RED at HEAD. 12 citations of a `plan/spec-*.md`
+`make ze-spec-citation-check` is RED at HEAD. 15 citations of a `plan/spec-*.md`
 name a spec that no longer exists and is not in the grandfathering baseline
 `plan/.citation-baseline`. The check is a stage of `make ze-verify-wiring-docs`,
-so that target cannot go green until the 12 are cleared.
+so that target cannot go green until the 15 are cleared.
 
 The cause is the closure convention, the same one
-`plan/spec-fixit-dead-design-pointers-in-tests.md` records for `_test.go`.
+`plan/journal/gate-excludes-part-of-its-population.md` records for the
+`_test.go` Design pointers.
 Spec closure is two commits, and commit B is `git rm plan/spec-<stem>.md`
 (`ai/rules/planning.md`, "Spec Closure"). `/ze-close` does not add the removed
 stem to `plan/.citation-baseline` and does not repoint the specs that cite it,
 so every closure that lands while a sibling cites it adds a red row.
 
 Found while implementing phase 3 of
-`plan/spec-fixit-dead-design-pointers-in-tests.md`. Phase 3 repointed 145
+`spec-fixit-dead-design-pointers-in-tests`. Phase 3 repointed 145
 `// Design:` pointers and took the Design gate to zero. It touched no `plan/`
-file, so it neither caused nor cleared these 12 rows.
+file, so it neither caused nor cleared these rows. That spec then closed on
+2026-08-10 (`90082fb08`), which is what took the count from 12 to 15.
 
-Reproduction, run 2026-08-09:
+Reproduction, re-measured 2026-08-10:
 
-```
-python3 scripts/dev/spec-citation-check.py          # exit 1, 12 dangling reference(s)
-make ze-verify-wiring-docs                          # exit 2, same stage
-```
+| Command | Result |
+|---------|--------|
+| `python3 scripts/dev/spec-citation-check.py` | exit 1, 15 dangling reference(s) |
+| `make ze-verify-wiring-docs` | exit 2, same stage |
 
-Every one of the 12 is dangling at HEAD as well as in the working tree: for each
+Every one of the 15 is dangling at HEAD as well as in the working tree: for each
 row, `git show HEAD:<citing-file>` holds the citation and
 `git show HEAD:<cited-spec>` fails.
 
@@ -47,24 +49,25 @@ The producing function is `find_dangling` in
 reports the rest. The check is correct; the closure workflow that feeds it is
 the defect.
 
-Seven distinct dead targets carry the 12 rows. Their stems are written here
-without the `plan/` prefix and the `.md` suffix on purpose: spelled in full they
-are themselves dangling citations, and this file would add seven rows to the
-count it exists to clear.
+Seven distinct dead targets carry the 15 rows, measured 2026-08-10. Their stems
+are written here without the `plan/` prefix and the `.md` suffix on purpose:
+spelled in full they are themselves dangling citations, and this file would add
+seven rows to the count it exists to clear.
 
 | Dead stem | Rows |
 |-----------|------|
-| `spec-problem-journal` | 3 |
+| `spec-fixit-dead-design-pointers-in-tests` | 6 |
 | `spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal` | 4 |
-| `spec-as112-1-iface-address-registry` | 1 |
+| `spec-problem-journal` | 1 |
 | `spec-fixit-vacuous-eor-family-tests` | 1 |
 | `spec-fixit-rs-community-strip-arity-deferred-removevalues-quality` | 1 |
 | `spec-gokrazy-init-bump` | 1 |
 | `spec-rfc7606-5-1-2-relay-shape` | 1 |
 
-Three of the 12 sit in `plan/spec-fixit-dead-design-pointers-in-tests.md`
-itself. Its commit B removes that file, so those three clear at its closure and
-need no separate repair.
+Four of the 15 sit in this file. This spec's own commit B removes it, so those
+four would clear at its closure. They are repaired now regardless. A spec that
+carries the class it exists to clear cannot show the gate green while it is
+open. The repair is the bare-stem restatement the table above uses.
 
 ## Required Reading
 
@@ -78,7 +81,7 @@ need no separate repair.
 - A repair is one of three moves: repoint the citation at the durable document
   that replaced the spec, restate the fact inline, or add the stem to
   `plan/.citation-baseline` when the citation is a historical record.
-- The baseline already carries 56 stems, so grandfathering is the sanctioned
+- The baseline already carries 46 stems, so grandfathering is the sanctioned
   route. Nothing adds to it automatically, which is why it drifts.
 
 ## Current Behavior (MANDATORY)
@@ -86,7 +89,7 @@ need no separate repair.
 **Source files read:**
 - [ ] `scripts/dev/spec-citation-check.py` - `find_dangling` reports a cited `plan/spec-*.md` that is absent and unbaselined; `load_baseline` reads `plan/.citation-baseline`; `write_baseline` regenerates it wholesale
 - [ ] `mk/inventory.mk` - the `ze-spec-citation-check` target runs the script with no arguments
-- [ ] `.claude/skills/ze-close/SKILL.md` - the closure steps that write commit B
+- [ ] `ai/skills/ze-close.md` - the closure steps that write commit B. This is the canonical source. `scripts/dev/skill_sync.sh` generates `.claude/skills/ze-close/SKILL.md` from it, and that copy is gitignored
 
 **Behavior to preserve:**
 - Commit B keeps removing the spec file.
@@ -95,7 +98,7 @@ need no separate repair.
 
 **Behavior to change:**
 - Closing a spec that a sibling cites stops leaving a red row behind.
-- The 12 rows measured on 2026-08-09 are cleared.
+- The 15 rows measured on 2026-08-10 are cleared.
 
 ## Data Flow (MANDATORY)
 
@@ -130,8 +133,8 @@ need no separate repair.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Each of the 12 rows has a repair: a repoint, an inline restatement, or a baseline row | 3 of them vanish at this spec's own closure | the gate cannot be cleared without dropping content | classify all 12 before editing | unvalidated |
-| A-2 | Clearing the 12 takes `make ze-verify-wiring-docs` green | the log names one failing stage | a second red is hiding behind the first | run the target after the repairs | unvalidated |
+| A-1 | Each of the 15 rows has a repair: a repoint, an inline restatement, or a baseline row | 4 of them vanish at this spec's own closure | the gate cannot be cleared without dropping content | classify all 15 before you edit | confirmed 2026-08-10: every row is classified in "Citation repair decisions", 5 repoints and 10 restatements, 0 baseline rows and 0 sentences dropped |
+| A-2 | Clearing the 15 takes `make ze-verify-wiring-docs` green | the log names one failing stage | a second red is hiding behind the first | run the target after the repairs | confirmed 2026-08-10: the target exits 0 over 13 stages, `ze-spec-citation-check PASSED` among them. No second red was hiding |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -178,8 +181,10 @@ surface and no daemon code.
 | `test_real_corpus_has_no_dangling_spec_citation` | `scripts/dev/spec_citation_check_test.py` | AC-1 | |
 
 ## Files to Modify
-- the citing specs, for each citation that repoints or restates
-- `plan/.citation-baseline` - for each citation that is a historical record
+- the citing specs, for each citation that repoints or restates: 8 files, listed
+  in "Citation repair decisions"
+- `plan/.citation-baseline` - unchanged. No row needed grandfathering, so it
+  stays at 46 entries
 - `ai/skills/ze-close/SKILL.md` - the closure step that stops the regrowth
 
 ## Files to Create
@@ -224,9 +229,9 @@ surface and no daemon code.
 
 ## Implementation Steps
 
-1. **Phase: Classify the 12** -- each row gets a repoint, a restatement, or a baseline entry
+1. **Phase: Classify the 15** -- each row gets a repoint, a restatement, or a baseline entry
    - Verify: A-1 answered per row
-2. **Phase: Repair** -- apply the 12 decisions
+2. **Phase: Repair** -- apply the 15 decisions
    - Verify: `make ze-spec-citation-check` reports zero
 3. **Phase: Stop the regrowth** -- the closure skill runs the gate before commit B
    - Verify: `make ze-verify-wiring-docs` green, and the step is in the skill
@@ -266,10 +271,37 @@ surface and no daemon code.
 
 - Removing a document kills every pointer to it. This is the third corpus where
   the same closure convention produced the same class:
-  `plan/spec-fixit-dead-design-pointers-in-tests.md` for `_test.go` pointers,
-  `plan/spec-dead-learned-citations-outside-the-walked-corpus.md` for the
+  `spec-fixit-dead-design-pointers-in-tests` for `_test.go` pointers,
+  `spec-dead-learned-citations-outside-the-walked-corpus` for the
   retired learned corpus, and this one for spec-to-spec citations. The gate
   exists here and is red, so the missing part is the closure step that feeds it.
+- A dead stem named in prose is not a pointer, and spelling it as one is what
+  makes the class self-inflicted. `SPEC_REF_RE` in
+  `scripts/dev/spec-citation-check.py` matches `plan/spec-<stem>.md` and nothing
+  else. So `spec-<stem>` in backticks keeps the name a reader needs. It drops
+  the resolution promise the file can no longer keep.
+
+### Citation repair decisions
+
+Every one of the 15 rows measured on 2026-08-10, and the move it took. No row
+took the baseline move, so `plan/.citation-baseline` is unchanged at 46 entries.
+Each dead stem either has a live document that covers its subject, or is named
+in prose as history. R-2 says to restate the second kind rather than grandfather
+it. The citing site is named by its section rather than by a line number,
+because the lines move and the sections do not.
+
+| Citing file (section) | Dead stem | Move | Reason |
+|-----------------------|-----------|------|--------|
+| `spec-dead-learned-citations-outside-the-walked-corpus` (untracked, another session's), Design Insights | `spec-fixit-dead-design-pointers-in-tests` | Repoint | The sentence points at the record of the `_test.go` class. That record is now `plan/journal/gate-excludes-part-of-its-population.md`, and the gate it names is `scripts/dev/check_doc_links.py`, whose `go_files` reads `_test.go` since commit `1ca0436e8` |
+| `plan/spec-doc-claims-are-checked-not-just-resolved.md`, header `Depends` cell | `spec-fixit-dead-design-pointers-in-tests` | Restate | The dependency is satisfied, so the cell states the stem and its closing commit `90082fb08` rather than pointing at a file that closure removed |
+| `plan/spec-doc-claims-are-checked-not-just-resolved.md`, Task | `spec-problem-journal` | Restate | "Measured while closing X" is a historical fact about when the measurement was taken. The stem is the fact |
+| `plan/spec-fixit-relax-audit-reports-the-wrong-token.md`, Task, "How it was found" | `spec-fixit-vacuous-eor-family-tests` | Restate | Names the spec whose review found the defect. Provenance, not a pointer to knowledge |
+| `plan/spec-fixit-rs-community-strip-arity.md`, Implementation Audit, RF-1 row | `spec-fixit-rs-community-strip-arity-deferred-removevalues-quality` | Repoint | A deferral destination. The live record is the shard `plan/deferrals/fixit-rs-community-strip-arity.md`, whose RF-1 row reads `done` against `newRemovalSet` and `TestRemovalSetIndexesOnlyAboveThreshold` |
+| This file: Task twice, the dead-stem table, Design Insights | `spec-fixit-dead-design-pointers-in-tests` | Restate, 4 rows | This file already writes dead stems bare and says why. The first Task mention repoints as well, to the journal class file, because it names where the `_test.go` class is recorded |
+| `plan/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md`, "Added 2026-08-03" | `spec-gokrazy-init-bump` | Repoint | The sentence hands the reader the knowledge behind the finding. `plan/deferrals/gokrazy-init-bump.md` carries the 2026-08-03 row that homes this exact work here |
+| `plan/spec-perf-next-1-ebgp-wire-lockfree.md`: Task, Review Gate run 1, Deferrals Resolved | `spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal` | Repoint, 3 rows | The dead spec was a DUPLICATE, removed by commit `56ddbcc63`. Its subject survives in `plan/spec-wire-edit-3-deferred-ac9-dead-code.md`, cited beside it at all three sites, so each one keeps the survivor and says the duplicate went |
+| `plan/spec-perf-next-1-ebgp-wire-lockfree.md`, Bugs Found/Fixed | `spec-rfc7606-5-1-2-relay-shape` | Restate | The sentence says commit `632dcade1` removed that file. A resolving pointer is impossible by construction |
+| `plan/spec-wire-edit-3-deferred-ac9-dead-code.md`, Task | `spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal` | Restate | The subject IS the removed duplicate. The surviving owner is the file holding the sentence |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -303,3 +335,35 @@ surface and no daemon code.
 - [ ] Journal row written for anything this teaches
 - [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-fixit-spec-closure-leaves-dangling-spec-citations.md` only
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `scripts/dev/spec_citation_check_test.py` | Yes | `ls -la` shows it. It already existed, and gained `repo_root` plus `test_real_corpus_has_no_dangling_spec_citation` |
+| `plan/journal/closure-deletes-a-cited-document.md` | Yes | `make ze-journal` exits 0 and parses its row |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | zero dangling references | `make ze-spec-citation-check` exits 0: `spec-citation-check OK (258 specs, 46 baselined dangling, 35 line-token WARN)` |
+| AC-2 | `make ze-verify-wiring-docs` green | exits 0 over 13 stages, `ze-spec-citation-check PASSED` among them |
+| AC-3 | closure names the citers before commit B | `ai/skills/ze-close.md` step 6d, bullet `Clear the citers first (BLOCKING)`, ahead of the Commit A and Commit B bullets |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-spec-citation-check` | no `.ci` applies. The fixture is `test_real_corpus_has_no_dangling_spec_citation` in `scripts/dev/spec_citation_check_test.py` | Yes. It runs the gate over the real tree through the same entry point. It asserts the corpus is non-empty first, so a wrong root fails rather than passes. It was red at 15 rows, then green |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | every one of the 15 rows is classified in "Citation repair decisions": 5 repoints, 10 restatements, 0 baseline rows, 0 sentences dropped |
+| A-2 | confirmed | `make ze-verify-wiring-docs` exits 0. No second red was hiding behind the citation stage |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 15, registered workflow surface | `ai/INDEX.md` names closure as the feeder of `make ze-spec-citation-check` | Yes |
+| Row 10, test infrastructure | no new check and no new make target, so `docs/contributing/documentation-testing.md` needs no row | Yes |

@@ -41,8 +41,8 @@ some form: they are developer conveniences with no Go equivalent today.
 
 ### Added 2026-08-03: the make path injects credentials fail-open
 
-Found while closing `plan/spec-gokrazy-init-bump.md` (knowledge:
-`plan/learned/1329-gokrazy-init-bump.md`).
+Found while closing `spec-gokrazy-init-bump`. Its deferral shard
+`plan/deferrals/gokrazy-init-bump.md` carries the row that homes this work here.
 
 The credential injection at `mk/gokrazy.mk` runs `debugfs -w -R "mkdir ze"` and
 `debugfs -w -R "write ... ze/database.zefs"`, each with `2>/dev/null`. Measured

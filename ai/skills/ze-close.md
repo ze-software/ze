@@ -168,6 +168,36 @@ still missing, go back: this skill does not implement.
    b. Release this session's spec claim: `scripts/dev/spec-session.sh release`. This also frees a slot against the WIP cap (`scripts/dev/spec-session.sh wip`).
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
    d. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
+      - **Clear the citers first (BLOCKING).** Commit B removes the spec, and
+        every sibling that cites it keeps a citation of a file that is gone.
+
+        Run `grep -rn "plan/<spec-name>" plan/*.md` and name every hit. Each hit
+        gets one of three moves. Repoint it at the durable document that
+        replaced the spec. Restate the fact inline. Add the stem to
+        `plan/.citation-baseline` when the citation is a historical record.
+
+        A restatement writes the stem bare: `spec-<stem>`, with no `plan/`
+        prefix and no `.md` suffix. `SPEC_REF_RE` in
+        `scripts/dev/spec-citation-check.py` matches the full path only, so the
+        bare stem keeps the name a reader needs and drops a resolution promise
+        the tree can no longer keep. Use it when the citation is prose about a
+        spec the committed tree does not hold. A closed spec is one such case.
+        An UNTRACKED sibling is the other, and it is the one that surprises:
+        `find_dangling` resolves a target with `(repo / ref).is_file()`, which
+        sees an untracked file, so the working tree reads green while the tree
+        your commit produces is red. Reaching for the bare stem to silence the
+        gate over a citation a repoint could fix hides the rot where nothing
+        can see it.
+
+        These edits ride on commit A, because commit B removes a spec and adds
+        nothing. The gate reads `plan/spec-*.md`, so `plan/learned/` and
+        `plan/deferrals/` are outside this step. The
+        `spec-citation-check.py --write-baseline` flag is banned here. It
+        regenerates the whole list, so it hides a citation that a repoint must
+        fix.
+
+        After the script has run, `make ze-spec-citation-check` is green. A
+        closure that leaves it red is not closed.
       - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/journal/<class>.md` when step 6a wrote a journal row, and `plan/<spec-name>` to preserve all implementation edits in git history.
       - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
       - **Lesson flags follow step 6a's answer, and commit A never passes `--lesson-required`.** That flag is the operator demanding a summary; passing it on every closure is what made the summary unconditional. When a journal row was written, `--file` on the class file is the whole story. When none was, pass `--lesson-not-needed "<why this spec taught nothing reusable>"` and say what the work was, not that a spec closed.

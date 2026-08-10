@@ -64,7 +64,7 @@ references in the tree (the two call sites, its definition, and its doc comment)
 and none of them is a test. No `.ci` under `test/plugin/` exercises route-server
 control-community stripping.
 
-This spec is independent of `plan/learned/1322-wire-edit-0-umbrella.md`, which would make
+This spec is independent of the wire-edit-0 umbrella, which would make
 the arity part of a typed structure. That is weeks away; this is a live leak.
 
 ## Required Reading
@@ -211,7 +211,7 @@ Option B, in three parts:
 |----------|--------|
 | What breaks if this is wrong? | Route-server clients either keep receiving internal control communities (no change from today) or, if the matching predicate is wrong, lose communities they should have kept. The second is worse: a client's own downstream policy could stop firing. |
 | How is it reverted? | Single commit revert. No wire-format or configuration change, no persisted state. |
-| Who else touches this path? | `plan/learned/1322-wire-edit-0-umbrella.md` replaces this contract with a typed structure; `plan/learned/1315-hotpath-alloc-round-4.md` removes the allocations in the same handler. Both must be rebased on this fix, not the other way round. |
+| Who else touches this path? | The wire-edit-0 umbrella replaces this contract with a typed structure; hot-path alloc round 4 removes the allocations in the same handler. Both must be rebased on this fix, not the other way round. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -475,7 +475,7 @@ runner build the DUT itself and avoids this entirely.
 
 - The selection rule in `StripControlCommunities` (`community.go`) matches on the community's high half alone, so an ordinary community whose high half happens to equal 0 or the route server's low sixteen ASN bits is indistinguishable from a control community and is stripped. This is pre-existing and unchanged by this fix; it is recorded here because the fix makes the stripping actually happen, which makes the ambiguity reachable for the first time in the multi-value case.
 - Standard communities can only carry a sixteen-bit ASN in the high half. A route server with a four-octet ASN cannot express the `<rs-asn>:<asn>` form in a standard community at all; `parseCommunityAttr` documents this at `community.go` and directs operators to large communities. Large-community control values are parsed by `parseLargeCommunityAttr` but are **not** stripped: `StripControlCommunities` only inspects code 8. That gap is out of scope here and is a separate defect.
-- The two independent attribute walks are not merged. That is `plan/learned/1322-wire-edit-0-umbrella.md`.
+- The two independent attribute walks are not merged. That is the wire-edit-0 umbrella.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -550,7 +550,7 @@ Three INDEPENDENT reviewers (logic, security, tests) were run over the shipped
 commit plus a candidate follow-up fix. RF-2 and RF-3 are fixed here. **RF-1 is
 NOT fixed**: a fix was written, the reviewers found it traded one peer-driven
 cost for another, and it was reverted on owner direction because this code is
-expected to be replaced wholesale by spec-wire-edit-2-edit-apply. **That spec CLOSED on 2026-08-02 without touching this code** (`plan/learned/1318-wire-edit-2-edit-apply.md`), so the contract stands.
+expected to be replaced wholesale by spec-wire-edit-2-edit-apply. **That spec CLOSED on 2026-08-02 without touching this code**, so the contract stands.
 
 ### RF-1 (BLOCKER, NOT FIXED): the arity fix removed an accidental O(1) short-circuit and exposed a peer-controlled quadratic
 
@@ -667,7 +667,7 @@ mutation-verified: the mutation is stated with the result.
 | The arity obligation documented on `ModAccumulator.Op` | done | `internal/component/bgp/filterapi/filterapi.go` | |
 | The route-server convention documented | done | `docs/guide/bgp-policy.md` | |
 | The refusal is observable | done | `ze_bgp_attr_mod_remove_buffer_refused_total`, now also in `docs/plugin-development/metrics.md` | RF-3 |
-| No peer-controlled quadratic on the strip path | **NOT DONE** | - | RF-1. A fix was written and then reverted; see the RF-1 section. Deferred to `plan/spec-fixit-rs-community-strip-arity-deferred-removevalues-quality.md` (originally to spec-wire-edit-2-edit-apply, which closed without doing it). |
+| No peer-controlled quadratic on the strip path | **DONE, elsewhere** | `TestRemovalSetIndexesOnlyAboveThreshold` | RF-1. A fix was written here and then reverted. See the RF-1 section. The shard `plan/deferrals/fixit-rs-community-strip-arity.md` re-homed it, and its RF-1 row now reads `done`. The quadratic went on 2026-08-05 with `newRemovalSet` in `internal/component/bgp/plugins/filter_community/handler.go` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |

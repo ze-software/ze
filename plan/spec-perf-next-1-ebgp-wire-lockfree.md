@@ -21,10 +21,10 @@ callers, so both slots stay nil in a running daemon.
 
 The lock-free change is still correct and still measured. The traffic it was
 written for now takes another route. Deleting the cache is homed at
-`plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and
-`plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`. Both
-state that the deletion touches read-pool buffer lifetime and wants its own
-implementation phase. This closure does not do that deletion. It corrects every
+`plan/spec-wire-edit-3-deferred-ac9-dead-code.md`, its single owner since
+2026-08-05, when the duplicate spec that described the same deletion was
+removed. It states that the deletion touches read-pool buffer lifetime and
+wants its own implementation phase. This closure does not do that deletion. It corrects every
 comment and doc line that still called the path live.
 
 ## Post-Compaction Recovery
@@ -358,7 +358,7 @@ protocol-enforcing code is added. Keep existing references intact.
 
 ### Bugs Found/Fixed
 - Closure fixed four prose defects the independent review found: the `EBGPWire` doc comment's false SourceCtxID claim, and three sites plus a doc section that still called the path a live RS fan-out hot path (see Review Gate).
-- Closure cleared a `make ze-doc-test` red it did not cause but depended on: two learned summaries cited `plan/spec-rfc7606-5-1-2-relay-shape.md`, which its own closure commit (`632dcade1`) removed, putting `scripts/dev/learned_staleness.py` two references over its shrink-only ceiling. The two dead lines were deleted, per `plan/learned/METHODOLOGY.md`.
+- Closure cleared a `make ze-doc-test` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `scripts/dev/learned_staleness.py` two references over its shrink-only ceiling. The two dead lines were deleted, per `plan/learned/METHODOLOGY.md`.
 
 ### Documentation Updates
 - `docs/architecture/buffer-architecture.md`: "EBGP Variant Cache" section describing the lock-free publication and eviction contract, plus the reachability note added at closure
@@ -470,7 +470,7 @@ Independent `/ze-review` subagents, 2026-08-05. Artifact recorded with
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | `EBGPWire` has zero non-test callers since `e2037e598`; the optimized path is dead in production | `internal/component/bgp/reactor/received_update.go` `EBGPWire` | Verified independently (grep returns only `_test.go` hits). Already homed at `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`, both skeleton, both stating the deletion needs its own implementation phase against read-pool buffer lifetime. Downgraded to a recorded fact for THIS spec: the deletion is separable work with a home, and folding it into a closing commit is what `ai/rules/rule-precedence.md` bans. Spec header, Goal Validation, A-1 and Mistake Log now state it |
+| 1 | BLOCKER | `EBGPWire` has zero non-test callers since `e2037e598`; the optimized path is dead in production | `internal/component/bgp/reactor/received_update.go` `EBGPWire` | Verified independently (grep returns only `_test.go` hits). Already homed at `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and a duplicate spec since removed, both skeleton, both stating the deletion needs its own implementation phase against read-pool buffer lifetime. Downgraded to a recorded fact for THIS spec: the deletion is separable work with a home, and folding it into a closing commit is what `ai/rules/rule-precedence.md` bans. Spec header, Goal Validation, A-1 and Mistake Log now state it |
 | 2 | ISSUE | Doc comment claims the returned wire "shares the original SourceCtxID"; false since `9668abc9b` introduced `fwdContextIDWithASN4` | `received_update.go` `EBGPWire` doc comment | Fixed: comment now describes `fwdContextIDWithASN4` and says when the ids coincide |
 | 3 | ISSUE | Four sites still describe the cache as a live RS fan-out hot path | `received_update_bench_test.go` header; `internal/perf/allocgate.go` `AllocCeilings`; `internal/component/bgp/wireu/aspath_rewrite.go` `RewriteASPath`; `docs/architecture/buffer-architecture.md` | Fixed: all four now state the method has no production caller and name the owning deletion spec |
 | 4 | NOTE | Both cache-hit benchmarks prime with `EBGPWire` and never return the handle | `received_update_bench_test.go`, `received_update_bench_baseline_test.go` | Fixed: each benchmark returns its primed handle in a deferred cleanup |
@@ -556,10 +556,10 @@ discriminating evidence is the mutation kills above plus the race gate.
 This spec has no deferral shard: no `plan/deferrals/spec-perf-next-1-*` or
 `*ebgp-wire*` file exists, and nothing was deferred out of it. The one live
 follow-on, deleting the now-unreachable cache, was homed before this closure at
-`plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and
-`plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md` by the
-closure of `plan/learned/1319-wire-edit-3-aspath-fold.md`. This spec adds no row
-to either and removes no shard.
+`plan/spec-wire-edit-3-deferred-ac9-dead-code.md` by the
+closure of the wire-edit-3 AS_PATH fold spec. That closure also homed it at a
+duplicate spec, since removed. This spec adds no row to either, and removes no
+shard.
 
 ## Checklist
 
