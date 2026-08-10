@@ -169,7 +169,7 @@ variable is caught at startup rather than by these checks.
 #### Upgrading from a release without the guard
 
 The guard is a boot refusal, so a config that started a daemon yesterday can
-stop one today. Two changes break an upgrade. Read them before you upgrade.
+stop one today. Three changes break an upgrade. Read them before you upgrade.
 
 **A remote unauthenticated management listener now refuses to boot.** ze exits
 with status 1 and prints one line for each offending listener. The line names
@@ -191,11 +191,21 @@ storage that only inherited the default gets a warning naming `ze init` instead
 of a failure, because a hardening default must not remove a working looking
 glass. An explicit `tls true` on such a box is an error.
 
+**A listener an env var starts now binds the address its block names.** An
+`environment` block without `enabled true` supplies the address, the token and
+the TLS settings of a service that `ze.web.enabled`, `ze.gnmi.enabled`,
+`ze.looking-glass.enabled`, or `ze.api-server.rest.enabled` starts. Such a
+listener bound `0.0.0.0` yesterday and binds the address the block names today,
+so a service you reached from off-box through the wildcard default now answers
+only where the block says. Delete the `server` entry, or name the address you
+want, to publish on every interface again.
+
 Run `ze config validate` or `ze doctor --json` over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so
 check `ze.gnmi.listen`, `ze.mcp.listen`, and `ze.web.insecure` by hand.
 
 <!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
+<!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
 
 ### Authentication on reload

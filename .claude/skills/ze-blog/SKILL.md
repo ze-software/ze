@@ -49,7 +49,8 @@ Across all his blog posts:
 - Personal voice: "I can only conclude", "I am inclined to think".
 - Calls his own posts "rants" or "ramblings".
 - Technical authority delivered conversationally.
-- Rhetorical questions: "But how can 2737504257 be in the AS-PATH ! ? !".
 - Older posts have non-native speaker grammar; current English is much stronger.
+
+The old posts contain rhetorical questions ("But how can 2737504257 be in the AS-PATH ! ? !"). Do not copy that. The `ze-author` rule against rhetorical questions applies to blog articles too. Questions belong in a post only when they are genuine and answered, as in the practical checklists in "The proof is the expensive part".
 
 NOTE: "AI objections, a story I have heard before", "What Neurodivergence Really Means", and "The lack of AI control plane" were authored by Claude from Thomas's input. Do NOT use these as style references. They are examples of what to improve.

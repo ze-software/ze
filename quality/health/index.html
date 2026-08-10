@@ -111,8 +111,8 @@
 </article>
 <article class="th-card th-ok">
   <h3>RFC MUST requirements proven by a positive+negative test pair</h3>
-  <p class="th-value">1222 / 2962 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1222 of 2962"><span class="th-meter-fill" style="width:41.3%"></span></div><p class="th-meter-note">1222 of 2962 (41.3%)</p>
+  <p class="th-value">1223 / 2963 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="1223 of 2963"><span class="th-meter-fill" style="width:41.3%"></span></div><p class="th-meter-note">1223 of 2963 (41.3%)</p>
   <p>41.3% carry both polarities. Of the remaining 1740: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.</p>
   <p class="th-action"><strong>If this degrades:</strong> Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.</p>
   <table><thead><tr><th>gated</th><th>rfc</th></tr></thead><tbody><tr><td><code>38</code></td><td><code>rfc7871</code></td></tr><tr><td><code>34</code></td><td><code>rfc2132</code></td></tr><tr><td><code>23</code></td><td><code>rfc4213</code></td></tr><tr><td><code>18</code></td><td><code>rfc4761</code></td></tr><tr><td><code>17</code></td><td><code>rfc3032</code></td></tr><tr><td><code>17</code></td><td><code>rfc7166</code></td></tr><tr><td><code>16</code></td><td><code>rfc4862</code></td></tr><tr><td><code>13</code></td><td><code>rfc2003</code></td></tr><tr><td><code>13</code></td><td><code>rfc6396</code></td></tr><tr><td><code>13</code></td><td><code>rfc9514</code></td></tr></tbody></table>
@@ -121,14 +121,14 @@
   <h3>In-repo test inventory</h3>
   <p class="th-value">22253 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>3009 Go test files, 78 fuzz targets, 137 benchmarks, 1598 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>3010 Go test files, 78 fuzz targets, 137 benchmarks, 1598 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
 </article>
 <article class="th-card th-ok">
   <h3>Test files that expect a specific error</h3>
-  <p class="th-value">1032 / 3009 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1032 of 3009"><span class="th-meter-fill" style="width:34.3%"></span></div><p class="th-meter-note">1032 of 3009 (34.3%)</p>
+  <p class="th-value">1032 / 3010 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="1032 of 3010"><span class="th-meter-fill" style="width:34.3%"></span></div><p class="th-meter-note">1032 of 3010 (34.3%)</p>
   <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
   <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
   <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>9</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>internal/component/lg</code></td><td><code>10</code></td><td><code>1</code></td><td><code>10.0</code></td></tr></tbody></table>

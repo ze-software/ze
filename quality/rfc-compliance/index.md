@@ -5,15 +5,15 @@ Source: `scripts/dev/rfc_requirements.py`, `rfc/short/*.md`, `docs/features/rfc-
 ## Current gate output
 
 ```
-rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3331 test tag(s) resolved.
+rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3339 test tag(s) resolved.
 ```
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 2 |
+| Gate issues | 0 |
 | Gated MUST-level requirements | 2,963 |
 | Enrolled RFCs | 170 |
-| Resolved test tags | 3,331 |
+| Resolved test tags | 3,339 |
 | Declared gaps | 528 |
 | RFCs with declared gaps | 82 |
 | Fresh semantic audit verdicts | 52 |
@@ -24,11 +24,10 @@ rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RF
 
 | Bucket | Count | Share | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 1,222 | 41.2% | `positive tag + negative tag` |
+| Positive and negative tests | 1,223 | 41.3% | `positive tag + negative tag` |
 | One polarity plus reason | 371 | 12.5% | `{single-polarity} annotation + required tag` |
 | Not applicable | 841 | 28.4% | `{not-applicable} annotation` |
 | Declared gap | 528 | 17.8% | `{gap} annotation + public ledger disclosure` |
-| Missing, unexcused | 1 | 0.0% | `no tag, no annotation` |
 
 ## Gap disclosure
 
@@ -71,7 +70,7 @@ rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RF
 |---|---|---|
 | Requirement source | `rfc/short/*.md` | 2,963 gated MUST-level requirements |
 | Enrollment | `rfc/enrolled.txt` | 170 enrolled RFCs |
-| Test tags | `internal/, pkg/, test/` | 3,331 resolved tags |
+| Test tags | `internal/, pkg/, test/` | 3,339 resolved tags |
 | Public ledger | `docs/features/rfc-status.md` | 82 RFCs with gaps |
 | Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,911 missing |
 | AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | ON |
@@ -87,7 +86,7 @@ rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RF
 | Coverage polarity ratchet | 0 |
 | Summary parse | 0 |
 | Requirement ID allocation | 0 |
-| Requirement coverage | 1 |
+| Requirement coverage | 0 |
 | Public claim agreement | 0 |
 | Semantic audit freshness | 0 |
-| Generated ledger freshness | 1 |
+| Generated ledger freshness | 0 |

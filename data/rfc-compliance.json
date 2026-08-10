@@ -1,11 +1,11 @@
 {
   "gate": {
-    "ok": false,
-    "error_count": 2,
+    "ok": true,
+    "error_count": 0,
     "gated_must": 2963,
     "enrolled_rfcs": 170,
-    "test_tags": 3331,
-    "message": "rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3331 test tag(s) resolved."
+    "test_tags": 3339,
+    "message": "rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3339 test tag(s) resolved."
   },
   "satisfaction": [
     {
@@ -13,8 +13,8 @@
       "short": "Test pair",
       "condition": "positive tag + negative tag",
       "key": "both_polarities",
-      "count": 1222,
-      "share": 41.2
+      "count": 1223,
+      "share": 41.3
     },
     {
       "label": "One polarity plus reason",
@@ -53,7 +53,7 @@
       "short": "Missing",
       "condition": "no tag, no annotation",
       "key": "missing_unexcused",
-      "count": 1,
+      "count": 0,
       "share": 0.0
     }
   ],
@@ -207,10 +207,8 @@
     },
     {
       "name": "Requirement coverage",
-      "errors": [
-        "rfc/short/rfc5216.md:311: RFC5216-2.1.1-2 [MUST] has no test and no annotation: \"The EAP-TLS conversation will then begin, with the peer sending an EA"
-      ],
-      "error_count": 1
+      "errors": [],
+      "error_count": 0
     },
     {
       "name": "Public claim agreement",
@@ -224,10 +222,8 @@
     },
     {
       "name": "Generated ledger freshness",
-      "errors": [
-        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index"
-      ],
-      "error_count": 1
+      "errors": [],
+      "error_count": 0
     }
   ],
   "agent_guard": {

@@ -65,7 +65,10 @@
 <li><a href="#restart-timer-expiry">Restart Timer Expiry</a></li>
 <li><a href="#fail-safe">Fail-Safe</a></li>
 </ol></li>
-<li><a href="#plugin-bindings">Plugin Bindings</a></li>
+<li><a href="#plugin-bindings">Plugin Bindings</a>
+<ol>
+<li><a href="#load-bgp-gr-in-the-daemon-never-with-run">Load bgp-gr in the daemon, never with run</a></li>
+</ol></li>
 <li><a href="#cli">CLI</a></li>
 <li><a href="#long-lived-graceful-restart-rfc-9494">Long-Lived Graceful Restart (RFC 9494)</a>
 <ol>
@@ -171,6 +174,22 @@ bgp {
 - The RIB plugin must also be loaded with <code>receive [ state ]</code> and <code>send [ update ]</code></p>
 <p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
+
+<h3 id="load-bgp-gr-in-the-daemon-never-with-run">Load bgp-gr in the daemon, never with <code>run</code></h3>
+<p>Load the plugin with <code>internal &lt;name&gt; { use bgp-gr; }</code>, as every example on this
+page does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process,
+and that arrangement changes what the daemon sends to every peer.</p>
+<p>The RFC 9494 egress filter runs in the daemon. The peer capability state it reads
+is written by the plugin engine, so with <code>run</code> that state stays empty for the life
+of the daemon process. The filter then treats every neighbor as a neighbor from
+which the LLGR Capability was never received: it withdraws stale routes from
+external peers (Section 4.3) and attaches NO_EXPORT with LOCAL_PREF 0 to the
+routes it sends to internal peers (Section 4.6). Peers that negotiated LLGR with
+the child engine get that same treatment.</p>
+<p><code>ze doctor</code> reports the arrangement as <code>doctor-bgp-gr-out-of-process</code>. Run
+<code>ze explain doctor-bgp-gr-out-of-process</code> for the full text.</p>
+<!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
 
 <h2 id="cli">CLI</h2>
 <pre><code> $ ze cli -c &quot;show bgp rib received&quot;

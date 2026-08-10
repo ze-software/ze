@@ -57,8 +57,7 @@
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
             <section class="md-content reveal" data-table-columns="off" data-code-copy="off">
-<p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> with this line: the code is cheap, the proof is the expensive part.</p>
-<p>This post is the missing explanation.</p>
+<p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> with this line: the code is cheap, the proof is the expensive part. This post is the missing explanation.</p>
 <p>When people hear that Ze is an AI-written network operating system, they usually imagine the worst version of that idea. Ask a model for a routing feature, glance at the diff, run a quick test, merge it. That would be reckless.</p>
 <p>A routing daemon can look convincing for a long time. It can parse the usual BGP UPDATEs, pass the happy-path examples, and still break when a real peer sends a malformed attribute, a timer fires in the wrong state, or a policy edge case leaks a route.</p>
 <p>I do use Claude to write code. I also use it to write tests, fixtures, small tools and documentation. It is useful because it is fast. It is dangerous for the same reason. It can create a large amount of plausible work before anyone has noticed that the premise was wrong.</p>
@@ -108,8 +107,7 @@
 <p>The generated ledger is protected too. <code>ai/RFC-REQUIREMENTS.md</code> is built by <code>make ze-rfc-index</code>. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, <code>make ze-rfc-check</code> says so. The fix is to regenerate it from source, not edit the table by hand.</p>
 <p>Again, this is for the AI as much as for the human. The model gets concrete failure messages: missing bad-packet test, unknown requirement id, tag in a file that no pipeline runs, gap missing from the public status page, stale audit verdict, stale generated ledger. Those messages are much better prompts than "make the quality better".</p>
 <h2>Commits have to carry the proof</h2>
-<p>The final guard is the commit path.</p>
-<p>A commit is the source-code equivalent of a change ticket. It should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.</p>
+<p>The final guard is the commit path. A commit should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.</p>
 <p>Ze does not let an agent type <code>git add</code> and <code>git commit</code> directly. The approved path goes through <code>scripts/dev/commit_helper.py</code>.</p>
 <p>Before the helper prepares a commit script, it asks whether the current tree is byte-for-byte identical to the last successful verify run. The fingerprint includes the current commit, tracked changes and untracked file contents. If the tree changed, or the last verify failed, the helper refuses a normal commit.</p>
 <p>When the helper does prepare a commit, it writes a message file and an executable script. The script stages only the explicit files listed for that commit. Then it checks the shared index. If any staged file exists which is not part of this commit, the script aborts. Only then does it run <code>git commit -F</code>.</p>

@@ -5,9 +5,7 @@ author: Thomas Mangin
 description: Ze uses AI to write code, but an RFC claim only counts after the standard, the tests, the public gap list and the commit process all agree.
 ---
 
-I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part.
-
-This post is the missing explanation.
+I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part. This post is the missing explanation.
 
 When people hear that Ze is an AI-written network operating system, they usually imagine the worst version of that idea. Ask a model for a routing feature, glance at the diff, run a quick test, merge it. That would be reckless.
 
@@ -107,9 +105,7 @@ Again, this is for the AI as much as for the human. The model gets concrete fail
 
 ## Commits have to carry the proof
 
-The final guard is the commit path.
-
-A commit is the source-code equivalent of a change ticket. It should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.
+The final guard is the commit path. A commit should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.
 
 Ze does not let an agent type `git add` and `git commit` directly. The approved path goes through `scripts/dev/commit_helper.py`.
 

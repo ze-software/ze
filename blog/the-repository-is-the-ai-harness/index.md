@@ -4,7 +4,9 @@
 
 Ze is a network operating system spread over 623 Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
 
-The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on. So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both. Why I think every serious project ends up building something similar is a separate argument, in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/).
+The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.
+
+So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both. Why I think every serious project ends up building something similar is a separate argument, in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/).
 
 I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) by saying that generated code has to be constrained, reviewed, tested and measured. [The proof is the expensive part](../the-proof-is-the-expensive-part/) explains how Ze ties an RFC claim to requirements, tests, known gaps and commit evidence. This article covers what comes before all of that: helping the agent find the right information before it writes the wrong code.
 
@@ -16,7 +18,7 @@ Ze carries that meaning in several layers.
 
 `ai/INDEX.md` is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.
 
-`ai/PACKAGE-MAP.md` gives one short description for each of those 623 packages, which is a great deal of blind exploration to avoid.
+`ai/PACKAGE-MAP.md` gives one short description for each of those 623 packages, and that saves a great deal of blind exploration.
 
 Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are around 3,400 of the first kind and 2,900 of the second.
 
@@ -73,7 +75,9 @@ Whatever the hook prints becomes the agent's next prompt, so it has to point som
 
 That is the general shape I want from an AI-ready project. An important rule needs an explanation, a visible example, a mechanical check where one is possible, and a behavioural test.
 
-The check should also run as early as it can. The `init()` mistake above is caught while the file is being written, before anything is compiled, so the agent repairs one file. Caught by a test run half an hour later, the same mistake has a morning's work sitting on top of it, all of it written on the assumption that the first file was acceptable. Some evidence cannot be had that cheaply: a protocol error may need another routing daemon running beside Ze, so it naturally comes later and costs more. Ze's verification command currently runs twenty-five stages in roughly that order. Cheap structure, documentation and generated-file checks come first, then unit, race, allocation, functional and ExaBGP compatibility tests. Release evidence extends further into fuzzing, interoperability, Linux virtual machines, deployment tests, chaos and performance.
+The check should also run as early as it can. The `init()` mistake above is caught while the file is being written, before anything is compiled, so the agent repairs one file. Caught by a test run half an hour later, the same mistake has a morning's work sitting on top of it, all of it written on the assumption that the first file was acceptable.
+
+Some evidence cannot be had that cheaply. A protocol error may need another routing daemon running beside Ze, so it naturally comes later and costs more. Ze's verification command currently runs twenty-five stages in roughly that order. Cheap structure, documentation and generated-file checks come first, then unit, race, allocation, functional and ExaBGP compatibility tests. Release evidence extends further into fuzzing, interoperability, Linux virtual machines, deployment tests, chaos and performance.
 
 Those twenty-five stages are scar tissue. Almost every one exists because something plausible once passed through a weaker process.
 
@@ -97,7 +101,16 @@ All of that is ordinary engineering judgement, and judgement is the part an agen
 
 ## Which test a change owes
 
-`ai/rules/testing.md` is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in. A change to BGP wire behaviour owes a `.ci` scenario matching the bytes, in `test/encode/` or `test/decode/`. A new configuration option owes a scenario proving the parse succeeds or fails, in `test/parse/`. A CLI subcommand owes a scenario running the real command, in `test/ui/`, a web endpoint owes one with HTTP expectations, in `test/web/`, a configuration reload owes one driven by SIGHUP, in `test/reload/`, and plugin behaviour owes one exercising the plugin API, in `test/plugin/`.
+`ai/rules/testing.md` is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in.
+
+| Change | Test it owes | Where |
+| --- | --- | --- |
+| BGP wire behaviour | a `.ci` scenario matching the bytes | `test/encode/`, `test/decode/` |
+| A new configuration option | a scenario proving the parse succeeds or fails | `test/parse/` |
+| A CLI subcommand | a scenario running the real command | `test/ui/` |
+| A web endpoint | a scenario with HTTP expectations | `test/web/` |
+| A configuration reload | a scenario driven by SIGHUP | `test/reload/` |
+| Plugin behaviour | a scenario exercising the plugin API | `test/plugin/` |
 
 The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600 `.ci` scenarios and 160 editor `.et` scenarios are what that produces, next to the Go unit tests.
 
@@ -109,11 +122,17 @@ The writing happens in an incubator. `test/draft/` is gitignored and skipped by 
 
 A test which exists can still guard nothing. A scenario passes happily when the result it observes arrives through some path other than the one under test. Three of Ze's redistribution tests stayed green with the late-join replay they existed to prove disabled: the route reached the peer another way, and nothing had ever asked them to prove otherwise.
 
-So a new behavioural test is broken on purpose before it is trusted. Disable the function the test exists to prove, rebuild the real program, confirm the scenario fails, restore the function and confirm it passes again. Claude 5 started doing that on its own, and nobody had asked for it. It catches tests which observe an unchanged path, along with tests which assert something that was already true before the feature existed, and it is now written into the rule as mandatory for any test meant to guard a specific behaviour. Automation does not reach that far: gomu rewrites production Go code and checks whether the unit tests notice, and nothing in the pipeline runs the `.ci` and `.et` scenarios under mutation.
+So a new behavioural test is broken on purpose before it is trusted. Disable the function the test exists to prove, rebuild the real program, confirm the scenario fails, restore the function and confirm it passes again. Claude 5 started doing that on its own, and nobody had asked for it.
+
+It catches tests which observe an unchanged path, along with tests which assert something that was already true before the feature existed, and it is now written into the rule as mandatory for any test meant to guard a specific behaviour. Automation does not reach that far: gomu rewrites production Go code and checks whether the unit tests notice, and nothing in the pipeline runs the `.ci` and `.et` scenarios under mutation.
 
 Two detectors run as stage ten of the verification command. One finds a test with no reachable failure call, which cannot go red whatever the code does. The other finds a test file whose build tag no target ever supplies, so it never compiles into anything. Neither shows up in a count of tests, which is how the published totals grew for years with both hiding inside them. The counts are committed as floors which may only go down, so a regression cannot be laundered into the baseline by regenerating it.
 
-The class nothing catches is a test which rebuilds the logic it names inside itself and asserts against its own copy. It is green against the correct implementation and the broken one alike, and its name reads as coverage of the real thing. Three of those sat in the BGP reactor tests until a few days before this article, each maintaining its own map of which address families a peer had been sent an End-of-RIB for, a structure which existed in no production code. A session read them and was one step away from reporting a conformance violation which does not exist. A detector was tried and rejected: every table-driven test builds local fixtures, so it fired on hundreds of correct tests, and a check that noisy gets switched off. What replaced it is a habit an agent can apply while reading, which is to name the function under test and confirm the test body calls it.
+The class nothing catches is a test which rebuilds the logic it names inside itself and asserts against its own copy. It is green against the correct implementation and the broken one alike, and its name reads as coverage of the real thing.
+
+Three of those sat in the BGP reactor tests until a few days before this article, each maintaining its own map of which address families a peer had been sent an End-of-RIB for, a structure which existed in no production code. A session read them and was one step away from reporting a conformance violation which does not exist.
+
+A detector was tried and rejected. Every table-driven test builds local fixtures, so it fired on hundreds of correct tests, and a check that noisy gets switched off. What replaced it is a habit an agent can apply while reading: name the function under test, then confirm the test body calls it.
 
 Test volume alone creates false confidence. Ze's test-health page records volume, and it also reports the tests which assert nothing, the enrolled RFCs with no proven requirement, the mutation kill rate package by package, and how much of the suite expects a specific error rather than any error at all. The useful question is whether a plausible defect would make the evidence fail.
 
@@ -127,7 +146,7 @@ A single edit does the damage, and every later stage then agrees with it, which 
 # test-relax: <why this test/assertion no longer applies>
 ```
 
-Around 750 lines in the tree carry one, and reading them is how I find out what has been given up. The token has an obvious failure mode, which is an agent writing its own justification, so it does not open every door.
+Around 750 lines in the tree carry one, and reading them is how I find out what has been given up. The agent writing the relaxation also writes its reason, so what I am reading is its own account of why the test no longer applies. On the tests that matter most, that is not good enough.
 
 A test tagged with an RFC requirement is the evidence behind a public compliance claim, and there the hook refuses outright:
 

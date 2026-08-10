@@ -135,9 +135,9 @@ inventing new ones: <code>make ze-inventory</code>, <code>make ze-command-list</
 <code>make ze-doc-test</code>, <code>make ze-doc-index</code>, and <code>make ze-verify-wiring-docs</code>.</p>
 <p>Commit preparation uses <code>scripts/dev/commit_helper.py</code>: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,
-message file, executable user-run script, ignored-path checks, <code>git commit -F</code>
-flow, and learned-summary gate for workflow/tooling/rule changes.</p>
-<!-- source: scripts/dev/commit_helper.py -- commit helper CLI and lesson gate -->
+message file, executable user-run script, ignored-path checks, and <code>git commit -F</code>
+flow.</p>
+<!-- source: scripts/dev/commit_helper.py -- commit helper CLI and its commit gates -->
 
 <!-- source: mk/inventory.mk -- quick reference and targets -->
 

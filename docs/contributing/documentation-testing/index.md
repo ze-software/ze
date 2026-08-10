@@ -167,13 +167,18 @@ The references that predate check 5 are grandfathered in
 `scripts/dev/doc_citation_baseline.txt`, one `citing file<TAB>dead target` pair
 per line. It records pairs rather than bare targets, so a NEW file that cites
 an already-dead target is reported. `check_baseline_growth` compares the file
-against its own version at HEAD. It fails when the file holds more pairs, so the
-baseline only shrinks.
+against its own version at HEAD. It refuses every pair HEAD does not hold, so
+the baseline only shrinks. The comparison is over the pairs, never over their
+number: a repair and a new dead citation in one commit leave the total unmoved
+and are refused all the same.
 
-Repair a citation to remove its pair, then regenerate the file with
-`python3 scripts/dev/check_doc_links.py --write-baseline`. A pair the tree no
-longer carries prints a `WARN` line, and the exit code stays 0. One session's
-repair therefore never reds another session's run. Three roots are outside check 5:
+Repair a citation to remove its pair, then delete that line from the baseline.
+`python3 scripts/dev/check_doc_links.py --write-baseline` regenerates the whole
+file from the WORKING TREE, so in a checkout several sessions share it absorbs
+whatever they are part way through editing. Use it to shrink the file, and read
+the diff it produces before you keep it. A pair the tree no longer carries
+prints a `WARN` line, and the exit code stays 0. One session's repair therefore
+never reds another session's run. Three roots are outside check 5:
 `vendor/` and `third_party/` hold another repository's files, and
 `plan/handover/` records the tree as it was.
 

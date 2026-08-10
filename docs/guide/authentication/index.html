@@ -272,7 +272,7 @@ variable is caught at startup rather than by these checks.</p>
 
 <h4 id="upgrading-from-a-release-without-the-guard">Upgrading from a release without the guard</h4>
 <p>The guard is a boot refusal, so a config that started a daemon yesterday can
-stop one today. Two changes break an upgrade. Read them before you upgrade.</p>
+stop one today. Three changes break an upgrade. Read them before you upgrade.</p>
 <p><strong>A remote unauthenticated management listener now refuses to boot.</strong> ze exits
 with status 1 and prints one line for each offending listener. The line names
 the service, the address, and the remedy. Nothing binds, so the daemon does not
@@ -288,10 +288,19 @@ plaintext. One case still serves plaintext on its own: a box with no blob
 storage that only inherited the default gets a warning naming <code>ze init</code> instead
 of a failure, because a hardening default must not remove a working looking
 glass. An explicit <code>tls true</code> on such a box is an error.</p>
+<p><strong>A listener an env var starts now binds the address its block names.</strong> An
+<code>environment</code> block without <code>enabled true</code> supplies the address, the token and
+the TLS settings of a service that <code>ze.web.enabled</code>, <code>ze.gnmi.enabled</code>,
+<code>ze.looking-glass.enabled</code>, or <code>ze.api-server.rest.enabled</code> starts. Such a
+listener bound <code>0.0.0.0</code> yesterday and binds the address the block names today,
+so a service you reached from off-box through the wildcard default now answers
+only where the block says. Delete the <code>server</code> entry, or name the address you
+want, to publish on every interface again.</p>
 <p>Run <code>ze config validate</code> or <code>ze doctor --json</code> over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so
 check <code>ze.gnmi.listen</code>, <code>ze.mcp.listen</code>, and <code>ze.web.insecure</code> by hand.</p>
 <!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
+<!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
 
 <h3 id="authentication-on-reload">Authentication on reload</h3>

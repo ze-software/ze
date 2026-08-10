@@ -443,9 +443,22 @@ without transport mode keeps a working tunnel.
 
 The VPP dataplane backend does not implement transport mode. It refuses a transport-mode
 install with a clear error rather than programming a tunnel-mode entry and reporting
-success.
+success. The SA path and the policy path each refuse it on their own.
 
-<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSelector -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppProtectMode -->
+
+**The VPP dataplane backend cannot be driven by IKE, and no configuration selects it.**
+It installs security associations, and it refuses every security policy the IKE engine
+produces for them. VPP has no node-wide policy database: a policy lives in a security
+policy database that acts only on the interfaces it is bound to, and nothing tells the
+backend which interface to use. The backend is reached only through a private test
+override, it is compiled in only with the `ze_vpp` build tag, and no test has sent ESP
+through it. Use the XFRM backend, which is the default and the production path.
+
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
 
 ## PKI certificate store
 

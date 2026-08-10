@@ -596,8 +596,20 @@ without transport mode keeps a working tunnel.</p>
 
 <p>The VPP dataplane backend does not implement transport mode. It refuses a transport-mode
 install with a clear error rather than programming a tunnel-mode entry and reporting
-success.</p>
-<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSelector -->
+success. The SA path and the policy path each refuse it on their own.</p>
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppProtectMode -->
+
+<p><strong>The VPP dataplane backend cannot be driven by IKE, and no configuration selects it.</strong>
+It installs security associations, and it refuses every security policy the IKE engine
+produces for them. VPP has no node-wide policy database: a policy lives in a security
+policy database that acts only on the interfaces it is bound to, and nothing tells the
+backend which interface to use. The backend is reached only through a private test
+override, it is compiled in only with the <code>ze_vpp</code> build tag, and no test has sent ESP
+through it. Use the XFRM backend, which is the default and the production path.</p>
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
 
 <h2 id="pki-certificate-store">PKI certificate store</h2>
 <p>The <code>pki { }</code> block stores X.509 certificates, private keys, and CA certificates. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
