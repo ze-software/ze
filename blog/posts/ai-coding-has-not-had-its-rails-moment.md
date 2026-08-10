@@ -1,0 +1,89 @@
+---
+title: AI coding has not had its Rails moment
+date: 2026-08-10
+author: Thomas Mangin
+description: Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about themselves. Rails solved that once for people, and nothing equivalent has arrived for agents.
+---
+
+An agent can open any file in a large repository in under a second, and nothing it finds there tells it which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head.
+
+This is a problem about repository structure, and it is a good deal older than AI.
+
+At the start of the 2000s, Git did not exist. CVS was notorious because you could not rename a folder, a serious limitation when the structure of a project mattered. Subversion was the modern choice if CVS had not already put you off version control.
+
+Project layouts were not very standard either. At the ISP where I worked then, our convention was to put each project's configuration, working data and source code under the same three top-level directories:
+
+```text
+project/
+    etc/<project>/
+    data/<project>/
+    src/<project>/
+```
+
+Project names let us combine or separate trees as needed. The layout was close enough to the Filesystem Hierarchy Standard (FHS) to map onto the operating system easily. During development, the repository acted as the installed root, leaving only a code-test loop.
+
+The same thinking is visible in the [first ExaBGP commit from September 2009](https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532). It had `daemon`, `etc`, `lib` and `test` directories, and a test which announced a route to a Cisco 7204 and kept the connection alive. By 2009 this kind of layout was far more familiar, largely because Ruby on Rails had made project structure part of the framework.
+
+Most repositories on GitHub are well organised for human developers and for the tools we already had, and the reasoning behind that organisation was never written into the tree. People carried it instead. An agent arrives with none of that and no way to ask for it.
+
+*This article was co-authored with Claude. The argument and the conclusions are mine. Claude helped organise the material and draft the text.*
+
+## Rails made the tree an interface
+
+Rails turned project structure into something people argued about. Its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the idea Convention over Configuration. Running `rails new` creates recognised places for application code, configuration, database changes, libraries and tests.
+
+Rails was probably not the first project to lay a tree out like that. It was the first to make the idea popular, and twenty years later the same thing is starting to happen around the plain Markdown files an agent reads. I come back to that at the end.
+
+What Rails did was make its conventions consistent, generate them automatically and teach them to a large community. A developer entering an unfamiliar Rails application already knew where to look, and so did the Rails tools. The directory tree had become an interface shared by people and programs.
+
+That is two problems solved together. Rails improved the framework tools and prescribed the structure those tools could expect, so they never had to rediscover an application's shape.
+
+The idea spread far beyond Rails. Plenty of ecosystems now ship a command which lays out a new project for you, such as `django-admin startproject`, `cargo new` or `ng new`. Scaffolding a tree is completely normal, so the mechanism we would need already exists. What those commands generate is aimed at the compiler, the package manager and the human reader. Not one of them puts anything in the tree for an agent.
+
+An agent needs the same interface a new developer needs, with one extra difficulty: it starts every session knowing nothing at all.
+
+## The tooling improved and the repositories did not
+
+AI coding has concentrated on the tool side. Harnesses keep getting better at tool use, planning, context management and coordination between agents, and the models improve every few weeks. Still, they walk into arbitrary repositories with no idea where anything is meant to live.
+
+The tooling looks the part now, with its animated terminals and neat progress trees, and underneath the presentation it is still immature. Stencil's [The harness problem](https://stencil.so/blog/the-harness-problem) measured something far more basic than planning or context management, which is whether a model can apply the edit it has already decided to make. Grok 4 failed half of its patches on their benchmark, EDIT-Bench has a single model above sixty per cent on realistic editing tasks, and changing nothing except the format of the edit moved sixteen models by fifteen points on average. Stencil sells that format, so their own figures deserve the usual caution, and an effect of that size is hard to dismiss.
+
+A model which cannot reliably replace a line of text is not being held back by its understanding of the code. A model's ability is fixed the day it ships, and how much of that ability arrives in the repository depends on what we build around it. The edit format is the cheapest thing on that list, and a fair measure of how much better AI coding can get without waiting for new models.
+
+A harness has to support every language and every kind of repository, so it stays general. It can search files, edit text and run commands. It cannot know why one project requires registration while another prefers a switch statement. It cannot know where an architectural decision lives when the project never linked that decision to the code. It cannot recover a rule which exists only in the maintainer's memory.
+
+We keep improving the worker while leaving the workplace unexplained.
+
+Frontier labs are well placed to fix half of this, because they build the model and the harness together and can train one for the other. The other half is not theirs to fix. Nobody at a lab can decide where your architectural decisions live, which patterns your project considers correct, or what counts as evidence that a change works. That has to happen inside the repository, and for now it has to be built by hand.
+
+This is one reason opinions about AI coding are so divided. Some people see the failures of current harnesses and conclude that AI cannot produce serious software. Others use AI successfully but accept the awkwardness of today's tools as a permanent cost. Both positions treat the current state of the art as the final form.
+
+AI-assisted development reminds me of using the Internet at home over 64K between 1994 and 1996. I had already used a faster university connection, so home access was painful. It required technical skill and motivation, and bulletin board systems were still more popular than the Internet. Yet I loved it because the promise was obvious. ADSL and services such as BitTorrent and YouTube later made the Internet useful to far more people. Judging the Internet by 64K would have mistaken a temporary stage for the limits of the technology.
+
+AI coding is at a comparable stage. It is already a large improvement for technical and motivated users who are willing to work around its limitations, and its ADSL moment has not arrived. Many of the AI development best practices which will make it ordinary are still to be invented. Most of that missing work is not intellectually difficult. The edit format above needed no training and around three hundred dollars of benchmarking, which is the sort of gain that sits on the floor until somebody thinks to measure it. Nobody has built and standardised it yet.
+
+In 1999 and 2000, working for an ISP felt like having a superpower, perhaps the way working for a frontier AI lab feels now.
+
+## Other engineers are finding the same shape
+
+This problem is wider than one project. Ze, the network operating system I have been building, is where I met it, and much larger engineering organisations are meeting it too.
+
+Cloudflare published [How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/) in August 2026. Before building what it calls the Cloudflare Codex, its engineering guidance lived in formal documentation, repository files, chat threads and the accumulated knowledge of individual engineers. Developers spent time searching and could not always tell whether an answer was current, authoritative or relevant. We found the same thing while building Ze.
+
+Cloudflare turned its standards into structured RFCs. Requirements use `MUST` and `SHOULD`. Each statement has a stable name which survives edits to the document around it. Agents receive a compact set of relevant statements first and load the complete RFC only when they need more. AI reviewers check code and technical designs, and rules which ordinary software can recognise are moving into fast linters.
+
+Ze arrived at a remarkably similar shape inside a single repository: instructions with stable path names, a compact index which routes a task to the rule that governs it, source files pointing at their design documents, edit hooks which reject common mistakes while the file is being written, and larger checks before a change is accepted. [The repository is half the AI harness](../the-repository-is-the-ai-harness/) goes through all of it, including what it costs to keep running. Cloudflare is applying this across a large engineering organisation and Ze is doing it inside an open-source project, which makes the convergence useful evidence.
+
+## The convention will come from a project
+
+AI-assisted development is beginning to discover its Convention over Configuration, and we do not yet know which project will make it viral. The decisions do not have to be the best possible ones. They arrive attached to something people want. Many people meet the same pain, the available tools make an answer possible, several engineers independently build something similar, and one implementation gets the memorable name and becomes the example everybody remembers.
+
+Andrej Karpathy gave a small demonstration of that with his [LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). It describes an LLM maintaining a wiki made from ordinary Markdown files, with Obsidian as the editor. Raw sources stay separate, the agent maintains cross-linked pages, an `index.md` helps it find the right information, and an `AGENTS.md` or `CLAUDE.md` explains the structure. More complicated search can wait until the collection needs it.
+
+The idea became extremely popular the moment he shared it, and many people had already reached the same answer independently. Ze was already using Markdown for its rules, designs and working memory, maintaining cross-links and generating indexes, all of it in the same text editors we write the code in. What Karpathy added was a clear explanation and a large audience, and for many people his version will become the version they know and copy.
+
+A reference version gets copied whole. Excellent choices spread, awkward ones spread with them, and familiarity turns the whole set into the convention.
+
+Ze may contribute to that shape, or another project may do it much better. I hope the one which becomes viral is a good one. That creates a responsibility for anyone publishing this kind of machinery today. The structure has to be understandable outside the people who created it, the checks have to prove something useful, and the documentation has to explain why the machinery exists at all.
+
+ExaBGP could run straight out of its project folder because the design let the program find its environment, with no installation step in between. An AI-ready repository has to do the same thing for an agent, and let it find the project's architecture without already understanding it. That environment includes the source code, its relationships, the designs, the tests, the checks and the failure messages. Building all of that by hand, for one repository, is what I have spent this year doing.

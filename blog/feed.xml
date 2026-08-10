@@ -5,8 +5,15 @@
         <link>https://ze-software.net/blog/</link>
         <description>Editorial articles on Ze.</description>
         <language>en</language>
-        <lastBuildDate>Sun, 09 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 10 Aug 2026 00:00:00 +0000</lastBuildDate>
         <item>
+            <title>AI coding has not had its Rails moment</title>
+            <link>https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</guid>
+            <pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about themselves. Rails solved that once for people, and nothing equivalent has arrived for agents.</description>
+        </item>        <item>
             <title>The repository is half the AI harness</title>
             <link>https://ze-software.net/blog/the-repository-is-the-ai-harness/</link>
             <guid isPermaLink="true">https://ze-software.net/blog/the-repository-is-the-ai-harness/</guid>
