@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -118,6 +119,11 @@ func Run(args []string) int {
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
 	fs.Var(&aspas, "aspa", "ASPA record: customer:provider1,provider2,... (repeatable)")
 	serialFlag := fs.Uint("serial", 1, "initial serial number")
+	// A cache that answers late is the ordering RFC 6811 Section 4 re-validation exists for: the
+	// peer's UPDATEs arrive first and are validated against an empty VRP set, so their states are
+	// only correct after the cache syncs and every affected route is validated again. Zero keeps
+	// the immediate answer every other test expects.
+	syncDelay := fs.Duration("sync-delay", 0, "wait this long before answering the first query on a connection")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze-test rtr-mock [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
@@ -145,12 +151,16 @@ func Run(args []string) int {
 		if err != nil {
 			return 0
 		}
-		go rtrMockHandleConn(conn, vrps, aspas, serial)
+		go rtrMockHandleConn(conn, vrps, aspas, serial, *syncDelay)
 	}
 }
 
-func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32) {
+func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32, syncDelay time.Duration) {
 	defer func() { _ = conn.Close() }()
+
+	// The delay covers the FIRST answer only. A cache that is slow to sync is slow once, while it
+	// builds its view; the client's later serial queries are answered at speed.
+	answered := false
 
 	header := make([]byte, rtrMockHeaderLen)
 	for {
@@ -175,6 +185,10 @@ func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint3
 
 		switch pduType {
 		case rtrMockPDUResetQuery, rtrMockPDUSerialQuery:
+			if !answered && syncDelay > 0 {
+				time.Sleep(syncDelay)
+			}
+			answered = true
 			if err := rtrMockSendResponse(conn, vrps, aspas, serial, clientVersion); err != nil {
 				return
 			}
