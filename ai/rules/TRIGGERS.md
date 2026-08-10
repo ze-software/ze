@@ -8,7 +8,7 @@ in hand, READ that rule's file before acting. A row marked `always-on` is
 already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away at the path in its row.
 
-Rules: 28 (28 blocking, 0 advisory). Always-on: 8.
+Rules: 28 (28 blocking, 0 advisory). Always-on: 7.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
@@ -21,7 +21,7 @@ Rules: 28 (28 blocking, 0 advisory). Always-on: 8.
 | `ai/rules/evidence.md` | blocking | stating what code does, writing or reviewing a guard, or writing any string that enumerates data a registry already holds |
 | `ai/rules/git-safety.md` | blocking, always-on | before any git operation, and when writing or running a commit script |
 | `ai/rules/go-standards.md` | blocking | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references... |
-| `ai/rules/goroutine-lifecycle.md` | blocking, always-on | before writing `go func()` anywhere |
+| `ai/rules/goroutine-lifecycle.md` | blocking | before writing `go func()` anywhere |
 | `ai/rules/interop-and-goal-validation.md` | blocking, always-on | implementing or changing protocol behavior, and when validating that a spec's stated goals are met |
 | `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work |
 | `ai/rules/no-layering.md` | blocking, always-on | when replacing X with Y |

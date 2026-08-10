@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 8 of 28. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -127,7 +127,7 @@ TREE, so it reads their half-finished edits too, and a fully green run is unreac
 **A deterministic STRUCTURAL gate is still never waved through** (see "Structural
 **Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
 ### ONCE, AT THE END. Never during development (BLOCKING)
-**`make ze-verify` is a 24-stage full gate and takes 25 to 30 minutes. Run it ONE
+**`make ze-verify` is a 25-stage full gate and takes 25 to 30 minutes. Run it ONE
 time, when the work is finished and you are about to prepare the commit script.** Running it to "check in" mid-change is the single most expensive habit available in this repository, and it buys nothing a scoped check...
 **Run what the change touches.** Every surface has one owning target, and it costs
 **Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
@@ -172,25 +172,6 @@ Never `--no-gpg-sign` / `-c commit.gpgsign=false`.
 `tea` for PRs/issues: `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`.
 
 <!-- always-on: precedence rung 1/2 -->
-
----
-
-## Goroutine Lifecycle
-`ai/rules/goroutine-lifecycle.md`
-**When:** before writing `go func()` anywhere — **Severity:** blocking
-
-## Directives
-All goroutines MUST be long-lived workers.
-| Pattern | Status |
-|---------|--------|
-| Long-lived goroutine reading from channel | Required |
-| Goroutine per lifecycle (process, session, peer) | OK |
-| Goroutine per event in hot path | Forbidden |
-| `go func()` inside `for range` on events | Forbidden |
-**`go func()` IS OK for:** component startup (one-time), test helpers, `ProcessManager.Stop()` wait, `Process.Wait()` bridge, timers and scheduled tasks (dedicated goroutine that sleeps/selects on a timer, cancellable via context or channel).
-**Before writing `go func()`:** Inside event loop? → channel + worker. Called per message? → channel + worker. One-time lifecycle? → OK. Timer/scheduler? → OK (dedicated goroutine with cancellation).
-
-<!-- always-on: no past task would surface it -->
 
 ---
 
