@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Changing a check:** edit the function in the relevant dispatcher (not a `.sh`), then run `python3 scripts/dev/hook-parity-check.py` to confirm no behaviour changed. If you intentionally changed behaviour, re-bless the golden table with `python3 scripts/dev/hook-parity-check.py --bless` and paste the result back. Also satisfy the "Discovery Updates" section above so future agents can find it.
+**Changing a check:** the function in the relevant dispatcher (not a `.sh`) MUST be edited, then `python3 scripts/dev/hook-parity-check.py` MUST be run to confirm no behaviour changed. If you intentionally changed behaviour, the golden table MUST be re-blessed with `python3 scripts/dev/hook-parity-check.py --bless`, and the result MUST be pasted back. The "Discovery Updates" section above MUST also be satisfied so future agents can find it.

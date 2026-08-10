@@ -1,10 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 **Expected.** Superseded versions after a pin bump (runbook step 5 tells you to
-`rm -rf` the old dir; do it, or every bump leaves 15-50 MB behind), and the breadth
+`rm -rf` the old dir; you MUST do it, or every bump leaves 15-50 MB behind), and the breadth
 of `go mod download all` (`mk/gokrazy.mk`), which is the whole module graph
 including test-only deps and their fixtures: `pierrec/lz4` is 75 MB of `testdata/`,
 `klauspost/compress` 46 MB. A second Go toolchain also lands here

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- [ ] 2. Transformations: parse -> validate -> store -> process -> encode
+- [ ] 2. You MUST trace each transformation stage: parse -> validate -> store -> process -> encode

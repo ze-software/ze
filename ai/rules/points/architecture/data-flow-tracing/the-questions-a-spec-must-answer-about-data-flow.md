@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**A spec MUST answer these questions before approval:**
 - 1. Where does data come from?
 - 2. What happens at each stage?
 - 3. Where does it go and in what format?

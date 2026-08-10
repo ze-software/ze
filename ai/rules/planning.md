@@ -18,9 +18,9 @@ Rationale: `ai/rationale/planning.md`
 
 ## Spec Work Runs in Subagents; the Main Thread Supervises
 
-**The main thread supervises. It does not perform the spec work itself.** Most phases run in a subagent invoked through their `ze-*` skill, and the main thread launches each one, reads the report back, verifies it, decides, and gates the next phase. The `Runs in` column names the four exceptions, so read it before you delegate.
+**The main thread MUST supervise. It MUST NOT perform the spec work itself.** Most phases run in a subagent invoked through their `ze-*` skill, and the main thread launches each one, reads the report back, verifies it, decides, and gates the next phase. The `Runs in` column names the four exceptions, so read it before you delegate.
 
-**Say what you are about to spawn BEFORE you spawn it: the number of agents, what each does, and the rough cost.** The user pays for every agent and can see them running. A spawn they cannot map onto anything you wrote reads as a session out of control. Name the skill's own fan-out too: `/ze-close` spawns reviewers at its Review Gate, so "closure is running" understates it by three agents. Then report STATUS, never architecture: what runs, what finished, what is left, what it cost. A user who cannot follow you reads the tree instead, and what they find lands as a surprise you owed them.
+**MUST say what you are about to spawn BEFORE you spawn it: the number of agents, what each does, and the rough cost.** The user pays for every agent and can see them running. A spawn they cannot map onto anything you wrote reads as a session out of control. Name the skill's own fan-out too: `/ze-close` spawns reviewers at its Review Gate, so "closure is running" understates it by three agents. Then report STATUS, never architecture: what runs, what finished, what is left, what it cost. A user who cannot follow you reads the tree instead, and what they find lands as a surprise you owed them.
 
 | Phase | Skill | Runs in | The main thread does |
 |-------|-------|---------|----------------------|
@@ -34,25 +34,25 @@ Rationale: `ai/rationale/planning.md`
 | Debug a red test or gate | `/ze-debug` | **main thread**, and it fans out itself | confirms the diagnosis names a root-cause function, not a symptom |
 | Verify | `/ze-verify` | subagent | reads the failure index, decides what to fix next |
 
-**Launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
+**MUST launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
 
-**Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report must contain. It cannot ask the user -- do not hand it work that needs an answer from them. It CAN resolve symbols: by the LSP tool where its registry carries one, by `gopls` from Bash where it does not (`ai/rules/context-economy.md`).
+**Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report MUST contain. It cannot ask the user -- MUST NOT hand it work that needs an answer from them. It CAN resolve symbols: by the LSP tool where its registry carries one, by `gopls` from Bash where it does not (`ai/rules/context-economy.md`).
 
-**Verify what a subagent reports; never relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/evidence.md`). Before acting on a finding or repeating it to the user, confirm the code it cites actually produces the behavior it describes.
+**MUST verify what a subagent reports; MUST NOT relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/evidence.md`). Before acting on a finding or repeating it to the user, confirm the code it cites actually produces the behavior it describes.
 
-**Anything the user must answer stays in the main thread.** A subagent cannot hold a dialogue with the user, so `/ze-spec` and `/ze-design` question gates, scope reductions, and RFC-compliance escalations (`ai/rules/rfc-compliance.md`) are raised by the main thread, never delegated away.
+**Anything the user MUST answer MUST stay in the main thread.** A subagent cannot hold a dialogue with the user, so `/ze-spec` and `/ze-design` question gates, scope reductions, and RFC-compliance escalations (`ai/rules/rfc-compliance.md`) are raised by the main thread and MUST NOT be delegated away.
 
-**Delegation never dilutes the independence of review.** Reviewer subagents must be spawned separately from the implementation agent and must not be given the implementer's reasoning as their starting point ("Critical Review Is the Central Deliverable", below).
+**Delegation never dilutes the independence of review.** Reviewer subagents MUST be spawned separately from the implementation agent and MUST NOT be given the implementer's reasoning as their starting point ("Critical Review Is the Central Deliverable", below).
 
-**Delegation does not override phase-to-model boundaries.** Subagents inherit the PHASE, not the task shape ("Model Selection by Work Phase", below), so the main thread still announces a boundary and stops rather than delegating an implementation phase from a review session to get around the switch.
+**Delegation does not override phase-to-model boundaries.** Subagents inherit the PHASE, not the task shape ("Model Selection by Work Phase", below), so the main thread MUST still announce a boundary and stop rather than delegating an implementation phase from a review session to get around the switch.
 
-**Supervise THINLY: launch, verify the report against source, decide, gate the next phase. The main thread does not run the exploration itself.** Measured across this machine's sessions, 6,264 of the 9,187 main-thread tool calls were Bash (`make ze-token-economy`, reading of 2026-08-05); each one is reading that belonged in an agent whose report is the only thing that survives into the supervising context (`ai/rules/context-economy.md`).
+**MUST supervise THINLY: launch, verify the report against source, decide, gate the next phase. The main thread MUST NOT run the exploration itself.** Measured across this machine's sessions, 6,264 of the 9,187 main-thread tool calls were Bash (`make ze-token-economy`, reading of 2026-08-05); each one is reading that belonged in an agent whose report is the only thing that survives into the supervising context (`ai/rules/context-economy.md`).
 
-**A main thread whose context passes 600k writes its per-spec state file and hands off rather than continuing.** The file is `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md`, and `_find_latest_state_for_spec` (`.claude/hooks/lib/state-file.sh`) is what the next session reads it back with. Measured: 49.5% of main-thread context was fed at calls already above 600k, against a 1M ceiling, where every later call pays the whole context again.
+**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** The file is `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md`, and `_find_latest_state_for_spec` (`.claude/hooks/lib/state-file.sh`) is what the next session reads it back with. Measured: 49.5% of main-thread context was fed at calls already above 600k, against a 1M ceiling, where every later call pays the whole context again.
 
-**Implementation is delegated ONE agent per implementation phase, not one agent per spec.** Give each agent the spec path, the phase it owns, and the per-spec state file; it writes its handoff there when the phase is green, and the next agent reads that file instead of re-deriving the phase before it. Measured: implementation agents ran 144 API calls each at 294k mean context, more of both than any other phase, because context grows with turns inside one agent.
+**Implementation MUST be delegated ONE agent per implementation phase, not one agent per spec.** Give each agent the spec path, the phase it owns, and the per-spec state file; it writes its handoff there when the phase is green, and the next agent reads that file instead of re-deriving the phase before it. Measured: implementation agents ran 144 API calls each at 294k mean context, more of both than any other phase, because context grows with turns inside one agent.
 
-**A work-package boundary is chosen at DECOMPOSITION, and it is never a license to stop early.** An agent whose package turns out too big REPORTS the size to the main thread, which re-cuts the packages. It never trims an acceptance criterion, parks a defect, or weakens a test to fit the package it was given (`ai/rules/completion.md` is unchanged by this: every AC still needs working code and a test before anyone claims completion).
+**A work-package boundary is chosen at DECOMPOSITION, and it is never a license to stop early.** An agent whose package turns out too big MUST report the size to the main thread, which re-cuts the packages. It MUST NOT trim an acceptance criterion, park a defect, or weaken a test to fit the package it was given (`ai/rules/completion.md` is unchanged by this: every AC still needs working code and a test before anyone claims completion).
 
 ### Banned Reasoning (delegation)
 
@@ -73,7 +73,7 @@ Rationale: `ai/rationale/planning.md`
 - **Each `ze-*` skill states its own disposition in a `## Delegation` section**, so the routing is visible at the moment the skill is invoked rather than only in this rule: `/ze-explore`, `/ze-audit`, `/ze-implement`, `/ze-review`, `/ze-review-spec`, `/ze-close` and `/ze-verify` delegate; `/ze-spec` and `/ze-design` stay in the main thread because their gates require `AskUserQuestion`; `/ze-review-deep` and `/ze-debug` stay in the main thread and do their OWN fan-out (wrapping them in one agent buries the parallel lenses a level down and costs the independence they exist to provide).
 - **`.claude/hooks/subagent-context.sh` hands every agent the parent's claimed spec, its Status, and the subagent contract**, so the per-spawn briefing this rule requires is not manual work. A rule that costs more to follow than to break loses; that is what this hook removes.
 - **`.claude/hooks/block-premature-stop.sh` IS registered on `Stop`, and it fires.** Thomas re-registered it on 2026-07-31, after it sat on no event from 2026-06-29 (`41e5fa44f`). It warns with exit 1 when this session CLAIMED a spec and never spawned an agent. It reads the marker `mark-agent-spawned.sh` writes, and it heartbeats that marker first. A session older than 24h that DID delegate is therefore never nudged falsely. The nudge never blocks. It is scoped: it sits behind the claim marker `tmp/session/.session-<SID>`. A session that claimed no spec gets no nudge, whatever it ran inline (fixture `delegation-no-spec-no-nudge`).
-- **The nudge survives past turn one.** Position in the `Stop` array is necessary and not sufficient: the claim marker must outlive the turn it was made. `session-end-summary.sh` released it on every `Stop`, so the nudge fired once per claim and then went silent. No hook releases it now: `scripts/dev/spec-session.sh release` does, from `/ze-close`, so the claim lives until the spec closes. Fixtures pin registration, order, the claim surviving a `Stop`, and that no `SessionEnd` hook exists to delete it again: `python3 scripts/dev/hook-fixture-check.py --only delegation` (36 in the section).
+- **The nudge survives past turn one.** Position in the `Stop` array is necessary and not sufficient: the claim marker MUST outlive the turn it was made. `session-end-summary.sh` released it on every `Stop`, so the nudge fired once per claim and then went silent. No hook releases it now: `scripts/dev/spec-session.sh release` does, from `/ze-close`, so the claim lives until the spec closes. Fixtures pin registration, order, the claim surviving a `Stop`, and that no `SessionEnd` hook exists to delete it again: `python3 scripts/dev/hook-fixture-check.py --only delegation` (36 in the section).
 ## Work Phases
 
 Ze work has three phases: planning and design, implementation, and review and
@@ -85,13 +85,13 @@ audit. They are distinguished by what the work IS, never by convenience.
 | Implementation | `/ze-implement`, writing code and tests, fixing failures, refactors, doc edits that follow from the code |
 | Review and audit | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, `/ze-close` (Review Gate, spec closure, implementation audit) |
 
-**Implementation requires no particular model (owner directive, 2026-08-03).**
+**Implementation MAY run on any model (owner directive, 2026-08-03).**
 The rule used to put implementation on Opus 4.8 and `c_model_phase` in
 `.claude/hooks/pretool-writeedit.py` enforced it. Both are removed: the gate
 cost a session handoff to edit one mechanical script, and it gated nothing the
 review-independence rule below does not gate better.
 
-**Review still runs on Opus 5, and that half is unchanged.** `review_gate.py record`
+**Review MUST still run on Opus 5, and that half is unchanged.** `review_gate.py record`
 refuses to record a review performed off it, and `.claude/hooks/pretool-agent-skill.py`
 refuses to spawn one. Those remain, because a review's worth depends on the
 judgment behind it in a way that writing a test does not.
@@ -100,8 +100,8 @@ judgment behind it in a way that writing a test does not.
 
 **Review is independent of the author.** That was always the real guarantee, and
 the model split never delivered it: a different model is not a different
-context. A fresh session or reviewer subagents are required, and the session
-that wrote the code does not sit in judgment on it.
+context. A fresh session or reviewer subagents MUST be used, and the session
+that wrote the code MUST NOT sit in judgment on it.
 
 | Situation | Do |
 |-----------|-----|
@@ -117,7 +117,7 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 
 - Subagents inherit the PHASE, not the task shape: reviewer subagents spawned during review stay on the review model, implementation subagents stay on the implementation model.
 - The `Agent` tool's `model` parameter selects a family (`opus`, `sonnet`, `haiku`), not a minor version, so it cannot pin 4.8 against 5. The phase-to-model mapping above is about the session driving the work.
-- Never downgrade a subagent to a cheaper model because its lens looks mechanical. `ai/skills/ze-review-deep.md` and `ai/skills/ze-debug.md` spawn every agent on `opus` for this reason. If cost forces a reduction, cut the NUMBER of agents, never the model they run on.
+- MUST NOT downgrade a subagent to a cheaper model because its lens looks mechanical. `ai/skills/ze-review-deep.md` and `ai/skills/ze-debug.md` spawn every agent on `opus` for this reason. If cost forces a reduction, cut the NUMBER of agents, never the model they run on.
 
 ### Banned Reasoning (model phases)
 
@@ -131,7 +131,7 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 ### Enforcement (model phases)
 
 - **`c_model_phase` in `.claude/hooks/pretool-writeedit.py` BLOCKS an implementation edit made on a planning/review model.** It resolves the running model from the transcript, because the hook payload carries none. It fires on `.go`, `.py`, `.sh`, `.ci`, `.et`, `.yang`, `.mk`, `.tmpl` and `.rego`, and never on `.md`. The table above puts "doc edits that follow from the code" in the implementation phase, so the gate is deliberately narrower than the rule: it cannot tell a spec from a doc that follows code, and blocking `/ze-spec` on its own model would be the worse error. Doc edits stay yours to judge.
-- **The escape is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. Write that file on the operator's instruction only. It is the same contract as the spec-closure ack.
+- **The escape is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. MUST NOT write that file except on the operator's instruction. It is the same contract as the spec-closure ack.
 - The gate cannot see PHASE, only the model. It reads an implementation edit as the boundary crossing, so a genuine one-line mechanical fix on the review model needs the ack too.
 - **Review is gated at both ends.** `.claude/hooks/pretool-agent-skill.py` refuses to SPAWN a review agent when the session is not on Opus 5, and `scripts/dev/review_gate.py record` refuses to RECORD the artifact. The second is the one that matters, because recording is the moment a review is claimed.
 - **A subagent inherits the PHASE, not the task shape.** Spawning a reviewer from an implementation session still reviews on the wrong model, and it is usually the session that wrote the code.
@@ -148,29 +148,29 @@ Prefer writing a spec (`plan/spec-<task>.md`) over a plan file.
 
 ## Creating a Spec (BLOCKING)
 
-**Always start from `plan/TEMPLATE.md`.** Read the template, copy its full
+**MUST start from `plan/TEMPLATE.md`.** Read the template, copy its full
 content, then fill in relevant sections and leave others as `(fill during
-design)` placeholders. Never write a spec from memory -- the `validate-spec`
+design)` placeholders. MUST NOT write a spec from memory -- the `validate-spec`
 hook rejects files missing required section headers, and writing from scratch
 always misses some. One read of the template before the first Write avoids the
 rejected-then-rewrite cycle.
 
 **Two templates, one per lifecycle half.** `plan/TEMPLATE.md` is design-time:
-everything that must exist BEFORE code. The closure half lives in
-`plan/TEMPLATE-CLOSURE.md` and is appended by `/ze-close` at step 1. Do
-not copy the closure sections into a new spec: measured across 161 specs,
+everything that MUST exist BEFORE code. The closure half lives in
+`plan/TEMPLATE-CLOSURE.md` and is appended by `/ze-close` at step 1. MUST
+NOT copy the closure sections into a new spec: measured across 161 specs,
 sections copied at creation but used only at closure arrived there untouched in
 65-75% of in-progress specs, while the sections authors added when they needed
 them were untouched in 0%. Distance from use is what empties a section.
 
-**Placeholders are legal only at `skeleton`.** A deferral holder fills `## Task`
+**Placeholders MAY appear only at `skeleton`.** A deferral holder fills `## Task`
 and leaves the rest ("Creating the Deferral Spec", below). From `design` onward
 the placeholder guards in `.claude/hooks/validate-spec.sh` block, because the
 status is a claim that those sections are written.
 
 **One verification command.** The spec's Goal Gates name `make ze-verify`, the
 pre-commit gate (`ai/rules/git-safety.md`). Fast targets are for the inner
-iteration loop and never appear as the gate. The template previously shipped
+iteration loop and MUST NOT appear as the gate. The template previously shipped
 three different spellings, one of which was the fuzz-inclusive `ze-test` target
 that the commit rule does not use.
 
@@ -215,7 +215,7 @@ that the commit rule does not use.
 Present BEFORE writing code. Must include: docs read + insights, current behavior (source files, behavior to preserve/change), TDD plan, implementation phases, files affected, data flow, design decisions, RFC references (protocol code).
 
 **WAIT FOR USER APPROVAL.** During design discussions (naming, alternatives, approach),
-present options and wait. Never edit files until explicitly approved.
+present options and wait. MUST NOT edit files until explicitly approved.
 
 ## Spec Rules
 
@@ -240,7 +240,7 @@ Rules:
 
 - An assumption without a validation method is a guess. Name the test, grep, or user confirmation that would settle it.
 - A `broken` assumption gets a Mistake Log "Wrong Assumptions" row and a Deviations entry. If it invalidates the approved design, STOP and present to the user.
-- No assumption may still be `unvalidated` at Pre-Commit Verification (the spec's "Assumptions Resolved" table records final status with evidence).
+- No assumption MAY still be `unvalidated` at Pre-Commit Verification (the spec's "Assumptions Resolved" table records final status with evidence).
 - Existing specs (created before this rule) are exempt; do not retrofit without user request.
 
 ## Spec Sets
@@ -256,7 +256,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 
 - **Prefix:** short mnemonic for the effort (e.g., `utp` = unified text protocol)
 - **Number:** 0 = umbrella, 1+ = children in execution order
-- **Cross-references:** all specs in a set reference siblings by filename
+- **Cross-references:** all specs in a set MUST reference siblings by filename
 - **Selected spec:** point to the umbrella; select children individually when implementing
 
 ## Spec Metadata (BLOCKING)
@@ -376,11 +376,11 @@ is severity BLOCKER or ISSUE (anything above NOTE), fix it and re-run the
 review. Loop until the review returns only NOTEs (or nothing). Paste the
 final clean review output into the spec. NOTE-only findings do NOT block.
 
-**Each round reviews less than the last, and the loop is required to end.**
+**Each round reviews less than the last, and the loop MUST end.**
 Round 1 covers the whole diff. Round N+1 covers only round N's fixes. A gate
 that cannot stop is a gate that gets bypassed. One place settles what happens
 to a finding outside the round's scope, which classes are always in scope, and
-where a homed finding goes: "Bounding the loop", below. Do not restate those
+where a homed finding goes: "Bounding the loop", below. MUST NOT restate those
 tests here. A second copy is how the corrected rule and the defective one
 become one hop apart.
 
@@ -393,10 +393,10 @@ it: `ai/rationale/critical-review.md`.
 
 ### The one load-bearing rule
 
-**A review is performed by a DIFFERENT context than the author.** Independent
+**A review MUST be performed by a DIFFERENT context than the author.** Independent
 review subagents (`Agent` / `fork`) over the actual diff, or a fresh session.
 
-**Your own inline reasoning about code you just wrote is NOT a review.** The
+**Your own inline reasoning about code you just wrote MUST NOT count as a review.** The
 author is the one party guaranteed to share the blind spot that produced the bug.
 Writing "I checked it, 0 issues" into a Review Gate from your own analysis is the
 exact failure this rule exists to stop. It has shipped real bugs that independent
@@ -409,11 +409,11 @@ reviewers caught on the same diff minutes later.
    feature's own risk area). They read the PRODUCER, not the caller,
    and verify claims against source (`ai/rules/evidence.md`).
 2. **Adversarial.** The question is "what can go wrong that nobody planned for?"
-   Default findings PLAUSIBLE, not dismissed. Never discard wiring, removed-guard,
+   Default findings PLAUSIBLE, not dismissed. MUST NOT discard wiring, removed-guard,
    logic, or vacuous-test findings.
 3. **Verify the reviewers too.** A reviewer can be wrong. Before acting on a
    finding, reproduce it (an empirical check beats an argument: a `.ci` exit
-   assertion that "should fire" either fires or does not; run it).
+   assertion that "SHOULD fire" either fires or does not; run it).
 4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. There is no cap on the NUMBER of passes, and a hard bound on what each one covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
    `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>-<session-id>.md`
@@ -424,10 +424,10 @@ reviewers caught on the same diff minutes later.
 ### Bounding the loop
 
 - **Round 1 reviews the whole diff. Round N+1 reviews ONLY the fixes round N made, plus what those fixes touched.** By default, a finding outside that scope does not re-open the round. Three bullets below override that default. Each override costs another pass (step 4). The overrides are: the goal depends on it, you are unsure whether it does, or it belongs to the always-in-scope list.
-- **The loop ends when a round finds no BLOCKER and no ISSUE inside its OWN scope, AND no always-in-scope finding anywhere.** Both halves are required. The scope half alone lets an unconditional class satisfy the end condition by surfacing outside the round. A NOTE never re-opens a round, wherever it was found ("Review Gate", above). An always-in-scope finding is NEVER a NOTE, and its severity floor is ISSUE. Severity is the reviewer's own call. Without that floor, tagging one down is the cheapest exit from a list whose purpose is to have no exits.
+- **The loop ends when a round finds no BLOCKER and no ISSUE inside its OWN scope, AND no always-in-scope finding anywhere.** Both halves are required. The scope half alone lets an unconditional class satisfy the end condition by surfacing outside the round. A NOTE MUST NOT re-open a round, wherever it was found ("Review Gate", above). An always-in-scope finding is NEVER a NOTE, and its severity floor is ISSUE. Severity is the reviewer's own call. Without that floor, tagging one down is the cheapest exit from a list whose purpose is to have no exits.
 - **The loop never required a round that finds nothing anywhere.** On a diff of any size, a full-diff pass always finds something. That reading has no state in which it stops, so finished work cannot close.
 - **A finding outside the round's scope is fixed in this round when the goal this work exists to achieve depends on it. Otherwise it gets a spec, the work in hand closes, and Thomas decides whether that spec runs.** That is `ai/rules/completion.md`'s question unchanged. The test is DEPENDENCY, never causation. A defect this change did not introduce is in scope the moment the work depends on that path, which is what "pre-existing" never excuses.
-- **If you are unsure whether the goal depends on it, you are on the fix-it side.** `ai/rules/completion.md` sets that tie-break and this bound does not soften it. Over-fixing costs some work. Homing a real blocker ships something that does not do what it claims. A rule that licenses closure is where an unsure call must fall towards fixing.
+- **If you are unsure whether the goal depends on it, you are on the fix-it side.** `ai/rules/completion.md` sets that tie-break and this bound does not soften it. Over-fixing costs some work. Homing a real blocker ships something that does not do what it claims. A rule that licenses closure is where an unsure call MUST fall towards fixing.
 - **Eight classes are ALWAYS in scope, whatever round surfaces them and whoever caused them: an unwired symbol, a vacuous test, an acceptance criterion with no test, a user-facing behavior with no functional test, Linux-only code with no QEMU test, a removed guard, a newly added guard that fails open, and any RFC or interop non-conformance.** Each one passes a "no wrong result, no red gate" screen because its failure mode is silence. Nothing is wrong on the surface. The path is never exercised.
 - **Where the round's scope and that list disagree, the list wins and the loop takes another pass.** The scope bound is a rung-3 instrument (`ai/rules/rule-precedence.md`). Conformance owed outside this repo sits on rung 2. Nothing about bounding a review loop CAN retire an RFC or interop obligation (`ai/rules/rfc-compliance.md`, `ai/rules/interop-and-goal-validation.md`).
 - **Each class has its own authority.** Step 2 above covers wiring, removed-guard, logic and vacuous-test findings. `ai/rules/completion.md` covers an untested acceptance criterion, `ai/rules/testing.md` user-facing behavior, `ai/rules/platform-linux.md` Linux-only code, and `ai/rules/evidence.md` a guard that fails open.
@@ -436,11 +436,11 @@ reviewers caught on the same diff minutes later.
 - **Write the round's scope down BEFORE the round runs, in the spec's Review Gate section.** Unwritten, "what those fixes touched" is chosen after the findings are known, and shrinks to whatever produces a clean round. Written first, it holds when the reviewer is tired, invested, or wrong about severity. It includes the sibling call sites of every changed function (`ai/rules/quality.md`, question 8), not only the edited hunks.
 
 - **The review's subject is the PRODUCT. A false statement in the spec's own
-  closure record is a NOTE, and a NOTE never re-opens a round.** Wrong arithmetic
+  closure record is a NOTE, and a NOTE MUST NOT re-open a round.** Wrong arithmetic
   in an Audit Summary, a pasted command output that was condensed, a status word
   that contradicts the shard, a count nobody can reproduce: each is worth fixing
-  and none of them ships. Collect every one of them, fix them in ONE edit, and do
-  not spend a round confirming the fix.
+  and none of them ships. Collect every one of them, fix them in ONE edit, and
+  MUST NOT spend a round confirming the fix.
 - **The one exception is precise: a record defect is an ISSUE when it asserts a
   PRODUCT property that is false.** "This test discriminates" when it does not,
   "the guard fails closed" when it does not, "an interop test covers this" when
@@ -453,21 +453,21 @@ reviewers caught on the same diff minutes later.
   after pass 1; all eleven later findings were false statements in the spec's own
   closure prose.
 - **`scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than
-  three without `--rounds-reason`, which must name the PRODUCT defect a later
+  three without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
   need a fourth round and gets one for the cost of a sentence. That sentence is
   the one nobody can write when the loop is auditing its own bookkeeping, which is
   what makes it the right toll.
 
-- **The same cut applies to TEST-ONLY code: a defect there that cannot reach the product is a NOTE, and a NOTE never re-opens a round.** Test helpers, fixture builders, `.ci` and `.et` scripts, the runners under `test/`, and the harness code that drives them ship in no binary an operator runs. An error branch nothing reaches, an edge case no caller has, a handle left open in a process that is about to exit: report it once if it is free to fix, and it earns no round, no spec, and no hold on a closure. Test code that runs and does its job is finished.
-- **A bug in test code that leads to NO TESTING is load-bearing, and it is fixed.** The test does not run, the runner skips it and reports green, the harness never reaches the code under test, the fixture builds the wrong scenario, the assertion is swallowed, the `.ci` observer exits before it checks: nothing is being tested and the suite says otherwise. That is a silent loss of coverage, which is the failure mode the always-in-scope list exists for, so it is a BLOCKER or an ISSUE like any other.
+- **The same cut applies to TEST-ONLY code: a defect there that cannot reach the product is a NOTE, and a NOTE MUST NOT re-open a round.** Test helpers, fixture builders, `.ci` and `.et` scripts, the runners under `test/`, and the harness code that drives them ship in no binary an operator runs. An error branch nothing reaches, an edge case no caller has, a handle left open in a process that is about to exit: report it once if it is free to fix, and it earns no round, no spec, and no hold on a closure. Test code that runs and does its job is finished.
+- **A bug in test code that leads to NO TESTING is load-bearing, and MUST be fixed.** The test does not run, the runner skips it and reports green, the harness never reaches the code under test, the fixture builds the wrong scenario, the assertion is swallowed, the `.ci` observer exits before it checks: nothing is being tested and the suite says otherwise. That is a silent loss of coverage, which is the failure mode the always-in-scope list exists for, so it is a BLOCKER or an ISSUE like any other.
 - **The rest of the exception is the same cut one step on: a test defect keeps its severity when it changes what the test PROVES, or when it stops a gate refusing what that gate exists to refuse.** A test that cannot fail, one that passes while the behavior under test is broken, one that asserts the wrong value, an RFC-tagged test that no longer pins its requirement, a fixture that encodes a violation, a hook check that now lets its own class of mistake through: each damages the product's evidence rather than the harness, so the always-in-scope list above is unchanged.
-- **Two readings, and the one that governs.** "Test code must be valid and correct" asks for a harness that runs and that tells the truth about the product. It does not ask for the product's own bar on the harness itself (`ai/rules/testing.md`, "Test Code Is Held to One Standard"). A round spent on an unreachable branch in a fixture builder found nothing the product can feel.
+- **Two readings, and the one that governs.** "Test code MUST be valid and correct" asks for a harness that runs and that tells the truth about the product. It does not ask for the product's own bar on the harness itself (`ai/rules/testing.md`, "Test Code Is Held to One Standard"). A round spent on an unreachable branch in a fixture builder found nothing the product can feel.
 
 ### State the review effort before you spend it
 
-- **Name the pass count and the lenses BEFORE the first agent is spawned, so the operator can stop you.** An unannounced fan-out is a decision taken on the operator's behalf.
-- **Match the effort to the ask ABOVE the floor step 1 sets, never below it: two lenses on round 1 always, three or more when the ask is "audit this" or "be thorough".** Round 1 is the only pass that ever sees the whole diff. Its lens count IS the whole change's coverage, and is never cut to one. Effort is chosen from the request, never from how interesting the code turned out to be.
+- **MUST name the pass count and the lenses BEFORE the first agent is spawned, so the operator can stop you.** An unannounced fan-out is a decision taken on the operator's behalf.
+- **MUST match the effort to the ask ABOVE the floor step 1 sets, never below it: two lenses on round 1 always, three or more when the ask is "audit this" or "be thorough".** Round 1 is the only pass that ever sees the whole diff. Its lens count IS the whole change's coverage, and MUST NOT be cut to one. Effort is chosen from the request, never from how interesting the code turned out to be.
 
 ### Enforcement (critical review, structural: a hook, not discipline)
 
@@ -490,7 +490,7 @@ real independence rests on the skill mandate above, not on the gate. Known
 residuals to not lean on: the coverage check only sees THIS commit (code committed
 in earlier feature commits then closed code-free is under-covered, so commit all of
 a spec's code at closure), and the check runs when the commit script is generated,
-so do not edit code after generating the script.
+so code MUST NOT be edited after generating the script.
 
 ### Banned rationalizations
 
@@ -514,12 +514,12 @@ review.
 
 ## Spec Closure (BLOCKING)
 
-**A spec that passes its Review Gate is not done until it is deleted from `plan/`.**
+**A spec that passes its Review Gate MUST NOT be considered done until it is deleted from `plan/`.**
 
 The lifecycle is: `in-progress` -> Review Gate clean -> write journal row -> `git rm` spec.
 Leaving a completed spec in `plan/` causes every future session to count it as open work.
 
-**TWO commits, ONE script.** The spec is edited during implementation (design notes,
+**Closure MUST use TWO commits, ONE script.** The spec is edited during implementation (design notes,
 status updates, corrected assumptions). Those edits are valuable design history.
 `git rm` destroys the working copy. If the edited spec is never committed before
 deletion, the design work is lost from git history forever.
@@ -545,7 +545,7 @@ This preserves the final spec state in git history. `git log -p -- plan/<spec>` 
 the full design record. The deletion in commit B is a clean removal of a file whose
 final state is already committed.
 
-**EVERY reference survives closure, not only `// Design:`.** Before commit B, grep
+**EVERY reference survives closure, not only `// Design:`.** Before commit B, MUST grep
 the WHOLE PATH `plan/spec-<stem>.md` across the tree, not the `// Design:` prefix,
 and rewrite every hit to the appropriate destination (an `ai/rules/` file, a
 `docs/architecture/` page, or one of the three `plan/learned/` aggregates:
@@ -570,7 +570,7 @@ those then closed its OWN spec hours later and left 158 more, because it greped
 ABOUT the spec into a sentence about its destination, and some of those become
 false: a rule page, an architecture page and a journal row do not "own rows", are
 not "active", have no "phase 2b", and are not somewhere work can be "implemented
-inside". Grep the new path next to `that spec`,
+inside". MUST grep the new path next to `that spec`,
 `this spec`, `the pilot`, `owns`, `active` and `Depends`, and rewrite what reads
 wrong. Naming the spec WITHOUT its `plan/` path is the way to keep a true sentence
 about a file that is gone: the citation gate matches the path, not the name.
@@ -581,15 +581,15 @@ fact inline. Add the stem to `plan/.citation-baseline` when the citation is a
 historical record of the closed spec. All three ride on commit A, because commit
 B removes a spec and adds nothing. `spec-citation-check.py --write-baseline` is
 banned at closure: it regenerates the whole list from the current tree, so it
-grandfathers a citation that a repoint must fix.
+grandfathers a citation that a repoint MUST fix.
 
 **Closure resolves the spec's deferral rows.** Before commit B, grep
-`plan/deferrals/` for this spec's filename (a row naming it as Destination may live in
+`plan/deferrals/` for this spec's filename (a row naming it as Destination MAY live in
 any source's shard, not only this spec's own). Every row naming it as **Destination**
-must be resolved inside commit A: set Status `done` and Destination to the journal
+MUST be resolved inside commit A: set Status `done` and Destination to the journal
 class file (`plan/journal/<class>.md`), which is where the knowledge now lives. This
 is separate from the shard removal in commit B, above: this resolves rows that POINT
-AT the spec, which closure must do because it is deleting their destination. It does
+AT the spec, which closure MUST do because it is deleting their destination. It does
 NOT retire the rows the spec SOURCED. Those are governed by commit B's condition:
 a sourced row homed at another spec stays live, and its shard outlives this closure
 ("Deferral Tracking", below). Only an all-terminal shard is removed.
@@ -612,9 +612,9 @@ the row has no home: keep it live and give it a real destination spec per "Choos
 the Destination Spec", below. Never resolve a row to a record that does not mention
 it: that is the fail-open the gate exists to catch (`ai/rules/evidence.md`).
 
-**Never `git rm -f` a spec without committing it first.** The `-f` flag silently
+**MUST NOT `git rm -f` a spec without committing it first.** The `-f` flag silently
 discards uncommitted edits. If the spec was modified during implementation (it
-almost always is), those modifications must be committed before deletion.
+almost always is), those modifications MUST be committed before deletion.
 
 | Banned | Why |
 |--------|-----|
@@ -646,7 +646,7 @@ Run `scripts/dev/spec-closure-check.py --list` any time to see the backlog.
 
 Rationale: `ai/rationale/spec-preservation.md`
 
-**Discard:** Audit tables, checklists, post-compaction instructions, BLOCKING markers, status columns, template scaffolding.
+**MUST discard:** Audit tables, checklists, post-compaction instructions, BLOCKING markers, status columns, template scaffolding.
 
 The original spec in `plan/` is deleted after the journal row is written, but the completed spec MUST be committed to git first so it is preserved in history.
 
@@ -689,7 +689,7 @@ the live backlog is a fold over the directory, computed on read (`/ze-status`) a
 never stored. A stored aggregate would be a shared file every session appends to,
 exactly the cross-commit hazard this layout removes (`ai/rules/git-safety.md`).
 
-**Shard key.** Each row lives in the shard named for its source:
+**Shard key.** Each row MUST live in the shard named for its source:
 
 | Source of the row | Shard file |
 |-------------------|------------|
@@ -702,21 +702,21 @@ exist); never touch another source's shard except to correct a row it owns. Beca
 each path has a single writer, `git add <shard>` stages only your row and git merges
 disjoint shard creations without conflict.
 
-**A spec's shard is deleted at the spec's closure ONLY when every row in it is terminal.** Spec closure commit B ("Spec Closure", above) `git rm`s `plan/deferrals/<stem>.md` alongside the spec.
+**A spec's shard MUST NOT be deleted at the spec's closure unless every row in it is terminal.** Spec closure commit B ("Spec Closure", above) `git rm`s `plan/deferrals/<stem>.md` alongside the spec.
 
-**Reading the Status column of the closing spec's OWN shard is a NEW step, and no earlier check covers it.** The grep closure already requires ("Spec Closure" above, "Closure resolves the spec's deferral rows") searches every shard for this spec as a **Destination**. It never reads the closing spec's own shard as a **Source**. Do not assume the existing grep answered this question: it answers a different one.
+**Reading the Status column of the closing spec's OWN shard is a NEW step, and no earlier check covers it.** The grep closure already requires ("Spec Closure" above, "Closure resolves the spec's deferral rows") searches every shard for this spec as a **Destination**. It never reads the closing spec's own shard as a **Source**. MUST NOT assume the existing grep answered this question: it answers a different one.
 
-**A shard that still holds a live row SURVIVES its source spec, and keeps its source-keyed name.** The row's home is the destination spec named in its Destination cell. The shard is only where the row is written down, so deleting the shard deletes a record of live work whose home is somewhere else entirely.
+**A shard that still holds a live row MUST survive its source spec, and keep its source-keyed name.** The row's home is the destination spec named in its Destination cell. The shard is only where the row is written down, so deleting the shard deletes a record of live work whose home is somewhere else entirely.
 
-**Two readings, and the one that governs.** "The shard is deleted at closure" and "a homed row stays live" (Status Vocabulary, below) contradict each other for a shard whose rows are homed at OTHER specs. Measured on 2026-08-03 by `scripts/dev/deferral_orphans.py`: 39 shards were in exactly that state, holding 68 live rows between them. Re-run the script rather than re-deriving the number; two hand-counts of it were wrong before the script existed. Deletion-at-closure governs the all-terminal case ONLY. Where a live row remains, the row wins and the shard stays.
+**Two readings, and the one that governs.** "The shard is deleted at closure" and "a homed row stays live" (Status Vocabulary, below) contradict each other for a shard whose rows are homed at OTHER specs. Measured on 2026-08-03 by `scripts/dev/deferral_orphans.py`: 39 shards were in exactly that state, holding 68 live rows between them. Re-run the script rather than re-deriving the number; two hand-counts of it were wrong before the script existed. Deletion-at-closure governs the all-terminal case ONLY. Where a live row remains, the row wins and the shard MUST stay.
 
-**An orphaned shard is not a defect to sweep.** A shard whose `plan/spec-<stem>.md` is gone while live rows remain is the correct end state of the paragraph above, not leftover mess. Do not bulk-delete orphaned shards to tidy the directory: read the rows first, and delete only a shard in which every row is terminal.
+**An orphaned shard is not a defect to sweep.** A shard whose `plan/spec-<stem>.md` is gone while live rows remain is the correct end state of the paragraph above, not leftover mess. MUST NOT bulk-delete orphaned shards to tidy the directory: read the rows first, and delete only a shard in which every row is terminal.
 
-**`deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`) refuses the removal, so this is not honor-system.** It reads the shard at HEAD and BLOCKS when any row is non-terminal. It has to block rather than warn: every other signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a live-bearing shard LOWERS their counts instead of raising them, and the forbidden action is the one that silences every observer of the rows it destroys (`ai/rules/evidence.md`).
+**`deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`) refuses the removal, so this is not honor-system: a shard MUST NOT be removed while any row is non-terminal.** It reads the shard at HEAD and BLOCKS when any row is non-terminal. It has to block rather than warn: every other signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a live-bearing shard LOWERS their counts instead of raising them, and the forbidden action is the one that silences every observer of the rows it destroys (`ai/rules/evidence.md`).
 
-**An all-terminal orphaned shard is residue, and the actor who deletes it is the closer of the LAST spec that homed one of its rows.** Setting the final row to `done` is what makes the shard residue, so the same commit removes the file. Without a named actor the state never drains: 14 such shards existed on 2026-08-03 because each was left for whoever came next. Nobody is obliged to hunt for others.
+**An all-terminal orphaned shard is residue, and the actor who MUST delete it is the closer of the LAST spec that homed one of its rows.** Setting the final row to `done` is what makes the shard residue, so the same commit removes the file. Without a named actor the state never drains: 14 such shards existed on 2026-08-03 because each was left for whoever came next. Nobody is obliged to hunt for others.
 
-**A live row whose SOURCE spec closed still needs a real Destination, and that is the thing closure must check.** The source spec's disappearance is what makes a prose destination unrecoverable: nothing on disk was ever going to become "a future usability spec", and now nothing will create it either. Six such rows were found and homed on 2026-08-03; they had been live since 2026-07-17 and 2026-07-21, which is why the same-day measurement above reports every row homed.
+**A live row whose SOURCE spec closed still needs a real Destination, and that is the thing closure MUST check.** The source spec's disappearance is what makes a prose destination unrecoverable: nothing on disk was ever going to become "a future usability spec", and now nothing will create it either. Six such rows were found and homed on 2026-08-03; they had been live since 2026-07-17 and 2026-07-21, which is why the same-day measurement above reports every row homed.
 
 ### When to Record
 
@@ -758,7 +758,7 @@ Destination of every row whose Status is NOT terminal. The terminal set is
 | `cancelled` | Terminal. User decided not to do it | no |
 | `resolved` | Terminal. Closed with evidence (a journal row, or the commit that landed the work) | no |
 
-**A homed row stays live.** The status answers "is this work still outstanding",
+**A homed row MUST stay live.** The status answers "is this work still outstanding",
 NOT "does it have a home". Homing is mandatory, so a live row is the NORMAL,
 correct state of a deferral: it has a spec AND the work has not landed yet. It goes
 `done` when the work is implemented, not when it is filed. A live row is not a
@@ -780,9 +780,9 @@ silently (`ai/rules/evidence.md`).
 destination check entirely, so a `done` row whose Destination is prose is not
 flagged. `done` is an assertion the gate trusts. That is tolerable only because
 `done` means the work LANDED, so nobody is routed toward it while work is
-outstanding, and its Destination is often a commit SHA rather than a file. Marking a
-row `done` before the work lands both lies and disables the check, which is why the
-row above stays live.
+outstanding, and its Destination is often a commit SHA rather than a file. A
+row MUST NOT be marked `done` before the work lands: doing so both lies and
+disables the check, which is why the row above stays live.
 
 This table and `DEFERRAL_TERMINAL_STATUSES` must not drift apart. They did once,
 and it cost: the gate tested only `status == "open"` while this rule's own prose
@@ -803,10 +803,10 @@ The gate is one notch wider than this rule on purpose: it accepts any existing
 `plan/**.md`, not only `plan/spec-*.md`. Do not use that slack. A destination is
 a spec.
 
-**`plan/known-failures/` is NOT a destination** (`ai/rules/completion.md`).
+**`plan/known-failures/` MUST NOT be used as a destination** (`ai/rules/completion.md`).
 A shard is the running log of an investigation you are still driving, so pointing
 a deferral at one means "this red is somebody's problem later", which is the
-parking this rule exists to prevent. A red test is fixed. If the fix is genuinely
+parking this rule exists to prevent. A red test MUST be fixed. If the fix is genuinely
 a separable piece of work, home it in a spec like anything else. In particular,
 "fails under load" is a diagnosis and never a destination: the test asserts on
 elapsed time, and that is fixed, not deferred.
@@ -826,7 +826,7 @@ An existing spec is preferred over a new file. Do not create a deferral spec to
 avoid the grep.
 
 **Both routes record a LIVE row.** Filing work in a spec is not finishing it, so the
-row stays `deferred` and keeps naming its home until the work lands. Do not close a
+row stays `deferred` and keeps naming its home until the work lands. MUST NOT close a
 row at step 2 or 3: a `done` row is never destination-checked again, so closing it on
 filing is precisely how the work stops being watched (see "Status Vocabulary (the gate reads this)").
 
@@ -844,7 +844,7 @@ plan/spec-<source>-deferred-<subtask>.md
 | `<subtask>` | Short kebab-case name of the specific deferred work | `ipv6-coverage` |
 | Result | | `plan/spec-bgp-rib-flush-deferred-ipv6-coverage.md` | <!-- doc-links: ignore (illustrative naming example, not a live spec) -->
 
-- One subtask per file. Two deferrals from the same source spec are two files, not one file with two tasks.
+- MUST use one subtask per file. Two deferrals from the same source spec are two files, not one file with two tasks.
 - The name carries the provenance: a reader knows what dropped it and why the file exists without opening it.
 - For ad-hoc deferrals with no source spec, `<source>` is the subsystem (`plan/spec-l2tp-deferred-session-teardown-race.md`). <!-- doc-links: ignore (illustrative naming example, not a live spec) -->
 - **A source spec does not outlive the deferral.** Spec closure `git rm`s the spec ("Spec Closure", above), so `<source>` will usually name a file that no longer exists by the time someone picks the work up. That is correct and intended: the provenance lives in git history, and the deferral spec is the tracker now. But when the source spec is ALREADY closed at the moment you write the deferral spec (homing an old row), name `<source>` for the subsystem instead: a filename pointing at a spec nobody can open reads as a broken reference rather than as provenance. Record the closed source spec in the `## Task` section either way.
@@ -884,6 +884,7 @@ would need to be added.
 
 ### What Is NOT a Deferral
 
+**The following MUST NOT be recorded as a deferral:**
 - Completing work that was never in scope (no record needed)
 - Choosing between two valid approaches (design decision, not deferral)
 - Go `defer` keyword (language construct, excluded from pattern matching)
@@ -898,12 +899,12 @@ A row is closed when the WORK is settled, never when it is merely filed.
 | User decided not to do it | `cancelled` | `user-approved-drop` |
 | Superseded (another row or spec now owns it) | `done` | The row or spec that took it over |
 
-**Filing work in a spec is NOT a close.** Moving work into a spec gives the row its
+**Filing work in a spec MUST NOT be treated as a close.** Moving work into a spec gives the row its
 Destination; the row then stays `deferred` until the work lands. This table's
 predecessor said "moved to another spec -> `done`", which read as "filing closes the
 row" and cost real coverage: 13 rows were closed on filing in one session, hiding
 their work from the gate while none of it had been done. If the work is not in the
-tree, the row is not `done`.
+tree, the row MUST NOT be `done`.
 
 ## Executive Summary Report
 
@@ -958,18 +959,18 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 
 ## Writing Journal Rows
 
-**A journal row is written only when the work produced a lesson. It is a record of knowledge, never an artifact of closing a spec.** Decide this BEFORE you write: a spec that rejected no alternative, discovered no constraint, and hit no trap appends no row. 229 of the 1,285 summaries this journal replaced carried no gotcha and 77 said in words that they carried none, because closure created a file unconditionally.
+**A journal row MUST be written only when the work produced a lesson. It is a record of knowledge, never an artifact of closing a spec.** Decide this BEFORE you write: a spec that rejected no alternative, discovered no constraint, and hit no trap appends no row. 229 of the 1,285 summaries this journal replaced carried no gotcha and 77 said in words that they carried none, because closure created a file unconditionally.
 - **Write one when any of these holds:** a decision was made and something else was rejected; a constraint was found that the code does not state; something failed in a way the next session would repeat; an interface, a gate, or a default changed and the reason is not in the code.
 - **Write none when the change only relocated content:** a move, a file rename, a reformat, or a rename applied everywhere. Same words, different place, nothing to explain.
 - **When there is one, append a row to `plan/journal/<class>.md`** (create the file when the class is new). Include the journal file in the Commit A `--file` list.
-- **When there is none, pass `--lesson-not-needed "<reason>"` on commit A and never `--lesson-required`.**
+- **When there is none, you MUST write nothing and pass no flag.** The commit helper stopped asking for a lesson artifact on 2026-08-10 (owner directive), so an honest no now costs nothing at all.
 - **The file name is the PROBLEM class in kebab-case, never the subsystem.** Recurrence is the row count, so a repeat is countable only when two sessions writing the same failure pick the same file. The corpus this replaced counted nothing because its titles clustered on `plugin` (31), `config` (27) and `ospf` (16). `plan/journal/README.md` holds the format, and the directory listing is the class vocabulary.
 - **Fill the `Spec` cell with the spec stem, or `-` when the work ran outside a spec.** `spec_closure_stem` (`scripts/dev/commit_helper.py`) reads that cell to recognise commit A as a spec closure and hands the stem to `review_gate_problems`, so a row that leaves it empty drops the review gate off the commit that carries the code.
-- **The helper asks the same question of the diff, so an honest no costs one flag.** `lesson_worthy` (`scripts/dev/commit_helper.py`) refuses commit A when the change adds content rather than moving it and neither a row nor a reason is staged. It reads what changed, not whether it is worth knowing, so a hollow row written to satisfy it satisfies nothing.
+- **No gate asks for a lesson, and none MUST be added (owner directive, 2026-08-10).** The commit helper used to refuse a commit that added content and staged neither a row nor a reason. A gate that demands an artifact buys an archive, and it was removed with the flags that answered it. What replaced it is this rule and the judgement it asks for.
 - **A row is useful only if it helps future software development, explains past design, or prevents a past mistake from being repeated (owner directive, 2026-08-03). If it does none of the three, it is not useful and does not get written or kept.** The cells are the test: `Symptom` prevents a repeat when it names the trap in the words a future session would recognise, and `Fix` explains past design when it names what was done rather than that something was done.
 - **Usefulness is a property of the content, not of whether anything cites it.** An uncited row carrying a real constraint is a ROUTING failure, so route it. Only a row that fails the content test AND is uncited is waste.
-- **ROUTE the lesson to where it governs behaviour, and write a row only when it fits nowhere else yet.** A recurring trap belongs in a rule under `ai/rules/`, a design decision in `docs/architecture/`, a subsystem's data flow in `ai/digests/`, a protocol obligation in `rfc/short/`, an abandoned approach in `plan/learned/DESIGN-HISTORY.md`, hook or tooling friction in `plan/learned/HOOK-FRICTION.md`.
-- **`lesson_comment` accepts a route exactly as it accepts a row**, so putting the lesson in its canonical home and passing that path with `--file` satisfies commit A. A destination that is ALSO lesson-worthy does not count on its own: a commit touching only `ai/rules/` cannot satisfy itself, or the gate degrades into never asking.
+- **You MUST ROUTE the lesson to where it governs behaviour, and write a row only when it fits nowhere else yet.** A recurring trap belongs in a rule under `ai/rules/`, a design decision in `docs/architecture/`, a subsystem's data flow in `ai/digests/`, a protocol obligation in `rfc/short/`, an abandoned approach in `plan/learned/DESIGN-HISTORY.md`, hook or tooling friction in `plan/learned/HOOK-FRICTION.md`.
+- **We do not SAVE a lesson, we UPDATE the system with it (owner directive, 2026-08-10).** Routing IS the deliverable, and the row is what a lesson gets when no surface governs it yet. A summary filed beside the commit changes no behaviour and is read by nobody.
 - **Measured 2026-08-03 over 903 summaries: 13 were referenced by a rule or a hook.** The other 890 reached nothing that governs behaviour. A gate that demands a document produces an archive; one that demands a destination produces guidance.
 - **This governs records of COMPLETED WORK, and it says nothing about records of DEFECTS.** A `plan/known-failures/` shard, a `plan/deferrals/` row, and an open red are governed by `ai/rules/completion.md` and `ai/rules/completion.md`, which forbid recording a defect INSTEAD of fixing it and equally forbid making one disappear. Nothing in this section is permission to prune a defect record: the two directions look alike and are opposite. A row nobody needs is noise; a defect record nobody kept is a bug that returns.
 
@@ -1036,15 +1037,15 @@ THEN: [test command with timeout]
 When a handoff must survive beyond the chat (multi-session work, work picked
 up days later), write it to `plan/handover/NN-<slug>.md` using the same template.
 
-- `NN` = highest existing number in `plan/handover/` plus one. Check with `ls plan/handover/` first; never reuse a number (collisions like two `13-*.md` defeat ordering).
-- One handover per file, and only under `plan/handover/`. Do not scatter handover documents elsewhere in `plan/` (the rest of `plan/` is specs, journal classes, deferral shards and known-failure shards).
+- `NN` = highest existing number in `plan/handover/` plus one. Check with `ls plan/handover/` first; MUST NOT reuse a number (collisions like two `13-*.md` defeat ordering).
+- One handover per file, and only under `plan/handover/`. MUST NOT scatter handover documents elsewhere in `plan/` (the rest of `plan/` is specs, journal classes, deferral shards and known-failure shards).
 - The receiving session follows `.claude/rules/session-start.md` "Receiving a Handoff": enumerate every outstanding item before planning.
 - Delete the handover file in the commit that completes its last item.
 
 ### Rules (handoff)
 
 - Rationale bullets map to edits. An edit with no rationale bullet is suspect.
-- Max 5 remaining edits per handoff. Split into phases if more.
+- MUST NOT exceed 5 remaining edits per handoff. Split into phases if more.
 - Each edit self-contained. No "update similarly", spell it out.
 - Line numbers from current file state, not original.
 - If a decision is assumed rather than agreed, mark it explicitly in the rationale so the user can correct it.

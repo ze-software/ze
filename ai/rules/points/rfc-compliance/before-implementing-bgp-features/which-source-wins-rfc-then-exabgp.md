@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Priority:** RFC > ExaBGP API compat > ExaBGP implementation
+**Priority:** the RFC MUST outrank ExaBGP API compat, which MUST outrank the ExaBGP implementation.

@@ -6,43 +6,43 @@
 
 ## Directives
 
-**BLOCKING. ABSOLUTE PROHIBITION. Same level as git safety.**
+**BLOCKING. This rule MUST be treated as an ABSOLUTE PROHIBITION, at the same level as git safety.**
 
-**You may not claim work is done, complete, ready to commit, or ready for review while any in-scope acceptance criterion remains unimplemented.**
+**You MUST NOT claim work is done, complete, ready to commit, or ready for review while any in-scope acceptance criterion remains unimplemented.**
 
-**When a defect blocks a goal the current work exists to achieve, you FIX the defect.** You do not park it, move it to `tmp/`, file it as a deferral, or offer to drop the deliverable.
+**When a defect blocks a goal the current work exists to achieve, you MUST fix the defect.** You MUST NOT park it, move it to `tmp/`, file it as a deferral, or offer to drop the deliverable.
 **This point covers the BLOCKING defect, the next one covers the RELATED defect, and the one after that covers every other defect you find.** A defect that neither blocks the goal nor belongs to the problem in hand is separable: it gets one row in `plan/journal/<class>.md`, the work in hand closes, and nothing else is owed.
 
-**The unit you fix is the PROBLEM, not the files you happened to open (owner directive, 2026-08-10).** Fix the code you are editing AND the code related to the problem that you are not editing, its tests included. A related defect living in a file nobody opened is part of the work, and "I was not in that file" is not a boundary.
+**The unit you fix is the PROBLEM, not the files you happened to open (owner directive, 2026-08-10).** You MUST fix the code you are editing AND the code related to the problem that you are not editing, its tests included. A related defect living in a file nobody opened is part of the work, and "I was not in that file" is not a boundary.
 **Related means it shares the problem, not the diff.** The other call site of the function you corrected, the sibling path that carries the same defect, the test that asserts the behavior you just changed, the fixture that encodes the old shape: each one leaves the problem half-fixed if you leave it, so each one is in scope now.
 **Everything else you notice gets ONE journal row, for later analysis.** A defect or a missing feature that belongs to a different problem is recorded in `plan/journal/<class>.md` and nothing more: no spec, no deferral row, no question, no report paragraph ("A problem you FIND", below). Rows accumulate by class, and a class that collects rows earns a deliberate pass of its own.
 
-**A problem you FIND while working on something else gets a JOURNAL ROW, not a spec (owner directive, 2026-08-10, replacing the 2026-08-08 spec-first route).** Append one row to `plan/journal/<class>.md`, close the work in hand, and stop. No spec, no deferral row, no question to Thomas, no report paragraph. Rows accumulate by problem class, and a class that collects rows is what earns a fix later, in a deliberate pass over the journal rather than by whoever tripped over it.
+**A problem you FIND while working on something else gets a JOURNAL ROW, not a spec (owner directive, 2026-08-10, replacing the 2026-08-08 spec-first route).** You MUST append one row to `plan/journal/<class>.md`, close the work in hand, and stop. No spec, no deferral row, no question to Thomas, no report paragraph. Rows accumulate by problem class, and a class that collects rows is what earns a fix later, in a deliberate pass over the journal rather than by whoever tripped over it.
 **Three finds are FIXED on the spot, and they are the only three.** A defect that stops a test or a gate from passing is fixed now. A test that is wrong about what it asserts is fixed now. Code related to the problem in hand is fixed now, edited or not, tests included ("The unit you fix is the PROBLEM", above). Everything else is one row.
 **Fix it anyway when the fix is small, and still write the row.** A five-line correction needs no spec to license it, and `simplicity.md` governs its shape. Opening a spec to authorise a small fix is the overhead this directive removes.
 **The cut is the goal, unchanged from `rule-precedence.md`: does the goal this work exists to achieve still hold if I leave this?** If it does not hold, the defect BLOCKS you and "Fix a defect that blocks your goal" (above) governs. If it holds, this point governs.
-**Do not characterise the find beyond the row.** Five columns, one line each: `| Date | Spec | Surface | Symptom | Fix |`. Reproducing it, tracing its producer, sizing its blast radius and drafting its options are work nobody commissioned, and they cost the session that found it and every session that reads what it wrote.
+**You MUST NOT characterise the find beyond the row.** Five columns, one line each: `| Date | Spec | Surface | Symptom | Fix |`. Reproducing it, tracing its producer, sizing its blast radius and drafting its options are work nobody commissioned, and they cost the session that found it and every session that reads what it wrote.
 **Before writing a row, grep `plan/journal/` for the same symptom.** Many sessions run this checkout at once and meet the same defect. A second row for a find already recorded adds nothing; a row in a class file that already holds three is the pattern that earns the fix.
 
-**Interoperability and correctness are never "optional" and never a scope-reduction candidate.** A network daemon that another implementation rejects has failed at its only job.
+**Interoperability and correctness MUST NOT be treated as "optional" and MUST NOT be a scope-reduction candidate.** A network daemon that another implementation rejects has failed at its only job.
 
-**Recording a problem is not addressing it. Fix the root cause, always.** Writing a failure down (in `plan/known-failures/`, a journal row, a deferral row, or a report to the user) changes nothing about the product. A record is a step *toward* a fix and never a substitute for one. When you find a red test, a hang, a wrong result, or a silent misbehavior, the deliverable is the FIX.
-**The JOURNAL ROW is the one exception, and only on the route "A problem you FIND" (above) sets out: one row, close the work in hand, stop (owner directive, 2026-08-10).** This point governs the defect you were sent to fix, where a record instead of a fix is the failure. It does not govern the defect you merely walked into, which is not yours to fix and whose row is the whole obligation. Writing a SPEC for a walked-into defect is now banned, and so is asking Thomas whether to implement one.
+**Recording a problem is not addressing it. You MUST fix the root cause, always.** Writing a failure down (in `plan/known-failures/`, a journal row, a deferral row, or a report to the user) changes nothing about the product. A record is a step *toward* a fix and never a substitute for one. When you find a red test, a hang, a wrong result, or a silent misbehavior, the deliverable is the FIX.
+**The JOURNAL ROW is the one exception, and only on the route "A problem you FIND" (above) sets out: one row, close the work in hand, stop (owner directive, 2026-08-10).** This point governs the defect you were sent to fix, where a record instead of a fix is the failure. It does not govern the defect you merely walked into, which is not yours to fix and whose row is the whole obligation. You MUST NOT write a SPEC for a walked-into defect, and you MUST NOT ask Thomas whether to implement one.
 
-**Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first.** Editing to silence the symptom before the root cause is named is the defect, not the fix.
+**Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), you MUST write the Diagnosis first.** Editing to silence the symptom before the root cause is named is the defect, not the fix.
 
-**If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source.** Do not bypass, mask, special-case, weaken a check, adjust a fixture, or route around the problem just to pass a test, demo, gate, or narrow scenario.
+**If a user could experience a problem while trying to achieve a goal, you MUST implement the missing behavior at the source.** You MUST NOT bypass, mask, special-case, weaken a check, adjust a fixture, or route around the problem just to pass a test, demo, gate, or narrow scenario.
 
 **Every exported function, type, or constant created by a spec implementation MUST have at least one caller in the running daemon.** "Library code with tests" is not done. "Tested but not wired" is not done.
 
 **Every new feature MUST be proven to work integrated, not just in isolation.** Every feature needs at least one end-to-end test from its intended usage point.
 
-**Before marking any spec done, complete a line-by-line audit comparing spec to implementation.**
+**Before marking any spec done, you MUST complete a line-by-line audit comparing spec to implementation.**
 
-**Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work.** Finish the task first, then report what was done.
+**You MUST NOT use phrases like `would you like me to`, `want me to`, `shall I`, or `I can` before completing work.** You MUST finish the task first, then report what was done.
 **One ask is mandated rather than banned, and it comes AFTER the work is complete: the one line that names a spec you wrote for a problem you found and asks whether to implement it.** This ban is about the work you were already asked to do. It never reaches work Thomas has not commissioned yet.
 
-**When you catch yourself explaining why a test, a gate, or a completion standard does not apply this time, the answer is always "no."**
+**When you catch yourself explaining why a test, a gate, or a completion standard does not apply this time, you MUST answer "no."**
 
 ## The Problem
 
@@ -102,26 +102,26 @@ If ANY of these is false, you are not done. Say what remains and keep working.
 If you genuinely cannot complete an item (missing infrastructure, blocked by
 another component, would require user decision):
 
-1. **Say explicitly:** "I cannot complete X because Y. The work is NOT done."
-2. **Keep the spec open.** Do not close it. Do not write the closing journal row.
-3. **List what works and what does not** in plain terms, no hedging.
-4. **Ask the user** what they want to do about the incomplete items.
+1. You MUST **say explicitly:** "I cannot complete X because Y. The work is NOT done."
+2. You MUST **keep the spec open.** You MUST NOT close it. You MUST NOT write the closing journal row.
+3. You MUST **list what works and what does not** in plain terms, no hedging.
+4. You MUST **ask the user** what they want to do about the incomplete items.
 
 Never bury incomplete work in a deferral table and then present the task as finished.
 The user reads "ready to commit" as "everything works." Honor that reading.
 
 ## Scope Reduction Requires Explicit User Approval
 
-**ABSOLUTE PROHIBITION. No self-authorized scope reduction. No exceptions.**
+**ABSOLUTE PROHIBITION. You MUST NOT reduce scope without explicit user authorization. No exceptions.**
 
 If during implementation you discover that an acceptance criterion or deliverable
 is harder than expected:
 
-1. **Stop implementing.**
-2. Tell the user: "AC #N is harder than expected because X. Do you want me to
+1. **You MUST stop implementing.**
+2. You MUST tell the user: "AC #N is harder than expected because X. Do you want me to
    continue with it, or drop it from this spec?"
-3. **Wait for an answer.** Do not proceed without it.
-4. Only if the user explicitly says to drop it may you proceed without it.
+3. **You MUST wait for an answer.** You MUST NOT proceed without it.
+4. Only if the user explicitly says to drop it MAY you proceed without it.
 
 You may NOT unilaterally decide an AC is "out of scope," "a follow-up," or
 "better handled separately." That is scope reduction dressed as planning.
@@ -132,9 +132,10 @@ Writing "documented as known limitation" or "deferred to integration tests"
 does NOT resolve a missing deliverable. It is scope reduction without permission.
 The same applies to:
 
+**None of these excuses MUST be accepted as resolving a deliverable:**
 - "Requires infrastructure not available" -- attempt it first; ask only if genuinely blocked
 - "Noted in the spec as a deviation" -- a deviation entry is tracking, not resolution
-- "Unit tests cover this; functional tests can come later" -- both are required per the spec
+- "Unit tests cover this; functional tests can come later" -- both are REQUIRED per the spec
 - "Will be handled in QEMU/integration/follow-up" -- that is deferral, not completion
 
 If the deliverable is in the spec, implement it. If you cannot, stop and ask.
@@ -148,7 +149,7 @@ with items remaining, that is the signal to keep working, not to ship.
 
 ## Recording is not fixing (owner directive, 2026-07-23)
 
-**"ALWAYS" is literal.** Encountering a defect while doing something else is not a reason to catalogue it and move on. It is the reason you are now the one who SPECS it, closes the work in hand, and asks Thomas whether that spec runs. Only the defect that BLOCKS your goal is the one you fix on the spot.
+**"ALWAYS" is literal.** Encountering a defect while doing something else is not a reason to catalogue it and move on. You MUST spec it, close the work in hand, and ask Thomas whether that spec runs. Only the defect that BLOCKS your goal MUST be fixed on the spot.
 
 | What you are about to do | Do this instead |
 |---|---|
@@ -158,13 +159,13 @@ with items remaining, that is the signal to keep working, not to ship.
 | Note that a tool is broken and work around it | Fix the tool. You just proved it does not work |
 | Record an inert config surface, a dead registration, or an unwired symbol | Wire it, delete it, or reject the config: pick one and do it |
 
-**The one narrow exception:** a **non-deterministic** failure whose MECHANISM you could not determine may get a `plan/known-failures/` shard, and only as the running record of an investigation you are still driving. It must carry the reproduction command, the evidence gathered, and the next step. A shard is a live investigation, never a resting place, and never a substitute for a fix on anything that reproduces.
+**The one narrow exception:** a **non-deterministic** failure whose MECHANISM you could not determine MAY get a `plan/known-failures/` shard, and only as the running record of an investigation you are still driving. It MUST carry the reproduction command, the evidence gathered, and the next step. A shard is a live investigation, never a resting place, and never a substitute for a fix on anything that reproduces.
 
-**A structural, deterministic, or reproducible failure has no recording path at all.** Fix it.
+**A structural, deterministic, or reproducible failure has no recording path at all.** You MUST fix it.
 
 **A hypothesis in a shard is not a finding.** If you record one, the next agent will
-read it as fact. Before acting on an existing shard's stated cause, verify it against
-source (`ai/rules/evidence.md`), and when it turns out to be wrong, say so in
+read it as fact. Before acting on an existing shard's stated cause, you MUST verify it against
+source (`ai/rules/evidence.md`), and when it turns out to be wrong, you MUST say so in
 the shard. On 2026-07-23 a shard's "the plugin connection closes before verify is
 dispatched" hypothesis was disproved by the first real stress run: the signature
 appeared nowhere in the capture, and the true cause was a test-harness race
@@ -181,6 +182,8 @@ row) was blocked by a bug. Instead of fixing the bug, the agent:
 - moved the unfinished work and the bug report into `tmp/` and called the rest done, or
 - labelled the bug "pre-existing" and treated that as permission to leave it.
 
+You MUST NOT do any of these.
+
 Every one of these is banned. The bug being pre-existing does not make it
 someone else's problem: **the moment your work depends on that code path
 working, the bug is in scope.** You found it because you are the first person
@@ -191,7 +194,7 @@ to exercise the path end to end. That is exactly the person who fixes it.
 `ai/rules/planning.md` exists for genuinely separable, out-of-scope
 future work. It is NOT a hatch for a blocker. Decide with one question:
 
-**"Does the goal this work exists to achieve still hold if I leave this?"**
+**You MUST ask: "Does the goal this work exists to achieve still hold if I leave this?"**
 
 | Situation | Verdict |
 |-----------|---------|
@@ -202,7 +205,7 @@ If you are unsure which side you are on, you are on the "fix it" side. The cost
 of over-fixing is some extra work; the cost of parking a real blocker is
 shipping something that does not do what it claims.
 
-**A defect you own is not a defect you fix. When it does not block the goal, the order is: spec it, close the work in hand, ask Thomas whether that spec runs, stop.** "ALWAYS" governs WHETHER it gets fixed, never who fixes it or when. Fixing it yourself is how finished work fails to land: the closing commit loses its single focus, the review loses its scope, and the gates that were green run again. Write the spec, home it per `planning.md`, close, then put the question to Thomas (`ai/rules/rule-precedence.md`).
+**A defect you own is not a defect you fix. When it does not block the goal, you MUST: spec it, close the work in hand, ask Thomas whether that spec runs, then stop.** "ALWAYS" governs WHETHER it gets fixed, never who fixes it or when. Fixing it yourself is how finished work fails to land: the closing commit loses its single focus, the review loses its scope, and the gates that were green run again. You MUST write the spec, home it per `planning.md`, close, then put the question to Thomas (`ai/rules/rule-precedence.md`).
 
 ## Banned moves
 
@@ -220,12 +223,12 @@ Being blocked is allowed. Hiding it is not. If a fix is beyond the session
 (needs hardware you lack, a decision only the owner can make, or is a deep
 redesign), then:
 
-1. State plainly that the goal is NOT met and why, with the evidence.
-2. Keep the spec OPEN. Do not close it, do not claim the deliverable.
-3. Do the fix if it is at all within reach before asking. Reach for the fix
+1. You MUST state plainly that the goal is NOT met and why, with the evidence.
+2. You MUST keep the spec OPEN. You MUST NOT close it, and you MUST NOT claim the deliverable.
+3. You MUST do the fix if it is at all within reach before asking. Reach for the fix
    first; ask second.
-4. If you must ask, ask "which way do you want this fixed", never "may I skip
-   it". Scope reduction is the user's call to volunteer, never yours to propose.
+4. If you MUST ask, ask `which way do you want this fixed`, never `may I skip
+   it`. Scope reduction is the user's call to volunteer, never yours to propose.
 
 ## Verification of the goal
 
@@ -253,7 +256,7 @@ reply to the user:
 | "the contended-run detector did not trip" | that detector labels runs. It never absolves a test |
 | "not reproducible, logged as non-deterministic" | you do not need a repro to fix a timing assumption. Read the test |
 
-**There is no non-deterministic hatch for a load-sensitive test.** The exception in "Recording is not fixing" covers a failure whose MECHANISM you could not determine. It does not cover one you already explained by naming the host's load: that explanation is the diagnosis, and the fix follows from it directly.
+**There is no non-deterministic hatch for a load-sensitive test.** The exception in "Recording is not fixing" covers a failure whose MECHANISM you could not determine. It does not cover one you already explained by naming the host's load: that explanation is the diagnosis, and you MUST fix it directly rather than record it.
 
 ## Making a test load-proof
 
@@ -341,19 +344,19 @@ Rationale: `ai/rationale/anti-rationalization.md`
 | "Timing-dependent" | Race condition. Fix it |
 | "Pre-existing issue" | It is yours: "pre-existing" says when it started, not whose it is, and you are the entry point that reached it. Blocks your goal, fix it now; does not, spec it, close, ask |
 
-**Every test failure gets FIXED, by you when it blocks your goal, and by the spec-close-ask route when it does not, which is where the decision to fix it is Thomas's. BLOCKING either way.** Logging is not an alternative outcome (owner directive 2026-07-23; see "Recording is not fixing" above). A `plan/known-failures/` shard is the running record of an investigation you are still driving, never a place to leave a defect.
+**Every test failure MUST be fixed, by you when it blocks your goal, and by the spec-close-ask route when it does not, which is where the decision to fix it is Thomas's. BLOCKING either way.** Logging is not an alternative outcome (owner directive 2026-07-23; see "Recording is not fixing" above). A `plan/known-failures/` shard is the running record of an investigation you are still driving, never a place to leave a defect.
 
-1. **Spec it, close the work in hand, then ask ("A problem you FIND while working on something else gets a SPEC", above). Do not block current work on a failure you did not cause, and do not fix it in this session either: the fix runs when Thomas answers, as its own spec and its own commit, never mixed with the feature work you were closing.**
-2. **A shard is allowed for ONE case only: a failure whose MECHANISM you could not
+1. **You MUST spec it, close the work in hand, then ask ("A problem you FIND while working on something else gets a SPEC", above). You MUST NOT block current work on a failure you did not cause, and you MUST NOT fix it in this session either: the fix runs when Thomas answers, as its own spec and its own commit, never mixed with the feature work you were closing.**
+2. **A shard MAY be used for ONE case only: a failure whose MECHANISM you could not
    determine.** Deterministic reds, structural gates, anything with a reproduction
-   command, and anything host load explains are fixed, never sharded. When the exception
-   does apply, add
+   command, and anything host load explains MUST be fixed, never sharded. When the exception
+   does apply, you MUST add
    `plan/known-failures/<make-target>-<test-name>.md` with: failure output, the
-   reproduction attempt and its result, evidence gathered, and the next step. Label a
+   reproduction attempt and its result, evidence gathered, and the next step. You MUST label a
    root cause you have not verified against source a HYPOTHESIS, so the next agent does
    not inherit it as fact.
-3. **Mechanical check before session end:** every failure your session encountered is fixed, or
-   carries a spec that was put to Thomas, or is a non-reproducible one whose shard names the next
+3. **Mechanical check before session end:** every failure your session encountered MUST be fixed, or
+   MUST carry a spec that was put to Thomas, or MUST be a non-reproducible one whose shard names the next
    step. A failure that is none of the three is a violation regardless of what was written down.
 
 | Banned | Why |
@@ -394,8 +397,9 @@ Assume your implementation report is optimistic. Re-read spec, re-run verificati
 
 ### The Diagnosis (write all five before any edit)
 
+**A diagnosis MUST state all five:**
 1. **Symptom** -- the exact failure, verbatim (error text, rejected input, failing assertion).
-2. **Root cause** -- traced to the exact function where behavior diverges from intent, named as the file plus the symbol. Read the path; do not guess. If you cannot name it, you have not diagnosed it yet.
+2. **Root cause** -- traced to the exact function where behavior diverges from intent, named as the file plus the symbol. Read the path; you MUST NOT guess. If you cannot name it, you have not diagnosed it yet.
 3. **Owning layer** -- which layer/component owns the correct fix.
 4. **Two candidate fixes, labeled** -- at least one `[workaround]` and one `[source]`. Name what each changes and what each leaves broken for the next caller.
 5. **Why not the workaround** -- one sentence on why the local edit is wrong.
@@ -406,6 +410,7 @@ Only after the five are written do you implement the `[source]` fix.
 
 Ask the three-way question, not "how do I get past this":
 
+**You MUST determine which of the three applies:**
 - Is the **check** wrong? (the validation logic is incorrect)
 - Is the **input** wrong? (you are doing the wrong thing)
 - Is the check's **data/config** incomplete? (the check is right but its allowed-set / table / registry is missing an entry)
@@ -426,8 +431,9 @@ A workaround is evidence that the feature, integration, validator, or test cover
 
 When tempted to work around a problem:
 
-1. Name the user goal that should work.
-2. Trace the code path that should provide it.
+**You MUST follow these steps to replace a workaround:**
+1. Name the user goal the missing behavior is meant to satisfy.
+2. Trace the code path meant to provide it.
 3. Implement the missing behavior at the owning layer.
 4. Update affected callers and tests.
 5. Verify the user-visible goal directly.
@@ -464,6 +470,8 @@ Wiring is not a verification step at the end. It is the first implementation ste
 3. **Review phase:** `/ze-review` step 1 checks wiring before any other analysis.
 4. **Completion phase:** the mechanical check below catches anything that slipped through.
 
+Each phase MUST perform the check it owns.
+
 If you find yourself checking wiring for the first time at completion, three earlier gates failed.
 
 ### Mechanical Check (MANDATORY before claiming done)
@@ -471,6 +479,7 @@ If you find yourself checking wiring for the first time at completion, three ear
 `make ze-verify` runs `make ze-verify-wiring-docs`. That changed-file
 gate is blocking and checks:
 
+**The wiring gate MUST verify that:**
 - new exported Go symbols under `internal/` or `cmd/` have a non-test
   production reference in `internal/` or `cmd/`;
 - command declaration changes run `make ze-validate-commands`;
@@ -528,7 +537,7 @@ Rationale: `ai/rationale/integration-completeness.md`
 | Plugin capability | Engine dispatches to plugin correctly |
 | Struct field | Field is read and affects a decision |
 
-**Self-check:** "If I deleted all new code except tests, would any test fail because it tried to USE the feature through the intended path?" No, isolation only, rule violated.
+**Self-check:** "If I deleted all new code except tests, would any test fail because it tried to USE the feature through the intended path?" A "No" answer MUST be treated as isolation only, rule violated.
 
 ### Functional `.ci` Test (BLOCKING)
 
@@ -543,10 +552,10 @@ Rationale: `ai/rationale/integration-completeness.md`
 | Wire encoding | `test/encode/` | Config with route, verify hex output |
 | Wire decoding | `test/decode/` | Hex input, verify JSON output |
 
-**A unit test is NOT a substitute for a `.ci` test.** Unit tests validate logic in isolation. `.ci` tests validate the feature is wired, reachable, and usable. Both are required.
+**A unit test MUST NOT substitute for a `.ci` test.** Unit tests validate logic in isolation. `.ci` tests validate the feature is wired, reachable, and usable. Both are REQUIRED.
 
-**Deferrable:** advanced behavior (deterministic scheduler, fault injection, property testing, benchmarks).
-**NOT deferrable:** one `.ci` test proving the feature works from the user's entry point.
+**Deferrable (MAY be deferred):** advanced behavior (deterministic scheduler, fault injection, property testing, benchmarks).
+**NOT deferrable (MUST NOT be deferred):** one `.ci` test proving the feature works from the user's entry point.
 
 ### Wiring Tests (BLOCKING, NEVER deferrable)
 
@@ -560,7 +569,7 @@ A wiring test proves the feature is reachable from its intended entry point (con
 | "make ze-verify passes" | Passing tests that don't exercise the entry point prove nothing. |
 | "Go test exercises the handler" | A Go test with mocked entry points is not a `.ci` test. |
 
-**If the wiring test cannot be written, the feature is not done: it is blocked.**
+**If the wiring test cannot be written, the feature MUST NOT be considered done: it is blocked.**
 
 Every spec MUST have a `## Wiring Test` table (see `plan/TEMPLATE.md`). Every row for a user-facing feature must name a `.ci` test file.
 
@@ -575,7 +584,7 @@ Before modifying any handler, dispatcher, or protocol step: **grep for ALL imple
 | 3 | For each consumer of the feature: trace which implementation it actually calls |
 | 4 | Modify (and test) the implementation the consumer uses, not just any implementation |
 
-**One implementation found is not proof there's only one.** Finding *a* handler is not the same as finding *the* handler the feature's consumer calls.
+**One implementation found MUST NOT be treated as proof there's only one.** Finding *a* handler is not the same as finding *the* handler the feature's consumer calls.
 
 ## Implementation Audit
 
@@ -587,18 +596,20 @@ Before: writing the journal row, claiming "done", asking to commit.
 
 ### Process
 
+**You MUST:**
 1. Extract all requirements from spec: task items, AC-N assertions, TDD tests, files listed
 2. Verify each with status: ✅ Done (file + symbol), ⚠️ Partial, ❌ Skipped, 🔄 Changed
 3. Fill audit table in spec (template in `plan/TEMPLATE.md`)
 
 ### Approval Required
 
-- ⚠️ Partial: document what's missing, ASK user
-- ❌ Skipped: explain why, ASK user
-- 🔄 Changed: document deviation (no approval needed if improvement)
+- ⚠️ Partial: you MUST document what's missing, and you MUST ask the user
+- ❌ Skipped: you MUST explain why, and you MUST ask the user
+- 🔄 Changed: you MUST document deviation (no approval needed if improvement)
 
 ### Cannot Mark Done Until
 
+**Every item MUST be checked before the audit is complete:**
 - [ ] Every Task requirement has a status
 - [ ] Every AC-N has status + "Demonstrated By" evidence
 - [ ] Every TDD test has a status
@@ -624,7 +635,7 @@ For each AC-N, quote the expected behavior from the AC table, then name the test
 
 ### Pre-Commit Verification (BLOCKING)
 
-**Do NOT trust the audit.** After filling the audit, independently re-verify every item.
+**You MUST NOT trust the audit.** After filling the audit, you MUST independently re-verify every item.
 This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended at
 `/ze-close` step 1). It requires FRESH evidence:
 
@@ -636,17 +647,18 @@ This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended
 | Assumptions Resolved | Every A-N | `confirmed` or `broken` with evidence; `unvalidated` is not a final status |
 | Documentation Verified | Every Yes/No in the Documentation checklist | The edited claim checked against source, or the grep proving no update was needed |
 
-**EVERY table needs at least one evidence row.** `pre_commit_verification_gaps`
+**EVERY table MUST have at least one evidence row.** `pre_commit_verification_gaps`
 (`scripts/dev/commit_helper.py`) checks them one at a time and names the empty
 ones on the closure commit. Each table is a separate obligation: a row in
 `Files Exist` is not evidence for `AC Verified`. The old gate accepted a single
 row anywhere in the section, and ~73% of `AC Verified` and ~75% of
 `Wiring Verified` tables reached closure byte-identical to the template.
 
-**NOT acceptable:** "Already checked in audit", "should work", empty cells.
+**The following MUST NOT be used as evidence:** "Already checked in audit", `should work`, empty cells.
 
 ### Red Flags
 
+**Any of these MUST be treated as a sign the implementation is incomplete:**
 - AC-N with no test or evidence
 - Can't find where feature was implemented
 - TDD test from plan doesn't exist
@@ -668,7 +680,7 @@ confirmation per the git safety rules.
 
 Standing exceptions, where asking is MANDATORY and this rule does not apply:
 
-- **RFC compliance.** When full RFC compliance and full testing of that compliance is reachable, IMPLEMENT it and prove it: that is not a question for Thomas (`ai/rules/rfc-compliance.md`, "Implement Full Compliance. Ask Thomas Only Before Doing LESS"). Asking is mandatory only when you are about to choose something NARROWER, and then the question is "which way do I fix it". Doing more never needs permission.
+- **RFC compliance.** When full RFC compliance and full testing of that compliance is reachable, you MUST implement it and prove it: that is not a question for Thomas (`ai/rules/rfc-compliance.md`, "Implement Full Compliance. Ask Thomas Only Before Doing LESS"). You MUST ask only when you are about to choose something NARROWER, and then the question is "which way do I fix it". Doing more never needs permission.
 - **Deleting or overwriting user-visible or uncommitted work** (`ai/rules/never-destroy-work.md`).
 - **Reducing the scope of a spec or dropping an acceptance criterion** (see "Scope Reduction Requires Explicit User Approval" above).
 
@@ -679,9 +691,9 @@ This rule is hook-enforced. Breaking it costs a blocked Stop, not a note.
 - `.claude/hooks/block-premature-stop.sh` scans the last assistant message against a phrase list and exits 2 on the first match. Exit 2 refuses the session an end and returns the turn to the model. The hook is live and first in the `Stop` array since 2026-07-31, after it sat on no event from 2026-06-29 (`41e5fa44f`).
 - Two lists, and only one of them is unconditional. `PHRASES` covers ownership-dodging, premature handoff and permission-seeking, and it always blocks.
 - `COMPLETION_PHRASES` covers `what next`, `what would you like` and `what do you want to do`. These join the scan ONLY when work remains, which the hook reads as a claimed spec still `in-progress` (the `OPEN_WORK` flag). Asking what to do next is not the same failure as asking permission to do what was already requested. `.claude/rules/session-start.md` REQUIRES the question once the original task is done. The phrases were split rather than deleted, so the same words still block while a spec is open.
-- **The retry bound is scoped to this scan, and it disables nothing else.** When the harness sets `stop_hook_active`, the flag `STOP_RETRY` skips the scan loop alone. That bounds a refusal loop whose only escape is rewording. The spec-closure gate above it still blocks on a retry, because that gate has two escapes of its own: run commit B, or write `tmp/session/.closure-ack-<stem>`. Do not read a blocked stop as a licence to stop next turn. The hook also exits 0 on input it cannot parse.
-- A banned phrase inside backticks or a closed fence is treated as QUOTED, not used, and does not block. Write about the phrases freely. Four guards keep that exemption from becoming a bypass. An unclosed fence is not a code block. A fence closes only on a run at least as long as the opener. The hook scans an all-markup message raw. Inline spans are stripped only on a line whose backticks balance, so one stray backtick cannot swallow a real request.
-- Neither list is exhaustive, so a green Stop is not proof you followed this rule. Finish the work, then report.
+- **The retry bound is scoped to this scan, and it disables nothing else.** When the harness sets `stop_hook_active`, the flag `STOP_RETRY` skips the scan loop alone. That bounds a refusal loop whose only escape is rewording. The spec-closure gate above it still blocks on a retry, because that gate has two escapes of its own: run commit B, or write `tmp/session/.closure-ack-<stem>`. You MUST NOT read a blocked stop as a licence to stop next turn. The hook also exits 0 on input it cannot parse.
+- A banned phrase inside backticks or a closed fence is treated as QUOTED, not used, and does not block. You MAY write about the phrases freely. Four guards keep that exemption from becoming a bypass. An unclosed fence is not a code block. A fence closes only on a run at least as long as the opener. The hook scans an all-markup message raw. Inline spans are stripped only on a line whose backticks balance, so one stray backtick cannot swallow a real request.
+- Neither list is exhaustive, so a green Stop is not proof you followed this rule. You MUST finish the work, then report.
 - Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation`. Full hook map: `ai/rules/repo-maintenance.md`.
 
 ## Rationale

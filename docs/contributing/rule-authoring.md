@@ -62,7 +62,7 @@ cannot derive either one and an empty line would claim the point was examined.
 | Field | Values | Notes |
 |-------|--------|-------|
 | `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `make ze-rules-gate-map` leaves them out of its counts |
-| `level` | `MUST`, `MUST NOT`, `SHOULD`, `MAY`, or empty | The strongest RFC 2119 level the body states. About 95% of the corpus states none |
+| `level` | `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY` | The strongest RFC 2119 level the body states. Required on a `directive`, empty on every other kind. See "Every directive states a level" |
 | `stage` | empty | Reserved. It will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | Where the record of WHY this instruction exists lives: a `plan/learned/NNNN-*.md` summary, or an `ai/rationale/*.md` file |
 | `excepted-by` | one or more point ids, comma-separated, or the line absent | The point or points that carve an exception out of this one |
@@ -107,6 +107,47 @@ line VERBATIM. A point line is that section's slug, indented by two spaces.
 The heading lives here because a directory name cannot carry capitalisation,
 punctuation or the marker, and the rendered rule must come back byte for byte.
 A body line matching neither shape is a hard error, never a skipped line.
+
+## Every directive states a level
+
+A rule exists to settle what an agent owes. An instruction whose weight a reader
+infers from tone is an instruction two readers weigh differently, so every point
+whose `kind` is `directive` states its obligation in RFC 2119 language:
+
+| You mean | Write | `level:` |
+|----------|-------|----------|
+| An obligation, or a ban | MUST, MUST NOT | `MUST`, `MUST NOT` |
+| A strong default a reader can depart from with a stated reason | SHOULD, SHOULD NOT | `SHOULD`, `SHOULD NOT` |
+| A permission | MAY | `MAY` |
+
+SHALL, SHALL NOT, REQUIRED, RECOMMENDED, NOT RECOMMENDED and OPTIONAL are
+accepted in the body and collapse onto the level they name, so `level:` carries
+one spelling per level. When a body states several, `level:` names the strongest
+TIER: MAY, then SHOULD with SHOULD NOT, then MUST with MUST NOT. RFC 2119 does
+not rank MUST against MUST NOT, so a point stating both declares whichever its
+central clause carries.
+
+The lowercase spellings `must`, `shall`, `should` and `may` are refused in a
+directive body. They read as the obligation word and carry none of its force,
+and `ai/rules/writing.md` bans the hedging spelling outright. Capitalise the
+keyword, or rewrite the sentence so it carries no modal at all.
+
+Text inside a code span or a fenced block is quoted, never stated, so neither
+gate reads it. A shell snippet or a reproduced error message keeps its own
+spelling, and a rule that NAMES a banned word as an example puts it in
+backticks.
+
+A block that states no obligation is `kind: note` or `kind: table`, never
+`kind: directive`. The gate is scoped to directives on purpose: a two-column
+lookup gains a word and no obligation from being made to say MUST.
+
+Two gates enforce this. `.claude/hooks/pretool-writeedit.py`
+(`c_rule_point_rfc_language`) refuses the write, and `make ze-rules-lint`
+refuses the finished tree. A Write carries the whole point, so a missing keyword
+is refused there; an Edit carries a fragment, so only the lowercase modal it
+introduces is decidable at write time. Run the pass alone with:
+
+    python3 scripts/dev/rules_lint.py --points
 
 ## What the renderer refuses
 

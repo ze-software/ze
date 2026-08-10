@@ -1,8 +1,8 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-1. **No `fmt` on hot paths.** Use append-based primitives instead.
-2. **No `.String()` on hot paths.** Use `AppendTo` into a stack buffer instead.
-3. **Store typed values, not strings.** Compare `netip.Addr` directly, not string representations.
+1. **`fmt` MUST NOT be used on hot paths.** Append-based primitives MUST be used instead.
+2. **`.String()` MUST NOT be used on hot paths.** `AppendTo` MUST be used into a stack buffer instead.
+3. **Typed values MUST be stored, not strings.** `netip.Addr` MUST be compared directly, not string representations.

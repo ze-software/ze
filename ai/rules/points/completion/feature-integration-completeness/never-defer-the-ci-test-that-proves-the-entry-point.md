@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Deferrable:** advanced behavior (deterministic scheduler, fault injection, property testing, benchmarks).
-**NOT deferrable:** one `.ci` test proving the feature works from the user's entry point.
+**Deferrable (MAY be deferred):** advanced behavior (deterministic scheduler, fault injection, property testing, benchmarks).
+**NOT deferrable (MUST NOT be deferred):** one `.ci` test proving the feature works from the user's entry point.

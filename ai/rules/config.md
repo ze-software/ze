@@ -7,12 +7,12 @@
 ## Directives
 
 - **Config content MUST be manipulated through one of two methods only.** See Config Manipulation for the two methods and the forbidden list.
-- **Every tunable setting must live at the right level.** Misplacement erodes operator trust: invisible knobs surprise, config-tree clutter confuses.
-- **Names cross four layers (YANG, env var, Go struct, CLI).** Each layer has its own convention, but they must be derivable from each other. An operator reading `show configuration` should recognize the env var from the docs, and vice versa.
-- **One concept, one spelling.** Where a shape already exists in the shared modules (`internal/component/config/yang/modules/ze-types.yang`, prefix `zt`; `ze-extensions.yang`, prefix `ze`), reuse it. Do not re-express it locally.
+- **Every tunable setting MUST live at the right level.** Misplacement erodes operator trust: invisible knobs surprise, config-tree clutter confuses.
+- **Names cross four layers (YANG, env var, Go struct, CLI).** Each layer has its own convention, but they MUST be derivable from each other. An operator reading `show configuration` SHOULD recognize the env var from the docs, and vice versa.
+- **One concept, one spelling.** Where a shape already exists in the shared modules (`internal/component/config/yang/modules/ze-types.yang`, prefix `zt`; `ze-extensions.yang`, prefix `ze`), it MUST be reused. It MUST NOT be re-expressed locally.
 - **Every coercion of a delivered config value MUST accept the string form.** See Config String Coercion.
-- No version numbers in config. Design for machine-transformable migration.
-- Fail on unknown keys at any level. No silent ignore. Suggest closest valid key.
+- Config MUST NOT contain version numbers. Migration MUST be designed to be machine-transformable.
+- Unknown keys MUST fail at any level. Silent ignore MUST NOT happen. The closest valid key MUST be suggested.
 - Every YANG `environment/<name>` leaf MUST have a matching `ze.<name>.<leaf>` env var registered via `env.MustRegister()`. Env vars are part of the config interface, not follow-up work.
 
 Structural template: `ai/patterns/config-option.md`
@@ -31,12 +31,13 @@ Rationale: `ai/rationale/config-design.md`
 | Is it needed before config loads (bootstrap)? | Env var only | YANG config |
 | Is it a safety cap that should never be tuned in production? | Env var only | YANG config |
 
-**Default answer: YANG config.** Env-only is the exception, not the default. When uncertain, the setting goes in YANG. Promoting later is a breaking workflow change for operators who already use the env var.
+**Default answer: YANG config.** Env-only is the exception, not the default. When uncertain, the setting SHOULD go in YANG. Promoting later is a breaking workflow change for operators who already use the env var.
 
 ### YANG Config (operator-facing)
 
 Settings that belong in the config tree:
 
+**Settings in these categories SHOULD live in YANG config:**
 - Queue depths, buffer sizes, batch limits, pool budgets
 - Timers that affect convergence or session behavior
 - Feature toggles that change observable routing behavior
@@ -49,6 +50,7 @@ Properties: visible in `show configuration`, validated by YANG constraints, part
 
 Settings that stay as env vars:
 
+**Settings in these categories SHOULD stay env-only:**
 - Emergency escape hatches (safety valves, deadline overrides)
 - Debug instrumentation (artificial delays, verbose tracing)
 - Bootstrap settings needed before config is parsed
@@ -61,16 +63,17 @@ Properties: invisible to operators unless they read the source, no validation, n
 
 When a setting is promoted from env-only to YANG config, the env var remains as an override. Precedence (highest wins):
 
-1. Env var (emergency override, always wins)
+1. Env var (emergency override; MUST take precedence)
 2. YANG config value
 3. YANG default (from schema)
 
-**The YANG leaf description MUST document that an env var override exists and name it.** Operators should not be surprised that their config value is being overridden.
+**The YANG leaf description MUST document that an env var override exists and name it.** Operators SHOULD NOT be surprised that their config value is being overridden.
 
 ### Promotion Signals
 
 An env var should be promoted to YANG config when any of these are true:
 
+**These signals indicate an env var SHOULD become YANG config:**
 - It appears in runbooks or deployment documentation
 - Multiple operators have asked about it or been told to set it
 - It controls behavior visible in `show` commands or logs
@@ -102,7 +105,7 @@ Before adding any tunable setting:
 | No `ze-` prefix (implicit in the tree) | `cache-ttl` | `ze-cache-ttl` |
 | Boolean: positive assertion | `update-groups` | `no-update-groups`, `disable-update-groups` |
 
-**No abbreviations in YANG.** Operators read YANG leaves in CLI completion and `show configuration`. `fwd` means nothing to someone who did not write the code. Spell it out: `forward`, `buffer`, `channel`, `maximum`.
+**YANG leaf names MUST NOT use abbreviations.** Operators read YANG leaves in CLI completion and `show configuration`. `fwd` means nothing to someone who did not write the code. Leaf names MUST be spelled out in full: `forward`, `buffer`, `channel`, `maximum`.
 
 Exception: industry-standard abbreviations that are clearer than their expansion: `ttl`, `mtu`, `tcp`, `bgp`, `asn`, `med`, `ebgp`, `ibgp`.
 
@@ -134,7 +137,7 @@ The env var dotted path should mirror the YANG tree path from the component root
 | `bgp / session / openwait` | `ze.bgp.session.openwait` |
 | `hub / server / idle-timeout` | `ze.hub.server.idle-timeout` |
 
-**When the YANG tree changes (leaf moves to a different container), the env var path changes too. The old path becomes an alias.**
+**When the YANG tree changes (leaf moves to a different container), the env var path MUST change too. The old path MUST become an alias.**
 
 ### Go Struct Fields
 
@@ -172,11 +175,11 @@ The env var dotted path should mirror the YANG tree path from the component root
 | `grouping` + `uses` | Shared structure within or across components |
 | `augment` | Only when a plugin extends another component's YANG |
 
-**Augment is for cross-component plugin extensions only.** Same-component shared structure uses grouping. If you are writing an augment and both the source and target are in the same component, use a grouping instead.
+**Augment MUST be used only for cross-component plugin extensions.** Same-component shared structure MUST use grouping. If you are writing an augment and both the source and target are in the same component, a grouping MUST be used instead.
 
 ### Listeners
 
-**All network listener endpoints use the `zt:listener` grouping (`ip` + `port` from ze-types.yang) and the `ze:listener` extension (ze-extensions.yang) for port conflict detection.**
+**All network listener endpoints MUST use the `zt:listener` grouping (`ip` + `port` from ze-types.yang) and the `ze:listener` extension (ze-extensions.yang) for port conflict detection.**
 
 | Pattern | When |
 |---------|------|
@@ -184,7 +187,7 @@ The env var dotted path should mirror the YANG tree path from the component root
 | `list` + `ze:listener` + `uses zt:listener` | Named multi-instance listeners (plugin hub server) |
 | `container` + `ze:listener` + manual ip/port | When ip type differs from standard (BGP peer local: union with auto enum) |
 
-**Use `refine` to set per-service defaults for ip and port.** The `ip` leaf is always `zt:ip-address` (numeric, not hostname) because listeners bind to local interfaces.
+**`refine` MUST be used to set per-service defaults for ip and port.** The `ip` leaf MUST be `zt:ip-address` (numeric, not hostname) because listeners bind to local interfaces.
 
 ## YANG Module Structure
 
@@ -199,14 +202,14 @@ The env var dotted path should mirror the YANG tree path from the component root
 | `description` | module-level `description` required | omitted |
 | `organization` / `contact` | omit (not a project convention; present in only one legacy batch) | adding `organization` to new modules |
 
-- `<component>` may contain hyphens for a multi-word name (`ddos-detect`, `firewall-irr`). The `:conf`/`:cmd`/`:api` kind is never fused into it with a hyphen and is never dropped. A plugin's `conf` and `cmd` modules MUST use the same scheme (today `ddos-local` mixes `urn:ze:ddos-local-conf` with `urn:ze:ddos-local:cmd`, and that is the bug this row forbids).
-- Reserved prefixes: `zt` = ze-types, `ze` = ze-extensions. Never reuse them for another import.
+- `<component>` MAY contain hyphens for a multi-word name (`ddos-detect`, `firewall-irr`). The `:conf`/`:cmd`/`:api` kind MUST NOT be fused into it with a hyphen and MUST NOT be dropped. A plugin's `conf` and `cmd` modules MUST use the same scheme (today `ddos-local` mixes `urn:ze:ddos-local-conf` with `urn:ze:ddos-local:cmd`, and that is the bug this row forbids).
+- Reserved prefixes: `zt` = ze-types, `ze` = ze-extensions. They MUST NOT be reused for another import.
 
 ### Imports and Shared Vocabulary
 
-- Import shared modules with their reserved prefixes: `import ze-types { prefix zt; }`, `import ze-extensions { prefix ze; }`.
-- If a leaf holds a value that `zt` already types, import `ze-types` and use the typedef. Not importing `ze-types` is not a licence to re-invent its constraints (see Value Typing).
-- Network endpoints (binds and remote targets): use the shared groupings, never a hand-rolled pair or a combined string. See Network Endpoints below.
+- Shared modules MUST be imported with their reserved prefixes: `import ze-types { prefix zt; }`, `import ze-extensions { prefix ze; }`.
+- If a leaf holds a value that `zt` already types, `ze-types` MUST be imported and its typedef MUST be used. Skipping the `ze-types` import MUST NOT be treated as licence to re-invent its constraints (see Value Typing).
+- Network endpoints (binds and remote targets): the shared groupings MUST be used, never a hand-rolled pair or a combined string. See Network Endpoints below.
 
 ### Value Typing
 
@@ -225,7 +228,7 @@ Use the shared typedef; do not re-express the same constraint a second way.
 
 ### Units
 
-**A leaf whose value carries a physical unit (time, rate, size) states the unit once, via the YANG `units` statement, keeps the leaf name unit-free, and carries a protocol-sane `default`:** `leaf hello-interval { type uint32; units seconds; default 10; }`
+**A leaf whose value carries a physical unit (time, rate, size) MUST state the unit once, via the YANG `units` statement, MUST keep the leaf name unit-free, and MUST carry a protocol-sane `default`:** `leaf hello-interval { type uint32; units seconds; default 10; }`
 
 | Rule | Canonical | Anti-pattern |
 |------|-----------|--------------|
@@ -234,27 +237,27 @@ Use the shared typedef; do not re-express the same constraint a second way.
 | Integer, not string | `type uint32; units seconds;` | `type string` for a duration |
 | Protocol-sane default | every dimensioned leaf carries a `default` set to the protocol's standard/recommended value (OSPF `hello-interval` 10s, `dead-interval` 40s, BFD tx/rx per RFC 5880, ...) | no `default`, so omitting the leaf yields 0 or undefined timing |
 
-**Defaults are requirements, not suggestions (`architecture.md`): a leaf the operator omits must still produce correct, standards-conformant behaviour.** Cite the RFC/convention the default comes from in the leaf `description`.
+**Defaults are requirements, not suggestions (`architecture.md`): a leaf the operator omits MUST still produce correct, standards-conformant behaviour.** The RFC/convention the default comes from MUST be cited in the leaf `description`.
 
 This supersedes the "unit suffix in the leaf name" guidance for dimensioned values; the YANG Leaves table above defers to this section.
 
 ### Network Endpoints
 
-**An endpoint (a place to bind, or a remote to connect to) is ALWAYS two structured fields, and ALWAYS comes from a shared grouping.** Never a combined `"host:port"` string, never a hand-rolled `ip`/`port` pair.
+**An endpoint (a place to bind, or a remote to connect to) MUST be two structured fields, and MUST come from a shared grouping.** A combined `"host:port"` string MUST NOT be used, and a hand-rolled `ip`/`port` pair MUST NOT be used.
 
 | Endpoint kind | Grouping | Fields | Port type |
 |---------------|----------|--------|-----------|
 | Inbound bind (the service listens) | `uses zt:listener` + `ze:listener` extension | `ip` (local literal), `port` | `zt:listener-port` (0 = OS-assigned) |
 | Outbound target (the service connects out) | `uses zt:endpoint` (add to `ze-types` if absent) | `address` (IP or hostname), `port` | `zt:port` (1..65535) |
 
-- `ip` is a local literal address (`zt:ip-address`); `address` is a remote host that may be a name. The two field names encode that difference on purpose. Do not use `host`, and do not use `ip` for a remote target.
-- A combined `"host:port"` / `"address:port"` string is banned (structured data, `evidence.md`). Split it into the two fields.
-- `port` is never a bare `uint16` and never an inline `uint16 { range ... }`; use the typedef.
-- Hand-model the pair only for a documented exception (BGP peer-local `union`-with-`auto`); see Listeners above.
+- `ip` is a local literal address (`zt:ip-address`); `address` is a remote host that MAY be a name. The two field names encode that difference on purpose. `host` MUST NOT be used, and `ip` MUST NOT be used for a remote target.
+- A combined `"host:port"` / `"address:port"` string MUST NOT be used (structured data, `evidence.md`). It MUST be split into the two fields.
+- `port` MUST NOT be a bare `uint16` and MUST NOT be an inline `uint16 { range ... }`; the typedef MUST be used.
+- The pair MAY be hand-modelled only for a documented exception (BGP peer-local `union`-with-`auto`); see Listeners above.
 
 ### Boolean Toggles and Flags
 
-**An on/off setting has one shape:** `leaf enabled { type boolean; default false; }`
+**An on/off setting MUST have one shape:** `leaf enabled { type boolean; default false; }`
 
 | Rule | Detail |
 |------|--------|
@@ -281,7 +284,7 @@ This supersedes the "unit suffix in the leaf name" guidance for dimensioned valu
 
 ### Cross-Protocol Consistency
 
-**Equivalent concepts MUST be modelled the same way across BGP, OSPF, IS-IS, BFD, LDP, and RSVP-TE.** Having configured one protocol, an operator should recognize the next. Reuse before you redefine.
+**Equivalent concepts MUST be modelled the same way across BGP, OSPF, IS-IS, BFD, LDP, and RSVP-TE.** Having configured one protocol, an operator SHOULD recognize the next. Existing modelling MUST be reused before it is redefined.
 
 | Concept | Canonical | Do NOT |
 |---------|-----------|--------|
@@ -295,7 +298,7 @@ Genuine RFC-term differences are the ONLY allowed divergence and MUST be justifi
 - Metric name: OSPF `cost` vs IS-IS `metric` (each is that protocol's RFC term).
 - Router identity: `router-id` (BGP/OSPF/RSVP-TE) vs `lsr-id` (LDP) vs `system-id` + `net` (IS-IS).
 
-**Before adding a concept to a protocol module, grep how the sibling protocols model it (`ai/rules/architecture.md`) and match them.**
+**Before adding a concept to a protocol module, the sibling protocols MUST be grepped for how they model it (`ai/rules/architecture.md`) and matched.**
 
 ### Command Modules (naming standardization deferred)
 
@@ -332,6 +335,7 @@ Config content MUST be manipulated through one of two methods only.
 
 ### Forbidden
 
+**Config MUST NOT be edited by any of these methods:**
 - Raw text surgery (regex, string replace, brace counting, line insertion)
 - Custom merge functions that parse config syntax outside the config system
 - Any manipulation that assumes config structure from text patterns
@@ -344,6 +348,7 @@ The config format IS set commands. Duplicate blocks are additive. The parser han
 
 The plugin config framework delivers every YANG leaf value to a plugin's `ParseConfig` as a JSON **string** (`"true"`, `"50000"`, `"3.5"`), never the native JSON type. A hand-written parser that coerces a config value with a native-type assertion always fails the assertion on that string and silently falls back to the leaf's **default**:
 
+**These patterns MUST NOT be used to read a config value:**
 - `if b, ok := v.(bool); ok { cfg.Enabled = b }`: `v` is `"true"`, the assertion fails, `cfg.Enabled` keeps its `false` default. For a boolean `enabled` gate this disables the **entire feature** with no error, no panic, no log line.
 - a `toInt`/`toFloat` helper whose type switch handles `int`/`int64`/`float64` but has no `case string:` arm returns `(0, false)` for every string, so the operator's configured value is silently ignored and the default is used.
 
@@ -353,13 +358,13 @@ Confirmed real instance: `ddos-detect` never ran in any daemon. `enabled` parsed
 
 **Every coercion of a delivered config value MUST accept the string form.** Use a helper with a `case string:` arm (see `internal/plugins/trafficusage/config.go` `cfgBool` and the `case string:` arms in its `toInt`/`toFloat`), shown under Examples.
 
-**Never `v.(bool)` / `v.(float64)` directly on a config value, and never a numeric/bool type switch without a `case string:` arm.**
+**A config value MUST NOT be asserted directly with `v.(bool)` / `v.(float64)`, and a numeric/bool type switch MUST NOT omit a `case string:` arm.**
 
 ### The mechanical check
 
 `scripts/checks/config_string_coercion.go` (`make ze-config-coercion-check`, wired into `ze-verify`) parses every `internal/**/config.go` and fails on a type switch whose cases include a numeric/bool type but not `string`, or a direct type assertion to a numeric/bool type.
 
-**Add an allowlist entry, with a stated reason, only for a genuine non-config coercion.** The companion `--selftest` proves the AST detection fires on isolated fixtures.
+**An allowlist entry MUST be added, with a stated reason, only for a genuine non-config coercion.** The companion `--selftest` proves the AST detection fires on isolated fixtures.
 
 ## Examples
 

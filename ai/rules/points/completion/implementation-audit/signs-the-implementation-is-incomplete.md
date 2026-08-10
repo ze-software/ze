@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**Any of these MUST be treated as a sign the implementation is incomplete:**
 - AC-N with no test or evidence
 - Can't find where feature was implemented
 - TDD test from plan doesn't exist

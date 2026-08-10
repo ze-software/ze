@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **A copy that fits none of these four categories is probably wrong. Ask why the copy is needed.**
+- **A copy that fits none of these four categories SHOULD be treated as wrong. The reason the copy is needed MUST be asked.**

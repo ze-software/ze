@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**A plugin owns its ENTIRE feature surface. Remove the plugin and every one of its features disappears; every OTHER plugin and the core keep working.**
+**A plugin MUST own its ENTIRE feature surface. Removing the plugin MUST make every one of its features disappear; every OTHER plugin and the core MUST keep working.**

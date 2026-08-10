@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Never present "version 1" knowing "version 2" is needed.** The first presentation should be the thorough one.
+**MUST NOT present "version 1" knowing "version 2" is needed.** The first presentation SHOULD be the thorough one.

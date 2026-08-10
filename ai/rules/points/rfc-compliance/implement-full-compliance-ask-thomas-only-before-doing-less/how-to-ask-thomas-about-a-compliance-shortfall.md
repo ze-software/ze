@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/evidence.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/completion.md`).
+**How to ask (never "MAY I skip it").** The requirement id and the RFC section text MUST be quoted verbatim, the producing function MUST be named (`ai/rules/evidence.md`), what full implementation plus a tagged test would actually cost MUST be stated, and then which way he wants it fixed MUST be asked. Offering "leave it non-conformant" as an option MUST NOT be done (`ai/rules/completion.md`).

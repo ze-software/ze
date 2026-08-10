@@ -9,11 +9,11 @@
 ### Required
 
 - Go 1.21+ features (slog, generics)
-- `golangci-lint` must pass
+- `golangci-lint` MUST pass
 - Error wrapping: `fmt.Errorf("context: %w", err)`
 - Context as first param: `context.Context`
-- Never strip `ctx context.Context` parameters from function signatures. "Clean unused context" means remove dead `import "context"` lines only. Parameters stay even if the current body doesn't use ctx (propagation, cancellation, future use).
-- Fail-early: propagate parse/config errors immediately, never silently default
+- Code MUST NOT strip `ctx context.Context` parameters from function signatures. "Clean unused context" means remove dead `import "context"` lines only. Parameters stay even if the current body doesn't use ctx (propagation, cancellation, future use).
+- Fail-early: code MUST propagate parse/config errors immediately, and MUST NOT silently default
 
 ### Logging: `log/slog` only
 
@@ -23,7 +23,7 @@
 - Levels: `disabled`, `debug`, `info`, `warn`, `err`
 - Config: `environment { log { level warn; bgp.routes debug; } }`
 - Priority: CLI flag > env var > config > default (WARN)
-- Debug logging is permanent: `logger.Debug()`, never `fmt.Printf`
+- Debug logging is permanent: code MUST use `logger.Debug()`, and MUST NOT use `fmt.Printf`
 
 ### Dependencies
 
@@ -50,9 +50,9 @@ Before adding an env var, read `ai/rules/config.md` (should this be YANG config 
 | `env.SetInt("ze.foo", 42)` | Integer |
 | `env.SetBool("ze.foo", true)` | Boolean ("true"/"false") |
 
-**Cache:** Built once from `os.Environ()` on first `Get()`. `Set*()` updates both cache and os env. Tests that use `os.Setenv` directly must call `env.ResetCache()`.
+**Cache:** Built once from `os.Environ()` on first `Get()`. `Set*()` updates both cache and os env. Tests that use `os.Setenv` directly MUST call `env.ResetCache()`.
 
-**Registration required:** Every env var must be registered via package-level `var _ = env.MustRegister(...)`. Calling `env.Get()` with an unregistered key aborts the process.
+**Registration required:** every env var MUST be registered via package-level `var _ = env.MustRegister(...)`. Calling `env.Get()` with an unregistered key aborts the process.
 
 **Registration flags:**
 
@@ -61,12 +61,12 @@ Before adding an env var, read `ai/rules/config.md` (should this be YANG config 
 | `Private: true` | Hidden from `ze env list` and autocomplete |
 | `Secret: true` | Cleared from OS environment after first `Get()` (value stays in cache) |
 
-**`os.Getenv` IS OK for:** System env vars (`HOME`, `PATH`, `XDG_*`, `NO_COLOR`, `USER`, `SSH_*`).
+**`os.Getenv` MAY be used for:** System env vars (`HOME`, `PATH`, `XDG_*`, `NO_COLOR`, `USER`, `SSH_*`).
 
 ### Aliased Imports
 
-- When two packages in the module share the same name (e.g., `internal/component/iface/cli/` and `internal/component/iface/`), goimports cannot resolve which to use and silently removes the import. Always use an aliased import in this case: `ifacepkg "github.com/ze-software/ze/internal/component/iface"`.
-- Add import + usage in the same Edit call to prevent goimports from removing an "unused" import between edits.
+- When two packages in the module share the same name (e.g., `internal/component/iface/cli/` and `internal/component/iface/`), goimports cannot resolve which to use and silently removes the import. You MUST use an aliased import in this case: `ifacepkg "github.com/ze-software/ze/internal/component/iface"`.
+- You MUST add import + usage in the same Edit call to prevent goimports from removing an "unused" import between edits.
 
 ### Scripts: Python Only
 
@@ -81,7 +81,7 @@ Advisory, not a sweep. Adopt opportunistically the next time you are in the rele
 - **Slice type with methods beats a wrapping struct.** When the only state is `[]*T`, declare `type Foo []*T` with methods on the slice rather than `type Foo struct { items []*T }`. `Foo{}` is the empty value, `append(foo, x)` works, iteration works, JSON marshaling works, and you never write a `NewFoo`/`Items()` pair.
 - **Family of narrow constructors beats a god `New(Config)`.** When most callers care about one axis of a type, give each common construction pattern its own named constructor (`NewFooWithPrefixes`, `NewFooWithProtocols`) rather than a functional-options pile or a config struct with half the fields nil.
 - **Table-driven tests with `t.Run(name, ...)`.** When a test file has more than two similar cases, prefer a single `[]struct { name string; ... }` table iterated with `t.Run(tt.name, ...)`. Each case gets its own `-v` line, each case is self-contained, and you can focus one failing case.
-- **Honest TODO comments over silent gaps.** When a function is incomplete (especially deep-comparison `equal()` methods that can pass superficially and silently mis-match on edge cases), write a visible `// TODO:` rather than a panic, a `//nolint`, or nothing. A reviewer should see the gap in a diff.
+- **Honest TODO comments over silent gaps.** When a function is incomplete (especially deep-comparison `equal()` methods that can pass superficially and silently mis-match on edge cases), write a visible `// TODO:` rather than a panic, a `//nolint`, or nothing. A reviewer SHOULD see the gap in a diff.
 
 ### JSON Struct Tags (MANDATORY)
 
@@ -89,8 +89,9 @@ Every exported struct field that reaches JSON output **must** have a `json:"keba
 
 ### Forbidden
 
-- `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that must never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)
-- `f, _ := func()` and `_, _ = func()` (ignoring errors). If you genuinely must discard, use `//nolint:errcheck // <why>` with a specific reason
+**Code MUST NOT write these forbidden Go patterns:**
+- `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that MUST never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)
+- `f, _ := func()` and `_, _ = func()` (ignoring errors). If you genuinely MUST discard, use `//nolint:errcheck // <why>` with a specific reason
 - Global mutable state
 - `init()` except registry patterns
 - `log.Printf` (legacy log package)
@@ -176,7 +177,7 @@ Hot paths use typed numeric identity (enum, registered ID, bitset, packed intege
 | Internal state flags | typed enum, zero-invalid | magic strings |
 | Hot-path comparison | `x == FooAdd` | `x == "add"` |
 
-- Zero = `Unspecified` / invalid. Enum type distinct `uint8`/`uint16` (not assignable from bare integer literal). `String()` is for diagnostics, never comparison.
+- Zero MUST mean `Unspecified` / invalid. The enum type MUST be a distinct `uint8`/`uint16` (not assignable from bare integer literal). `String()` is for diagnostics; code MUST NOT use it for comparison.
 - Plugin-extensible sets: numeric ID registered at init (see `spec-bgp-redistribute`, `internal/core/family/family.go`).
 
 ### Where Strings Are OK (boundaries only)
@@ -192,16 +193,16 @@ Hot paths use typed numeric identity (enum, registered ID, bitset, packed intege
 
 ### Minimize Conversions
 
-- Two sinks only: external wire (`MarshalText`/`UnmarshalText`) and human output (`String()` returning interned literal or registry name).
-- Banned in `String()`: `fmt.Sprintf`, `strconv.Itoa`, `strconv.FormatUint`, `string([]byte{...})`, `strings.Builder`, `+`.
-- `fmt.Sprintf` bypasses `AppendTo`/`WriteTo` -- cold paths only.
+- Code MUST convert to string only at two sinks: external wire (`MarshalText`/`UnmarshalText`) and human output (`String()` returning interned literal or registry name).
+- `String()` MUST NOT use: `fmt.Sprintf`, `strconv.Itoa`, `strconv.FormatUint`, `string([]byte{...})`, `strings.Builder`, `+`.
+- `fmt.Sprintf` bypasses `AppendTo`/`WriteTo`, so it MUST stay on cold paths only.
 - Canonical impl: `internal/core/family/family.go`.
 
 ### Map Keys: Prefer Numeric
 
-**BLOCKING on hot paths.** When a map is keyed by a value from a known set, use a numeric key type (`uint8`, `uint16`, `int`, typed enum), not `string`.
+**BLOCKING on hot paths.** When a map is keyed by a value from a known set, code MUST use a numeric key type (`uint8`, `uint16`, `int`, typed enum), not `string`.
 
-**Pattern: Registry Maps Name to ID at Init, All Lookups Use ID.** Parse the string once at the boundary (config load, CLI parse, JSON unmarshal), convert to the numeric type, and pass the numeric value everywhere internally. The string exists only at the boundary for human readability.
+**Pattern: Registry Maps Name to ID at Init, All Lookups Use ID.** Code MUST parse the string once at the boundary (config load, CLI parse, JSON unmarshal), convert to the numeric type, and pass the numeric value everywhere internally. The string exists only at the boundary for human readability.
 
 #### When `map[string]V` Is Acceptable
 
@@ -227,6 +228,7 @@ Hot paths use typed numeric identity (enum, registered ID, bitset, packed intege
 
 Before adding a `string` field crossing a component seam OR on a hot path:
 
+**You MUST run these checks before adding a string:**
 1. Finite set, compile-time? -> typed enum.
 2. Plugin-extensible? -> numeric ID + registry.
 3. External contract (YANG/JSON/CLI/log)? -> OK at boundary; convert internally.
@@ -254,14 +256,14 @@ Any function where skipping a step causes a resource leak, deadlock, panic, or s
 
 ### Format
 
-- Use "MUST" (not "should") for obligations that cause bugs when violated.
+- Use "MUST" (not "SHOULD") for obligations that cause bugs when violated.
 - Place the obligation on both sides of the pair: the function that creates the obligation AND the function that fulfills it.
 
 ### Checklist (before merging new API)
 
-- [ ] Every resource-acquiring function names how to release it
-- [ ] Every multi-step lifecycle is documented on the type
-- [ ] Every "call B after A" appears in both A's and B's comments
+- [ ] Every resource-acquiring function MUST name how to release it
+- [ ] Every multi-step lifecycle MUST be documented on the type
+- [ ] Every "call B after A" MUST appear in both A's and B's comments
 
 ## File Modularity
 
@@ -276,20 +278,20 @@ The line threshold exists for **context economy**. Any task that touches a file 
 | < 1000 | Fine |
 | > 1000 | Check for a second concern. Split only when the separation is right |
 
-**1000 is the only threshold** (Thomas, 2026-08-01). A 600-line tier existed before. It fired on cohesive single-concern files. It is gone from this rule, from the post-edit hook, and from `scripts/lint/consistency.go`.
+**You MUST judge file size against 1000 lines, the only threshold** (Thomas, 2026-08-01). A 600-line tier existed before. It fired on cohesive single-concern files. It is gone from this rule, from the post-edit hook, and from `scripts/lint/consistency.go`.
 
-**Before creating a file: "one concern?" Before adding to one: "belongs to this file's concern?" Past 1000 lines: check for multiple concerns.**
+**Before creating a file, you MUST ask "one concern?" Before adding to one, you MUST ask "belongs to this file's concern?" Past 1000 lines, you MUST check for multiple concerns.**
 
 ### Splitting
 
-- **Tool:** `go build -o bin/go_extract ./scripts/dev/go_extract.go && bin/go_extract <source.go> <dest.go> <symbol1> [symbol2 ...]` moves named declarations (with doc comments) to dest, runs `goimports` on both. Note: `goimports` cannot resolve aliased imports; add those manually to the new file.
+- **Tool:** `go build -o bin/go_extract ./scripts/dev/go_extract.go && bin/go_extract <source.go> <dest.go> <symbol1> [symbol2 ...]` moves named declarations (with doc comments) to dest, runs `goimports` on both. Note: `goimports` cannot resolve aliased imports; you MUST add those manually to the new file.
 - Zero semantic effect: Go compiles all files in a package together
 - File-local types move with their functions
 - Shared test helpers stay in base `_test.go`
 - `goimports` handles import cleanup
-- Name after concern: `reactor_announce.go`, `session_handlers.go`
-- New files: copy `// Design:` from original, review topic annotation (see "Design Document References" below)
-- All resulting files: `// Related:` to siblings (see "File Cross-References" below)
+- You MUST name the file after its concern: `reactor_announce.go`, `session_handlers.go`
+- New files: you MUST copy `// Design:` from original, and review the topic annotation (see "Design Document References" below)
+- All resulting files: you MUST add `// Related:` to siblings (see "File Cross-References" below)
 
 ### Exempt: Test Files
 
@@ -297,6 +299,7 @@ The line threshold exists for **context economy**. Any task that touches a file 
 
 ### NOT a Reason to Split
 
+**Size alone MUST NOT be a reason to split a file that is:**
 - Large but single coherent concern (capability registry, pool internals)
 - CLI file with one-function-per-subcommand
 - Dependency chain where dispatcher references all implementations
@@ -307,13 +310,13 @@ All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.
 
 ### Format
 
-- **Format:** `// Design: docs/architecture/core-design.md -- topic annotation`
-- Topic annotations preferred over section numbers (survive restructuring).
+- **Format:** you MUST write `// Design: docs/architecture/core-design.md -- topic annotation`
+- Topic annotations SHOULD be used over section numbers (they survive restructuring).
 
 ### Line Ordering
 
-- The `// Design:` line must be the first comment in every file. Only compiler directives (`//go:build`) may precede it.
-- `// Package` doc comments go after the header block, not before it.
+- The `// Design:` line MUST be the first comment in every file. Only compiler directives (`//go:build`) MAY precede it.
+- `// Package` doc comments MUST go after the header block, not before it.
 
 ### When to Add
 
@@ -378,15 +381,16 @@ Place after `// Design:` at file top. One line per reference with topic annotati
 
 ### When NOT to Add
 
+**A file MAY skip a cross-reference when it is:**
 - Standalone in package (no strong coupling to siblings)
 - Only related through package's public API
 - Relationship is obvious from filename alone (see "Not a Directory Listing" below)
 
 ### Not a Directory Listing
 
-**`// Detail:` lines should point to files with non-obvious relationships, not enumerate every file in the package.** If the relationship is self-evident from the filename (e.g., `config.go` has config, `validators.go` has validators), omit it.
+**`// Detail:` lines SHOULD point to files with non-obvious relationships, not enumerate every file in the package.** If the relationship is self-evident from the filename (e.g., `config.go` has config, `validators.go` has validators), omit it.
 
-**Rule of thumb:** if removing the `// Detail:` line would leave a reader unable to find important code, keep it. If they would find it anyway by scanning filenames, drop it. Aim for 3-5 references maximum per hub file.
+**Rule of thumb:** if removing the `// Detail:` line would leave a reader unable to find important code, you SHOULD keep it. If they would find it anyway by scanning filenames, you SHOULD drop it. Aim for 3-5 references maximum per hub file.
 
 ### Maintenance
 
@@ -422,11 +426,12 @@ External tools only (`ze exabgp plugin`, `ze config migrate`). Engine code: zero
 
 On every Go update:
 
+**After a Go update, you MUST:**
 1. Read `$(go env GOROOT)/src/strings/builder.go`, find `copyCheck`.
 2. Read `$(go env GOROOT)/src/internal/abi/escape.go`, find `NoEscape`.
 3. Compare against `internal/core/textbuf/textbuf.go` `noescape` + `inlineSlice`.
 4. If the stdlib changed technique, update ours to match.
-5. Verify: `go build -gcflags='-m=2' -o bin/escape-test ./internal/core/textbuf/ 2>&1 | grep 'moved to heap'` should NOT show `b` escaping for stack-local Buffer usage.
+5. Verify: `go build -gcflags='-m=2' -o bin/escape-test ./internal/core/textbuf/ 2>&1 | grep 'moved to heap'` SHOULD NOT show `b` escaping for stack-local Buffer usage.
 
 If the Go team removes `NoEscape` or changes escape analysis to see through the `uintptr` round-trip, the inline array optimization breaks and `var b Buffer` reverts to heap allocation. This is not a correctness bug (the code still works), but a performance regression.
 

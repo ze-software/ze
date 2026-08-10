@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Same wire bytes parse differently based on caps. ContextID identifies encoding context for zero-copy.**
+**Parsing MUST treat the same wire bytes differently, based on caps. Code MUST use ContextID to identify the encoding context for zero-copy.**

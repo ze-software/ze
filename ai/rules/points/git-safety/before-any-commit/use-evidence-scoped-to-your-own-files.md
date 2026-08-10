@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**So the full gate is not the pre-commit evidence here. Evidence scoped to YOUR
-files is.** Before preparing the commit script:
+**So the full gate is not the pre-commit evidence here. You MUST scope evidence to
+YOUR files.** Before preparing the commit script:

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**"What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
+**Before claiming a feature is done, MUST answer for each spec goal: "What concrete evidence proves this goal is achieved, beyond individual test assertions?"**

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Tier 0: Zero allocations.** Buffer on the stack, string consumed locally.
+**Tier 0: Zero allocations.** The buffer MUST stay on the stack, and the string MUST be consumed locally.

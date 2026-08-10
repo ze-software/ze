@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Use `textbuf.Buffer` for all string building.** Package: `internal/core/textbuf`.
+**`textbuf.Buffer` MUST be used for all string building.** Package: `internal/core/textbuf`.

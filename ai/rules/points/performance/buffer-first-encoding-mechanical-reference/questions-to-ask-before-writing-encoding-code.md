@@ -1,8 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**These questions MUST be answered before writing encoding code:**
+
 1. Buffer from? → Pool or caller-provided
 2. `append()`? → Offset writes
 3. Returning `[]byte` from helper? → `writeFoo(buf, off) int`

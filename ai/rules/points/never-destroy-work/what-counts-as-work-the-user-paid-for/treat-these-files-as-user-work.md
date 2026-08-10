@@ -1,5 +1,5 @@
 ---
-kind: directive
+kind: note
 level:
 stage:
 ---

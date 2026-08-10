@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **All doctor codes use the `doctor-` prefix: `doctor-<component>-<condition>`.**
-- **Register every new code in `internal/core/diagnostic/codes.go` with title, description, and examples. The code must be explainable via `ze explain`.**
+- **All doctor codes MUST use the `doctor-` prefix: `doctor-<component>-<condition>`.**
+- **Every new code MUST be registered in `internal/core/diagnostic/codes.go` with title, description, and examples. The code MUST be explainable via `ze explain`.**

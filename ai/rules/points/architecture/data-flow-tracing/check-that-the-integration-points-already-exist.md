@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- [ ] 5. Integration points exist? Signatures match? Unrelated code needs changes?
+- [ ] 5. You MUST check: integration points exist? Signatures match? Unrelated code needs changes?

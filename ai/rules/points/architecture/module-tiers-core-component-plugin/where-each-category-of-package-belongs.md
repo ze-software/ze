@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**Each category of package MUST live in the directory named here:**
 - **core library** -> `internal/core/`. It has no config-driven lifecycle, no registry side effect, and no reason to live with a component domain.
 - **framework** -> usually `internal/component/`. It provides Ze's wiring substrate rather than a runnable feature: config, plugin, command, cli, doctor, hub, lifecycle, and setup-feature integration.
 - **host-service** -> `internal/component/`. It is a daemon or appliance service boundary such as web, ssh, gNMI, MCP, looking-glass, host APIs, or gokrazy support. These packages are not pure core libraries because startup, doctor, listener, or platform registration pins them to composition.

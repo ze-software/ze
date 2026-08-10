@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-1. Lossy field -> pre-check rejects in verifier?
-2. Bounded output structure -> capacity check rejects when exceeded?
-3. Truncated name -> length check rejects before truncation?
-4. Numeric narrowing -> explicit range check with valid range in error?
+1. Lossy field -> MUST the pre-check reject in verifier?
+2. Bounded output structure -> MUST the capacity check reject when exceeded?
+3. Truncated name -> MUST the length check reject before truncation?
+4. Numeric narrowing -> MUST there be an explicit range check with the valid range in the error?

@@ -36,21 +36,21 @@ Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the
 **One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
 **Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It was raised twice as
 **Commit workflow:**
-1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
-2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
+1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
+2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
-4. Lesson learned check: the helper asks whether the commit ADDS content to an agent-workflow, rule, tooling, verification, or discovery surface, or only relocates it. Content earns a journal row: include `plan/journal/<class>.md` in `--file`. A move, a rename, or a reformat does not, and passes untouched. When the change adds content but taught nothing reusable, say so with `--lesson-not-needed "<reason>"`; `--lesson-required` is the operator demanding one regardless (`ai/rules/planning.md`, "Writing Journal Rows").
-5. If the helper cannot express the commit shape, hand-write the same script pattern and `chmod +x` it. Give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. Do not use heredocs. Always use `git commit -F <file>`.
-6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
-8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
-**`git rm` safety:** before using `git rm` in a commit script, verify
-**Helper format:**
-**Never suggest / ask / hint at committing.** Complete ALL work first
+4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
+5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
+6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Before writing a commit script, you MUST read `.gitignore` and MUST NOT `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. You MUST only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
+**The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
+**`git rm` safety:** before using `git rm` in a commit script, you MUST verify
+**You MUST use this helper format:**
+**You MUST NOT suggest / ask / hint at committing.** Complete ALL work first
 ## Pushing (2026-08-05, owner amendment)
 - **A bare `git push` from a Bash call stays forbidden; the hook enforces it.**
-- **Push only by passing `--push` to `scripts/dev/commit_helper.py create` (step 2); it runs from the script you run at step 7.**
-- **The owner orders a push; you never decide one. `--push` on your own initiative is a push without authority.**
+- **You MUST push only by passing `--push` to `scripts/dev/commit_helper.py create` (step 2); it runs from the script you run at step 7.**
+- **The owner orders a push; you MUST NOT decide one yourself. `--push` on your own initiative is a push without authority.**
 - **`git push --force` and `-f` stay forbidden; `--push` is no route to them.**
 ## Commit Granularity
 Single-focus commits: one logical change per commit.
@@ -81,26 +81,26 @@ The pre-commit checklist's "write its spec, finish this commit, ask" branch, and
 | You are about to `--file` a consumer | Name the file that DEFINES every symbol it newly uses, and check that file is in the same `--file` list or already committed (`git log -1 -- <path>`) |
 | The commit script has just run and it carried Go | Run `make ze-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
 | It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
-**What it does NOT read: test files.** `go build` never compiles `_test.go`, so a
+**What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
 ### Thomas Owner Override: Commit Without Verify
 Thomas owns the repository and may explicitly override the `ze-verify` requirement for commit-script preparation.
 1. prepare a commit script, and
 2. skip tests, skip verify, or commit without running tests.
-- Do not run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
-- Do inspect only enough state to stage exactly the requested files and avoid
-- Do use `scripts/dev/commit_helper.py create` with the normal user-run script
-- Do not run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
-- Do not add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
-- Report `Verification skipped by Thomas owner override` in the final response
-- Do not claim tests, lint, `ze-verify`, integrations, or behavior were
+- You MUST NOT run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
+- You MUST inspect only enough state to stage exactly the requested files and avoid
+- You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
+- You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
+- You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
+- You MUST report `Verification skipped by Thomas owner override` in the final response
+- You MUST NOT claim tests, lint, `ze-verify`, integrations, or behavior were
 ### Known-Red Full Verify: Scope to Changed (BLOCKING)
 When `make ze-verify` is known-red from failures this session did not cause -- pre-existing reds, or a separate session is actively clearing the global suite -- do NOT rerun full `ze-verify` before committing.
 - `make ze-lint-changed`
 - the touched packages' `go test` (or `make ze-verify-changed`)
 - `make ze-doc-test` / `make ze-validate` when those surfaces changed
 - a QEMU run for any linux-only runtime code touched
-**The red must be attributed, not assumed (BLOCKING).** "Known-red" means you
-**Do not let a red persist.** Scope-to-changed is a temporary bridge while the
+**The red MUST be attributed, not assumed (BLOCKING).** "Known-red" means you
+**You MUST NOT let a red persist.** Scope-to-changed is a temporary bridge while the
 ### Concurrent Verify Runs (BLOCKING)
 One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide -- parallel runs share build cache + ports + `bin/ze` processes and trash each other.
 | Do | Don't |
@@ -118,19 +118,19 @@ Each directive below is one physical line on purpose.
 ### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
 **Several agents work this checkout at once. `make ze-verify` reads the WORKING
 TREE, so it reads their half-finished edits too, and a fully green run is unreachable by construction.
-**So the full gate is not the pre-commit evidence here. Evidence scoped to YOUR
-1. Run the narrow gate owning each surface you changed (the table below).
-2. Run the tests of each package you touched, with `make ze-test-pkg`.
-3. ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
-4. Prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+**So the full gate is not the pre-commit evidence here. You MUST scope evidence to
+1. You MUST run the narrow gate owning each surface you changed (the table below).
+2. You MUST run the tests of each package you touched, with `make ze-test-pkg`.
+3. You MUST ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
+4. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
-**A deterministic STRUCTURAL gate is still never waved through** (see "Structural
-**Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
+**A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
+**You MUST NOT edit the tree while a verify runs**, yours or anybody's. Regenerating an
 ### ONCE, AT THE END. Never during development (BLOCKING)
-**`make ze-verify` is a 25-stage full gate and takes 25 to 30 minutes. Run it ONE
+**`make ze-verify` is a 25-stage full gate and takes 25 to 30 minutes. You MUST run it ONE
 time, when the work is finished and you are about to prepare the commit script.** Running it to "check in" mid-change is the single most expensive habit available in this repository, and it buys nothing a scoped check...
-**Run what the change touches.** Every surface has one owning target, and it costs
-**Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
+**You MUST run what the change touches.** Every surface has one owning target, and it costs
+**You MUST go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
 | You changed | Run this |
 |-------------|----------|
 | A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
@@ -146,14 +146,14 @@ time, when the work is finished and you are about to prepare the commit script.*
 | Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-verify-changed` |
-**When the table has no row for what you touched, derive it.** `mk/*.mk` names every
-**READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
+**When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
+**YOU MUST READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
 - **`tail` on the log of a run that is still going.** The stage banner tells you
 - **Grepping for `--- FAIL` only.** Lint, tier, doc and inventory stages fail with
 **A second `ze-verify` cannot overlap the first: it blocks on the repo-wide lock**
-**A NARROW FAILURE GETS A NARROW RE-RUN, NEVER A SECOND FULL PASS.** When the
+**A NARROW FAILURE MUST GET A NARROW RE-RUN; IT MUST NOT GET A SECOND FULL PASS.** When the
 **The status record is what forces the second pass, so plan the FIRST one to be
-**Do not stop to ask which way.** The operator is often not present, and a session
+**You MUST NOT stop to ask which way.** The operator is often not present, and a session
 ### Step 2: Always
 Unless Thomas Owner Override is active, never commit with lint issues and never commit without test evidence when code changed.
 ## Branch Changes Are Forbidden
@@ -217,7 +217,7 @@ Each scenario in `test/interop/scenarios/` follows the established pattern:
 5. Raise on failure (AssertionError or RuntimeError)
 ## Prove the test discriminates (BLOCKING)
 A passing interop or functional test is evidence only if it would FAIL when the behaviour under test is broken.
-**Before claiming an interop/functional test validates a change, revert the
+**Before claiming an interop/functional test validates a change, MUST revert the
 | Vacuity trap | Why it passes anyway | The tell |
 |--------------|----------------------|----------|
 | An interop test for a sender-side wire change whose receiver must accept any form (e.g. RFC 7606 Section 5.1: receivers accept any field combination) | a conforming peer accepts the old and new wire equally | reverting the sender change leaves the peer's routing table identical |
@@ -228,7 +228,7 @@ A passing interop or functional test is evidence only if it would FAIL when the 
 Every spec has acceptance criteria (AC-1..AC-N).
 ### The rule
 Before claiming a feature is done, answer for each spec goal:
-**"What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
+**Before claiming a feature is done, MUST answer for each spec goal: "What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
 | Goal type | Required evidence |
 |-----------|-------------------|
 | Protocol interop ("ze speaks X with Y") | Interop test passes with the named peer daemon |
@@ -321,8 +321,8 @@ When replacing X with Y: DELETE X first, then implement Y.
 
 ## Directives
 **Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
-just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface is held to its own RFCs, and so is anything Ze speaks that has a standard...
-**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
+just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface MUST be held to its own RFCs, and so MUST anything Ze speaks that has a...
+**Conformance is not negotiable and nothing in the repo overrides the RFC: a deviation MUST NOT be made without an explicit instruction from Thomas, given in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
 | Situation | What you MUST do |
 |-----------|------------------|
 | Full conformance and full proof of it are reachable | Implement it and prove it with a tagged test. Do not ask which subset Thomas wants |
@@ -334,11 +334,11 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | The RFC requirement is not in `rfc/short/<stem>.md` | An unextracted obligation is still an obligation. Add the checklist row (see Extraction Completeness) -- the gate's silence is not conformance |
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
-**Before claiming a protocol behaviour is correct, read the RFC text**, not only the summary and not only the surrounding code. Cite the section you relied on.
+**Before claiming a protocol behaviour is correct, the RFC text MUST be read**, not only the summary and not only the surrounding code. The section relied on MUST be cited.
 ## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
-**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. Implement it and prove it. Thomas has already chosen, so there is nothing to put to him.**
-**Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
-**Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule.**
+**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. It MUST be implemented and proven. Thomas has already chosen, so there is nothing to put to him.**
+**Asking MUST happen only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: it MUST be done, then reported (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
+**Two readings, and the one that governs.** "Full compliance is on the table" MUST be treated as a trigger to IMPLEMENT. It MUST NOT be treated as a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "MAY I do less". **Full compliance MUST NOT be put beside a narrower option when asking Thomas to pick between them.**
 | You are about to ... | Do instead |
 |----------------------|------------|
 | Classify a requirement `{gap}`, `{not-applicable}`, `partial`, or "does not apply to ze" | Ask. A classification that lowers what Ze owes is a decision about compliance, not bookkeeping |
@@ -347,20 +347,20 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/completion.md`), and the deferral machinery is not a compliance decision procedure. The spec-close-ask route in the conformance table above IS that ask, made the same session. The deferral row is never a substitute for it |
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
-**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/evidence.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/completion.md`).
-**Every earlier answer that pointed away from full compliance or full proof is VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, cannot be cited as one, and does not survive being rediscovered.
+**How to ask (never "MAY I skip it").** The requirement id and the RFC section text MUST be quoted verbatim, the producing function MUST be named (`ai/rules/evidence.md`), what full implementation plus a tagged test would actually cost MUST be stated, and then which way he wants it fixed MUST be asked. Offering "leave it non-conformant" as an option MUST NOT be done (`ai/rules/completion.md`).
+**Every earlier answer that pointed away from full compliance or full proof MUST be treated as VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, MUST NOT be cited as one, and does not survive being rediscovered.
 | Where a void answer hides | What to do when you meet one |
 |---------------------------|------------------------------|
 | A `plan/learned/` deviation record, or a spec `Deviations` row | Do not rely on it. Raise the requirement with Thomas again, then correct the record with the new answer |
 | A `{gap}` / `{not-applicable}` / `partial` in `rfc/short/*.md` or `docs/features/rfc-status.md` | Re-derive it from the RFC text. If it still reads as less than full compliance, ask |
 | A deferral row marked `user-approved-drop`, or a `cancelled` status, covering an RFC obligation | Void. Re-raise it; the row is not a close |
 | A code comment or `rfc/audit/*.json` verdict calling the deviation deliberate | A comment is a belief, not a ruling (`ai/rules/evidence.md`). Void by default; ask |
-**Finding a void answer while doing something else is not permission to move on.** Raise it, and record the fresh answer where the stale one lived, so the next reader inherits a decision rather than a rationalization.
+**Finding a void answer while doing something else is not permission to move on.** It MUST be raised, and the fresh answer MUST be recorded where the stale one lived, so the next reader inherits a decision rather than a rationalization.
 ## RFC Summaries (`rfc/short/`)
-**RFC summaries are protocol-only reference documents: they must NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader should be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
+**RFC summaries are protocol-only reference documents: they MUST NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader SHOULD be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
 ## Extraction Completeness (BLOCKING when enrolling a summary)
 `make ze-rfc-check` verifies that every requirement **listed** in a summary is covered.
-**The walk is RECORDED, not asserted.** Since 2026-07-29 that record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
+**The walk MUST be RECORDED, not asserted.** Since 2026-07-29 that record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
 | Step | Command / file |
 |------|----------------|
 | Write the unclassified skeleton | `make ze-rfc-extract STEM=<stem>` |
@@ -368,13 +368,13 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Re-check the arithmetic | `make ze-rfc-check` |
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
 | Read the counts machine-readably | `make ze-rfc-extraction-status` |
-**The contract is `rfc/extraction/README.md`.** Five properties are worth knowing before you meet one.
+**The contract is `rfc/extraction/README.md`.** Five properties SHOULD be known before you meet one.
 - **Only dispositions are authored.** Sites, sections, quotes, the register and every published count are DERIVED from the source text at check time. A hand-typed "sites seen" is a claim, and claims are what this removes.
 - **A generated skeleton can never pass.** The writer emits only UNCLASSIFIED dispositions and an unclassified site fails the check, so mass-generating artifacts makes the gate redder rather than greener.
 - **The register is derived and a stronger claim is refused.** `rfc2119`, `prose`, or `manual-walk`. Measured over the 166 enrolled RFCs on 2026-07-29: 101 / 64 / 1. 23 have no capitalised MUST-level keyword SITE at all while declaring 172 gated MUSTs between them, so a keyword-only check would have been vacuously green for a large minority of the corpus.
 - **The bound is over keyword-visible sites, not over obligations.** Recall can be near zero for an indicative-prose section (RFC 4271 §8.2.2: 35168 characters, one capitalised keyword). `unsourced-ids` records an obligation the extractor cannot see. This raises a floor from zero; it does not reach a ceiling.
 - **A FIRST sign-off is reviewed, not ratcheted.** `check_extraction_ratchet` compares a stem against its own HEAD row, so a stem signing off for the first time has no baseline and could exclude every site. The published per-RFC exclusion ratio is the control; read it before you approve one.
-**Summaries enrolled before the gate existed are grandfathered and published as a counted backlog.** Grandfathering is implemented as SCOPE (new-since-HEAD), never as an allowlist file, so nothing is added to a list of exceptions when an RFC stops being one.
+**Summaries enrolled before the gate existed are grandfathered and published as a counted backlog.** Grandfathering MUST be implemented as SCOPE (new-since-HEAD); it MUST NOT be implemented as an allowlist file, so nothing is added to a list of exceptions when an RFC stops being one.
 | Signal | Why it matters |
 |--------|----------------|
 | A `{not-applicable}` whose reason is "ze has no X producer at all" | That admission is often the violation of a separate MUST requiring X to exist. RFC 4271 §5.1.4's "MUST implement a mechanism ... that allows MULTI_EXIT_DISC to be removed" was unextracted, and two requirements cited its absence as their exemption. |
@@ -390,7 +390,7 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | **Non-unit evidence is monotonic, per tier** | `check_evidence_ratchet` | a requirement loses an evidence KIND it had at HEAD -- its `.ci` becomes a unit test, or its verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution that leaves the tag COUNT unchanged still fires: a unit test proves the algorithm, only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | **Extraction is monotonic** | `check_extraction_ratchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming an escape hatch where every unmapped site is excluded with a shrug |
 | **Public disclosure is monotonic** | `check_status_completeness` | an RFC enrolled since HEAD has no row in `docs/features/rfc-status.md`, or a row that existed at HEAD is gone while its RFC stays enrolled. Enrolment gates that RFC's MUSTs, so the public page must say the RFC exists. A deleted row retires the public claim and leaves the obligation. It is also the one edit that makes `check_status_agreement`'s missing-row branch fire later, on somebody else's unrelated commit |
-**Beside the seven, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
+**Beside the seven, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: only the owner MAY arm it, with a one-line commit.
 ### The public ledger's edges (not ratchets, hard requirements)
 `docs/features/rfc-status.md` is the PUBLIC claim.
 | Guard | Refuses |
@@ -398,12 +398,12 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | `check_summary_disposition` | a summary in `rfc/short/` that is in neither `rfc/enrolled.txt` nor `rfc/not-enrolled.txt`. Also a stem in BOTH, a disposition naming a summary that does not exist, and a disposition deleted while the stem never reaches `rfc/enrolled.txt`. Also a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states. Un-enrolment used to be the one state that carried no information at all. Nine summaries sat outside every check with no recorded reason. Nothing distinguished "the RFC imposes nothing" from "nobody extracted it" from "we do not even have the text" |
 | `check_unproven_support` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. Two ledgers agreeing on NOTHING is not conformance. It is the cheapest way to look green. Two escapes exist and both are evidence rather than assertion. One is a `non-normative` disposition whose reason states a property of the text. The other is a VALID `manual-walk` extraction sign-off carrying a `register-reason`. The second lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero, and it needs no fabricated MUST |
 | `check_gap_count_agreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own. It says how many annotations exist. It never says their classifications are right, which matters because the paragraph above VOIDS every annotation as authority. A Remaining PROSE derived from those classifications would launder a void judgement into generated text |
-**What none of this catches: a tagged test whose assertions are weakened *in place* while keeping the same shape.** That is `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`) wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the seven ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 ## Before Implementing BGP Features
 1. Find RFC in `rfc/` — if missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
 2. Read relevant sections, note MUST/SHOULD/MAY
 3. Check ExaBGP reference
-**Priority:** RFC > ExaBGP API compat > ExaBGP implementation
+**Priority:** the RFC MUST outrank ExaBGP API compat, which MUST outrank the ExaBGP implementation.
 ## Wire Format Documentation (MANDATORY)
 Never modify protocol code without documenting wire format: ASCII diagram with field offsets, byte offset annotations, RFC section reference.
 ## RFC MUST Comments (BLOCKING)
@@ -431,7 +431,7 @@ ExaBGP ref: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 
 ## Directives
 Rules that disagree almost always disagree about one thing: whether to keep going.
-**The ladder. A higher rung always wins, and the rungs below it do not get a vote.**
+**The ladder. A higher rung MUST win, and the rungs below it MUST NOT get a vote.**
 | Rung | Governs | Rules | What it does to the decision |
 |------|---------|-------|------------------------------|
 | 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
@@ -439,17 +439,17 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 | 3 | Scope integrity | `completion` (no partial completion, no parking, fix do not record), `testing` (no test deletion) | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
 | 4 | Phase boundaries | `planning` (model selection, spec delegation, critical review) | End the phase, report, and hand off. Do not cross onto the next phase in this context |
 | 5 | Autonomy | `completion` (no asking) | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
-**Stopping at a phase boundary is NOT asking permission.** The no-asking directive in `completion` bans "would you like me to...?" before work you were already asked to do. It does not ban ending a phase, reporting the result, and letting the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read that directive as "never stop".
-**When a higher rung forces a question, the question is HOW, never WHETHER.** "Which way do you want this fixed" is always legitimate. "May I skip it", "may I drop the test", "shall I defer this" are banned at every rung (`completion.md`).
-**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: home it in a spec per `planning.md`, close the work in hand, and ask Thomas whether that spec runs. If no, it is parking with a polite name: fix it now (`completion.md`).
-**Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on is never fixed on the way to closing the work in hand.** `completion.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
-**The route is fixed and it has four steps: spec the defect, close the work in hand, ask Thomas whether to implement that spec, stop.** You do not fix it after closing either, and silence is not consent (`completion.md`, "A problem you FIND while working on something else gets a SPEC"). The one defect you fix on the spot is the one that BLOCKS the goal, because there is no closing the work in hand around it.
-**Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`completion.md`).
-**A spec is not a record, so this question decides WHAT you write, never WHETHER the fix happens.** A reproducible defect that does not block the work in hand still gets a spec and an ask rather than a same-session fix (the point above); the shard route stays reserved for the failure you could not reproduce.
-**Simplest-correct-solution sits UNDER rungs 2 and 3, never beside them.** `ai/rules/simplicity.md` requires the simplest fully correct answer, and "fully correct" is what rungs 2 and 3 already own. It cuts machinery: an abstraction with one user, an option nobody asked for, a layer that transforms nothing. It never cuts correctness, conformance, a test, a guard, or an error path, and quality is 0% compromise.
-**The simplest design is usually the HARDEST to find. "This was the pragmatic option under time pressure" is the tell that a lower rung is being read as a license.** Not seeing the simple design is a reason to think longer, or to ask which way. It is never a reason to ship the complicated answer or the incomplete one.
-**A rule's own subject matter is never overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
-**If the ladder genuinely does not resolve a conflict, say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
+**Stopping at a phase boundary is NOT asking permission.** The no-asking directive in `completion` bans "would you like me to...?" before work you were already asked to do. You MAY end a phase, report the result, and let the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read that directive as "never stop".
+**When a higher rung forces a question, the question MUST be HOW; it MUST NOT be WHETHER.** "Which way do you want this fixed" is always legitimate. `May I skip it`, `may I drop the test`, `shall I defer this` are banned at every rung (`completion.md`).
+**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: MUST home it in a spec per `planning.md`, close the work in hand, and ask Thomas whether that spec runs. If no, it is parking with a polite name: MUST fix it now (`completion.md`).
+**Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on MUST NOT be fixed on the way to closing the work in hand.** `completion.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
+**The route is fixed and it has four steps: MUST spec the defect, close the work in hand, ask Thomas whether to implement that spec, stop.** MUST NOT fix it after closing either, and silence is not consent (`completion.md`, "A problem you FIND while working on something else gets a SPEC"). The one defect you fix on the spot is the one that BLOCKS the goal, because there is no closing the work in hand around it.
+**Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce MAY be written down instead of fixed. Anything deterministic, structural, or load-explained MUST be fixed (`completion.md`).
+**A spec is not a record, so this question MUST decide WHAT you write; it MUST NOT decide WHETHER the fix happens.** A reproducible defect that does not block the work in hand MUST still get a spec and an ask rather than a same-session fix (the point above); the shard route stays reserved for the failure you could not reproduce.
+**Simplest-correct-solution MUST sit UNDER rungs 2 and 3; it MUST NOT sit beside them.** `ai/rules/simplicity.md` requires the simplest fully correct answer, and "fully correct" is what rungs 2 and 3 already own. It cuts machinery: an abstraction with one user, an option nobody asked for, a layer that transforms nothing. It MUST NOT cut correctness, conformance, a test, a guard, or an error path, and quality is 0% compromise.
+**The simplest design is usually the HARDEST to find. "This was the pragmatic option under time pressure" is the tell that a lower rung is being read as a license.** Not seeing the simple design is a reason to think longer, or to ask which way. It MUST NOT be treated as a reason to ship the complicated answer or the incomplete one.
+**A rule's own subject matter MUST NOT be overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
+**If the ladder genuinely does not resolve a conflict, MUST say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you MUST stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
 
 <!-- always-on: the ladder itself -->
 
@@ -469,8 +469,8 @@ When changing code behavior, update or remove comments that described the old be
 | Error handling changes | Update comments explaining error propagation |
 | Callers change behavior | Update comments at the call site |
 ## Do Not
-- Leave a comment that describes one specific case when the code now handles multiple cases.
-- Keep a comment about "returns X" when the function now returns Y.
-- Add "also does Z" to an existing comment that says "does X". Rewrite to cover both.
+- MUST NOT leave a comment that describes one specific case when the code now handles multiple cases.
+- MUST NOT keep a comment about "returns X" when the function now returns Y.
+- MUST NOT add "also does Z" to an existing comment that says "does X". MUST rewrite to cover both.
 
 <!-- always-on: no past task would surface it -->

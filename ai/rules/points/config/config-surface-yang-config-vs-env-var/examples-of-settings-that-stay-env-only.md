@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: SHOULD
 stage:
 ---
+**Settings in these categories SHOULD stay env-only:**
 - Emergency escape hatches (safety valves, deadline overrides)
 - Debug instrumentation (artificial delays, verbose tracing)
 - Bootstrap settings needed before config is parsed

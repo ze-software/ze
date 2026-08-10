@@ -13,6 +13,8 @@ directives ## Directives
   open-every-rule-with-a-title-and-metadata-block
   required-structure-in-this-exact-order
   required-elements-of-a-rule-header
+every-directive-states-a-level ## Every directive states a level
+  every-directive-states-its-rfc-2119-level
 the-trigger-is-a-routing-key ## The trigger is a routing key
   name-a-situation-in-the-when-line-not-a-summary
   what-a-trigger-line-must-do

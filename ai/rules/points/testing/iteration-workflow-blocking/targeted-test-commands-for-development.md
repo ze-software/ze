@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: SHOULD
 stage:
 ---
-**Targeted test commands for development:**
+**SHOULD use targeted test commands for development:**

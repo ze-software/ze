@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Related code belongs together.** The "delete the folder" test is a mechanical check for proximity.
+**Related code MUST belong together.** The "delete the folder" test is a mechanical check for proximity.

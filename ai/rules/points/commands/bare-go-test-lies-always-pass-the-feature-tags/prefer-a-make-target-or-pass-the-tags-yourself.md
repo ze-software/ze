@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Prefer a make target** (`make ze-unit-test`, `make ze-verify-changed`). When you
-must scope to packages, pass the tags:
+**SHOULD prefer a make target** (`make ze-unit-test`, `make ze-verify-changed`). When you
+MUST scope to packages, MUST pass the tags:

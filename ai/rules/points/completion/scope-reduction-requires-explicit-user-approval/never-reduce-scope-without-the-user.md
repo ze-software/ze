@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**ABSOLUTE PROHIBITION. No self-authorized scope reduction. No exceptions.**
+**ABSOLUTE PROHIBITION. You MUST NOT reduce scope without explicit user authorization. No exceptions.**

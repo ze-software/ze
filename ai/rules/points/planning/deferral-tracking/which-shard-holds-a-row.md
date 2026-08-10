@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Shard key.** Each row lives in the shard named for its source:
+**Shard key.** Each row MUST live in the shard named for its source:

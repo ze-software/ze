@@ -1,8 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
+**These weakenings MUST NOT be introduced:**
+
 - adding `t.Skip` / `t.Skipf` / `t.SkipNow` (the test stops running)
 - removing assertions (any net drop, not only all-removed)
 - downgrading fatal assertions to non-fatal (`require` -> `assert`, `t.Fatal` -> `t.Error`)

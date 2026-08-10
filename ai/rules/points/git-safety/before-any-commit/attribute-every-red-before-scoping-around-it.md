@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**The red must be attributed, not assumed (BLOCKING).** "Known-red" means you
+**The red MUST be attributed, not assumed (BLOCKING).** "Known-red" means you
 have identified the specific failing stage/test and confirmed it is pre-existing
 (logged in `plan/known-failures/`) or owned by another active session. An
 *undocumented* red is NOT scope-aroundable: treat it as possibly your own

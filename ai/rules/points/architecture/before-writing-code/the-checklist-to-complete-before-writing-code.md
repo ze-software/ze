@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**You MUST complete this checklist before writing code.**
 - [ ] 1. Read pattern cookbook (touching CLI/web/plugin/config/tests): read `ai/patterns/<domain>.md`. See `ai/INDEX.md` "I Want To..."
 - [ ] 2. Grep/Glob for existing implementations, extend if found. Hook `check-existing-patterns.sh` blocks `Write` of a new `.go` under `internal/` when the first type name exists elsewhere. Grep `^type Foo ` first
 - [ ] 3. Know source files: use digests if available; read + write digest if not

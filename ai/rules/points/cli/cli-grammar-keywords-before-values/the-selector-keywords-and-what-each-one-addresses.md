@@ -1,8 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+A selector keyword MUST be one of these:
+
 - `name <name>` for operator-assigned names
 - `id <id>` for string or numeric IDs
 - `index <index>` for positional or kernel indexes

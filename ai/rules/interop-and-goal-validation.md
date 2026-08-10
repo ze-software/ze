@@ -63,10 +63,10 @@ A passing interop or functional test is evidence only if it would FAIL when the
 behaviour under test is broken. A test that passes whether or not the fix is
 present proves nothing and must never be presented as evidence.
 
-**Before claiming an interop/functional test validates a change, revert the
-change and confirm the test goes RED.** Rebuild the artifact the test drives
+**Before claiming an interop/functional test validates a change, MUST revert the
+change and confirm the test goes RED.** MUST rebuild the artifact the test drives
 (the container image, the daemon binary) so the revert actually takes effect,
-then restore the fix and confirm GREEN again. Record the RED result.
+then restore the fix and confirm GREEN again. MUST record the RED result.
 
 This is not the same as TDD's red-then-green: a test added to ALREADY-WORKING
 code (a regression test, an interop scenario for existing behaviour) never had a
@@ -94,7 +94,7 @@ bridge between individual AC assertions and the feature's intended purpose.
 
 Before claiming a feature is done, answer for each spec goal:
 
-**"What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
+**Before claiming a feature is done, MUST answer for each spec goal: "What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
 
 | Goal type | Required evidence |
 |-----------|-------------------|

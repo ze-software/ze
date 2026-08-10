@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**The ladder. A higher rung always wins, and the rungs below it do not get a vote.**
+**The ladder. A higher rung MUST win, and the rungs below it MUST NOT get a vote.**

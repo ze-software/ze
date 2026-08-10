@@ -7,14 +7,14 @@
 
 **Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
 just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP,
-RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface is held to its
-own RFCs, and so is anything Ze speaks that has a standard behind it.
+RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface MUST be held to its
+own RFCs, and so MUST anything Ze speaks that has a standard behind it.
 
 You cannot write an RFC-based application and not ensure RFC compliance.
 Conformance is a property of the code, checked against the RFC text, and it is
 never traded away for convenience, for a green test, or for expedience.
 
-**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
+**Conformance is not negotiable and nothing in the repo overrides the RFC: a deviation MUST NOT be made without an explicit instruction from Thomas, given in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
 
 When he does authorise one, record it as a row in `plan/journal/<class>.md` with
 the RFC section and the reason, so the next reader finds a decision rather than a
@@ -32,17 +32,17 @@ bug.
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
 
-**Before claiming a protocol behaviour is correct, read the RFC text**, not only the summary and not only the surrounding code. Cite the section you relied on.
+**Before claiming a protocol behaviour is correct, the RFC text MUST be read**, not only the summary and not only the surrounding code. The section relied on MUST be cited.
 
 Rationale: `ai/rationale/rfc-compliance.md`
 
 ## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
 
-**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. Implement it and prove it. Thomas has already chosen, so there is nothing to put to him.**
+**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. It MUST be implemented and proven. Thomas has already chosen, so there is nothing to put to him.**
 
-**Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
+**Asking MUST happen only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: it MUST be done, then reported (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
 
-**Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule.**
+**Two readings, and the one that governs.** "Full compliance is on the table" MUST be treated as a trigger to IMPLEMENT. It MUST NOT be treated as a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "MAY I do less". **Full compliance MUST NOT be put beside a narrower option when asking Thomas to pick between them.**
 
 | You are about to ... | Do instead |
 |----------------------|------------|
@@ -53,9 +53,9 @@ Rationale: `ai/rationale/rfc-compliance.md`
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
 
-**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/evidence.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/completion.md`).
+**How to ask (never "MAY I skip it").** The requirement id and the RFC section text MUST be quoted verbatim, the producing function MUST be named (`ai/rules/evidence.md`), what full implementation plus a tagged test would actually cost MUST be stated, and then which way he wants it fixed MUST be asked. Offering "leave it non-conformant" as an option MUST NOT be done (`ai/rules/completion.md`).
 
-**Every earlier answer that pointed away from full compliance or full proof is VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, cannot be cited as one, and does not survive being rediscovered.
+**Every earlier answer that pointed away from full compliance or full proof MUST be treated as VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, MUST NOT be cited as one, and does not survive being rediscovered.
 
 | Where a void answer hides | What to do when you meet one |
 |---------------------------|------------------------------|
@@ -64,11 +64,11 @@ Rationale: `ai/rationale/rfc-compliance.md`
 | A deferral row marked `user-approved-drop`, or a `cancelled` status, covering an RFC obligation | Void. Re-raise it; the row is not a close |
 | A code comment or `rfc/audit/*.json` verdict calling the deviation deliberate | A comment is a belief, not a ruling (`ai/rules/evidence.md`). Void by default; ask |
 
-**Finding a void answer while doing something else is not permission to move on.** Raise it, and record the fresh answer where the stale one lived, so the next reader inherits a decision rather than a rationalization.
+**Finding a void answer while doing something else is not permission to move on.** It MUST be raised, and the fresh answer MUST be recorded where the stale one lived, so the next reader inherits a decision rather than a rationalization.
 
 ## RFC Summaries (`rfc/short/`)
 
-**RFC summaries are protocol-only reference documents: they must NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader should be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
+**RFC summaries are protocol-only reference documents: they MUST NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader SHOULD be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
 
 ## Extraction Completeness (BLOCKING when enrolling a summary)
 
@@ -84,7 +84,7 @@ REQUIRED has a checklist row. Fetch the source first if it is absent:
 claim of "verified against the RFC" is not reproducible when `rfc/full/` lacks
 the file.
 
-**The walk is RECORDED, not asserted.** Since 2026-07-29 that record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
+**The walk MUST be RECORDED, not asserted.** Since 2026-07-29 that record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
 
 | Step | Command / file |
 |------|----------------|
@@ -94,7 +94,7 @@ the file.
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
 | Read the counts machine-readably | `make ze-rfc-extraction-status` |
 
-**The contract is `rfc/extraction/README.md`.** Five properties are worth knowing before you meet one.
+**The contract is `rfc/extraction/README.md`.** Five properties SHOULD be known before you meet one.
 
 - **Only dispositions are authored.** Sites, sections, quotes, the register and every published count are DERIVED from the source text at check time. A hand-typed "sites seen" is a claim, and claims are what this removes.
 - **A generated skeleton can never pass.** The writer emits only UNCLASSIFIED dispositions and an unclassified site fails the check, so mass-generating artifacts makes the gate redder rather than greener.
@@ -102,7 +102,7 @@ the file.
 - **The bound is over keyword-visible sites, not over obligations.** Recall can be near zero for an indicative-prose section (RFC 4271 §8.2.2: 35168 characters, one capitalised keyword). `unsourced-ids` records an obligation the extractor cannot see. This raises a floor from zero; it does not reach a ceiling.
 - **A FIRST sign-off is reviewed, not ratcheted.** `check_extraction_ratchet` compares a stem against its own HEAD row, so a stem signing off for the first time has no baseline and could exclude every site. The published per-RFC exclusion ratio is the control; read it before you approve one.
 
-**Summaries enrolled before the gate existed are grandfathered and published as a counted backlog.** Grandfathering is implemented as SCOPE (new-since-HEAD), never as an allowlist file, so nothing is added to a list of exceptions when an RFC stops being one.
+**Summaries enrolled before the gate existed are grandfathered and published as a counted backlog.** Grandfathering MUST be implemented as SCOPE (new-since-HEAD); it MUST NOT be implemented as an allowlist file, so nothing is added to a list of exceptions when an RFC stops being one.
 
 Two signals that an extraction is missing, both seen in practice:
 
@@ -138,7 +138,7 @@ Summaries that predate HEAD are the existing backlog and are deliberately grandf
 a rule that reds the gate on unrelated work gets removed rather than obeyed. Where git
 cannot answer, every ratchet judges nothing rather than judging everything.
 
-**Beside the seven, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
+**Beside the seven, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: only the owner MAY arm it, with a one-line commit.
 
 ### The public ledger's edges (not ratchets, hard requirements)
 
@@ -165,7 +165,7 @@ buys any later weakening. Scope is the enclosing test function, not the edited h
 sits on the doc comment, so a hunk-scoped guard misses exactly the edit it exists to stop)
 and not the whole file (which blocked 331 of 3220 untagged helper functions).
 
-**What none of this catches: a tagged test whose assertions are weakened *in place* while keeping the same shape.** That is `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`) wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the seven ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 
 ## Before Implementing BGP Features
 
@@ -173,7 +173,7 @@ and not the whole file (which blocked 331 of 3220 untagged helper functions).
 2. Read relevant sections, note MUST/SHOULD/MAY
 3. Check ExaBGP reference
 
-**Priority:** RFC > ExaBGP API compat > ExaBGP implementation
+**Priority:** the RFC MUST outrank ExaBGP API compat, which MUST outrank the ExaBGP implementation.
 
 ## Wire Format Documentation (MANDATORY)
 

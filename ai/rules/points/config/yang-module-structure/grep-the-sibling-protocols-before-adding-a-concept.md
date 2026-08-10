@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Before adding a concept to a protocol module, grep how the sibling protocols model it (`ai/rules/architecture.md`) and match them.**
+**Before adding a concept to a protocol module, the sibling protocols MUST be grepped for how they model it (`ai/rules/architecture.md`) and matched.**

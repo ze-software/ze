@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MAY
 stage:
 ---
-**Exception:** `| tee <file>` is allowed -- it is non-lossy and captures
+**Exception:** `| tee <file>` MAY be used -- it is non-lossy and captures
 output to a file while still displaying it.

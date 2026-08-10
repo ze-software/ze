@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**NOT acceptable:** "Already checked in audit", "should work", empty cells.
+**The following MUST NOT be used as evidence:** "Already checked in audit", `should work`, empty cells.

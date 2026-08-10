@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
+**You MUST go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
 `GOCACHE := $(CURDIR)/cache/go-cache`, and that export reaches make RECIPES only. A
 bare `go test` typed into a shell uses the user's own `~/.cache/go-build` instead,
 so it rebuilds the world cold, shares nothing with `ze-verify`, and leaves the

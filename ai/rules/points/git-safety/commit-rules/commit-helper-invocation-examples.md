@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Helper format:**
+**You MUST use this helper format:**
 ```bash
 # Single commit (most common):
 scripts/dev/commit_helper.py create \
@@ -11,8 +11,7 @@ scripts/dev/commit_helper.py create \
   --subject "hook: allow tee pipe, per-session log paths" \
   --body "Explanation of why the change was made." \
   --file .claude/hooks/pretool-bash.py \
-  --file ai/rules/commands.md \
-  --lesson-not-needed "hook fix, no novel pattern"
+  --file ai/rules/commands.md
 
 # Second commit in the same script:
 scripts/dev/commit_helper.py create \

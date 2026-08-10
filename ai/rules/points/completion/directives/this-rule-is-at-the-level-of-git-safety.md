@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**BLOCKING. ABSOLUTE PROHIBITION. Same level as git safety.**
+**BLOCKING. This rule MUST be treated as an ABSOLUTE PROHIBITION, at the same level as git safety.**

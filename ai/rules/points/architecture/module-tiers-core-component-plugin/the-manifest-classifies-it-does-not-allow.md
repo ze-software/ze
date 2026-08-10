@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**The manifest is not a general allowlist. It classifies packages whose placement cannot be derived from the engine and registration mechanics alone, and the gate fails if a manifest row points at an engine, uses the wrong home for its category, goes stale, or a shared non-engine placement appears without a row.**
+**The manifest is not a general allowlist. It classifies packages whose placement cannot be derived from the engine and registration mechanics alone. A manifest row MUST NOT point at an engine, MUST use the correct home for its category, and MUST NOT go stale; every shared non-engine placement MUST have a row.**

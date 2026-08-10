@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-**A draft is not a test yet, so the draft workflow ends in exactly two moves:
+**A draft is not a test yet, so the draft workflow MUST end in exactly two moves:
 promote it into `test/<suite>/`, or delete it.** Leaving it in the incubator is
 the third move, and it is the one that is refused. A draft proves no obligation,
 claims no evidence, and appears in no coverage ledger, so a session that finds

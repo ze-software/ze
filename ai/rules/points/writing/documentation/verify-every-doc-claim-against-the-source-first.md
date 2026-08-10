@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Every factual claim** in `docs/` must be verified against actual code before writing.
-Never describe what you *think* the code does. Read the source first.
+**Every factual claim** in `docs/` MUST be verified against actual code before writing.
+You MUST NOT describe what you *think* the code does. You MUST read the source first.

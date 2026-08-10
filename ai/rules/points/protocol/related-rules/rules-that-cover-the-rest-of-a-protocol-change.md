@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+A protocol change MUST also comply with these rules:
 - `ai/rules/rfc-compliance.md` -- conformance to the RFC text, and the ratchets that keep RFC testing valid. It stays separate and always-on.
 - `completion.md` -- silent wiring gaps. Exact-or-reject is the backend-translation specialization: wired but lossy = not done.
 - `completion.md` -- "best effort" = "probably fine".

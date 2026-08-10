@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 - Engine: `slogutil.Logger("subsystem")`
@@ -9,4 +9,4 @@ stage:
 - Levels: `disabled`, `debug`, `info`, `warn`, `err`
 - Config: `environment { log { level warn; bgp.routes debug; } }`
 - Priority: CLI flag > env var > config > default (WARN)
-- Debug logging is permanent: `logger.Debug()`, never `fmt.Printf`
+- Debug logging is permanent: code MUST use `logger.Debug()`, and MUST NOT use `fmt.Printf`

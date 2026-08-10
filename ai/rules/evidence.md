@@ -6,11 +6,11 @@
 
 ## Directives
 
-**State only what the source explicitly says or does. A factual or behavioral claim about the code, and any recommendation premised on one, must be verified against the code that produces the behavior, not inferred from the code that consumes it.**
+**State only what the source explicitly says or does. A factual or behavioral claim about the code, and any recommendation premised on one, MUST be verified against the code that produces the behavior, not inferred from the code that consumes it.**
 
-**A guard must fail closed or say something. Silent degradation into a permissive no-op is the bug, and a zero value that downstream reads as a legitimate answer is how it hides.**
+**A guard MUST fail closed or say something. Silent degradation into a permissive no-op is the bug, and a zero value that downstream reads as a legitimate answer is how it hides.**
 
-**If enumerated data has a canonical source (registry, map, typed enum, list function), DERIVE every display/help/error/usage/doc string from it. No second hardcoded copy.**
+**If enumerated data has a canonical source (registry, map, typed enum, list function), you MUST derive every display/help/error/usage/doc string from it. You MUST NOT keep a second hardcoded copy.**
 
 Detail: `ai/rationale/derive-not-hardcode.md`.
 
@@ -41,8 +41,8 @@ A self-consistent story is a hypothesis, not a finding. Coherence is not
 verification, and breadth of research (many files skimmed) does not substitute
 for reading the one function the claim depends on.
 
-**When a claim's evidence is what a command printed, write the command or paste
-what it printed. Never write a sentence describing the output.** "`git grep -n
+**When a claim's evidence is what a command printed, you MUST write the command or paste
+what it printed. You MUST NOT write a sentence describing the output.** "`git grep -n
 familiesSent -- '*.go'` returns nothing" is evidence: the reader runs it. "The
 grep returns only the guard's own literal" is a claim about a command, made from
 memory, and it was false twice over in one cell.
@@ -73,21 +73,21 @@ what `Run` returns on session end, was inferred from the caller, never read.
 
 Verification and citation are two decisions, and this rule owns the first.
 
-**Verification is an action: read the producing function. The citation is written for the reader, and it names the file and the symbol.**
+**Verification is an action: you MUST read the producing function. The citation is written for the reader, and it MUST name the file and the symbol.**
 
-**A line number is correct only when the line IS the fact, and then it belongs in a fenced block as quoted output, never in prose.**
+**A line number is correct only when the line IS the fact, and then it MUST appear in a fenced block as quoted output; it MUST NOT appear in prose.**
 
-**A citation into another project names the file and the SYMBOL too, and a forge permalink's `#L` anchor is a line number wearing a URL.** Link the file at a pinned tag and put the function in the link text: `[bgp_io.c \`bgp_write\`](https://.../bgp_io.c)`. `c_line_number_ref` in `.claude/hooks/pretool-writeedit.py` refuses a bare anchor.
+**A citation into another project MUST name the file and the SYMBOL too, and a forge permalink's `#L` anchor is a line number wearing a URL.** You MUST link the file at a pinned tag and put the function in the link text: `[bgp_io.c \`bgp_write\`](https://.../bgp_io.c)`. `c_line_number_ref` in `.claude/hooks/pretool-writeedit.py` refuses a bare anchor.
 
-**A pinned tag does NOT make a line number safe. Measured 2026-08-03: four BIRD anchors in `docs/architecture/congestion-industry.md` pointed at unrelated code at the v3.2.0 tag they named, and a GoBGP anchor was off by six lines.** They were written against a different version and never re-read, so the citation was wrong from the day the dependency moved and nothing could detect it.
+**A pinned tag MUST NOT be treated as making a line number safe. Measured 2026-08-03: four BIRD anchors in `docs/architecture/congestion-industry.md` pointed at unrelated code at the v3.2.0 tag they named, and a GoBGP anchor was off by six lines.** They were written against a different version and never re-read, so the citation was wrong from the day the dependency moved and nothing could detect it.
 
-**A line number in a document is legitimate only when a GENERATOR maintains it (owner directive, 2026-08-03). Hand-typing one is banned, because nothing refreshes it and nothing can tell it has gone wrong.** `ai/RFC-REQUIREMENTS.md` is the working example: its `file.go:line` entries are derived from `RFC requirement:` tags on every `make ze-rfc-index`, so they move when the tests move. A file earns this by declaring `GENERATED ... do not edit` in its first ten lines, and `c_line_number_ref` reads that declaration rather than a list of filenames.
+**A line number in a document MUST NOT appear unless a GENERATOR maintains it (owner directive, 2026-08-03). Hand-typing one MUST NOT be done, because nothing refreshes it and nothing can tell it has gone wrong.** `ai/RFC-REQUIREMENTS.md` is the working example: its `file.go:line` entries are derived from `RFC requirement:` tags on every `make ze-rfc-index`, so they move when the tests move. A file earns this by declaring `GENERATED ... do not edit` in its first ten lines, and `c_line_number_ref` reads that declaration rather than a list of filenames.
 
-**So a location is either derived or absent. There is no third option.** If you want a document to point at a line, write the generator that keeps it current; if you will not write the generator, name the symbol and stop.
+**So a location is either derived or absent. There is no third option.** If you want a document to point at a line, you MUST write the generator that keeps it current; if you will not write the generator, you MUST name the symbol and stop.
 
 **Replacing a location key with a symbol key MUST preserve multiplicity.** Two tags inside one function share a symbol, so a plain `path::Name` key collapses them and deleting one then reads as unchanged, which is a false FRESH: the one outcome a freshness check exists to prevent. `rfc/audit/*.json` keeps a within-symbol ordinal (`path::Name#2`) for exactly this. A location key gave multiplicity away for free, and a symbol key has to be asked for it.
 
-**Name the symbol BEFORE removing a location, never after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
+**You MUST name the symbol BEFORE removing a location, and MUST NOT do so after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
 
 A pasted line number proves nothing about what you read, and it goes stale at the
 next edit (`ai/rules/writing.md`). Line-number citations were stripped from
@@ -99,14 +99,16 @@ and `.claude/` markdown.
 
 Before answering a factual question about file content:
 
+**You MUST answer only from text you can cite.**
+
 1. Can I point to the text that states the answer? If yes, answer.
 2. If no: "The file doesn't say. [what's missing]."
 
 Before claiming code behaves a certain way, or recommending work premised on it:
 
-1. Name the single keystone fact the claim depends on (e.g. "a session-down yields `err == nil`").
-2. Read the function that *produces* that fact (returns or sets the value), not only the one that consumes it.
-3. If I have read only the consumer, label it a hypothesis, not a finding, and verify before recommending any action.
+1. You MUST name the single keystone fact the claim depends on (e.g. "a session-down yields `err == nil`").
+2. You MUST read the function that *produces* that fact (returns or sets the value), not only the one that consumes it.
+3. If I have read only the consumer, I MUST label it a hypothesis, not a finding, and MUST verify before recommending any action.
 
 ### Banned
 
@@ -209,11 +211,11 @@ Go's bare map read is the archetype: `m[k]` on an absent key yields the zero
 value with no signal. Prefer `v, ok := m[k]` and handle `!ok` explicitly.
 
 **A present-but-empty value passes `ok`.** `ok` proves the key exists, not that
-the value is usable. When empty is also wrong, check `!ok || len(v) == 0`.
+the value is usable. When empty is also wrong, you MUST check `!ok || len(v) == 0`.
 
 ### Test corollary
 
-**Drive the guard from the entry point that triggers it.** A unit test on the
+**You MUST drive the guard from the entry point that triggers it.** A unit test on the
 guard helper proves the helper is correct. It proves nothing about whether the
 caller ever reaches it with the input that matters.
 
@@ -224,11 +226,11 @@ count-0 row, while `walkTree` (`internal/component/config/yang/validator.go`)
 iterated only present keys and its leaf-value branch skipped non-strings, so
 leaf-list `min-elements` was only ever handed exactly 1 and could never reject.
 
-**Test the shape that should be rejected, not only the shapes that work.**
+**Test the shape that SHOULD be rejected, not only the shapes that work.**
 
 ### Evidence corollary
 
-**A doc or comment asserting a safety property is not evidence the property holds. Read the producing function.**
+**A doc or comment asserting a safety property MUST NOT be treated as evidence the property holds. You MUST read the producing function.**
 
 This is the No Fabrication section above, applied to safety claims, where the
 cost of a reassuring wrong answer is highest: the reader asks the right question,
@@ -267,7 +269,7 @@ bug behind different front doors.
 | `.ci` test expectations listing names | test pulls the list |
 | Generated docs | `make ze-inventory` |
 
-**If the lookup is awkward, add a `List()` accessor. Do not paste the list twice.**
+**If the lookup is awkward, you MUST add a `List()` accessor. You MUST NOT paste the list twice.**
 
 ### Structured Data, Not Pre-Formatted Strings
 
@@ -284,10 +286,12 @@ Principle: **registry/struct is truth; every surface is a view of it**.
 
 ### Mechanical Check
 
-- Grep for duplicates before committing (`grep -rn "FOO\|BAR\|BAZ" .claude docs cmd internal test plan`).
-- Output shape: "could pipe framework and web UI both render without re-parsing?" No -> emit typed field instead.
+- You MUST grep for duplicates before committing (`grep -rn "FOO\|BAR\|BAZ" .claude docs cmd internal test plan`).
+- Output shape: "could pipe framework and web UI both render without re-parsing?" No -> you MUST emit typed field instead.
 
 ### When a Hardcoded List Is OK
+
+**A hardcoded list MAY appear in these cases:**
 
 - Canonical registry doesn't exist yet; you are creating it (same commit as consumer).
 - Test fixture deliberately asserts against drift.

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Do NOT try to convert to `go mod vendor`: `gok` cannot consume it. Do NOT hand-edit modcache go.sum hashes.**
+**You MUST NOT try to convert to `go mod vendor`: `gok` cannot consume it. You MUST NOT hand-edit modcache go.sum hashes.**

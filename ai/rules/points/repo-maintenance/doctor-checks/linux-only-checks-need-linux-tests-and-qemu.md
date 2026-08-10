@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Linux-only checks still need Linux-tagged tests and the package must be covered by the QEMU integration target when new `//go:build linux` code is added.**
+**Linux-only checks MUST still have Linux-tagged tests, and the package MUST be covered by the QEMU integration target when new `//go:build linux` code is added.**

@@ -3,8 +3,8 @@ kind: directive
 level: MUST
 stage:
 ---
-**When a claim's evidence is what a command printed, write the command or paste
-what it printed. Never write a sentence describing the output.** "`git grep -n
+**When a claim's evidence is what a command printed, you MUST write the command or paste
+what it printed. You MUST NOT write a sentence describing the output.** "`git grep -n
 familiesSent -- '*.go'` returns nothing" is evidence: the reader runs it. "The
 grep returns only the guard's own literal" is a claim about a command, made from
 memory, and it was false twice over in one cell.

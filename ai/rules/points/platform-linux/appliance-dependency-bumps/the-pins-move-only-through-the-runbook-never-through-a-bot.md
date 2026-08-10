@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**The pins move only through the runbook, never through a bot PR.**
+**The pins MUST move only through the runbook; they MUST NOT move through a bot PR.**

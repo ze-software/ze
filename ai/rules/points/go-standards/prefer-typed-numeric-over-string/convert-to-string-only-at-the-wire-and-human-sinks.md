@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- Two sinks only: external wire (`MarshalText`/`UnmarshalText`) and human output (`String()` returning interned literal or registry name).
-- Banned in `String()`: `fmt.Sprintf`, `strconv.Itoa`, `strconv.FormatUint`, `string([]byte{...})`, `strings.Builder`, `+`.
-- `fmt.Sprintf` bypasses `AppendTo`/`WriteTo` -- cold paths only.
+- Code MUST convert to string only at two sinks: external wire (`MarshalText`/`UnmarshalText`) and human output (`String()` returning interned literal or registry name).
+- `String()` MUST NOT use: `fmt.Sprintf`, `strconv.Itoa`, `strconv.FormatUint`, `string([]byte{...})`, `strings.Builder`, `+`.
+- `fmt.Sprintf` bypasses `AppendTo`/`WriteTo`, so it MUST stay on cold paths only.
 - Canonical impl: `internal/core/family/family.go`.

@@ -1480,6 +1480,104 @@ def c_point_overwrite(ctx):
     )
 
 
+# RFC 2119 / RFC 8174 keywords and the lowercase spellings that are refused in
+# their place. Kept in sync with RFC_LEVELS / LOWER_MODAL in
+# scripts/dev/rules_lint.py: that pass refuses the same file at gate time, and a
+# keyword one accepts and the other does not would make them disagree.
+RFC_KEYWORD_RE = re.compile(
+    r"\b(?:MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED|MUST|SHALL|REQUIRED"
+    r"|SHOULD|RECOMMENDED|MAY|OPTIONAL)\b"
+)
+LOWER_MODAL_RE = re.compile(r"(?<![\w-])(must|shall|should|may)\b(?![-\w])")
+POINT_FENCE_RE = re.compile(r"^```.*?^```", re.M | re.S)
+POINT_CODE_SPAN_RE = re.compile(r"`[^`]*`")
+
+
+def _point_visible(text):
+    """The words a point STATES: fenced blocks and code spans are quoted, not stated."""
+    return POINT_CODE_SPAN_RE.sub("", POINT_FENCE_RE.sub("", text))
+
+
+# ze point: rule-format/every-directive-states-a-level/every-directive-states-its-rfc-2119-level
+def c_rule_point_rfc_language(ctx):
+    """Refuse a directive point that does not state its obligation in RFC 2119 language.
+
+    A rule exists to settle what an agent owes. A directive whose weight a reader
+    infers from tone is a directive two readers weigh differently, and the corpus
+    carried 509 of them before this check landed. The capitalised keyword is the
+    whole fix: it says whether the instruction binds, recommends, or permits, and
+    it says it in the one vocabulary every reader here already shares.
+
+    Scoped to `kind: directive`. A `table` is usually a lookup and a `note` is
+    usually context; forcing MUST into a two-column glossary would add a word
+    without adding an obligation.
+
+    Two shapes, one refusal each. A Write carries the WHOLE point, so the missing
+    keyword is decidable and refused. An Edit carries a fragment, so the keyword
+    may legitimately sit in the untouched part of the file -- what is decidable
+    there is the lowercase modal being INTRODUCED, which is refused for both
+    tools. `make ze-rules-lint` reads the finished file and owns the rest.
+    """
+    fp = ctx["fp"]
+    content = ctx["content"]
+    if ctx["tool"] not in ("Write", "Edit", "MultiEdit") or not content:
+        return None
+    try:
+        given = fp if os.path.isabs(fp) else os.path.join(PROJECT_DIR, fp)
+        resolved = os.path.realpath(given)
+        points_dir = os.path.realpath(
+            os.path.join(PROJECT_DIR, "ai", "rules", "points")
+        )
+        tail = _tail_under(points_dir, resolved)
+    except (OSError, ValueError):
+        return None
+    if tail is None or len(tail) != 3:
+        return None
+
+    whole = ctx["tool"] == "Write"
+    if whole:
+        is_directive = re.search(r"^kind:[ \t]*directive[ \t]*$", content, re.M)
+    else:
+        try:
+            head = open(resolved, encoding="utf-8", errors="replace").read(400)
+        except OSError:
+            return None
+        is_directive = re.search(r"^kind:[ \t]*directive[ \t]*$", head, re.M)
+    if not is_directive:
+        return None
+
+    rel = "/".join(tail)
+    visible = _point_visible(content)
+    lower = sorted(set(LOWER_MODAL_RE.findall(visible)))
+    if lower:
+        words = ", ".join(repr(w) for w in lower)
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: lowercase obligation word in a rule "
+            f"directive{RESET}"
+            f"\n  ai/rules/points/{rel} states {words} in lowercase."
+            "\n  A directive says what an agent owes, so it says it in RFC 2119"
+            "\n  language: MUST, MUST NOT, SHOULD, SHOULD NOT, MAY."
+            "\n  Capitalise the keyword, or rewrite the sentence to carry no"
+            "\n  modal at all. ai/rules/writing.md bans the hedging spelling.",
+        )
+    if whole and not RFC_KEYWORD_RE.search(visible):
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: rule directive states no RFC 2119 level{RESET}"
+            f"\n  ai/rules/points/{rel} declares `kind: directive` and states no"
+            "\n  capitalised keyword, so nothing in it says whether the"
+            "\n  instruction binds, recommends, or permits."
+            "\n  Use MUST / MUST NOT for an obligation, SHOULD / SHOULD NOT for a"
+            "\n  strong default, MAY for a permission, and set `level:` to the"
+            "\n  strongest one the body states."
+            "\n  A block that states no obligation is `kind: note` or"
+            "\n  `kind: table`, not `kind: directive`."
+            "\n  See ai/rules/rule-format.md 'Every directive states a level'",
+        )
+    return None
+
+
 # ze point: architecture/directives/load-ze-context-before-any-design-decision
 def c_utils_package(ctx):
     fp = ctx["fp"]
@@ -2777,6 +2875,7 @@ CHECKS = (
     c_generated_files,
     c_rendered_rules,
     c_point_overwrite,
+    c_rule_point_rfc_language,
     c_design_without_lsp,
     c_claude_plans,
     c_source_edit_spec,

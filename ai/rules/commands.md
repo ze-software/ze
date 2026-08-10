@@ -30,8 +30,8 @@ out behind build tags (`//go:build ze_isis`, `ze_ospf`, `ze_ldp`, `ze_rsvpte`,
 never register, so their validators, listeners and schema vanish and **unrelated
 tests fail with phantom reds**.
 
-**Prefer a make target** (`make ze-unit-test`, `make ze-verify-changed`). When you
-must scope to packages, pass the tags:
+**SHOULD prefer a make target** (`make ze-unit-test`, `make ze-verify-changed`). When you
+MUST scope to packages, MUST pass the tags:
 
 ```
 go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" ./internal/component/foo/
@@ -58,7 +58,7 @@ Never pipe `make`, `go test`, `go build`, `golangci-lint`,
 `bin/ze*`, or any test/verify/build command through `head`, `tail`,
 `grep`, `awk`, `sed`, `cat`. Run clean. Read the log after.
 
-**Exception:** `| tee <file>` is allowed -- it is non-lossy and captures
+**Exception:** `| tee <file>` MAY be used -- it is non-lossy and captures
 output to a file while still displaying it.
 
 Losing a failure line to `| head` means re-running the whole thing.
@@ -110,7 +110,7 @@ session's `make ze` therefore cannot overwrite the binary you are testing
 against. Off-session (a human shell, CI) the path is the plain `bin/ze` it
 always was.
 
-**Do not hardcode `bin/ze`** in a command, script, or doc. Ask:
+**MUST NOT hardcode `bin/ze`** in a command, script, or doc. Ask:
 
 ```
 $(make ze-path) show version          # <session-dir>/bin/ze, or bin/ze off-session

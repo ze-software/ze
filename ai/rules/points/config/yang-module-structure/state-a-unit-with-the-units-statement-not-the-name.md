@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**A leaf whose value carries a physical unit (time, rate, size) states the unit once, via the YANG `units` statement, keeps the leaf name unit-free, and carries a protocol-sane `default`:** `leaf hello-interval { type uint32; units seconds; default 10; }`
+**A leaf whose value carries a physical unit (time, rate, size) MUST state the unit once, via the YANG `units` statement, MUST keep the leaf name unit-free, and MUST carry a protocol-sane `default`:** `leaf hello-interval { type uint32; units seconds; default 10; }`

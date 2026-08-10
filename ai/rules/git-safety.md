@@ -14,7 +14,7 @@ See: `ai/INSTRUCTIONS.md`, "git commit, git add, git rm: FORBIDDEN as bare Bash 
 **A shared single-file plan log cross-commits even with a correct, explicit
 `--file` list.** The ban on the bare staging verbs fixes staging *timing*; it
 cannot fix staging *granularity*. `git add <file>` stages the WHOLE file, including hunks
-another session left uncommitted in it. The fix is to SHARD the log so each
+another session left uncommitted in it. You MUST SHARD the log so each
 session writes only files it owns and git merges disjoint creations without
 conflict. **Both cross-spec logs are now sharded.** Deferrals live one file
 per source under `plan/deferrals/` (`ai/rules/planning.md`), so `git
@@ -41,10 +41,10 @@ Do not read a cross-commit as a rule violation by the other session. With
 concurrent sessions and a shared single-file log it is structural.
 
 **Explicit commit requests are a fast path.** When the user asks for a
-commit, the implementation/review phase is over. Prepare the commit
-script and run it immediately. Do not re-audit the implementation, run late
+commit, the implementation/review phase is over. You MUST prepare the commit
+script and run it immediately. You MUST NOT re-audit the implementation, run late
 completeness/remaining-work tables, inspect speculative companion artifacts,
-or rerun lint/tests just because commit was requested. Inspect only enough
+or rerun lint/tests just because commit was requested. You MUST inspect only enough
 state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
 **One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
 after the script has run** (step 7). It judges the commit you just made, which no
@@ -52,7 +52,7 @@ run before that commit could see.
 
 **Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It was raised twice as
 a narrowing of the fast path, because it adds about 45 seconds to a commit that
-carried Go. It is settled, so do not re-open it. The reasoning he accepted: the
+carried Go. It is settled, so you MUST NOT re-open it. The reasoning he accepted: the
 check is not a rerun, since its input is a commit that did not exist until the
 script ran, and it is the only thing that reads the population git holds. The
 failure it prevents is unbounded where its cost is bounded and one-shot. HEAD was
@@ -62,16 +62,16 @@ that nobody in that window ran.
 If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
-1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
-2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
-   `--append` adds a later commit block to a script you already prepared. Pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
+1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
+2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
+   `--append` adds a later commit block to a script you already prepared. You MUST pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
-4. Lesson learned check: the helper asks whether the commit ADDS content to an agent-workflow, rule, tooling, verification, or discovery surface, or only relocates it. Content earns a journal row: include `plan/journal/<class>.md` in `--file`. A move, a rename, or a reformat does not, and passes untouched. When the change adds content but taught nothing reusable, say so with `--lesson-not-needed "<reason>"`; `--lesson-required` is the operator demanding one regardless (`ai/rules/planning.md`, "Writing Journal Rows").
-5. If the helper cannot express the commit shape, hand-write the same script pattern and `chmod +x` it. Give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. Do not use heredocs. Always use `git commit -F <file>`.
-6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
-8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
+4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
+5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
+6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Before writing a commit script, you MUST read `.gitignore` and MUST NOT `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. You MUST only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
+**The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
 
 `git commit`/`git add` inside the script is fine -- the ban is on
 direct AI tool invocations, not on what the script does when it runs.
@@ -81,13 +81,13 @@ passes the hook that blocks the raw verbs. `git restore --staged <file>`
 is allowed inside a commit script only; all other `git restore` variants
 remain forbidden.
 
-**`git rm` safety:** before using `git rm` in a commit script, verify
+**`git rm` safety:** before using `git rm` in a commit script, you MUST verify
 the file is tracked (`git ls-files --error-unmatch <file>`). For files
-modified during implementation (specs, stubs), use `git rm -f` to avoid
-"has local modifications" errors. Never `git rm -f` without first
+modified during implementation (specs, stubs), you MUST use `git rm -f` to avoid
+"has local modifications" errors. You MUST NOT `git rm -f` without first
 committing the file's current state (see Spec Closure in planning rules).
 
-**Helper format:**
+**You MUST use this helper format:**
 ```bash
 # Single commit (most common):
 scripts/dev/commit_helper.py create \
@@ -95,8 +95,7 @@ scripts/dev/commit_helper.py create \
   --subject "hook: allow tee pipe, per-session log paths" \
   --body "Explanation of why the change was made." \
   --file .claude/hooks/pretool-bash.py \
-  --file ai/rules/commands.md \
-  --lesson-not-needed "hook fix, no novel pattern"
+  --file ai/rules/commands.md
 
 # Second commit in the same script:
 scripts/dev/commit_helper.py create \
@@ -122,10 +121,9 @@ scripts/dev/commit_helper.py create \
 
 Key flags: `--replace` for the first commit in a session, `--append`
 for subsequent commits. `--file` per path to add, `--remove` per
-tracked path to delete. `--lesson-not-needed "<reason>"` when no
-journal row applies; `--lesson-required` to enforce one.
+tracked path to delete.
 Body lines are wrapped to 72 characters. Subjects are single-line and
-must be at most 72 characters.
+are at most 72 characters.
 
 The generated script has this shape:
 ```bash
@@ -142,16 +140,16 @@ git add -- \
 git commit -F tmp/commit-msg-<SESSION>-a.txt
 ```
 
-**Never suggest / ask / hint at committing.** Complete ALL work first
+**You MUST NOT suggest / ask / hint at committing.** Complete ALL work first
 (testing, spec, docs, journal row), then report. User decides.
-Banned phrases: "ready to commit?", "shall I commit?", "we could
-commit now", "want me to commit?".
+Banned phrases: `ready to commit?`, `shall I commit?`, `we could
+commit now`, `want me to commit?`.
 
 ## Pushing (2026-08-05, owner amendment)
 
 - **A bare `git push` from a Bash call stays forbidden; the hook enforces it.**
-- **Push only by passing `--push` to `scripts/dev/commit_helper.py create` (step 2); it runs from the script you run at step 7.**
-- **The owner orders a push; you never decide one. `--push` on your own initiative is a push without authority.**
+- **You MUST push only by passing `--push` to `scripts/dev/commit_helper.py create` (step 2); it runs from the script you run at step 7.**
+- **The owner orders a push; you MUST NOT decide one yourself. `--push` on your own initiative is a push without authority.**
 - **`git push --force` and `-f` stay forbidden; `--push` is no route to them.**
 
 ### Why the amendment, and what to do when a push goes wrong
@@ -189,7 +187,7 @@ Review fixes from a review pass = one commit.
 ## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
 
 **A FAILED commit leaves the index STAGED, and the next session's commit inherits
-it. Clear it before you walk away.** The script stages first and commits second, so
+it. You MUST clear it before you walk away.** The script stages first and commits second, so
 a commit that fails has already staged everything. On 2026-08-03 a GPG passphrase
 prompt with no TTY failed the signing step, eleven files sat staged in the shared
 index for roughly forty minutes, and a concurrent session's 1467-file commit took
@@ -198,7 +196,7 @@ landed under another commit's message.
 
 **The failure mode is invisible from the failed run.** It exits non-zero, prints
 `failed to write commit object`, and reads as "nothing happened". The staging IS
-what happened. After ANY failed commit in a shared checkout, read
+what happened. After ANY failed commit in a shared checkout, you MUST read
 `git diff --cached --name-only`, then either fix the cause and re-run at once or
 unstage your own paths. A signing failure is the usual trigger precisely because it
 fails LAST, after every gate has passed and every file is already staged.
@@ -307,7 +305,7 @@ It is a
 SEPARATE flag from `--unverified` precisely so the flaky-test path can never
 reach this branch, it refuses an empty reason, and it prints the red gate names
 with the reason to stderr so a red tree can never look green in a transcript.
-Use it only when Thomas says so and the red provably belongs to another
+You MUST use it only when Thomas says so and the red provably belongs to another
 session's in-flight work that this commit cannot affect. It exists because a
 refusal with NO escape made a green tree the only route to any commit at all,
 including one touching no compiled code -- which pushed sessions toward the real
@@ -326,8 +324,8 @@ specific `--fix` the failing check names). It is never flaky or environmental.
 `ze-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
 run your WORKING TREE, uncommitted and untracked files included. (One gate does
 read the commit: `commit_helper.py` judges discovery-index freshness against a
-materialized HEAD. It regenerates indexes; it compiles nothing.) So a commit
-that takes a CONSUMER while its PRODUCER stays uncommitted is green for you and
+materialized HEAD. It regenerates indexes; it compiles nothing.) So you MUST NOT
+commit a CONSUMER while its PRODUCER stays uncommitted: it is green for you and
 broken for everybody who builds what git holds. On 2026-08-04 four commits broke
 `make ze` at HEAD that way in one day (7abe8a07e, 025a74b72, aa1b7a4d4,
 fa372140b), with every gate green at the moment each was made. It is a blind
@@ -347,7 +345,7 @@ compiles six build flavors of the extracted tree. Three rules follow.
 `make ze-tracked-build-check REV=7abe8a07e`. `ARGS=--keep` leaves the extracted
 tree in place for inspection.
 
-**What it does NOT read: test files.** `go build` never compiles `_test.go`, so a
+**What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
 test file committed without its fixture producer stays invisible here.
 
 Known gap, recorded rather than papered over. Several checks run under BOTH
@@ -394,6 +392,8 @@ the repository owner. It was added for OpenAI behavior, not for Anthropic.
 
 The override is valid only when Thomas explicitly directs both parts:
 
+Thomas MAY use the override to do two things:
+
 1. prepare a commit script, and
 2. skip tests, skip verify, or commit without running tests.
 
@@ -403,19 +403,19 @@ Thomas in the active conversation. Do not infer the override from urgency alone.
 
 When the override is active:
 
-- Do not run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
+- You MUST NOT run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
   late commit gate.
-- Do inspect only enough state to stage exactly the requested files and avoid
+- You MUST inspect only enough state to stage exactly the requested files and avoid
   ignored, generated, unrelated, or user-owned paths.
-- Do use `scripts/dev/commit_helper.py create` with the normal user-run script
+- You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
   path. The override changes verification requirements only.
-- Do not run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
+- You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
   commands from an AI tool.
-- Do not add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
+- You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
   the generated script.
-- Report `Verification skipped by Thomas owner override` in the final response
+- You MUST report `Verification skipped by Thomas owner override` in the final response
   and, when useful, in the commit body.
-- Do not claim tests, lint, `ze-verify`, integrations, or behavior were
+- You MUST NOT claim tests, lint, `ze-verify`, integrations, or behavior were
   verified if they were skipped.
 
 ### Known-Red Full Verify: Scope to Changed (BLOCKING)
@@ -425,6 +425,8 @@ pre-existing reds, or a separate session is actively clearing the global suite -
 do NOT rerun full `ze-verify` before committing. Rerunning re-surfaces other
 sessions' noise that is not your regression and blocks progress. Gate the commit
 on changed scope only:
+
+You MUST run these scoped gates instead:
 
 - `make ze-lint-changed`
 - the touched packages' `go test` (or `make ze-verify-changed`)
@@ -439,7 +441,7 @@ caused by your own change must be fixed, not scoped around. Activate it only on 
 explicit owner direction (e.g. "another session is clearing ze-verify, check only
 what we changed"), never inferred from a red suite alone.
 
-**The red must be attributed, not assumed (BLOCKING).** "Known-red" means you
+**The red MUST be attributed, not assumed (BLOCKING).** "Known-red" means you
 have identified the specific failing stage/test and confirmed it is pre-existing
 (logged in `plan/known-failures/`) or owned by another active session. An
 *undocumented* red is NOT scope-aroundable: treat it as possibly your own
@@ -452,13 +454,13 @@ introduced it), and adding a plugin invalidates the `plugin/all` golden
 snapshots. Before scoping around a red, `go test`/`vet` the reverse-dependency
 closure of your changed packages, or run full `ze-verify` once.
 
-**Do not let a red persist.** Scope-to-changed is a temporary bridge while the
+**You MUST NOT let a red persist.** Scope-to-changed is a temporary bridge while the
 global suite is being cleared, not a standing mode. A `ze-verify` that stays red
 across sessions hides newly-introduced breakage under the existing red -- that is
 exactly how an import cycle, a YANG typedef gap, and stale registry snapshots all
-landed under one persistent red without any gate firing. Log the failing stage in
+landed under one persistent red without any gate firing. You MUST log the failing stage in
 `plan/known-failures/` with who owns clearing it; if nobody does, clearing it
-comes before stacking more changes on top.
+MUST come before stacking more changes on top.
 
 ### Concurrent Verify Runs (BLOCKING)
 
@@ -514,36 +516,36 @@ An edit mid-run invalidates the run you are waiting for.
 
 **Several agents work this checkout at once. `make ze-verify` reads the WORKING
 TREE, so it reads their half-finished edits too, and a fully green run is
-unreachable by construction. Waiting for one is a strategy that cannot terminate.**
+unreachable by construction. You MUST NOT wait for one: it is a strategy that cannot terminate.**
 
 It is worse than futile. The full gate saturates every core for half an hour, and
 that contention is what makes the functional suites flake -- so a run started to
 prove your own work reddens somebody else's at the same time.
 
-**So the full gate is not the pre-commit evidence here. Evidence scoped to YOUR
-files is.** Before preparing the commit script:
+**So the full gate is not the pre-commit evidence here. You MUST scope evidence to
+YOUR files.** Before preparing the commit script:
 
-1. Run the narrow gate owning each surface you changed (the table below).
-2. Run the tests of each package you touched, with `make ze-test-pkg`.
-3. ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
+1. You MUST run the narrow gate owning each surface you changed (the table below).
+2. You MUST run the tests of each package you touched, with `make ze-test-pkg`.
+3. You MUST ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
    status --porcelain` plus a modification time settles it in seconds. A red in a
    path your diff does not contain is not yours to chase.
-4. Prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+4. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
    and their verdicts, and naming the concurrent session's paths you excluded.
 
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
 exists for exactly this: a full-tree gate whose red belongs to somebody else's
 in-flight work. Its own text names the owner override and a failure you tried and could not reproduce;
-concurrent-session interference is the third case, and the reason has to say so.
+concurrent-session interference is the third case, and the reason MUST say so.
 
-**A deterministic STRUCTURAL gate is still never waved through** (see "Structural
+**A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
 Gates Are Never Known-Red"). Those read files, not a moving tree, so they are
 reproducible and yours to fix when your diff caused them: `ze-lint`,
 `ze-rules-lint`, `ze-doc-test`, `ze-rfc-check`, `ze-verify-wiring-docs`,
-`ze-tier-check`. Green those, always. It is the TEST stages -- unit, functional,
+`ze-tier-check`. You MUST always green those. It is the TEST stages -- unit, functional,
 web -- whose reds a concurrent tree can manufacture.
 
-**Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
+**You MUST NOT edit the tree while a verify runs**, yours or anybody's. Regenerating an
 index or touching a rule mid-run invalidates every stage that already read it, and
 the failures it produces look exactly like real ones. Measured: one such run
 reported five failing stages, all five self-inflicted, and none reproduced on the
@@ -551,16 +553,16 @@ settled tree.
 
 ### ONCE, AT THE END. Never during development (BLOCKING)
 
-**`make ze-verify` is a 25-stage full gate and takes 25 to 30 minutes. Run it ONE
+**`make ze-verify` is a 25-stage full gate and takes 25 to 30 minutes. You MUST run it ONE
 time, when the work is finished and you are about to prepare the commit script.**
 Running it to "check in" mid-change is the single most expensive habit available in
 this repository, and it buys nothing a scoped check does not.
 
-**Run what the change touches.** Every surface has one owning target, and it costs
+**You MUST run what the change touches.** Every surface has one owning target, and it costs
 seconds to minutes rather than half an hour. Find yours in this table, run it after
 each edit, and keep `ze-verify` for the end.
 
-**Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
+**You MUST go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
 `GOCACHE := $(CURDIR)/cache/go-cache`, and that export reaches make RECIPES only. A
 bare `go test` typed into a shell uses the user's own `~/.cache/go-build` instead,
 so it rebuilds the world cold, shares nothing with `ze-verify`, and leaves the
@@ -595,31 +597,31 @@ make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-verify-changed` |
 
-**When the table has no row for what you touched, derive it.** `mk/*.mk` names every
+**When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
 target and what it runs, `make help` lists them, and `ai/rules/repo-maintenance.md` maps
-each gate to the rule it enforces. A surface with no owning target is worth saying so
-in the report rather than reaching for the full gate.
+each gate to the rule it enforces. When a surface has no owning target, you SHOULD say so
+in the report rather than reach for the full gate.
 
-**READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
+**YOU MUST READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
 `FAIL N verify stage(s) failed` and one line per failing stage, and
 `tmp/ze-verify-failures.log` holds the same list. A re-run started from a partial
 read costs another half hour and usually reports the same stages. Two specific
 traps, both of which have cost a full run:
 
 - **`tail` on the log of a run that is still going.** The stage banner tells you
-  where it is (`### Stage 18/22`). Check `scripts/dev/verify-status.sh check` for
+  where it is (`### Stage 18/22`). You MUST check `scripts/dev/verify-status.sh check` for
   the verdict instead: it says FRESH, or names the failure and its time.
 - **Grepping for `--- FAIL` only.** Lint, tier, doc and inventory stages fail with
   their own wording and no `FAIL` token, so a test-shaped grep reads a red lint
-  stage as a clean run. Read the summary block, not a pattern you chose.
+  stage as a clean run. You MUST read the summary block, not a pattern you chose.
 
 **A second `ze-verify` cannot overlap the first: it blocks on the repo-wide lock**
-and runs the whole thing again afterwards, so starting one while another is live
-does not overlap the work, it doubles the wall clock.
+and runs the whole thing again afterwards, so you MUST NOT start one while another
+is live: it does not overlap the work, it doubles the wall clock.
 
-**A NARROW FAILURE GETS A NARROW RE-RUN, NEVER A SECOND FULL PASS.** When the
+**A NARROW FAILURE MUST GET A NARROW RE-RUN; IT MUST NOT GET A SECOND FULL PASS.** When the
 end-of-development run comes back with one or two failing stages and you fix
-exactly those, re-run the GATE THAT FAILED and the tests of the package you
+exactly those, you MUST re-run the GATE THAT FAILED and the tests of the package you
 touched. Twenty-three green stages that nothing has touched since do not become
 more green by being run again.
 
@@ -627,13 +629,13 @@ more green by being run again.
 the last.** `commit_helper.py create` refuses unless
 `scripts/dev/verify-status.sh check` reports FRESH, and only a full `ze-verify`
 writes that record. A narrow fix therefore still needs one more full run before a
-commit, which is precisely why the full run must come AFTER every gate you can
+commit, which is precisely why the full run MUST come AFTER every gate you can
 check cheaply is already green: `make ze-lint`, the touched packages' `go test`,
 and the gate owning each surface you changed. A run started before those are clean
 is a run you will pay for twice.
 
-**Do not stop to ask which way.** The operator is often not present, and a session
-that halts on this question has spent their time to save its own. Clear the cheap
+**You MUST NOT stop to ask which way.** The operator is often not present, and a session
+that halts on this question has spent their time to save its own. You MUST clear the cheap
 gates, run the full pass once, and commit.
 
 ### Step 2: Always

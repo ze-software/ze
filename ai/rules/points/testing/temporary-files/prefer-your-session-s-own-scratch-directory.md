@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Write it under your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)`
+**MUST write it under your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)`
 gives the `scratch/` subdirectory of `tmp/session/<YYYY-MM-DD>-<session-id>/`, so scratch
 never collides with a sibling session (`ai/rules/commands.md`). Nothing removes it for you:
 the date in the directory name is what lets the operator find it later, with

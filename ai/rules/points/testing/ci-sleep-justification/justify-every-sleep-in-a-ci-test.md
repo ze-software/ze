@@ -1,11 +1,11 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 - **Blocking gate:** `check_ci_sleep_justification` in
   `scripts/dev/verify_wiring_docs.py`, run by `make ze-verify-wiring-docs` (and the
-  inventory make gate). Scoped to CHANGED `.ci` files: a session is responsible for
+  inventory make gate). Scoped to CHANGED `.ci` files: a session MUST justify
   the sleeps in the tests it touches. Fails (exit 1) listing every unjustified
   `file:line`.
 - **Edit-time nudge:** `c_ci_sleep_justification` in

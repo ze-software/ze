@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**Every item MUST be checked before the audit is complete:**
 - [ ] Every Task requirement has a status
 - [ ] Every AC-N has status + "Demonstrated By" evidence
 - [ ] Every TDD test has a status

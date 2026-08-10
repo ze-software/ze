@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 **Both targets boot ze's own runtime kernel, never the stock Alpine one

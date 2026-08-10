@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **The callee never guesses at these. It writes into what it is given.**
+- **The callee MUST NOT guess at these. It MUST write into what it is given.**

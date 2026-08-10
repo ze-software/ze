@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**An on/off setting has one shape:** `leaf enabled { type boolean; default false; }`
+**An on/off setting MUST have one shape:** `leaf enabled { type boolean; default false; }`

@@ -28,9 +28,24 @@ routes confidently to the wrong place.
   2. `**Severity:**` must agree with the prose. A rule that declares `advisory`
      while its body says BLOCKING teaches readers that the field is decoration.
 
+A third pass reads the POINT files under ai/rules/points/ rather than the
+rendered rules, because that is where an author writes and where `level:` lives.
+Every `kind: directive` point MUST state its obligation in RFC 2119 language:
+one of the capitalised keywords, and a `level:` naming the strongest keyword the
+body states. An instruction whose weight a reader has to infer from tone is an
+instruction two readers weigh differently, and the corpus had 509 of them.
+Lowercase `must`/`shall`/`should`/`may` in a directive body is refused for the
+same reason: it reads as the obligation word while carrying none of its force,
+and `ai/rules/writing.md` bans the hedging spelling outright.
+
+The pass is scoped to `kind: directive` on purpose. A `table` is usually a
+lookup and a `note` is usually context; forcing MUST into a two-column glossary
+would add a word without adding an obligation.
+
 Usage:
     python3 scripts/dev/rules_lint.py           # report violations, exit 1 if any
     python3 scripts/dev/rules_lint.py --quiet    # exit code only
+    python3 scripts/dev/rules_lint.py --points   # the RFC 2119 pass only
 """
 
 import re
@@ -290,10 +305,137 @@ def check_rule(path):
     return problems
 
 
+# RFC 2119 / RFC 8174 keywords, longest first so "MUST NOT" wins over "MUST".
+# Keep this tuple and RFC_KEYWORD in sync with the copy in
+# .claude/hooks/pretool-writeedit.py (c_rule_point_rfc_language): the hook
+# refuses at write time, this pass refuses at gate time, and a keyword accepted
+# by one and not the other would make the two disagree about the same file.
+RFC_LEVELS = (
+    "MUST NOT",
+    "SHALL NOT",
+    "SHOULD NOT",
+    "NOT RECOMMENDED",
+    "MUST",
+    "SHALL",
+    "REQUIRED",
+    "SHOULD",
+    "RECOMMENDED",
+    "MAY",
+    "OPTIONAL",
+)
+RFC_KEYWORD = re.compile(r"\b(?:" + "|".join(RFC_LEVELS) + r")\b")
+
+# The strongest keyword a body states, for the `level:` field. Synonyms collapse
+# onto the keyword that names the level, so `level:` has one spelling per level
+# and a reader never has to decide whether REQUIRED outranks MUST.
+LEVEL_CANON = {
+    "MUST": "MUST",
+    "SHALL": "MUST",
+    "REQUIRED": "MUST",
+    "MUST NOT": "MUST NOT",
+    "SHALL NOT": "MUST NOT",
+    "SHOULD": "SHOULD",
+    "RECOMMENDED": "SHOULD",
+    "SHOULD NOT": "SHOULD NOT",
+    "NOT RECOMMENDED": "SHOULD NOT",
+    "MAY": "MAY",
+    "OPTIONAL": "MAY",
+}
+LEVEL_RANK = ("MAY", "SHOULD NOT", "SHOULD", "MUST NOT", "MUST")
+
+# RFC 2119 ranks obligation by STRENGTH, and it does not rank MUST against MUST
+# NOT: they are one tier with opposite polarity, and so are SHOULD and SHOULD
+# NOT. So `level:` names the strongest TIER a body states, and either polarity
+# in that tier is a true answer. Ordering the two would force a point whose
+# central clause is a prohibition to declare `MUST` because some other sentence
+# in it happened to be positive, which is the prohibition going unrecorded.
+LEVEL_TIERS = (("MAY",), ("SHOULD", "SHOULD NOT"), ("MUST", "MUST NOT"))
+
+# A lowercase obligation word inside a directive. Code spans and fenced blocks
+# are stripped first: `must` in a shell snippet or a quoted error string is text
+# the rule reproduces, not an obligation the rule states.
+LOWER_MODAL = re.compile(r"(?<![\w-])(must|shall|should|may)\b(?![-\w])")
+POINT_FRONTMATTER = re.compile(r"\A---\n(?P<fm>.*?)\n---\n(?P<body>.*)\Z", re.S)
+FENCE = re.compile(r"^```.*?^```", re.M | re.S)
+
+
+def strip_quoted(body):
+    """Drop fenced blocks and code spans: their words are quoted, not stated."""
+    return CODE_SPAN.sub("", FENCE.sub("", body))
+
+
+def strongest_tier(body):
+    """The levels of the strongest tier a body states, or () when it states none.
+
+    A tuple rather than one level: the tier is the answer, and either polarity in
+    it is a true `level:`. See LEVEL_TIERS.
+    """
+    found = {LEVEL_CANON[k] for k in RFC_KEYWORD.findall(strip_quoted(body))}
+    for tier in reversed(LEVEL_TIERS):
+        hit = tuple(level for level in tier if level in found)
+        if hit:
+            return hit
+    return ()
+
+
+def check_point(path, text):
+    """Return violations for one ai/rules/points/ point file."""
+    m = POINT_FRONTMATTER.match(text)
+    if not m:
+        return ["no '---' frontmatter block: see ai/rules/rule-format.md"]
+    fm, body = m.group("fm"), m.group("body")
+    kind = re.search(r"^kind:\s*(\S*)", fm, re.M)
+    if not (kind and kind.group(1) == "directive"):
+        return []
+
+    problems = []
+    visible = strip_quoted(body)
+    tier = strongest_tier(body)
+    if not tier:
+        problems.append(
+            "a directive MUST state its obligation in RFC 2119 language: no "
+            f"capitalised keyword ({', '.join(RFC_LEVELS[:6])}, ...) appears in "
+            "the body"
+        )
+    lower = sorted({w for w in LOWER_MODAL.findall(visible)})
+    if lower:
+        problems.append(
+            f"lowercase obligation word(s) {', '.join(repr(w) for w in lower)}: "
+            "capitalise the RFC 2119 keyword, or rewrite the sentence so it "
+            "carries no modal (ai/rules/writing.md bans the hedging spelling)"
+        )
+
+    declared = re.search(r"^level:[^\S\n]*(.*)$", fm, re.M)
+    declared = declared.group(1).strip() if declared else ""
+    if declared and declared not in LEVEL_RANK:
+        problems.append(f"'level: {declared}' is not one of {', '.join(LEVEL_RANK)}")
+    elif tier and declared not in tier:
+        problems.append(
+            f"'level: {declared or '(empty)'}' disagrees with the body, whose "
+            f"strongest obligation is {' or '.join(tier)}"
+        )
+    return problems
+
+
+def check_points(points_dir):
+    """Return {relative path: [violations]} for every point file under the tree."""
+    failures = {}
+    n = 0
+    for md in sorted(points_dir.rglob("*.md")):
+        if md.name == "manifest.md" or md.stem.isupper():
+            continue
+        n += 1
+        problems = check_point(md, md.read_text(encoding="utf-8", errors="replace"))
+        if problems:
+            failures[str(md.relative_to(points_dir.parents[2]))] = problems
+    return n, failures
+
+
 def main():
     root = Path(__file__).resolve().parents[2]
     rules_dir = root / "ai" / "rules"
     quiet = "--quiet" in sys.argv
+    points_only = "--points" in sys.argv
 
     if not rules_dir.is_dir():
         print(f"error: {rules_dir} not found", file=sys.stderr)
@@ -301,26 +443,50 @@ def main():
 
     failures = {}
     n = 0
-    for md in sorted(rules_dir.glob("*.md")):
-        if md.name in SKIP or md.stem.isupper():
-            continue
-        n += 1
-        problems = check_rule(md)
-        if problems:
-            failures[md.name] = problems
+    if not points_only:
+        for md in sorted(rules_dir.glob("*.md")):
+            if md.name in SKIP or md.stem.isupper():
+                continue
+            n += 1
+            problems = check_rule(md)
+            if problems:
+                failures[md.name] = problems
 
-    if failures:
+        if failures:
+            if not quiet:
+                print(
+                    f"rules_lint: {len(failures)}/{n} rule file(s) violate the format\n"
+                )
+                for name, problems in sorted(failures.items()):
+                    print(f"  ai/rules/{name}")
+                    for p in problems:
+                        print(f"      - {p}")
+                print("\nFormat spec: ai/rules/rule-format.md")
+            sys.exit(1)
+
+    points_dir = rules_dir / "points"
+    points_n, point_failures = (
+        check_points(points_dir) if points_dir.is_dir() else (0, {})
+    )
+    if point_failures:
         if not quiet:
-            print(f"rules_lint: {len(failures)}/{n} rule file(s) violate the format\n")
-            for name, problems in sorted(failures.items()):
-                print(f"  ai/rules/{name}")
+            print(
+                f"rules_lint: {len(point_failures)}/{points_n} rule point(s) do not "
+                "state their obligation in RFC 2119 language\n"
+            )
+            for name, problems in sorted(point_failures.items()):
+                print(f"  {name}")
                 for p in problems:
                     print(f"      - {p}")
-            print("\nFormat spec: ai/rules/rule-format.md")
+            print(
+                "\nFormat spec: ai/rules/rule-format.md 'Every directive states a level'"
+            )
         sys.exit(1)
 
     if not quiet:
-        print(f"rules_lint: {n} rule file(s) conform to ai/rules/rule-format.md")
+        if not points_only:
+            print(f"rules_lint: {n} rule file(s) conform to ai/rules/rule-format.md")
+        print(f"rules_lint: {points_n} rule point(s) state an RFC 2119 level")
 
 
 if __name__ == "__main__":

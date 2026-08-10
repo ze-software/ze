@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**A doc or comment asserting a safety property is not evidence the property holds. Read the producing function.**
+**A doc or comment asserting a safety property MUST NOT be treated as evidence the property holds. You MUST read the producing function.**

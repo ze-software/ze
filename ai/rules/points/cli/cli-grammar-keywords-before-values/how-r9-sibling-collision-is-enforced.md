@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 **Enforcement (R9).** Inside the YANG command tree, the static gate flags any child
@@ -13,11 +13,11 @@ is never flagged. **Root commands are a separate surface:** they register via
 `CheckSiblings` cannot see them. The root-namespace feeder (`grammar.CheckRootNamespace`,
 the fourth feeder below) governs them with a cross-surface check: a hyphenated root whose
 left segment names a YANG verb or container is the same R9 violation (`traffic-control`
-vs the `traffic` container). Do not assume a root is ungoverned because it is not in the
+vs the `traffic` container). MUST NOT assume a root is ungoverned because it is not in the
 tree.
 Shipped commands awaiting the agreed rename are listed in `pendingNamespaceSplit`
 (`scripts/checks/cli_grammar.go`) and reported as tracked debt, so the gate stays green
 while a NEW collision still fails. Migrating one is a dispatch-key change (see
-"Migrating a Built-in Command's Path" below): add the split path, keep the old form per
+"Migrating a Built-in Command's Path" below): MUST add the split path, keep the old form per
 "Backward Compatibility", update `.ci` senders, and remove its `pendingNamespaceSplit`
 entry.

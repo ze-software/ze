@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**"Does the goal this work exists to achieve still hold if I leave this?"**
+**You MUST ask: "Does the goal this work exists to achieve still hold if I leave this?"**

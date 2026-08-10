@@ -1,8 +1,8 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- [ ] Every resource-acquiring function names how to release it
-- [ ] Every multi-step lifecycle is documented on the type
-- [ ] Every "call B after A" appears in both A's and B's comments
+- [ ] Every resource-acquiring function MUST name how to release it
+- [ ] Every multi-step lifecycle MUST be documented on the type
+- [ ] Every "call B after A" MUST appear in both A's and B's comments

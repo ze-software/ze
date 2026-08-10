@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Mechanical check before committing the rename:**
+**A mechanical check MUST run before committing the rename:**

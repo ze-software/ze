@@ -1,10 +1,11 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that must never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)
-- `f, _ := func()` and `_, _ = func()` (ignoring errors). If you genuinely must discard, use `//nolint:errcheck // <why>` with a specific reason
+**Code MUST NOT write these forbidden Go patterns:**
+- `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that MUST never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)
+- `f, _ := func()` and `_, _ = func()` (ignoring errors). If you genuinely MUST discard, use `//nolint:errcheck // <why>` with a specific reason
 - Global mutable state
 - `init()` except registry patterns
 - `log.Printf` (legacy log package)

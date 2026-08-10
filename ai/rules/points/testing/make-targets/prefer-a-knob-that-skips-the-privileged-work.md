@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: SHOULD
 stage:
 ---
-**Prefer a knob that skips the work over a target that supplies the privilege.**
+**SHOULD prefer a knob that skips the work over a target that supplies the privilege.**
 Five L2TP `test/plugin` tests used to sit in the second target; they now set
 `ze.l2tp.disable-kernel-dataplane=true`, build no kernel worker, and pass
 unprivileged. That was right because each asserts on the CLI surface and never on

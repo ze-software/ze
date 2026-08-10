@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **One "no" = operator intent silently discarded. Fix before commit.**
+- **One "no" = operator intent silently discarded. You MUST fix it before commit.**

@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- [ ] 3. Boundary crossings: Engine <-> Plugin (JSON over pipes), FSM <-> Reactor (event types), WireUpdate <-> RIB (attribute refs), Caps <-> PackContext (encoding context)
-- [ ] 4. Violations? Bypassed layers? Unintended coupling? Duplicated functionality? Broken zero-copy?
+- [ ] 3. You MUST name every boundary crossing: Engine <-> Plugin (JSON over pipes), FSM <-> Reactor (event types), WireUpdate <-> RIB (attribute refs), Caps <-> PackContext (encoding context)
+- [ ] 4. You MUST check for: violations? Bypassed layers? Unintended coupling? Duplicated functionality? Broken zero-copy?

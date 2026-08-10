@@ -1,9 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**A `ze.log.<subsystem>` key in a `.ci` test must name a real slog subsystem.**
+**A `ze.log.<subsystem>` key in a `.ci` test MUST name a real slog subsystem.**
 An internal plugin's logger name is `CanonicalSubsystemName` of its registry name
 (`internal/component/plugin/inprocess.go`), which turns every hyphen into a dot,
 and `getLogEnv` (`internal/core/slogutil/slogutil.go`) splits the subsystem on

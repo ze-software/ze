@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: SHOULD
 stage:
 ---
-**The contract is `rfc/extraction/README.md`.** Five properties are worth knowing before you meet one.
+**The contract is `rfc/extraction/README.md`.** Five properties SHOULD be known before you meet one.

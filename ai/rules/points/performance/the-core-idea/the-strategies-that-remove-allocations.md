@@ -1,8 +1,8 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-1. **Buffer ownership** -- caller owns the buffer, callee writes into it
-2. **Pool lifecycle** -- bounded pools replace unbounded `make()`
-3. **Lazy parsing** -- raw byte slices with offset iterators, no parsed structs
+1. **Buffer ownership** -- the caller MUST own the buffer, and the callee MUST write into it
+2. **Pool lifecycle** -- bounded pools MUST replace unbounded `make()`
+3. **Lazy parsing** -- raw byte slices with offset iterators MUST be used, not parsed structs

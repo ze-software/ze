@@ -9,4 +9,4 @@ excepted-by: writing/language-and-spelling/prose-written-in-thomas-s-voice-keeps
 - **STE itself is a GUIDELINE. It is not a law, and it is not a gate.** The English variant, the documentation obligations, and the source anchors in this file are enforced. The STE checker reports and lets the work through.
 - **Every feature change MUST update the specific documentation it affects.** Name the file, name the section, describe the change.
 - **Every factual claim in `docs/` MUST be verified against actual code before you write it.** Read the source first, then add the anchor.
-- **A product comparison is advice, not marketing.** Every claim must help the reader choose the right tool, and must not make Ze look better.
+- **A product comparison is advice, not marketing.** Every claim MUST help the reader choose the right tool, and MUST NOT make Ze look better.

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: SHOULD
 stage:
 ---
-**Test the shape that should be rejected, not only the shapes that work.**
+**Test the shape that SHOULD be rejected, not only the shapes that work.**

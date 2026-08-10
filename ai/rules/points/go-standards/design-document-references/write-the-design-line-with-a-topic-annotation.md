@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **Format:** `// Design: docs/architecture/core-design.md -- topic annotation`
-- Topic annotations preferred over section numbers (survive restructuring).
+- **Format:** you MUST write `// Design: docs/architecture/core-design.md -- topic annotation`
+- Topic annotations SHOULD be used over section numbers (they survive restructuring).

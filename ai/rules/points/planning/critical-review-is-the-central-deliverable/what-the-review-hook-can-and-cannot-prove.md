@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
 **What the hook can and cannot prove.** It proves a *fresh, hash-pinned, clean
@@ -13,4 +13,4 @@ real independence rests on the skill mandate above, not on the gate. Known
 residuals to not lean on: the coverage check only sees THIS commit (code committed
 in earlier feature commits then closed code-free is under-covered, so commit all of
 a spec's code at closure), and the check runs when the commit script is generated,
-so do not edit code after generating the script.
+so code MUST NOT be edited after generating the script.

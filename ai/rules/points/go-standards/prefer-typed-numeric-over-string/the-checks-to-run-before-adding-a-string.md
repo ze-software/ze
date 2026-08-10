@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**You MUST run these checks before adding a string:**
 1. Finite set, compile-time? -> typed enum.
 2. Plugin-extensible? -> numeric ID + registry.
 3. External contract (YANG/JSON/CLI/log)? -> OK at boundary; convert internally.

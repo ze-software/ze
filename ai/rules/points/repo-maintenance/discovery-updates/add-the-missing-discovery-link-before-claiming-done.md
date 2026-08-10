@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, add the missing discovery link before claiming completion.**
+**If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, the missing discovery link MUST be added before claiming completion.**

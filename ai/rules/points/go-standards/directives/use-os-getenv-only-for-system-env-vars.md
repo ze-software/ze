@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MAY
 stage:
 ---
-**`os.Getenv` IS OK for:** System env vars (`HOME`, `PATH`, `XDG_*`, `NO_COLOR`, `USER`, `SSH_*`).
+**`os.Getenv` MAY be used for:** System env vars (`HOME`, `PATH`, `XDG_*`, `NO_COLOR`, `USER`, `SSH_*`).

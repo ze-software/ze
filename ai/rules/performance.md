@@ -22,9 +22,9 @@ filter evaluation, UPDATE building, and TCP write. Every allocation on
 this path adds GC pressure and latency. Ze eliminates allocations through
 three interlocking strategies:
 
-1. **Buffer ownership** -- caller owns the buffer, callee writes into it
-2. **Pool lifecycle** -- bounded pools replace unbounded `make()`
-3. **Lazy parsing** -- raw byte slices with offset iterators, no parsed structs
+1. **Buffer ownership** -- the caller MUST own the buffer, and the callee MUST write into it
+2. **Pool lifecycle** -- bounded pools MUST replace unbounded `make()`
+3. **Lazy parsing** -- raw byte slices with offset iterators MUST be used, not parsed structs
 
 ## Data Lifecycle (Wire to Wire)
 
@@ -62,7 +62,7 @@ Copies are deliberate, never accidental:
 | Filter modifies attributes | Modified attributes are written into outgoing buffer |
 | JSON serialization for external plugins | External plugins need formatted text, not wire bytes |
 
-- **A copy that fits none of these four categories is probably wrong. Ask why the copy is needed.**
+- **A copy that fits none of these four categories SHOULD be treated as wrong. The reason the copy is needed MUST be asked.**
 
 ## Pool Types
 
@@ -86,7 +86,7 @@ This is a load-bearing design decision:
 | Single goroutine, sequential processing | Ring buffer (fixed array, index rotation) | `peerPool` -- reactor loop processes one UPDATE at a time per peer |
 | Multiple goroutines, concurrent access | `sync.Pool` seeded for peak | `readBufPool` -- multiple peers reading concurrently |
 
-- **All buffers in a pool are the same maximum size. No variable-sized allocation.**
+- **All buffers in a pool MUST be the same maximum size. Variable-sized allocation MUST NOT occur.**
 
 ## Key Wire Abstractions
 
@@ -115,7 +115,7 @@ Context-dependent types (AS_PATH, Aggregator) also have:
 WriteToWithContext(buf []byte, off int, src, dst *EncodingContext) int
 ```
 
-- **The caller always owns the buffer. The callee writes into `buf[off:]` and returns the number of bytes written. No allocations.**
+- **The caller MUST own the buffer. The callee MUST write into `buf[off:]` and return the number of bytes written. Allocations MUST NOT occur.**
 
 ## Buffer-First Encoding: Mechanical Reference
 
@@ -133,6 +133,8 @@ Get buffer from pool → write with `WriteTo(buf, off) int` → return to pool.
 ### Pattern: Skip-and-Backfill (hot path)
 
 For messages with variable-length sections and fixed-position length fields:
+
+**Skip-and-backfill MUST follow these steps:**
 
 1. Write fixed bytes (marker, type)
 2. **Skip** length field -- save position (`lengthPos := off; off += 2`)
@@ -157,6 +159,8 @@ This avoids the `Len()`-then-`WriteTo()` double traversal. See `reactor_wire.go`
 Pool `New` func, session buffer creation, cached encoding, result copies to callers, JSON marshaling, tests, IPC framing, config parsing.
 
 ### Before Writing Encoding Code
+
+**These questions MUST be answered before writing encoding code:**
 
 1. Buffer from? → Pool or caller-provided
 2. `append()`? → Offset writes
@@ -188,12 +192,12 @@ internally when the caller could pass one down.
 
 ### The Principle
 
-**Allocate once at the outermost scope, pass inward.** The caller knows:
+**Allocation MUST happen once, at the outermost scope, and MUST pass inward.** The caller knows:
 - How many times the callee will be called (loop count)
 - What buffer size is needed (often a bounded maximum)
 - When the buffer can be released (after all callees are done)
 
-- **The callee never guesses at these. It writes into what it is given.**
+- **The callee MUST NOT guess at these. It MUST write into what it is given.**
 
 ### Anti-Pattern: Per-Call Allocation in a Loop
 
@@ -278,7 +282,7 @@ func process(data []byte) Result {
 }
 ```
 
-**When to use sync.Pool vs caller-passed buffer:**
+**Whether to use sync.Pool or a caller-passed buffer MUST be decided using the criteria below:**
 
 | Situation | Use |
 |---|---|
@@ -288,7 +292,7 @@ func process(data []byte) Result {
 | Buffer needed across goroutines | `sync.Pool` (goroutine-safe) |
 | Single goroutine, sequential processing | Ring buffer or struct field |
 
-**sync.Pool sizing:** Seed with the common-case size. The pool holds
+**sync.Pool sizing:** The pool MUST be seeded with the common-case size. The pool holds
 same-max-size buffers. If a caller needs more, `append()` will grow the
 slice and the grown slice returns to the pool for future reuse.
 
@@ -297,12 +301,14 @@ slice and the grown slice returns to the pool for future reuse.
 Before writing any buffer/pool/allocation code, answer these questions
 (from `ai/rules/architecture.md`):
 
-1. **Where is the buffer allocated?** Name the function and pool.
+**A buffer's lifecycle MUST be traced before writing code:**
+
+1. **Where is the buffer allocated?** The function and pool MUST be named.
 2. **Who holds it?** Which goroutine/struct owns the reference.
 3. **When is it copied?** Only at the boundaries listed in "When Copies Happen."
 4. **When is it released?** After TCP write, after pool dedup, after use.
-5. **Could the caller provide this buffer?** If yes, change the signature.
-6. **Could a pool provide this buffer?** If yes, Get/Put around the use.
+5. **Could the caller provide this buffer?** If yes, the signature MUST change.
+6. **Could a pool provide this buffer?** If yes, Get/Put MUST wrap the use.
 
 ## Decision Tree: Where Should This Buffer Come From?
 
@@ -337,9 +343,9 @@ Is this on a per-UPDATE / per-route / per-NLRI path?
 
 ## Three Rules
 
-1. **No `fmt` on hot paths.** Use append-based primitives instead.
-2. **No `.String()` on hot paths.** Use `AppendTo` into a stack buffer instead.
-3. **Store typed values, not strings.** Compare `netip.Addr` directly, not string representations.
+1. **`fmt` MUST NOT be used on hot paths.** Append-based primitives MUST be used instead.
+2. **`.String()` MUST NOT be used on hot paths.** `AppendTo` MUST be used into a stack buffer instead.
+3. **Typed values MUST be stored, not strings.** `netip.Addr` MUST be compared directly, not string representations.
 
 ## Decision Tree: Before Writing Any `fmt.Sprintf`
 
@@ -390,16 +396,17 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
 ### String concatenation with `+` is BANNED in new code
 
 **BLOCKING for new code and all hot paths** (hook-enforced at edit time by
-`c_string_concat`). Every `+` between strings allocates a new backing array
-and copies both sides. Use `textbuf.Buffer` instead.
+`c_string_concat`). The `+` operator MUST NOT be used between strings: it
+allocates a new backing array and copies both sides. `textbuf.Buffer` MUST be
+used instead.
 
 The only exception is a compile-time constant expression where both sides are
 untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
 
 **Existing cold-path concatenation is cleanup-on-touch**, not a sweep target:
 the tree carries ~300 legacy cold-path `+` sites (web page rendering, one-shot
-CLI output). Convert them when you edit the surrounding code; never let one
-survive on a hot path (the Hot Path Rule below has no legacy carve-out).
+CLI output). They MUST be converted when the surrounding code is edited; one
+MUST NOT survive on a hot path (the Hot Path Rule below has no legacy carve-out).
 
 | `+` pattern | Replacement |
 |-------------|-------------|
@@ -436,7 +443,7 @@ for _, m := range items {
 return b.String()
 ```
 
-- **The standalone `textbuf.StringUint32(v)` functions are for single-value returns (the entire result is one formatted value). For anything multi-part, use a Buffer.**
+- **The standalone `textbuf.StringUint32(v)` functions MUST be used only for single-value returns (the entire result is one formatted value). For anything multi-part, a Buffer MUST be used.**
 
 ### fmt patterns
 
@@ -481,8 +488,9 @@ return b.String()
 
 ## Typed Comparison Rule
 
-**BLOCKING on hot paths.** Never store an IP address as a string when it will be
-compared. Store `netip.Addr` and use `.Compare()` directly.
+**BLOCKING on hot paths.** An IP address MUST NOT be stored as a string when it
+will be compared. `netip.Addr` MUST be stored and `.Compare()` MUST be used
+directly.
 
 | Anti-pattern | Fix |
 |-------------|-----|
@@ -490,7 +498,7 @@ compared. Store `netip.Addr` and use `.Compare()` directly.
 | Formatting to string, storing, parsing back for comparison | Parse once at construction, store typed, format only for display |
 | `compareAddrs(a.PeerAddr, b.PeerAddr)` with string parsing | `a.PeerIP.Compare(b.PeerIP)` with `netip.Addr` field |
 
-- **When a struct needs both the typed value (for comparison) and the string (for map keys or JSON), store both. Parse once at construction time.**
+- **When a struct needs both the typed value (for comparison) and the string (for map keys or JSON), both MUST be stored. Parsing MUST happen once, at construction time.**
 
 ```go
 type Candidate struct {
@@ -541,7 +549,7 @@ Use the `AppendTo(buf []byte) []byte` pattern from `attribute/text_append.go` in
 
 ## textbuf.Buffer (canonical string builder)
 
-**Use `textbuf.Buffer` for all string building.** Package: `internal/core/textbuf`.
+**`textbuf.Buffer` MUST be used for all string building.** Package: `internal/core/textbuf`.
 
 `Buffer` is a chainable builder with a 128-byte inline backing array.
 `Reset()` uses `noescape` (same technique as `strings.Builder` via
@@ -550,15 +558,15 @@ Use the `AppendTo(buf []byte) []byte` pattern from `attribute/text_append.go` in
 any heap allocation for content <= 128B.
 
 **Go compiler review gate:** The `noescape` trick mirrors `strings.Builder`
-in `$(go env GOROOT)/src/strings/builder.go`. On every Go compiler update,
-compare our `noescape` + `inlineSlice` against the stdlib `copyCheck` +
-`abi.NoEscape`. If the stdlib changes technique, update ours to match.
-Verify with `go build -gcflags='-m=2'` that `var b Buffer` does not show
-`moved to heap`.
+in `$(go env GOROOT)/src/strings/builder.go`. On every Go compiler update, our
+`noescape` + `inlineSlice` MUST be compared against the stdlib `copyCheck` +
+`abi.NoEscape`. If the stdlib changes technique, ours MUST be updated to
+match. It MUST be verified with `go build -gcflags='-m=2'` that `var b Buffer`
+does not show `moved to heap`.
 
 ### Allocation tiers
 
-**Tier 0: Zero allocations.** Buffer on the stack, string consumed locally.
+**Tier 0: Zero allocations.** The buffer MUST stay on the stack, and the string MUST be consumed locally.
 
 ```go
 // Local use: 0 alloc (buffer on stack, inline array, no string created)
@@ -586,7 +594,7 @@ func (p *Peer) AppendTo(dst []byte) []byte {
 }
 ```
 
-**Tier 1: One allocation (must return or store a string).**
+**Tier 1: One allocation (MUST return or store a string).**
 
 ```go
 // var + String(): 1 alloc (string copy, buffer stays on stack)
@@ -603,7 +611,7 @@ defer b.Release()
 return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
 ```
 
-- **Pool + Slice without Release exhausts the pool or dangles. Do not use.**
+- **Pool + Slice without Release exhausts the pool or dangles. It MUST NOT be used.**
 
 ### Choosing an init
 
@@ -653,12 +661,12 @@ Methods (all return `*Buffer` for chaining):
 
 ### String() vs Slice()
 
-**Prefer `Slice()` when the string is consumed immediately** (passed to a
+**`Slice()` SHOULD be used when the string is consumed immediately** (passed to a
 function, used as a map lookup, parsed, or appended into another buffer).
 `Slice()` does zero allocations at any size. `String()` copies inline data
 (<=128B) and does zero-copy for heap data (>128B).
 
-- **Prefer `Slice()` by default.** Most strings are passed to a function (ParsePrefix, map lookup, Write) and discarded, and `Slice()` saves the copy.
+- **`Slice()` SHOULD be used by default.** Most strings are passed to a function (ParsePrefix, map lookup, Write) and discarded, and `Slice()` saves the copy.
 
 | Result lifetime | Use | Allocations |
 |----------------|-----|-------------|
@@ -795,16 +803,16 @@ func (t *MyType) String() string {
 
 Before submitting code that builds strings:
 
-1. Am I using `+` to concatenate strings? Use `textbuf.Buffer` chain instead.
-2. Am I using `fmt.Sprintf`? Use `textbuf.Buffer` or standalone functions.
-3. Am I using `strings.Join`? Use `textbuf.Join` or `b.Join(items, sep)`.
-4. Am I using `strings.Builder`? Use `textbuf.Buffer` (128B inline, poolable).
-5. Am I calling `.String()` just to concatenate? Use `textbuf.Buffer.Addr()` etc.
-6. Am I storing a string that will be parsed back for comparison? Store the typed value.
-7. Am I building a string that gets immediately discarded? Split the function.
+1. Am I using `+` to concatenate strings? `textbuf.Buffer` chain MUST be used instead.
+2. Am I using `fmt.Sprintf`? `textbuf.Buffer` or standalone functions MUST be used.
+3. Am I using `strings.Join`? `textbuf.Join` or `b.Join(items, sep)` MUST be used.
+4. Am I using `strings.Builder`? `textbuf.Buffer` MUST be used (128B inline, poolable).
+5. Am I calling `.String()` just to concatenate? `textbuf.Buffer.Addr()` etc. MUST be used.
+6. Am I storing a string that will be parsed back for comparison? The typed value MUST be stored.
+7. Am I building a string that gets immediately discarded? The function MUST be split.
 8. Could this error be a package-level sentinel?
-9. Do I have multiple `var tb textbuf.Buffer` in one function? Use ONE buffer with `Reset()`.
-10. Is my `.String()` result consumed immediately (function arg, comparison)? Use `.Slice()`.
+9. Do I have multiple `var tb textbuf.Buffer` in one function? ONE buffer MUST be used, with `Reset()`.
+10. Is my `.String()` result consumed immediately (function arg, comparison)? `.Slice()` MUST be used.
 
 ## Conversion Anti-Patterns (BLOCKING)
 
@@ -869,9 +877,10 @@ return b.Str("peer:").Uint32(asn).Slice()
 ```
 
 **Mechanical rule for bulk conversions:** when the result leaves the current
-scope (return, struct field, map insert, channel send), use `String()` with
-`var b Buffer`, or `Slice()` with `New()`. Slice-from-stack is only safe when
-consumed before the buffer goes out of scope (function arg, map lookup, comparison).
+scope (return, struct field, map insert, channel send), `String()` with
+`var b Buffer` MUST be used, or `Slice()` with `New()` MUST be used.
+Slice-from-stack MUST be consumed before the buffer goes out of scope
+(function arg, map lookup, comparison).
 
 ### Unnecessary scratch buffer when output buffer exists
 

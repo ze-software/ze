@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**A spec that passes its Review Gate is not done until it is deleted from `plan/`.**
+**A spec that passes its Review Gate MUST NOT be considered done until it is deleted from `plan/`.**

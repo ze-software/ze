@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Do not hardcode `bin/ze`** in a command, script, or doc. Ask:
+**MUST NOT hardcode `bin/ze`** in a command, script, or doc. Ask:

@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**Code MUST pass this checklist:**
 - [ ] Abstract when you can (2+ use cases?)
 - [ ] No speculative features (needed NOW?)
 - [ ] Single responsibility per component

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **Place the reference block at file top, after the `// Design:` and `// Related:` lines** (`## Examples` shows the shape).
+- **The reference block MUST sit at file top, after the `// Design:` and `// Related:` lines** (`## Examples` shows the shape).

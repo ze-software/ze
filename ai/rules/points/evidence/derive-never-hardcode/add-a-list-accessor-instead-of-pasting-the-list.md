@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**If the lookup is awkward, add a `List()` accessor. Do not paste the list twice.**
+**If the lookup is awkward, you MUST add a `List()` accessor. You MUST NOT paste the list twice.**

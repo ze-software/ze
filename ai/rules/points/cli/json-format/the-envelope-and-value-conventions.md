@@ -1,8 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+Envelopes and values MUST follow these conventions:
+
 - Error: `{"error":"description","parsed":false}`
 - CLI: `{"status":"ok","data":{...}}` or `{"status":"error","error":"msg"}`
 - Raw hex: uppercase, no `0x`. `"parsed":false` + `"raw":"DEADBEEF"`

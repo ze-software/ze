@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.
+**Overlapping runs:** If a test run is failing, MUST kill it before starting another. MUST NOT run `make ze-verify` twice concurrently.

@@ -1,8 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**A `ze-verify` run MUST execute these stages, in order:**
+
 1. **Lint** (full or changed-only depending on target)
 2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
    The pass uses `ze_core` plus the default-on feature tags from `feature-gates.txt`,

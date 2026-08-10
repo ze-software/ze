@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+**`dep-audit` MUST behave as follows:**
 - parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
 - treats generated `all.go` files, gated `all_<tag>.go` files, `cmd/ze` dispatch/import companions, and `cmd/ze/setup_features_*.go` as registration importers, not functional dependencies;
 - fails (exit 2) on any **new** misplaced engine, naming the dir and its required tier, pointing here;

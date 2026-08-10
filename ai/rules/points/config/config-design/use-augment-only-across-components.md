@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Augment is for cross-component plugin extensions only.** Same-component shared structure uses grouping. If you are writing an augment and both the source and target are in the same component, use a grouping instead.
+**Augment MUST be used only for cross-component plugin extensions.** Same-component shared structure MUST use grouping. If you are writing an augment and both the source and target are in the same component, a grouping MUST be used instead.

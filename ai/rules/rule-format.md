@@ -16,8 +16,8 @@ A rule is a DIRECTORY of points, and `ai/rules/<rule>.md` is generated from it. 
 
 - **The manifest owns the whole spine.** Its body carries one section line, `<dir-slug> ## The Heading Verbatim`, then that section's point slugs indented by two spaces. The renderer emits the heading and those bodies in that order, joined by one blank line. A reorder is a manifest edit, never a rename.
 - **The path is the id, and it is always `<rule>/<section>/<slug>`.** A `##` heading is the section DIRECTORY; a `###` or `####` heading stays a point inside it, so the depth is fixed at two. There is no content hash and no numeric prefix. A reworded instruction is a one-file diff, `git log` on the point file dates it, and every gate bound to that point keeps working.
-- **Adding a point is two edits: write the file in its section directory, then list its slug under that section in the manifest.** A point on disk that no manifest lists is a hard error, and so is a `*.md` sitting outside every section, so the file alone changes nothing.
-- **A Write over a point that already exists is REFUSED.** `c_point_overwrite` in `.claude/hooks/pretool-writeedit.py` blocks it and names both routes: edit the point that is there, or pick a slug no file in that directory uses. An Edit, and a Write to a free slug, stay permitted.
+- **MUST add a point in two edits: write the file in its section directory, then list its slug under that section in the manifest.** A point on disk that no manifest lists is a hard error, and so is a `*.md` sitting outside every section, so the file alone changes nothing.
+- **A Write over a point that already exists is REFUSED.** `c_point_overwrite` in `.claude/hooks/pretool-writeedit.py` blocks it and names both routes: MAY edit the point that is there, or pick a slug no file in that directory uses. An Edit, and a Write to a free slug, stay permitted.
 - **A body is verbatim.** The renderer concatenates bodies and rewrites nothing inside one, which is what makes `make ze-rules-points-roundtrip` a proof rather than a comparison.
 
 | Field | Values | Meaning |
@@ -52,6 +52,16 @@ Required structure, in this exact order:
 | `**When:** <trigger>` | Required. One line. The SITUATION that makes this rule apply, phrased so an agent can match it against the task at hand. See "The trigger is a routing key". |
 | `**Severity:** blocking\|advisory` | Required. `blocking` = a gate/hook enforces it or violating it breaks correctness; `advisory` = strong convention. It MUST agree with the prose: a rule whose body says BLOCKING may not declare `advisory`. |
 | `**Related:** slug, slug` | Optional. Comma-separated rule slugs (filename without `.md`), no paths. |
+
+## Every directive states a level
+
+- Every point whose `kind` is `directive` MUST state its obligation in RFC 2119 language, and its `level:` MUST name the strongest TIER the body states. A directive whose weight a reader infers from tone is a directive two readers weigh differently.
+- The tiers are MAY, then SHOULD with SHOULD NOT, then MUST with MUST NOT. RFC 2119 ranks obligation by STRENGTH and does not rank MUST against MUST NOT, so a point stating both MAY declare whichever its central clause carries. Ordering the two would force a point whose central clause is a prohibition to declare MUST, and the prohibition would go unrecorded.
+- Use MUST and MUST NOT for an obligation, SHOULD and SHOULD NOT for a strong default a reader MAY depart from with a stated reason, and MAY for a permission. SHALL, SHALL NOT, REQUIRED, RECOMMENDED, NOT RECOMMENDED and OPTIONAL are accepted and collapse onto the level they name, so `level:` carries one spelling per level.
+- The lowercase spellings `must`, `shall`, `should` and `may` MUST NOT appear in a directive body. They read as the obligation word and carry none of its force, and `ai/rules/writing.md` bans the hedging spelling outright. Capitalise the keyword, or rewrite the sentence so it carries no modal.
+- A block that states no obligation is `kind: note` or `kind: table`, never `kind: directive`. The gate is scoped to directives on purpose: a two-column lookup gains a word and no obligation from being made to say MUST.
+- Text inside a code span or a fenced block is quoted, never stated, so neither gate reads it. A shell snippet or a reproduced error message keeps its own spelling.
+- `.claude/hooks/pretool-writeedit.py` (`c_rule_point_rfc_language`) refuses the write, and `make ze-rules-lint` refuses the finished tree. A Write carries the whole point, so a missing keyword is refused there; an Edit carries a fragment, so only the lowercase modal it introduces is decidable at write time.
 
 ## The trigger is a routing key
 
@@ -95,24 +105,24 @@ line-scoped on purpose: a file-scoped opt-out would silently cover every later
 addition to that file.
 
 - The metadata block MUST be contiguous and immediately follow the title
-  (one blank line allowed). No prose, table, or heading may sit between the
-  title and the block.
-- Put imperative content under `## Directives` (or the rule's own directive
+  (one blank line allowed). Prose, tables, and headings MUST NOT sit between
+  the title and the block.
+- MUST put imperative content under `## Directives` (or the rule's own directive
   sections). This is what the digest artifacts carry.
 - **One generator, `scripts/dev/rules_condensed.py`, emits two artifacts from one parse, and both load into every session.** `TRIGGERS.md` carries one routing line per rule, so no rule is ever invisible. `CORE.md` carries the directives of the always-on rules only. A rule's own file holds everything else, one Read away.
-- **Your `**When:**` line is now the ONLY thing that reaches a session about your rule, unless the rule is in the core.** Write it as the situation a reader matches against the task in hand. A trigger that names no distinctive term routes nothing, and the rule is read only by someone who already went looking for it.
-- **Core membership is derived, never listed.** Four conditions make a rule always-on: the ladder in `ai/rules/rule-precedence.md` names it on rung 1 or 2, it IS that ladder, it has no routable trigger, or no past task description in `plan/` would surface it. `make ze-rules-router-report` prints that last set. To make a rule always-on, put it on the ladder.
+- **Your `**When:**` line is now the ONLY thing that reaches a session about your rule, unless the rule is in the core.** MUST write it as the situation a reader matches against the task in hand. A trigger that names no distinctive term routes nothing, and the rule is read only by someone who already went looking for it.
+- **Core membership MUST be derived; it MUST NOT be listed.** Four conditions make a rule always-on: the ladder in `ai/rules/rule-precedence.md` names it on rung 1 or 2, it IS that ladder, it has no routable trigger, or no past task description in `plan/` would surface it. `make ze-rules-router-report` prints that last set. To make a rule always-on, MUST put it on the ladder.
 - **`make ze-rules-payload` measures what a session loads.** The budget is 40,000 tokens.
-- Put the "why" under `## Rationale` and code under `## Examples`. The digest
+- MUST put the "why" under `## Rationale` and code under `## Examples`. The digest
   DROPS these sections, fenced code blocks, and `Rationale:`/`See:` pointer
-  lines. Anything an agent must obey to comply belongs in a directive section,
-  never only in `## Rationale`.
-- **Write directives as bullets, table rows, or `**bold**` lines. Those reach the digest verbatim; prose does not.** The condenser keeps only the FIRST prose paragraph of each section, truncated to its first sentence or 220 characters, and drops every later prose paragraph in that section outright (`condense_body` / `flush_prose`, `scripts/dev/rules_condensed.py`).
-- **Keep each bullet on ONE physical line when its full text must reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; do not wrap it for looks.
-- After editing a rule, READ your rule's row in the regenerated `TRIGGERS.md`, and its section in `CORE.md` when the rule is always-on. A trigger that lost half its clause is not visible from the rule file alone.
-- **Run the generators in order: `make ze-rules-render`, then `make ze-rules-condensed`, then `make ze-rules-index`.** The last two parse the RENDERED rules, so a render that has not run yet feeds them the previous text. `make ze-rules-lint` enforces the metadata block and `make ze-rules-gate-map` checks the bindings. All of them run inside `make ze-doc-test`, and a rule that fails the lint cannot land.
-- **Commit the points and all four generated artifacts in the SAME commit as the rule edit.** They are `ai/rules/<rule>.md`, `TRIGGERS.md`, `CORE.md` and `ai/rules/INDEX.md`. `ze-regen-check-readonly` regenerates from the WORKING TREE, so it is green on your machine while HEAD is inconsistent, and CI regenerates from HEAD and fails.
-- **When a concurrent session holds an uncommitted rule edit, generate the artifacts from HEAD plus your own points, never from the shared working tree.** Your tree carries their unlanded text. `docs/contributing/rule-authoring.md` carries the recipe.
+  lines. Anything an agent MUST obey to comply MUST be placed in a directive
+  section, and MUST NOT sit only in `## Rationale`.
+- **MUST write directives as bullets, table rows, or `**bold**` lines. Those reach the digest verbatim; prose does not.** The condenser keeps only the FIRST prose paragraph of each section, truncated to its first sentence or 220 characters, and drops every later prose paragraph in that section outright (`condense_body` / `flush_prose`, `scripts/dev/rules_condensed.py`).
+- **MUST keep each bullet on ONE physical line when its full text MUST reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; MUST NOT wrap it for looks.
+- After editing a rule, MUST READ your rule's row in the regenerated `TRIGGERS.md`, and its section in `CORE.md` when the rule is always-on. A trigger that lost half its clause is not visible from the rule file alone.
+- **MUST run the generators in order: `make ze-rules-render`, then `make ze-rules-condensed`, then `make ze-rules-index`.** The last two parse the RENDERED rules, so a render that has not run yet feeds them the previous text. `make ze-rules-lint` enforces the metadata block and `make ze-rules-gate-map` checks the bindings. All of them run inside `make ze-doc-test`, and a rule that fails the lint cannot land.
+- **MUST commit the points and all four generated artifacts in the SAME commit as the rule edit.** They are `ai/rules/<rule>.md`, `TRIGGERS.md`, `CORE.md` and `ai/rules/INDEX.md`. `ze-regen-check-readonly` regenerates from the WORKING TREE, so it is green on your machine while HEAD is inconsistent, and CI regenerates from HEAD and fails.
+- **When a concurrent session holds an uncommitted rule edit, MUST generate the artifacts from HEAD plus your own points; MUST NOT generate from the shared working tree.** Your tree carries their unlanded text. `docs/contributing/rule-authoring.md` carries the recipe.
 
 ## Binding a check to a point
 

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Do not create an isolated rule or doc page that no existing navigation path links to. A rule that agents cannot discover is not a rule.**
+**An isolated rule or doc page that no existing navigation path links to MUST NOT be created. A rule that agents cannot discover is not a rule.**

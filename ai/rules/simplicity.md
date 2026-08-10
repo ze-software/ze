@@ -7,30 +7,30 @@
 ## Directives
 
 **A fix MUST be the simplest solution that is fully correct. Nothing in the change exists for a problem you were not asked to solve.**
-**"Simplest" is measured in what the next developer must hold in their head to change this code safely. It is not measured in line count, and a change that removes lines by making the reader work harder has failed the measure.**
+**"Simplest" is measured in what the next developer needs to hold in their head to change this code safely. It is not measured in line count, and a change that removes lines by making the reader work harder has failed the measure.**
 
-**Simplicity governs the SHAPE of the answer. It never governs the EXTENT of its correctness.**
+**Simplicity governs the SHAPE of the answer. It MUST NOT govern the EXTENT of its correctness.**
 **Two readings, and the second one governs. The first reads "simplest" as permission to do less: fewer acceptance criteria, fewer RFC MUSTs, fewer cases handled, a narrower test. The second reads it as the instruction to solve the whole problem with the least machinery. Cutting correctness to reach a smaller diff is scope reduction, banned at rung 3 of `ai/rules/rule-precedence.md`, and an RFC MUST is owed in full at rung 2.**
-**Quality is 0% compromise. The only budget this rule cuts is machinery. It never cuts correctness, conformance, tests, guards, or error handling.**
-**So this rule is never the reason for a "may I skip it" question, a deferral row, or a partial implementation. It is a reason to delete machinery, never a reason to delete behavior.**
+**Quality is 0% compromise. The only budget this rule cuts is machinery. It MUST NOT cut correctness, conformance, tests, guards, or error handling.**
+**So this rule is never the reason for a `may I skip it` question, a deferral row, or a partial implementation. It is a reason to delete machinery, never a reason to delete behavior.**
 
-**The simplest fully correct design is usually the HARDEST one to find. Budget thinking time for it. The first shape that works is rarely the simplest one, and a large diff is more often the cheap answer than the good one.**
-**When you cannot see the simple design, that is the signal to think longer, to read more of the existing code, or to ask. It is never a license to ship the complicated one and call it pragmatic.**
-**If you ship a shape you are not happy with, name the simpler shape you looked for and say what stops it.**
+**The simplest fully correct design is usually the HARDEST one to find. You MUST budget thinking time for it. The first shape that works is rarely the simplest one, and a large diff is more often the cheap answer than the good one.**
+**When you cannot see the simple design, that is the signal to think longer, to read more of the existing code, or to ask. You MUST NOT treat this as a license to ship the complicated one and call it pragmatic.**
+**If you ship a shape you are not happy with, you MUST name the simpler shape you looked for and say what stops it.**
 
-**MVP means the smallest COMPLETE answer to the problem in hand. "Minimum" qualifies the machinery. "Viable" means every case the problem covers works, and every acceptance criterion has code and a test.**
+**MVP means the smallest COMPLETE answer to the problem in hand. "Minimum" qualifies the machinery. "Viable" means every case the problem covers works, and every acceptance criterion MUST have code and a test.**
 **A partial answer is not an MVP. It is unfinished work, and `ai/rules/completion.md` governs it.**
 
-**The simplest fully correct fix is at the ROOT of the defect. A special case bolted onto shared infrastructure is not the simpler option: it adds a branch AND leaves the defect live for every caller the special case does not name.**
+**The simplest fully correct fix MUST be at the ROOT of the defect. A special case bolted onto shared infrastructure is not the simpler option: it adds a branch AND leaves the defect live for every caller the special case does not name.**
 **Depth and size point the same way here. A one-line fix at the root beats a guard at three call sites, and the `/ze-review` altitude check reports the guard as the finding.**
 
-**A second problem you see while you fix the first gets its OWN spec. It never becomes an extra branch, flag, parameter, or abstraction folded into this fix.**
-**Other problems are never ignored, and the route is already fixed: write the spec, close the work in hand, ask Thomas whether that spec runs, stop (`ai/rules/completion.md`). Generalizing this fix "so it covers that too" is the version of the same failure that leaves no spec behind.**
+**A second problem you see while you fix the first MUST get its OWN spec. It MUST NOT become an extra branch, flag, parameter, or abstraction folded into this fix.**
+**Other problems MUST NOT be ignored, and the route is already fixed: you MUST write the spec, close the work in hand, ask Thomas whether that spec runs, and stop (`ai/rules/completion.md`). Generalizing this fix "so it covers that too" is the version of the same failure that leaves no spec behind.**
 
-**The next-developer test is the acceptance test for this rule. A developer who meets the code cold says what it does and where to change it, in about 30 seconds, with no second file open.**
+**The next-developer test is the acceptance test for this rule. A developer who meets the code cold MUST be able to say what it does and where to change it, in about 30 seconds, with no second file open.**
 **A change that fails that test is not finished.**
 
-**When you choose anything other than the most obvious implementation, write one line saying what the simpler design was and which requirement it failed. Put it in the spec when a spec exists, and in the code comment when it does not.**
+**When you choose anything other than the most obvious implementation, you MUST write one line saying what the simpler design was and which requirement it failed. You MUST put it in the spec when a spec exists, and in the code comment when it does not.**
 **An unexplained abstraction reads as habit, and the next reader cannot tell habit from a requirement. That reader then keeps the machinery because they cannot prove it is unnecessary.**
 
 ## What Over-Engineering Looks Like
@@ -49,11 +49,11 @@
 
 ## Simple Is Not Less
 
-**Complexity another rule REQUIRES is not over-engineering, and this rule never licenses its removal.** Buffer-first encoding, pool dedup, and zero-copy forwarding are more complex than the naive version on purpose (`ai/rules/performance.md`). An RFC MUST is owed in full (`ai/rules/rfc-compliance.md`). A guard fails closed even when the open version is shorter (`ai/rules/evidence.md`).
-**Name the rule that requires the machinery. When no rule requires it and no second use case exists, the machinery is yours to justify or delete.**
+**Complexity another rule REQUIRES is not over-engineering, and this rule MUST NOT license its removal.** Buffer-first encoding, pool dedup, and zero-copy forwarding are more complex than the naive version on purpose (`ai/rules/performance.md`). An RFC MUST is owed in full (`ai/rules/rfc-compliance.md`). A guard fails closed even when the open version is shorter (`ai/rules/evidence.md`).
+**You MUST name the rule that requires the machinery. When no rule requires it and no second use case exists, the machinery is yours to justify or delete.**
 
-**Short is not simple. A dense expression the reader must simulate to understand fails this rule exactly as a five-file framework does, and it fails it in the less visible direction.**
-**Write the version that is boring to read.**
+**Short is not simple. A dense expression the reader needs to simulate to understand fails this rule exactly as a five-file framework does, and it fails it in the less visible direction.**
+**You MUST write the version that is boring to read.**
 
 ## Rationale
 

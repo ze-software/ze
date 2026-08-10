@@ -1,11 +1,11 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
 **Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It was raised twice as
 a narrowing of the fast path, because it adds about 45 seconds to a commit that
-carried Go. It is settled, so do not re-open it. The reasoning he accepted: the
+carried Go. It is settled, so you MUST NOT re-open it. The reasoning he accepted: the
 check is not a rerun, since its input is a commit that did not exist until the
 script ran, and it is the only thing that reads the population git holds. The
 failure it prevents is unbounded where its cost is bounded and one-shot. HEAD was

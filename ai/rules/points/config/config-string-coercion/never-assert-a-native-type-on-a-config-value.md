@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Never `v.(bool)` / `v.(float64)` directly on a config value, and never a numeric/bool type switch without a `case string:` arm.**
+**A config value MUST NOT be asserted directly with `v.(bool)` / `v.(float64)`, and a numeric/bool type switch MUST NOT omit a `case string:` arm.**

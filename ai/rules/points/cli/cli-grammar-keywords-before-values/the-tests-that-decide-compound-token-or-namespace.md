@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 1. Would you naturally say the two parts separately about the object ("show the
@@ -12,12 +12,12 @@ stage:
    industry term of art (`as-set`, `graceful-restart`, `segment-routing`,
    `adj-rib-in`, `class-of-service`), a protocol / LSA / object name (`opaque-area`,
    `asbr-summary`, `router-information`), or a single attribute (`asn-name`,
-   `max-prefix`, `file-descriptors`). If yes, keep the hyphen.
+   `max-prefix`, `file-descriptors`). If yes, MUST keep the hyphen.
 3. A shared prefix is not proof of a namespace. `flow-export` (NetFlow/IPFIX) and
    `flow-recent` (conntrack ring) share "flow" by accident; they are not
-   `show flow {export,recent}`. Split only when the prefix is a real object that owns
+   `show flow {export,recent}`. MUST split only when the prefix is a real object that owns
    every child.
 4. A split namespace needs one owning module. If several components share the prefix,
    one module owns the container and the others augment it (as `trafficusage` augments
-   `traffic`). Never a shared parent that multiple plugins reach up into: that is the
+   `traffic`). MUST NOT create a shared parent that multiple plugins reach up into: that is the
    plugin-self-containment break the old `show ip` grouping caused.

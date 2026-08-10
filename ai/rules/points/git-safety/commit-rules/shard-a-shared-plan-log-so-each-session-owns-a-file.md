@@ -1,12 +1,12 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
 **A shared single-file plan log cross-commits even with a correct, explicit
 `--file` list.** The ban on the bare staging verbs fixes staging *timing*; it
 cannot fix staging *granularity*. `git add <file>` stages the WHOLE file, including hunks
-another session left uncommitted in it. The fix is to SHARD the log so each
+another session left uncommitted in it. You MUST SHARD the log so each
 session writes only files it owns and git merges disjoint creations without
 conflict. **Both cross-spec logs are now sharded.** Deferrals live one file
 per source under `plan/deferrals/` (`ai/rules/planning.md`), so `git

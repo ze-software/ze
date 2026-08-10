@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **The caller always owns the buffer. The callee writes into `buf[off:]` and returns the number of bytes written. No allocations.**
+- **The caller MUST own the buffer. The callee MUST write into `buf[off:]` and return the number of bytes written. Allocations MUST NOT occur.**

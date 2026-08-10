@@ -1,8 +1,9 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+You MUST answer these questions of each sentence:
 1. Does each concept in this file have exactly one name? (habit 1)
 2. Did I write a fact, or did I hedge? (habit 2)
 3. Is each action a verb? (habit 3)

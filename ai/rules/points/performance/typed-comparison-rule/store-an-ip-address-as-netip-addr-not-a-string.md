@@ -1,7 +1,8 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**BLOCKING on hot paths.** Never store an IP address as a string when it will be
-compared. Store `netip.Addr` and use `.Compare()` directly.
+**BLOCKING on hot paths.** An IP address MUST NOT be stored as a string when it
+will be compared. `netip.Addr` MUST be stored and `.Compare()` MUST be used
+directly.

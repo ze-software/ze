@@ -1,8 +1,10 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
+Every one of these boundaries MUST validate config:
+
 1. `ze config validate` (CLI).
 2. `ze config fix --plan --json` (CLI agent surface).
 3. Web commit (pre-commit validation of pending changes).

@@ -1,8 +1,8 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- ⚠️ Partial: document what's missing, ASK user
-- ❌ Skipped: explain why, ASK user
-- 🔄 Changed: document deviation (no approval needed if improvement)
+- ⚠️ Partial: you MUST document what's missing, and you MUST ask the user
+- ❌ Skipped: you MUST explain why, and you MUST ask the user
+- 🔄 Changed: you MUST document deviation (no approval needed if improvement)

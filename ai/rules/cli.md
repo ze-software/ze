@@ -6,13 +6,13 @@
 
 ## Directives
 
-- **Every CLI command must place a closed keyword before any user-supplied value.** This eliminates ambiguity where a free-form value could collide with a keyword.
+- **Every CLI command MUST place a closed keyword before any user-supplied value.** This eliminates ambiguity where a free-form value could collide with a keyword.
 - **All CLI commands MUST follow the patterns in "CLI Patterns" below.** Structural template: `ai/patterns/cli-command.md`. Rationale: `ai/rationale/cli-patterns.md`.
 - **Every command that produces output MUST support all pipe operators.**
-- **A row's state is a field or a column, never a character glued to a value.** No `*`, `>`, `+` or leading dot on an identifier. A sigil corrupts the value for `| grep` and has nowhere to live in `| json`, so the text and JSON forms stop agreeing on what the value is. `*` is also already an input token here, the selector wildcard. See "A value carries no marker" below.
-- **Every error, log line, and failure output you write must let a human or an agent see what failed, why, and what to do next, without opening the source.** The error is the corrective signal: if it does not point at the fix, the reader cannot act and an agent cannot self-correct.
+- **A row's state MUST be a field or a column; it MUST NOT be a character glued to a value.** No `*`, `>`, `+` or leading dot on an identifier. A sigil corrupts the value for `| grep` and has nowhere to live in `| json`, so the text and JSON forms stop agreeing on what the value is. `*` is also already an input token here, the selector wildcard. See "A value carries no marker" below.
+- **Every error, log line, and failure output you write MUST let a human or an agent see what failed, why, and what to do next, without opening the source.** The error is the corrective signal: if it does not point at the fix, the reader cannot act and an agent cannot self-correct.
 - **All JSON output MUST follow the conventions in "JSON Format" below.** Rationale: `ai/rationale/json-format.md`.
-- **All agent-facing CLI output must follow the rules in "Agent Tooling Contract" below.**
+- **All agent-facing CLI output MUST follow the rules in "Agent Tooling Contract" below.**
 
 ## CLI Grammar: Keywords Before Values
 
@@ -44,6 +44,8 @@ positional slot.
 
 Use an explicit selector kind whenever a command addresses one member of a set.
 
+A selector keyword MUST be one of these:
+
 - `name <name>` for operator-assigned names
 - `id <id>` for string or numeric IDs
 - `index <index>` for positional or kernel indexes
@@ -53,6 +55,8 @@ Use an explicit selector kind whenever a command addresses one member of a set.
 - another schema-defined closed keyword when the domain needs something more specific
 
 Examples:
+
+Typed-selector commands MUST take this form:
 
 - `show interface type dummy`
 - `show interface name eth0 detail`
@@ -66,6 +70,8 @@ Peer commands are the explicit exception to the generic typed-selector
 keyword form.
 
 Use:
+
+Peer commands MUST take this form:
 
 - `show bgp peer <name|address> detail`
 - `show bgp peer <name|address> rib`
@@ -81,6 +87,8 @@ syntax.
 
 The "named-resource" pattern `<resource> <id> <action>` violates this rule.
 Correct form: `<resource> <action> <id>`.
+
+The action MUST come before the identifier:
 
 - `cache retain <id>`, not `cache <id> retain`
 - `commit start <name>`, not `commit <name> start`
@@ -103,14 +111,14 @@ Decision test, in order:
    industry term of art (`as-set`, `graceful-restart`, `segment-routing`,
    `adj-rib-in`, `class-of-service`), a protocol / LSA / object name (`opaque-area`,
    `asbr-summary`, `router-information`), or a single attribute (`asn-name`,
-   `max-prefix`, `file-descriptors`). If yes, keep the hyphen.
+   `max-prefix`, `file-descriptors`). If yes, MUST keep the hyphen.
 3. A shared prefix is not proof of a namespace. `flow-export` (NetFlow/IPFIX) and
    `flow-recent` (conntrack ring) share "flow" by accident; they are not
-   `show flow {export,recent}`. Split only when the prefix is a real object that owns
+   `show flow {export,recent}`. MUST split only when the prefix is a real object that owns
    every child.
 4. A split namespace needs one owning module. If several components share the prefix,
    one module owns the container and the others augment it (as `trafficusage` augments
-   `traffic`). Never a shared parent that multiple plugins reach up into: that is the
+   `traffic`). MUST NOT create a shared parent that multiple plugins reach up into: that is the
    plugin-self-containment break the old `show ip` grouping caused.
 
 | Incorrect | Correct | Why |
@@ -131,22 +139,22 @@ is never flagged. **Root commands are a separate surface:** they register via
 `CheckSiblings` cannot see them. The root-namespace feeder (`grammar.CheckRootNamespace`,
 the fourth feeder below) governs them with a cross-surface check: a hyphenated root whose
 left segment names a YANG verb or container is the same R9 violation (`traffic-control`
-vs the `traffic` container). Do not assume a root is ungoverned because it is not in the
+vs the `traffic` container). MUST NOT assume a root is ungoverned because it is not in the
 tree.
 Shipped commands awaiting the agreed rename are listed in `pendingNamespaceSplit`
 (`scripts/checks/cli_grammar.go`) and reported as tracked debt, so the gate stays green
 while a NEW collision still fails. Migrating one is a dispatch-key change (see
-"Migrating a Built-in Command's Path" below): add the split path, keep the old form per
+"Migrating a Built-in Command's Path" below): MUST add the split path, keep the old form per
 "Backward Compatibility", update `.ci` senders, and remove its `pendingNamespaceSplit`
 entry.
 
-**When the compound is genuine, exempt it -- do not split it.** `CheckSiblings` fires on
+**When the compound is genuine, MUST exempt it -- MUST NOT split it.** `CheckSiblings` fires on
 the mere existence of a sibling matching the LEFT segment, so it cannot tell a real
 namespace from two names that share a word by accident (test 3). When test 2 wins -- the
-token is one indivisible protocol / LSA / object name -- list the full command path in
+token is one indivisible protocol / LSA / object name -- MUST list the full command path in
 `treeNamespaceExempt` (`scripts/checks/cli_grammar.go`) with a one-line reason. It is the
 tree-side counterpart of `rootNamespaceExempt`, is counted and printed (`Tree
-namespace-exempt`), and leaves every unlisted collision blocking. Reach for it only when
+namespace-exempt`), and leaves every unlisted collision blocking. MUST reach for it only when
 splitting would state something false about the object model; `show ospf database
 router-information` is the worked case (RFC 7770's RI LSA is an *Opaque* LSA, so filing
 it under the `router` sibling -- the Type 1 Router-LSA -- would be wrong). Note the check
@@ -199,6 +207,8 @@ objects that already live in the config YANG tree.
 
 Config mutation belongs to the engine verbs:
 
+Engine tree mutation MUST use these verbs:
+
 - `set <path> <value>`
 - `delete <path>`
 
@@ -208,13 +218,15 @@ operation as an RPC command just to make the grammar look regular.
 
 Examples:
 
-- Interface addresses and units are config-tree mutations. They belong under
+- Interface addresses and units are config-tree mutations. They MUST belong under
   engine `set` / `delete`, not operational commands like `interface addr del`
   or `interface unit remove`.
 - Runtime actions that are not tree mutation, such as `clear counters`,
-  `teardown`, or `pause`, may have operational command verbs.
+  `teardown`, or `pause`, MAY have operational command verbs.
 
 Before changing any command grammar, classify it first:
+
+Each command class MUST use this surface:
 
 1. **Config tree mutation** -> engine `set` / `delete`
 2. **Runtime operational action** -> CLI/RPC command grammar applies
@@ -228,6 +240,8 @@ Do not move a command family into a different YANG module while fixing
 grammar unless the architecture explicitly requires that move.
 
 First identify the owning module from source:
+
+The owning module MUST be recorded in one of these places:
 
 - the existing `ze:command` path
 - the module `register.go` / `embed.go`
@@ -253,14 +267,14 @@ change.
 Before migrating any noun-first built-in to verb-first:
 
 1. **Grep for programmatic senders of the bare path:** `.ci` tests, `DispatchCommand`
-   / `DispatchCommandArgs` calls, `printf ... | ze ... plugin cli`, `SendCommand`. Update
-   every one in the same change. (In-tree these are greppable; external plugins/scripts
+   / `DispatchCommandArgs` calls, `printf ... | ze ... plugin cli`, `SendCommand`. MUST
+   update every one in the same change. (In-tree these are greppable; external plugins/scripts
    are not, so a hard cut with no deprecation carries that residual risk.)
 2. The **programmatic plugin SDK is not affected**: it uses structured RPC wire methods
    (`ze-plugin-callback:*`, `pkg/plugin/sdk/sdk_dispatch.go`), not command-path strings.
    Only the interactive plugin CLI and `dispatch-command` carry command-path strings, and
    in-tree those are already verb-first (e.g. `bmp.go` sends `show bgp rib protocol`).
-3. Some noun-first forms are a deliberate **namespace**, not un-migrated legacy. Keep
+3. Some noun-first forms are a deliberate **namespace**, not un-migrated legacy. MUST keep
    them: `plugin encoding/format/ack` group plugin-session directives under `plugin`, and
    `set plugin` would collide with the config-tree `plugin` node (see Engine-Owned Tree
    Mutation). `command list/help/complete` (engine introspection) migrated cleanly to
@@ -290,6 +304,9 @@ Log the warning once per session. Remove old grammar after two release cycles.
 ### Mechanical Check (grammar)
 
 For every handler that dispatches on `args[0]`:
+
+A positional argument before the action or selector-kind MUST NOT be a
+user-supplied value. Ask these questions to decide whether a handler conforms:
 
 1. Is `args[0]` always a keyword from a known set? -> Correct.
 2. If the command selects one member of a set, does the handler consume a
@@ -352,10 +369,10 @@ YANG schemas describe command structure and semantics, not CLI presentation.
 A **filter** (address family, row limit, VRF, table, ...) is grammar, so it is a
 YANG keyword selector, never a flag:
 
-- Model it as a container or leaf the command consumes as `keyword value`
+- MUST model it as a container or leaf the command consumes as `keyword value`
   (`... arp family ipv6`, `... route limit 50`). It is then visible to
   completion and RPC dispatch, which are built from the YANG tree.
-- A `description` states what the leaf MEANS. It never prescribes a CLI spelling
+- A `description` states what the leaf MEANS. It MUST NOT prescribe a CLI spelling
   ("Filter by address family", not "Filter with `--family`"; not "as a positional
   argument" either).
 
@@ -415,12 +432,12 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 
 ### Rules
 
-- Errors to stderr: `fmt.Fprintf(os.Stderr, "error: %v\n", err)`
-- Return exit codes, never `os.Exit()` in handlers
-- `-` means stdin (read) / stdout (write): read/write a user-supplied path through
-  `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), never a raw
+- MUST send errors to stderr: `fmt.Fprintf(os.Stderr, "error: %v\n", err)`
+- MUST return exit codes; MUST NOT call `os.Exit()` in handlers
+- `-` means stdin (read) / stdout (write): MUST read/write a user-supplied path through
+  `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), MUST NOT make a raw
   `os` call. `make ze-dash-stdio-check` fails any command that bypasses it. `--json` for JSON output
-- Repeatable flags: `stringSlice` with `String()` + `Set()`
+- Repeatable flags MUST use `stringSlice` with `String()` + `Set()`
 
 ### Command Completion (BLOCKING)
 
@@ -433,9 +450,9 @@ The completion tree is built from two sources:
 Both feed the same completion tree. A plugin that registers a `CommandDecl` gets
 completion automatically without writing a YANG file.
 
-**Opt-out:** Set `Hidden: true` on a `CommandDecl` to suppress a command from
-completion and help. The command still works when typed in full. Use this only
-for internal/diagnostic commands that operators should not discover through
+**Opt-out:** MUST set `Hidden: true` on a `CommandDecl` to suppress a command from
+completion and help. The command still works when typed in full. MUST use this only
+for internal/diagnostic commands that operators SHOULD NOT discover through
 tab-completion. Hidden is the exception, not the default.
 
 **Runtime vs offline tree:** the runtime completion tree DOES inject plugin
@@ -443,7 +460,7 @@ tab-completion. Hidden is the exception, not the default.
 `injectPluginCommands`), so plugin commands complete in the live CLI. The static
 offline tree (`BuildCommandTree`, used when no daemon is reachable, and
 `ze help command`) still sees only YANG-backed commands; a plugin whose commands
-must complete offline should ship a `-cmd` YANG module.
+MUST complete offline SHOULD ship a `-cmd` YANG module.
 
 ### New Command Checklist
 
@@ -521,10 +538,12 @@ to their legend addresses via the shared `enrichAddr` helper
 
 An error must answer three questions:
 
+An error MUST carry these three legs:
+
 1. **What failed** -- the specific operation plus the identifying subject:
    `file:line`, config key, field name, command, NLRI, port, diagnostic code.
-   Never a bare "operation failed" or "invalid input".
-2. **Why -- the evidence** -- the offending value AND the expected one. Quote
+   MUST NOT be a bare "operation failed" or "invalid input".
+2. **Why -- the evidence** -- the offending value AND the expected one. MUST quote
    values with `%q` so empty, whitespace, or look-alike values are visible:
    `expected exit code %d, got %d`, `unknown field %q (want one of ...)`.
 3. **What to do next** -- the corrective action, or a stable handle the reader
@@ -534,12 +553,12 @@ An error must answer three questions:
 If the next step needs more than one line, attach a diagnostic code (below)
 rather than truncating the guidance.
 
-**Leg 3 must be TRUE, not merely present.** A remediation that names a command
-must name one that actually produces the promised effect. A command that looks
+**Leg 3 MUST be TRUE, not merely present.** A remediation that names a command
+MUST name one that actually produces the promised effect. A command that looks
 plausible but does not do what the message claims is worse than no advice: the
 reader trusts it, follows it, and loses the time twice, then stops trusting the
-tool's output at all. Verify the producer before you print the instruction -- if
-the message says "re-run X to refresh Y", read the code that writes Y and confirm
+tool's output at all. MUST verify the producer before you print the instruction -- if
+the message says "re-run X to refresh Y", MUST read the code that writes Y and confirm
 X writes it (a lint target does not rewrite a verify record; only a verify run
 does). This is the `doctor-vpp-lcp-netns` class of bug: advice that cannot work.
 
@@ -562,7 +581,7 @@ a clear next step exists, but a deep internal error need not invent one.
 
 ### A value carries no marker: state is a field, never a sigil
 
-**A row's state is a FIELD or a COLUMN. It is never a character glued to another
+**A row's state MUST be a FIELD or a COLUMN. It MUST NOT be a character glued to another
 field's value.** No `*`, no `>`, no `+`, no leading dot. If a row is different,
 say so in a place a reader and a pipe can both find.
 
@@ -579,13 +598,13 @@ decoration: `| json` has nowhere to put it, so the two forms carry different
 facts. Every command here composes with the pipe operators, which is why the
 sigil is a Ze-specific defect rather than a style preference.
 
-**The fix is always the same shape.** Add the boolean or enum to the snapshot
+**The fix is always the same shape.** MUST add the boolean or enum to the snapshot
 type, render it as its own column, and give the column and the JSON field the
 same name so a reader moving between forms learns one vocabulary. The value
-column keeps the value and nothing else.
+column MUST keep the value and nothing else.
 
-**Test the value, not only the marker.** A test that asserts the state appears
-does not catch a sigil that also pollutes the identifier. Assert the identifier
+**MUST test the value, not only the marker.** A test that asserts the state appears
+does not catch a sigil that also pollutes the identifier. MUST assert the identifier
 field is EXACTLY the identifier. Without that assertion nothing stops the
 asterisk returning the next time somebody reads another vendor's output as a
 model.
@@ -613,6 +632,8 @@ makes the corrective action machine-readable for an agent.
 
 Before returning or logging an error, ask:
 
+MUST ask these questions before returning an error:
+
 1. Does it name the specific subject (path/key/field/value), not just the operation?
 2. Could a reader who has never seen this code take the next step from this line alone?
 3. If the next step needs more than one line, is there a diagnostic code carrying it?
@@ -637,14 +658,14 @@ Any "no" -- add the subject, the value, the corrective action, or the code.
 
 All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
 
-**Deriving the name:** the JSON key must match the YANG leaf name or config tree key.
-A config key `remove-private-as` becomes `json:"remove-private-as"`, never
+**Deriving the name:** the JSON key MUST match the YANG leaf name or config tree key.
+A config key `remove-private-as` becomes `json:"remove-private-as"`, MUST NOT be
 `remove-private` or `remove_private_as`. When no YANG leaf exists,
-use the same kebab-case convention: lowercase words separated by hyphens.
+MUST use the same kebab-case convention: lowercase words separated by hyphens.
 
 **Go struct tags:** `json:"kebab-name"` or `json:"kebab-name,omitempty"`. The tag
 is the contract. Go field names are PascalCase (Go convention), JSON tags are
-kebab-case (Ze convention). Never let Go's default JSON marshaling (which uses the
+kebab-case (Ze convention). MUST NOT let Go's default JSON marshaling (which uses the
 Go field name) leak into output.
 
 | Wrong | Right | Why |
@@ -653,7 +674,7 @@ Go field name) leak into output.
 | `json:"policyAttrASPathRemovePrivate"` | `json:"remove-private-as"` | camelCase is not kebab-case |
 | No `json` tag on exported field | `json:"kebab-name"` | Go default leaks PascalCase |
 
-**Exception:** `internal/component/lg/handler_api.go` uses birdwatcher-convention `snake_case` for external compatibility with Alice-LG and other looking glass frontends. This is the only file exempt from kebab-case.
+**Exception:** `internal/component/lg/handler_api.go` MAY use birdwatcher-convention `snake_case` for external compatibility with Alice-LG and other looking glass frontends. This is the only file exempt from kebab-case.
 
 ### Ze IPC Envelope
 
@@ -699,6 +720,8 @@ Unicast and multicast are builtin (engine). All others registered by `bgp-nlri-*
 
 ### Conventions
 
+Envelopes and values MUST follow these conventions:
+
 - Error: `{"error":"description","parsed":false}`
 - CLI: `{"status":"ok","data":{...}}` or `{"status":"error","error":"msg"}`
 - Raw hex: uppercase, no `0x`. `"parsed":false` + `"raw":"DEADBEEF"`
@@ -710,27 +733,27 @@ Unicast and multicast are builtin (engine). All others registered by `bgp-nlri-*
 
 Every new command that produces JSON output for agents must:
 
-1. Use `encoding/json`, never string concatenation.
-2. Use lower kebab-case keys (see "Field Naming: kebab-case" above).
-3. Include `schema-version` in top-level envelopes via `diagnostic.NewValidateResult` or `diagnostic.NewFixPlan`.
-4. Emit no ANSI escape sequences when stdout is not a terminal.
+1. MUST use `encoding/json`; MUST NOT use string concatenation.
+2. MUST use lower kebab-case keys (see "Field Naming: kebab-case" above).
+3. MUST include `schema-version` in top-level envelopes via `diagnostic.NewValidateResult` or `diagnostic.NewFixPlan`.
+4. MUST NOT emit ANSI escape sequences when stdout is not a terminal.
 
 ### Diagnostic Codes
 
 Every validation error surfaced to agents must carry a stable diagnostic code.
 
 1. Codes are lower-kebab: `config-parse`, `config-yang-type`, etc.
-2. Every code must be registered in `internal/core/diagnostic/codes.go` with title, description, and related codes.
-3. New validation stages must map errors to diagnostic codes, not pass raw strings.
-4. The `ze explain` command must return an explanation for every registered code.
+2. Every code MUST be registered in `internal/core/diagnostic/codes.go` with title, description, and related codes.
+3. New validation stages MUST map errors to diagnostic codes, not pass raw strings.
+4. The `ze explain` command MUST return an explanation for every registered code.
 
 ### Repair Plans
 
 Repair metadata is plan-only. Commands must never edit config files.
 
-1. Every repair carries a stable `id` (lower-kebab) and `summary`.
+1. Every repair MUST carry a stable `id` (lower-kebab) and `summary`.
 2. Safety labels: `format-only`, `section-local`, `behavior-preserving`, `api-changing`, `target-changing`, `requires-human-review`.
-3. If Ze cannot prove a repair is safe, use `requires-human-review` with id `manual-review`.
+3. If Ze cannot prove a repair is safe, MUST use `requires-human-review` with id `manual-review`.
 
 ### Prefer Skills Over Raw Agents
 
@@ -739,7 +762,7 @@ use it instead of spawning a raw agent or improvising the workflow. Skills
 encode project conventions, gates, and ordering that a raw agent will miss.
 
 - **`.claude/hooks/pretool-agent-skill.py` BLOCKS the spawn** when the agent prompt asks for something a skill covers. It matches the ASK, never the subject: "review this diff" is routed, "explain how review works" is not.
-- **Naming the skill in the prompt satisfies the gate**, so a subagent that must follow `/ze-explore` is spawned by saying so.
+- **Naming the skill in the prompt satisfies the gate**, so a subagent that MUST follow `/ze-explore` is spawned by saying so.
 - The map it enforces: research is `/ze-explore`, review is `/ze-review`, spec conformance is `/ze-review-spec`, a red test is `/ze-debug`, spec work is `/ze-implement`, bug classes are `/ze-hunt`, spec audit is `/ze-audit`.
 - A hand-written prompt reproduces a worse version of the skill and drops every gate it carries. That is what the gate exists to stop.
 
@@ -762,13 +785,15 @@ forbids rerunning `make ze-verify` or `make ze-verify-changed`.
 
 Version-matched skill content is embedded in the binary.
 
-1. New skills go in `internal/plugins/skills/data/<name>.md` with frontmatter.
-2. The skill inventory in `internal/plugins/skills/main.go` must list every embedded file.
-3. `ze skills list` must show all bundled skills without a static list elsewhere.
+1. New skills MUST go in `internal/plugins/skills/data/<name>.md` with frontmatter.
+2. The skill inventory in `internal/plugins/skills/main.go` MUST list every embedded file.
+3. `ze skills list` MUST show all bundled skills without a static list elsewhere.
 
 ### Validation at Boundaries
 
 Config validation must run at every boundary where config enters the system:
+
+Every one of these boundaries MUST validate config:
 
 1. `ze config validate` (CLI).
 2. `ze config fix --plan --json` (CLI agent surface).
@@ -782,9 +807,9 @@ All boundaries use the same diagnostic pipeline.
 
 When adding agent-facing features:
 
-1. Update `docs/features/ai-first.md` with the new command or contract.
-2. Update `docs/guide/mcp/overview.md` if MCP users need to discover the feature.
-3. Update embedded skill files if the feature changes the agent workflow.
-4. Satisfy `ai/rules/repo-maintenance.md`: add the keyword/task path in
+1. MUST update `docs/features/ai-first.md` with the new command or contract.
+2. MUST update `docs/guide/mcp/overview.md` if MCP users need to discover the feature.
+3. MUST update embedded skill files if the feature changes the agent workflow.
+4. MUST satisfy `ai/rules/repo-maintenance.md`: add the keyword/task path in
    `ai/INDEX.md`, and document the verification target
    that proves the feature is discoverable.

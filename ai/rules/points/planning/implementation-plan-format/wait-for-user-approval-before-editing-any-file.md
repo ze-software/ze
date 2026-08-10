@@ -1,7 +1,7 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
 **WAIT FOR USER APPROVAL.** During design discussions (naming, alternatives, approach),
-present options and wait. Never edit files until explicitly approved.
+present options and wait. MUST NOT edit files until explicitly approved.

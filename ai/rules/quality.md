@@ -9,7 +9,7 @@ Rationale: `ai/rationale/quality.md`
 
 ## Linting
 
-**FIX lint issues. Never disable linters.** Only exclusions: `fieldalignment` (govet), test-file exclusions for `dupl`/`goconst`/`prealloc`/`gosec`.
+**MUST FIX lint issues. MUST NOT disable linters.** Only exclusions: `fieldalignment` (govet), test-file exclusions for `dupl`/`goconst`/`prealloc`/`gosec`.
 
 ## Self-Critical Review
 
@@ -29,7 +29,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 ## Adversarial Self-Review (BLOCKING)
 
-**Before presenting any work as complete**, answer these questions. Fix what they reveal BEFORE presenting.
+**Before presenting any work as complete**, MUST answer these questions. MUST fix what they reveal BEFORE presenting.
 
 | # | Question | If the answer is bad |
 |---|----------|---------------------|
@@ -43,11 +43,11 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 | 8 | Did I add a guard / fallback to a function? Did I check sibling call sites? | `ai/rules/architecture.md` "Sibling Call-Site Audit" |
 | 9 | Did I touch reactor concurrency code? Did `make ze-race-reactor` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
 
-**Never present "version 1" knowing "version 2" is needed.** The first presentation should be the thorough one.
+**MUST NOT present "version 1" knowing "version 2" is needed.** The first presentation SHOULD be the thorough one.
 
-**Tests passing is not completion.** After tests pass, continue to the next checklist item (docs, audit, journal row). Never stop at "tests pass" and wait for the user to say "continue." The Completion Checklist has 12 steps -- tests are step 10, not the finish line. Only stop when blocked or when every step is done.
+**Tests passing is not completion.** After tests pass, MUST continue to the next checklist item (docs, audit, journal row). MUST NOT stop at "tests pass" and wait for the user to say "continue." The Completion Checklist has 12 steps -- tests are step 10, not the finish line. MUST NOT stop unless blocked or every step is done.
 
-**Unanswered questions block work.** If a question was asked and not answered, re-state it before proceeding. Do not silently pick an answer and keep going.
+**Unanswered questions block work.** If a question was asked and not answered, MUST re-state it before proceeding. MUST NOT silently pick an answer and keep going.
 
 ## Proof
 

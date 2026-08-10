@@ -7,11 +7,11 @@
 ## Directives
 
 - **A change that adds or changes something future agents need to use, verify, document, or avoid MUST update the discovery path in the same work.**
-- **Every feature that adds a new runtime dependency must register a `ze doctor` check so agents can verify readiness before starting the daemon.**
-- **Never edit a generated file. Edit the canonical source, then sync.**
-- **Project behavior rules belong in `ai/rules/` and project startup guidance belongs in `ai/INSTRUCTIONS.md`, so Claude, Codex, and other agents all discover the same rule through generated tool-specific files.**
-- **Consult the hook-to-rule mapping BEFORE writing code to comply in advance, rather than to fix after rejection. For hook false positives and workarounds, see `plan/learned/HOOK-FRICTION.md`.**
-- **Report a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort immediately, and say whether a new or changed rule would prevent it.**
+- **Every feature that adds a new runtime dependency MUST register a `ze doctor` check so agents can verify readiness before starting the daemon.**
+- **A generated file MUST NOT be edited. Edit the canonical source, then sync.**
+- **Project behavior rules MUST belong in `ai/rules/` and project startup guidance MUST belong in `ai/INSTRUCTIONS.md`, so Claude, Codex, and other agents all discover the same rule through generated tool-specific files.**
+- **The hook-to-rule mapping MUST be consulted BEFORE writing code, to comply in advance rather than to fix after rejection. For hook false positives and workarounds, see `plan/learned/HOOK-FRICTION.md`.**
+- **A recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort MUST be reported immediately, and you MUST say whether a new or changed rule would prevent it.**
 
 ## Discovery Updates
 
@@ -31,7 +31,7 @@ Apply this rule when adding or changing any of these:
 | New BGP family, SAFI, or capability | Agents must update migration schema, route converter, bridge, and compat tests (`ai/patterns/bgp-family.md`) |
 | RFC-level protocol behavior added, changed, or newly proven | The standards ledger drives user and design decisions; a stale RFC status misleads both |
 
-**Private refactors with no new surface still trigger this rule when they change a pattern future work must follow.**
+**Private refactors with no new surface still trigger this rule when they change a pattern future work MUST follow.**
 
 ### Required Discovery Artifacts
 
@@ -52,18 +52,18 @@ Update every row that applies:
 | Recurring trap | `plan/journal/<class>.md` -- one row per occurrence; recurrence is the row count |
 | New task category or search keyword | `ai/INDEX.md` (task navigation + keyword map) |
 
-**Do not create an isolated rule or doc page that no existing navigation path links to. A rule that agents cannot discover is not a rule.**
+**An isolated rule or doc page that no existing navigation path links to MUST NOT be created. A rule that agents cannot discover is not a rule.**
 
 ### Mechanical Checklist
 
 Before implementation is complete, answer these in the spec, review notes, or handoff:
 
-1. **Where would an agent look first?** Add or update the `ai/INDEX.md` keyword row, `ai/INDEX.md` task row, or both.
-2. **What rule prevents regression?** Update the narrowest existing rule. Create a new `ai/rules/*.md` only when no existing rule owns the behavior.
-3. **What source of truth prevents drift?** Use a registry, generated inventory, YANG schema, or live binary output. Do not copy static lists.
-4. **What verification proves it?** Name the make target, unit test, functional test, hook, or doc validator that catches drift.
-5. **What docs explain usage?** Name the exact file and section. Add source anchors for factual `docs/` claims.
-6. **What journal record preserves the decision?** Append a row to the matching `plan/journal/<class>.md` when a recurring trap was hit.
+1. **Where would an agent look first?** The `ai/INDEX.md` keyword row, the `ai/INDEX.md` task row, or both MUST be added or updated.
+2. **What rule prevents regression?** The narrowest existing rule MUST be updated. A new `ai/rules/*.md` MAY be created only when no existing rule owns the behavior.
+3. **What source of truth prevents drift?** A registry, generated inventory, YANG schema, or live binary output MUST be used. A static list MUST NOT be copied.
+4. **What verification proves it?** The make target, unit test, functional test, hook, or doc validator that catches drift MUST be named.
+5. **What docs explain usage?** The exact file and section MUST be named. Source anchors MUST be added for factual `docs/` claims.
+6. **What journal record preserves the decision?** A row MUST be appended to the matching `plan/journal/<class>.md` when a recurring trap was hit.
 
 ### Current Discovery Surfaces
 
@@ -91,7 +91,7 @@ Use these before inventing a new mechanism:
 | Whether the tree GIT HOLDS compiles, as opposed to the working tree every other gate reads | `make ze-tracked-build-check` (`REV=<sha>` judges another commit). Runs in `ze-verify`, both modes, and is a structural gate in `scripts/dev/commit_helper.py` |
 | Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
 
-**If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, add the missing discovery link before claiming completion.**
+**If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, the missing discovery link MUST be added before claiming completion.**
 
 ## Doctor Checks
 
@@ -100,10 +100,10 @@ Use these before inventing a new mechanism:
 When your implementation introduces any of the following, add a registered doctor check with explicit phase, order, component, dependency, platform, diagnostic-code, and check-function metadata. Ownership is part of the requirement: the package, component, or plugin that owns the dependency MUST own the registration, check function, and unit test.
 
 - **`internal/component/doctor` owns the runner, output contract, functional coverage through the user entry point, and checks that have no narrower owner.**
-- **Do not add new runtime dependency checks by appending another direct call to the central `runChecks` list.**
-- **Do not add owner-specific registrations in `internal/component/doctor` just because the runner lives there.**
-- **Internal plugins (preferred path):** declare doctor checks in `registry.Registration.DoctorChecks`. The doctor runner bridges these at execution time via `checks_plugin_registry.go`. The check function uses `registry.DoctorCheckContext` (Tree and Platform as `any`) and returns `[]rpc.DoctorCheckDiagnostic`. Component is set automatically from the plugin name. See `l2tpauthradius/register.go` for the reference example.
-- **Components that are not plugins** (e.g., appliance, web, SSH): use `diagnostic.RegisterDoctorCheck()` from the owning package's init().
+- **New runtime dependency checks MUST NOT be added by appending another direct call to the central `runChecks` list.**
+- **Owner-specific registrations MUST NOT be added in `internal/component/doctor` just because the runner lives there.**
+- **Internal plugins (preferred path) MUST declare doctor checks in `registry.Registration.DoctorChecks`.** The doctor runner bridges these at execution time via `checks_plugin_registry.go`. The check function uses `registry.DoctorCheckContext` (Tree and Platform as `any`) and returns `[]rpc.DoctorCheckDiagnostic`. Component is set automatically from the plugin name. See `l2tpauthradius/register.go` for the reference example.
+- **Components that are not plugins** (e.g., appliance, web, SSH) MUST use `diagnostic.RegisterDoctorCheck()` from the owning package's init().
 
 | New dependency | Doctor check needed |
 |----------------|---------------------|
@@ -120,12 +120,12 @@ When your implementation introduces any of the following, add a registered docto
 
 ### Diagnostic Code Convention
 
-- **All doctor codes use the `doctor-` prefix: `doctor-<component>-<condition>`.**
-- **Register every new code in `internal/core/diagnostic/codes.go` with title, description, and examples. The code must be explainable via `ze explain`.**
+- **All doctor codes MUST use the `doctor-` prefix: `doctor-<component>-<condition>`.**
+- **Every new code MUST be registered in `internal/core/diagnostic/codes.go` with title, description, and examples. The code MUST be explainable via `ze explain`.**
 
 ### Mechanical Check
 
-- **After implementation, verify the check is registered and explainable: `go test ./internal/component/doctor -run 'TestDoctorCoverageCodesRegistered|TestRunChecksExecutesRegisteredPluginCheck'`**
+- **After implementation, the check MUST be verified as registered and explainable: `go test ./internal/component/doctor -run 'TestDoctorCoverageCodesRegistered|TestRunChecksExecutesRegisteredPluginCheck'`**
 - **If you added a runtime dependency and no registered doctor check declares its `doctor-*` code, you missed the readiness check or its diagnostic metadata.**
 
 ### Where to Register Checks
@@ -139,7 +139,7 @@ When your implementation introduces any of the following, add a registered docto
 | Kernel module, procfs, sysctl, netlink, VPP, or platform-specific backend | `diagnostic.RegisterDoctorCheck()` from owning backend/component, with build-tagged files where needed |
 | Blob storage, platform detection, generic runner state, or dependency with no narrower owner | `internal/component/doctor`, with a comment or test name making the lack of owner explicit |
 
-**If no plugin, component, backend, or command package owns the dependency, keep the check and unit test in `internal/component/doctor`. Do not invent an owner package just to satisfy proximity.**
+**If no plugin, component, backend, or command package owns the dependency, the check and unit test MUST stay in `internal/component/doctor`. An owner package MUST NOT be invented just to satisfy proximity.**
 
 ### Test Requirement
 
@@ -150,7 +150,7 @@ Every new doctor check needs both:
 | Unit test | The check fires only when the relevant config block is present and emits the registered code | Owning package next to the registration, or `internal/component/doctor` only when there is no narrower owner |
 | Functional test | `ze doctor --json <config>` exposes the behavior through the user entry point | `internal/component/doctor` or the existing functional test suite for the user entry |
 
-**Linux-only checks still need Linux-tagged tests and the package must be covered by the QEMU integration target when new `//go:build linux` code is added.**
+**Linux-only checks MUST still have Linux-tagged tests, and the package MUST be covered by the QEMU integration target when new `//go:build linux` code is added.**
 
 ## Canonical Sources and Sync Direction
 
@@ -166,25 +166,25 @@ Every new doctor check needs both:
 
 - **Project-wide behavior rules, workflow rules, and agent rules MUST live under `ai/rules/`, not under a tool-specific home directory such as `~/.claude/rules/`.**
 - **Tool-specific files are only for behavior that applies exclusively to that tool outside this repository.**
-- **`ai/rules/*.md` are tool-agnostic and RENDERED from `ai/rules/points/<rule>/`. Never edit one by hand. Edit the point file that carries the instruction, or the manifest that carries the title, the trigger and the reading order. Then run `make ze-rules-render`. `.claude/rules/*.md` are Claude-specific originals and must not be used for shared Ze project behavior. These two directories are independent; neither generates the other.**
+- **`ai/rules/*.md` are tool-agnostic and RENDERED from `ai/rules/points/<rule>/`. It MUST NOT be edited by hand. Edit the point file that carries the instruction, or the manifest that carries the title, the trigger and the reading order. Then run `make ze-rules-render`. `.claude/rules/*.md` are Claude-specific originals and MUST NOT be used for shared Ze project behavior. These two directories are independent; neither generates the other.**
 - **One instruction is one file, and its PATH is its id.** `ai/rules/points/<rule>/<slug>.md` holds one block of the rule, verbatim, behind a small frontmatter header. `ai/rules/points/<rule>/manifest.md` holds the rule's title, its `**When:**` trigger, its severity, and the ordered slug list the renderer concatenates. A point on disk that the manifest does not list is a hard render error, never a silent drop.
-- **Second generation:** `ai/rules/INDEX.md` is generated by `scripts/dev/rules_index.py` from the RENDERED rule files' headings and summary lines. Never edit it by hand; run `make ze-rules-index`. To change a rule's one-line overview, edit the `when:` field in that rule's manifest, run `make ze-rules-render`, then regenerate.
-- **Second generation:** `scripts/dev/rules_condensed.py` generates TWO artifacts from one parse of the RENDERED rule files. Never edit either by hand; run `make ze-rules-condensed`. To change what they contain, edit the rule's points, run `make ze-rules-render`, then regenerate.
+- **Second generation:** `ai/rules/INDEX.md` is generated by `scripts/dev/rules_index.py` from the RENDERED rule files' headings and summary lines. It MUST NOT be edited by hand; run `make ze-rules-index`. To change a rule's one-line overview, edit the `when:` field in that rule's manifest, run `make ze-rules-render`, then regenerate.
+- **Second generation:** `scripts/dev/rules_condensed.py` generates TWO artifacts from one parse of the RENDERED rule files. They MUST NOT be edited by hand; run `make ze-rules-condensed`. To change what they contain, edit the rule's points, run `make ze-rules-render`, then regenerate.
 
 | Artifact | Holds | Imported into every session? |
 |----------|-------|------------------------------|
 | `ai/rules/TRIGGERS.md` | one routing line per rule: path, severity, `**When:**` trigger. Every rule, so none is ever invisible. The generator prints the count; do not copy it here | yes |
 | `ai/rules/CORE.md` | the condensed directives of the always-on rules. Membership is DERIVED (rungs 1 and 2 of the ladder in `ai/rules/rule-precedence.md`, the ladder itself, any rule with no routable trigger, and any blocking rule no past task description would surface) | yes |
 
-**Membership in `CORE.md` is never edited, because it is never written down.** To make a rule always-on, change what the derivation reads: name it on rung 1 or 2 of the ladder in `ai/rules/rule-precedence.md`. A list of filenames in the generator would read identically until the ladder changed underneath it (`ai/rules/evidence.md`).
+**Membership in `CORE.md` MUST NOT be edited, because it is never written down.** To make a rule always-on, change what the derivation reads: name it on rung 1 or 2 of the ladder in `ai/rules/rule-precedence.md`. A list of filenames in the generator would read identically until the ladder changed underneath it (`ai/rules/evidence.md`).
 
 ### Mechanical Check
 
-**Before editing any file listed in the "Generates" column above, STOP. Find its canonical source in the left column and edit that instead.**
+**Before editing any file listed in the "Generates" column above, STOP. You MUST find its canonical source in the left column and edit that instead.**
 
 ### Drift Detection
 
-**The `CLAUDE.md`, `AGENTS.md` and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `make ze-ai-check` (also part of `make ze-regen-check`) compares content against a fresh generation; the session-start hook runs it and warns `generated agent files are stale` when a resync is needed. Fix with `make ze-regen`. `ai/rules/<rule>.md` is the one "Generates" target that IS tracked, so `git diff` does show its drift, and `make ze-rules-render-check` reaches the same verdict, but writes nothing.
+**The `CLAUDE.md`, `AGENTS.md` and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `make ze-ai-check` (also part of `make ze-regen-check`) compares content against a fresh generation; the session-start hook runs it and warns `generated agent files are stale` when a resync is needed. You MUST fix it with `make ze-regen`. `ai/rules/<rule>.md` is the one "Generates" target that IS tracked, so `git diff` does show its drift, and `make ze-rules-render-check` reaches the same verdict, but writes nothing.
 
 ### Banned Actions
 
@@ -216,9 +216,9 @@ The per-check shell hooks were consolidated into one Python dispatcher per trigg
 
 Still standalone (single-purpose or deliberately not folded): `block-until-lsp.sh`, `validate-spec.sh` (see note below), `mark-lsp-invoked.sh`, `mark-source-read.sh`, and the session-lifecycle hooks. The Stop hook also shells out to `scripts/dev/spec-closure-check.py` (the spec-closure detector; also usable directly as `--list`).
 
-**Changing a check:** edit the function in the relevant dispatcher (not a `.sh`), then run `python3 scripts/dev/hook-parity-check.py` to confirm no behaviour changed. If you intentionally changed behaviour, re-bless the golden table with `python3 scripts/dev/hook-parity-check.py --bless` and paste the result back. Also satisfy the "Discovery Updates" section above so future agents can find it.
+**Changing a check:** the function in the relevant dispatcher (not a `.sh`) MUST be edited, then `python3 scripts/dev/hook-parity-check.py` MUST be run to confirm no behaviour changed. If you intentionally changed behaviour, the golden table MUST be re-blessed with `python3 scripts/dev/hook-parity-check.py --bless`, and the result MUST be pasted back. The "Discovery Updates" section above MUST also be satisfied so future agents can find it.
 
-**Reads never block:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch` are never rejected. Two of them write a non-blocking freshness marker so the `design-without-lsp` gate knows the implementation was investigated: `LSP` (via `mark-lsp-invoked.sh`) and `Read` of implementation source (via `mark-source-read.sh`). Source is what a spec can be ABOUT, and the KIND is the file's EXTENSION with no directory anchor: `.go`, `.py`, `.sh`, `.yang`, the `Makefile`, `*.mk`. Each accepted Read records its kind (`go`, `py`, `sh`, `make`, `yang`) in `.source-read-<kind>-<sid>` beside the aggregate marker, which is how the gate asks for the spec's own subject rather than for any file at all. The extension is the whole rule because this writer and `_SUBJECT_PATTERNS` in `pretool-writeedit.py` are two ends of one contract: the gate demands the kind a spec's own file list names, so a path the writer refuses is a spec nobody can ground by reading its own subject. A directory list is a second thing to keep in sync, and it drifted: 11 open specs named `.py` subjects under `test/` and `tools/` and 2 named `.sh` subjects under `packaging/` whose only exit was reading an unrelated file. A Read is also held to a DEPTH bar: a window of under 20 lines records nothing, while a whole file records its kind at any length. A Read that showed NOTHING records nothing, whatever else the payload says: an empty file, a window past the end, a failed Read, and the `file_unchanged` answer the harness gives a repeat WHOLE Read all measure zero, and zero is not the same as unmeasurable. A stale marker is therefore renewed with `Read(path, offset=N, limit>=20)`, which returns content where a second whole Read returns nothing. Only a payload shape the writer does not recognise AT ALL is accepted unmeasured, so an unfamiliar payload still cannot silently disable the evidence path. The count is lines of TEXT, taken from the response body, because `numLines` counts the trailing newline as a line and a 19-line window arrives as 20. Only mutating/executing tools (`Bash`, `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and `ToolSearch` (which loads LSP) are actually gated.
+**Reads never block:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch` are never rejected. Two of them write a non-blocking freshness marker so the `design-without-lsp` gate knows the implementation was investigated: `LSP` (via `mark-lsp-invoked.sh`) and `Read` of implementation source (via `mark-source-read.sh`). Source is what a spec can be ABOUT, and the KIND is the file's EXTENSION with no directory anchor: `.go`, `.py`, `.sh`, `.yang`, the `Makefile`, `*.mk`. Each accepted Read records its kind (`go`, `py`, `sh`, `make`, `yang`) in `.source-read-<kind>-<sid>` beside the aggregate marker, which is how the gate asks for the spec's own subject rather than for any file at all. The extension is the whole rule because this writer and `_SUBJECT_PATTERNS` in `pretool-writeedit.py` are two ends of one contract: the gate demands the kind a spec's own file list names, so a path the writer refuses is a spec nobody can ground by reading its own subject. A directory list is a second thing to keep in sync, and it drifted: 11 open specs named `.py` subjects under `test/` and `tools/` and 2 named `.sh` subjects under `packaging/` whose only exit was reading an unrelated file. A Read is also held to a DEPTH bar: a window of under 20 lines records nothing, while a whole file records its kind at any length. A Read that showed NOTHING records nothing, whatever else the payload says: an empty file, a window past the end, a failed Read, and the `file_unchanged` answer the harness gives a repeat WHOLE Read all measure zero, and zero is not the same as unmeasurable. A stale marker MUST therefore be renewed with `Read(path, offset=N, limit>=20)`, which returns content where a second whole Read returns nothing. Only a payload shape the writer does not recognise AT ALL is accepted unmeasured, so an unfamiliar payload still cannot silently disable the evidence path. The count is lines of TEXT, taken from the response body, because `numLines` counts the trailing newline as a line and a 19-line window arrives as 20. Only mutating/executing tools (`Bash`, `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and `ToolSearch` (which loads LSP) are actually gated.
 
 **Every marker is keyed by session id**, and the id is resolved in TWO places that MUST agree: `.claude/hooks/lib/session-id.sh` (`_session_id`, used by the shell hooks that WRITE `.lsp-loaded-*` / `.lsp-invoked-*` / `.source-read-*` / `.session-*`) and a port inside `pretool-writeedit.py` (`session_id()`, which READS them). Disagreement fails CLOSED: the reader looks for a file nothing wrote and blocks work that was actually done. Both read `$CLAUDE_CODE_SESSION_ID` first; an id that is not a safe filename component is rejected by both rather than rewritten. `make ze-hook-test` (section `session-id`) locks this. Before 2026-07-16 neither end had an env lookup, so with no `--session-id` in argv and no access token every concurrent session shared ONE marker set, and `spec-session.sh claim` then silently overwrote another session's spec claim. If you touch either resolver, change BOTH and re-run the test.
 
@@ -288,6 +288,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | `c_generated_files` | `repo-maintenance.md`, "Canonical Sources and Sync Direction" above | `CLAUDE.md`/`AGENTS.md` | Blocks editing generated files. BLOCKING. |
 | `c_rendered_rules` | `repo-maintenance.md`, "Canonical Sources and Sync Direction" above | any `*.md` sitting DIRECTLY in `ai/rules/` | Blocks editing a rendered rule and names the point to edit instead. Also covers `INDEX.md`, `TRIGGERS.md` and `CORE.md`, which no hook guarded before, and points each at its own generator. `ai/rules/points/**` is the canonical source and is always permitted: a point's parent is `ai/rules/points/<rule>`, so the dirname test lets it through. Matched by realpath against `CLAUDE_PROJECT_DIR`, for the reason `generated-files` records, and it refuses rather than permits when the path cannot be resolved. BLOCKING. |
 | `c_point_overwrite` | `never-destroy-work.md` | a `Write` to a path under `ai/rules/points/<rule>/` | Blocks a `Write` over a point file that already exists, and names both non-destructive routes: edit that point, or pick a slug no file uses. A `Write` to a NEW path is how a point is authored and stays permitted, and `Edit`/`MultiEdit` are targeted so neither can silently drop a body. The render gates report the same damage one step too late: the instruction is gone at write time and only git holds it. BLOCKING. |
+| `c_rule_point_rfc_language` | `rule-format.md` | a `Write` or `Edit` to `ai/rules/points/<rule>/<section>/<slug>.md` | Blocks a `kind: directive` point that does not state its obligation in RFC 2119 language. A `Write` carries the whole point, so a missing capitalised keyword is refused there. An `Edit` carries a fragment, so what is decidable is the lowercase `must`/`shall`/`should`/`may` it introduces, and that is refused for both tools. Code spans and fenced blocks are quoted text and are never read. `make ze-rules-lint` reads the finished tree and owns the rest. BLOCKING. |
 | `c_line_number_ref` | `evidence.md`, `writing.md` | `.md` under `ai/`, `docs/`, `plan/`, `.claude/` | Blocks a `path:NN` line citation and a `#LNN` permalink anchor in prose. Cite the file and the symbol instead. A fenced block, an `rfc/full/` path, and a file declaring itself generated in its first ten lines are all exempt. `scripts/dev/line_refs.py --apply` sweeps an existing file. BLOCKING. |
 | `c_claude_plans` | `.claude/rules/planning.md` (no point) | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. | <!-- doc-links: ignore (banned location, deliberately nonexistent) -->
 | `c_check_existing_patterns` | `architecture.md` | new `internal/**/*.go` | Blocks duplicate exported type/func in same package. BLOCKING. |
@@ -408,7 +409,7 @@ These are NOT Claude hooks. They run when `commit_helper.py create` generates th
 
 ### Session Lifecycle Hooks
 
-**UserPromptSubmit stdout reaches the model. UserPromptSubmit stderr does not.** A reminder that must land in the context writes to stdout. A banner that must cost no context tokens writes to stderr, as `compaction-reminder.sh` does. The two stdout reminders below fire on every turn, so each one stays a single line.
+**UserPromptSubmit stdout reaches the model. UserPromptSubmit stderr does not.** A reminder that MUST land in the context writes to stdout. A banner that MUST cost no context tokens writes to stderr, as `compaction-reminder.sh` does. The two stdout reminders below fire on every turn, so each one stays a single line.
 
 | Hook | Event | What it does |
 |---|---|---|
@@ -462,7 +463,7 @@ A Bash `git commit` is blocked outright by destructive-git. Commit via `scripts/
 - **Inventory**: `make ze-inventory [--json]` imports `plugin/all` and queries real registries. Use for plugin counts, RPC totals, family coverage.
 - **SDK type aliases** (`pkg/plugin/sdk/sdk_types.go` re-exporting `rpc.*`) are intentional -- external plugins import only `sdk`. Not identity wrappers.
 - **No filtered/noexport route tracking** -- Ze does not store import-filtered or export-filtered routes (unlike BIRD's "import keep filtered on"): the RIB pipeline has scope keywords (sent/received/sent-received) and filter stages, but no "filtered" scope. The birdwatcher-compatible endpoints `/routes/filtered/{name}` and `/routes/noexport/{name}` return empty lists for compatibility; if filtered tracking ever lands, point them at the real store.
-- **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) must be exec'd, supervised, and cleaned up by ze itself; never design around an OS-level process manager.
+- **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) MUST be exec'd, supervised, and cleaned up by ze itself; ze MUST NOT be designed around an OS-level process manager.
 - **Stress injector is in-memory Go** (decision 2026-04-16) -- the BGP UPDATE stream for stress scenarios 01-05 is generated in memory inside `ze-test peer --mode inject` and streamed over the TCP socket after the OPEN handshake; no file on disk, no bngblaster. Extend the Go injector for new scenarios (pool-friendly byte builder, single pre-allocated buffer, single TCP writer with keepalive goroutine). The standalone byte-level oracle and BNG Blaster have been removed now that the Go builder is trusted; `test/stress/` is the Python harness (`harness.py`/`run.py`/`scenarios/`).
 - **CLI dispatch discoverability gaps** (2026-03-30 live debugging; spec candidates): (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape) -- `ze show`/`ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner; the offline-config half is covered by `ze config show <file> [path...]` (49f04ffd3). (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:summary`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source; highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
 
@@ -470,30 +471,30 @@ A Bash `git commit` is blocked outright by destructive-git. Commit via `scripts/
 
 One-line lesson + rule pointer. Full root-cause in the linked journal row's Fix cell.
 
-- **"Linux-only tests can't run on this macOS host / need hardware" is a LIE** (RECURRING, ZERO TOL). Ze HAS a QEMU Alpine-VM harness: `option=needs-linux` `.ci` tests SKIP on native darwin and RUN under `make ze-qemu-needs-linux-test` / `ze-qemu-all-test`; kernel/netlink/nft/veth/loop tests run via `make ze-qemu-integration-test` and the `ze-qemu-<feature>-test` targets. A Linux-only test that FAILS (not skips) on native darwin is missing its `option=needs-linux` marker (fix: add it, then run it in QEMU), never "environmental / unfixable here". NEVER attribute a Linux test red to "darwin env" or "needs docker/qemu we don't have": we HAVE QEMU. Run it. `ai/rules/platform-linux.md`.
-- **Feature not wired** (RECURRING, ZERO TOL). Unit tests != wiring. Name the user entry point. `ai/rules/completion.md`.
-- **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin needs `cmd/ze/<name>/` offline entry point.
-- **Wrong production path** (rib-04). Grep ALL implementations; trace the consumer's call chain.
-- **Count-only test assertions** (addpath-rib). Assert on content (keys/values), not `Len()`.
-- **Wrapper struct pattern** (alloc-4). Pass raw bytes + existing iterators. Never wrap data in accessor types.
-- **Tests-pass != done** (RECURRING). Tests are step 10 of 12. Continue to docs/spec/summary/audit. `ai/rules/quality.md`.
-- **Mechanism-not-behavior test** (prefix-limit). Assert the AC, not a code-path proxy. No-op passes = wrong test. `ai/rules/testing.md`.
-- **"Pre-existing" failures** (RESOLVED). Blocks your goal: fix now. Does not: spec it, close the work in hand, ask Thomas whether that spec runs. `ai/rules/completion.md`.
+- **"Linux-only tests can't run on this macOS host / need hardware" is a LIE** (RECURRING, ZERO TOL). Ze HAS a QEMU Alpine-VM harness: `option=needs-linux` `.ci` tests SKIP on native darwin and RUN under `make ze-qemu-needs-linux-test` / `ze-qemu-all-test`; kernel/netlink/nft/veth/loop tests run via `make ze-qemu-integration-test` and the `ze-qemu-<feature>-test` targets. A Linux-only test that FAILS (not skips) on native darwin is missing its `option=needs-linux` marker (fix: the marker MUST be added, then the test MUST be run in QEMU), never "environmental / unfixable here". A Linux test red MUST NOT be attributed to "darwin env" or "needs docker/qemu we don't have": we HAVE QEMU, and the test MUST be run there. `ai/rules/platform-linux.md`.
+- **Feature not wired** (RECURRING, ZERO TOL). Unit tests != wiring. The user entry point MUST be named. `ai/rules/completion.md`.
+- **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin MUST have a `cmd/ze/<name>/` offline entry point.
+- **Wrong production path** (rib-04). ALL implementations MUST be grepped; the consumer's call chain MUST be traced.
+- **Count-only test assertions** (addpath-rib). Assertions MUST be on content (keys/values), not `Len()`.
+- **Wrapper struct pattern** (alloc-4). Raw bytes and existing iterators MUST be passed. Data MUST NOT be wrapped in accessor types.
+- **Tests-pass != done** (RECURRING). Tests are step 10 of 12. Work MUST continue to docs/spec/summary/audit. `ai/rules/quality.md`.
+- **Mechanism-not-behavior test** (prefix-limit). The AC MUST be asserted, not a code-path proxy. No-op passes = wrong test. `ai/rules/testing.md`.
+- **"Pre-existing" failures** (RESOLVED). Blocks your goal: it MUST be fixed now. Does not: spec it, close the work in hand, ask Thomas whether that spec runs. `ai/rules/completion.md`.
 - **Plugin placement anchor bias** (jsonrpc). "Delete the folder" test. Cross-cutting -> `internal/component/`. Domain -> `bgp/plugins/`. Infra -> `internal/core/`.
-- **Docs from assumption** (RECURRING). Read source before any factual claim. `ai/rules/writing.md` Source Anchors.
-- **Spec deleted without committing** (lg-overhaul, ZERO TOL). TWO commits: (A) code+spec, (B) `git rm` spec + add summary. `ai/rules/planning.md`.
-- **Reinventing repo contents** (lg-overhaul). Grep before writing new infra; `third_party/` and components often already have it. `ai/rules/architecture.md`.
-- **Spec claimed complete with gaps** (lg-0..4). Learned summary with "future X" = spec NOT done. Audit each AC. `ai/rules/completion.md`.
-- **Stale deferrals** (redist-phase2). Grep code before creating phase-N spec from open deferrals. `ai/rules/planning.md`.
-- **Worktree copy into main** (ZERO TOL). Commit in worktree; merge/cherry-pick only. `check_worktree_copy` in `.claude/hooks/pretool-bash.py` enforces.
-- **Same-day blocker fix** (cmd-4, RECURRING). Real adversarial review: race on reactor code, grep renamed-name consumers, grep sibling call sites, break production to confirm .ci test fails. `ai/rules/quality.md`.
-- **Substring collision in bulk edits** (iface-tunnel). Longest prefix first, or add non-name context. Grep for mangled names after.
-- **Vendor != upstream** (iface-tunnel). Verify against `vendor/<lib>/`, not upstream docs. Cite vendor path in the spec.
-- **Naive reconciliation drops live state** (iface-tunnel). Diff against previous config; act on the delta. Pass `previous` explicitly.
-- **Invented config shape** (iface-tunnel). Grep existing `*-conf.yang` for the closest analog before defining new endpoint shapes.
-- **Scratch `.go` in `tmp/`** (iface-tunnel). `go test ./...` walks `tmp/`. Research agents use `.txt` or build-tagged dirs.
-- **CLI grammar from container nesting, not wire method** (as112-cli-audit). Operator-facing command words come from the YANG `container` tree; `ze:command "ze-X:Y"` is the INTERNAL RPC name and is deliberately different (e.g. `ze-bgp:peer-teardown` = command `request peer teardown`). Never infer command syntax from wire-method names. Top-level operational verb is `request` (`request <object> <action>`); reads are `show`/`monitor`. `ai/rules/writing.md`.
-- **ExaBGP migration sync** (exabgp-compat-sync). When ExaBGP adds a new SAFI or route type, three things need updating: (1) `exabgp.yang` schema container, (2) `flexSafis` list or a dedicated `convert*ToUpdate` in `migrate_routes.go`, (3) compat test files (`.ci` + `.conf`). `ai/patterns/bgp-family.md` Section 5b.
+- **Docs from assumption** (RECURRING). Source MUST be read before any factual claim. `ai/rules/writing.md` Source Anchors.
+- **Spec deleted without committing** (lg-overhaul, ZERO TOL). TWO commits MUST be made: (A) code+spec, (B) `git rm` spec + add summary. `ai/rules/planning.md`.
+- **Reinventing repo contents** (lg-overhaul). Existing code MUST be grepped before writing new infra; `third_party/` and components often already have it. `ai/rules/architecture.md`.
+- **Spec claimed complete with gaps** (lg-0..4). Learned summary with "future X" = spec NOT done. Each AC MUST be audited. `ai/rules/completion.md`.
+- **Stale deferrals** (redist-phase2). Code MUST be grepped before a phase-N spec is created from open deferrals. `ai/rules/planning.md`.
+- **Worktree copy into main** (ZERO TOL). Work MUST be committed in the worktree, and it MUST reach main only via merge or cherry-pick. `check_worktree_copy` in `.claude/hooks/pretool-bash.py` enforces.
+- **Same-day blocker fix** (cmd-4, RECURRING). A real adversarial review MUST race on reactor code, grep renamed-name consumers, grep sibling call sites, and break production to confirm the `.ci` test fails. `ai/rules/quality.md`.
+- **Substring collision in bulk edits** (iface-tunnel). The longest prefix MUST be matched first, or non-name context MUST be added. Mangled names MUST be grepped for afterward.
+- **Vendor != upstream** (iface-tunnel). Behavior MUST be verified against `vendor/<lib>/`, not upstream docs. The vendor path MUST be cited in the spec.
+- **Naive reconciliation drops live state** (iface-tunnel). The new config MUST be diffed against the previous config, and the delta MUST be acted on. `previous` MUST be passed explicitly.
+- **Invented config shape** (iface-tunnel). Existing `*-conf.yang` files MUST be grepped for the closest analog before new endpoint shapes are defined.
+- **Scratch `.go` in `tmp/`** (iface-tunnel). `go test ./...` walks `tmp/`. Research agents MUST use `.txt` or build-tagged dirs.
+- **CLI grammar from container nesting, not wire method** (as112-cli-audit). Operator-facing command words come from the YANG `container` tree; `ze:command "ze-X:Y"` is the INTERNAL RPC name and is deliberately different (e.g. `ze-bgp:peer-teardown` = command `request peer teardown`). Command syntax MUST NOT be inferred from wire-method names. Top-level operational verb is `request` (`request <object> <action>`); reads are `show`/`monitor`. `ai/rules/writing.md`.
+- **ExaBGP migration sync** (exabgp-compat-sync). When ExaBGP adds a new SAFI or route type, three things MUST be updated: (1) `exabgp.yang` schema container, (2) `flexSafis` list or a dedicated `convert*ToUpdate` in `migrate_routes.go`, (3) compat test files (`.ci` + `.conf`). `ai/patterns/bgp-family.md` Section 5b.
 
 ## Friction Reporting
 
@@ -520,13 +521,14 @@ Proposed fix: [specific ai/rules, ai/INDEX, plan/journal, docs, or hook change]
 
 ### Timing
 
-- Report as soon as you can describe the pattern. Do not wait until the end of the session.
+- The pattern MUST be reported as soon as you can describe it. You MUST NOT wait until the end of the session.
 - **Reporting in chat is not filing.** Chat scrolls away and the next session never sees it, so hook and tooling friction is not reported until it is written to `plan/learned/HOOK-FRICTION.md` in the Format above; a finding you only pass to the next agent in a handoff is folklore, not a record.
-- If the user task is still in progress, keep working after reporting unless blocked or the rule change would alter scope.
-- If the pattern changes a project workflow, add or update the narrowest rule, or append a `plan/journal/<class>.md` row, before claiming completion.
+- If the user task is still in progress, work MUST continue after reporting unless blocked or the rule change would alter scope.
+- If the pattern changes a project workflow, the narrowest rule MUST be added or updated, or a `plan/journal/<class>.md` row MUST be appended, before claiming completion.
 
 ### Do Not Report
 
+The following MUST NOT be treated as friction:
 - Things that are simply unfamiliar before reading the relevant docs.
 - Intentional deviations already documented in specs or rationale files.
 - One-off issues that will not recur and expose no rule gap.

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-**Unbounded event buffer: no events ever dropped. Ring buffer rejected because losing route events breaks convergence counts.**
+**Unbounded event buffer: events MUST NOT be dropped. Ring buffer rejected because losing route events breaks convergence counts.**

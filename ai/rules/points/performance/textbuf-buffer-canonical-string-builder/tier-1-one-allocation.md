@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-**Tier 1: One allocation (must return or store a string).**
+**Tier 1: One allocation (MUST return or store a string).**

@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST
 stage:
 ---
-- **Caught yourself writing one? Stop. Design it properly, or reject in the verifier and record in the source's `plan/deferrals/<source>.md` shard.**
+- **Caught yourself writing one? Stop. You MUST design it properly, or reject in the verifier and record in the source's `plan/deferrals/<source>.md` shard.**

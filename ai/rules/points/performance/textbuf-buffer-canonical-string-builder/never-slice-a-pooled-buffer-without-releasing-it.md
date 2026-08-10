@@ -1,6 +1,6 @@
 ---
 kind: directive
-level:
+level: MUST NOT
 stage:
 ---
-- **Pool + Slice without Release exhausts the pool or dangles. Do not use.**
+- **Pool + Slice without Release exhausts the pool or dangles. It MUST NOT be used.**
