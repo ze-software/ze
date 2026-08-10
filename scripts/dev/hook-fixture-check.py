@@ -378,13 +378,16 @@ def run_rendered_rule(results: Results) -> None:
         "ai/rules/points/performance/hot-path-rule/"
         "apply-the-hot-path-ban-to-these-packages.md"
     )
+    # The varied segment decides which check answers when the file is genuinely
+    # new. Every row below varies a DIRECTORY, so the basename stays kebab-case
+    # and c_enforce_naming has nothing to say; the slug row varies the BASENAME
+    # and is asserted separately under it.
     for label, varied in (
         ("ai", point_rel.replace("ai/", "AI/", 1)),
         ("rules", point_rel.replace("rules/", "RULES/", 1)),
         ("points", point_rel.replace("points/", "Points/", 1)),
         ("rule-dir", point_rel.replace("performance/", "Performance/", 1)),
         ("section-dir", point_rel.replace("hot-path-rule/", "Hot-Path-Rule/", 1)),
-        ("slug", point_rel.replace("apply-the-hot", "Apply-The-Hot", 1)),
     ):
         code, err = _writeedit(os.path.join(ROOT, varied), tool="Write")
         results.check(
@@ -392,6 +395,26 @@ def run_rendered_rule(results: Results) -> None:
             code == variant_expect,
             f"{how} fs, wanted {variant_expect}: {(code, err)!r}",
         )
+
+    # The slug row is the one whose variance lands in the FILENAME, so two
+    # checks own it and the filesystem picks which one answers. On a
+    # case-insensitive volume the path opens the existing point and
+    # c_point_overwrite refuses it with 2, before naming is ever consulted. On a
+    # case-sensitive volume it names a file that does not exist, c_point_overwrite
+    # permits it as a new point, and c_enforce_naming refuses the capitals with 1
+    # because a point slug is lowercase kebab-case. Both refusals are correct and
+    # neither is the other's fallback, so the row asserts the code the filesystem
+    # earns rather than a single number.
+    slug_expect = 2 if insensitive else 1
+    code, err = _writeedit(
+        os.path.join(ROOT, point_rel.replace("apply-the-hot", "Apply-The-Hot", 1)),
+        tool="Write",
+    )
+    results.check(
+        "point-overwrite-case-variant-slug",
+        code == slug_expect,
+        f"{how} fs, wanted {slug_expect}: {(code, err)!r}",
+    )
 
     for label, varied in (
         ("ai", "AI/rules/performance.md"),
