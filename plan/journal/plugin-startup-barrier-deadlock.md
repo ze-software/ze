@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-10 | fixit-vpp-ipsec-inoperable | firewall | with `firewall { backend vpp; }` the firewall plugin waits for VPP to be reachable during its Config stage while the `vpp` plugin waits at the capability barrier, so the vpp plugin never connects GoVPP and both fail after 5s with `stage stalled ... waiting_for=Capability` and `firewall-vpp: vpp not reachable` | recorded, not fixed here. Reproduced on a fresh VPP with the firewall case alone, so it is not the IPsec case's state. `make ze-deployment-vpp-test` reaches it now that the two defects above it are fixed |
