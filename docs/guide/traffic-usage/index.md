@@ -119,9 +119,9 @@ operators.
 
 Attach Ze's pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.
 
-[Play the WebM recording](../../../assets/demos/traffic-anomaly.webm?v=8f7e5a9506) · [View the poster](../../../assets/demos/traffic-anomaly.png?v=12b8582dae) · [Plain-text transcript](../../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0)
+[Play the WebM recording](../../../assets/demos/traffic-anomaly.webm?v=81120cfbdd) · [View the poster](../../../assets/demos/traffic-anomaly.png?v=b7260b5be8) · [Plain-text transcript](../../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 42 seconds.
+Recorded with Ze 26.08.05 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 42 seconds.
 
 ```console
 An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.

@@ -103,9 +103,9 @@ comparison.
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Play the WebM recording](../../../assets/demos/config-views.webm?v=414a2e496b) · [View the poster](../../../assets/demos/config-views.png?v=e7acb6271c) · [Plain-text transcript](../../../assets/demos/config-views.txt?v=0f968daa34)
+[Play the WebM recording](../../../assets/demos/config-views.webm?v=942cc0d0ef) · [View the poster](../../../assets/demos/config-views.png?v=939de1e5e6) · [Plain-text transcript](../../../assets/demos/config-views.txt?v=0f968daa34)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 34 seconds.
+Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 34 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a

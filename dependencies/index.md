@@ -10,7 +10,7 @@ Ze is Go, and Go code leans on packages. 40 direct dependencies, read straight f
 | `charm.land/bubbles/v2` | `v2.1.1` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
 | `charm.land/lipgloss/v2` | `v2.0.5` | Styling and layout for the CLI's colors, borders, and widths. |
 | `charm.land/wish/v2` | `v2.0.3` | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
-| `github.com/charmbracelet/ssh` | `?` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
+| `charm.land/ssh` | `v0.4.2` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
 | `github.com/charmbracelet/colorprofile` | `v0.4.3` | Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them. |
 | `github.com/muesli/reflow` | `v0.3.0` | ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. |
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |

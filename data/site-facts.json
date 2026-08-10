@@ -1,6 +1,6 @@
 {
   "blog_articles": 5,
-  "changes": 34,
+  "changes": 35,
   "cli_commands": 390,
   "config_sections": 36,
   "dependencies": 40,
@@ -11,7 +11,7 @@
   "generated_at": "2026-08-10",
   "github_stars": 50,
   "interop": {
-    "scenario_dirs_raw": 117,
+    "scenario_dirs_raw": 116,
     "scenarios": 116,
     "target_display": "8",
     "targets": 8

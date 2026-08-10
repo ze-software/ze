@@ -20,7 +20,7 @@
                     "why": "SSH server middleware that wires each incoming session to run the CLI's Bubbletea program."
                 },
                 {
-                    "module": "github.com/charmbracelet/ssh",
+                    "module": "charm.land/ssh",
                     "why": "SSH session and public-key types that the wish server and the CLI's key-based auth build on."
                 },
                 {

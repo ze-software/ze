@@ -1,5 +1,127 @@
 [
   {
+    "slug": "2026-08-03",
+    "intro": "Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week's work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator's own certificate.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "IS-IS",
+        "category": "routing",
+        "key": "IS-IS"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "DDoS",
+        "category": "secure",
+        "key": "DDoS"
+      },
+      {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
+      },
+      {
+        "label": "DNS",
+        "category": "services",
+        "key": "DNS"
+      },
+      {
+        "label": "gNMI",
+        "category": "automate",
+        "key": "gNMI"
+      },
+      {
+        "label": "MCP",
+        "category": "automate",
+        "key": "MCP"
+      },
+      {
+        "label": "Looking Glass",
+        "category": "observe",
+        "key": "Looking Glass"
+      },
+      {
+        "label": "Web UI",
+        "category": "operate",
+        "key": "Web UI"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Storage",
+        "category": "platform",
+        "key": "Storage"
+      },
+      {
+        "label": "Diagnostics",
+        "category": "observe",
+        "key": "Diagnostics"
+      },
+      {
+        "label": "Telemetry",
+        "category": "observe",
+        "key": "Telemetry"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Interop",
+        "category": "meta",
+        "key": "Interop"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-07-27",
     "intro": "IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.",
     "is_draft": false,

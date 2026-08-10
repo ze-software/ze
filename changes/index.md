@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-08-03](2026-08-03/index.md)
+
+Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week's work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator's own certificate.
+
+Areas: BGP, IS-IS, IPsec, DDoS, RADIUS, L2TP, Interfaces, DNS, gNMI, MCP, Looking Glass, Web UI, CLI, Config, Appliance, Storage, Diagnostics, Telemetry, Security, RFC Compliance, Interop, Under the Hood, Quality Improvement
+
 ## [Week of 2026-07-27](2026-07-27/index.md)
 
 IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.

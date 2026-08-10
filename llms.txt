@@ -14,7 +14,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 390 CLI commands, 36 config sections, 95 plugin registrations, 40 direct Go dependencies, 34 weekly change entries.
+- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 390 CLI commands, 36 config sections, 95 plugin registrations, 40 direct Go dependencies, 35 weekly change entries.
 - Test evidence counts: 22,200+ unit tests, 78 fuzz targets, 1,500+ end-to-end transcript steps, 116 interop scenarios across 8 target implementations.
 - Generated date: 2026-08-10.
 
@@ -753,7 +753,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `charm.land/bubbles/v2`: Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.
 - `charm.land/lipgloss/v2`: Styling and layout for the CLI's colors, borders, and widths.
 - `charm.land/wish/v2`: SSH server middleware that wires each incoming session to run the CLI's Bubbletea program.
-- `github.com/charmbracelet/ssh`: SSH session and public-key types that the wish server and the CLI's key-based auth build on.
+- `charm.land/ssh`: SSH session and public-key types that the wish server and the CLI's key-based auth build on.
 - `github.com/charmbracelet/colorprofile`: Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them.
 - `github.com/muesli/reflow`: ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes.
 - `github.com/creack/pty`: Opens a pseudo-terminal in a Linux integration test that exercises serial console handling.
@@ -1033,7 +1033,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress
 - [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 34 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Changes](https://ze-software.net/changes/index.md): 35 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 ### Community
 - [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)
