@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/web-templ-migration.md` |
+| Deferral shard | - |
 | Updated | 2026-08-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -193,6 +193,7 @@ route and no plugin emits HTML.
 | AC-4 | A package is declared migrated | No `html/template` parse call remains in it (no-layering) |
 | AC-5 | A value containing `<script>` reaches any rendered field | It appears escaped exactly once, never twice, never raw |
 | AC-6 | The ported template set is scanned for inline script and style | Still none, as today |
+| AC-7 | The web and lg packages are scanned for HTML tag literals in Go | None outside a `.templ` file. Today 18 files carry 143 such lines |
 
 ## End-to-End User Stories
 
@@ -247,6 +248,10 @@ N-A. Scope is tooling; no wire-visible behavior changes.
 - `internal/component/web/fragment.go` - `WriteOOBError`, `HandleFragment`
 - `internal/component/web/sse.go` - `notificationBannerTmpl`, `writeSSEEvent`
 - `cmd/ze/hub/service_web.go` - external `RenderFragment` consumer
+- phase 5, the Go-literal markup: `web/cli_terminal.go` (32 markup lines),
+  `web/page_system.go` (19), `web/page_interfaces.go` (19),
+  `web/page_bgp_peers.go` (17), `web/cli.go` (15), `web/page_snapshot.go` (8),
+  `lg/layout_nexthop.go` (7), and the 11 remaining files carrying 1 or 2 each
 - `docs/architecture/web-interface.md`, `docs/architecture/web-components.md`,
   `docs/architecture/web-workbench-pages.md` - 9 source anchors name symbols
   this deletes
@@ -321,9 +326,13 @@ renderer.
    - Tests: `TestTemplComponentTypeSafety` (new), proving AC-1
    - Files: the three web architecture docs and their 9 source anchors
    - Verify: AC-1 demonstrated, `make ze-doc-test` green
-5. **Phase: Go-literal markup (OPTIONAL)** -- the 143 lines across 18 files,
-   chiefly `cli_terminal.go` (32), `page_system.go` (19), `page_interfaces.go`
-   (19). Record in the deferral shard if not taken.
+5. **Phase: Go-literal markup** -- the 143 lines across 18 files, chiefly
+   `cli_terminal.go` (32), `page_system.go` (19), `page_interfaces.go` (19),
+   `page_bgp_peers.go` (17), `cli.go` (15)
+   - Tests: `TestHandleCLIPageAvoidsInlineStyle`, plus the CLI terminal and
+     system page tests already covering these files
+   - Files: the 18 files listed under Files to Modify, and `lg/layout.go`
+   - Verify: AC-7. No HTML tag literal is built in Go outside a `.templ` file
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -346,6 +355,7 @@ renderer.
 | Generated output in sync | `make ze-templ-generate-check` |
 | Vendor delta measured | `du -sh vendor` before and after, recorded against A-1 |
 | Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed |
+| No HTML literals left in Go (AC-7) | `grep -rn 'Str("<' internal/component/web internal/component/lg` returns nothing outside generated files |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -389,7 +399,9 @@ renderer.
 - `internal/chaos/web` (5906 lines, its own `htmlWriter` and `escapeHTML`) is
   out of scope. It shares no code with the web component.
 - Static assets (8 JS files, 2 CSS) are untouched.
-- Phase 5 (Go-literal markup) is optional and may be deferred.
+
+Nothing in this spec is deferred. Every phase is in scope, so the metadata
+carries no deferral shard.
 
 ## RFC Documentation (Scope: protocol)
 N-A. Scope is tooling.
@@ -397,7 +409,7 @@ N-A. Scope is tooling.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-6 all demonstrated
+- [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
@@ -406,7 +418,7 @@ N-A. Scope is tooling.
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [ ] Nothing deferred: every phase landed, no deferral shard created
 
 ### Quality Gates
 - [ ] `make ze-lint-changed` clean
