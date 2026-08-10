@@ -40,46 +40,18 @@ import sitelib
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
-POSTS_DIR = GH_PAGES / "blog" / "posts"
+# The article sources and their parser live in sitelib, so the homepage
+# "what's new" band and these pages can never disagree about what the newest
+# article is.
+POSTS_DIR = sitelib.ARTICLES_DIR
 OUT_DIR = GH_PAGES / "blog"
 BLOG_URL = sitelib.SITE_BASE + "blog/"
 DATE_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def slug_of(meta, f):
-    return meta.get("slug", f.stem).strip()
-
-
 def rfc822(iso):
     y, m, d = (int(x) for x in iso.split("-"))
     return date(y, m, d).strftime("%a, %d %b %Y 00:00:00 +0000")
-
-
-def parse_articles():
-    """Every blog/posts/*.md as {slug, title, date, author, description, body},
-    newest first. Skips files without a title (treat as not ready)."""
-    articles = []
-    for f in sorted(POSTS_DIR.glob("*.md")):
-        meta, body = sitelib.parse_blog_front_matter(f.read_text())
-        title = meta.get("title")
-        if not title:
-            sitelib.warn("blog article %s has no title, skipping" % f.name)
-            continue
-        author = meta.get("author", "").strip()
-        if not author:
-            sitelib.warn("blog article %s has no author front matter" % f.name)
-        articles.append(
-            {
-                "slug": slug_of(meta, f),
-                "title": title.strip(),
-                "date": meta.get("date", "").strip(),
-                "author": author,
-                "description": meta.get("description", "").strip(),
-                "body": body,
-            }
-        )
-    articles.sort(key=lambda a: a["date"], reverse=True)
-    return articles
 
 
 def render_article(a):
@@ -247,7 +219,7 @@ def clean_stale_dirs(keep_slugs):
 
 def main():
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
-    articles = parse_articles()
+    articles = sitelib.blog_articles()
 
     for a in articles:
         dest_dir = OUT_DIR / a["slug"]

@@ -50,6 +50,11 @@ gh-pages/
                                               in canonical casing (BGP, IS-IS, Flow Export, ...)
     audience.json                         -- the "Two ways to run Ze" and "Who should look now"
                                               cards on index.html
+    whats-new.json                        -- the freeform note in the "What's new in Ze" band on
+                                              index.html (the other two slots are generated: newest
+                                              blog article, newest weekly update). Keep the note
+                                              short: the band sits above the proof strip and the KPI
+                                              cards have to stay on screen on a laptop viewport
     dependencies.json                     -- every direct Go dependency's "why", grouped by
                                               category, keyed to ../main/go.mod
     plugin-registry.json                  -- every plugin's Registration{} fields + resolved YANG
@@ -106,7 +111,8 @@ gh-pages/
                                               paths, not a hand-written plugin taxonomy
     render-config-reference.py            -- data/plugin-registry.json -> config-reference/index.html,
                                               every plugin (not just BGP) grouped by config root
-    render-index.py                       -- data/audience.json + template -> index.html
+    render-index.py                       -- data/audience.json + data/whats-new.json + template
+                                              -> index.html
     render-llms-txt.py                    -- data/nav.json + page_registry.py + Markdown + live counts -> llms.txt
   update-website.sh                       -- thin wrapper at the repo root: `./update-website.sh`
                                               regenerates everything, same as `tools/build.py`.
@@ -134,7 +140,8 @@ per-step failures.
 - **Data sources.** Published pages come from structured data and Markdown:
   `data/nav.json` owns top navigation and the curated `llms.txt` page order,
   `tools/page_registry.py` owns the complete published docs and usage page map,
-  `data/features.json`, `data/audience.json`, `data/milestones.json`,
+  `data/features.json`, `data/audience.json`, `data/whats-new.json`,
+  `data/milestones.json`,
   `data/dependencies.json`, and `data/command-equivalents.json` own their
   matching generated pages, and `data/plugin-registry.json` is generated from
   `../main/internal/**/register.go` plus local `PLUGIN.md` metadata. Markdown
@@ -357,7 +364,8 @@ as the secondary link.
 
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for
-`data/audience.json` and `--only index`. For navigation, edit `data/nav.json`
+`data/audience.json` and `data/whats-new.json` with `--only index`. For
+navigation, edit `data/nav.json`
 and run `tools/build.py --only nav`; only `assets/header.html` should change
 after the one-time migration to shared mounts.
 

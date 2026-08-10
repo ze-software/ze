@@ -9,6 +9,11 @@ as a literal template here (there's nothing repeated to model as data). The
 "Two ways to run Ze" and "Who should look now" card grids are data
 (data/audience.json) -- add or edit an audience card there instead of
 hand-editing HTML.
+
+The "What's new in Ze" band above the proof strip is two generated slots (the
+newest blog article and the newest weekly update) plus one freeform note from
+data/whats-new.json. It is deliberately one shallow row: the proof strip's
+KPI cards under it have to stay on screen on a laptop-height viewport.
 """
 
 import html
@@ -23,6 +28,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "audience.json"
 CHANGES_DATA = GH_PAGES / "data" / "changes.json"
+WHATS_NEW_DATA = GH_PAGES / "data" / "whats-new.json"
 DEST = GH_PAGES / "index.html"
 
 # Homepage proof-strip numbers are regenerated from ../main whenever the
@@ -171,6 +177,97 @@ def render_blog_teaser_card(post, i, topics):
     return "\n".join(part for part in parts if part)
 
 
+# The band's own slots: the newest article and the newest weekly update are
+# generated, the third is whatever data/whats-new.json says. One line of
+# summary each -- anything taller pushes the proof strip off a laptop screen.
+WHATS_NEW_SUMMARY_CHARS = 108
+
+
+def clip(text, limit=WHATS_NEW_SUMMARY_CHARS):
+    """One line of summary, cut on a word boundary."""
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:") + "…"
+
+
+def render_whats_new_item(label, category, href, title, summary):
+    return """                <article class="whats-new-item cat-{category}">
+                    <span class="whats-new-label">{label}</span>
+                    <h3><a href="{href}">{title}</a></h3>
+                    <p>{summary}</p>
+                </article>""".format(
+        category=esc(category),
+        label=esc(label),
+        href=esc(href),
+        title=esc(title),
+        summary=esc(summary),
+    )
+
+
+def render_whats_new(data):
+    """The band above the proof strip: latest article, latest weekly update,
+    and the freeform note. A missing article or note simply drops its slot,
+    so the homepage still renders on a tree with no blog posts yet."""
+    items = []
+
+    articles = sitelib.blog_articles()
+    if articles:
+        article = articles[0]
+        items.append(
+            render_whats_new_item(
+                "Article",
+                "automate",
+                "blog/%s/" % article["slug"],
+                article["title"],
+                clip(article["description"]),
+            )
+        )
+
+    weeks = sitelib.latest_blog_posts(1)
+    if weeks:
+        week = weeks[0]
+        items.append(
+            render_whats_new_item(
+                "Weekly update",
+                "operate",
+                "changes/%s/" % week["slug"],
+                "Week of %s" % week["slug"],
+                clip(week["intro"] or "What shipped that week."),
+            )
+        )
+
+    note = data.get("note")
+    if note:
+        link = note.get("link")
+        items.append(
+            render_whats_new_item(
+                note["label"],
+                note.get("category", "meta"),
+                link["href"] if link else data["link"]["href"],
+                note["title"],
+                clip(note["body"]),
+            )
+        )
+
+    if not items:
+        return ""
+
+    return """            <section class="whats-new reveal" aria-labelledby="whats-new-title">
+                <div class="whats-new-head">
+                    <h2 id="whats-new-title">{title}</h2>
+                    <a href="{link_href}">{link_label}</a>
+                </div>
+{items}
+            </section>
+""".format(
+        title=esc(data["title"]),
+        link_href=esc(data["link"]["href"]),
+        link_label=esc(data["link"]["label"]),
+        items="\n".join(items),
+    )
+
+
 BODY = """            <section class="hero" aria-labelledby="hero-title">
                 <div>
                     <aside class="hero-start-panel" aria-label="Start with Ze">
@@ -251,6 +348,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 </div>
             </section>
 
+{whats_new}
             <div class="proof-strip reveal" aria-label="Project evidence">
                 <div class="proof">
                     <strong
@@ -584,11 +682,15 @@ def render(data):
         render_blog_teaser_card(p, i, change_topics.get(p["slug"], []))
         for i, p in enumerate(sitelib.latest_blog_posts(4))
     )
+    whats_new = render_whats_new(
+        models.validate_whats_new(json.loads(WHATS_NEW_DATA.read_text()))
+    )
     body = BODY.format(
         run_cards=run_cards,
         who_cards=who_cards,
         category_links=category_links,
         blog_teaser_cards=blog_teaser_cards,
+        whats_new=whats_new,
         **proof_stats(),
     )
 

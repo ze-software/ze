@@ -122,6 +122,32 @@ def validate_audience(data):
     return data
 
 
+def validate_whats_new(data):
+    """The homepage "what's new" band. Only the freeform note is curated: the
+    article and weekly-update slots are generated from the post sources."""
+    data = require_mapping(data, "whats-new")
+    require_text(data.get("title"), "whats-new.title")
+    link = require_mapping(data.get("link"), "whats-new.link")
+    require_url(link.get("href"), "whats-new.link.href")
+    require_text(link.get("label"), "whats-new.link.label")
+    note = data.get("note")
+    if note is not None:
+        note = require_mapping(note, "whats-new.note")
+        require_text(note.get("label"), "whats-new.note.label")
+        category = require_text(note.get("category"), "whats-new.note.category")
+        if category not in CATEGORIES:
+            raise ModelError(
+                _ctx("whats-new.note.category", "unknown category %r" % category)
+            )
+        require_text(note.get("title"), "whats-new.note.title")
+        require_text(note.get("body"), "whats-new.note.body")
+        if "link" in note:
+            note_link = require_mapping(note["link"], "whats-new.note.link")
+            require_url(note_link.get("href"), "whats-new.note.link.href")
+            require_text(note_link.get("label"), "whats-new.note.link.label")
+    return data
+
+
 def validate_features(data):
     data = require_mapping(data, "features")
     seen_ids = set()

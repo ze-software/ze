@@ -1215,6 +1215,40 @@ def latest_blog_posts(n):
     return posts[:n]
 
 
+# Editorial articles live in blog/posts/ (see render-blog.py). This parser is
+# shared by render-blog.py (article pages, index, feed) and render-index.py
+# (the homepage "what's new" band) so both agree on what the newest article is.
+ARTICLES_DIR = GH_PAGES / "blog" / "posts"
+
+
+def blog_articles():
+    """Every blog/posts/*.md as {slug, title, date, author, description, body},
+    newest first. Files without a title are skipped (treated as not ready);
+    a missing author is a warning, not a silently anonymous page."""
+    articles = []
+    for f in sorted(ARTICLES_DIR.glob("*.md")):
+        meta, body = parse_blog_front_matter(f.read_text())
+        title = meta.get("title")
+        if not title:
+            warn("blog article %s has no title, skipping" % f.name)
+            continue
+        author = meta.get("author", "").strip()
+        if not author:
+            warn("blog article %s has no author front matter" % f.name)
+        articles.append(
+            {
+                "slug": meta.get("slug", f.stem).strip(),
+                "title": title.strip(),
+                "date": meta.get("date", "").strip(),
+                "author": author,
+                "description": meta.get("description", "").strip(),
+                "body": body,
+            }
+        )
+    articles.sort(key=lambda a: a["date"], reverse=True)
+    return articles
+
+
 # ---------------------------------------------------------------------------
 # Markdown mirrors
 #

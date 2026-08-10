@@ -54,6 +54,131 @@
         color: var(--hero-cta-muted);
     }
 
+    /*
+     * Homepage "What's new in Ze" band (tools/render-index.py), between the
+     * hero and the proof strip. It is one shallow row on purpose: the KPI
+     * cards below it stay on screen on a laptop-height viewport, so the
+     * heading sits in the row rather than above it, and each slot is capped
+     * at two lines of title and one of summary.
+     */
+    .whats-new {
+        display: grid;
+        grid-template-columns: minmax(8rem, 0.55fr) repeat(3, minmax(0, 1fr));
+        gap: var(--space-3);
+        align-items: stretch;
+        margin: 0 0 var(--space-4);
+    }
+
+    .whats-new-head {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--space-1);
+        padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    }
+
+    .whats-new-head h2 {
+        margin: 0;
+        color: var(--text);
+        font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        text-wrap: balance;
+    }
+
+    .whats-new-head a {
+        color: var(--muted);
+        font-size: var(--type-small);
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .whats-new-head a::after {
+        content: " →";
+    }
+
+    .whats-new-head a:hover {
+        color: var(--acc-deep, var(--text));
+        text-decoration: underline;
+    }
+
+    .whats-new-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--acc, var(--line));
+        border-left: 4px solid var(--acc-deep, var(--line-strong));
+        border-radius: var(--radius-md);
+        background: var(--control-surface);
+        box-shadow: var(--shadow-clay);
+    }
+
+    .whats-new-label {
+        color: var(--acc-deep, var(--muted));
+        font-size: var(--type-micro);
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .whats-new-item h3 {
+        display: -webkit-box;
+        overflow: hidden;
+        margin: 0;
+        font-size: var(--type-ui);
+        font-weight: 700;
+        line-height: 1.3;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .whats-new-item h3 a {
+        color: var(--text);
+        text-decoration: none;
+    }
+
+    .whats-new-item h3 a:hover {
+        color: var(--acc-deep, var(--text));
+        text-decoration: underline;
+    }
+
+    .whats-new-item p {
+        display: -webkit-box;
+        overflow: hidden;
+        margin: 0;
+        color: var(--muted);
+        font-size: var(--type-small);
+        line-height: 1.4;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+    }
+
+    @media (max-width: 1080px) {
+        .whats-new {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .whats-new-head {
+            grid-column: 1 / -1;
+            flex-direction: row;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 0;
+        }
+
+        .whats-new-item p {
+            -webkit-line-clamp: 2;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .whats-new {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
     .docs-path-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--space-5);
