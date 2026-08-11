@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-11 |
 
 ## Post-Compaction Recovery
 
@@ -531,53 +531,105 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- Defect 1, landed by `ba6e0c39d`: a bounded per-session transmit queue.
+  `txQueue` (`internal/component/bgp/plugins/bmp/txqueue.go`) is a pooled page
+  ring bounded in BYTES (`txQueueLimitBytes`, 256 MiB per collector), and
+  `senderSession.drainLoop` (`sender_drain.go`) is the one goroutine that writes
+  to the collector socket. Every producer now ends at `enqueueLocked` (five call
+  sites in `sender.go`, lines 621, 640, 671, 694, 730), so no socket write
+  happens on the EventBus subscriber goroutine that runs
+  `BMPPlugin.handleBestChange` (`bmp_locrib.go`).
+- Overflow policy, as the design decided: never drop a message, never block the
+  producer, reset the session instead. `enqueueLocked` closes the connection
+  with no Termination message and returns `errQueueOverflow`.
+- Defect 2, landed by `f091c69f1`: `BMPPlugin.startSender`
+  (`internal/component/bgp/plugins/bmp/bmp.go`, line 478) calls `bp.stopSenders()`
+  first, so it is idempotent and matches its neighbour `startLocRIB`.
 
 ### Bugs Found/Fixed
-- [Any bugs discovered — add test for each]
+- The stale-drain hazard: a write that outlives its connection could discard the
+  NEXT session's primed Peer Up messages. `clearConnAndResetIf` compares the
+  connection before it resets, and `TestStaleDrainDoesNotDiscardTheNextSessionsQueue`
+  (`sender_queue_test.go`) covers it.
 
 ### Documentation Updates
-- [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `make ze-doc-test` result]
+- `docs/guide/bmp.md` lines 167-184: the transmit queue, the 256 MiB bound, the
+  stall log line, and two source anchors on
+  `txqueue.go -- txQueueLimitBytes, txQueue.push` and
+  `sender_drain.go -- enqueueLocked, drainLoop`.
+- `docs/features/rfc-status.md`: RFC 7854 row. Both rode `ba6e0c39d`.
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- The two `.ci` files named in the Wiring Test table
+  (`bmp-sender-nonblocking.ci`, `bmp-sender-reload-idempotent.ci`) were not
+  created. The entry points are covered by
+  `TestHandleBestChangeDoesNotBlockOnWedgedCollector` and
+  `TestStartSenderIsIdempotent`, and the queue path carries every Route
+  Monitoring message, so the existing `test/plugin/bmp-sender-route-monitoring.ci`
+  exercises it end to end against a live collector socket.
+- This spec was never taken past `skeleton`, so it states no AC-N rows. The
+  audit below is keyed to the two defects its Task section names.
 
 ## Implementation Audit
-
-<!-- BLOCKING: Complete BEFORE writing learned summary. See rules/implementation-audit.md -->
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| No socket write on an EventBus subscriber goroutine | Done | `enqueueLocked`, `drainLoop` (`sender_drain.go`) | Five producer sites in `sender.go` end at `enqueueLocked` |
+| Bounded queue, in bytes, not in message count | Done | `txQueueLimitBytes`, `txQueue.push` (`txqueue.go`) | 256 MiB per collector session |
+| Never drop, never block, reset on overflow | Done | `enqueueLocked` (`sender_drain.go`, lines 40-58) | Bare TCP close, no Termination message |
+| The hot path stays allocation-free | Done | `txPagePool` (`txqueue.go`) | `TestSenderRouteMonitoringHotPathIsAllocationFree` |
+| `startSender` idempotent across reloads | Done | `BMPPlugin.startSender` (`bmp.go`, line 478) | Latent, not live: no reload path re-delivers Stage-2 configure |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| none | Changed | -- | The spec stayed at `skeleton` and its AC table holds template rows. The Requirements table above is the audit of record |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestHandleBestChangeDoesNotBlockOnWedgedCollector` | Done | `sender_queue_test.go` | Defect 1, at its entry point |
+| `TestSenderQueueOverflowResetsSessionWithoutTermination` | Done | `sender_queue_test.go` | The overflow policy |
+| `TestTxQueueRefusesWholeMessageAtLimit` | Done | `txqueue_test.go` | Whole messages only |
+| `TestTxQueueSteadyStateIsAllocationFree` | Done | `txqueue_test.go` | The pooled ring |
+| `TestStartSenderIsIdempotent` | Done | `sender_test.go`, line 404 | Defect 2, mutation-verified |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/bgp/plugins/bmp/txqueue.go` | Done | New in `ba6e0c39d` |
+| `internal/component/bgp/plugins/bmp/sender_drain.go` | Done | New in `ba6e0c39d` |
+| `internal/component/bgp/plugins/bmp/sender.go` | Done | Producers route to `enqueueLocked` |
+| `internal/component/bgp/plugins/bmp/bmp.go` | Done | `startSender` guard |
+| `docs/guide/bmp.md` | Done | Operator-visible behaviour |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 5 requirements, 5 tests, 5 files
+- **Done:** 15
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the AC table stayed at template; see Deviations)
 
 ## Goal Validation (BLOCKING)
 
-<!-- MANDATORY: Maps each stated goal to concrete proof it was achieved. -->
-<!-- "Tests pass" is not sufficient. Each goal needs specific evidence. -->
-<!-- See ai/rules/interop-and-goal-validation.md for required evidence types. -->
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| [what the feature is meant to achieve] | [interop test / functional test / benchmark / chaos test] | [test name, output, or file reference] |
+| A wedged collector no longer stalls RIB best-change publication | unit test at the entry point | `TestHandleBestChangeDoesNotBlockOnWedgedCollector` (`sender_queue_test.go`, line 266) |
+| The queue is bounded and the bound is in bytes | unit test | `TestTxQueueRefusesWholeMessageAtLimit` (`txqueue_test.go`, line 76); `txQueueLimitBytes` = 256 MiB |
+| Overflow resets the session and loses no message silently | unit test | `TestSenderQueueOverflowResetsSessionWithoutTermination` (`sender_queue_test.go`, line 296) |
+| The BGP-UPDATE to Route Monitoring path stays allocation-free | allocation assertion | `TestSenderRouteMonitoringHotPathIsAllocationFree` (`sender_queue_test.go`, line 387); `TestTxQueueSteadyStateIsAllocationFree` |
+| Messages still reach a real collector through the new path | functional test | `test/plugin/bmp-sender-route-monitoring.ci` drives a Python collector and validates the embedded BGP PDU |
+| A re-delivered `OnConfigure` cannot double the sender set | unit test | `TestStartSenderIsIdempotent` (`sender_test.go`, line 404) |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Stop `handleBestChange` doing blocking socket I/O on a subscriber goroutine (`plan/deferrals/ad-hoc-2026-07-22-f27dc80f.md`) | done | `enqueueLocked` + `drainLoop` (`sender_drain.go`), landed by `ba6e0c39d` |
+| Make `startSender` idempotent across config reloads (same shard) | done | `bp.stopSenders()` in `startSender` (`bmp.go`, line 478), landed by `f091c69f1` |
+
+Both rows are terminal, so the shard is residue and this closure removes it.
 
 ## Review Gate
 
@@ -587,22 +639,28 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-bmp-sender-blocking-and-reload-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean (0 code files in the closure commit, hashes match) |
+| Rounds | 1 |
+| Reviewer lenses used | producer/consumer split and blocking I/O, queue bound and overflow policy, reload idempotency, test coverage of each |
+
+**This review reads code that is already at HEAD.** The implementation landed in
+`ba6e0c39d` and `f091c69f1`; this closure carries no code, so the artifact
+records a review of the committed producers, not of a working-tree diff.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | The two `.ci` files the Wiring Test names were never created | `test/plugin/` | acknowledged; the entry points carry unit tests and `bmp-sender-route-monitoring.ci` drives the queue path against a live collector |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- None. The review found no BLOCKER and no ISSUE.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] Review shows 0 BLOCKER, 0 ISSUE
+- [ ] The one NOTE is recorded above
 
 ## Pre-Commit Verification
 
@@ -611,35 +669,41 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 <!-- Hook pre-commit-spec-audit.sh (exit 2) checks this section exists and is filled. -->
 
 ### Files Exist (ls)
-<!-- For EVERY file in "Files to Create": ls -la <path> — paste output. -->
-<!-- For EVERY .ci file in Wiring Test and Functional Tests: ls -la <path> — paste output. -->
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/plugins/bmp/txqueue.go` | yes | `git ls-tree HEAD internal/component/bgp/plugins/bmp/` lists it |
+| `internal/component/bgp/plugins/bmp/sender_drain.go` | yes | same listing |
+| `internal/component/bgp/plugins/bmp/txqueue_test.go` | yes | same listing |
+| `internal/component/bgp/plugins/bmp/sender_queue_test.go` | yes | same listing |
+| `test/plugin/bmp-sender-nonblocking.ci` | no | `git ls-tree HEAD test/plugin/` holds no such file; see Deviations |
+| `test/plugin/bmp-sender-reload-idempotent.ci` | no | same listing; see Deviations |
+| `test/plugin/bmp-sender-route-monitoring.ci` | yes | same listing; read, and it drives a Python collector |
 
 ### AC Verified (grep/test)
-<!-- For EVERY AC-N: independently verify. Do NOT copy from audit — re-check. -->
-<!-- Acceptable evidence: test name + pass output, grep showing function call, ls showing file. -->
-<!-- NOT acceptable: "already checked", "should work", reference to audit table above. -->
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| Defect 1 | No producer writes to the socket | `grep -n enqueueLocked sender.go` returns five producer sites, and the only `conn.Write` is in `writeRawLocked`, which only `drainLoop` reaches |
+| Defect 1 | The bound is in bytes | `txQueueLimitBytes` (`txqueue.go`) is `256 << 20`; `txQueue.limit` is a byte fill level, not an element count |
+| Defect 1 | Overflow resets, never drops | `enqueueLocked` (`sender_drain.go`): log, `closeLog`, `clearConnAndResetIf`, `errQueueOverflow` |
+| Defect 2 | `startSender` is idempotent | `bp.stopSenders()` is the first statement of `startSender` (`bmp.go`) |
+| Both | The package is green | `make ze-test-pkg PKG=./internal/component/bgp/plugins/bmp` -> `ok github.com/ze-software/ze/internal/component/bgp/plugins/bmp (cached)`, exit 0, 2026-08-11 |
 
 ### Wiring Verified (end-to-end)
-<!-- For EVERY wiring test row: does the .ci test exist AND does it exercise the full path? -->
-<!-- Read the .ci file content. Does it actually test what the wiring table claims? -->
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| RIB best-change event on the engine EventBus | `test/plugin/bmp-sender-route-monitoring.ci` (the named `bmp-sender-nonblocking.ci` does not exist) | yes: the file was read. It announces a prefix from `ze-peer` and a collector process validates the BMP-wrapped BGP PDU, so the bytes travel the queue and the drain goroutine |
+| Config reload re-delivering `OnConfigure` | none (the named `bmp-sender-reload-idempotent.ci` does not exist) | covered by `TestStartSenderIsIdempotent` (`sender_test.go`). No reload path re-delivers Stage-2 configure, so no `.ci` can drive this entry point today |
 
 ### Assumptions Resolved
-<!-- For EVERY A-N row in Risks & Assumptions: final status with evidence. -->
-<!-- `unvalidated` is not a valid final status. Broken assumptions need a Mistake Log row + Deviations entry. -->
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | changed | The spec's assumption table stayed at template. The two claims its Task section did make were both settled there: config reload does NOT re-deliver Stage-2 configure (`deliverConfigRPC`, `internal/component/plugin/server/startup.go`, one caller), and BIRD bounds its queue by bytes rather than by message count (`tx_pending_limit`, `proto/bmp/bmp.h`) |
 
 ### Documentation Verified
-<!-- For EVERY Yes in Documentation Update Checklist: verify the edited doc claim against source. -->
-<!-- For EVERY No: paste the grep/source check that proves no doc update was needed. -->
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| `docs/guide/bmp.md` describes the transmit queue and its bound | The page states 256 MiB and carries `<!-- source: ... txqueue.go -- txQueueLimitBytes, txQueue.push -->`; the anchor matches `txQueueLimitBytes` | yes |
+| Every other category | `ba6e0c39d` touched `docs/guide/bmp.md` and `docs/features/rfc-status.md` and no other doc; no config leaf, CLI verb, RPC or wire format changed, so no other page states a claim about this work | yes |
 
 ## Checklist
 
