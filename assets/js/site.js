@@ -874,7 +874,19 @@ document.addEventListener("DOMContentLoaded", function () {
         var codes = slice(document.querySelectorAll(".md-content code"));
         if (!codes.length) return;
         loadFrontendVocab().then(function (vocab) {
-            var sources = (vocab.sourceLinks || []).map(function (source) {
+            // A rule with a "scope" list only applies on pages whose path holds
+            // one of its fragments. Foreign-project paths (VyOS "data/", freeRtr
+            // "cfg/", a bare "Makefile") are ordinary words elsewhere on the
+            // site, so an unscoped rule turns prose and our own data/*.json into
+            // links to somebody else's repository.
+            var page = location.pathname;
+            var sources = (vocab.sourceLinks || []).filter(function (source) {
+                var scope = source.scope || [];
+                if (!scope.length) return true;
+                return scope.some(function (fragment) {
+                    return page.indexOf(fragment) !== -1;
+                });
+            }).map(function (source) {
                 return {
                     match: new RegExp(source.match),
                     base: source.base,

@@ -196,6 +196,14 @@ per-step failures.
   `data/nav.json` remains the navigation source of truth. Page body content and
   evidence must remain meaningful without JavaScript. Edit only
   `assets/js/site.js`, never the minified `assets/site.js`.
+- **Source-evidence links.** `initSourceLinks` turns a `<code>` span that looks
+  like a repository path into a link to a forge, from the `sourceLinks` rules in
+  `data/frontend-vocab.json`. A rule that points at another project MUST carry a
+  `scope` list of path fragments (for example `["/compare/"]`), because its paths
+  are ordinary words on every other page: VyOS owns `data/` and `Makefile`,
+  freeRtr owns `cfg/` and `misc/`. An unscoped foreign rule sent the blog
+  sentence about `data/` to the VyOS repository. Only the Ze rule applies
+  site-wide.
 - **Asset URLs and cache-busting.** Pages link `assets/site.css` and
   `assets/site.js` by a stable URL with no `?v=` query, so a stylesheet or
   script edit touches only the asset file, not every page. Freshness is left to

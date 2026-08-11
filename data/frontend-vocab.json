@@ -472,22 +472,26 @@
     {
       "base": "https://github.com/vyos/vyos-1x/blob/current/",
       "forge": "github",
-      "match": "^(interface-definitions|include|data|python|smoketest|op-mode-definitions)/"
+      "match": "^(interface-definitions|include|data|python|smoketest|op-mode-definitions)/",
+      "scope": ["/compare/"]
     },
     {
       "base": "https://github.com/vyos/vyos-1x/blob/current/",
       "forge": "github",
-      "match": "^src/conf_mode/"
+      "match": "^src/conf_mode/",
+      "scope": ["/compare/"]
     },
     {
       "base": "https://github.com/vyos/vyos-1x/blob/current/",
       "forge": "github",
-      "match": "^Makefile$"
+      "match": "^Makefile$",
+      "scope": ["/compare/"]
     },
     {
       "base": "https://codeberg.org/mc36/freeRtr/src/branch/master/",
       "forge": "forgejo",
-      "match": "^(src/org/freertr|cfg|misc)/"
+      "match": "^(src/org/freertr|cfg|misc)/",
+      "scope": ["/compare/"]
     }
   ]
 }
