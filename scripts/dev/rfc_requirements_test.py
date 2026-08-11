@@ -3609,6 +3609,58 @@ class TestLedgerStaleness(unittest.TestCase):
         code, out = self._drive(None)
         self.assertNotEqual(code, 0, out)
 
+    def test_a_parse_error_refuses_the_verdict_and_names_the_summary(self):
+        """The sibling of `run_write`'s destructive discard, one function away.
+
+        `_collect_for_check` catches a ParseError per summary and carries on. `run_check`
+        reports every one; `run_write` refuses on them. This driver swallowed them, and a
+        swallowed parse error does not produce a WRONG-looking answer here -- it produces a
+        confident one about the wrong thing. The stem that failed to parse renders no rows,
+        so the freshness comparison calls the index stale and calls that RFC's file an
+        orphan the generator no longer owns. Both readings are false: the RFC is fine and
+        its file must be kept. A reader who believes the orphan line deletes the evidence
+        file by hand, which is the deletion `run_write` now refuses to make itself.
+
+        The fixture is the real shape: ONE summary of several fails while the rest render.
+        A fixture where nothing rendered would fail for the emptiness instead, and would
+        stay green over the defect this test exists for.
+        """
+        with _shard_tree():
+            os.makedirs(R.SHARD_DIR, exist_ok=True)
+            # Disk holds the COMPLETE render, which is what a correct tree looks like.
+            with open(R.LEDGER_FILE, "w", encoding="utf-8") as fh:
+                fh.write(R.render_index(_SHARD_REQS, _SHARD_TAGS, {"rfc7606"}) + "\n")
+            for stem, body in R.render_shards(
+                _SHARD_REQS, _SHARD_TAGS, {"rfc7606"}
+            ).items():
+                with open(R.shard_path(stem), "w", encoding="utf-8") as fh:
+                    fh.write(body + "\n")
+
+            # rfc9999's summary stopped parsing, so the collection carries the error and
+            # loses that stem's rows. Its file is untouched on disk.
+            partial = [r for r in _SHARD_REQS if r.rfc != "rfc9999"]
+            with _patched(
+                _collect_for_check=lambda: (
+                    {"rfc7606"},
+                    partial,
+                    ["rfc/short/rfc9999.md:1: unparseable checklist line"],
+                    _SHARD_TAGS,
+                    {},
+                ),
+            ):
+                code, out = _run_capturing(R.run_check_fresh)
+
+            self.assertEqual(code, 2, out)
+            self.assertIn(
+                "unparseable checklist line", out, "the swallowed error is named"
+            )
+            self.assertNotIn(
+                "renders no requirement section",
+                out,
+                "an unparsed summary must never be reported as a retired RFC whose file "
+                "the generator no longer owns",
+            )
+
     def test_render_is_independent_of_tag_order(self):
         """--check-fresh only works if the render does not depend on the order the scanner
         happened to find things in: scan_tree walks the filesystem, so the same tree yields

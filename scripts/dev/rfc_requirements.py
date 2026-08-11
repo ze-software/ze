@@ -7742,9 +7742,31 @@ def run_check_fresh() -> int:
     """Just the freshness half of run_check -- what `ze-doc-test` runs so a docs-focused
     pass catches a stale `ai/RFC-REQUIREMENTS.md` or a stale shard without paying for the
     full coverage evaluation. The same check also runs inside `run_check` (ze-rfc-check),
-    which is where verify catches it."""
+    which is where verify catches it.
+
+    Exit 1 means the pages drifted from their sources. Exit 2 means the comparison could
+    not be made at all, which a caller must not read as drift."""
     try:
-        enrolled, reqs, _, tags, _ = _collect_for_check()
+        enrolled, reqs, parse_errs, tags, _ = _collect_for_check()
+        # Before any comparison, for the same reason `run_write` refuses before any write: a
+        # collection missing a summary's rows produces a confident verdict about the wrong
+        # thing. The unparsed stem renders nothing, so the comparison calls the index stale
+        # and calls that RFC's file an orphan the generator no longer owns -- and both
+        # readings are false, because the RFC is fine and its file must be kept. A reader
+        # who believes the orphan line deletes the evidence file by hand, which is the
+        # deletion run_write now refuses to make itself. "Clean" must mean "I compared
+        # things and found nothing", and so must "stale": neither may be said over inputs
+        # that did not all load (`ai/rules/evidence.md`).
+        if parse_errs:
+            for err in parse_errs:
+                print(f"{RED}*{RESET} {err}")
+            print(
+                f"{RED}{BOLD}rfc-requirements: cannot judge freshness{RESET}: a summary "
+                "did not parse, so its requirements are absent from this render and every "
+                "page deriving from them would be reported wrongly. Fix the summary, then "
+                "re-run"
+            )
+            return 2
         errs = check_ledger_fresh(reqs, tags, enrolled)
     except (ParseError, OSError) as exc:
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
