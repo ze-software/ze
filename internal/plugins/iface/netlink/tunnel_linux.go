@@ -56,7 +56,7 @@ func (b *netlinkBackend) CreateTunnel(spec iface.TunnelSpec) error {
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
 		if delErr := netlink.LinkDel(link); delErr != nil {
-			loggerPtr.Load().Warn("iface: rollback delete after set-up failure",
+			logger().Warn("iface: rollback delete after set-up failure",
 				"name", spec.Name, "kind", spec.Kind, "err", delErr)
 		}
 		return fmt.Errorf("iface: set up tunnel %q: %w", spec.Name, err)

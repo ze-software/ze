@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -572,11 +573,11 @@ func (b *vppBackendImpl) AddAddressP2P(_, _, _ string) error {
 
 // --- Route management ---
 
-func (b *vppBackendImpl) AddRoute(_, _, _ string, _ int) error {
+func (b *vppBackendImpl) AddRoute(_, _, _ string, _ int, _ rtproto.Proto) error {
 	return errNotSupported("AddRoute (use fib-vpp plugin for route programming)")
 }
 
-func (b *vppBackendImpl) RemoveRoute(_, _, _ string, _ int) error {
+func (b *vppBackendImpl) RemoveRoute(_, _, _ string, _ int, _ rtproto.Proto) error {
 	return errNotSupported("RemoveRoute (use fib-vpp plugin for route programming)")
 }
 

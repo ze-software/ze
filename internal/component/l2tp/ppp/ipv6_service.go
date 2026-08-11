@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"net/netip"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // DHCPv6Lifetimes holds the lease timing parameters for DHCPv6-PD replies.
@@ -87,7 +89,7 @@ func (s *IPv6Service) cleanupPrefix() {
 	defer s.mu.Unlock()
 	if s.routeInstalled && s.delegatedPrefix.IsValid() {
 		peerLL := peerLinkLocal(s.cfg.PeerInterfaceID)
-		_ = s.cfg.Backend.RemoveRoute(s.cfg.Ifname, s.delegatedPrefix.String(), peerLL.String(), 0)
+		_ = s.cfg.Backend.RemoveRoute(s.cfg.Ifname, s.delegatedPrefix.String(), peerLL.String(), 0, rtproto.Iface)
 		s.routeInstalled = false
 	}
 	if s.delegatedPrefix.IsValid() && s.cfg.ReleasePrefix != nil {
@@ -100,7 +102,7 @@ func (s *IPv6Service) installRoute(prefix netip.Prefix) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	peerLL := peerLinkLocal(s.cfg.PeerInterfaceID)
-	if err := s.cfg.Backend.AddRoute(s.cfg.Ifname, prefix.String(), peerLL.String(), 0); err != nil {
+	if err := s.cfg.Backend.AddRoute(s.cfg.Ifname, prefix.String(), peerLL.String(), 0, rtproto.Iface); err != nil {
 		return err
 	}
 	s.delegatedPrefix = prefix

@@ -14,8 +14,10 @@ import (
 	"syscall"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -293,7 +295,13 @@ func (b *netlinkBackend) ReplaceAddressWithLifetime(ifaceName, cidr string, vali
 	return nil
 }
 
-func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
+func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
+	// rtproto.Any is a match rule, not a producer. Installing with it would put
+	// an unowned route in the kernel, which the matching delete could then only
+	// remove blindly -- the failure this stamp exists to remove.
+	if proto == rtproto.Any {
+		return fmt.Errorf("iface: add route %s on %q: protocol is rtproto.Any, which names no producer", destCIDR, ifaceName)
+	}
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: add route on %q: %w", ifaceName, err)
 	}
@@ -314,6 +322,7 @@ func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string, metric in
 		Dst:       dst,
 		Gw:        gw,
 		Priority:  metric,
+		Protocol:  netlink.RouteProtocol(proto),
 	}
 	if err := netlink.RouteReplace(route); err != nil {
 		return fmt.Errorf("iface: add route %s via %s on %q (metric %d): %w", destCIDR, gateway, ifaceName, metric, err)
@@ -321,7 +330,7 @@ func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string, metric in
 	return nil
 }
 
-func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
+func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: remove route on %q: %w", ifaceName, err)
 	}
@@ -337,21 +346,136 @@ func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric
 	if err != nil {
 		return fmt.Errorf("iface: remove route on %q: not found: %w", ifaceName, err)
 	}
+	// A zero Protocol in RTM_DELROUTE is a WILDCARD: the kernel then matches on
+	// destination, gateway, link and metric alone and deletes whatever route
+	// carries them, whoever installed it. Stamping the delete is what stops this
+	// backend removing a static route that shares that four-tuple.
 	route := &netlink.Route{
 		LinkIndex: link.Attrs().Index,
 		Dst:       dst,
 		Gw:        gw,
 		Priority:  metric,
+		Protocol:  netlink.RouteProtocol(proto),
 	}
 	if err := netlink.RouteDel(route); err != nil {
-		// ESRCH (no such route) is expected when cleaning up after a
-		// failed install or double-remove. Not an error on the teardown path.
+		// ESRCH says one thing only: nothing matched. It carries no cause, so
+		// reportRemoveRouteMiss reads the table back to find one instead of
+		// naming a cause this code cannot establish. Either way the caller's
+		// intent -- that route gone -- is satisfied, so this is not an error.
 		if errors.Is(err, syscall.ESRCH) {
+			reportRemoveRouteMiss(link, route, ifaceName, destCIDR, gateway, metric, proto)
 			return nil
 		}
 		return fmt.Errorf("iface: remove route %s via %s metric %d on %q: %w", destCIDR, gateway, metric, ifaceName, err)
 	}
 	return nil
+}
+
+// reportRemoveRouteMiss says what a stamped delete that matched nothing means.
+// Three outcomes are possible, and each names only what the kernel established:
+//
+//   - The table read FAILED. A dump of a large FIB can answer ENOBUFS, and an
+//     interrupted dump answers ErrDumpInterrupted with no routes at all. Nothing
+//     is known about a survivor, so the report says the read failed. Reporting a
+//     failed read as an absence would hide the orphan below exactly when the
+//     table is too big or too busy to read.
+//   - No route carries this destination, gateway, link and metric under any
+//     protocol: the ESRCH established that for this backend's own protocol, and
+//     the read establishes it for every other one. That is the routine teardown
+//     case, a remove of a route another path already took away, and it is
+//     reported at DEBUG.
+//   - A route with that key IS there, under another protocol. This backend can
+//     never remove it, and its caller believes it did. A route installed by a Ze
+//     version that stamped nothing lands as RTPROT_BOOT and survives every
+//     stamped delete. That orphan is what AC-5 of
+//     spec-fixit-route-removal-protocol-blind asks to be observable, so it is a
+//     WARN naming the protocol that holds the route.
+//
+// The read costs one route dump of the family (routeUnderAnotherProtocol), so it
+// MUST stay off any path that runs per event. It does: the link handlers in
+// internal/component/iface/register.go track the metric their route sits at, and
+// an event reporting a state they have already reached deletes nothing. One
+// repeat still reaches a delete, and it is the repair: a handler whose own
+// AddRoute failed records routeMetricUnknown, so the next event runs the full
+// remove-and-add that puts the route back. What reaches this function is a
+// delete the kernel refused when the caller believed the route was there.
+//
+// A blind delete (rtproto.Any) is silent. It matches on the four-tuple alone,
+// so its ESRCH already means the route is gone and there is nothing to find.
+func reportRemoveRouteMiss(link netlink.Link, route *netlink.Route, ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) {
+	if proto == rtproto.Any {
+		return
+	}
+	holder, found, err := routeUnderAnotherProtocol(link, route)
+	switch {
+	case err != nil:
+		logger().Warn("iface: route delete matched nothing and the route table read failed; ze cannot tell whether another protocol holds this route",
+			"iface", ifaceName, "dest", destCIDR, "gw", gateway, "metric", metric, "proto", int(proto), "err", err)
+	case found:
+		logRemoveRouteMiss(ifaceName, destCIDR, gateway, metric, proto, holder)
+	default:
+		logger().Debug("iface: route delete matched nothing; no route carries this destination, gateway, link and metric",
+			"iface", ifaceName, "dest", destCIDR, "gw", gateway, "metric", metric, "proto", int(proto))
+	}
+}
+
+// listRoutesForMiss reads the route table for routeUnderAnotherProtocol. It is a
+// package var because no test can make the kernel's own dump fail, and the
+// report of a FAILED read is the behavior that has to be proven.
+var listRoutesForMiss = netlink.RouteList
+
+// routeUnderAnotherProtocol reports the rtm_protocol of a route that carries the
+// destination, gateway, link, table and metric of the delete that just missed,
+// and a different protocol. It returns three states, never two: the route table
+// could not be read (err), a survivor was read (found), or the read completed
+// and no route carries that key (neither). A report never invents what it could
+// not read, so a failed read never returns as an absence.
+//
+// The read is a dump of every route of the family: netlink.RouteList asks for
+// RTM_GETROUTE with NLM_F_DUMP and filters by output interface in userspace
+// (vendor/github.com/vishvananda/netlink/route_linux.go, RouteListFilteredIter).
+// On a box that redistributes a full table into the kernel that is the whole
+// FIB, which is why the caller runs it only on a delete the kernel refused.
+func routeUnderAnotherProtocol(link netlink.Link, route *netlink.Route) (holder int, found bool, err error) {
+	family := netlink.FAMILY_V6
+	if route.Dst != nil && route.Dst.IP.To4() != nil {
+		family = netlink.FAMILY_V4
+	}
+	// A delete that names no table reaches the main table, so that is the table
+	// the survivor has to be in for this delete to have been aimed at it.
+	table := route.Table
+	if table == 0 {
+		table = unix.RT_TABLE_MAIN
+	}
+	routes, err := listRoutesForMiss(link, family)
+	if err != nil {
+		return 0, false, err
+	}
+	for i := range routes {
+		r := &routes[i]
+		if r.Protocol == route.Protocol || r.Table != table {
+			continue
+		}
+		if r.Dst == nil || route.Dst == nil || r.Dst.String() != route.Dst.String() {
+			continue
+		}
+		if !r.Gw.Equal(route.Gw) || r.Priority != route.Priority {
+			continue
+		}
+		return int(r.Protocol), true, nil
+	}
+	return 0, false, nil
+}
+
+// logRemoveRouteMiss reports the route that survived a stamped delete. Every
+// field it prints was read from the kernel or from the call that missed, holder
+// included. Returning success to the caller satisfies its intent; saying nothing
+// would leave a route Ze believes it removed, and the kernel still forwards on,
+// invisible to the operator.
+func logRemoveRouteMiss(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto, holder int) {
+	logger().Warn("iface: route delete matched no route with this protocol; the kernel still holds this route under another one",
+		"iface", ifaceName, "dest", destCIDR, "gw", gateway, "metric", metric,
+		"proto", int(proto), "held-by", protocolName(holder))
 }
 
 func (b *netlinkBackend) ListRoutes(ifaceName, destCIDR string) ([]iface.RouteInfo, error) {

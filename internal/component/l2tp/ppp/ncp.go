@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -733,7 +734,7 @@ func (s *pppSession) teardownNCPResources() {
 	var tb textbuf.Buffer
 	peerCIDR := tb.Addr(s.peerIPv4).Str("/32").String()
 	localCIDR := tb.Reset().Addr(s.localIPv4).Str("/32").String()
-	if err := s.backend.RemoveRoute(ifname, peerCIDR, "", 0); err != nil {
+	if err := s.backend.RemoveRoute(ifname, peerCIDR, "", 0, rtproto.Iface); err != nil {
 		s.logger.Debug("ppp: RemoveRoute on teardown", "error", err.Error())
 	}
 	if err := s.backend.RemoveAddress(ifname, localCIDR); err != nil {

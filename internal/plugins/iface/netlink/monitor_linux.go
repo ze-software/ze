@@ -119,7 +119,7 @@ func (m *monitor) start() error {
 func (m *monitor) seedLinkNames() {
 	links, err := listLinks()
 	if err != nil {
-		loggerPtr.Load().Warn("iface monitor: seed link cache failed; address events for pre-existing interfaces will be dropped", "error", err)
+		logger().Warn("iface monitor: seed link cache failed; address events for pre-existing interfaces will be dropped", "error", err)
 		return
 	}
 	for _, l := range links {
@@ -165,7 +165,7 @@ func (m *monitor) run(linkCh <-chan netlink.LinkUpdate, addrCh <-chan netlink.Ad
 func (m *monitor) safeHandleLinkUpdate(lu netlink.LinkUpdate) {
 	defer func() {
 		if r := recover(); r != nil {
-			loggerPtr.Load().Error("iface monitor: panic in link handler",
+			logger().Error("iface monitor: panic in link handler",
 				"panic", r, "stack", string(debug.Stack()))
 		}
 	}()
@@ -175,7 +175,7 @@ func (m *monitor) safeHandleLinkUpdate(lu netlink.LinkUpdate) {
 func (m *monitor) safeHandleAddrUpdate(au netlink.AddrUpdate) {
 	defer func() {
 		if r := recover(); r != nil {
-			loggerPtr.Load().Error("iface monitor: panic in addr handler",
+			logger().Error("iface monitor: panic in addr handler",
 				"panic", r, "stack", string(debug.Stack()))
 		}
 	}()
@@ -185,7 +185,7 @@ func (m *monitor) safeHandleAddrUpdate(au netlink.AddrUpdate) {
 func (m *monitor) safeHandleNeighUpdate(nu netlink.NeighUpdate) {
 	defer func() {
 		if r := recover(); r != nil {
-			loggerPtr.Load().Error("iface monitor: panic in neigh handler",
+			logger().Error("iface monitor: panic in neigh handler",
 				"panic", r, "stack", string(debug.Stack()))
 		}
 	}()
@@ -270,7 +270,7 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 
 	nameVal, ok := m.linkNames.Load(au.LinkIndex)
 	if !ok {
-		loggerPtr.Load().Debug("iface monitor: unknown link index for addr event",
+		logger().Debug("iface monitor: unknown link index for addr event",
 			"index", au.LinkIndex)
 		return
 	}
@@ -292,7 +292,7 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 	// This rides the monitor's existing coalesced event path (R-6), so a high-RA
 	// network does not need a separate observer.
 	if origin == originSlaac || origin == originTemporary {
-		loggerPtr.Load().Debug("iface monitor: kernel-autoconfigured (SLAAC) address",
+		logger().Debug("iface monitor: kernel-autoconfigured (SLAAC) address",
 			"interface", ifaceName, "address", addr, "origin", origin, "added", au.NewAddr,
 			"valid-lft", normalizeLifetime(au.ValidLft), "preferred-lft", normalizeLifetime(au.PreferedLft))
 	}
@@ -375,11 +375,11 @@ func (m *monitor) emit(eventType string, payload any) {
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		loggerPtr.Load().Debug("iface monitor: marshal failed", "event", eventType, "err", err)
+		logger().Debug("iface monitor: marshal failed", "event", eventType, "err", err)
 		return
 	}
 	if _, err := m.eventBus.Emit(ifaceevents.Namespace, eventType, string(data)); err != nil {
-		loggerPtr.Load().Debug("iface monitor: emit failed", "event", eventType, "err", err)
+		logger().Debug("iface monitor: emit failed", "event", eventType, "err", err)
 	}
 }
 

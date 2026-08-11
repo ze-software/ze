@@ -252,18 +252,28 @@ const (
 // KernelRoute describes one entry in the kernel's routing table, dumped
 // by Backend.ListKernelRoutes. Unlike RouteInfo (which is per-interface,
 // used by IPv6 RA default-route cleanup), this shape covers every route
-// the kernel can report: protocol (bgp / static / kernel / zebra / ra /
-// dhcp / ze), metric, device, and source-address fields.
+// the kernel can report: protocol, metric, device, and source-address
+// fields.
 //
-// The `protocol` field renders numeric RTPROT_* values as strings when
-// the value is well-known (bgp, static, kernel, zebra, ra, dhcp, ze);
-// unknown values surface as the decimal number so the operator still
-// gets a disambiguating hint.
+// The `protocol` field renders the numeric rtm_protocol as a name, and
+// an operator reads it in `show route` and on the web IP Routes page.
+// A route Ze installed is named by its producer, from rtproto.Name:
+// ze-fib, ze-static, ze-policy-route, or ze-iface for the interface
+// layer (DHCP, RA, PPPoE and PPP routes, which carried the kernel's own
+// "boot" until Ze started stamping them). Another producer's route is
+// named from the well-known RTPROT_* values, which rtProtoNames
+// (internal/plugins/iface/netlink/route_linux.go) holds keyed by the
+// golang.org/x/sys/unix constants. Anything else surfaces as the decimal
+// number, so the operator still gets a disambiguating hint.
+//
+// The names are not repeated here. A copy of that map's contents in this
+// comment is what let 42 read as "ra" until 2026-08-11: the wrong number
+// and the prose agreeing with each other proved nothing about either.
 type KernelRoute struct {
 	Destination string `json:"destination"`       // CIDR (e.g., "10.0.0.0/8", "::/0", "default")
 	NextHop     string `json:"nexthop,omitempty"` // gateway IP; empty for connected routes
 	Device      string `json:"device,omitempty"`  // egress interface name
-	Protocol    string `json:"protocol"`          // bgp, static, kernel, ze, dhcp, ra, zebra, or decimal
+	Protocol    string `json:"protocol"`          // producer name (ze-iface, bgp, kernel, ...) or decimal
 	Metric      int    `json:"metric"`
 	Family      string `json:"family"`           // "ipv4" or "ipv6"
 	Source      string `json:"source,omitempty"` // IFA_LOCAL-style preferred source, if set

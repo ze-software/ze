@@ -7,6 +7,8 @@ import (
 	"net"
 	"sync"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // fakeBackend records iface.Backend calls for assertions.
@@ -47,6 +49,7 @@ type routeCall struct {
 	dest    string
 	gateway string
 	metric  int
+	proto   rtproto.Proto
 }
 
 func (f *fakeBackend) SetMTU(name string, mtu int) error {
@@ -79,10 +82,10 @@ func (f *fakeBackend) setAddAddrP2PErr(err error) {
 	f.addAddrP2PErr = err
 }
 
-func (f *fakeBackend) AddRoute(name, destCIDR, gateway string, metric int) error {
+func (f *fakeBackend) AddRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.routeAddCalls = append(f.routeAddCalls, routeCall{name, destCIDR, gateway, metric})
+	f.routeAddCalls = append(f.routeAddCalls, routeCall{name, destCIDR, gateway, metric, proto})
 	return f.addRouteErr
 }
 
@@ -93,10 +96,10 @@ func (f *fakeBackend) RemoveAddress(name, cidr string) error {
 	return f.removeAddrErr
 }
 
-func (f *fakeBackend) RemoveRoute(name, destCIDR, gateway string, metric int) error {
+func (f *fakeBackend) RemoveRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.routeRemoves = append(f.routeRemoves, routeCall{name, destCIDR, gateway, metric})
+	f.routeRemoves = append(f.routeRemoves, routeCall{name, destCIDR, gateway, metric, proto})
 	return f.removeRouteErr
 }
 

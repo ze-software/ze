@@ -12,6 +12,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4/nclient4"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -187,7 +188,7 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 
 	// Install default route from DHCP Router option (RFC 2132 Section 3.5).
 	if payload.Router != "" {
-		if err := iface.AddRoute(c.ifaceName, "0.0.0.0/0", payload.Router, c.config.RouteMetric); err != nil {
+		if err := iface.AddRoute(c.ifaceName, "0.0.0.0/0", payload.Router, c.config.RouteMetric, rtproto.Iface); err != nil {
 			logger.Warn("iface dhcp v4: route install failed",
 				"iface", c.ifaceName, "gw", payload.Router, "err", err)
 		}
@@ -228,7 +229,7 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	// Remove default route installed from this lease.
 	routerIP := dhcpv4.GetIP(dhcpv4.OptionRouter, ack.Options)
 	if routerIP != nil {
-		if err := iface.RemoveRoute(c.ifaceName, "0.0.0.0/0", routerIP.String(), c.config.RouteMetric); err != nil {
+		if err := iface.RemoveRoute(c.ifaceName, "0.0.0.0/0", routerIP.String(), c.config.RouteMetric, rtproto.Iface); err != nil {
 			logger.Debug("iface dhcp v4: route removal failed",
 				"iface", c.ifaceName, "gw", routerIP.String(), "err", err)
 		}

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -1713,13 +1714,20 @@ func TestParseUnitRoutePriority(t *testing.T) {
 	require.Len(t, cfg.Ethernet[0].Units, 1)
 	u := cfg.Ethernet[0].Units[0]
 	assert.Equal(t, 5, u.RoutePriority)
+	assert.True(t, u.RoutePrioritySet, "a written leaf is recorded as written")
 }
 
 // TestParseUnitRoutePriorityDefault verifies that a unit without
-// route-priority configured defaults to 0 (kernel default).
+// route-priority takes the learned-route metric, and that an explicit 0 is
+// distinguishable from an absent leaf.
 //
-// VALIDATES: AC-2 - No route-priority means metric 0 (unchanged behavior).
-// PREVENTS: Non-zero default accidentally changing existing route behavior.
+// VALIDATES: a learned default route is ranked below an operator's static
+// default instead of sharing metric 0 with it, and `route-priority 0` restores
+// the pre-2026-08-11 metric.
+// PREVENTS: a DHCP, RA or PPPoE default route installed at metric 0, where
+// RouteReplace overwrites the operator's static default (gateway included),
+// because RouteReplace matches on destination, metric and table and takes no
+// protocol.
 func TestParseUnitRoutePriorityDefault(t *testing.T) {
 	cfg := mustParseIfaceJSON(t, `{
 		"interface": {
@@ -1735,7 +1743,24 @@ func TestParseUnitRoutePriorityDefault(t *testing.T) {
 	require.Len(t, cfg.Ethernet, 1)
 	require.Len(t, cfg.Ethernet[0].Units, 1)
 	u := cfg.Ethernet[0].Units[0]
-	assert.Equal(t, 0, u.RoutePriority)
+	assert.Equal(t, defaultLearnedRouteMetric, u.RoutePriority)
+	assert.Equal(t, 254, u.RoutePriority, "the value an operator reads in the schema")
+	assert.False(t, u.RoutePrioritySet, "an absent leaf is not a written one")
+
+	zero := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {"route-priority": "0"}
+					}
+				}
+			}
+		}
+	}`)
+	uz := zero.Ethernet[0].Units[0]
+	assert.Equal(t, 0, uz.RoutePriority, "an explicit 0 stays 0: the documented way back")
+	assert.True(t, uz.RoutePrioritySet)
 }
 
 // TestHandleDHCPLeaseEventStoresGateway verifies that a DHCP lease event
@@ -1790,7 +1815,7 @@ func TestHandleLinkDownWithRoutePriority(t *testing.T) {
 
 	active := map[dhcpUnitKey]dhcpEntry{
 		{ifaceName: "eth0", unit: "default"}: {
-			params:  dhcpParams{v4: true, routePriority: 5},
+			params:  dhcpParams{v4: true, routePriority: 5, routePrioritySet: true},
 			gateway: "192.168.1.1",
 		},
 	}
@@ -1799,11 +1824,11 @@ func TestHandleLinkDownWithRoutePriority(t *testing.T) {
 	handleLinkDown("eth0", active, logger)
 
 	require.Len(t, fb.routeRemoves, 1, "should remove one route")
-	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 5}, fb.routeRemoves[0],
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 5, rtproto.Iface}, fb.routeRemoves[0],
 		"should remove route with base metric")
 
 	require.Len(t, fb.routeAdds, 1, "should add one route")
-	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 1029}, fb.routeAdds[0],
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 1029, rtproto.Iface}, fb.routeAdds[0],
 		"should add deprioritized route (5 + 1024 = 1029)")
 }
 
@@ -1822,7 +1847,7 @@ func TestHandleLinkUpWithRoutePriority(t *testing.T) {
 
 	active := map[dhcpUnitKey]dhcpEntry{
 		{ifaceName: "eth0", unit: "default"}: {
-			params:  dhcpParams{v4: true, routePriority: 5},
+			params:  dhcpParams{v4: true, routePriority: 5, routePrioritySet: true},
 			gateway: "192.168.1.1",
 		},
 	}
@@ -1831,19 +1856,21 @@ func TestHandleLinkUpWithRoutePriority(t *testing.T) {
 	handleLinkUp("eth0", active, logger)
 
 	require.Len(t, fb.routeRemoves, 1, "should remove one route")
-	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 1029}, fb.routeRemoves[0],
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 1029, rtproto.Iface}, fb.routeRemoves[0],
 		"should remove deprioritized route (5 + 1024 = 1029)")
 
 	require.Len(t, fb.routeAdds, 1, "should add one route")
-	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 5}, fb.routeAdds[0],
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 5, rtproto.Iface}, fb.routeAdds[0],
 		"should restore route with base metric")
 }
 
-// TestHandleLinkDownDefaultMetric verifies that link-down with no route-priority
-// (default 0) uses metric 0 and 1024, preserving existing behavior.
+// TestHandleLinkDownDefaultMetric verifies that link-down on a unit whose
+// operator wrote `route-priority 0` uses metric 0 and 1024.
 //
-// VALIDATES: AC-2 - No route-priority configured preserves existing behavior.
-// PREVENTS: Regression in default metric behavior.
+// VALIDATES: `route-priority 0` is the documented way back to the metric ze
+// used before learned defaults were ranked at defaultLearnedRouteMetric.
+// PREVENTS: the restore path silently taking the new default anyway, which
+// would leave an operator no way to reproduce the old behavior.
 func TestHandleLinkDownDefaultMetric(t *testing.T) {
 	fb := &fakeBackend{ifaces: map[string]fakeIface{}}
 	backendName := "test-linkdown-default-" + t.Name()
@@ -1854,7 +1881,7 @@ func TestHandleLinkDownDefaultMetric(t *testing.T) {
 
 	active := map[dhcpUnitKey]dhcpEntry{
 		{ifaceName: "eth0", unit: "default"}: {
-			params:  dhcpParams{v4: true},
+			params:  dhcpParams{v4: true, routePriority: 0, routePrioritySet: true},
 			gateway: "10.0.0.1",
 		},
 	}
@@ -1884,7 +1911,7 @@ func TestHandleLinkDownThenUp(t *testing.T) {
 
 	active := map[dhcpUnitKey]dhcpEntry{
 		{ifaceName: "eth0", unit: "default"}: {
-			params:  dhcpParams{v4: true, routePriority: 5},
+			params:  dhcpParams{v4: true, routePriority: 5, routePrioritySet: true},
 			gateway: "192.168.1.1",
 		},
 	}
@@ -2090,6 +2117,7 @@ type routeCall struct {
 	destCIDR  string
 	gateway   string
 	metric    int
+	proto     rtproto.Proto
 }
 
 // fakeBackend implements Backend for testing config application.
@@ -2104,6 +2132,7 @@ type fakeBackend struct {
 	vlans            map[string]VLANSpec
 	routeAdds        []routeCall
 	routeRemoves     []routeCall
+	addRouteErr      error       // if non-nil, AddRoute records the call and returns this
 	staleRoutes      []RouteInfo // returned by ListRoutes for stale cleanup tests
 	listErr          error       // if non-nil, ListInterfaces returns this instead of enumerating
 	createDummyErr   map[string]error
@@ -2305,13 +2334,16 @@ func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { 
 
 func (b *fakeBackend) AddAddressP2P(_, _, _ string) error { return nil }
 
-func (b *fakeBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
-	b.routeAdds = append(b.routeAdds, routeCall{ifaceName, destCIDR, gateway, metric})
-	return nil
+// AddRoute records the call and then returns addRouteErr. The call is recorded
+// either way: a test that injects a failure is asking what the caller did after
+// the kernel refused it, and that starts with the attempt itself.
+func (b *fakeBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
+	b.routeAdds = append(b.routeAdds, routeCall{ifaceName, destCIDR, gateway, metric, proto})
+	return b.addRouteErr
 }
 
-func (b *fakeBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
-	b.routeRemoves = append(b.routeRemoves, routeCall{ifaceName, destCIDR, gateway, metric})
+func (b *fakeBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
+	b.routeRemoves = append(b.routeRemoves, routeCall{ifaceName, destCIDR, gateway, metric, proto})
 	return nil
 }
 
@@ -2417,16 +2449,14 @@ func setupFakeBackendForTest(t *testing.T) *fakeBackend {
 func TestNeighRouterDetected(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 5}},
-	}
+	priorities := map[string]int{"eth0": 5}
 	logger := slog.Default()
 
 	data := `{"name":"eth0","router-ip":"fe80::1"}`
-	handleRouterDiscovered(data, routers, active, logger)
+	handleRouterDiscovered(data, routers, priorities, logger)
 
 	require.Len(t, fb.routeAdds, 1, "should install one IPv6 default route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeAdds[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeAdds[0])
 	assert.Contains(t, routers, routerKey{ifaceName: "eth0", routerIP: "fe80::1"})
 }
 
@@ -2446,7 +2476,7 @@ func TestNeighRouterRemoved(t *testing.T) {
 	handleRouterLost(data, routers, logger)
 
 	require.Len(t, fb.routeRemoves, 1, "should remove one IPv6 default route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeRemoves[0])
 	assert.NotContains(t, routers, routerKey{ifaceName: "eth0", routerIP: "fe80::1"})
 }
 
@@ -2464,9 +2494,9 @@ func TestLinkDownIPv6(t *testing.T) {
 	handleLinkDownIPv6("eth0", routers, logger)
 
 	require.Len(t, fb.routeRemoves, 1, "should remove one route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeRemoves[0])
 	require.Len(t, fb.routeAdds, 1, "should add deprioritized route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 1029}, fb.routeAdds[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 1029, rtproto.Iface}, fb.routeAdds[0])
 }
 
 // TestLinkUpIPv6 verifies that link-up restores IPv6 default route priority.
@@ -2483,9 +2513,9 @@ func TestLinkUpIPv6(t *testing.T) {
 	handleLinkUpIPv6("eth0", routers, logger)
 
 	require.Len(t, fb.routeRemoves, 1, "should remove deprioritized route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 1029}, fb.routeRemoves[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 1029, rtproto.Iface}, fb.routeRemoves[0])
 	require.Len(t, fb.routeAdds, 1, "should add restored route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeAdds[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeAdds[0])
 }
 
 // TestNeighRouterDetectedNoRoutePriority verifies that router events are
@@ -2496,13 +2526,13 @@ func TestLinkUpIPv6(t *testing.T) {
 func TestNeighRouterDetectedNoRoutePriority(t *testing.T) {
 	_ = setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 0}},
-	}
+	// An interface writtenRoutePriorities left out: no unit wrote the leaf
+	// above 0, so suppressRAForConfig suppressed nothing for it either.
+	priorities := map[string]int{}
 	logger := slog.Default()
 
 	data := `{"name":"eth0","router-ip":"fe80::1"}`
-	handleRouterDiscovered(data, routers, active, logger)
+	handleRouterDiscovered(data, routers, priorities, logger)
 
 	assert.Empty(t, routers, "should not track router when route-priority is 0")
 }
@@ -2515,17 +2545,15 @@ func TestNeighRouterDetectedNoRoutePriority(t *testing.T) {
 func TestMultipleRoutersOnSameLink(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 5}},
-	}
+	priorities := map[string]int{"eth0": 5}
 	logger := slog.Default()
 
-	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::1"}`, routers, active, logger)
-	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::2"}`, routers, active, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::1"}`, routers, priorities, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::2"}`, routers, priorities, logger)
 
 	require.Len(t, fb.routeAdds, 2, "should install two IPv6 default routes")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeAdds[0])
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::2", 5}, fb.routeAdds[1])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeAdds[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::2", 5, rtproto.Iface}, fb.routeAdds[1])
 	assert.Len(t, routers, 2, "should track two routers")
 }
 
@@ -2537,14 +2565,12 @@ func TestMultipleRoutersOnSameLink(t *testing.T) {
 func TestNeighRouterDuplicateIgnored(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 5}},
-	}
+	priorities := map[string]int{"eth0": 5}
 	logger := slog.Default()
 
 	data := `{"name":"eth0","router-ip":"fe80::1"}`
-	handleRouterDiscovered(data, routers, active, logger)
-	handleRouterDiscovered(data, routers, active, logger)
+	handleRouterDiscovered(data, routers, priorities, logger)
+	handleRouterDiscovered(data, routers, priorities, logger)
 
 	require.Len(t, fb.routeAdds, 1, "duplicate discovery should not install a second route")
 }
@@ -2559,9 +2585,9 @@ func TestReloadMetricChange(t *testing.T) {
 	routers := map[routerKey]routerEntry{
 		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
 	}
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 10}},
-	}
+	// The reload wrote route-priority 10, so suppressRAForConfig republished
+	// the map handleRouterDiscovered reads.
+	priorities := map[string]int{"eth0": 10}
 	logger := slog.Default()
 
 	// Simulate the router being re-discovered after config reload with new metric.
@@ -2570,13 +2596,13 @@ func TestReloadMetricChange(t *testing.T) {
 	// re-suppresses and the monitor re-discovers the router.
 	// Simulating the removal + re-discovery:
 	handleRouterLost(`{"name":"eth0","router-ip":"fe80::1"}`, routers, logger)
-	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::1"}`, routers, active, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::1"}`, routers, priorities, logger)
 
 	// Old route removed with metric 5, new installed with metric 10.
 	require.Len(t, fb.routeRemoves, 1)
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeRemoves[0])
 	require.Len(t, fb.routeAdds, 1)
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 10}, fb.routeAdds[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 10, rtproto.Iface}, fb.routeAdds[0])
 	assert.Equal(t, 10, routers[routerKey{ifaceName: "eth0", routerIP: "fe80::1"}].metric)
 }
 
@@ -2640,7 +2666,7 @@ func TestAcceptRaDefrtrRestore(t *testing.T) {
 
 	// Route should be removed.
 	require.Len(t, fb.routeRemoves, 1)
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5, rtproto.Iface}, fb.routeRemoves[0])
 
 	// Sysctl restored to 1.
 	require.Len(t, eb.emissions, 1)
@@ -2700,7 +2726,7 @@ func TestStaleKernelRouteCleanup(t *testing.T) {
 	cleanupStaleIPv6DefaultRoutes("eth0", logger)
 
 	require.Len(t, fb.routeRemoves, 1, "should remove one stale route")
-	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 0}, fb.routeRemoves[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 0, rtproto.Any}, fb.routeRemoves[0])
 }
 
 // TestSuppressRAForConfigNoRoutePriority verifies that interfaces without
@@ -2728,11 +2754,13 @@ func TestSuppressRAForConfigNoRoutePriority(t *testing.T) {
 		}
 	}`)
 	logger := slog.Default()
+	priorities := map[string]int{}
 
-	suppressRAForConfig(cfg, suppressed, routers, eb, logger)
+	suppressRAForConfig(cfg, suppressed, routers, priorities, eb, logger)
 
 	assert.Empty(t, eb.emissions, "should not emit any sysctl events")
 	assert.Empty(t, suppressed, "should not suppress any interfaces")
+	assert.Empty(t, priorities, "and ze installs no ::/0 route of its own")
 }
 
 // TestSuppressRAForConfigWithRoutePriority verifies that interfaces with
@@ -2761,12 +2789,15 @@ func TestSuppressRAForConfigWithRoutePriority(t *testing.T) {
 		}
 	}`)
 	logger := slog.Default()
+	priorities := map[string]int{}
 
-	suppressRAForConfig(cfg, suppressed, routers, eb, logger)
+	suppressRAForConfig(cfg, suppressed, routers, priorities, eb, logger)
 
 	require.Len(t, eb.emissions, 1, "should emit one sysctl event")
 	assert.Contains(t, eb.emissions[0].data, `"value":"0"`)
 	assert.True(t, suppressed["eth0"])
+	assert.Equal(t, map[string]int{"eth0": 5}, priorities,
+		"the interface ze suppressed is the interface ze installs ::/0 on")
 }
 
 // TestSuppressRAForConfigRestore verifies that removing route-priority from
@@ -2798,13 +2829,16 @@ func TestSuppressRAForConfigRestore(t *testing.T) {
 		}
 	}`)
 	logger := slog.Default()
+	priorities := map[string]int{"eth0": 5}
 
-	suppressRAForConfig(cfg, suppressed, routers, eb, logger)
+	suppressRAForConfig(cfg, suppressed, routers, priorities, eb, logger)
 
 	require.Len(t, eb.emissions, 1, "should emit restore sysctl event")
 	assert.Contains(t, eb.emissions[0].data, `"value":"1"`)
 	assert.Empty(t, suppressed, "interface should no longer be suppressed")
 	assert.Empty(t, routers, "router entries should be cleaned up")
+	assert.Empty(t, priorities,
+		"and a later router event installs nothing, the kernel owns ::/0 again")
 }
 
 // TestLinkDownIPv6MultipleRouters verifies that link-down deprioritizes
@@ -2872,33 +2906,50 @@ func TestRestoreNotSuppressed(t *testing.T) {
 	assert.Empty(t, eb.emissions, "should not emit anything")
 }
 
-// TestRoutePriorityForInterfaceMultiUnit verifies that the first non-zero
-// route-priority is returned when multiple units exist.
+// TestWrittenRoutePrioritiesMultiUnit verifies that the first non-zero
+// route-priority is taken when multiple units exist.
 //
-// VALIDATES: Multi-unit interface returns a valid metric.
-// PREVENTS: Zero returned when a non-zero route-priority exists.
-func TestRoutePriorityForInterfaceMultiUnit(t *testing.T) {
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{routePriority: 0}},
-		{ifaceName: "eth0", unit: "backup"}:  {params: dhcpParams{routePriority: 7}},
-	}
+// VALIDATES: Multi-unit interface yields a valid metric. RA default routes are
+// per-interface, not per-unit, so one number has to answer for the interface.
+// PREVENTS: Zero returned when a non-zero route-priority exists, which would
+// leave the interface suppressed with no ::/0 route of ze's own.
+func TestWrittenRoutePrioritiesMultiUnit(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {"route-priority": "0"},
+						"1": {"route-priority": "7"}
+					}
+				}
+			}
+		}
+	}`)
 
-	result := routePriorityForInterface("eth0", active)
-	assert.Equal(t, 7, result, "should return the non-zero route-priority")
+	assert.Equal(t, map[string]int{"eth0": 7}, writtenRoutePriorities(cfg),
+		"should take the non-zero route-priority")
 }
 
-// TestRoutePriorityForInterfaceNoMatch verifies that an unknown interface
-// returns 0.
+// TestWrittenRoutePrioritiesNoMatch verifies that an interface nobody wrote the
+// leaf on is absent from the map.
 //
-// VALIDATES: Unknown interface returns zero (kernel default).
-// PREVENTS: Non-zero metric for unconfigured interface.
-func TestRoutePriorityForInterfaceNoMatch(t *testing.T) {
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{routePriority: 5}},
-	}
+// VALIDATES: An unconfigured interface keeps the kernel's RA default routes.
+// PREVENTS: A metric for an interface the operator said nothing about, which
+// would take IPv6 ownership away from the kernel on every box that upgrades.
+func TestWrittenRoutePrioritiesNoMatch(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {"unit": {"0": {"route-priority": "5"}}},
+				"eth1": {"unit": {"0": {"ipv4": {"address": ["10.0.0.1/24"]}}}}
+			}
+		}
+	}`)
 
-	result := routePriorityForInterface("eth1", active)
-	assert.Equal(t, 0, result, "unknown interface should return 0")
+	priorities := writtenRoutePriorities(cfg)
+	assert.Equal(t, 5, priorities["eth0"])
+	assert.NotContains(t, priorities, "eth1", "an unwritten interface stays with the kernel")
 }
 
 // TestRouterDiscoveredBadJSON verifies that malformed JSON is silently ignored.
@@ -2908,14 +2959,12 @@ func TestRoutePriorityForInterfaceNoMatch(t *testing.T) {
 func TestRouterDiscoveredBadJSON(t *testing.T) {
 	_ = setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
-	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{routePriority: 5}},
-	}
+	priorities := map[string]int{"eth0": 5}
 	logger := slog.Default()
 
-	handleRouterDiscovered("not json", routers, active, logger)
-	handleRouterDiscovered(`{"name":"","router-ip":"fe80::1"}`, routers, active, logger)
-	handleRouterDiscovered(`{"name":"eth0","router-ip":""}`, routers, active, logger)
+	handleRouterDiscovered("not json", routers, priorities, logger)
+	handleRouterDiscovered(`{"name":"","router-ip":"fe80::1"}`, routers, priorities, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":""}`, routers, priorities, logger)
 
 	assert.Empty(t, routers, "should not track any router from bad input")
 }

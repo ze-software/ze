@@ -137,6 +137,11 @@ type pppoeClientEntry struct {
 	NoDefaultRoute  bool
 	MTU             int
 	Disable         bool
+	// RoutePriority is the kernel route metric of the default route the
+	// session installs, defaultLearnedRouteMetric unless the operator wrote
+	// the leaf. A PPPoE default is learned from the access concentrator, so
+	// it ranks with the other learned defaults rather than at metric 0.
+	RoutePriority int
 }
 
 // ifaceEntry represents a configured interface (ethernet or dummy).
@@ -183,19 +188,58 @@ type loopbackEntry struct {
 	Units []unitEntry
 }
 
+// defaultLearnedRouteMetric is the kernel route metric of a default route the
+// interface layer learns from the network: a DHCPv4 lease, a router
+// advertisement, or a PPPoE session. It repeats the default the route-priority
+// leaves declare in yang/ze-iface-conf.yang, because the config tree delivers
+// only what the operator wrote: an absent leaf arrives as an absent key, never
+// as its schema default.
+//
+// 254 ranks a learned default below every route an operator or a routing
+// protocol produces, the way rib/admin-distance
+// (internal/component/sysrib/yang/ze-rib-conf.yang) ranks connected 0, static
+// 10, ebgp 20, ospf 110, isis 115 and ibgp 200. It is also the administrative
+// distance a Cisco IOS DHCP client gives the default route it learns, which is
+// the same ranking decision on another vendor. The interface layer programs the kernel
+// directly and never consults that table, so this constant is the iface side
+// of the same ordering, not a reader of it.
+//
+// The number matters beyond ranking: ze installs a learned default with
+// RouteReplace, which matches on destination, metric and table and takes no
+// protocol, so a learned default at metric 0 OVERWRITES an operator's static
+// default at metric 0, gateway included. Two defaults at different metrics
+// coexist instead, and the lower one wins.
+const defaultLearnedRouteMetric = 254
+
+// maxRoutePriority is the largest metric a route-priority leaf accepts. It
+// repeats the range those leaves declare in yang/ze-iface-conf.yang: 1024 below
+// the uint32 ceiling, so the link-down metric (base + deprioritizedMetric) still
+// fits the netlink attribute. It is uint64 so the comparison holds its value on
+// a build whose int is 32 bits, where the constant does not fit an int at all.
+const maxRoutePriority uint64 = 4294966271
+
 // unitEntry represents a logical unit on an interface.
 type unitEntry struct {
-	Label          string
-	VLANID         int
-	Addresses      []string
-	Disable        bool
-	RoutePriority  int // route metric for DHCP default routes (0 = kernel default)
-	SysctlProfiles []string
-	IPv4           *ipv4Settings
-	IPv6           *ipv6Settings
-	MirrorIngress  string // destination interface name, empty = not configured
-	MirrorEgress   string
-	MPLSEnable     *bool // enable MPLS label input (net.mpls.conf.<iface>.input)
+	Label     string
+	VLANID    int
+	Addresses []string
+	Disable   bool
+	// RoutePriority is the kernel route metric for the default routes this
+	// unit learns (DHCP, PPPoE). It holds defaultLearnedRouteMetric unless
+	// the operator wrote the leaf, so a learned default never lands on the
+	// metric an operator's static default occupies.
+	RoutePriority int
+	// RoutePrioritySet says the operator wrote route-priority on this unit.
+	// It separates "the operator asked ze to own the default routes of this
+	// interface" from "this is the metric a learned route takes", which the
+	// value alone can no longer express now that its default is non-zero.
+	RoutePrioritySet bool
+	SysctlProfiles   []string
+	IPv4             *ipv4Settings
+	IPv6             *ipv6Settings
+	MirrorIngress    string // destination interface name, empty = not configured
+	MirrorEgress     string
+	MPLSEnable       *bool // enable MPLS label input (net.mpls.conf.<iface>.input)
 	// 802.1p QoS maps (IEEE 802.1Q PCP, 3 bits). nil = not configured,
 	// no netlink attribute sent. Keys and values are 0-7.
 	IngressQoSMap map[uint32]uint32 // received PCP -> internal priority
@@ -804,7 +848,7 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 const pppoeDefaultMTU = 1492
 
 func parsePPPoEClientEntry(name string, m map[string]any) (pppoeClientEntry, error) {
-	entry := pppoeClientEntry{Name: name, MTU: pppoeDefaultMTU}
+	entry := pppoeClientEntry{Name: name, MTU: pppoeDefaultMTU, RoutePriority: defaultLearnedRouteMetric}
 	if m == nil {
 		return entry, errors.New("empty pppoe-client entry")
 	}
@@ -855,6 +899,16 @@ func parsePPPoEClientEntry(name string, m map[string]any) (pppoeClientEntry, err
 		}
 		entry.MTU = mtu
 	}
+	if rpStr, ok := m["route-priority"].(string); ok && rpStr != "" {
+		rp, err := strconv.ParseUint(rpStr, 10, 32)
+		if err != nil {
+			return entry, fmt.Errorf("route-priority %q: %w", rpStr, err)
+		}
+		if rp > maxRoutePriority {
+			return entry, fmt.Errorf("route-priority %d out of range 0..%d", rp, maxRoutePriority)
+		}
+		entry.RoutePriority = int(rp)
+	}
 
 	return entry, nil
 }
@@ -902,7 +956,7 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 			return nil, fmt.Errorf("unit %q: %w", name, err)
 		}
 		um, _ := v.(map[string]any)
-		u := unitEntry{Label: name}
+		u := unitEntry{Label: name, RoutePriority: defaultLearnedRouteMetric}
 		if um != nil {
 			if vid, ok := um["vlan-id"].(string); ok {
 				u.VLANID, _ = strconv.Atoi(vid)
@@ -910,8 +964,20 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 			if _, ok := um["disable"]; ok {
 				u.Disable = true
 			}
-			if rp, ok := um["route-priority"].(string); ok {
-				u.RoutePriority, _ = strconv.Atoi(rp)
+			// Same bounds and same refusals as parsePPPoEClientEntry: the two
+			// leaves carry one number to one netlink attribute. Dropping the
+			// error here put every unparsable value at metric 0, which is the
+			// metric a plain static route takes.
+			if rp, ok := um["route-priority"].(string); ok && rp != "" {
+				priority, err := strconv.ParseUint(rp, 10, 32)
+				if err != nil {
+					return nil, fmt.Errorf("unit %q: route-priority %q: %w", name, rp, err)
+				}
+				if priority > maxRoutePriority {
+					return nil, fmt.Errorf("unit %q: route-priority %d out of range 0..%d", name, priority, maxRoutePriority)
+				}
+				u.RoutePriority = int(priority)
+				u.RoutePrioritySet = true
 			}
 			u.SysctlProfiles = parseStringList(um, "sysctl-profile")
 			var err error

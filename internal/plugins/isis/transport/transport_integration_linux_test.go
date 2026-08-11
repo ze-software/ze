@@ -306,7 +306,7 @@ func TestISISTransportMTUExpose(t *testing.T) {
 
 		var fired bool
 		var gotLocal, gotNeighbor int
-		tr.OnMTUMismatch(func(_ string, localMTU, neighborMTU int) {
+		tr.onMTUMismatch(func(_ string, localMTU, neighborMTU int) {
 			fired = true
 			gotLocal, gotNeighbor = localMTU, neighborMTU
 		})

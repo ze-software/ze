@@ -42,7 +42,7 @@ func (b *netlinkBackend) CreateWireguardDevice(name string) error {
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
 		if delErr := netlink.LinkDel(link); delErr != nil {
-			loggerPtr.Load().Warn("iface: rollback delete after set-up failure",
+			logger().Warn("iface: rollback delete after set-up failure",
 				"name", name, "kind", "wireguard", "err", delErr)
 		}
 		return fmt.Errorf("iface: set up wireguard %q: %w", name, err)

@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -140,10 +141,16 @@ type Backend interface {
 	// destCIDR is the destination (e.g., "0.0.0.0/0"), gateway is the
 	// next-hop IP (e.g., "192.168.1.1"), ifaceName scopes the route.
 	// metric is the route priority (lower = preferred); 0 = kernel default.
-	// On Linux, route identity is (dst, gw, link, metric), so both
+	// On Linux the kernel keys a route on (dst, gw, link, metric), so both
 	// AddRoute and RemoveRoute require metric to target the correct entry.
-	AddRoute(ifaceName, destCIDR, gateway string, metric int) error
-	RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error
+	//
+	// proto is the producer that owns the route, and the delete matches on it
+	// as well as on that key. AddRoute stamps it on the route it installs and
+	// rejects rtproto.Any, which names no producer. RemoveRoute with
+	// rtproto.Any matches a route whatever installed it, so a caller that
+	// wants that must name it: it is never reached by leaving a value out.
+	AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error
+	RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error
 	// ListRoutes returns all routes matching the given destination CIDR on
 	// the named interface. Used by IPv6 RA default route management to
 	// clean up stale kernel-installed routes after suppressing accept_ra_defrtr.

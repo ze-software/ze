@@ -218,7 +218,7 @@ const ifaFlagTentative = 0x40
 func addrList(link netlink.Link) []iface.AddrInfo {
 	addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 	if err != nil {
-		loggerPtr.Load().Warn("failed to list addresses", "interface", link.Attrs().Name, "err", err)
+		logger().Warn("failed to list addresses", "interface", link.Attrs().Name, "err", err)
 		return nil
 	}
 	result := make([]iface.AddrInfo, 0, len(addrs))

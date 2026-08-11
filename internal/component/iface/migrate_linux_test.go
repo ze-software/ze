@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -95,10 +96,10 @@ func (m *mockMigrateBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) e
 func (m *mockMigrateBackend) AddAddressP2P(_, _, _ string) error {
 	return fmt.Errorf("mock: not supported")
 }
-func (m *mockMigrateBackend) AddRoute(_, _, _ string, _ int) error {
+func (m *mockMigrateBackend) AddRoute(_, _, _ string, _ int, _ rtproto.Proto) error {
 	return fmt.Errorf("mock: not supported")
 }
-func (m *mockMigrateBackend) RemoveRoute(_, _, _ string, _ int) error {
+func (m *mockMigrateBackend) RemoveRoute(_, _, _ string, _ int, _ rtproto.Proto) error {
 	return fmt.Errorf("mock: not supported")
 }
 func (m *mockMigrateBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {

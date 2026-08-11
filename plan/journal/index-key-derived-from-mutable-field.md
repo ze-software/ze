@@ -1,0 +1,10 @@
+# Index key derived from a mutable field
+
+A map entry is inserted under a key built from a field that later changes, so
+the delete computes a different key and misses. The entry outlives its owner,
+the map grows without bound, and a lookup can reach a dead object.
+
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-10 | fixit-l2tp-sccrq-tunnel-id-zero | l2tp | `discardTunnelLocked` (`internal/component/l2tp/reactor.go`) deletes from `tunnelsByPeer` with `peerKey{addr: t.peerAddr, tid: t.remoteTID}`, but `handle` overwrites `t.peerAddr` on every dispatched datagram. That overwrite is a TOLERANCE of a peer that moves, not an RFC 2661 Section 8.1 requirement: Section 8.1 says the source and destination ports and addresses "MUST remain static for the life of the tunnel". After a peer changes source port anyway the delete misses, the stale entry keeps a closed tunnel reachable, and the same peer cannot re-establish | not fixed. Found while adding the tunnel-free StopCCN path, which does not depend on it |
+| 2026-08-11 | fixit-route-removal-protocol-blind | iface dhcp | a kernel route's identity is (dst, gw, link, metric). `handleLinkDown` (`internal/component/iface/register.go`) moves the learned default route to metric + 1024, and the DHCP client's own teardown, `removeV4Addr` (`internal/plugins/iface/dhcp/dhcp_v4_linux.go`), removes it at `c.config.RouteMetric`. A lease expiring while the carrier is down therefore misses, and the deprioritized route stays in the kernel. The miss is SILENT to an operator: `routeUnderAnotherProtocol` (`internal/plugins/iface/netlink/manage_linux.go`) compares `Priority`, and the survivor sits at `metric + 1024`, so `reportRemoveRouteMiss` takes its DEBUG branch ("no route carries this destination, gateway, link and metric") rather than the WARN that names a survivor | not fixed. The same class inside the iface component WAS fixed: `handleRouterLost` and `restoreAcceptRaDefrtr` now remove at `effectiveMetric`. The DHCP client keeps no link state, so its half needs the metric to travel with the lease |

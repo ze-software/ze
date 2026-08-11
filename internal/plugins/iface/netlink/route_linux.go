@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
-	"syscall"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -25,23 +24,33 @@ import (
 // other protocol number is rendered as its decimal string so operators
 // still see the disambiguating tag.
 //
-// See linux/rtnetlink.h RTPROT_* and Ze's producer-specific rtproto IDs.
+// Every key is a named RTPROT_* constant, never a hand-written number: the
+// number belongs to linux/rtnetlink.h, and golang.org/x/sys/unix is the
+// vendored copy of it. Two hand-written keys were wrong until 2026-08-11 --
+// 42 was named "ra" where it is RTPROT_BABEL, and 193 was named "babel" where
+// the header allocates 193 to nothing -- so a kernel accept_ra default route
+// printed as "9" and a Babel route printed as "ra". golang.org/x/sys/unix
+// names every value this map needs, so no key here has to be typed.
+//
+// Ze's own producer IDs are not here. protocolName asks rtproto first.
 var rtProtoNames = map[int]string{
-	syscall.RTPROT_UNSPEC:   "unspec",
-	syscall.RTPROT_REDIRECT: "redirect",
-	syscall.RTPROT_KERNEL:   "kernel",
-	syscall.RTPROT_BOOT:     "boot",
-	syscall.RTPROT_STATIC:   "static",
-	// Dynamic-routing daemon ranges: Quagga/FRR allocates 186..254.
-	11:  "zebra", // RTPROT_ZEBRA (legacy Quagga)
-	42:  "ra",    // kernel accept_ra default routes
-	16:  "dhcp",  // RTPROT_DHCP
-	186: "bgp",   // RTPROT_BGP (FRR)
-	187: "isis",  // RTPROT_ISIS
-	188: "ospf",  // RTPROT_OSPF
-	189: "rip",   // RTPROT_RIP
-	192: "eigrp", // RTPROT_EIGRP
-	193: "babel", // RTPROT_BABEL
+	unix.RTPROT_UNSPEC:   "unspec",
+	unix.RTPROT_REDIRECT: "redirect",
+	unix.RTPROT_KERNEL:   "kernel",
+	unix.RTPROT_BOOT:     "boot",
+	unix.RTPROT_RA:       "ra", // kernel accept_ra default routes
+	unix.RTPROT_STATIC:   "static",
+	unix.RTPROT_ZEBRA:    "zebra", // legacy Quagga
+	unix.RTPROT_BIRD:     "bird",  // a peer Ze runs interop tests against
+	unix.RTPROT_DHCP:     "dhcp",
+	unix.RTPROT_BABEL:    "babel",
+	// Routing daemons: the header puts these five in 186..192, and Ze's own
+	// rtproto IDs sit at 250..253 above them.
+	unix.RTPROT_BGP:   "bgp",
+	unix.RTPROT_ISIS:  "isis",
+	unix.RTPROT_OSPF:  "ospf",
+	unix.RTPROT_RIP:   "rip",
+	unix.RTPROT_EIGRP: "eigrp",
 }
 
 // ListKernelRoutes returns up to `limit` routes from the kernel's main

@@ -51,7 +51,7 @@ func (b *netlinkBackend) CreateMacvlanDevice(spec iface.MacvlanSpec) error {
 	}
 	rollback := func(stage string, cause error) error {
 		if delErr := netlink.LinkDel(link); delErr != nil {
-			loggerPtr.Load().Warn("iface: rollback delete after create failure",
+			logger().Warn("iface: rollback delete after create failure",
 				"name", spec.Name, "kind", "macvlan", "stage", stage, "err", delErr)
 		}
 		return fmt.Errorf("iface: %s macvlan %q: %w", stage, spec.Name, cause)

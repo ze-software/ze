@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -43,6 +44,12 @@ type PPPoEClientConfig struct {
 	ACName          string
 	NoDefaultRoute  bool
 	MTU             int
+	// RoutePriority is the kernel metric of the default route installed when
+	// IPCP completes. It carries defaultLearnedRouteMetric unless the
+	// pppoe-client sets route-priority, so a session learned from an access
+	// concentrator does not land on the metric an operator's static default
+	// occupies.
+	RoutePriority int
 }
 
 // pppoeClientStatus is a snapshot of the client state for show commands.
@@ -263,7 +270,7 @@ func (c *PPPoEClient) runSession() error {
 		}
 		// AC-8: Install default route unless no-default-route is set.
 		if !c.cfg.NoDefaultRoute && sess.PeerIP.IsValid() {
-			if err := c.backend.AddRoute(ifname, "0.0.0.0/0", sess.PeerIP.String(), 0); err != nil {
+			if err := c.backend.AddRoute(ifname, "0.0.0.0/0", sess.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
 				c.logger.Warn("pppoe-client: failed to add default route", "error", err)
 			}
 		}
@@ -344,6 +351,7 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 			ACName:          entry.ACName,
 			NoDefaultRoute:  entry.NoDefaultRoute,
 			MTU:             entry.MTU,
+			RoutePriority:   entry.RoutePriority,
 		}
 		client := NewPPPoEClient(clientCfg, pppoeDialerVar, b, log)
 		client.Start()
@@ -359,5 +367,6 @@ func pppoeClientConfigChanged(running PPPoEClientConfig, entry pppoeClientEntry)
 		running.ServiceName != entry.ServiceName ||
 		running.ACName != entry.ACName ||
 		running.NoDefaultRoute != entry.NoDefaultRoute ||
-		running.MTU != entry.MTU
+		running.MTU != entry.MTU ||
+		running.RoutePriority != entry.RoutePriority
 }

@@ -7,6 +7,8 @@ package iface
 import (
 	"errors"
 	"net/netip"
+
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 var errIfaceNoBackendLoaded = errors.New("iface: no backend loaded")
@@ -99,20 +101,20 @@ func RemoveAddress(iface, cidr string) error {
 	return b.RemoveAddress(resolveOS(iface), cidr)
 }
 
-func AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
+func AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.AddRoute(resolveOS(ifaceName), destCIDR, gateway, metric)
+	return b.AddRoute(resolveOS(ifaceName), destCIDR, gateway, metric, proto)
 }
 
-func RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
+func RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.RemoveRoute(resolveOS(ifaceName), destCIDR, gateway, metric)
+	return b.RemoveRoute(resolveOS(ifaceName), destCIDR, gateway, metric, proto)
 }
 
 func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {

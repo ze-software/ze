@@ -11,6 +11,7 @@ import (
 	"runtime"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -44,26 +45,26 @@ func (s *stubBackend) CreateXFRM(_ iface.XFRMSpec) error { return unsupported() 
 func (s *stubBackend) GetXFRMInfo(_ string) (iface.XFRMInfo, error) {
 	return iface.XFRMInfo{}, unsupported()
 }
-func (s *stubBackend) DeleteInterface(_ string) error                         { return unsupported() }
-func (s *stubBackend) AddAddress(_, _ string) error                           { return unsupported() }
-func (s *stubBackend) RemoveAddress(_, _ string) error                        { return unsupported() }
-func (s *stubBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return unsupported() }
-func (s *stubBackend) AddAddressP2P(_, _, _ string) error                     { return unsupported() }
-func (s *stubBackend) AddRoute(_, _, _ string, _ int) error                   { return unsupported() }
-func (s *stubBackend) RemoveRoute(_, _, _ string, _ int) error                { return unsupported() }
-func (s *stubBackend) ListRoutes(_, _ string) ([]iface.RouteInfo, error)      { return nil, unsupported() }
-func (s *stubBackend) SetAdminUp(_ string) error                              { return unsupported() }
-func (s *stubBackend) SetAdminDown(_ string) error                            { return unsupported() }
-func (s *stubBackend) SetMTU(_ string, _ int) error                           { return unsupported() }
-func (s *stubBackend) SetMACAddress(_, _ string) error                        { return unsupported() }
-func (s *stubBackend) GetMACAddress(_ string) (string, error)                 { return "", unsupported() }
-func (s *stubBackend) GetStats(_ string) (*iface.InterfaceStats, error)       { return nil, unsupported() }
-func (s *stubBackend) LinkSpeedDuplex(_ string) (int, string)                 { return 0, "" }
-func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)         { return nil, unsupported() }
-func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)    { return nil, unsupported() }
-func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)      { return nil, unsupported() }
-func (s *stubBackend) RouteLookup(_ netip.Addr) (map[string]any, error)       { return nil, unsupported() }
-func (s *stubBackend) AddressIsLocal(_ netip.Addr) (bool, error)              { return false, unsupported() }
+func (s *stubBackend) DeleteInterface(_ string) error                           { return unsupported() }
+func (s *stubBackend) AddAddress(_, _ string) error                             { return unsupported() }
+func (s *stubBackend) RemoveAddress(_, _ string) error                          { return unsupported() }
+func (s *stubBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error   { return unsupported() }
+func (s *stubBackend) AddAddressP2P(_, _, _ string) error                       { return unsupported() }
+func (s *stubBackend) AddRoute(_, _, _ string, _ int, _ rtproto.Proto) error    { return unsupported() }
+func (s *stubBackend) RemoveRoute(_, _, _ string, _ int, _ rtproto.Proto) error { return unsupported() }
+func (s *stubBackend) ListRoutes(_, _ string) ([]iface.RouteInfo, error)        { return nil, unsupported() }
+func (s *stubBackend) SetAdminUp(_ string) error                                { return unsupported() }
+func (s *stubBackend) SetAdminDown(_ string) error                              { return unsupported() }
+func (s *stubBackend) SetMTU(_ string, _ int) error                             { return unsupported() }
+func (s *stubBackend) SetMACAddress(_, _ string) error                          { return unsupported() }
+func (s *stubBackend) GetMACAddress(_ string) (string, error)                   { return "", unsupported() }
+func (s *stubBackend) GetStats(_ string) (*iface.InterfaceStats, error)         { return nil, unsupported() }
+func (s *stubBackend) LinkSpeedDuplex(_ string) (int, string)                   { return 0, "" }
+func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)           { return nil, unsupported() }
+func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)      { return nil, unsupported() }
+func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)        { return nil, unsupported() }
+func (s *stubBackend) RouteLookup(_ netip.Addr) (map[string]any, error)         { return nil, unsupported() }
+func (s *stubBackend) AddressIsLocal(_ netip.Addr) (bool, error)                { return false, unsupported() }
 func (s *stubBackend) ListKernelRoutes(_ string, _ int) ([]iface.KernelRoute, error) {
 	return nil, unsupported()
 }

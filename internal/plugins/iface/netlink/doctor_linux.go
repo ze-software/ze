@@ -66,6 +66,6 @@ func cleanupProbeLink(name string) {
 		return
 	}
 	if delErr := netlink.LinkDel(link); delErr != nil {
-		loggerPtr.Load().Warn("iface: cleanup macvlan probe link", "name", name, "err", delErr)
+		logger().Warn("iface: cleanup macvlan probe link", "name", name, "err", delErr)
 	}
 }

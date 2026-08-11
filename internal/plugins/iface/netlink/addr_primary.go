@@ -229,7 +229,7 @@ func ensureDeleteIsolated(dev string, target deviceAddress, existing []deviceAdd
 		return fmt.Errorf("iface: remove address %s on %s: the kernel would also delete %s; enabling %s failed: %w",
 			target.Prefix, dev, joinPrefixes(doomed), knob, err)
 	}
-	loggerPtr.Load().Info("iface: enabled promote_secondaries so address removal keeps same-subnet addresses",
+	logger().Info("iface: enabled promote_secondaries so address removal keeps same-subnet addresses",
 		"iface", dev, "removing", target.Prefix.String(), "preserving", joinPrefixes(doomed))
 	return nil
 }

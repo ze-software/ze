@@ -236,11 +236,21 @@ module ze-iface-conf {
                 type uint32 {
                     range "0..4294966271";
                 }
-                default 0;
-                description "Route metric for default routes installed via DHCP on
-                             this unit. Lower values are preferred. On link-down,
-                             the metric is increased by 1024 to deprioritize the
-                             interface. 0 = kernel default.";
+                default 254;
+                description "Route metric for default routes learned on this unit
+                             (DHCP, router advertisement). Lower values are
+                             preferred. On link-down, the metric is increased by
+                             1024 to deprioritize the interface. The default 254
+                             ranks a learned default below a static or
+                             protocol-learned one, the way rib admin-distance
+                             ranks connected 0, static 10 and ebgp 20. Write 0 to
+                             put learned defaults on the kernel metric an
+                             operator's static default also uses; the two then
+                             share one kernel route, and the last writer owns it.
+                             Writing this leaf above 0 also makes ze own the IPv6
+                             default routes of the interface: it sets
+                             accept_ra_defrtr=0 and installs the ::/0 routes
+                             itself.";
             }
 
             leaf vrf {
@@ -1306,6 +1316,21 @@ module ze-iface-conf {
                 description "Do not install a default route via the PPP
                              interface. When absent (default), a default
                              route is installed after IPCP completes.";
+            }
+
+            leaf route-priority {
+                type uint32 {
+                    range "0..4294966271";
+                }
+                default 254;
+                description "Route metric of the default route installed after
+                             IPCP completes. Lower values are preferred. The
+                             default 254 ranks this learned default below a
+                             static or protocol-learned one, and matches the
+                             route-priority default on a unit. Write 0 to put it
+                             on the kernel metric an operator's static default
+                             also uses; the two then share one kernel route, and
+                             the last writer owns it.";
             }
 
             uses interface-common;

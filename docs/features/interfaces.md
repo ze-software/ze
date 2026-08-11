@@ -56,6 +56,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Route priority per unit (`route-priority`) | have | |
 | | Link-down route deprioritization (metric + 1024) | have | |
 | | IPv6 default route from RA with configurable metric | have | |
+| | Routes carry `proto 253` (`ze-iface`), so a teardown removes only its own | have | <!-- source: internal/plugins/iface/netlink/manage_linux.go -- AddRoute stamps rtm_protocol, RemoveRoute matches on it --> |
+| | Learned default routes rank at metric 254, clear of a static route's metric | have | <!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric --> |
 | | DNS from DHCP to `/tmp/resolv.conf` | have | |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
