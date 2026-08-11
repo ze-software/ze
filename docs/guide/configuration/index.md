@@ -1539,7 +1539,10 @@ The leaf defaults to 254. A default route ze learns from the network (a DHCP lea
 a PPPoE session) is installed at that metric, so it ranks below a static route and
 below every route a routing protocol produces. The number matches the order
 `rib admin-distance` uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
-isis 115, ibgp 200. It is also what a Cisco DHCP client uses for the same route.
+isis 115, ibgp 200. It is also the administrative distance a Cisco IOS DHCP client
+gives the default route it learns, which is the same ranking decision on another
+vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
+metric ze writes to the kernel.
 The `pppoe-client` list carries its own `route-priority` leaf with the same default,
 which ranks the route a PPPoE session installs when IPCP completes.
 
@@ -1559,10 +1562,16 @@ with the configured metric when NDP neighbor events indicate a router (NTF_ROUTE
 flag). Multiple routers on the same link are each installed with the same metric. On
 clean shutdown or config removal, `accept_ra_defrtr` is restored to 1.
 
+The written leaf is the whole test, and DHCP is no part of it. A unit that takes its
+IPv6 address from SLAAC or from a static address, with no DHCP of either family, hands
+ze the same ownership: ze suppresses the kernel's RA default route AND installs its
+own at the written metric. The two go together on every unit, because one map answers
+for both.
+
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- route-priority leaf, unit and pppoe-client -->
 <!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric, parseUnits, parsePPPoEClientEntry -->
 <!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp, handleLinkDownIPv6, handleLinkUpIPv6 -->
-<!-- source: internal/component/iface/register.go -- suppressAcceptRaDefrtr, handleRouterDiscovered -->
+<!-- source: internal/component/iface/register.go -- writtenRoutePriorities, suppressRAForConfig, suppressAcceptRaDefrtr, handleRouterDiscovered -->
 
 ```
 interface {

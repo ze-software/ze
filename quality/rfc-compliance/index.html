@@ -87,11 +87,11 @@
 </style>
 
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><p>3 open gate issues</p></article>
+<article class="rfc-card rfc-ok"><span>Gate verdict</span><strong>OK</strong><p>0 open gate issues</p></article>
 <article class="rfc-card rfc-info"><span>Gated MUSTs</span><strong>2,963</strong><p>170 enrolled RFCs, 3,339 resolved test tags</p></article>
 <article class="rfc-card rfc-warn"><span>Declared gaps</span><strong>528</strong><p>Across 82 RFCs, all forced into the public ledger</p></article>
 <article class="rfc-card rfc-ok"><span>AI test guard</span><strong>ON</strong><p>2 verify stage mentions, approval token required</p></article>
-<article class="rfc-card rfc-warn"><span>Semantic verdicts</span><strong>51</strong><p>1 shifted, 0 stale, 2,911 missing and therefore not claimed</p></article>
+<article class="rfc-card rfc-ok"><span>Semantic verdicts</span><strong>52</strong><p>0 shifted, 0 stale, 2,911 missing and therefore not claimed</p></article>
 </div>
 <div class="section-note reveal"><p><strong>Current gate output:</strong></p><pre class="rfc-command"><code>rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3339 test tag(s) resolved.</code></pre></div>
 <section><h2>Requirement buckets</h2>
@@ -159,7 +159,7 @@
 <tr><td>Enrollment</td><td><code>rfc/enrolled.txt</code></td><td>170 enrolled RFCs</td></tr>
 <tr><td>Test tags</td><td><code>internal/, pkg/, test/</code></td><td>3,339 resolved tags</td></tr>
 <tr><td>Public ledger</td><td><code>docs/features/rfc-status.md</code></td><td>82 RFCs with gaps, 5 Supported with Remaining</td></tr>
-<tr><td>Semantic audits</td><td><code>rfc/audit/*.json</code></td><td>51 fresh, 1 shifted, 0 stale, 2,911 missing</td></tr>
+<tr><td>Semantic audits</td><td><code>rfc/audit/*.json</code></td><td>52 fresh, 0 shifted, 0 stale, 2,911 missing</td></tr>
 <tr><td>AI write/edit guard</td><td><code>.claude/hooks/pretool-writeedit.py</code></td><td>ON</td></tr>
 <tr><td>Verify integration</td><td><code>Makefile + scripts/status/verify_run.go</code></td><td>2 verify stages, make target present</td></tr>
 </tbody>
@@ -178,8 +178,8 @@
 <tr class="rfc-check-ok"><td>Requirement ID allocation</td><td><strong>0</strong></td></tr>
 <tr class="rfc-check-ok"><td>Requirement coverage</td><td><strong>0</strong></td></tr>
 <tr class="rfc-check-ok"><td>Public claim agreement</td><td><strong>0</strong></td></tr>
-<tr class="rfc-check-bad"><td>Semantic audit freshness</td><td><strong>1</strong></td></tr>
-<tr class="rfc-check-bad"><td>Generated ledger freshness</td><td><strong>2</strong></td></tr>
+<tr class="rfc-check-ok"><td>Semantic audit freshness</td><td><strong>0</strong></td></tr>
+<tr class="rfc-check-ok"><td>Generated ledger freshness</td><td><strong>0</strong></td></tr>
 </tbody>
 </table>
 </section>
