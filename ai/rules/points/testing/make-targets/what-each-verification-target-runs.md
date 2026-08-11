@@ -22,5 +22,6 @@ stage:
 | `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
 | `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-verify`, both modes) |
+| `make ze-relax-census` | `test-relax:` token ratchet against `test/relax-ceiling.txt`, counted at HEAD (in `ze-verify`, both modes) |
 | `make ze-test-health` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
 | `make ze-test-health-record` | Append one KPI sample to `test/health/history.ndjson` |

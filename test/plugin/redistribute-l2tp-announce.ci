@@ -38,8 +38,9 @@ def peer_field(api, field, default):
 
 
 # // test-relax: removes this conversion's own transient DEBUG-instrumented
-# wait_peer helper (now unused -- main() below is dispatch-silent while the
-# engine issue documented there stands; see spec-test-coverage-gaps W-2).
+# wait_peer helper. What remains is unused because main() below is
+# dispatch-silent pending its sleep/wait conversion, NOT because of any engine
+# defect -- see the note in main().
 def wait_peer(api, predicate, what, cycles=100):
     for _ in range(cycles):
         if predicate():
@@ -56,32 +57,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
-    # EXIST. There is no engine bug and observer polling is innocent. The real
-    # cause of "state=connecting indefinitely" was in the harness: this file's
-    # peer block declared only expect=json, which ze-peer does not consume
-    # (internal/test/peer/expect.go ConsumesLine), so ze-peer printed "no test
-    # data available to test against" and exited BEFORE binding a listening
-    # socket. Every ze dial then hit connection refused and backed off
-    # 5->10->20->40s, which looks exactly like a poll-induced stall. Polling
-    # during the connect window is provably harmless (spec-fixit-redistribute-
-    # establishment-stall, root cause + evidence E6/E9). The wire expectation
-    # added above is what makes the peer bind. The observer is left dispatch-
-    # silent only because sleep/wait conversion is deferred, NOT because polling
-    # is unsafe: do not cite the text below as evidence of an engine defect.
+    # There is NO engine defect here, and observer polling is innocent. An earlier
+    # revision of this file claimed both, and was refuted on 2026-07-16.
     #
-    # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
-    # W-2 findings): with `internal fakel2tp` + `redistribute import l2tp`
-    # configured, ANY observer dispatch-command polling during the connect
-    # phase keeps peer1 at state=connecting indefinitely (100 polls / 20s,
-    # instrumented), while the poll-free flow establishes in ~1-2s. The
-    # fakeas112 twins of this test tolerate identical polling, and the
-    # no-import fakel2tp sibling (redistribute-l2tp-not-configured) also
-    # polls fine, so the trigger is the import+fakel2tp composition. Until
-    # fixed at source, this observer stays dispatch-silent before the emit
-    # (subscribed-event windows only -- no time.sleep, no polling); the
-    # runner's wire JSON expectation remains the test's gate, exactly as in
-    # the original sleep-based version.
+    # The real cause of "state=connecting indefinitely" was in the harness: this
+    # file's peer block declared only expect=json, which ze-peer does not consume
+    # (internal/test/peer/expect.go ConsumesLine), so ze-peer printed "no test data
+    # available to test against" and exited BEFORE binding a listening socket. Every
+    # ze dial then hit connection refused and backed off 5->10->20->40s, which looks
+    # exactly like a poll-induced stall. Polling during the connect window is
+    # provably harmless (spec-fixit-redistribute-establishment-stall, root cause and
+    # evidence E6/E9). The wire expectation added above is what makes the peer bind.
+    #
+    # This observer stays dispatch-silent for one reason only: its sleep/wait
+    # conversion has not been done. Nothing here is waiting on an engine fix. The
+    # event window below is a delivery window, not a workaround, and the runner's
+    # wire JSON expectation is what decides the verdict.
     for _ in range(10):
         api.wait_for_event(timeout=0.2)
 

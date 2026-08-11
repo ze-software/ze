@@ -31,12 +31,14 @@ Exit 2 = audit could not run: detection logic not importable, or the base is
          unusable (nonexistent, unrelated, or an empty range auditing nothing).
 """
 
+import collections
 import importlib.util
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 from typing import NamedTuple
 
 RED = "\033[31m"
@@ -45,29 +47,63 @@ GREEN = "\033[32m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
-_RELAX_LINE = re.compile(r"//[ \t]*test-relax:[ \t]*(\S.*)?$", re.MULTILINE)
+_RELAX_LINE = re.compile(r"//[ \t]*test-relax:[ \t]*(\S.*)?$")
 # The `.ci` and `.et` carriers this audit examines comment with `#`, so a relaxation
 # written in their own syntax was invisible here and its reason went unreported. One
-# alternation rather than a union of two patterns, for two reasons: `# // test-relax:`
-# matches at the `//` only (the `#` branch requires the token immediately after it), so
-# a line is never counted twice; and the matches come back in FILE order, which the
-# positional slice in `run_audit` depends on to name the reason that was ADDED.
+# alternation rather than a union of two patterns: `# // test-relax:` matches at the
+# `//` only (the `#` branch requires the token immediately after it), so a line is
+# never counted twice.
 #
 # Only the two extensions `is_test_path` can yield. A `.py` arm would be unreachable
 # here, whatever the hook's own carrier list says.
-_RELAX_LINE_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*(\S.*)?$", re.MULTILINE)
+_RELAX_LINE_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*(\S.*)?$")
 # Named apart from the hook's `_HASH_COMMENT_CARRIERS` on purpose: this audit imports
 # the hook's DETECTORS but not its carrier list, and the two lists differ (the hook adds
 # `.py`, reachable there through `_carries_rfc_tag`). One name with two contents, in
 # files that already share code, is a trap for whoever greps it next.
 _AUDITED_HASH_CARRIERS = (".ci", ".et")
 
+_CONT_HASH = re.compile(r"^[ \t]*#[ \t]?(.*)$")
+_CONT_SLASH = re.compile(r"^[ \t]*//[ \t]?(.*)$")
+# A justification longer than this is quoted in full nowhere a reviewer will read it.
+# The cap truncates the QUOTE; it never changes which findings are reported.
+_REASON_MAX_LINES = 12
+
 
 def relax_reasons(text, path):
-    """Every relaxation justification in `text`, in file order, for `path`'s syntax."""
-    if path.endswith(_AUDITED_HASH_CARRIERS):
-        return _RELAX_LINE_ANY.findall(text)
-    return _RELAX_LINE.findall(text)
+    """Every relaxation justification in `text`, in file order, for `path`'s syntax.
+
+    A justification is its token line PLUS the comment lines under it. Capturing
+    only the first line was not a cosmetic limit: measured over the 751 tokens at
+    HEAD on 2026-08-10, 62% ran past one line, the median was 3 and the longest 21.
+    So `report()` showed a reviewer a fragment -- often one with no verb in it --
+    and asked them to confirm the relaxation was justified.
+
+    The walk stops at the first line that is not a comment, at the next token, and
+    at `_REASON_MAX_LINES`. It can absorb an unrelated comment paragraph that
+    happens to sit directly under a token. That trade is deliberate: this text is
+    read by a human deciding whether a relaxation is honest, and too much context
+    costs them a second, where too little cost them the decision.
+    """
+    hashed = path.endswith(_AUDITED_HASH_CARRIERS)
+    token = _RELAX_LINE_ANY if hashed else _RELAX_LINE
+    cont = _CONT_HASH if hashed else _CONT_SLASH
+    lines = text.split("\n")
+    out = []
+    for i, line in enumerate(lines):
+        m = token.search(line)
+        if not m:
+            continue
+        parts = [(m.group(1) or "").strip()]
+        for nxt in lines[i + 1 : i + _REASON_MAX_LINES]:
+            if token.search(nxt):
+                break
+            c = cont.match(nxt)
+            if not c or not c.group(1).strip():
+                break
+            parts.append(c.group(1).strip())
+        out.append(" ".join(p for p in parts if p))
+    return out
 
 
 def git(args, cwd):
@@ -282,18 +318,49 @@ def run_audit(base, cwd, detector, rfc_detector=None):
                 + ", ".join(rfc_tags),
                 "  the user must approve this; see rfc-test-change-approved:",
             ]
-        old_tokens = len(relax_reasons(old, new_p))
-        new_tokens = relax_reasons(new, new_p)
-        added_tokens = [t for t in new_tokens[old_tokens:]]
+        # A multiset difference, not a positional slice. The slice assumed an added
+        # token lands LAST in file order, so a token inserted at the top of a file
+        # that already had two made the audit quote the wrong reason back -- it
+        # named an old relaxation and stayed silent about the new one. It also went
+        # entirely blind when an edit deleted one token and added another, because
+        # the count was unchanged and the slice was therefore empty. Both are pinned
+        # by audit_relaxation_test.py: test_a_token_inserted_at_the_top_is_the_one
+        # _reported and test_deleting_one_token_and_adding_another_is_not_silent.
+        old_list = relax_reasons(old, new_p)
+        new_list = relax_reasons(new, new_p)
+        added_tokens = list(
+            (collections.Counter(new_list) - collections.Counter(old_list)).elements()
+        )
+        # What DISAPPEARED matters as much as what arrived, and a count comparison
+        # cannot tell one story from the other. Judging on the count alone called a
+        # token drain ("deleted 3 stale, wrote 1 real") a REWORD, which is false, and
+        # scored it at the BLOCKER tier -- penalising exactly the cleanup the ceiling
+        # gate exists to encourage. So state facts instead of inferring intent: the
+        # severity turns on whether this change ALSO disturbed justifications that
+        # were already there, and both lists are printed either way.
+        removed_tokens = list(
+            (collections.Counter(old_list) - collections.Counter(new_list)).elements()
+        )
         label = "RENAMED " if status.startswith("R") else ""
-        if added_tokens:
-            extra = [f"reason: {t.strip() or '(empty!)'}" for t in added_tokens]
+        quoted = [f"reason: {t.strip() or '(empty!)'}" for t in added_tokens]
+        if removed_tokens:
+            quoted += [
+                f"a justification that was already here is GONE: "
+                f"{t.strip() or '(empty!)'}"
+                for t in removed_tokens
+            ]
+        if added_tokens and not (details and removed_tokens):
             findings.append(
-                ("RELAXED", new_p, [label.strip()] * bool(label) + details + extra)
+                ("RELAXED", new_p, [label.strip()] * bool(label) + details + quoted)
             )
-        elif details:
+        elif details or added_tokens:
+            # Weakened AND an existing justification disturbed. Two different changes
+            # wear that shape -- a reword laundering a relaxation, and an honest drain
+            # that retires a stale token while writing a real one -- and nothing here
+            # can tell them apart. So it reports both lists and escalates, leaving the
+            # judgement to the reader who can see which it is.
             findings.append(
-                ("WEAKENED", new_p, [label.strip()] * bool(label) + details)
+                ("WEAKENED", new_p, [label.strip()] * bool(label) + details + quoted)
             )
     return Audit(anchor, findings, examined, "")
 
@@ -317,8 +384,15 @@ def report(audit, base):
     for kind, path, details in findings:
         print(f"  {color.get(kind, '')}[{kind}]{RESET} {path}")
         for d in details:
-            if d:
-                print(f"      - {d}")
+            if not d:
+                continue
+            # A reason is now the whole justification, not its first line, so it can
+            # run to a paragraph. Wrapped, because an unwrapped paragraph in a
+            # terminal is a reason nobody reads, which is how this corpus grew.
+            wrapped = textwrap.wrap(d, width=92) or [d]
+            print(f"      - {wrapped[0]}")
+            for more in wrapped[1:]:
+                print(f"        {more}")
     deleted = sum(1 for k, _, _ in findings if k == "DELETED")
     weakened = sum(1 for k, _, _ in findings if k == "WEAKENED")
     relaxed = sum(1 for k, _, _ in findings if k == "RELAXED")

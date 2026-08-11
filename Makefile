@@ -4,7 +4,7 @@
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-validate-tree ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-clean-sessions ze-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions ze-platform-vet ze-ci-dispatch-check
-.PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record
+.PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record ze-relax-census
 .PHONY: ze-tracked-build-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -475,7 +475,9 @@ ze-rfc-check:
 	@python3 scripts/dev/rfc_requirements.py --selftest
 	@python3 scripts/dev/rfc_requirements.py --check
 
-# Regenerate ai/RFC-REQUIREMENTS.md (requirement -> enforcing tests).
+# Regenerate the RFC requirement ledger (requirement -> enforcing tests): the index
+# ai/RFC-REQUIREMENTS.md, and one file per RFC stem under rfc/requirements/ holding that
+# RFC's rows. It also deletes a shard whose stem no longer renders.
 ze-rfc-index:
 	@python3 scripts/dev/rfc_requirements.py --write
 
@@ -588,6 +590,19 @@ ze-yang-leaf-mentions:
 ze-test-sensitivity-check:
 	@$(GO) run scripts/checks/inert_tests.go --selftest
 	@$(GO) run scripts/checks/inert_tests.go --check
+
+# test-relax census (TEST-RELAX-AUDIT.md): a `test-relax:` token buys one edit a
+# pass from c_test_weakening, and the agent that weakened the test writes its own
+# justification. That was only ever safe because a human was expected to read
+# them. Nothing counted them until 2026-08-10, by which time 751 had accumulated
+# across 466 files at HEAD and reading them was no longer possible. The ceiling is in
+# test/relax-ceiling.txt and may only be raised by an explicit, reviewed line in
+# the same commit as the token that needs it (the sensitivity-baseline
+# convention). --selftest first proves the counter and the ceiling reader fire on
+# a fixture tree whose answer is known.
+ze-relax-census:
+	@python3 scripts/dev/relax-census.py --selftest
+	@python3 scripts/dev/relax-census.py
 
 # Tracked-build gate (docs/architecture/testing/tracked-build-gate.md): compile
 # the tree GIT HOLDS, which is the one population no other check compiles. Every
@@ -1047,6 +1062,7 @@ help-test:
 	@echo "    ze-test-health-check      Fail if a structural fact drifted (in ze-verify)"
 	@echo "    ze-test-health-record     Append one KPI sample to the committed history"
 	@echo "    ze-test-sensitivity-check Ratchet: tests that cannot fail, files no target runs"
+	@echo "    ze-relax-census           Ratchet: test-relax: tokens, against test/relax-ceiling.txt"
 	@echo ""
 	@echo "  Composite targets:"
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"

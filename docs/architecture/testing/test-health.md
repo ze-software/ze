@@ -89,6 +89,59 @@ is the explicit `--bootstrap-baseline`.
 The ratchet scans the WORKING TREE, so an inert test is caught by the
 `ze-verify` run that precedes its commit, not blamed on the next one.
 
+## The `test-relax:` ceiling
+
+A third ratchet, on a different failure: a test that stopped proving something
+with a written excuse attached.
+
+`c_test_weakening` (`.claude/hooks/pretool-writeedit.py`) refuses an edit that
+deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
+assertion that cannot fail. Its escape hatch is a `// test-relax: <why>` comment,
+and the hatch is SELF-SERVICE by design: the agent that weakened the test writes
+its own justification. The only thing that ever made that safe was a human
+reading them.
+
+Nothing counted them until 2026-08-10. By then HEAD carried 751 across 466 test
+files, about 2,800 lines of prose, and reading them was no longer possible. The full
+triage is in `TEST-RELAX-AUDIT.md`.
+
+| | |
+|---|---|
+| Enforced by | `make ze-relax-census`, in `ze-verify` both modes |
+| Reads | `test/relax-ceiling.txt` + the HEAD content of tracked test files |
+| Source | `scripts/dev/relax-census.py` |
+| Inspect | `--list`, `--by-area`, `--worktree` |
+<!-- source: scripts/status/verify_run.go -- stagesForMode -->
+
+A ceiling rather than a monotonic ratchet, because a relaxation is sometimes
+correct: a feature is removed and its test goes with it. Refusing every increase
+would make the honest case impossible, and a gate that blocks the honest case
+gets switched off. The ceiling lets it through at the price of one reviewed line,
+raised in the SAME commit as the token that needs it, and the census refuses a
+raise that carries no `raised-for:` line. `--lower` moves it down and never up.
+
+**It counts HEAD, not the working tree**, which is where this gate differs from
+the sensitivity ratchet above. Several sessions share this checkout, so a
+working-tree count moves under whoever reads it: it went 751 to 752 to 755 within
+an hour on 2026-08-10, on edits by three sessions that had never touched this
+gate. A gate that reds on another session's half-finished work is a gate that
+gets switched off (`ai/rules/repo-maintenance.md`, "the two changed-file
+checks"). The cost is that a token you are ABOUT to add is not caught here; it is
+caught by `scripts/dev/audit-test-relaxation.py` over your diff, which is where a
+changed-file check belongs. A passing run still PRINTS the working-tree count
+when it differs, so nothing is hidden.
+
+Two properties of the corpus explain why the count matters more than any single
+token.
+
+Volume destroys the mechanism. At 751 nobody can read them, so nobody does, so
+writing one costs nothing, so more get written.
+
+A token never expires. Three `redistribute-l2tp-*.ci` tests carried a
+`KNOWN ENGINE ISSUE` justification whose claim was refuted in-place on
+2026-07-16, and whose tracking spec had been closed and deleted. Both statements
+sat in the file and contradicted each other for four months.
+
 ## The report
 
 `scripts/dev/testing_health.py` aggregates ten metrics, each assigned to one of

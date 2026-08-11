@@ -191,6 +191,15 @@ MUST verify that every assertion the diff replaces still has coverage elsewhere.
 When reviewing a test edit that changes WHAT is asserted (not just adding new
 assertions), ask: "is the old behavior still tested?"
 
+**A `// test-relax:` token MUST be written for the ONE relaxation in hand, and
+the stock MUST stay under the ceiling in `test/relax-ceiling.txt`
+(`make ze-relax-census`).** The token is self-service: the agent that weakened
+the test writes its own justification, so the only thing that ever made it safe
+was a human reading it. 751 accumulated unread by 2026-08-10
+(`TEST-RELAX-AUDIT.md`), and a token never expires -- three `.ci` tests carried
+one whose claim had been refuted in-place four months earlier. Raising the
+ceiling MUST happen in the same commit as the token that needs it.
+
 ### Escape hatch (auditable)
 
 When relaxation IS legitimate, document the reason on or above the changed line:
@@ -472,6 +481,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
 | `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-verify`, both modes) |
+| `make ze-relax-census` | `test-relax:` token ratchet against `test/relax-ceiling.txt`, counted at HEAD (in `ze-verify`, both modes) |
 | `make ze-test-health` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
 | `make ze-test-health-record` | Append one KPI sample to `test/health/history.ndjson` |
 

@@ -1,0 +1,43 @@
+# Ceiling on `test-relax:` tokens in the test suite.
+#
+# Read by scripts/dev/relax-census.py on every `make ze-relax-census`, which runs
+# inside `make ze-verify`. One bare integer; every other line here is prose.
+#
+# WHAT THE NUMBER IS. A `test-relax:` token buys one edit a pass from
+# `c_test_weakening` (.claude/hooks/pretool-writeedit.py). The token is
+# self-service: the agent that weakened the test writes its own justification.
+# The only thing that ever made that safe was the expectation that a human would
+# read the justifications. Nothing counted them until 2026-08-10, and by then
+# HEAD carried 751 across 466 test files (755 across 468 in the working tree),
+# about 2,800 lines of prose. Nobody can read 751, so nobody did, so writing one
+# cost nothing.
+#
+# WHAT IT COUNTS. The content git HOLDS, not the working tree. Several sessions
+# share this checkout, and a working-tree count moves under whoever reads it: it
+# went 751 -> 752 -> 755 within an hour on 2026-08-10, on edits by three sessions
+# that had never touched this gate. A gate that reds on another session's
+# half-finished work gets switched off. A token you are about to ADD is caught by
+# scripts/dev/audit-test-relaxation.py over your diff, which is where a
+# changed-file check belongs (ai/rules/repo-maintenance.md).
+#
+# WHY A CEILING AND NOT A RATCHET AGAINST HEAD. A relaxation is sometimes
+# correct: a feature is removed and its test goes with it. Refusing every
+# increase would make the honest case impossible and the gate would be turned
+# off. A ceiling lets the honest case through at the price of one reviewed line.
+#
+# HOW TO RAISE IT. Edit the number AND add a `raised-for:` line saying which test
+# lost what, in the SAME commit as the token that needs it. The census refuses a
+# raise that carries no `raised-for:` line, so the cost cannot be absorbed
+# silently. That refusal is the whole mechanism.
+#
+# HOW TO LOWER IT. `scripts/dev/relax-census.py --lower` rewrites the number down
+# to the current HEAD count. It never raises. Run it after a commit removes
+# tokens.
+#
+# WHERE THE NUMBER SHOULD GO. Down. TEST-RELAX-AUDIT.md triages the 2026-08-10
+# corpus: about 430 of those tokens are receipts for a gate defect that no longer
+# exists (the `.ci` arm counted lines until 2026-08-10 and fired on every
+# mechanical improvement), and deleting them changes no coverage. About 120 record
+# real removed coverage and should become ordinary comments that name what went.
+
+751

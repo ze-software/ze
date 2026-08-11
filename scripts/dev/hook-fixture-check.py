@@ -2255,10 +2255,10 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
 
     # The escape hatch has to exist in the syntax the carrier actually uses. This guard
     # has judged `/test/` `.ci` files since it was written, a `.ci` comments with `#`,
-    # and the token pattern read `//` only: 315 `.ci` files carry `# // test-relax:`, an
-    # alien Go comment nested in a hash comment to match it, and 4 wrote the natural form
-    # and got a justification that bought nothing. Each case below shrinks a `.ci`'s
-    # non-comment line count, which is what `_test_weakening_errs` blocks.
+    # and the token pattern read `//` only: 313 `.ci` files carry `# // test-relax:`, an
+    # alien Go comment nested in a hash comment to match it, and 8 wrote the natural form
+    # and got a justification that bought nothing. Each case below drops an `expect=`,
+    # which is what `_test_weakening_errs` blocks on a `.ci`.
     os.makedirs(os.path.join(tmp, "test", "ui"), exist_ok=True)
     relax_ci = os.path.join(tmp, "test", "ui", "relax-form.ci")
     ci_old = "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
@@ -2279,6 +2279,306 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     # `# // test-relax:` would start being refused by the fix meant to help them.
     r = edit(ci_old, "# // test-relax: " + reason + ci_new, relax_ci)
     results.check("relax-ci-legacy-slash-token-still-accepted", r is None, repr(r))
+
+    # ---- what the guard is allowed to be WRONG about (2026-08-10) ----------------
+    #
+    # The `.ci` arm counted non-comment LINES until this date. That made it fire on
+    # every mechanical improvement and stay silent on the damage it exists to catch,
+    # and 368 of the 755 `test-relax:` tokens in the tree were written to get past
+    # the false positive. A guard nobody believes is a guard nobody reads.
+
+    # A blind sleep collapsed into a real barrier removes lines and adds coverage.
+    # Under the line counter this was refused; refusing it is what taught agents to
+    # write a token reflexively.
+    r = edit(
+        "import time\ntime.sleep(2.0)\nresp = dispatch(api, 'show bgp summary')\n",
+        "api.wait_until(lambda: 'established' in dispatch(api, 'show bgp summary'))\n",
+        relax_ci,
+    )
+    results.check("relax-ci-sleep-to-barrier-allowed", r is None, repr(r))
+
+    # ...and dropping the barrier itself is still a weakening, so the new counter is
+    # not simply more permissive.
+    r = edit(
+        "api.wait_until(lambda: ok())\nexpect=out:text=one\n",
+        "expect=out:text=one\n",
+        relax_ci,
+    )
+    results.check(
+        "relax-ci-barrier-removal-blocked", r is not None and r[0] == 2, repr(r)
+    )
+
+    # The case the line counter could never see: same shape, same counts, no verdict
+    # left. This is the in-place gutting `_TAUTOLOGY` was added for.
+    r = edit(
+        "assert 'established' in resp\nassert route in best\n",
+        "assert True\nassert True\n",
+        relax_ci,
+    )
+    results.check(
+        "relax-ci-tautology-swap-blocked", r is not None and r[0] == 2, repr(r)
+    )
+
+    taut_go = os.path.join(tmp, "internal", "x", "taut_test.go")
+    os.makedirs(os.path.dirname(taut_go), exist_ok=True)
+    r = edit("\trequire.Equal(t, 179, port)\n", "\trequire.True(t, true)\n", taut_go)
+    results.check(
+        "relax-go-tautology-swap-blocked", r is not None and r[0] == 2, repr(r)
+    )
+
+    # ---- the token is per-relaxation, never per-file (2026-08-10) ----------------
+    #
+    # `_has_relax_token` read the whole of `new`. On a Write that is the whole
+    # replacement file, so one token written months earlier exempted every later
+    # overwrite: 468 test files, about a tenth of the suite, were unguarded that way.
+    sticky = os.path.join(tmp, "internal", "x", "sticky_test.go")
+    sticky_old = (
+        "// test-relax: an OLD relaxation, justified at the time\n"
+        "func TestA(t *testing.T) {\n"
+        "\trequire.Equal(t, 1, f())\n"
+        "\trequire.NoError(t, err)\n"
+        "}\n"
+    )
+    with open(sticky, "w", encoding="utf-8") as fh:
+        fh.write(sticky_old)
+    gutted = (
+        "// test-relax: an OLD relaxation, justified at the time\n"
+        "func TestA(t *testing.T) {\n"
+        '\tt.Skip("x")\n'
+        "}\n"
+    )
+    r = cw({"tool": "Write", "ti": {"content": gutted}, "fp": sticky})
+    results.check(
+        "relax-token-does-not-persist-across-a-write",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    # The hatch still opens for a relaxation justified in THIS edit.
+    r = cw(
+        {
+            "tool": "Write",
+            "ti": {
+                "content": gutted.replace(
+                    "func TestA",
+                    "// test-relax: f() was deleted with its only caller\nfunc TestA",
+                )
+            },
+            "fp": sticky,
+        }
+    )
+    results.check("relax-token-written-in-this-edit-accepted", r is None, repr(r))
+
+    # An Edit whose hunk merely CONTAINS an old token line is the same hole, narrower.
+    r = edit(
+        "// test-relax: an OLD relaxation, justified at the time\n\trequire.Equal(t, 1, f())\n",
+        '// test-relax: an OLD relaxation, justified at the time\n\tt.Skip("x")\n',
+        sticky,
+    )
+    results.check(
+        "relax-token-carried-through-a-hunk-does-not-exempt",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    # The DRAIN must stay open, or the gate makes hoarding dead justifications the
+    # only route through and grows the corpus it exists to shrink. Deleting a stale
+    # token while writing a real one for the change in hand is the shape the ceiling
+    # ratchet wants; `run_audit` already calls it a drain, and the two halves must
+    # not disagree. What the drain REMOVED is reported by the audit, which is where
+    # a reviewer can judge the trade.
+    r = edit(
+        sticky_old,
+        "// test-relax: f() was deleted with its only caller\n"
+        'func TestA(t *testing.T) {\n\tt.Skip("x")\n}\n',
+        sticky,
+    )
+    results.check("relax-token-drain-then-justify-allowed", r is None, repr(r))
+
+    # One wording must be able to serve two relaxations in one file. Subtracting the
+    # whole on-disk file closed the copy-an-existing-token hole and cost more than it
+    # saved: 10 files at HEAD repeat a justification, up to five times, so refusing
+    # the second one is the false positive that produced this corpus in the first
+    # place. The copy route stays open and stays VISIBLE, in the diff audit and in
+    # the census.
+    r = edit(
+        "func TestB(t *testing.T) { require.Equal(t, 1, f()) }\n",
+        "// test-relax: an OLD relaxation, justified at the time\n"
+        'func TestB(t *testing.T) { t.Skip("x") }\n',
+        sticky,
+    )
+    results.check("relax-token-same-wording-twice-in-a-file-allowed", r is None, repr(r))
+
+    # ...and whitespace is not a justification. Keying the hatch on raw LINES made a
+    # months-old token re-indented by two columns read as newly written, so the whole
+    # weakening check went away for that edit while no new prose existed anywhere.
+    # `_relax_reasons` normalizes, so the key is the SENTENCE.
+    # A COSMETIC edit to an existing justification is not a new one. Text equality
+    # alone let a zero-width space -- invisible in every diff -- turn a months-old
+    # justification into a fresh one and buy a whole-file gutting, so the key is the
+    # sentence's letters and digits (`_reason_key`).
+    #
+    # Writing something genuinely DIFFERENT is a new justification and is allowed:
+    # see relax-token-drain-then-justify-allowed below. An earlier version of this
+    # gate refused that too, by demanding one MORE token than before, which left
+    # keeping dead justifications as the only way through -- the corpus growth the
+    # whole gate exists to stop.
+    for label, tok in (
+        ("reindented", "  // test-relax: an OLD relaxation, justified at the time"),
+        ("trailing-space", "// test-relax: an OLD relaxation, justified at the time  "),
+        ("zero-width-space", "// test-relax: an OLD relaxation, justified at the time​"),
+        ("repunctuated", "// test-relax: An OLD relaxation; justified, at the time!"),
+    ):
+        r = edit(
+            sticky_old, tok + '\nfunc TestA(t *testing.T) {\n\tt.Skip("x")\n}\n', sticky
+        )
+        results.check(
+            f"relax-token-{label}-is-not-a-new-justification",
+            r is not None and r[0] == 2,
+            repr(r),
+        )
+
+    # ---- the .et carrier (2026-08-10) -------------------------------------------
+    #
+    # `is_test` named `_test.go` and `.ci` only, so `c_test_weakening` returned None
+    # for all 164 editor tests and the guard was inert over that whole suite. None
+    # carries an `RFC requirement:` tag, so `_carries_rfc_tag` was not admitting them
+    # by the side door either.
+    os.makedirs(os.path.join(tmp, "test", "editor", "commands"), exist_ok=True)
+    et = os.path.join(tmp, "test", "editor", "commands", "hist.et")
+    r = edit(
+        "expect=input:value=show\nexpect=input:value=set\n",
+        "expect=input:value=set\n",
+        et,
+    )
+    results.check(
+        "relax-et-expectation-removal-blocked", r is not None and r[0] == 2, repr(r)
+    )
+
+    # ---- what the .ci counter must not be fooled by (2026-08-10) ----------------
+    #
+    # A bare `\bassert\b` matched prose and string literals, so two words of comment
+    # paid for a deleted expectation. Measured at HEAD on 2026-08-10, it matched 49
+    # comment lines across 47 tracked `.ci` files, every one able to pay for a
+    # deletion.
+    for label, replacement in (
+        ("comment", "expect=out:text=two\n# we no longer assert the first line\n"),
+        ("string-literal", "expect=out:text=two\nmsg = 'assert this'\n"),
+    ):
+        r = edit("expect=out:text=one\nexpect=out:text=two\n", replacement, relax_ci)
+        results.check(
+            f"relax-ci-{label}-does-not-offset-a-deleted-expectation",
+            r is not None and r[0] == 2,
+            repr(r),
+        )
+
+    # `cmd=` was counted by the line counter this replaced. A deleted `cmd=` stops a
+    # command running, which is coverage removed even when the expectations still match.
+    r = edit(
+        "cmd=ze show bgp\ncmd=ze show route\nexpect=out:text=one\n",
+        "cmd=ze show bgp\nexpect=out:text=one\n",
+        relax_ci,
+    )
+    results.check("relax-ci-cmd-removal-blocked", r is not None and r[0] == 2, repr(r))
+
+    # Inverting a negative expectation keeps the combined count identical: the run now
+    # DEMANDS the error it used to refuse. Only a separate reject= tally sees it.
+    r = edit("reject=out:text=error\n", "expect=out:text=error\n", relax_ci)
+    results.check(
+        "relax-ci-reject-to-expect-blocked", r is not None and r[0] == 2, repr(r)
+    )
+
+    # An emptied needle stops being checked at all (`validateFileContent` guards on
+    # `check.Contains != ""`), and the line is still there for any counter to find.
+    r = edit("expect=out:text=Established\n", "expect=out:text=\n", relax_ci)
+    results.check(
+        "relax-ci-emptied-needle-blocked", r is not None and r[0] == 2, repr(r)
+    )
+
+    # ...but a needle may legitimately BEGIN with `#`, and 9 tracked lines are that
+    # form. Judging it on comment-stripped text
+    # misfired in BOTH directions: adding such a line was refused as an emptied
+    # needle, and genuinely emptying one was allowed, because both sides looked
+    # equally empty once the `#` and everything after it was cut.
+    # The gate must not refuse its own cleanup. `_ASSERT_PAT` matches `require.` in
+    # PROSE, so a `test-relax:` reason that mentions an assertion counted as one, and
+    # deleting that reason read as deleting the assertion. The corpus this gate
+    # produced is full of such prose, so the sweep that drains it would have needed a
+    # fresh token for every token it removed.
+    r = edit(
+        "// test-relax: dropped the require.Equal on port\n"
+        "func TestA(t *testing.T) { require.NoError(t, err) }\n",
+        "func TestA(t *testing.T) { require.NoError(t, err) }\n",
+        taut_go,
+    )
+    results.check(
+        "relax-removing-a-token-whose-prose-names-an-assertion", r is None, repr(r)
+    )
+
+    # ...while prose must not PAY for one either, in the other direction.
+    # Assert the MESSAGE, not just the exit code: this shape also trips
+    # `commenting out assertions`, so a code-only assertion passes even when the
+    # count arm it names is reverted.
+    r = edit(
+        "\trequire.Equal(t, 1, f())\n\trequire.NoError(t, err)\n",
+        "\t// we no longer require.Equal here\n\trequire.NoError(t, err)\n",
+        taut_go,
+    )
+    results.check(
+        "relax-prose-does-not-offset-a-deleted-go-assertion",
+        r is not None and r[0] == 2 and "removing assertions (2 -> 1)" in r[1],
+        repr(r),
+    )
+
+    # The comment strip is QUOTE-AWARE, and both halves of that matter. Neither is
+    # covered by the two fixtures above, which use whole-line comments.
+    #
+    # `//` inside a Go string literal is not a comment. Stripping to end-of-line ate
+    # the `t.Fatal` from the OLD side alone, so deleting the whole entry looked like
+    # no change at all.
+    r = edit(
+        '\twant: "//go:build linux\\n" + "t.Fatal(x)",\n\trequire.NoError(t, err)\n',
+        "\trequire.NoError(t, err)\n",
+        taut_go,
+    )
+    results.check(
+        "relax-go-comment-inside-a-string-literal-is-not-stripped",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    # ...and a TRAILING comment must not PAY for deleted coverage. Stripping only
+    # whole-line comments left this open on every arm that is not statement-anchored.
+    r = edit(
+        "expect=out:text=one\nexpect=out:text=two\n",
+        "expect=out:text=two  # dropped; we now wait_until(x)\n",
+        relax_ci,
+    )
+    results.check(
+        "relax-ci-trailing-comment-does-not-pay-for-a-deleted-expectation",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+    r = edit(
+        '\tt.Run("a", f)\n\tt.Run("b", g)\n',
+        '\tt.Run("a", f) // dropped the t.Run( for b\n',
+        taut_go,
+    )
+    results.check(
+        "relax-go-trailing-comment-does-not-pay-for-a-deleted-subtest",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    hashed_needle = "expect=stdout:contains=# tcp.bind\n"
+    r = edit("cmd=ze x\n", "cmd=ze x\n" + hashed_needle, relax_ci)
+    results.check("relax-ci-hash-leading-needle-allowed", r is None, repr(r))
+    r = edit(hashed_needle, "expect=stdout:contains=\n", relax_ci)
+    results.check(
+        "relax-ci-emptying-a-hash-leading-needle-blocked",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
 
     # An interop scenario's check.py. `is_test` covers `_test.go` and a `/test/` `.ci` and
     # NOTHING else, so when plan/spec-rfcgate-2-evidence.md started admitting interop

@@ -55,22 +55,16 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
-    # EXIST; see the same note in redistribute-l2tp-announce.ci. The stall was a
-    # harness defect: an expect=json-only peer block leaves ze-peer with nothing
-    # to check, so it exits before binding and ze dials a dead port. Polling
-    # during connect is provably harmless (spec-fixit-redistribute-establishment-
-    # stall, E6/E9). Do not cite the text below as evidence of an engine defect.
+    # There is NO engine defect here, and observer polling is innocent. An earlier
+    # revision of this file claimed both, and was refuted on 2026-07-16; the full
+    # account is in redistribute-l2tp-announce.ci. In short: an expect=json-only
+    # peer block leaves ze-peer with nothing to check, so it exits before binding
+    # and ze dials a dead port. Polling during connect is provably harmless
+    # (spec-fixit-redistribute-establishment-stall, E6/E9).
     #
-    # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
-    # W-2 findings): with `internal fakel2tp` + `redistribute import l2tp`
-    # configured, observer dispatch-command polling during connect keeps the
-    # session at state=connecting indefinitely, while the poll-free flow
-    # establishes in ~1-2s (fakeas112 twins tolerate identical polling).
-    # Until fixed at source this observer stays dispatch-silent around the
-    # emits: subscribed-event windows only (no time.sleep, no polling); the
-    # runner's wire expectations (add then withdraw) remain the gate, exactly
-    # as in the original sleep-based version.
+    # This observer stays dispatch-silent for one reason only: its sleep/wait
+    # conversion has not been done. Nothing here is waiting on an engine fix. The
+    # runner's wire expectations (add then withdraw) decide the verdict.
     for _ in range(10):
         api.wait_for_event(timeout=0.2)
 

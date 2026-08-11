@@ -234,8 +234,8 @@ class TestRelaxTokenInTheCarrierSyntax(unittest.TestCase):
             self.assertIn("the `two` command was removed", out)
 
     def test_the_reason_reported_is_the_one_that_was_added(self):
-        # VALIDATES: reasons come back in FILE order, so run_audit's positional slice
-        # names the new token.
+        # VALIDATES: run_audit's multiset difference names the token that was added,
+        # whatever its position in the file.
         # PREVENTS: the regression a two-pattern union caused here -- Go matches were
         # concatenated ahead of hash matches, so a file already carrying a hash reason
         # that gained a Go one reported the OLD text as the addition.
@@ -249,6 +249,88 @@ class TestRelaxTokenInTheCarrierSyntax(unittest.TestCase):
             self.assertEqual(code, 1, out)
             self.assertIn("NEW reason", out)
             self.assertNotIn("reason: OLD reason", out)
+
+    def test_a_token_inserted_at_the_top_is_the_one_reported(self):
+        # VALIDATES: run_audit reports the ADDED reason when it does not land last in
+        # file order.
+        # PREVENTS: the positional slice this replaced (`new_tokens[len(old):]`), which
+        # assumed an addition sorts last. A token inserted at the TOP of a file that
+        # already held two made the audit quote an OLD relaxation back at the reviewer
+        # and say nothing about the new one -- the reviewer then confirms a
+        # justification that belongs to a different change.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._ci_fixture(
+                tmp, "# test-relax: OLD-A\n# test-relax: OLD-B\n" + self.CI
+            )
+            Path(tmp, "test", "ui", "relax.ci").write_text(
+                "# test-relax: NEW-INSERTED-AT-TOP\n"
+                "# test-relax: OLD-A\n# test-relax: OLD-B\n"
+                "cmd=ze show\nexpect=out:text=one\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("NEW-INSERTED-AT-TOP", out)
+            self.assertNotIn("reason: OLD-A", out)
+            self.assertNotIn("reason: OLD-B", out)
+
+    def test_deleting_one_token_and_adding_another_is_not_silent(self):
+        # VALIDATES: an edit whose token COUNT is unchanged still surfaces.
+        # PREVENTS: the positional slice going entirely blind. `new[len(old):]` is empty
+        # when one token is deleted and one added, so a fresh relaxation arrived with no
+        # finding at all.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._ci_fixture(
+                tmp, "# test-relax: OLD-A\n# test-relax: OLD-B\n" + self.CI
+            )
+            Path(tmp, "test", "ui", "relax.ci").write_text(
+                "# test-relax: OLD-A\n# test-relax: BRAND-NEW-REPLACING-OLD-B\n"
+                "cmd=ze show\nexpect=out:text=one\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("BRAND-NEW-REPLACING-OLD-B", out)
+
+    def test_rewording_an_existing_token_does_not_buy_the_relaxed_downgrade(self):
+        # VALIDATES: a weakening that also disturbs an existing justification is
+        # WEAKENED, and BOTH the new wording and the vanished one are printed.
+        # PREVENTS: buying a severity downgrade with prose. /ze-review treats WEAKENED as
+        # a BLOCKER and RELAXED as "quote the reason and confirm", so if a reword counted
+        # as a plain addition, editing an old justification would launder a real
+        # weakening -- and the reason quoted back would be the old relaxation's.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._ci_fixture(tmp, "# test-relax: OLD wording\n" + self.CI)
+            Path(tmp, "test", "ui", "relax.ci").write_text(
+                "# test-relax: OLD wording, but said differently\n"
+                "cmd=ze show\nexpect=out:text=one\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("WEAKENED", out)
+            self.assertIn("already here is GONE", out)
+            self.assertIn("said differently", out)
+            self.assertNotIn("RELAXED", out)
+
+    def test_draining_stale_tokens_is_not_reported_as_a_reword(self):
+        # VALIDATES: deleting several stale justifications while writing one real one is
+        # a RELAXED finding naming the new reason, not a BLOCKER-tier reword.
+        # PREVENTS: penalising the token drain the ceiling gate exists to encourage. A
+        # count-only test called this a REWORD, which is a false statement about the
+        # change, at the severity /ze-review escalates on.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._ci_fixture(
+                tmp,
+                "# test-relax: STALE-1\n# test-relax: STALE-2\n# test-relax: STALE-3\n"
+                + self.CI,
+            )
+            Path(tmp, "test", "ui", "relax.ci").write_text(
+                "# test-relax: BRAND-NEW-JUSTIFICATION\n"
+                "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("RELAXED", out)
+            self.assertIn("BRAND-NEW-JUSTIFICATION", out)
+            self.assertNotIn("WEAKENED", out)
 
     def test_a_go_test_still_ignores_the_hash_form(self):
         # VALIDATES: `#` is not a Go comment, so a token written that way is no record
@@ -283,6 +365,39 @@ class TestRelaxReasonRegexProperties(unittest.TestCase):
         self.assertEqual(
             self.mod.relax_reasons("\t #\ttest-relax:\tspaced out\n", "a/b.ci"),
             ["spaced out"],
+        )
+
+    def test_reasons_come_back_in_file_order(self):
+        # VALIDATES: relax_reasons' documented ordering contract.
+        # PREVENTS: an unpinned promise. run_audit no longer depends on order (it
+        # compares multisets), so nothing downstream would go red if the order broke
+        # -- but `--list` and `--by-area` print this sequence to a human reading 751
+        # of them, and a scrambled list is a list nobody can check against the file.
+        text = (
+            "// test-relax: FIRST\n"
+            "func TestA(t *testing.T) {}\n"
+            "// test-relax: SECOND\n"
+            "// test-relax: THIRD\n"
+        )
+        self.assertEqual(
+            self.mod.relax_reasons(text, "a/b_test.go"), ["FIRST", "SECOND", "THIRD"]
+        )
+
+    def test_a_multi_line_reason_is_captured_whole(self):
+        # VALIDATES: the continuation walk, which is what makes a reason judgeable.
+        # PREVENTS: returning to a first-line-only capture. 62% of the corpus runs
+        # past one line, so a fragment is what the reviewer was being asked to confirm.
+        text = (
+            "// test-relax: TestNarrowTS covered narrowTS, a function with\n"
+            "// no non-test caller, deleted in this change.\n"
+            "func TestX(t *testing.T) {}\n"
+        )
+        self.assertEqual(
+            self.mod.relax_reasons(text, "a/b_test.go"),
+            [
+                "TestNarrowTS covered narrowTS, a function with no non-test caller, "
+                "deleted in this change."
+            ],
         )
 
 

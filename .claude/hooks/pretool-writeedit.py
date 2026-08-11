@@ -13,6 +13,7 @@ Exit codes: 0 allow, 1 non-blocking warning, 2 block. Most severe wins when
 several checks fire. Fails OPEN (exit 0) on an unexpected internal error.
 """
 
+import collections
 import datetime
 import glob
 import importlib.util
@@ -2304,13 +2305,13 @@ def c_scratch_path_we(ctx):
 # gets neutered instead of the code being fixed: adding t.Skip, dropping *some*
 # assertions, downgrading require->assert, commenting assertions out, build-tag
 # 'ignore', and the same via Write/MultiEdit overwrite. Rule: ai/rules/testing.md
-_RELAX_TOKEN = re.compile(r"//[ \t]*test-relax:[ \t]*\S")
+_RELAX_REASON = re.compile(r"//[ \t]*test-relax:[ \t]*(\S.*)$", re.MULTILINE)
 # The same token on a carrier that comments with `#`. `c_test_weakening` has judged
 # `/test/` `.ci` files since it was written, and a `.ci` comments with `#`, so the
-# escape hatch it offers was unreachable in the syntax those files use: 315 of them
+# escape hatch it offers was unreachable in the syntax those files use: 313 files
 # carry `# // test-relax:`, an alien Go comment nested inside a hash comment purely
-# to match the pattern above, and 3 wrote the natural `# test-relax:` and got a token
-# that matched nothing.
+# to match the Go pattern, and 8 wrote the natural `# test-relax:` and got a token
+# that matched nothing (measured at HEAD, 2026-08-10).
 #
 # The alternation is what keeps `# // test-relax:` a SINGLE token: `#` matches first,
 # then `test-relax:` is required immediately, `//` is there instead, and the scan moves
@@ -2320,19 +2321,81 @@ _RELAX_TOKEN = re.compile(r"//[ \t]*test-relax:[ \t]*\S")
 # interop `check.py` reaches this check when `_rfc_tagged_change_err` declines. `.et`
 # is here for the same reason. Neither is the broad parity `_behavior_bytes` has, which
 # runs on every carrier it names.
-_RELAX_TOKEN_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*\S")
+_RELAX_REASON_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*(\S.*)$", re.MULTILINE)
 _HASH_COMMENT_CARRIERS = (".ci", ".et", ".py")
 
 
-def _has_relax_token(text, fp):
-    """Whether `text` carries a written relaxation justification for `fp`.
+_REASON_KEY_NOISE = re.compile(r"[^a-z0-9]+")
 
-    Both forms are accepted on a hash-comment carrier, so the 315 files using
-    `# // test-relax:` keep working and nothing has to be rewritten. On every other
-    carrier this is bit-identical to a bare `_RELAX_TOKEN` search.
+
+def _reason_key(reason):
+    """The identity of a justification: its letters and digits, lowercased.
+
+    Everything else is noise a reviewer would not call a different reason:
+    whitespace, punctuation, capitalisation, and a zero-width space. Keying on the
+    raw line was the first attempt and one space beat it; keying on the
+    whitespace-normalized sentence was the second and a zero-width space beat that.
+
+    It does NOT defeat a homoglyph: a Cyrillic `\u041e` is dropped rather than folded to
+    `o`, so the key changes. That is not a hole to plug here, because a REWORD is
+    allowed by design (see `_writes_new_relax_reason`) and a homoglyph edit is a
+    reword nobody can see. What catches it is the diff audit reporting that a
+    justification which was already there is gone.
     """
-    pattern = _RELAX_TOKEN_ANY if fp.endswith(_HASH_COMMENT_CARRIERS) else _RELAX_TOKEN
-    return bool(pattern.search(text))
+    return _REASON_KEY_NOISE.sub("", reason.lower())
+
+
+def _relax_reasons(text, fp):
+    """Multiset of the relaxation justifications written in `text`, by reason key."""
+    pattern = (
+        _RELAX_REASON_ANY if fp.endswith(_HASH_COMMENT_CARRIERS) else _RELAX_REASON
+    )
+    return collections.Counter(
+        _reason_key(r) for r in pattern.findall(text) if _reason_key(r)
+    )
+
+
+def _writes_new_relax_reason(old, new, fp):
+    """Whether this edit WRITES a justification that did not exist before.
+
+    The hatch must be per-relaxation. It read the whole of `new`, and on a Write
+    that is the whole replacement file, so a token written months ago sat in it
+    and returned the entire weakening check to None: any later overwrite of that
+    file could delete every assertion and pass. 468 test files carried a token
+    when this was measured on 2026-08-10, about a tenth of the suite, and each was
+    exempt for as long as the token stayed in it. On an Edit the same hole was
+    narrower and just as real: a hunk that merely CONTAINED an old token line
+    bought the edit a pass.
+
+    KNOWN BOUND, Edit: `old` is the replaced hunk, so copying the file's OWN existing
+    justification into the replacement text reads as writing one. Subtracting the
+    whole on-disk file closes that and costs more than it saves: one wording then
+    cannot serve two relaxations in a file. Measured with `_relax_reasons` at HEAD,
+    10 tracked `_test.go`/`.ci`/`.et` files already repeat a justification, up to five
+    times. A false positive here is what produced the corpus, so the false negative is
+    the better trade -- and it is not silent, since the extra token shows in the diff
+    audit and in the census.
+
+    A multiset difference over `_reason_key`, so a token that only MOVED opens
+    nothing, and neither does a cosmetic edit to an existing one.
+
+    NOT a count comparison, which is what this did first. Requiring one MORE
+    justification than before refused the honest drain -- deleting a stale token
+    while writing a real one for the change in hand -- and left keeping dead
+    justifications as the only way through. That is the corpus growth this whole
+    gate exists to stop, and `run_audit` calls the same shape a drain, so the two
+    halves disagreed. A rewritten justification is a justification; what it
+    REPLACED is reported by the audit ("a justification that was already here is
+    GONE"), which is the surface where a reviewer can judge the trade.
+
+    KNOWN BOUND, MultiEdit: `c_test_weakening` joins every hunk's strings before
+    calling this, so a justification written in hunk 1 covers a weakening in hunk
+    2. Per-hunk evaluation would refuse an assertion MOVED between hunks, and a
+    false positive is the failure mode that produced 755 unread tokens in the
+    first place. The residual is bounded: the justification is newly written, so
+    the diff audit and the census both see it.
+    """
+    return bool(_relax_reasons(new, fp) - _relax_reasons(old, fp))
 
 
 _ASSERT_PAT = r"(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)"
@@ -2340,36 +2403,201 @@ _FATAL_PAT = r"(?:t\.(?:Fatal|Fatalf|FailNow)|require\.)"
 _SKIP_PAT = r"\b[A-Za-z_]\w*\.Skip(?:Now|f)?[ \t]*\("
 _IGNORE_TAG = r"//(?:go:build ignore\b|[ \t]*\+build ignore\b)"
 
+# What a `.ci` / `.et` run can actually FAIL on, or stop exercising. The rest of
+# those files is `option=`/`stdin=`/`tmpfs=` setup, embedded ze config, and observer
+# plumbing, none of which decides a verdict.
+#
+# This replaced a count of non-comment LINES. That count made the guard fire on
+# every mechanical improvement -- three blind `time.sleep` calls collapsed into one
+# `wait_until` barrier removes two lines and no coverage -- while a hunk that
+# swapped two real expectations for two tautologies kept its line count and passed
+# untouched. It was refusing the fix and admitting the damage. Of the 755 `test-relax:`
+# tokens in the working tree on 2026-08-10, 542 sat on a `.ci`/`.et` carrier this arm
+# judges, and 362 of those excused a timing refactor it would now allow. That is what a
+# guard which cries wolf buys: a corpus of justifications nobody reads.
+#
+# EVERY arm is anchored at statement position, and the text is comment-stripped
+# before it is counted. Both are load-bearing. A bare `\bassert\b` matched prose and
+# string literals, so deleting an `expect=` and adding the comment "we no longer
+# assert the first line" balanced the count and passed. Measured at HEAD on
+# 2026-08-10, a bare `\bassert\b` matched 49 comment lines across 47 tracked `.ci`
+# files, every one of them able to pay for a deletion. `cmd=` is counted because the old
+# line counter counted it: a deleted `cmd=` stops a command running, which is
+# coverage removed even when the surviving expectations still match.
+#
+# `runtime_fail` is listed BEFORE `fail` so it is consumed whole and counted once.
+# `\b` does not hold between `_` and `f`, so a bare `fail(` can never match inside
+# it, and `api.fail(` still does.
+#
+# KNOWN BOUNDS, both deliberate. This counts; it does not interpret.
+#
+#  - Wrapping a live assertion in `if False:` keeps the count and kills the assertion.
+#    Catching that needs a Python parse of an embedded script fragment, which an
+#    edit-time hook does not have: the hunk is not a parseable program.
+#  - Shrinking the embedded FIXTURE is invisible here. Deleting a `neighbor` stanza
+#    from a `stdin=ze-bgp` block changes the scenario while every `cmd=` and `expect=`
+#    survives. The line counter this replaced did catch it, by accident, along with
+#    every reformat and every simplification. Restoring a fixture-line count would
+#    restore the false-positive engine that produced 755 unread tokens, so the trade
+#    is taken knowingly and the class is named here rather than left for someone to
+#    discover.
+#
+# Both are owned by `scripts/dev/audit-test-relaxation.py` over the diff, and by the
+# human reading it. Neither is owned by silence.
+_CI_COVERAGE = re.compile(
+    r"^[ \t]*(?:expect|reject|cmd)="
+    r"|^[ \t]*assert\b"
+    r"|^[ \t]*(?:\w+\.)?(?:runtime_fail|fail)[ \t]*\("
+    r"|\b(?:wait_until|dispatch_until)[ \t]*\(",
+    re.MULTILINE,
+)
+# `reject=` counted a SECOND time, on its own. Rewriting `reject=out:text=error` as
+# `expect=out:text=error` inverts the assertion -- the run now demands the error it
+# used to refuse -- while the combined count is unchanged. Only a separate tally of
+# the negative expectations sees it.
+_CI_REJECT = re.compile(r"^[ \t]*reject=", re.MULTILINE)
+# An expectation whose needle is empty is not checked: `validateFileContent`
+# (internal/test/runner/runner_validate.go) guards on `check.Contains != ""`, so
+# emptying the needle silently drops the content assertion. The combined counter
+# cannot see it, because the line is still there.
+#
+# It does NOT always leave nothing behind: `expect=file:path=X:contains=` still
+# asserts X is readable, via `validateOnePathCheck`. So this reports a needle that
+# STOPPED being checked, which is a weakening either way, and it does not claim the
+# whole line went inert. Before this check existed, 14 lines in the tracked corpus
+# ended in a bare `key=`; the shipped pattern matches none of them, because each
+# turned out to be a needle that merely CONTAINS an `=` (`contains=ExecStart=`).
+_CI_EMPTY_NEEDLE = re.compile(
+    r"^[ \t]*(?:expect|reject)=[ \t]*$"
+    r"|^[ \t]*(?:expect|reject)=.*:[A-Za-z_][\w-]*=[ \t]*$",
+    re.MULTILINE,
+)
+def _strip_comments(text, hashed):
+    """`text` with its comments removed, quote-aware. Never touches the file on disk.
+
+    Two simpler versions of this were wrong in opposite directions, and each one
+    reintroduced the defect the other fixed.
+
+    A to-end-of-line strip is not symmetric: `//` inside a Go STRING literal is not a
+    comment, so a fixture whose value is `"//go:build linux\\n" + "t.Fatal(x)"` lost
+    its `t.Fatal` from the OLD side alone, and deleting that whole entry read as no
+    change. A whole-line-only strip leaves a TRAILING comment in place, and a trailing
+    comment can then PAY for deleted coverage: `expect=out:text=two  # we now
+    wait_until(x)` restores the count that deleting the other expectation lowered.
+    257 lines across 88 tracked `.ci` and `.et` files carry a trailing comment, so that
+    shape is idiomatic rather than hypothetical.
+
+    So: scan, and cut at the first comment marker that is not inside a quote. Quote
+    state resets per line, which mis-reads a Go raw string spanning lines. That is
+    the residue, and it is bounded: a multi-line raw string in a test fixture is rare,
+    and the error is symmetric across old and new when it happens.
+    """
+    marker = "#" if hashed else "//"
+    return "\n".join(_strip_line(line, marker) for line in text.split("\n"))
+
+
+def _strip_line(line, marker):
+    """One line, comment removed. Quote-aware, unless the quotes do not balance.
+
+    A `.ci` value is not a quoted language, so a lone apostrophe in English prose --
+    or a regex like `pattern="maximum": ?"?100`, of which 11 exist at HEAD -- left the
+    scanner inside a quote for the rest of the line and stopped it cutting anything.
+    That reopened the exact hole the quote-awareness was added to close: the trailing
+    comment paid for the deleted expectation again, just on quirkier lines.
+
+    So an unterminated quote means the line is not quoted text, and the second pass
+    cuts at the first marker. A line whose quotes DO balance keeps its protection,
+    which is what stops `"//go:build linux"` reading as a comment.
+
+    RESIDUE, and it is the deliberate half of the trade: on a line whose quotes do
+    NOT balance, the fallback can cut inside a real string. `u := "http://a";
+    require.NoError(t, err) // don't` strips at the `//` in the URL, so deleting that
+    line reads as no change. Measured at HEAD, three tracked lines take the fallback
+    while losing a counted construct, and all three are whole-line comments, where the
+    strip is correct. The alternative -- keeping quote state on an unbalanced line --
+    let a trailing comment PAY for a deleted expectation, which is the failure this
+    whole function exists to prevent.
+    """
+    quote = ""
+    cut = -1
+    i = 0
+    while i < len(line):
+        ch = line[i]
+        if quote:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == quote:
+                quote = ""
+        elif ch in "\"'`":
+            quote = ch
+        elif cut < 0 and line.startswith(marker, i):
+            cut = i
+        i += 1
+    if quote:  # unbalanced: not quoted text, so honour the first marker
+        first = line.find(marker)
+        return line if first < 0 else line[:first]
+    return line if cut < 0 else line[:cut]
+
+# An assertion that cannot fail. Introducing one is the in-place gutting that no
+# count-based heuristic sees: `assert 'established' in resp` -> `assert True` keeps
+# every line and every assertion count identical. Deliberately narrow. A real test
+# does not assert a constant, so this fires almost only on the thing it names.
+_TAUTOLOGY = re.compile(
+    r"\bassert[ \t]+(?:True|1)[ \t]*(?:$|[,#])"
+    r"|\bassert[ \t]+not[ \t]+(?:False|0)[ \t]*(?:$|[,#])"
+    # `assert 1 == 1`, `assert x == x`: the same expression on both sides.
+    r"|\bassert[ \t]+(\S+)[ \t]*==[ \t]*\1[ \t]*(?:$|[,#])"
+    r"|\b(?:require|assert)\.(?:True|Truef)\([^,]+,[ \t]*true[ \t]*[,)]"
+    r"|\b(?:require|assert)\.(?:False|Falsef)\([^,]+,[ \t]*false[ \t]*[,)]",
+    re.MULTILINE,
+)
+
 
 def _test_weakening_errs(old, new, fp):
-    """Describe every way `new` weakens the test in `old`. Empty list = no weakening."""
+    """Describe every way `new` weakens the test in `old`. Empty list = no weakening.
+
+    The counting arms read COMMENT-STRIPPED text. `_ASSERT_PAT` matches `require.`
+    and `assert.` wherever they appear, prose included, so a comment that MENTIONS
+    an assertion was counted as one -- and deleting that comment then read as
+    deleting an assertion. The `test-relax:` justifications this gate produces are
+    full of such prose, which made the gate refuse its own cleanup: removing a token
+    whose reason says "the require.Equal on port" needed a fresh token to remove.
+
+    Two arms keep the raw text on purpose. `commenting out assertions` exists to
+    find assertions inside comments, and `emptying an expectation's needle` reads a
+    `.ci` needle that may legitimately begin with `#`.
+    """
     errs = []
+    hashed = fp.endswith(_HASH_COMMENT_CARRIERS)
+    old_s = _strip_comments(old, hashed)
+    new_s = _strip_comments(new, hashed)
     if new.strip() == "" and old.strip():
         errs.append("replacing test content with empty string")
     if grep_any(old, r"^func (Test|Fuzz|Benchmark)") and not grep_any(
         new, r"^func (Test|Fuzz|Benchmark)"
     ):
         errs.append("deleting Test/Fuzz/Benchmark function")
-    if old.count("t.Run(") > new.count("t.Run("):
+    if old_s.count("t.Run(") > new_s.count("t.Run("):
         errs.append(
-            f"removing t.Run cases ({old.count('t.Run(')} -> {new.count('t.Run(')})"
+            f"removing t.Run cases ({old_s.count('t.Run(')} -> {new_s.count('t.Run(')})"
         )
-    old_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", old))
-    new_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", new))
+    old_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", old_s))
+    new_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", new_s))
     if old_tbl > new_tbl:
         errs.append(f"removing table-driven cases ({old_tbl} -> {new_tbl})")
-    old_as = len(re.findall(_ASSERT_PAT, old))
-    new_as = len(re.findall(_ASSERT_PAT, new))
+    old_as = len(re.findall(_ASSERT_PAT, old_s))
+    new_as = len(re.findall(_ASSERT_PAT, new_s))
     if old_as > new_as and new.strip():
         errs.append(f"removing assertions ({old_as} -> {new_as})")
-    old_fatal = len(re.findall(_FATAL_PAT, old))
-    new_fatal = len(re.findall(_FATAL_PAT, new))
+    old_fatal = len(re.findall(_FATAL_PAT, old_s))
+    new_fatal = len(re.findall(_FATAL_PAT, new_s))
     if old_fatal > new_fatal and new_as >= old_as:
         errs.append(
             f"downgrading fatal assertions to non-fatal ({old_fatal} -> {new_fatal} require/Fatal)"
         )
-    old_skip = len(re.findall(_SKIP_PAT, old))
-    new_skip = len(re.findall(_SKIP_PAT, new))
+    old_skip = len(re.findall(_SKIP_PAT, old_s))
+    new_skip = len(re.findall(_SKIP_PAT, new_s))
     if new_skip > old_skip:
         errs.append(f"adding t.Skip ({old_skip} -> {new_skip}); the test stops running")
     if re.search(_IGNORE_TAG, new) and not re.search(_IGNORE_TAG, old):
@@ -2378,12 +2606,38 @@ def _test_weakening_errs(old, new, fp):
     new_cmt = len(re.findall(r"//[^\n]*" + _ASSERT_PAT, new))
     if new_cmt > old_cmt:
         errs.append(f"commenting out assertions ({old_cmt} -> {new_cmt})")
-    if fp.endswith(".ci"):
-        ci_skip = re.compile(r"^[ \t]*(#|option=|$)")
-        old_l = len([l for l in old.split("\n") if not ci_skip.match(l)])
-        new_l = len([l for l in new.split("\n") if not ci_skip.match(l)])
-        if old_l > new_l:
-            errs.append(f"removing .ci test lines ({old_l} -> {new_l})")
+    if fp.endswith((".ci", ".et")):
+        old_ci = len(_CI_COVERAGE.findall(old_s))
+        new_ci = len(_CI_COVERAGE.findall(new_s))
+        if old_ci > new_ci:
+            errs.append(
+                f"removing expectations ({old_ci} -> {new_ci} expect=/reject=/cmd=/assert/fail)"
+            )
+        old_rej = len(_CI_REJECT.findall(old_s))
+        new_rej = len(_CI_REJECT.findall(new_s))
+        if old_rej > new_rej:
+            errs.append(
+                f"removing negative expectations ({old_rej} -> {new_rej} reject=)"
+            )
+        # On the RAW text, never the comment-stripped one. A needle may legitimately
+        # BEGIN with `#` -- `expect=stdout:contains=# tcp.bind`, and 9 tracked lines
+        # are that form -- and stripping the
+        # comment turns it into `...contains=`, which reads as empty. That misfired
+        # in both directions at once: adding such a line was refused as an emptied
+        # needle, and genuinely emptying one was allowed because both sides looked
+        # equally empty.
+        old_empty = len(_CI_EMPTY_NEEDLE.findall(old))
+        new_empty = len(_CI_EMPTY_NEEDLE.findall(new))
+        if new_empty > old_empty:
+            errs.append(
+                f"emptying an expectation's needle ({old_empty} -> {new_empty}); it now matches anything"
+            )
+    old_taut = len(_TAUTOLOGY.findall(old_s))
+    new_taut = len(_TAUTOLOGY.findall(new_s))
+    if new_taut > old_taut:
+        errs.append(
+            f"introducing an assertion that cannot fail ({old_taut} -> {new_taut})"
+        )
     return errs
 
 
@@ -2582,8 +2836,13 @@ def c_test_weakening(ctx):
     fp = ctx["fp"]
     if _is_draft(fp):
         return None
+    # `.et` sits beside `.ci` here because it is the same kind of artifact: an editor
+    # functional test, judged by `expect=` lines, under `test/`. It was absent until
+    # 2026-08-10, so `c_test_weakening` returned None for all 164 of them and the whole
+    # guard was inert over the editor suite. None carries an `RFC requirement:` tag, so
+    # `_carries_rfc_tag` was not letting them in by the side door either.
     is_test = bool(
-        re.search(r"_test\.go$", fp) or (fp.endswith(".ci") and "/test/" in fp)
+        re.search(r"_test\.go$", fp) or (fp.endswith((".ci", ".et")) and "/test/" in fp)
     )
     # A tagged carrier the `is_test` predicate misses still gets the RFC-tagged branch below,
     # but NOT the generic weakening heuristic: `_test_weakening_errs` counts Go/`.ci` shapes
@@ -2647,8 +2906,11 @@ def c_test_weakening(ctx):
             "  one from a rewrite -- approve it the same way.",
         )
     # Documented, auditable escape hatch. Forces a written reason instead of a
-    # silent edit. Audit every relaxation: grep -rn 'test-relax:' --include='*_test.go'
-    if _has_relax_token(new, fp):
+    # silent edit. Audit every relaxation: `make ze-relax-census`.
+    # It reads the justifications this edit WRITES. A token already in the file buys
+    # nothing, or the hatch would be per-file and permanent rather than
+    # per-relaxation (see _writes_new_relax_reason).
+    if _writes_new_relax_reason(old, new, fp):
         return None
     errs = _test_weakening_errs(old, new, fp)
     if not errs:
@@ -2663,7 +2925,12 @@ def c_test_weakening(ctx):
         "  If genuinely obsolete, document why on/above the changed line:\n"
         f"    {'#' if fp.endswith(_HASH_COMMENT_CARRIERS) else '//'}"
         " test-relax: <why this test/assertion no longer applies>\n"
-        "  (the user can audit all relaxations: grep -rn 'test-relax:')",
+        "  WRITE IT IN THIS EDIT. The hatch opens on a justification this edit adds, so\n"
+        "  that it names the relaxation it excuses. Re-indenting or re-punctuating one\n"
+        "  already in your replacement text buys nothing. Retiring a stale token and\n"
+        "  writing a real one for the change in hand is fine and expected.\n"
+        "  The stock is counted and capped (make ze-relax-census); read them with\n"
+        "  scripts/dev/relax-census.py --list",
     )
 
 
@@ -2786,9 +3053,10 @@ _LINE_REF_ROOTS = ("ai/", "docs/", "plan/", ".claude/")
 
 # A line reference is legitimate exactly when a GENERATOR maintains it, because
 # then it is refreshed with the tree instead of rotting in place. A hand-typed
-# one is wrong the moment the file moves, and `ai/RFC-REQUIREMENTS.md` is the
-# working example: its `file.go:line` entries are derived from `RFC requirement:`
-# tags on every `make ze-rfc-index`.
+# one is wrong the moment the file moves, and `rfc/requirements/rfc7606.md` is
+# the working example: its `file.go:line` entries are derived from
+# `RFC requirement:` tags on every `make ze-rfc-index`. One such file exists per
+# RFC, and `ai/RFC-REQUIREMENTS.md` is the index over them.
 #
 # Both marker forms in this repo are a GENERATED declaration near the top, one
 # an HTML comment and one a prose line. The file on disk is consulted as well as
@@ -2861,7 +3129,7 @@ def c_line_number_ref(ctx):
         "  collapse into the same link once their anchors go.\n"
         "  A line number is allowed only where a GENERATOR keeps it current: the\n"
         "  file must declare `GENERATED ... do not edit` in its first ten lines,\n"
-        "  as ai/RFC-REQUIREMENTS.md does. Derived or absent, no third option.\n"
+        "  as rfc/requirements/rfc7606.md does. Derived or absent, no third option.\n"
         "  Sweep an existing file with: scripts/dev/line_refs.py --apply"
     )
     return (
