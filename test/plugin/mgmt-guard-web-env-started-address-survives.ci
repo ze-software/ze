@@ -1,0 +1,40 @@
+# Test: an env-started web server uses the address the config names
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-3/AC-4 -- ze.web.enabled
+# says START and says nothing about WHERE, so the address of an environment.web
+# block survives the missing `enabled true` leaf (ExtractWebSettings, read in
+# cmd/ze/hub/main.go beside the certificate).
+# PREVENTS: two failures from one discarded address. Reading it through the
+# enable gate left webAddrs empty, resolveWebListeners applied the 0.0.0.0:3443
+# default, and the web server then published on every interface a listener the
+# operator had bound to one address. With ze.web.insecure set, that same
+# fallback produced a boot refusal naming 0.0.0.0:3443, an address written in no
+# config file, so the operator could not act on it: the YANG `insecure` leaf
+# clamps the bind to 127.0.0.1, but the env var rewrites no address.
+# The guard refuses before anything binds, so this test occupies no port.
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.web.enabled:value=1
+option=env:var=ze.web.insecure:value=1
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	web {
+		# No `enabled true`: ze.web.enabled above starts the server, and this
+		# address says where it binds. It is routable, so the guard must refuse
+		# it -- and the refusal must quote this address back to the operator.
+		server main {
+			ip 192.0.2.10
+			port 18094
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=refusing to start web (insecure) on non-loopback listener "192.0.2.10:18094" without authentication
+expect=stderr:contains=bind ze.web.listen to 127.0.0.1
+# The wildcard default the discarded address fell back to. A refusal naming it
+# tells the operator to fix an address they never wrote.
+reject=stderr:pattern=non-loopback listener "0\.0\.0\.0:3443"
+reject=stderr:pattern=web server listening

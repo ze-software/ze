@@ -1,0 +1,41 @@
+# Test: an env-started REST API binds the address and token the config names
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-4 --
+# ze.api-server.rest.enabled says START and says nothing about WHERE or about
+# credentials, so the token and the listen address of an environment.api-server
+# block survive the missing `enabled true` leaf (ExtractAPISettings, consumed by
+# resolveAPIListeners in cmd/ze/hub/api_infra.go).
+# PREVENTS: the round-4 headline symptom on a fifth service. Reading the
+# settings through the enable gate dropped both halves at once: the resolver
+# fell back to 0.0.0.0:8081 with an empty token, so checkMgmtListeners refused
+# to boot while telling the operator to set the very token they had written.
+# The same gate hid the gRPC tls-cert/tls-key pair, which is why the API is the
+# only surface that could serve an authenticated listener in clear.
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.api-server.rest.enabled:value=1
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	api-server {
+		# No `enabled true` under rest: ze.api-server.rest.enabled above starts
+		# the transport, and these two settings say how it authenticates and
+		# where it binds.
+		token api-env-started-s3cret
+		rest {
+			server main {
+				ip 127.0.0.1
+				port 18095
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=REST API server starting on http://127.0.0.1:18095/
+expect=stderr:contains=REST API server starting on http://127.0.0.1:18095/
+# The token half: with it discarded the daemon reported NONE and refused.
+expect=stderr:contains=API auth mode: single-token (shared bearer)
+# The wildcard default the discarded address fell back to.
+reject=stderr:pattern=REST API server starting on .*:8081
+reject=stderr:pattern=refusing to start API

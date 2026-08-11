@@ -56,15 +56,23 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 	gnmiTLSCert := env.Get("ze.gnmi.tls.cert")
 	gnmiTLSKey := env.Get("ze.gnmi.tls.key")
 
-	if gnmiYANG, ok := zeconfig.ExtractGNMIConfig(in.Tree); ok {
-		if env.Get("ze.gnmi.listen") == "" && len(gnmiYANG.Servers) > 1 {
-			slog.Warn("gNMI: only first server listener is used, extra listeners ignored", "configured", len(gnmiYANG.Servers))
+	// The extra-listener warning belongs to the ADDRESS question: only a block
+	// that asks for a listener supplies addresses at all.
+	if listenCfg, ok := zeconfig.ExtractGNMIConfig(in.Tree); ok {
+		if env.Get("ze.gnmi.listen") == "" && len(listenCfg.Servers) > 1 {
+			slog.Warn("gNMI: only first server listener is used, extra listeners ignored", "configured", len(listenCfg.Servers))
 		}
+	}
+	// The TLS paths are SETTINGS: they apply whenever the block exists, the
+	// same split resolveGNMIListeners applies to the token (gnmi_infra.go).
+	// Gating them on `enabled` served an env-started gNMI listener in plaintext
+	// over a config that named a certificate.
+	if settings, ok := zeconfig.ExtractGNMISettings(in.Tree); ok {
 		if gnmiTLSCert == "" {
-			gnmiTLSCert = gnmiYANG.TLS.Cert
+			gnmiTLSCert = settings.TLS.Cert
 		}
 		if gnmiTLSKey == "" {
-			gnmiTLSKey = gnmiYANG.TLS.Key
+			gnmiTLSKey = settings.TLS.Key
 		}
 	}
 

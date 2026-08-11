@@ -513,6 +513,16 @@ func (m *ListenerMigrator) applyAuthIntents(intents []resolvedAuth) (func(), err
 // transport: gRPC refuses a non-loopback address without TLS in
 // checkGRPCListenAddr, on the same reload, and this function cannot see a
 // certificate. Do not read a pass here as "the listener is safe to expose".
+//
+// The ADDRESSES a change ADDS are all it reads, so a reload that turns
+// authentication OFF while every address stays put is not judged here at all.
+// Three properties in other packages close that case today: REST refuses every
+// non-loopback address, so removing its credentials exposes nothing
+// (internal/component/api/rest/auth.go, RESTServer.UpdateAuth); gRPC re-runs
+// checkGRPCListenAddr inside setAuthLocked, on the update and on its undo
+// (internal/component/api/grpc/server.go); and web and MCP implement no
+// AuthUpdatable, so checkAuthRebuildable refuses the whole reload. The next
+// surface to gain UpdateAuth without an address rule of its own reopens it.
 func (m *ListenerMigrator) checkReloadExposure(changes []serviceChange) error {
 	for i := range changes {
 		authenticated, known := m.runningAuth(changes[i].name)

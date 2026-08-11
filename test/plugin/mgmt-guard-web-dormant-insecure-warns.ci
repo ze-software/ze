@@ -1,0 +1,123 @@
+# Test: the daemon NAMES the `insecure` leaf it drops from a dormant web block
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-3 -- every other setting of
+# an environment.web block applies when an environment variable starts the
+# server, and `insecure` alone does not, because it REMOVES authentication.
+# The exclusion is correct (a dormant block must not disarm a listener the
+# operator started with ze.web.enabled) and it is silent without this WARN.
+# PREVENTS: an operator reading `insecure true` in their own config, meeting an
+# authenticated web server, and finding nothing in the log that says which leaf
+# the daemon dropped or how to get the behavior they asked for.
+# The WARN is produced in cmd/ze/hub/main.go under
+# `webEnabled && webSettings.Insecure && !insecureWeb && !webAuthFollowsConfig`.
+# Sibling mgmt-guard-web-env-started-address-binds.ci drives the same shape with
+# no `insecure` leaf, so it proves the address reaches the listener and nothing
+# about the dropped leaf.
+#
+# The daemon must still BOOT for this to mean anything: a WARN on a refused boot
+# would prove only that the line is reachable. extractWebBlock clamps every
+# server entry to 127.0.0.1 when Insecure is set, so the address stays loopback,
+# checkMgmtListeners passes it, and the server binds authenticated. The two
+# stderr assertions below pin both halves.
+#
+# The web server needs blob storage (startWebServer, service_web.go), so the
+# daemon runs from a script that calls `ze init` first, the shape
+# rbac-web-config-deny.ci already uses.
+
+option=exclusive:group=mgmt-guard
+option=timeout:value=60s
+
+tmpfs=test-web-dormant-insecure.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+ZE_DIR=$(mktemp -d)
+DAEMON_PID=""
+cleanup() {
+	rm -rf "$ZE_DIR"
+	if [ -n "$DAEMON_PID" ]; then
+		kill "$DAEMON_PID" 2>/dev/null || true
+		wait "$DAEMON_PID" 2>/dev/null || true
+	fi
+}
+trap cleanup EXIT
+
+# Blob storage for the web server, and the zefs power user that goes with it.
+printf 'webadmin\nwebadminpass\n127.0.0.1\n2222\n' | ZE_CONFIG_DIR="$ZE_DIR" ze init >/dev/null
+
+cat > web-dormant-insecure.conf << 'ZECONF'
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass", the fixture authz-allow.ci uses.
+		# Somebody must be able to log in or startWebServer disables the server
+		# instead of binding, and the test would then prove nothing.
+		user webadmin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	web {
+		# No `enabled true`: ze_web_enabled below starts the server. The address
+		# applies anyway, and `insecure` does not. The daemon must say so.
+		insecure true;
+		server main {
+			ip 127.0.0.1;
+			port 18450;
+		}
+	}
+}
+ZECONF
+
+# ze.web.enabled in the env form the daemon reads (dots become underscores,
+# internal/core/env/env.go normalize). Exported here rather than through
+# option=env because the daemon is launched by this script, not by the runner.
+export ze_web_enabled=1
+
+ZE_CONFIG_DIR="$ZE_DIR" ze start web-dormant-insecure.conf 2>daemon.log &
+DAEMON_PID=$!
+
+for i in $(seq 1 60); do
+	if grep -q 'web server listening on' daemon.log 2>/dev/null; then
+		break
+	fi
+	if grep -q 'web server disabled' daemon.log 2>/dev/null; then
+		break
+	fi
+	sleep 0.5
+done
+
+# The runner's stderr assertions read this.
+cat daemon.log >&2
+
+grep -q 'web server listening on' daemon.log || {
+	echo "FAIL: the web server never reported a listening address" >&2
+	exit 1
+}
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-web-dormant-insecure.sh:timeout=60s
+expect=exit:code=0
+# The WARN itself: the leaf that was dropped, named.
+expect=stderr:contains=environment.web insecure not honored
+expect=stderr:contains=environment.web.insecure
+# The daemon booted past checkMgmtListeners and served authenticated HTTPS, so
+# the WARN describes a running server rather than a refused one.
+expect=stderr:contains=web server listening on https://127.0.0.1:18450/
+# startWebServer prints this line whenever insecureWeb is true (service_web.go),
+# so its absence is what says the dropped leaf really was dropped. The banner at
+# the same function says https:// in both modes and cannot tell them apart.
+reject=stderr:pattern=WARNING: authentication disabled
+reject=stderr:pattern=web server disabled

@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-10 | fixit-mgmt-listener-auth-guard | config | `ServerEndpoint.Listen` (internal/component/config/loader_extract.go) joins host and port with a bare colon, so `ip ::1` yields `::1:9339`. `listenAddrIsNonLoopback` (cmd/ze/hub/mgmt_guard.go) then fails `SplitHostPort` on it and classifies the address non-loopback, so an operator who binds IPv6 loopback is refused boot and told to bind IPv6 loopback. Fail-closed, no exposure. Every listener that names an IPv6 literal shares it | not fixed: found while fixing a different member of the enabled-gate class, recorded here per `ai/rules/completion.md` |

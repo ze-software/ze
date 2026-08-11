@@ -28,18 +28,33 @@ func resolveGNMIListeners(tree *zeconfig.Tree) (addr, token string, enabled bool
 		enabled = true
 	}
 
-	if gnmiYANG, ok := zeconfig.ExtractGNMIConfig(tree); ok {
+	// Two questions, deliberately asked separately (see ExtractGNMISettings).
+	//
+	// START comes only from a config block that asks for a listener, so
+	// `enabled false` still means "config does not start gNMI". This question
+	// answers nothing else: a dormant block never turns itself into a listener.
+	if _, ok := zeconfig.ExtractGNMIConfig(tree); ok {
 		enabled = true
-		if addr == "" {
-			if addrs := endpointsToAddrs(gnmiYANG.Servers); len(addrs) > 0 {
+	}
+	// SETTINGS (token, and the address the block names) apply whenever the block
+	// exists, whatever said START. Gating them on `enabled` discarded the
+	// operator's instruction when ze.gnmi.enabled started the server: the daemon
+	// then refused to boot naming the token the operator had written, served an
+	// unauthenticated gNMI Set surface on loopback, or bound the 0.0.0.0:9339
+	// default over the loopback address the block named (ai/rules/protocol.md).
+	if settings, ok := zeconfig.ExtractGNMISettings(tree); ok {
+		if token == "" {
+			token = settings.Token
+		}
+		if enabled && addr == "" {
+			if addrs := endpointsToAddrs(settings.Servers); len(addrs) > 0 {
 				addr = addrs[0]
 			}
 		}
-		if token == "" {
-			token = gnmiYANG.Token
-		}
 	}
 
+	// No block at all, so nothing named an address: bind the same default
+	// extractServerList synthesizes for a block that names no server.
 	if enabled && addr == "" {
 		addr = "0.0.0.0:9339"
 	}

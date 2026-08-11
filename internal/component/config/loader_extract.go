@@ -251,8 +251,8 @@ func (c MCPListenConfig) AnyListenerNonLoopback() bool {
 // inconsistent. Intended to be called by `ze config verify` so the operator
 // sees precise messages BEFORE the daemon tries to start.
 //
-// Enforces the exact-or-reject rule (`.claude/rules/exact-or-reject.md`):
-// silent fallback to a less-secure mode is never acceptable.
+// Enforces the exact-or-reject rule (`ai/rules/protocol.md`): silent fallback
+// to a less-secure mode is never acceptable.
 func (c MCPListenConfig) Validate() error {
 	switch c.AuthMode {
 	case "", mcpAuthNone, mcpAuthBearer, mcpAuthBearerList, mcpAuthOAuth:
@@ -656,7 +656,7 @@ func (c GNMIListenConfig) AnyListenerNonLoopback() bool {
 // reaches through checkSemanticValidation) and by `ze config validate`, so the
 // exposure is reported offline as well as refused at boot; the hub
 // management-listener guard refuses the resolved (env-or-YANG) gNMI bind.
-// Fail-closed per .claude/rules/exact-or-reject.md.
+// Fail-closed per the exact-or-reject rule (`ai/rules/protocol.md`).
 func (c GNMIListenConfig) Validate() error {
 	if c.AnyListenerNonLoopback() && c.Token == "" {
 		return errEnvironmentGnmiNonLoopbackRequiresToken
@@ -664,24 +664,60 @@ func (c GNMIListenConfig) Validate() error {
 	return nil
 }
 
-// ExtractGNMIConfig returns the environment.gnmi config if enabled.
-func ExtractGNMIConfig(tree *Tree) (GNMIListenConfig, bool) {
-	if tree == nil {
+// ExtractGNMISettings returns the authentication and transport settings of an
+// environment.gnmi block, whatever supplied the listen address.
+//
+// ok=true means "the block exists". It deliberately does NOT mean "config
+// starts gNMI" -- see ExtractGNMIConfig for that half. The split matters
+// because ze.gnmi.enabled starts the server without any `enabled true` leaf
+// (ze.gnmi.listen only names an address; it starts nothing on its own).
+// Gating the settings on that leaf discarded the operator's token, TLS paths
+// and listen address, so a block that asked for a token produced either an
+// unauthenticated gNMI Set surface on loopback, or a boot refusal naming the
+// very token the operator had written (ai/rules/protocol.md; the same defect as
+// environment.mcp and environment.looking-glass).
+func ExtractGNMISettings(tree *Tree) (GNMIListenConfig, bool) {
+	cfg, _, present := extractGNMIBlock(tree)
+	if !present {
 		return GNMIListenConfig{}, false
+	}
+	return cfg, true
+}
+
+// ExtractGNMIConfig returns the environment.gnmi config if enabled.
+//
+// ok=true means "config asks for a gNMI listener".
+func ExtractGNMIConfig(tree *Tree) (GNMIListenConfig, bool) {
+	cfg, enabled, present := extractGNMIBlock(tree)
+	if !present || !enabled {
+		return GNMIListenConfig{}, false
+	}
+	return cfg, true
+}
+
+// extractGNMIBlock parses environment.gnmi in full and reports both whether the
+// block exists (present) and whether it asks for a listener (enabled). It
+// applies no gate of its own; each caller above decides what its own ok value
+// means, and neither inherits the other's meaning.
+func extractGNMIBlock(tree *Tree) (GNMIListenConfig, bool, bool) {
+	if tree == nil {
+		return GNMIListenConfig{}, false, false
 	}
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
-		return GNMIListenConfig{}, false
+		return GNMIListenConfig{}, false, false
 	}
 	gnmi := envBlock.GetContainer("gnmi")
 	if gnmi == nil {
-		return GNMIListenConfig{}, false
+		return GNMIListenConfig{}, false, false
 	}
 
-	enabled, _ := gnmi.Get("enabled")
-	if enabled != configTrue {
-		return GNMIListenConfig{}, false
-	}
+	// Service must be explicitly enabled (default false) for config to START
+	// gNMI. Reported, not enforced here: the settings below are parsed either
+	// way, so an address supplied by an env var still gets the operator's token
+	// and TLS paths.
+	enabledLeaf, _ := gnmi.Get("enabled")
+	enabled := enabledLeaf == configTrue
 
 	cfg := GNMIListenConfig{Servers: extractServerList(gnmi, "0.0.0.0", "9339")}
 
@@ -698,7 +734,7 @@ func ExtractGNMIConfig(tree *Tree) (GNMIListenConfig, bool) {
 		}
 	}
 
-	return cfg, true
+	return cfg, enabled, true
 }
 
 // minTokenLength is the minimum length for hub auth tokens.
@@ -793,10 +829,13 @@ func (c APIListenConfig) Listen() string {
 
 // APIConfig holds parsed environment.api settings.
 // REST and GRPC each carry a slice of listen endpoints (one entry per
-// YANG `list server {}` block). When the transport is enabled but no
-// server entries are present, extraction synthesizes a single default
-// entry from the YANG refine defaults so downstream binders always see
-// at least one endpoint.
+// YANG `list server {}` block). When the transport container is present but
+// names no server, extraction synthesizes a single default entry from the YANG
+// refine defaults so downstream binders always see at least one endpoint.
+//
+// A non-empty REST or GRPC slice does NOT mean the transport starts: the
+// address a dormant transport names is parsed too (ExtractAPISettings).
+// RESTOn and GRPCOn are the only answer to "does this transport bind".
 type APIConfig struct {
 	Token string // Shared bearer token for both transports
 
@@ -810,21 +849,60 @@ type APIConfig struct {
 	GRPCTLSKey  string // gRPC-only: TLS key path
 }
 
+// ExtractAPISettings returns the authentication and transport settings of an
+// environment.api-server block, whatever supplied the listen addresses.
+//
+// ok=true means "the block exists". It deliberately does NOT mean "config
+// starts an API listener" -- see ExtractAPIConfig for that half. RESTOn and
+// GRPCOn still answer that question per transport, so a caller that binds reads
+// them rather than the presence of a Server list.
+//
+// The split matters because ze.api-server.rest.enabled and
+// ze.api-server.grpc.enabled start a transport without any `enabled true` leaf.
+// Gating the settings on that leaf discarded the shared token, the addresses
+// each transport named, and the gRPC TLS pair, so an env-started API server
+// refused to boot naming the very token the operator had written, bound the
+// 0.0.0.0 default over the loopback address the block named, and served
+// management gRPC in clear with that token crossing the wire
+// (ai/rules/protocol.md; the same defect as environment.mcp,
+// environment.looking-glass and environment.gnmi).
+func ExtractAPISettings(tree *Tree) (APIConfig, bool) {
+	cfg, _, present := extractAPIBlock(tree)
+	if !present {
+		return APIConfig{}, false
+	}
+	return cfg, true
+}
+
 // ExtractAPIConfig returns the environment.api config if either REST or gRPC is enabled.
 // Each transport returns every YANG list entry; if the list is empty the
 // YANG refine defaults are used to synthesize one entry so the transport
 // always has at least one listener to bind.
+//
+// ok=true means "config asks for an API listener".
 func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
-	if tree == nil {
+	cfg, enabled, present := extractAPIBlock(tree)
+	if !present || !enabled {
 		return APIConfig{}, false
+	}
+	return cfg, true
+}
+
+// extractAPIBlock parses environment.api-server in full and reports both
+// whether the block exists (present) and whether it asks for a listener
+// (enabled). It applies no gate of its own; each caller above decides what its
+// own ok value means, and neither inherits the other's meaning.
+func extractAPIBlock(tree *Tree) (APIConfig, bool, bool) {
+	if tree == nil {
+		return APIConfig{}, false, false
 	}
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
-		return APIConfig{}, false
+		return APIConfig{}, false, false
 	}
 	apiBlock := envBlock.GetContainer("api-server")
 	if apiBlock == nil {
-		return APIConfig{}, false
+		return APIConfig{}, false, false
 	}
 
 	var cfg APIConfig
@@ -833,38 +911,32 @@ func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
 		cfg.Token = token
 	}
 
-	// REST transport.
+	// Each transport must be explicitly enabled (default false) for config to
+	// START it. Reported, not enforced here: the settings below are parsed
+	// either way, so a transport an env var starts still gets the operator's
+	// address, CORS origin and TLS pair.
 	if rest := apiBlock.GetContainer("rest"); rest != nil {
 		enabled, _ := rest.Get("enabled")
-		if enabled == configTrue {
-			cfg.RESTOn = true
-			cfg.REST = extractAPIServerList(rest, "0.0.0.0", "8081")
-			if v, ok := rest.Get("cors-origin"); ok {
-				cfg.RESTCORSOrigin = v
-			}
+		cfg.RESTOn = enabled == configTrue
+		cfg.REST = extractAPIServerList(rest, "0.0.0.0", "8081")
+		if v, ok := rest.Get("cors-origin"); ok {
+			cfg.RESTCORSOrigin = v
 		}
 	}
 
-	// gRPC transport.
 	if grpcBlock := apiBlock.GetContainer("grpc"); grpcBlock != nil {
 		enabled, _ := grpcBlock.Get("enabled")
-		if enabled == configTrue {
-			cfg.GRPCOn = true
-			cfg.GRPC = extractAPIServerList(grpcBlock, "0.0.0.0", "50051")
-			if v, ok := grpcBlock.Get("tls-cert"); ok {
-				cfg.GRPCTLSCert = v
-			}
-			if v, ok := grpcBlock.Get("tls-key"); ok {
-				cfg.GRPCTLSKey = v
-			}
+		cfg.GRPCOn = enabled == configTrue
+		cfg.GRPC = extractAPIServerList(grpcBlock, "0.0.0.0", "50051")
+		if v, ok := grpcBlock.Get("tls-cert"); ok {
+			cfg.GRPCTLSCert = v
+		}
+		if v, ok := grpcBlock.Get("tls-key"); ok {
+			cfg.GRPCTLSKey = v
 		}
 	}
 
-	if !cfg.RESTOn && !cfg.GRPCOn {
-		return APIConfig{}, false
-	}
-
-	return cfg, true
+	return cfg, cfg.RESTOn || cfg.GRPCOn, true
 }
 
 // extractAPIServerList reads the `server` list under a transport container

@@ -23,6 +23,8 @@ package hub
 
 import (
 	"context"
+	"fmt"
+	"net"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
@@ -31,7 +33,89 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/env"
 )
+
+// resolveAPIListeners resolves each API transport's enable flag, effective
+// listen addresses, shared token and gRPC TLS pair from env vars and the config
+// tree, applying the same precedence and YANG refine defaults the gated
+// builders (service_rest.go, service_grpc.go) use to bind. It is always-on so
+// the boot-time management-listener guard can see the API's (address, auth)
+// pairs before anything binds, and the builders consume the same struct, so
+// exactly one resolver exists.
+//
+// ok=true means at least one transport will bind. ze.api-server.token is
+// applied by the caller, which keeps that env value for the reload path
+// (mgmt_auth_reload.go); the config token wins over it, unchanged.
+func resolveAPIListeners(tree *zeconfig.Tree) (zeconfig.APIConfig, bool, error) {
+	// Two questions, deliberately asked separately (see ExtractAPISettings).
+	//
+	// SETTINGS (token, cors-origin, the gRPC TLS pair, and the addresses each
+	// transport names) apply whenever the block exists, whatever said START.
+	// Gating them on `enabled` discarded the operator's instruction when
+	// ze.api-server.rest.enabled or ze.api-server.grpc.enabled started the
+	// transport: the daemon then refused to boot naming the token the operator
+	// had written, bound the 0.0.0.0 default over the loopback address the
+	// block named, or served gRPC in clear while that token crossed the wire
+	// (ai/rules/protocol.md).
+	cfg, _ := zeconfig.ExtractAPISettings(tree)
+
+	// START comes only from a transport that asks for a listener, so a block
+	// whose rest{} says nothing still means "config does not start REST".
+	// cfg.RESTOn / cfg.GRPCOn carry the config half of that answer.
+	enabled := cfg.RESTOn || cfg.GRPCOn
+
+	if env.IsEnabled("ze.api-server.rest.enabled") && !cfg.RESTOn {
+		cfg.RESTOn = true
+		enabled = true
+		// No rest{} block at all, so nothing named an address: bind the same
+		// default extractAPIServerList synthesizes for a transport that names
+		// no server.
+		if len(cfg.REST) == 0 {
+			cfg.REST = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "8081"}}
+		}
+	}
+	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && cfg.RESTOn {
+		host, port, parseErr := net.SplitHostPort(listen)
+		if parseErr != nil {
+			return zeconfig.APIConfig{}, false, fmt.Errorf("ze.api-server.rest.listen: %w", parseErr)
+		}
+		// Env-var override replaces the config-provided list with one entry.
+		cfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+	}
+
+	if env.IsEnabled("ze.api-server.grpc.enabled") && !cfg.GRPCOn {
+		cfg.GRPCOn = true
+		enabled = true
+		if len(cfg.GRPC) == 0 {
+			cfg.GRPC = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}}
+		}
+	}
+	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && cfg.GRPCOn {
+		host, port, parseErr := net.SplitHostPort(listen)
+		if parseErr != nil {
+			return zeconfig.APIConfig{}, false, fmt.Errorf("ze.api-server.grpc.listen: %w", parseErr)
+		}
+		cfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+	}
+
+	return cfg, enabled, nil
+}
+
+// apiGuardAddrs returns the addresses the API will actually bind: a transport
+// that does not start contributes none. The address list of a dormant transport
+// is parsed (ExtractAPISettings) and must never reach the management-listener
+// guard, which would refuse a listener nothing binds.
+func apiGuardAddrs(cfg zeconfig.APIConfig) []string {
+	var addrs []string
+	if cfg.RESTOn {
+		addrs = append(addrs, apiListenToAddrs(cfg.REST)...)
+	}
+	if cfg.GRPCOn {
+		addrs = append(addrs, apiListenToAddrs(cfg.GRPC)...)
+	}
+	return addrs
+}
 
 // apiBuildInputs carries the generic inputs the API seam needs. No
 // internal/component/api/rest or /grpc type crosses it; every field is an

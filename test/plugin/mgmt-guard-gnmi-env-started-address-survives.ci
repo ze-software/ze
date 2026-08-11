@@ -1,0 +1,34 @@
+# Test: an env-started gNMI listener binds the address the config names
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-1/AC-4 -- ze.gnmi.enabled
+# says START and says nothing about WHERE, so the loopback address of an
+# environment.gnmi block survives the missing `enabled true` leaf
+# (resolveGNMIListeners, cmd/ze/hub/gnmi_infra.go).
+# PREVENTS: publishing on every interface a listener the operator bound to
+# 127.0.0.1. Reading the address through the enable gate discarded it and the
+# resolver fell back to 0.0.0.0:9339, which serves gNMI Set -- a full
+# config-mutation API -- to the whole network. The guard does not catch it: the
+# token this block carries satisfies the guard on any address.
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.gnmi.enabled:value=1
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	gnmi {
+		# No `enabled true`: ze.gnmi.enabled above starts the listener, and
+		# these two settings say how it authenticates and where it binds.
+		token s3cret-env-started-token
+		server main {
+			ip 127.0.0.1
+			port 19342
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=gNMI server listening on 127.0.0.1:19342
+expect=stderr:contains=gNMI server listening on 127.0.0.1:19342
+# The wildcard default, whichever family the kernel reports it as (0.0.0.0:9339
+# or [::]:9339). This is what the discarded address fell back to.
+reject=stderr:pattern=gNMI server listening on .*:9339

@@ -22,7 +22,9 @@ environment {
 		enabled true
 		server main {
 			ip 127.0.0.1
-			port 18086
+			# 18089, not 18086: rest-no-auth-readonly.ci binds 18086 and is in
+			# no exclusive group with this test, so the two raced for the port.
+			port 18089
 		}
 	}
 	looking-glass {
@@ -39,6 +41,6 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
 await=stderr:contains=gNMI server listening on 127.0.0.1:19341
 expect=stderr:contains=gNMI server listening on 127.0.0.1:19341
-expect=stderr:contains=MCP server listening on http://127.0.0.1:18086/
+expect=stderr:contains=MCP server listening on http://127.0.0.1:18089/
 expect=stderr:contains=looking glass listening on http://127.0.0.1:18446/
 reject=stderr:pattern=refusing to start

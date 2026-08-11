@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-19 |
+| Phase | 9/9 |
+| Updated | 2026-08-11 |
 
 ## Post-Compaction Recovery
 
@@ -241,7 +241,7 @@ names, `:351-404`); (b) all these checks are bind-availability probes
 | A-1 | Hard-fail (not warn-and-clamp) is the desired posture, matching the API precedent | `cmd/ze/hub/main.go`; Thomas confirmed the API-precedent default (2026-07-16) | Operator upgrade breakage | user confirmation captured 2026-07-16; QEMU boot test exercises the refusal and the authenticated pass | confirmed |
 | A-2 | Every management listener's address+auth is knowable at one boot point | Builders enumerated: web `service_web.go`, LG `service_lg.go`, MCP `service_mcp.go`, REST/gRPC seams `main.go`, gNMI seam `main.go` impl `service_gnmi.go`. Web/LG/MCP resolve at `main.go` already; API resolution is pure env+tree reads and hoists cleanly; gNMI resolution (`service_gnmi.go`) uses only always-on inputs (`ExtractGNMIConfig`, `ze.gnmi.*` env) and hoists per the MCP precedent (`main.go`) | Guard cannot see a listener | source enumeration above (2026-07-16); wiring test drives each surface through the guard | confirmed |
 | A-3 | Adding gNMI to the doctor listener set has no schema side effects | `checks_listener.go` is a static fallback slice builder; the schema path already discovers gNMI (`ze-gnmi-conf.yang`); only `listener_defaults.go` (name-keyed map, `listener.go`) and the fallback need entries | Doctor code drift | files read 2026-07-16; `TestDoctorCoverageCodesRegistered` after implementation | confirmed |
-| A-4 | Out-of-scope listeners are safe to exclude: SSH (authenticated by protocol + AAA, `main.go`), plugin hub (secrets enforced, min length 32, `loader_extract.go`), telemetry/Prometheus (metrics read-only, default loopback `checks_listener.go`), managed server (hub secrets) | cited producers read 2026-07-16 | A surface is exposed unauthenticated | re-audit rows in Known Limitations; doctor bind probes still cover them | confirmed |
+| A-4 | Out-of-scope listeners are safe to exclude: SSH (authenticated by protocol + AAA, `main.go`), plugin hub (secrets enforced, min length 32, `loader_extract.go`), telemetry/Prometheus (metrics read-only, default loopback), managed server (hub secrets) | cited producers read 2026-07-16; the Prometheus default re-verified 2026-08-10 against its real producer `extractTelemetryConfig` (`internal/component/telemetry/exporter/server.go`), which seeds every endpoint with `defaultTelemetryHost` = `127.0.0.1` | A surface is exposed unauthenticated | re-audit rows in Known Limitations; doctor bind probes still cover them | confirmed, with the residual case below |
 | A-5 | The SIGHUP migration path can move a running listener's address without auth re-check, so a boot-only guard fails open on reload | `listener_migrate.go` extracts new addrs and reconfigures; auth mode fixed at build time (e.g. web `authWrap` chosen once, `service_web.go`) | Guard bypassed post-boot | producer read 2026-07-16; AC-7 test | confirmed |
 
 ### Risks
@@ -265,6 +265,14 @@ names, `:351-404`); (b) all these checks are bind-availability probes
 | gNMI non-loopback WITH token | -> | starts normally | `test/plugin/mgmt-guard-gnmi-token-allowed.ci` |
 | `ze doctor --json` on exposing config | -> | `config-gnmi-invalid` / `config-mcp-invalid` emitted | `test/ui/doctor-gnmi-mcp-exposure.ci` |
 | SIGHUP moves unauth listener non-loopback | -> | migration refused, daemon keeps old addrs | `test/reload/mgmt-guard-reload-refuses-nonloopback.ci` |
+| `ze.gnmi.enabled` + dormant block naming a loopback `server` | -> | `resolveGNMIListeners` binds that address, not `0.0.0.0:9339` | `test/plugin/mgmt-guard-gnmi-env-started-address-survives.ci` |
+| `ze.gnmi.enabled` + dormant block naming a `token` | -> | the guard reads that token, boot proceeds | `test/plugin/mgmt-guard-gnmi-env-started-token-survives.ci` |
+| `ze.looking-glass.enabled` + dormant block naming a loopback `server` | -> | LG binds that address, not the env var's `0.0.0.0:8443` default | `test/plugin/mgmt-guard-lg-env-started-address-survives.ci` |
+| `ze.looking-glass.token` leaf or env var | -> | `ServiceDeps.LGToken` -> `lg.LGConfig.Token` -> the bearer middleware | `test/plugin/lg-token-gate.ci` |
+| `ze.web.enabled` + dormant block naming a loopback `server` | -> | web binds that address, not `0.0.0.0:3443` | `test/plugin/mgmt-guard-web-env-started-address-binds.ci` |
+| `ze.web.enabled` + dormant block carrying `insecure true` | -> | the leaf is dropped, the daemon WARNs and boots authenticated | `test/plugin/mgmt-guard-web-dormant-insecure-warns.ci` |
+| `ze.web.enabled` + `ze.web.insecure` + dormant block naming a routable `server` | -> | the refusal quotes that address | `test/plugin/mgmt-guard-web-env-started-address-survives.ci` |
+| `ze.api-server.rest.enabled` + dormant block naming address and token | -> | REST binds that address and authenticates with that token | `test/plugin/mgmt-guard-api-env-started-settings-survive.ci` |
 
 ## Acceptance Criteria
 
@@ -298,6 +306,12 @@ reload path a boot-only guard cannot see fails open, so the reload gate is in-sc
 | `TestLGTokenMiddleware` | `internal/component/lg/server_test.go` | token set: 401 without/with-wrong bearer on /api/ and /lg/; no token: open |DONE (`internal/component/lg/auth_test.go`) |
 | `TestReloadListenersRefusesUnauthNonLoopback` | `cmd/ze/hub/listener_migrate_test.go` | AC-7 |DONE (`cmd/ze/hub/mgmt_guard_test.go`) |
 | `TestDoctorFlagsGnmiExposure` | `internal/component/doctor/checks_config_test.go` | AC-6 through the doctor check entry point |DONE (`internal/component/doctor/checks_config_test.go`) |
+| `TestExtractGNMISettingsSurviveDisabledBlock` | `internal/component/config/gnmi_extract_test.go` | AC-1 -- token and TLS paths survive a block without `enabled true` |DONE (mutation-verified) |
+| `TestResolveGNMIListenersKeepsTokenFromDisabledBlock` | `cmd/ze/hub/gnmi_infra_test.go` | AC-1 -- the guard does not refuse a listener whose config named a token |DONE (red before the fix) |
+| `TestResolveGNMIListenersKeepsTokenWithEnvListenAddress` | `cmd/ze/hub/gnmi_infra_test.go` | AC-1 -- an env-supplied loopback gNMI listener is authenticated by the config token |DONE (red before the fix) |
+| `TestExtractAPISettingsSurviveDisabledTransports` | `internal/component/config/api_extract_test.go` | AC-4 -- token, addresses and the gRPC TLS pair survive a transport without `enabled true` |DONE (red before the fix) |
+| `TestResolveAPIListenersKeepsSettingsFromDormantBlock` | `cmd/ze/hub/api_infra_test.go` | AC-4 -- the guard does not refuse an env-started API listener whose config named a token and a loopback address |DONE (red before the fix) |
+| `TestResolveAPIListenersKeepsGRPCTLSFromDormantBlock` | `cmd/ze/hub/api_infra_test.go` | AC-4 -- an env-started gRPC transport serves the operator's certificate instead of plaintext |DONE (red before the fix) |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -316,6 +330,43 @@ reload path a boot-only guard cannot see fails open, so the reload gate is in-sc
 | `doctor-gnmi-mcp-exposure` | `test/ui/*.ci` | `ze doctor --json` emits config-gnmi-invalid + config-mcp-invalid on an exposing config |PASS |
 | `mgmt-guard-reload-refuses-nonloopback` | `test/reload/*.ci` | SIGHUP migration to non-loopback refused for unauth service, daemon keeps serving |PASS |
 | `lg-tls-default-on` | `test/plugin/*.ci` | LG enabled with no tls leaf serves https (stderr banner `looking glass listening on https://`) |PASS |
+| `mgmt-guard-web-env-started-address-survives` | `test/plugin/*.ci` | `ze.web.enabled` plus a block naming one address: the refusal quotes that address, never the 0.0.0.0:3443 default |PASS (red before the fix) |
+| `mgmt-guard-api-env-started-settings-survive` | `test/plugin/*.ci` | `ze.api-server.rest.enabled` plus a dormant block: REST binds the address the block names and authenticates with its token |PASS (red before the fix) |
+| `mgmt-guard-gnmi-env-started-address-survives` | `test/plugin/*.ci` | `ze.gnmi.enabled` plus a dormant block: gNMI binds the loopback address the block names, never `0.0.0.0:9339` |PASS (red before the fix: bound `[::]:9339`) |
+| `mgmt-guard-gnmi-env-started-token-survives` | `test/plugin/*.ci` | `ze.gnmi.enabled` plus a dormant block naming a token: the daemon boots instead of refusing over a token the operator already wrote |PASS (red before the fix: boot refusal, exit 1) |
+| `mgmt-guard-lg-env-started-address-survives` | `test/plugin/*.ci` | `ze.looking-glass.enabled` plus a dormant block: LG binds the block's loopback address, never the env var's `0.0.0.0:8443` default |PASS (red before the fix: bound `http://[::]:8443/`) |
+| `mgmt-guard-web-env-started-address-binds` | `test/plugin/*.ci` | `ze.web.enabled` plus a dormant block: the web server reports binding the address the block names | **PASS, discrimination PROVEN 2026-08-10** |
+| `mgmt-guard-web-dormant-insecure-warns` | `test/plugin/*.ci` | `ze.web.enabled` plus a dormant block carrying `insecure true`: the daemon names the dropped leaf in a WARN and serves authenticated | **PASS, discrimination PROVEN 2026-08-11** |
+| `lg-token-gate` | `test/plugin/*.ci` | the configured looking-glass token reaches the running server: no bearer is refused, the right bearer is served |PASS (mutation-verified) |
+
+**The two web rows above, measured by the main thread one process at a time,
+`mgmt-guard-web-env-started-address-binds` on 2026-08-10 and
+`mgmt-guard-web-dormant-insecure-warns` on 2026-08-11.**
+
+`mgmt-guard-web-env-started-address-binds` is PROVEN. With the fix it passes and
+the daemon logs `web server listening on https://127.0.0.1:18449/`. With the
+three-line address fallback removed from `runYANGConfig` and the binary rebuilt,
+it FAILS on `stderr does not contain "web server listening on
+https://127.0.0.1:18449/"`, and the log shows `https://0.0.0.0:3443/`. Restored
+byte-identical; passes again.
+
+`mgmt-guard-web-dormant-insecure-warns` is PROVEN, on the second attempt.
+Neutralising the guard to `if false` and rebuilding gives a binary in which
+`strings ... | grep -c "insecure not honored"` returns **0** — the control,
+checked BEFORE the run. Against it the test FAILS on `stderr does not contain
+"environment.web insecure not honored"`. Restored: the count returns to 1 and the
+test passes. `cmd/ze/hub/main.go` is byte-equivalent, `gofmt -l` empty.
+
+**Why the first attempt reported a false result, because the trap is reusable.**
+It built with `make <session-bin-path>/ze`, an explicit path target with no
+Makefile rule. `make` did nothing and returned success, so the run used a stale
+binary that still held the WARN, and the pass was read as "the test does not
+discriminate". `make ze` is the phony target that actually builds.
+
+**The lesson, stated for the next author: a discrimination run proves nothing
+until the control is checked.** Confirm the artefact under test really changed —
+here, `strings` on the binary — before reading the result. A build command that
+exits 0 is not evidence that it built.
 
 Note: no new suite directory. `test/plugin` boot-refusal tests follow
 `test/plugin/family-no-plugin-failure.ci` (foreground `ze -`, `expect=exit:code=1`,
@@ -331,7 +382,8 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 - `cmd/ze/hub/service_lg.go` - pass the optional LG token through `lg.LGConfig`
 - `cmd/ze/hub/service_registry.go` - add LG token field to `ServiceDeps` (generic string, no lg import)
 - `cmd/ze/hub/listener_migrate.go` - gate `ReloadListeners` with the classifier (AC-7)
-- `internal/component/config/loader_extract.go` - add `GNMIListenConfig.Validate`; flip `ExtractLGConfig` TLS default to true (absent leaf reads true); extract LG token leaf
+- `cmd/ze/hub/api_infra.go` - `resolveAPIListeners` (always-on API enable/address/token/TLS resolution, hoisted out of `runYANGConfig` so the guard and the gated builders read one resolver) and `apiGuardAddrs` (a dormant transport declares no address)
+- `internal/component/config/loader_extract.go` - split `extractAPIBlock` out and add `ExtractAPISettings` so the token, the addresses and the gRPC TLS pair survive a transport without `enabled true`; add `GNMIListenConfig.Validate`; split `extractGNMIBlock` out and add `ExtractGNMISettings` so the token and TLS paths survive a block without `enabled true`; flip `ExtractLGConfig` TLS default to true (absent leaf reads true); extract LG token leaf
 - `internal/component/config/validate_semantic.go` - wire gNMI Validate (code `config-gnmi-invalid`)
 - `internal/component/config/cli/cmd_validate.go` - same wiring beside the MCP block
 - `internal/component/config/listener_defaults.go` - register "gnmi" default `0.0.0.0:9339`
@@ -344,6 +396,10 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 ## Files to Create
 - `cmd/ze/hub/mgmt_guard.go` - `mgmtListener` declaration type, fail-closed non-loopback classifier, `checkMgmtListeners`
 - `cmd/ze/hub/mgmt_guard_test.go` - unit tests above
+- `cmd/ze/hub/gnmi_infra_test.go` - `resolveGNMIListeners` address/settings split
+- `cmd/ze/hub/api_infra_test.go` - `resolveAPIListeners` address/settings split, including the gRPC TLS pair
+- `internal/component/config/gnmi_extract_test.go` - `ExtractGNMISettings` vs `ExtractGNMIConfig`
+- `internal/component/config/api_extract_test.go` - `ExtractAPISettings` vs `ExtractAPIConfig`
 - `test/plugin/mgmt-guard-*.ci`, `test/ui/doctor-gnmi-mcp-exposure.ci`, `test/reload/mgmt-guard-reload-refuses-nonloopback.ci`, `test/plugin/lg-tls-default-on.ci` - functional tests above
 
 ## Implementation Steps
@@ -357,7 +413,7 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 6. **Phase: reload gate (AC-7, ~~pending Thomas's confirmation~~ CONFIRMED in-scope 2026-07-17, AUTONOMOUS DEFAULT)** -- classifier check in `ReloadListeners`; `test/reload` .ci.
 7. **Functional + QEMU boot tests** -- run the new .ci suites natively; then `make ze-qemu-all-test` covers them in the Alpine VM, and the appliance boot path gets one QEMU scenario: boot a gokrazy-style config with gNMI exposed (expect refusal message on console) then the remedied config (expect ready) -- see `ai/rules/platform-linux.md`; no `needs-linux` marks needed since the tests are config/refusal-only.
 8. **Full verification** -- `make ze-verify`.
-9. **Complete spec** -- audit tables, release-notes entry (R-1/R-2), `plan/learned/NNN-<name>.md`, two-commit closure.
+9. **Complete spec** -- audit tables, upgrade-breaking entry for R-1/R-2 in `docs/guide/authentication.md` (this repository has no release-notes surface, and that page already documents the guard), journal row, two-commit closure. The `plan/learned/NNN-<name>.md` form this step asked for was retired: `ai/rules/planning.md` ("Writing Journal Rows") replaced it with a row in `plan/journal/<class>.md`, and the class here already exists as `enabled-gate-discards-settings.md`.
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -394,8 +450,11 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 - Env-var exposure (`ze.mcp.listen`, `ze.gnmi.*`, `ze.web.insecure`) is enforced by the boot guard only; `ze doctor` and `ze config validate` inspect a config file and cannot see another process's environment (R-5).
 - The same blindness runs the other way for gNMI: a config that binds gNMI non-loopback while the token comes from `ze.gnmi.token` boots correctly and is still reported `config-gnmi-invalid`, because the file alone describes an exposed listener. The message names both token sources so the operator can tell the two cases apart. Making the offline check read the daemon's environment is not possible; making it silent would lose the exposure it exists to report.
 - SSH, plugin hub, telemetry/Prometheus, and the managed server are out of the guard's declaration set by design (A-4): SSH authenticates by protocol, hub enforces min-32 secrets (`loader_extract.go`), Prometheus defaults loopback and is read-only metrics. Doctor bind probes still cover them.
+- The Prometheus exclusion carries one residual case, and the earlier evidence for it named the wrong producer. The doctor probe list in `internal/component/doctor/checks_listener.go` is a bind-availability probe, not the default. The producer is `extractTelemetryConfig` (`internal/component/telemetry/exporter/server.go`): it seeds every endpoint with `defaultTelemetryHost` = `127.0.0.1` and synthesizes one such endpoint when the block names no server, so the DEFAULT is loopback. An operator who writes `server main { ip 0.0.0.0 }` gets a non-loopback metrics listener, and `extractBasicAuthConfig` leaves `BasicAuth.Enabled` false when the `basic-auth` block is absent, so that listener is unauthenticated and the guard never sees it. The exclusion stands (read-only metrics, loopback default), and this is the case it does not cover.
 - gNMI token-over-plaintext (token set, no TLS) still boots: the guard enforces authentication, not transport secrecy. TLS-required-for-token is a possible follow-up (open question 4, resolved 2026-07-17: NOTED FOLLOW-UP, not this spec).
 - Auth-mode changes on SIGHUP reload do not take effect (servers are built once); AC-7 only prevents the address from moving into exposure. Full reload-time auth rebuild is out of scope.
+- An IPv6 literal written as `ip ::1` reaches the guard as `::1:9339`, because `ServerEndpoint.Listen` (`internal/component/config/loader_extract.go`) joins host and port with a bare colon and brackets nothing. **The strongest fact about this case, and the reason it earns a row: `listenAddrIsNonLoopback` (`cmd/ze/hub/mgmt_guard.go`) cannot `SplitHostPort` a bracket-less `::1:9339`, and the parse of the whole string fails too, so the function classifies IPv6 LOOPBACK as non-loopback. The refusal then tells the operator to bind `127.0.0.1/::1`, which is the address they already bound.** Two facts complete the picture. `net.Listen` rejects the same string, so `ip ::1` was an unusable config before this guard existed and the guard removes no working deployment. `docs/guide/api.md` advertises `::1:<port>` as a value to set, so the product itself names the form that reproduces the refusal. Fail-closed, no exposure, and shared by every listener rather than owned by the guard. Recorded in `plan/journal/ipv6-address-built-by-concatenation.md`; not fixed here.
+- `cors-origin` is the other boundary-relaxing setting the settings/listener split moved outside the enable gate (`extractAPIBlock`, `internal/component/config/loader_extract.go`), and it needs no `insecure`-style exclusion because it is not auth-removing. `internal/component/api/rest/server.go` sets `Access-Control-Allow-Origin` (`:789`, `:811`, `:847`), `-Allow-Methods`, `-Allow-Headers` and `-Max-Age`, and never sets `Access-Control-Allow-Credentials`, so a cross-origin browser request carries no cookie the browser will attach. Every route that returns data is wrapped in `s.withAuth` (`:379-407`). The one route that is not is `mux.HandleFunc("OPTIONS /api/", s.handlePreflight)` (`:410`), and that exception is correct: a CORS preflight is what the browser sends BEFORE it is allowed to attach the `Authorization` header, so a preflight the server answers only when authenticated can never be answered at all. `handlePreflight` (`:842-852`) returns 204 with no body and reads nothing from the request, so it discloses only the CORS policy the operator configured. So the setting relaxes a browser boundary and cannot make an unauthenticated request succeed. Recorded here so the next reader does not re-derive it.
 - `ze start --web-only` paths are unaffected: the flag clamp (`ze_core_start.go`) already forces loopback for insecure web-only, and `ze.web.insecure` is not consulted on that path (`RunWebOnly` -> `runWebOnly`, `service_web.go`).
 
 ## Checklist
@@ -409,7 +468,7 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 
 ### Quality Gates (SHOULD pass -- defer with user approval)
 - [ ] Implementation Audit complete
-- [ ] Release-notes entry drafted for the behavior change (boot refusal on upgrade R-1; LG TLS default R-2)
+- [ ] Upgrade-breaking entry written for the behavior change (boot refusal on upgrade R-1; LG TLS default R-2). This repository has no release-notes surface, so it lives in `docs/guide/authentication.md` under "Upgrading from a release without the guard", beside the guard it describes. Do not create a release-notes file for it
 
 ### TDD
 - [ ] Tests written
@@ -502,9 +561,250 @@ whole diff. Every finding is FIXED; each fix carries a mutation-verified test.
   - `TestDoctorDependencyInventory` (`internal/component/doctor/doctor_test.go`)
     has no `listener/gnmi` row. That file is owned by another concurrent session
     and was off-limits; the row and the `expectedTotal` bump are outstanding.
+    → CLOSED 2026-08-10: the row is present and `TestDoctorDependencyInventory`,
+    `TestDoctorCoverageCodesRegistered` and `TestDoctorGnmiDefaultEndpointIsProbed`
+    pass.
 
 Mutation verification: 13 mutations, each reverting one guard, wiring, or
 default, and each confirmed to turn its own test red before restore.
+
+### Pass 3 (independent gate over the whole spec) and its remediation
+
+An independent Review Gate found the guard itself sound and AC-1..AC-7 met with
+discriminating evidence. It raised four items, all FIXED 2026-08-10.
+
+- BLOCKER: 1, FIXED. gNMI was still on a single-gate extractor: `ExtractGNMIConfig`
+  returned `ok=false` unless `enabled == true`, so `resolveGNMIListeners`
+  (`cmd/ze/hub/gnmi_infra.go`) read neither the token nor the servers of a block
+  the operator had written. Two observable consequences. A block carrying
+  `enabled false; token secret` plus `ze.gnmi.enabled` synthesized `0.0.0.0:9339`
+  with an empty token, so the daemon refused to boot while telling the operator
+  to set the token they had already written. The same block plus
+  `ze.gnmi.listen=127.0.0.1:9339` booted an UNAUTHENTICATED gNMI `Set` surface.
+  This is Task finding 5 (environment.mcp) and the Pass 2 looking-glass BLOCKER
+  recurring on the third service, and the spec's own instruction was to apply the
+  auth settings independently of the enable gate. Fixed with the same split:
+  `extractGNMIBlock` reports "block exists" and "block asks for a listener"
+  separately, `ExtractGNMISettings` serves the settings question, and
+  `resolveGNMIListeners` takes addresses from one and the token from the other.
+  `gnmiBuildImpl` (`cmd/ze/hub/service_gnmi.go`) takes the TLS cert and key paths
+  from the settings question for the same reason. Tests:
+  `TestExtractGNMISettingsSurviveDisabledBlock` (mutation-verified: restoring the
+  enable gate turns it red) and `TestResolveGNMIListenersKeepsTokenFromDisabledBlock`
+  / `TestResolveGNMIListenersKeepsTokenWithEnvListenAddress`, both red before the
+  fix, the first printing the boot refusal the operator could not act on.
+- ISSUE: 3, all FIXED.
+  - `GNMIListenConfig.Validate` and `MCPListenConfig.Validate` cited
+    `.claude/rules/exact-or-reject.md`, deleted when the rules merged in
+    `ad809ea43`. Both now cite `ai/rules/protocol.md`.
+  - `checkReloadExposure` (`cmd/ze/hub/listener_migrate.go`) reads only the
+    addresses a change ADDS, so a reload that turns authentication OFF in place
+    is not judged there. Its doc comment now names the three properties in other
+    packages that close that case, and the condition that reopens it.
+  - Assumption A-4 justified the Prometheus exclusion from the doctor probe list
+    rather than from its producer. It now cites `extractTelemetryConfig`
+    (`internal/component/telemetry/exporter/server.go`), and Known Limitations
+    states the residual case honestly: an operator CAN configure a non-loopback
+    metrics listener with `basic-auth` absent, and the guard does not see it.
+
+**The Review Gate artifact is still owed and this round cannot supply it.** The
+remediation above is new code written by its author, so `review_gate.py record`
+over it would be the author reviewing himself, which `ai/rules/planning.md`
+bans. A fresh independent pass runs over the remediation diff, and records the
+artifact.
+
+### Pass 4 (independent gate over the Pass 3 remediation) and its remediation
+
+The gate found the guard sound and all five claims of the Pass 3 remediation
+true. It raised two items inside that remediation diff, both FIXED 2026-08-10.
+
+- BLOCKER: 1, FIXED. The settings/listener split gave `resolveGNMIListeners`
+  (`cmd/ze/hub/gnmi_infra.go`) the token from the settings question while it
+  still took the ADDRESS from the listener question, so a block that named
+  `127.0.0.1` and did not say `enabled true` fell through to the hardcoded
+  `0.0.0.0:9339`. Before Pass 3 that config refused to boot, so honoring the
+  token made the wildcard bind newly REACHABLE: gNMI `Set`, a full
+  config-mutation API, published on every interface where the operator wrote
+  loopback. Fixed by reading the address as a SETTING, like the token and the
+  TLS paths: only `enabled` says START. It strictly narrows, and it is a no-op
+  for a block naming no server, because `extractServerList`
+  (`internal/component/config/loader_extract.go`) synthesizes the same default.
+  `cmd/ze/hub/gnmi_infra_test.go` pinned the wildcard deliberately; that
+  assertion encoded the defect and was corrected with the code.
+- BLOCKER: the SAME defect on the looking glass, FIXED in the same round.
+  `cmd/ze/hub/main.go` applied the `0.0.0.0:8443` default of
+  `ze.looking-glass.enabled` BEFORE reading the config, so it won over the
+  address a dormant block named. Fixed the same way: the env var says START and
+  says nothing about WHERE, so its default is applied after the settings
+  question. A dormant block still starts nothing, because a non-empty `lgAddrs`
+  is what starts the looking glass.
+- ISSUE: 1, FIXED. Two comments claimed `ze.gnmi.listen` starts the gNMI server.
+  It does not: `enabled` comes only from `env.IsEnabled("ze.gnmi.enabled")` or
+  an `enabled true` block. The wording was copied from MCP and LG, where it is
+  correct. Corrected in `internal/component/config/loader_extract.go`,
+  `cmd/ze/hub/gnmi_infra.go`, and the third copy in
+  `internal/component/config/gnmi_extract_test.go`.
+
+The fixed gNMI path had no daemon-level test, which both sibling services have
+(`test/plugin/mcp-cli-listener-honors-config-auth.ci`,
+`test/plugin/lg-token-gate.ci`). Every other `mgmt-guard` scenario writes
+`enabled true`, so nothing exercised an env-started listener whose credentials
+come from a dormant block. Three `.ci` close that, each mutation-verified by
+reverting its own fix:
+
+| Test | Fix reverted | Observed before |
+|------|--------------|-----------------|
+| `test/plugin/mgmt-guard-gnmi-env-started-token-survives.ci` | token from settings | boot refusal, exit 1 |
+| `test/plugin/mgmt-guard-gnmi-env-started-address-survives.ci` | address from settings | bound `[::]:9339`, wanted `127.0.0.1:19342` |
+| `test/plugin/mgmt-guard-lg-env-started-address-survives.ci` | LG address from settings | bound `http://[::]:8443/`, wanted `http://127.0.0.1:18447/` |
+
+**Files this round touched, and the whole scope of the next pass:**
+`cmd/ze/hub/gnmi_infra.go`, `cmd/ze/hub/main.go`,
+`cmd/ze/hub/gnmi_infra_test.go`,
+`internal/component/config/loader_extract.go`,
+`internal/component/config/gnmi_extract_test.go`, the three `.ci` above, and
+this section.
+
+**The Review Gate artifact stays owed.** This round is again new code written by
+its author. A fifth independent pass runs over the scope above and records it.
+
+### Pass 5 (independent gate over the Pass 4 remediation) and its remediation (round 6)
+
+Verdict NOT CLEAN: 1 BLOCKER, 3 ISSUE, 4 NOTE. The pass verified the Pass 4 fix
+by revert and found the SAME defect class open on two more services. All four
+items FIXED 2026-08-10.
+
+- BLOCKER: 1, FIXED. The sibling paths of the gNMI/LG defect were still open on
+  `web` and `api-server`, and both carry the wildcard-default direction that made
+  the gNMI case a BLOCKER. `extractWebBlock` gated `enabled`
+  (`internal/component/config/loader_extract.go`), `ExtractWebConfig` returned
+  `ok=false` for a dormant block, `webAddrs` stayed empty and `resolveWebListeners`
+  (`cmd/ze/hub/main.go`) applied `defaultWebListen` `0.0.0.0:3443`.
+  `ExtractAPIConfig` returned `APIConfig{}, false` when neither transport was
+  enabled, dropping the token, the addresses and the gRPC TLS paths together,
+  while `main.go` synthesized `0.0.0.0:8081` / `0.0.0.0:50051` for the two
+  `ze.api-server.*.enabled` variables. A block carrying `token` beside a loopback
+  `server` reproduced round 4's headline symptom exactly: a boot refusal telling
+  the operator to set the token they had already written. Fixed with the same
+  settings/listener split on both services. `extractServerList` synthesizes the
+  identical `0.0.0.0:3443` default for a block that names no server, so the web
+  change is a strict narrowing.
+- ISSUE: 3, all FIXED.
+  - Deterministic port collision: `test/plugin/mgmt-guard-loopback-allowed.ci`
+    hardcoded MCP port 18086, which `test/plugin/rest-no-auth-readonly.ci` also
+    binds, and that test is in no exclusive group. Moved to 18089.
+  - IPv6 literals are newly reachable on one more path and are mishandled by a
+    producer shared with every listener. Fail-closed, no exposure. Recorded in
+    Known Limitations and in `plan/journal/ipv6-address-built-by-concatenation.md`.
+  - The upgrade note did not say that a block's address now applies when an env
+    var starts the service. Written into `docs/guide/authentication.md`.
+- NOTE: 4, recorded. The MCP non-fix reasoning holds (Notes, three legs); the
+  extra-listener warning in `gnmiBuildImpl` stays on the listener question;
+  `mgmt-guard-gnmi-env-started-token-survives.ci` binds a wildcard on 9339, so
+  two concurrent copies of the suite still collide; the one
+  `audit-test-relaxation` finding belongs to another spec.
+
+Round 6 also fixed a PRODUCT defect that the pass surfaced when it checked that
+remediation. `extractAPIBlock` read the gRPC `tls-cert` / `tls-key` pair inside
+the `enabled == configTrue` branch while it read `token` above it, so
+`ze.api-server.grpc.enabled` built an AUTHENTICATED management gRPC server with
+empty TLS paths (`cmd/ze/hub/service_grpc.go`) and served that token in clear.
+Verified by revert: `TestResolveAPIListenersKeepsGRPCTLSFromDormantBlock` goes
+red with the resolver pointed back at `ExtractAPIConfig`.
+
+### Pass 6 (independent gate over the Pass 5 remediation) and its remediation (round 7)
+
+Verdict NOT CLEAN: 0 BLOCKER, 3 ISSUE, 5 NOTE. Scope: the round-6 remediation
+only. The gate found the guard itself sound, the web and api-server splits
+correct, and the `insecure` exception right: `extractWebBlock` clamps every
+server entry to `127.0.0.1` whenever `Insecure` is set, so a dormant insecure
+block can only ever supply loopback, and `insecureWeb` never rises from one.
+Evidence it ran: the three `resolveAPIListeners` tests go red under an overlay
+revert and 7/7 pass unreverted; all 11 `mgmt-guard` `.ci` pass under
+`make ze-plugin-test`; the 24 other failures and the 4
+`audit-test-relaxation` findings are foreign to this scope.
+
+- ISSUE: 3, all FIXED in round 7.
+  - The web `.ci` proved only the REFUSAL branch, and its stated reason was
+    false: `test/plugin/rbac-web-config-deny.ci` runs `ze init` in its own script
+    and drives a web server on `https://127.0.0.1:18443`, so the positive-bind
+    test both sibling services got was available here too. Written as
+    `test/plugin/mgmt-guard-web-env-started-address-binds.ci`.
+  - `resolveAPIListeners` (`cmd/ze/hub/api_infra.go`) returned errors naming
+    `ze.api.rest.listen` / `ze.api.grpc.listen`. The registered keys are
+    `ze.api-server.rest.listen` / `ze.api-server.grpc.listen`
+    (`internal/component/config/environment.go`), so an operator who greps for
+    the name the error gives finds nothing. Both strings corrected, and
+    `TestResolveAPIListenersRejectsBadListen`, which had pinned the wrong
+    spelling, now asserts the registered one.
+  - The dropped `insecure` leaf was silent. `cmd/ze/hub/main.go` now logs a WARN
+    naming `environment.web.insecure` and the condition under which the block
+    decides that switch, and `docs/guide/authentication.md` names the exclusion
+    in the upgrade section. The WARN fires on `webAuthFollowsConfig == false`,
+    which covers both a dormant block and an enabled block whose address a flag
+    or an environment variable supplied first; only the first was reported.
+- NOTE: 5, recorded, none fixed. `cors-origin` is not auth-removing (Known
+  Limitations); `ze doctor` gains a cert-pair diagnostic for a dormant gRPC
+  transport whose sibling is enabled (`internal/component/doctor/checks_tls.go`),
+  which is defensible because an env var can start that transport; the
+  startup-failure slog stage is now `api-server listen` rather than the
+  per-transport name, and the wrapped error still carries the label; the IPv6
+  disposition is right and is now stated at full strength (Known Limitations);
+  this Review Gate had no Pass 5 section, which these two sections repair.
+
+**The Review Gate artifact stays owed.** Round 7 is again new code written by its
+author, and the artifact on disk carries `verdict=findings rounds=6`. A seventh
+independent pass runs over round 7's diff and records the artifact. Its scope:
+`cmd/ze/hub/api_infra.go`, `cmd/ze/hub/api_infra_test.go`, `cmd/ze/hub/main.go`,
+`test/plugin/mgmt-guard-web-env-started-address-binds.ci`,
+`docs/guide/authentication.md`, and these two sections.
+
+### Pass 7 (independent gate over the round-7 remediation) and its remediation (round 8)
+
+The gate verified round 7 in full and found the code sound: the corrected env-var
+names match `env.MustRegister` (`internal/component/config/environment.go`), the
+new `mgmt-guard-web-env-started-address-binds.ci` asserts the bound address, and
+the widened `insecure` WARN condition covers a real second case, because
+`webAuthFollowsConfig` and `insecureWeb` are set together inside `if len(webAddrs)
+== 0` (`cmd/ze/hub/main.go`), so an enabled block whose address came from
+`ze.web.listen` skips both. It raised one ISSUE and three record defects.
+
+- ISSUE: 1, FIXED. The round-7 WARN was new operator-visible output with nothing
+  driving it. This spec set the precedent itself in Pass 2, when a looking-glass
+  token proven only by a unit test earned `test/plugin/lg-token-gate.ci`. Written
+  as `test/plugin/mgmt-guard-web-dormant-insecure-warns.ci`: `ze.web.enabled`
+  plus a dormant block carrying `insecure true`. `extractWebBlock`
+  (`internal/component/config/loader_extract.go`) clamps every server entry to
+  `127.0.0.1` when `Insecure` is set, so the address stays loopback, the guard
+  passes it, and the WARN fires over a RUNNING server rather than a refused boot.
+  The test pins both halves, and rejects `WARNING: authentication disabled`
+  (`cmd/ze/hub/service_web.go`), which is the line that appears if the dropped
+  leaf is ever honored. The `https://` banner at `:665` prints in both modes and
+  cannot tell them apart.
+- RECORD: 3, all corrected.
+  - Neither the Wiring Test table nor the Functional Tests table named the `.ci`
+    of rounds 4-7. Six tests appeared only in Review Gate prose, so the Goal Gate
+    "Wiring Test table complete" read as unmet for those entry points. Both
+    tables now carry them, and the Wiring Test table also gained the two
+    round-6/7 rows that had reached the Functional Tests table only.
+  - The `cors-origin` row in Known Limitations said "The REST auth middleware
+    still runs on every request". `mux.HandleFunc("OPTIONS /api/",
+    s.handlePreflight)` (`internal/component/api/rest/server.go`) is not wrapped
+    in `s.withAuth`. The conclusion is unchanged and the exception is correct;
+    the row now states both.
+  - The WARN was one 30-word sentence carrying a colon and a comma splice,
+    against the 25-word cap for a description (`ai/rules/writing.md`). Split into
+    two sentences of 7 and 16 words. No condition changed.
+
+**The Review Gate artifact stays owed, and round 8 cannot supply it either.** Two
+of the three record defects above are edits to this section's own neighbours, and
+the `.ci` is new code by its author. An eighth independent pass runs over round
+8's diff and records the artifact. Its scope:
+`test/plugin/mgmt-guard-web-dormant-insecure-warns.ci`, the WARN string in
+`cmd/ze/hub/main.go`, the two test tables, the `cors-origin` Known Limitations
+row, and this section. `--rounds-reason` must name a PRODUCT defect: round 6's
+`extractAPIBlock` TLS-in-clear finding is the one that qualifies. A reason drawn
+from record defects is refused by design.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; verifier V1 corrected both earlier passes (MCP guard exists but does not run at boot; the insecure-web YANG path is clamped, only the env path bypasses). Deepened to design 2026-07-16: all citations re-verified against the working tree; the doctor claim was corrected (MCP is present in the hardcoded fallback at `checks_listener.go`; the schema path already discovers gNMI; the actual gaps are the missing "gnmi" listener default, the missing gNMI semantic Validate, and bind-probe-vs-exposure semantics).
@@ -513,5 +813,340 @@ default, and each confirmed to turn its own test red before restore.
   - → AUTONOMOUS DEFAULT (2026-07-17): (2) LG STAYS EXEMPT from the unauth refusal (intentionally public, read-only, birdwatcher-compatible surface) and instead gets TLS-default-on + optional bearer token. Rationale: refusing unauthenticated LG would break its primary public use case; TLS-default + opt-in token addresses the MEDIUM finding (Task finding 4, Key Design Decisions row) at its severity, without over-reaching to hard-fail. Thomas: override if wrong.
   - → AUTONOMOUS DEFAULT (2026-07-17): (3) existing clamp paths (web YANG insecure `loader_extract.go`, MCP loopback clamp `:323-331`, `--insecure-web` flag `ze_core_start.go`) KEEP CLAMPING; the guard then sees only loopback and passes them. Converging them on hard-fail is a NOTED FOLLOW-UP, not this spec. Rationale: smaller self-contained scope, and no fail-open gap remains -- the clamps run BEFORE the guard (Behavior to preserve, above) so a clamped path never presents non-loopback. Thomas: override if wrong.
   - → AUTONOMOUS DEFAULT (2026-07-17): (4) gNMI token-over-plaintext hard-fail (token set, no TLS) is a NOTED FOLLOW-UP (Known Limitations), not this spec. Rationale: this spec's guard enforces authentication, not transport secrecy; no regression vs today (the token still authenticates), and TLS-required-for-token is additive/reversible, deferrable without leaving a fail-open gap. Thomas: override if wrong.
+- The settings/listener split now covers five services and deliberately stops there. `web` and `api-server` (round 6) joined `mcp`, `looking-glass` and `gnmi` (round 5): each parses its whole block, and only the `enabled` question decides whether a listener starts.
+- **MCP is exempt from that split, and the asymmetry is deliberate. Do NOT "finish" it later.** Three legs hold it up, all verified 2026-08-10. (a) `ze.mcp.enabled` synthesizes `127.0.0.1:8080` in `cmd/ze/hub/main.go`, which is STRICTLY NARROWER than any address a config block can name, so today's behavior is already a narrowing rather than a wildcard. (b) The MCP path was never gated behind a boot refusal, so honoring the block's settings would not remove one. (c) Copying the gNMI shape would let a dormant block MOVE MCP to a routable address, and the guard would pass it whenever that block also carries a token. Web and api-server fall on the other side of that line because their defaults are `0.0.0.0`. The residue MCP keeps -- a dormant block naming port 9000 gets 8080 -- is functional, not exposure, and is recorded in `plan/journal/enabled-gate-discards-settings.md`.
 - Shared-file coordination: the in-flight bcrypt spec also edits `cmd/ze/hub/service_web.go` (R-3). This spec does not modify `startWebServer` internals.
 - Feeds `plan/spec-release-audit-1-surface-inventory.md` as verified evidence for the management-surface inventory.
+- **Closure mechanics: move the spec claim to THIS spec for both `commit_helper.py create` calls, and restore it after.** `plan/journal/parallel-copies-collide-on-a-deterministic-port.md` is UNTRACKED and carries two rows, this spec's and `fixit-eap-tls-clienthello-race`'s. Committing an untracked file makes every row read as added, so `_journal_added_spec_stems` (`scripts/dev/commit_helper.py`) returns two stems and `spec_closure_stem` reaches its claim tie-break: `if len(stems) > 1` consults `claimed_spec(repo)`, and with the session claiming a different spec it falls through to `stems[0]`. That returns this spec only because its row happens to sort first in all three journal files the closure commit carries, and `_journal_added_spec_stems` reads them in path order. One appended row from the eap session breaks it, and the review gate then fires for a spec nobody is closing. The claim is the only input that makes the answer deliberate. Move it with `scripts/dev/spec-session.sh claim`, and restore the session's own claim once both commits are prepared.
+
+### Integration Checklist
+
+<!-- Answered at closure (/ze-close step 1). The spec predates the template row
+     that carries this table, so it is filled here against the shipped diff. -->
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | `internal/component/lg/yang/ze-lg-conf.yang`: `tls` default flipped to true, new `token` leaf (`ze:sensitive`). Landed in an earlier phase and already committed |
+| YANG validation constraints | N-A | The leaves added are a boolean and an opaque secret string; no range, length or enumeration applies |
+| YANG custom validators | Yes | `GNMIListenConfig.Validate` (`internal/component/config/loader_extract.go`) wired into `ValidateSemantics` (`internal/component/config/validate_semantic.go`) and `ze config validate` (`internal/component/config/cli/cmd_validate.go`) |
+| CLI commands/flags | No | No flag added. `--insecure-web` keeps its existing clamp (`cmd/ze/ze_core_start.go`) and the guard reads the result |
+| CLI grammar (keyword before value) | N-A | No new CLI verb or leaf-value pair |
+| Editor autocomplete | Yes, automatic | `tls` is a YANG boolean and `token` a string, so the editor completes both from the schema with no `CompleteFn` |
+| Functional test for new RPC/API | Yes | 13 `test/plugin/mgmt-guard-*.ci`, `test/plugin/lg-token-gate.ci`, `test/plugin/lg-tls-default-on.ci`, `test/ui/doctor-gnmi-mcp-exposure.ci`, `test/reload/mgmt-guard-reload-refuses-nonloopback.ci` |
+| Pipe completeness | N-A | The guard writes one refusal line to stderr before any command surface exists |
+| Env var registration | Yes | `ze.looking-glass.token` (Secret) in `internal/component/config/environment.go`, beside the existing `ze.gnmi.token`. Committed in an earlier phase |
+| Doctor check for runtime dependencies | Yes | `config-gnmi-invalid` registered in `internal/core/diagnostic/codes.go`; `"gnmi"` listener default in `internal/component/config/listener_defaults.go`; fallback entry in `internal/component/doctor/checks_listener.go`. Proven by `TestDoctorFlagsGnmiExposure`, `TestDoctorGnmiListenerIsProbed`, `TestDoctorGnmiDefaultEndpointIsProbed` |
+| Prometheus counters/metrics | No | The guard produces a boot decision, not observable running state. A refused boot leaves no process to scrape |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP wire surface is touched |
+
+### Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | Yes | `docs/guide/authentication.md`, "Remote management listener guard" and "Upgrading from a release without the guard". Both written; the second is the R-1/R-2 upgrade-breaking entry the Quality Gate asks for |
+| 2 | Config syntax changed? | No | No leaf was added or renamed in this phase. The settings/listener split changes WHEN a block's leaves are read, never how they are spelled. `grep -rn "loader_extract.go" docs/` returns no source anchor outside `docs/guide/authentication.md`, which this closure updated |
+| 3 | CLI command added/changed? | No | No verb, flag or exit-code change. `ze start` keeps exit 1 for a refusal, the code the API precedent already used |
+| 4 | API/RPC added/changed? | No | `resolveAPIListeners` moves WHERE the REST/gRPC listen address and token are resolved. No request, response or route changes; `docs/architecture/api/commands.md` carries no anchor at `cmd/ze/hub/api_infra.go` |
+| 5 | Plugin added/changed? | No | The guard is always-on hub code and imports no gnmi/mcp/web/lg package |
+| 6 | Has a user guide page? | Yes | `docs/guide/authentication.md`, updated with four `<!-- source: -->` anchors naming `mgmt_guard.go`, `api_infra.go`, `service_lg.go` and `main.go` |
+| 7 | Wire format changed? | N-A | No protocol encoding is touched |
+| 8 | Plugin SDK/protocol changed? | No | `ServiceDeps` gained `LGToken`, an internal hub struct with no SDK surface |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC governs a vendor management listener's bind policy |
+| 10 | Test infrastructure changed? | No | The new tests join `test/plugin`, `test/ui` and `test/reload` under existing runners. No new suite directory, no runner change |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` compares protocol and feature support, not management-listener hardening |
+| 12 | Internal architecture changed? | Yes, recorded in the spec | The single-guard-point boot order is described in Data Flow above. `docs/architecture/core-design.md` describes component tiers, which are unchanged; the boot-order detail lives with the guard in `docs/guide/authentication.md` |
+| 13 | Route metadata keys added/changed? | N-A | No route metadata |
+| 14 | Prometheus counters added/changed? | No | See the Integration Checklist row |
+
+`make ze-doc-test` was not run by this closure agent: the instruction for this
+run forbids every suite except one package's `go test`. The doc edits carry
+`<!-- source: path -- symbol -->` anchors and each anchor's file exists in the
+commit. The main thread owns the doc-gate run.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+The whole spec shipped over nine phases; the last three rounds are what this
+commit carries, and the earlier phases are already in git history.
+
+- **The guard.** `checkMgmtListeners` and `listenAddrIsNonLoopback`
+  (`cmd/ze/hub/mgmt_guard.go`) refuse a boot in which any management listener is
+  both non-loopback and unauthenticated. One call site in `runYANGConfig`
+  (`cmd/ze/hub/main.go`), after every resolution and before `eng.Start`, so
+  nothing has bound when the refusal prints. `apiHasNonLoopback` was folded in,
+  not copied.
+- **Resolution hoisted always-on.** `resolveGNMIListeners`
+  (`cmd/ze/hub/gnmi_infra.go`) and `resolveAPIListeners`
+  (`cmd/ze/hub/api_infra.go`) resolve enable, address, token and TLS outside the
+  build-tag-gated builders, so the guard sees every pair before a factory runs.
+  `service_gnmi.go` consumes the resolved values instead of resolving its own.
+- **The settings/listener split, five services.** `extractGNMIBlock`,
+  `extractAPIBlock` and `extractWebBlock`
+  (`internal/component/config/loader_extract.go`) now parse a whole block, and
+  only the `enabled` question decides whether a listener starts.
+  `ExtractGNMISettings`, `ExtractAPISettings` and `ExtractWebSettings` expose the
+  settings half; `ExtractGNMIConfig` and `ExtractAPIConfig` keep the old
+  enable-gated shape. MCP is deliberately exempt (Notes above).
+- **Semantic parity.** `GNMIListenConfig.Validate` reached from
+  `ValidateSemantics` and `ze config validate`; `config-gnmi-invalid` registered
+  in `internal/core/diagnostic/codes.go`; `"gnmi"` added to the doctor listener
+  defaults and to the hardcoded fallback.
+- **Looking glass.** TLS default flipped on, optional bearer token over the mux
+  with a constant-time compare, `ze.looking-glass.token` registered Secret.
+- **Reload gate (AC-7).** `ReloadListeners` (`cmd/ze/hub/listener_migrate.go`)
+  runs the same classifier before applying a migration, so a SIGHUP cannot move
+  an unauthenticated listener onto a routable address.
+
+### Bugs Found/Fixed
+
+| Bug | Producer | Test that now covers it |
+|-----|----------|-------------------------|
+| MCP `auth-mode none` plus a token read as authenticated while the server built the accept-all `noneAuthenticator` | `internal/component/mcp/streamable.go`, `bearer.go` | `TestMcpListenerAuthenticated`, `TestMcpAuthModeAuthenticates` |
+| `ExtractGNMIConfig` dropped the token and the TLS paths of a block without `enabled true`, so an env-started gNMI listener was refused over a token the operator had written | `internal/component/config/loader_extract.go` | `TestExtractGNMISettingsSurviveDisabledBlock`, `TestResolveGNMIListenersKeepsTokenFromDisabledBlock` |
+| `ExtractAPIConfig` read the gRPC `tls-cert`/`tls-key` pair inside the `enabled == configTrue` branch, so `ze.api-server.grpc.enabled` built an authenticated gRPC server with empty TLS paths and served the token in clear | `internal/component/config/loader_extract.go` | `TestResolveAPIListenersKeepsGRPCTLSFromDormantBlock` (red with the resolver pointed back at `ExtractAPIConfig`) |
+| The same extractor returned not-ok when neither transport said `enabled true`, dropping the shared token and every address the block named | `internal/component/config/loader_extract.go` | `TestExtractAPISettingsSurviveDisabledTransports`, `TestResolveAPIListenersKeepsSettingsFromDormantBlock` |
+| `extractWebBlock` gated the address on `enabled`, so `resolveWebListeners` published `0.0.0.0:3443` over the address the block named, and the refusal quoted an address written in no config file | `internal/component/config/loader_extract.go` | `TestResolveWebListenersClosesTheGuardHole`, `test/plugin/mgmt-guard-web-env-started-address-survives.ci`, `test/plugin/mgmt-guard-web-env-started-address-binds.ci` |
+| `resolveAPIListeners` named unregistered env keys `ze.api.rest.listen` / `ze.api.grpc.listen` in its operator-facing errors | `cmd/ze/hub/api_infra.go` | the registered spellings now match `env.MustRegister` (`internal/component/config/environment.go`); read by the round-7 review |
+| The dropped `environment.web insecure` leaf was silently discarded, so an operator who wrote it got authentication with no diagnostic | `cmd/ze/hub/main.go` | `test/plugin/mgmt-guard-web-dormant-insecure-warns.ci` |
+
+### Documentation Updates
+
+- `docs/guide/authentication.md`, new section "Upgrading from a release without
+  the guard" (49 lines), carrying four `<!-- source: -->` anchors:
+  `cmd/ze/hub/mgmt_guard.go`, `cmd/ze/hub/api_infra.go`,
+  `cmd/ze/hub/service_lg.go`, `cmd/ze/hub/main.go`. It is the R-1 and R-2
+  upgrade-breaking entry; this repository has no release-notes surface.
+- `make ze-doc-test` not run by this agent (suite runs forbidden for this run).
+  The main thread owns that gate.
+
+### Deviations from Plan
+
+- **MCP is exempt from the settings/listener split.** The spec's Files to Modify
+  implies parity across services. It is deliberate and must not be "finished"
+  later: `ze.mcp.enabled` synthesizes `127.0.0.1:8080`, strictly narrower than
+  any address a block can name, so copying the split would let a dormant block
+  MOVE MCP to a routable address the guard passes whenever that block also
+  carries a token. Recorded in Notes and in
+  `plan/journal/enabled-gate-discards-settings.md`.
+- **`plan/learned/NNN-<name>.md` was not written.** That form was retired;
+  `ai/rules/planning.md` replaced it with journal rows, and three exist
+  (below).
+- **QEMU boot test.** The Alpine-VM pass over the new `.ci` runs through
+  `make ze-qemu-all-test`, which this run is forbidden to start. The refusal and
+  the remedied boot are proven natively by the `.ci` above; the tests are
+  config-and-refusal only and carry no `option=needs-linux`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The guard was built first and the extractors were assumed to deliver every block's settings | Five extractors dropped auth and address settings at the `enabled` gate, so the guard refused boots over credentials the operator had written | Round 4 through round 7 review passes, each finding the next service with the same shape | Split every one of the five; recorded the class in `plan/journal/enabled-gate-discards-settings.md` so the sixth is recognised on sight |
+| approach | A discrimination run for `mgmt-guard-web-dormant-insecure-warns` was read as "the test does not discriminate" | The build command was `make <session-bin-path>/ze`, an explicit path with no Makefile rule. `make` did nothing, exited 0, and the run used a stale binary that still carried the WARN | Re-run with `make ze`, plus `strings` on the binary as a control BEFORE the run | The control is now checked before the result is read. Stated for the next author in the Functional Tests section above |
+| escalation | Two `test/plugin` tests hardcoded the same MCP port with no exclusive group | A parallel suite run failed one of them with `address already in use`, and a third bound the wildcard `0.0.0.0:9339` | A parallel run of the suite | Ports moved and the group joined; the deterministic-port allocator still does not reach `.ci` literals, recorded in `plan/journal/parallel-copies-collide-on-a-deterministic-port.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. [BLOCKER] gNMI unauthenticated read+write on `0.0.0.0` | Done | `cmd/ze/hub/mgmt_guard.go` `checkMgmtListeners`; `cmd/ze/hub/gnmi_infra.go` `resolveGNMIListeners` | Boot refuses; `GNMIListenConfig.Validate` also reports it offline |
+| 2. [HIGH] MCP fail-closed guard does not run at daemon startup | Done | `cmd/ze/hub/main.go` calls `MCPListenConfig.Validate` on the `ze start` path; `mcpListenerAuthenticated` (`cmd/ze/hub/mgmt_guard.go`) covers the env path | The existing precise message is reused, not re-worded |
+| 3. [HIGH] `--insecure-web` clamp bypassable via `ze.web.insecure` | Done | `cmd/ze/hub/main.go` web declaration; `resolveWebListeners` | Non-loopback plus insecure refuses; a dormant block's `insecure` is dropped with a WARN naming the leaf |
+| 4. [MEDIUM] Looking Glass unauthenticated with TLS optional | Done | `internal/component/lg/server.go` token middleware; `internal/component/lg/yang/ze-lg-conf.yang` `tls` default true | LG stays exempt from the unauth refusal by design (Key Design Decisions) |
+| 5. [RESOLVED elsewhere] MCP auth settings discarded when the block was not enabled | Done, inherited nothing | fixed in `spec-mcp2026-1-stateless-core` | The guard still covers the case through `mcpListenerAuthenticated` |
+| Unifying fix: one guard, one call site, before any management bind | Done | `cmd/ze/hub/main.go` `runYANGConfig` | Single classifier; `apiHasNonLoopback` folded in |
+| gNMI semantic validation and doctor entries | Done | `internal/component/config/validate_semantic.go`, `internal/component/config/cli/cmd_validate.go`, `internal/component/config/listener_defaults.go`, `internal/component/doctor/checks_listener.go`, `internal/core/diagnostic/codes.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci`, `test/plugin/mgmt-guard-gnmi-token-allowed.ci`, `TestCheckMgmtListeners`, `TestResolveGNMIListenersKeepsTokenFromDisabledBlock` | Includes the `0.0.0.0:9339` default |
+| AC-2 | Done | `test/plugin/mgmt-guard-mcp-bind-remote-none-refused.ci` (a), `test/plugin/mgmt-guard-mcp-env-nonloopback-refused.ci` (b), `TestMcpListenerAuthenticated` | (a) keeps the existing `environment.mcp: bind-remote requires auth-mode != none` text |
+| AC-3 | Done | `test/plugin/mgmt-guard-web-insecure-env-refused.ci`, `test/plugin/mgmt-guard-web-env-started-address-survives.ci`, `TestResolveWebListenersClosesTheGuardHole` | The refusal quotes the address the block named |
+| AC-4 | Done | `test/plugin/mgmt-guard-loopback-allowed.ci`, `test/plugin/mgmt-guard-api-env-started-settings-survive.ci`, `TestCheckMgmtListeners` | Loopback boots; guard logs nothing |
+| AC-5 | Done | `test/plugin/lg-tls-default-on.ci`, `test/plugin/lg-token-gate.ci`, `TestExtractLGConfigTLSDefaultOn`, `TestLGTokenMiddleware`, `TestLGWithoutTokenStaysOpen` | Explicit `tls true` without blob storage is an error; the inherited default warns and serves plaintext |
+| AC-6 | Done | `test/ui/doctor-gnmi-mcp-exposure.ci`, `TestValidateSemanticsFlagsGNMI`, `TestDoctorFlagsGnmiExposure`, `TestDoctorGnmiDefaultEndpointIsProbed` | The `TestDoctorDependencyInventory` residual was closed 2026-08-07 (deferral row 3) |
+| AC-7 | Done | `test/reload/mgmt-guard-reload-refuses-nonloopback.ci`, `TestReloadListenersRefusesUnauthNonLoopback`, `TestReloadListenersAllowsAuthenticatedNonLoopback` | Daemon keeps serving on the previous addresses |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestMgmtGuardRefusesNonLoopbackUnauth` / `...AllowsLoopback` / `...AllowsAuthenticatedNonLoopback` | Changed | `TestCheckMgmtListeners` (`cmd/ze/hub/mgmt_guard_test.go`) | One table-driven test replaced three; every case is present |
+| `TestMgmtGuardUnparseableHostIsNonLoopback` | Changed | `TestListenAddrIsNonLoopback` (`cmd/ze/hub/mgmt_guard_test.go`) | Renamed to the function it drives |
+| `TestGNMIListenConfigValidate` | Done | `internal/component/config/gnmi_validate_test.go` | Plus `TestGNMIListenConfigValidateMultiListener` |
+| `TestValidateSemanticsFlagsGNMI` | Done | `internal/component/config/validate_semantic_test.go` | Driven from the semantic entry point, not the helper |
+| `TestExtractLGConfigTLSDefaultOn` | Done | `internal/component/config/lg_extract_test.go` | |
+| `TestLGTokenMiddleware` | Done | `internal/component/lg/auth_test.go` | Plus `TestLGWithoutTokenStaysOpen` |
+| `TestReloadListenersRefusesUnauthNonLoopback` | Changed | `cmd/ze/hub/mgmt_guard_test.go` | Lives with the classifier it drives, not in `listener_migrate_test.go` |
+| `TestDoctorFlagsGnmiExposure` | Done | `internal/component/doctor/checks_config_test.go` | |
+| `TestExtractGNMISettingsSurviveDisabledBlock` | Done | `internal/component/config/gnmi_extract_test.go` | Mutation-verified |
+| `TestResolveGNMIListenersKeepsTokenFromDisabledBlock` / `...WithEnvListenAddress` | Done | `cmd/ze/hub/gnmi_infra_test.go` | Red before the fix |
+| `TestExtractAPISettingsSurviveDisabledTransports` | Done | `internal/component/config/api_extract_test.go` | Red before the fix |
+| `TestResolveAPIListenersKeepsSettingsFromDormantBlock` / `...KeepsGRPCTLSFromDormantBlock` | Done | `cmd/ze/hub/api_infra_test.go` | Red before the fix |
+| 17 functional `.ci` (Functional Tests table) | Done | `test/plugin`, `test/ui`, `test/reload` | All present on disk; see Files Exist below |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `cmd/ze/hub/main.go` | Done | Guard call site, hoisted resolutions, boot-time `Validate`, web settings branch and its WARN |
+| `cmd/ze/hub/api.go` | Changed | `apiHasNonLoopback` folded into `listenAddrIsNonLoopback`; the resolution moved to the new `api_infra.go` rather than staying here |
+| `cmd/ze/hub/service_gnmi.go`, `cmd/ze/hub/gnmi_infra.go` | Done | Resolution hoisted; the builder consumes plain values |
+| `cmd/ze/hub/service_lg.go`, `cmd/ze/hub/service_registry.go` | Done | LG token threaded as a plain string, no `lg` import |
+| `cmd/ze/hub/listener_migrate.go` | Done | AC-7 gate |
+| `cmd/ze/hub/api_infra.go` | Done | New file, not in the original Files to Create: `resolveAPIListeners` and `apiGuardAddrs` |
+| `internal/component/config/loader_extract.go` | Done | Five extractor splits, `GNMIListenConfig.Validate`, LG TLS default and token |
+| `internal/component/config/validate_semantic.go`, `.../cli/cmd_validate.go` | Done | gNMI wiring |
+| `internal/component/config/listener_defaults.go`, `internal/component/doctor/checks_listener.go` | Done | `"gnmi"` default and fallback entry |
+| `internal/core/diagnostic/codes.go` | Done | `config-gnmi-invalid` |
+| `internal/component/config/environment.go` | Done | `ze.looking-glass.token`, Secret |
+| `internal/component/lg/server.go`, `internal/component/lg/yang/ze-lg-conf.yang` | Done | Token middleware, `tls` default true |
+| `cmd/ze/hub/mgmt_guard.go`, `mgmt_guard_test.go` | Done | Created |
+| `cmd/ze/hub/gnmi_infra_test.go`, `api_infra_test.go` | Done | Created |
+| `internal/component/config/gnmi_extract_test.go`, `api_extract_test.go` | Done | Created |
+| `test/plugin/mgmt-guard-*.ci`, `test/ui/doctor-gnmi-mcp-exposure.ci`, `test/reload/mgmt-guard-reload-refuses-nonloopback.ci`, `test/plugin/lg-tls-default-on.ci` | Done | 13 `mgmt-guard-*` rather than the 6 the plan foresaw; each extra one pins a service the settings/listener split touched |
+
+### Audit Summary
+- **Total items:** 45 (7 requirements, 7 ACs, 13 test rows, 18 file rows)
+- **Done:** 41
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (three test renames onto the function they drive, and `apiHasNonLoopback`'s resolution moving to a new file). Recorded in Deviations and in the tables above
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| No management listener can be published non-loopback without authentication | functional | `test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci`, `mgmt-guard-mcp-env-nonloopback-refused.ci`, `mgmt-guard-web-insecure-env-refused.ci`, `mgmt-guard-mcp-bind-remote-none-refused.ci` -- each drives `ze` in the foreground and asserts `exit:code=1` plus the refusal text on stderr, so the proof is a refused daemon rather than a unit verdict |
+| The refusal names the address the operator actually configured | functional, discrimination proven | `mgmt-guard-web-env-started-address-survives.ci` and `mgmt-guard-web-env-started-address-binds.ci`. The second was proven by removing the three-line address fallback from `runYANGConfig` and rebuilding: it fails on `stderr does not contain "web server listening on https://127.0.0.1:18449/"` and the log shows `https://0.0.0.0:3443/` |
+| A config that asks for authentication never silently produces none | functional | `mgmt-guard-gnmi-env-started-token-survives.ci` (red before the fix: boot refusal, exit 1), `mgmt-guard-api-env-started-settings-survive.ci` (REST binds the block's address and authenticates with its token), `mgmt-guard-web-dormant-insecure-warns.ci` (discrimination proven 2026-08-11 with a `strings` control on the binary) |
+| Loopback deployments keep working unchanged | functional | `mgmt-guard-loopback-allowed.ci`: unauthenticated gNMI, MCP and web on loopback boot and exit cleanly |
+| The exposure is visible offline, not only at boot | functional | `test/ui/doctor-gnmi-mcp-exposure.ci`: `ze doctor --json` emits `config-gnmi-invalid` and `config-mcp-invalid` |
+| A SIGHUP cannot resurrect the exposure the boot guard refused | functional | `test/reload/mgmt-guard-reload-refuses-nonloopback.ci`: the migration is refused and the daemon keeps serving the previous addresses |
+| The looking glass is hardened without losing its public use case | functional | `test/plugin/lg-tls-default-on.ci` (stderr banner `looking glass listening on https://`), `test/plugin/lg-token-gate.ci` (mutation-verified: no bearer refused, right bearer served) |
+| Operators can see the upgrade break before it hits them | documentation | `docs/guide/authentication.md`, "Upgrading from a release without the guard": the three breaking changes, each with its remedy, plus `ze config validate` as the pre-upgrade check |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| 2026-07-17: auth-mode changes on a SIGHUP reload do not take effect (servers built once) | done | Fixed 2026-08-07 by `spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild`. `AuthUpdatable` (`cmd/ze/hub/listener_migrate.go`) and `UpdateAuth` on the REST and gRPC servers rebuild credentials on a running server; both directions proven red with the change reverted |
+| 2026-07-19: AC-5 LG TLS, AC-6 gNMI validate wiring, and the functional refusal tests deferred to CI | done | `lg-tls-default-on.ci`, `doctor-gnmi-mcp-exposure.ci` and the 13 `mgmt-guard-*.ci` all exist and pass |
+| 2026-08-03: `TestDoctorDependencyInventory` needed a `listener/gnmi` row | done | Fixed 2026-08-07: the test now DERIVES the listener half from `config.DiscoverListenerServices`, so a new `ze:listener` service can no longer be missed by a hand-maintained count |
+
+Every row in `plan/deferrals/fixit-mgmt-listener-auth-guard.md` is terminal, so
+commit A removes the shard.
+
+One row in a FOREIGN shard names this spec as its home and stays live:
+`plan/deferrals/fixit-web-auth-deleted-user-survives-reload.md`, 2026-08-08,
+"resolve the API's per-user gate independently of the `environment { ssh { } }`
+block". This spec did not take it and does not fix it. `apiUsers`
+(`cmd/ze/hub/main.go`) is still `mergeAuthUsers(zefsUsers, sshCfg.Users)`, and
+`infra.ExtractSSHConfig` still returns nothing without an `environment/ssh`
+container. It is not remotely reachable, because `apiAuthed` is then false and
+`checkMgmtListeners` refuses any non-loopback API listener. Closure repoints that
+row at the bare stem so it reads as unhomed rather than as pointing at a file the
+tree no longer holds; the advisory `deferral_unassigned_problems` warning is then
+true and will surface it for a new home.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-mgmt-listener-auth-guard-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean -- exit 0, "OK, 18 code files, clean, hashes match" |
+| Rounds | 8. Round 6 fixed the `extractAPIBlock` gRPC TLS-in-clear defect round 5 left open; round 7 fixed operator-facing errors naming unregistered `ze.api.*` env keys; round 8's findings were all record defects, which makes it the last round |
+| Reviewer lenses used | security + correctness/wiring (pass 1-2), then a single independent adversarial gate per round (passes 3-8), each read-only over the round's diff |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | MCP fail-open: `auth-mode none` plus a token read as authenticated while the server built the accept-all authenticator | `internal/component/mcp/streamable.go`, `bearer.go` | `mcpListenerAuthenticated` mirrors the server's effective-mode precedence; `TestMcpListenerAuthenticated` covers the none+token case |
+| 2 | ISSUE | `GNMIListenConfig.Validate` doc comment claimed validate/doctor/boot wiring that phase 1 had not built | `internal/component/config/loader_extract.go` | Comment corrected to what the phase shipped |
+| 3 | BLOCKER | `ExtractGNMIConfig` dropped the token of a block without `enabled true`, so an env-started listener was refused over a token the operator had written | `internal/component/config/loader_extract.go` | `extractGNMIBlock` plus `ExtractGNMISettings`; `TestResolveGNMIListenersKeepsTokenFromDisabledBlock` red before the fix |
+| 4 | BLOCKER | `extractAPIBlock` read the gRPC `tls-cert`/`tls-key` pair inside the enabled branch, so an env-started gRPC transport served an authenticated management server in clear | `internal/component/config/loader_extract.go` | `ExtractAPISettings` consumed by `resolveAPIListeners`; `TestResolveAPIListenersKeepsGRPCTLSFromDormantBlock` red with the resolver pointed back at `ExtractAPIConfig` |
+| 5 | ISSUE | `resolveAPIListeners` named unregistered env keys `ze.api.rest.listen` / `ze.api.grpc.listen` in operator-facing errors | `cmd/ze/hub/api_infra.go` | Corrected to the `ze.api-server.*` spellings `env.MustRegister` carries (`internal/component/config/environment.go`) |
+| 6 | ISSUE | `extractWebBlock` gated the address on `enabled`, so the refusal quoted `0.0.0.0:3443` instead of the address the block named | `internal/component/config/loader_extract.go`, `cmd/ze/hub/main.go` | `ExtractWebSettings` branch in `runYANGConfig`; `mgmt-guard-web-env-started-address-survives.ci` and `...-binds.ci` |
+| 7 | ISSUE | The round-7 `insecure not honored` WARN was new operator-visible output with no test driving it | `cmd/ze/hub/main.go` | `test/plugin/mgmt-guard-web-dormant-insecure-warns.ci`, discrimination proven with a `strings` control on the rebuilt binary |
+
+NOTEs from the final round (record only, all corrected before this commit): the
+Functional Tests table had prose inserted between two rows, orphaning the last
+row; one date disagreed with the row it described; `### Integration Checklist`
+and `### Documentation Update Checklist` were absent. All three are fixed above.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `cmd/ze/hub/mgmt_guard.go`, `mgmt_guard_test.go` | Yes | `ls` at closure, 2026-08-11 |
+| `cmd/ze/hub/api_infra.go`, `api_infra_test.go`, `gnmi_infra.go`, `gnmi_infra_test.go` | Yes | `ls` at closure, 2026-08-11 |
+| `internal/component/config/api_extract_test.go`, `gnmi_extract_test.go`, `gnmi_validate_test.go`, `lg_extract_test.go` | Yes | `ls` at closure, 2026-08-11 |
+| 13 `test/plugin/mgmt-guard-*.ci` | Yes | `ls test/plugin/mgmt-guard-*.ci` returns 13 paths |
+| `test/plugin/lg-token-gate.ci`, `test/plugin/lg-tls-default-on.ci` | Yes | `ls` at closure, 2026-08-11 |
+| `test/ui/doctor-gnmi-mcp-exposure.ci`, `test/reload/mgmt-guard-reload-refuses-nonloopback.ci` | Yes | `ls` at closure, 2026-08-11 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | gNMI non-loopback without a token refuses the boot | `TestCheckMgmtListeners`, `TestResolveGNMIListenersKeepsTokenFromDisabledBlock` present in `cmd/ze/hub`; `make ze-test-pkg PKG=./cmd/ze/hub` green (main thread, 2026-08-11) |
+| AC-2 | MCP bind-remote without auth, and env-listen without a token, both refuse | `TestMcpListenerAuthenticated`, `TestMcpAuthModeAuthenticates` present and green in the same run |
+| AC-3 | web-insecure plus non-loopback refuses, quoting the configured address | `TestResolveWebListenersClosesTheGuardHole` present and green in the same run |
+| AC-4 | loopback keeps booting; dormant blocks supply their own settings | `make ze-test-pkg PKG=./internal/component/config` exit 0, 2026-08-11 (covers `TestExtractAPISettingsSurviveDisabledTransports`, `TestExtractGNMISettingsSurviveDisabledBlock`, `TestExtractAPIConfigStillGatesOnEnabled`) |
+| AC-5 | LG TLS default on, token gate optional | `TestExtractLGConfigTLSDefaultOn`, `TestExtractLGConfigTLSExplicitFlag`, `TestExtractLGConfigToken` in the same green `./internal/component/config` run |
+| AC-6 | doctor and `ze config validate` report the exposure | `TestValidateSemanticsFlagsGNMI`, `TestGNMIListenConfigValidate`, `TestGNMIListenConfigValidateMultiListener` in the same green run |
+| AC-7 | a reload cannot move an unauthenticated listener non-loopback | `TestReloadListenersRefusesUnauthNonLoopback`, `TestReloadListenersAllowsAuthenticatedNonLoopback` present in `cmd/ze/hub` and green in the main thread's run |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| config binds gNMI `0.0.0.0` with no token | `test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci` | Yes -- foreground `ze`, `expect=exit:code=1` plus the refusal text |
+| `ze.mcp.listen` routable env, no token | `test/plugin/mgmt-guard-mcp-env-nonloopback-refused.ci` | Yes -- per-command `env=` directive |
+| `ze.web.insecure` with a non-loopback listen | `test/plugin/mgmt-guard-web-insecure-env-refused.ci` | Yes |
+| `mcp { bind-remote true; auth-mode none }` | `test/plugin/mgmt-guard-mcp-bind-remote-none-refused.ci` | Yes -- asserts the existing `Validate` message |
+| loopback gNMI/MCP/web without auth | `test/plugin/mgmt-guard-loopback-allowed.ci` | Yes -- joins `option=exclusive:group=mgmt-guard` after the port collision |
+| gNMI non-loopback WITH token | `test/plugin/mgmt-guard-gnmi-token-allowed.ci` | Yes |
+| `ze doctor --json` on an exposing config | `test/ui/doctor-gnmi-mcp-exposure.ci` | Yes |
+| SIGHUP moves an unauth listener non-loopback | `test/reload/mgmt-guard-reload-refuses-nonloopback.ci` | Yes |
+| `ze.gnmi.enabled` plus a dormant block naming a loopback `server` | `test/plugin/mgmt-guard-gnmi-env-started-address-survives.ci` | Yes -- red before the fix, bound `[::]:9339` |
+| `ze.gnmi.enabled` plus a dormant block naming a `token` | `test/plugin/mgmt-guard-gnmi-env-started-token-survives.ci` | Yes -- red before the fix, exit 1 |
+| `ze.looking-glass.enabled` plus a dormant block naming a loopback `server` | `test/plugin/mgmt-guard-lg-env-started-address-survives.ci` | Yes -- red before the fix, bound `http://[::]:8443/` |
+| `ze.looking-glass.token` leaf or env var | `test/plugin/lg-token-gate.ci` | Yes -- mutation-verified |
+| `ze.web.enabled` plus a dormant block naming a loopback `server` | `test/plugin/mgmt-guard-web-env-started-address-binds.ci` | Yes -- discrimination proven 2026-08-10 |
+| `ze.web.enabled` plus a dormant block carrying `insecure true` | `test/plugin/mgmt-guard-web-dormant-insecure-warns.ci` | Yes -- discrimination proven 2026-08-11, control checked with `strings` before the run |
+| `ze.web.enabled` plus `ze.web.insecure` plus a routable `server` | `test/plugin/mgmt-guard-web-env-started-address-survives.ci` | Yes |
+| `ze.api-server.rest.enabled` plus a dormant block naming address and token | `test/plugin/mgmt-guard-api-env-started-settings-survive.ci` | Yes -- red before the fix |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Hard-fail shipped; Thomas confirmed the API-precedent default 2026-07-16, and the refusal `.ci` prove exit 1 with nothing bound |
+| A-2 | confirmed | Every surface's address and auth is knowable at the one guard point: `resolveGNMIListeners`, `resolveAPIListeners`, `resolveWebListeners` and the MCP/LG resolutions all complete before `checkMgmtListeners` runs in `runYANGConfig` |
+| A-3 | confirmed | `"gnmi"` in `listener_defaults.go` and the doctor fallback caused no schema drift; `TestDoctorGnmiListenerIsProbed` and `TestDoctorGnmiDefaultEndpointIsProbed` are green |
+| A-4 | confirmed, with the residual case recorded | SSH, plugin hub, telemetry and the managed server stay out of the declaration set. The Prometheus residual (`server main { ip 0.0.0.0 }` plus no `basic-auth` block) is stated in Known Limitations against its real producer, `extractTelemetryConfig` |
+| A-5 | confirmed | `ReloadListeners` did move an address with no auth re-check; AC-7 now gates it, and `spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild` later added the rebuild |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "ze exits with status 1 and prints one line for each offending listener" | `checkMgmtListeners` (`cmd/ze/hub/mgmt_guard.go`) returns the collected refusals and `runYANGConfig` exits before `eng.Start` | Yes |
+| "An `environment` block without `enabled true` supplies the address, the token and the TLS settings" | `ExtractWebSettings` branch at `cmd/ze/hub/main.go:468`; `resolveAPIListeners` (`cmd/ze/hub/api_infra.go:50`); `resolveGNMIListeners` (`cmd/ze/hub/gnmi_infra.go:24`) | Yes |
+| "`environment.web insecure` is the one exclusion" plus its WARN | The WARN string at `cmd/ze/hub/main.go:494`, fired from the `webEnabled && webSettings.Insecure && !insecureWeb && !webAuthFollowsConfig` condition | Yes |
+| "The looking glass serves TLS by default ... an explicit `tls true` on such a box is an error" | `TestExtractLGConfigTLSDefaultOn` and `TestExtractLGConfigTLSExplicitFlag` (`internal/component/config/lg_extract_test.go`), green in the closure run | Yes |
+| Category 2 (config syntax): no update needed | No leaf added or renamed this phase; `docs/` carries no source anchor at `internal/component/config/loader_extract.go` outside the page this closure edited | Yes |
+| Category 9 (RFC status): not applicable | No RFC governs a vendor management listener's bind policy; `rfc/short/` holds no summary this change touches | Yes |
+
+## Core Insight
+
+**An `enabled` gate answers "start a listener", and it was silently answering
+"how does this service authenticate" as well.** Five services carried the same
+shape, and each one turned the guard into its own opposite: the daemon refused to
+boot naming a credential the operator had already written, or served a management
+port in clear because the certificate paths sat one branch too deep. The guard
+did not create the class, it made it visible, because a fail-closed check is the
+first reader that ever compares what a block SAYS with what the daemon RESOLVED.
+The split that fixes it is mechanical -- parse the whole block, let `enabled`
+decide only whether a listener starts -- and the reason MCP is exempt is the
+same reason the class is dangerous: its `enabled` default is NARROWER than any
+address a block can name, so honoring the block would move the listener outward.

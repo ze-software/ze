@@ -1,0 +1,109 @@
+# Test: an env-started web server BINDS the address the dormant config names
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-3/AC-4 -- ze.web.enabled
+# says START and says nothing about WHERE, so the address of an environment.web
+# block that carries no `enabled true` decides the bind (ExtractWebSettings,
+# read in cmd/ze/hub/main.go beside the certificate).
+# PREVENTS: publishing on every interface a web server the operator bound to one
+# address. The sibling test (mgmt-guard-web-env-started-address-survives.ci)
+# proves the REFUSAL branch, where `insecure` makes the guard reject the routable
+# address. That branch never binds, so it cannot show the address reaching the
+# listener. This test carries no `insecure`: the web server authenticates, the
+# guard passes the loopback address, and the listener reports where it actually
+# bound. A discarded address falls back to resolveWebListeners' 0.0.0.0:3443
+# default, which this test rejects.
+# The web server needs blob storage (startWebServer, service_web.go), so the
+# daemon runs from a script that calls `ze init` first, the shape
+# rbac-web-config-deny.ci already uses.
+
+option=exclusive:group=mgmt-guard
+option=timeout:value=60s
+
+tmpfs=test-web-dormant-address.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+ZE_DIR=$(mktemp -d)
+DAEMON_PID=""
+cleanup() {
+	rm -rf "$ZE_DIR"
+	if [ -n "$DAEMON_PID" ]; then
+		kill "$DAEMON_PID" 2>/dev/null || true
+		wait "$DAEMON_PID" 2>/dev/null || true
+	fi
+}
+trap cleanup EXIT
+
+# Blob storage for the web server, and the zefs power user that goes with it.
+printf 'webadmin\nwebadminpass\n127.0.0.1\n2222\n' | ZE_CONFIG_DIR="$ZE_DIR" ze init >/dev/null
+
+cat > web-dormant-address.conf << 'ZECONF'
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass", the fixture authz-allow.ci uses.
+		# Somebody must be able to log in or startWebServer disables the server
+		# instead of binding, and the test would then prove nothing.
+		user webadmin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	web {
+		# No `enabled true`, and no `insecure`: ze_web_enabled below starts the
+		# server, and this address says where it binds.
+		server main {
+			ip 127.0.0.1;
+			port 18449;
+		}
+	}
+}
+ZECONF
+
+# ze.web.enabled in the env form the daemon reads (dots become underscores,
+# internal/core/env/env.go normalize). Exported here rather than through
+# option=env because the daemon is launched by this script, not by the runner.
+export ze_web_enabled=1
+
+ZE_CONFIG_DIR="$ZE_DIR" ze start web-dormant-address.conf 2>daemon.log &
+DAEMON_PID=$!
+
+for i in $(seq 1 60); do
+	if grep -q 'web server listening on' daemon.log 2>/dev/null; then
+		break
+	fi
+	if grep -q 'web server disabled' daemon.log 2>/dev/null; then
+		break
+	fi
+	sleep 0.5
+done
+
+# The runner's stderr assertions read this.
+cat daemon.log >&2
+
+grep -q 'web server listening on' daemon.log || {
+	echo "FAIL: the web server never reported a listening address" >&2
+	exit 1
+}
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-web-dormant-address.sh:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=web server listening on https://127.0.0.1:18449/
+# The wildcard default the address falls back to when the dormant block's
+# server entry is discarded. Reading it through the enable gate produced exactly
+# this line, on every interface.
+reject=stderr:pattern=web server listening on https://0\.0\.0\.0:3443/
+reject=stderr:pattern=web server disabled

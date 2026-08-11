@@ -1,0 +1,37 @@
+# Test: an env-started looking glass binds the address the config names
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-5 -- ze.looking-glass.enabled
+# says START and says nothing about WHERE, so the loopback address of an
+# environment.looking-glass block survives the missing `enabled true` leaf
+# (cmd/ze/hub/main.go, the LG half of the settings/listener split).
+# PREVENTS: publishing route data and session state on every interface when the
+# operator bound the looking glass to 127.0.0.1. The env var's 0.0.0.0:8443
+# default was applied before the config was read and then won, because the
+# listener question skips a block that never says `enabled true`. The boot guard
+# does not catch it: the looking glass is deliberately exempt from the
+# unauthenticated-listener refusal (spec Notes, autonomous default 2).
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.looking-glass.enabled:value=1
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	looking-glass {
+		# No `enabled true`: ze.looking-glass.enabled above starts the server,
+		# and these settings say how it serves and where it binds. `tls false`
+		# keeps certificates out of a test about the address.
+		tls false
+		token lg-env-started-token
+		server main {
+			ip 127.0.0.1
+			port 18447
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=looking glass listening on http://127.0.0.1:18447/
+expect=stderr:contains=looking glass listening on http://127.0.0.1:18447/
+# The wildcard default, whichever family the kernel reports it as. This is what
+# the discarded address fell back to.
+reject=stderr:pattern=looking glass listening on http://.*:8443/

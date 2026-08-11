@@ -211,7 +211,7 @@ first step; if `mgmt_guard.go` is absent, STOP and land the parent first.
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `cmd/ze/hub/listener_migrate.go` - `ReloadListeners`, the SIGHUP reload path
-4. `plan/spec-fixit-mgmt-listener-auth-guard.md` - the source spec (if still on disk)
+4. `spec-fixit-mgmt-listener-auth-guard` - the source spec (if still on disk)
 
 ## Task
 
@@ -219,7 +219,7 @@ Make an authentication-mode change take effect on a SIGHUP config reload. Today 
 running management server keeps the auth mode it was constructed with; only its
 listen addresses are migrated.
 
-**Provenance:** deferred from `plan/spec-fixit-mgmt-listener-auth-guard.md` Known
+**Provenance:** deferred from `spec-fixit-mgmt-listener-auth-guard` Known
 Limitations, recorded 2026-07-17. The source spec confirmed AC-7's boot-plus-migration
 address guard as its shipped scope and left the auth rebuild here.
 
@@ -291,7 +291,7 @@ concern (secrecy vs identity) and is NOT currently claimed by this file.
 (readiness decision protocol). This spec is about *identity on reload* (rebuild auth
 so an auth-mode change takes effect and re-run the guard); transport secrecy is a
 different axis the parent already parked as a NOTED FOLLOW-UP
-(`plan/spec-fixit-mgmt-listener-auth-guard.md` open question 4, Known Limitations).
+(`spec-fixit-mgmt-listener-auth-guard` open question 4, Known Limitations).
 Folding it in here would widen scope without touching the reload/auth-rebuild path.
 Thomas: override if wrong.
 
@@ -303,7 +303,7 @@ Thomas: override if wrong.
   → Constraint: the `Reconfigurable` seam (`cmd/ze/hub/listener_migrate.go`) exposes only `Addresses()` + `Reconfigure(ctx, newAddrs)`; auth is chosen once at construction (web `authWrap`, `cmd/ze/hub/service_web.go`) and baked into one `*http.Server{Handler: mux}` (`internal/component/web/server.go,130`). An auth rebuild must either WIDEN this seam to carry the auth decision or drain-and-replace the instance; it must never mutate a live handler chain in place, and on any failure it must fail closed (rollback), never leave a listener less authenticated than before (`ai/rules/evidence.md`).
 - [ ] `docs/architecture/api/architecture.md` - API/gNMI/REST/gRPC server construction and lifecycle (the API surfaces that share the `Reconfigurable` seam)
   → Constraint: REST already fails closed in `Reconfigure` by rejecting any non-loopback address (`internal/component/api/rest/server.go`); the auth-rebuild path must not weaken that, and must extend the same fail-closed posture to the auth dimension.
-- [ ] `plan/spec-fixit-mgmt-listener-auth-guard.md` - the PARENT (security) spec; provenance for this child
+- [ ] `spec-fixit-mgmt-listener-auth-guard` - the PARENT (security) spec; provenance for this child
   → Constraint: the parent creates the single shared classifier + `checkMgmtListeners` (`cmd/ze/hub/mgmt_guard.go`, parent Files to Create) and gates `ReloadListeners` for address moves (AC-7). This child MUST reuse that classifier to re-run the auth guard on reload — do not create a second classifier (parent Critical Review "Single classifier").
 
 **Key insights:**
@@ -364,7 +364,7 @@ Thomas: override if wrong.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Rebuilding a server in place can preserve in-flight connections acceptably | not yet investigated | design changes to drain-and-replace | prototype + functional test | unvalidated |
-| A-2 | The parent's shared classifier + `ReloadListeners` gate exist by the time this is implemented | `plan/spec-fixit-mgmt-listener-auth-guard.md` (Status ready; creates `cmd/ze/hub/mgmt_guard.go`, gates `ReloadListeners` AC-7) | this child cannot re-run the guard; would have to duplicate the classifier (rejected) | parent spec on disk before implementation | pending parent |
+| A-2 | The parent's shared classifier + `ReloadListeners` gate exist by the time this is implemented | `spec-fixit-mgmt-listener-auth-guard` (Status ready; creates `cmd/ze/hub/mgmt_guard.go`, gates `ReloadListeners` AC-7) | this child cannot re-run the guard; would have to duplicate the classifier (rejected) | parent spec on disk before implementation | pending parent |
 | A-3 | A failed auth rebuild can be fully rolled back via the existing reverse-order reconfigure | `cmd/ze/hub/listener_migrate.go`, `main_reload.go` | a half-rebuilt server is left in an unknown auth state | AC-2 rollback test | unvalidated |
 
 → AUTONOMOUS DEFAULT (2026-07-17) on A-1: do NOT assume in-place rebuild is safe.

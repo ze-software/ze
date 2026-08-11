@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -393,9 +392,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		lgTLS = env.GetBool("ze.looking-glass.tls", true)
 		lgTLSSet = true
 	}
-	if env.IsEnabled("ze.looking-glass.enabled") && len(lgAddrs) == 0 {
-		lgAddrs = []string{"0.0.0.0:8443"}
-	}
+	// ze.looking-glass.enabled says START, and says nothing about WHERE. Its
+	// 0.0.0.0:8443 default is applied below, after the config block has been
+	// read, so an env-started looking glass still binds the address the operator
+	// wrote. Applying it here published on every interface a block that named
+	// 127.0.0.1 (same defect as environment.gnmi, cmd/ze/hub/gnmi_infra.go).
+	lgEnabledByEnv := env.IsEnabled("ze.looking-glass.enabled")
 
 	if listen := env.Get("ze.web.listen"); listen != "" && len(webAddrs) == 0 {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
@@ -458,13 +460,42 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		webEnabled = true
 	}
-	// SETTINGS (certificate) apply whenever the block exists, whatever supplied
-	// the address. Gating this on `enabled` discarded the operator's certificate
-	// choice when --web, ze.web.listen, or ze.web.enabled started the server,
-	// leaving a self-signed certificate on a listener the operator believed was
-	// serving their own chain.
-	if webSettings, ok := zeconfig.ExtractWebSettings(loadResult.Tree); ok && webCertificate == "" {
-		webCertificate = webSettings.Certificate
+	// SETTINGS (certificate, and the address the block names) apply whenever the
+	// block exists, whatever supplied the address. Gating this on `enabled`
+	// discarded the operator's certificate choice when --web, ze.web.listen, or
+	// ze.web.enabled started the server, leaving a self-signed certificate on a
+	// listener the operator believed was serving their own chain.
+	if webSettings, ok := zeconfig.ExtractWebSettings(loadResult.Tree); ok {
+		// Only when something else already said START: a dormant block must not
+		// supply an address, because webEnabled is what starts the web server.
+		// Without this, ze.web.enabled bound the 0.0.0.0:3443 default over the
+		// loopback address the block named (resolveWebListeners below), and with
+		// ze.web.insecure set the daemon refused to boot over an address the
+		// operator had never written.
+		//
+		// Insecure is deliberately NOT taken here. It removes authentication, so
+		// reading it outside the enable gate would let a dormant block disarm a
+		// listener an env var started -- the opposite of what this split fixes
+		// for every other setting.
+		if webEnabled && len(webAddrs) == 0 {
+			webAddrs = endpointsToAddrs(webSettings.Servers)
+		}
+		if webCertificate == "" {
+			webCertificate = webSettings.Certificate
+		}
+		// Say so when that exclusion changes the outcome. The operator wrote
+		// `insecure true` and the web server starts authenticated anyway, which
+		// is silent divergence unless the daemon names the leaf it dropped.
+		// webAuthFollowsConfig is exactly "the block decided the switch", so it
+		// is false both for a dormant block and for an enabled block whose
+		// address a flag or an environment variable supplied first.
+		if webEnabled && webSettings.Insecure && !insecureWeb && !webAuthFollowsConfig {
+			slogutil.Logger("hub.web").Warn(
+				"environment.web insecure not honored: this leaf removes authentication. The block decides web authentication only when it starts the server and names the listen address",
+				"leaf", "environment.web.insecure",
+				"remedy", "set ze.web.insecure=1, or write enabled true in the block and let it name the server address",
+			)
+		}
 	}
 	// Two questions, deliberately asked separately (see ExtractMCPSettings).
 	//
@@ -493,16 +524,22 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if lgListenCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok && len(lgAddrs) == 0 {
 		lgAddrs = endpointsToAddrs(lgListenCfg.Servers)
 	}
-	// SETTINGS (tls, token) apply whenever the block exists, whatever supplied
-	// the address. Gating them on `enabled` discarded the operator's TLS and
-	// token instruction when ze.looking-glass.enabled or ze.looking-glass.listen
-	// started the server, leaving a plaintext, open looking glass
-	// (ai/rules/protocol.md).
+	// SETTINGS (tls, token, and the address the block names) apply whenever the
+	// block exists, whatever said START. Gating them on `enabled` discarded the
+	// operator's TLS and token instruction when ze.looking-glass.enabled or
+	// ze.looking-glass.listen started the server, leaving a plaintext, open
+	// looking glass (ai/rules/protocol.md).
 	//
 	// Precedence: env var > config file > default-on. The config file's own TLS
 	// value already defaults true, so the config lowers TLS only when the
 	// operator wrote `tls false`, and an env var overrides both.
 	if lgCfg, ok := zeconfig.ExtractLGSettings(loadResult.Tree); ok {
+		// Only when something else already said START: a dormant block must not
+		// supply an address, because a non-empty lgAddrs is what starts the
+		// looking glass.
+		if lgEnabledByEnv && len(lgAddrs) == 0 {
+			lgAddrs = endpointsToAddrs(lgCfg.Servers)
+		}
 		if !lgTLSSet {
 			lgTLS = lgCfg.TLS
 			lgTLSSet = lgCfg.TLSExplicit
@@ -510,6 +547,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if lgToken == "" {
 			lgToken = lgCfg.Token
 		}
+	}
+	// No looking-glass block at all, so nothing named an address: bind the same
+	// default extractServerList synthesizes for a block that names no server.
+	if lgEnabledByEnv && len(lgAddrs) == 0 {
+		lgAddrs = []string{"0.0.0.0:8443"}
 	}
 
 	// Phase 2: Populate ConfigProvider.
@@ -898,35 +940,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// boot-time management-listener guard below sees every management surface's
 	// (address, auth) pair before anything binds. The API build path further
 	// down reuses apiCfg / apiCfgOK / apiUsers.
-	apiCfg, apiCfgOK := zeconfig.ExtractAPIConfig(loadResult.Tree)
-	if env.IsEnabled("ze.api-server.rest.enabled") && !apiCfg.RESTOn {
-		apiCfg.RESTOn = true
-		apiCfg.REST = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "8081"}}
-		apiCfgOK = true
-	}
-	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && apiCfg.RESTOn {
-		host, port, parseErr := net.SplitHostPort(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.api.rest.listen: %v\n", parseErr)
-			logStartupFailure("ze.api.rest.listen", parseErr)
-			return 1
-		}
-		// Env-var override replaces the config-provided list with one entry.
-		apiCfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
-	}
-	if env.IsEnabled("ze.api-server.grpc.enabled") && !apiCfg.GRPCOn {
-		apiCfg.GRPCOn = true
-		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}}
-		apiCfgOK = true
-	}
-	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && apiCfg.GRPCOn {
-		host, port, parseErr := net.SplitHostPort(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.api.grpc.listen: %v\n", parseErr)
-			logStartupFailure("ze.api.grpc.listen", parseErr)
-			return 1
-		}
-		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+	apiCfg, apiCfgOK, apiResolveErr := resolveAPIListeners(loadResult.Tree)
+	if apiResolveErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", apiResolveErr)
+		logStartupFailure("api-server listen", apiResolveErr)
+		return 1
 	}
 	apiTokenEnv := env.Get("ze.api-server.token")
 	if apiTokenEnv != "" && apiCfg.Token == "" {
@@ -1012,7 +1030,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 	if apiCfgOK && (restBuild != nil || grpcBuild != nil) {
-		apiAddrs := append(apiListenToAddrs(apiCfg.REST), apiListenToAddrs(apiCfg.GRPC)...)
+		apiAddrs := apiGuardAddrs(apiCfg)
 		// Same reason as MCP: restBuildImpl/grpcBuildImpl return an empty handle
 		// when their endpoint list is empty, so an empty declaration binds
 		// nothing and must not trip the no-addresses refusal.

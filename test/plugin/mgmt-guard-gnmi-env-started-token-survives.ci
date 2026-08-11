@@ -1,0 +1,38 @@
+# Test: an env-started gNMI listener authenticates with the config's token
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-1 -- the settings of an
+# environment.gnmi block reach the running daemon even when the block never says
+# `enabled true`. ze.gnmi.enabled is what starts gNMI here; the token is the
+# operator's whole authentication instruction, and the guard must see it.
+# The unit tests around resolveGNMIListeners prove the resolver. Only this
+# proves the daemon: config load -> resolver -> guard -> bind.
+# PREVENTS: a boot refusal the operator cannot act on. Reading the token through
+# the enable gate discarded it, so the daemon bound nothing and told the
+# operator to set the very token they had already written. The two sibling
+# services already have this test (mcp-cli-listener-honors-config-auth.ci,
+# lg-token-gate.ci); gNMI had none, because every other mgmt-guard scenario
+# writes `enabled true`.
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.gnmi.enabled:value=1
+# The address comes from the environment so the block below carries the token
+# and nothing else. The wildcard host is what makes the token load-bearing: a
+# non-loopback bind is refused without one. The port is 19343 rather than the
+# synthesized 9339 default, because a wildcard bind on a well-known port
+# collides with any concurrent second copy of this suite.
+option=env:var=ze.gnmi.listen:value=0.0.0.0:19343
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	gnmi {
+		# Neither `enabled true` nor a `server` block: ze.gnmi.enabled above
+		# starts the listener, ze.gnmi.listen says where, and this token is the
+		# only thing standing between the guard and a refusal.
+		token s3cret-env-started-token
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=gNMI server listening on
+expect=stderr:pattern=gNMI server listening on .*:19343
+reject=stderr:pattern=refusing to start gNMI
