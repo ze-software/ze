@@ -612,9 +612,6 @@ plan/spec-fixit-bgp-session-fsm-lifecycle.md	test/parse/deadpeer-holddown.ci
 plan/spec-fixit-bgp-session-fsm-lifecycle.md	test/parse/open-in-established.ci
 plan/spec-fixit-bgp-shutdown-cease-notification.md	plan/deferrals/fixit-bgp-shutdown-cease-notification.md
 plan/spec-fixit-bgp-shutdown-cease-notification.md	plan/spec-rfcgate-2-evidence.md
-plan/spec-fixit-bmp-sender-blocking-and-reload.md	internal/poll.FD
-plan/spec-fixit-bmp-sender-blocking-and-reload.md	test/plugin/bmp-sender-nonblocking.ci
-plan/spec-fixit-bmp-sender-blocking-and-reload.md	test/plugin/bmp-sender-reload-idempotent.ci
 plan/spec-fixit-child-sa-rekey-policy.md	docs/architecture/ipsec/
 plan/spec-fixit-child-sa-rekey-policy.md	internal/component/ike/engine/rekey_policy_test.go
 plan/spec-fixit-child-sa-rekey-policy.md	plan/deferrals/rfcgate-1b-rfc7296-pilot.md
