@@ -347,7 +347,7 @@ second time alongside the reactor forward.
 
 | What | Why |
 |------|-----|
-| Dropped the `OTCEgressFilter` `src-role` config fallback from this spec | Not required by any AC: removing it and re-running 394/395 keeps both green, because ingress stamps OTC into the WIRE bytes before storage and `checkOTCEgress` sees it on the reconstruction. Landing it would require editing `TestOTCEgressNoStampProvider`, which carries `RFC requirement: RFC9234-5-4 negative` and needs explicit user approval. Homed in `plan/deferrals/fixit-bgp-egress-rail-divergence.md` -> `plan/spec-fixit-otc-src-role-meta-fallback.md`. |
+| Dropped the `OTCEgressFilter` `src-role` config fallback from this spec | Not required by any AC: removing it and re-running 394/395 keeps both green, because ingress stamps OTC into the WIRE bytes before storage and `checkOTCEgress` sees it on the reconstruction. Landing it would require editing `TestOTCEgressNoStampProvider`, which carries `RFC requirement: RFC9234-5-4 negative` and needs explicit user approval. Homed in `plan/deferrals/fixit-bgp-egress-rail-divergence.md` -> spec-fixit-otc-src-role-meta-fallback, which landed it and closed 2026-08-11. |
 | `plugin.Coordinator` gained `RelayStoredRoute`, and `ReactorLifecycle` now composes `ReactorRelayCoordinator` | Phase 1 left the Coordinator facade without the method, so `s.reactor.(plugin.ReactorRelayCoordinator)` failed at RUNTIME and every replay degraded to `relay-stored-route: no reactor available` (observed in the first 372 run). Composing the interface makes that a COMPILE error; doing so immediately surfaced 8 test mocks silently missing the method. |
 
 ### Remaining before closure

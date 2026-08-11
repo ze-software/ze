@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 5/6 |
-| Updated | 2026-07-27 |
+| Phase | 6/6 |
+| Updated | 2026-08-11 |
 
 ## Post-Compaction Recovery
 
@@ -324,13 +324,15 @@ growth itself is recorded in Deviations.
 | AC-9 | A `role` block is configured on a peer whose remote IP does not resolve, so the entry would be keyed by name while every reader keys by address | The config is REJECTED with a WARN naming the peer, rather than silently stored and never read. A peer NAMED for its address still works |
 | AC-10 | A peer that once advertised a Role capability reconnects without one; and separately, any suppression decision fires | The stale capability-learned role is CLEARED at the OPEN (not on session down, which carries no session identity); and every suppression is counted under a distinguishable reason with a one-shot WARN on the first drop, so a peer's advertisements can never be withdrawn invisibly |
 
-**AC-11 code is MET; its functional/interop coverage is still owed.** The unit-level
-behavior is implemented and mutation-verified; the `.ci` and interop rows below remain
-outstanding, so this spec does not close on AC-11 alone.
+**AC-11 is MET in full, code and coverage (corrected 2026-08-11 at closure).** The
+paragraph that stood here said the `.ci` and interop rows were still owed. That was
+true on 2026-07-27 and is false now: `test/plugin/role-otc-fwd-withdraw.ci`,
+`test/plugin/role-otc-rs-withdraw-eor.ci` and
+`test/interop/scenarios/51-role-otc-withdraw-frr` are all at HEAD.
 
 | AC ID | Input / Condition | Expected Behavior | Status |
 |-------|-------------------|-------------------|--------|
-| AC-11 | `OTCEgressFilter` reached with a payload that advertises NO reachable NLRI: a pure IPv4 withdrawal, or an MP_UNREACH-only payload of any family, toward a Customer/Peer/RS-Client destination | NO OTC attribute is queued. RFC 9234 Section 5 egress rule 1 applies to a route that "is to be advertised"; a withdrawal is not a route. `isPayloadUnicast` must also recognise MP_UNREACH (type 15) so the family scoping holds for the withdrawal shape | **MET in code** (`otc.go` `payloadAdvertisesNLRI`, gating egress at `otc.go` and ingress at `otc.go`; MP_UNREACH family read at `otc.go`). See the evidence table below. **Functional `.ci` + interop coverage NOT MET** -- still owed |
+| AC-11 | `OTCEgressFilter` reached with a payload that advertises NO reachable NLRI: a pure IPv4 withdrawal, or an MP_UNREACH-only payload of any family, toward a Customer/Peer/RS-Client destination | NO OTC attribute is queued. RFC 9234 Section 5 egress rule 1 applies to a route that "is to be advertised"; a withdrawal is not a route. `isPayloadUnicast` must also recognise MP_UNREACH (type 15) so the family scoping holds for the withdrawal shape | **MET** (`otc.go` `payloadAdvertisesNLRI`, gating the egress stamp and the ingress stamp; MP_UNREACH family read by `isPayloadUnicast`). See the evidence table below. Functional and interop coverage landed too: `test/plugin/role-otc-fwd-withdraw.ci`, `test/plugin/role-otc-rs-withdraw-eor.ci`, `test/interop/scenarios/51-role-otc-withdraw-frr` |
 
 **Why the gate is where it is, and why it must not be loosened.** Stamping a
 non-advertising UPDATE is wire-visible damage three times over, and the third
@@ -460,11 +462,13 @@ change had to keep green.
 | `role-otc-ingress-reject` | `test/plugin/role-otc-ingress-reject.ci` | a leaked route from a Customer is rejected | Done (pre-existing) |
 | `role-otc-unicast-scope` | `test/plugin/role-otc-unicast-scope.ci` | OTC is not applied to a non-unicast family | Done (pre-existing) -- proves the MP_REACH branch only; the withdrawal shape is the AC-11 gap |
 | `role-otc-export-unknown` | `test/plugin/role-otc-export-unknown.ci` | `export unknown` still targets capability-less peers after the `resolvePeerRole` widening | Done (pre-existing, and the regression guard for R-4) |
-| (none) | - | **a withdraw-only UPDATE toward a Customer leaves the wire without an OTC attribute** | **MISSING -- AC-11** |
+| `role-otc-fwd-withdraw` | `test/plugin/role-otc-fwd-withdraw.ci` | a withdraw-only UPDATE relayed to a Customer leaves the wire with `attrLen=0000` and no attribute of any code | Done (landed with the AC-11 fix) |
+| `role-otc-rs-withdraw-eor` | `test/plugin/role-otc-rs-withdraw-eor.ci` | an End-of-RIB marker and a withdraw-only UPDATE are forwarded unstamped on the route-server rail | Done (landed with the AC-11 fix) |
+| `role-otc-rs-client-dest-stamp` | `test/plugin/role-otc-rs-client-dest-stamp.ci` | an advertised route toward an RS-Client still carries OTC, so the gate is bounded in both directions | Done |
 
-No NEW `.ci` was written: this work changed decision logic inside filters the existing
-`role-otc-*.ci` suite already drives end to end, and the one behaviour that would need a
-new `.ci` (AC-11) is not implemented.
+Five of the `.ci` above are pre-existing: this work changed decision logic inside filters
+the `role-otc-*.ci` suite already drives end to end. Three were written for AC-11, whose
+behaviour the existing suite could not reach.
 
 ### Interop Tests (MANDATORY for protocol features)
 <!-- REQUIRED when the spec adds/changes wire protocol behavior (BGP, IPsec, L2TP). -->
@@ -473,12 +477,11 @@ new `.ci` (AC-11) is not implemented.
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | (none for AC-1..AC-10) | - | - | The landed changes alter WHICH routes are advertised, not the wire encoding of any message a peer parses. A conforming peer cannot distinguish "ze suppressed this route because config said so" from "ze had no such route", so an interop scenario would be vacuous in the sense `ai/rules/interop-and-goal-validation.md` names: reverting the change would leave the peer's routing table identical | N/A with justification |
-| withdraw-only UPDATE against a strict receiver | `test/interop/scenarios/` | FRR or BIRD | **REQUIRED for AC-11 and genuinely non-vacuous:** RFC 7606 Section 5.2 makes a conforming receiver session-reset on a withdraw-only UPDATE carrying a non-MP_UNREACH attribute, so reverting the fix produces an observable NOTIFICATION. This is the one part of this spec that interop can actually discriminate | **MISSING -- AC-11** |
+| withdraw-only UPDATE against a strict receiver | `test/interop/scenarios/51-role-otc-withdraw-frr` | FRR 10.3.1 | **Genuinely non-vacuous:** RFC 7606 Section 5.2 makes a conforming receiver session-reset on a withdraw-only UPDATE carrying a non-MP_UNREACH attribute. The scenario runs the route-server rail, where the withdrawal is byte-clean, so an added OTC Attribute is the only possible difference | Done |
 
 ### Future (if deferring any tests)
-- Nothing is deferred. The missing AC-11 tests are not deferred work; they are part of an
-  unfixed defect that blocks closure (`ai/rules/completion.md`: a reproducible defect has
-  no recording path).
+- Nothing is deferred. The AC-11 tests this section listed as missing on 2026-07-27 were
+  written and landed; the row above names them.
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
@@ -894,7 +897,7 @@ was wire-visible.
 | **Role config that no reader can look up is rejected, not silently stored** | Done | `role/config.go`, the unreachable-key rejection | Requirement NOT in the Task section. Added by commit 5 |
 | **A capability-learned role does not outlive the session that taught it** | Done | `role/role.go`, cleared at the OPEN | Requirement NOT in the Task section. Added by commit 5. Cleared at the OPEN, not on session down: the structured state event carries no session identity, and for an in-process plugin the down arrives on a different loop, so a late down could delete a role a NEWER session had written |
 | **No suppression is invisible to the operator** | Done | `role/metrics.go` `recordDrop`, one call per `return false` site (`otc.go,353,505,520,551`) | Requirement NOT in the Task section. Added by commit 5 |
-| **OTC is applied only to routes being ADVERTISED** | **NOT MET** | no gate exists; `otc.go` tests only `mods != nil` and the destination role | RFC 9234 Section 5 egress rule 1 opens with "If a route is to be advertised". This is AC-11 and the closure blocker |
+| **OTC is applied only to routes being ADVERTISED** | Done | `payloadAdvertisesNLRI` (`role/otc.go`), gating the ingress stamp and the egress stamp; `isPayloadUnicast` reads MP_UNREACH | RFC 9234 Section 5 egress rule 1 opens with "If a route is to be advertised". Landed by `9c398078f` on 2026-08-03, after the row above was written |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -909,7 +912,7 @@ was wire-visible.
 | AC-8 | Done | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`), assertion `assert.Equal(t, 1, mods.Len(), ...)` from a source with NO config entry | Producing change: the deleted `srcCfg == nil` early return. **Untagged:** this test carries no `RFC requirement:` line, so `ai/RFC-REQUIREMENTS.md` still credits `RFC9234-5-4 positive` to `TestOTCEgressStampMod` (`otc_test.go`), whose source DOES have role config. Verified 2026-07-27 by `grep -n 'RFC requirement:' otc_test.go` -- the nearest tags are at `:1080` and `:1324`. Recorded in the OPEN BLOCKER |
 | AC-9 | Done | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go`) for the reject, `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept` for the accept, `TestUnusableRoleConfigDoesNotShadowUsablePeers` for the blast radius | Both edges are tested, which is what makes the rejection safe: a peer named for its address still works |
 | AC-10 | Done | Clearing: `TestReconnectWithoutRoleCapabilityClearsStaleRole` (`session_role_test.go`) and five siblings, including `TestStaleRoleClearedEvenWhenOpenIsRejected`. Counting: `TestRoleDropsAreCounted` (`metrics_test.go`), `TestRoleAcceptedRouteIsNotCounted`, `TestRoleFirstDropEmitsWarn`, `TestRoleMetricsSafeBeforeConfigure` | `TestRoleAcceptedRouteIsNotCounted` is the discriminating half: a counter that increments on every route would pass "drops are counted" while proving nothing |
-| **AC-11** | **NOT MET -- no code, no test** | nothing | The closure blocker. `otc.go` has no advertisement gate and `isPayloadUnicast` (`otc.go`) has no MP_UNREACH awareness. Not Partial and not Skipped: those statuses mean the work was scoped down with approval. This is an unfixed defect on an open spec |
+| **AC-11** | Done | Nine unit tests over the withdrawal shapes (`otc_test.go`), `test/plugin/role-otc-fwd-withdraw.ci`, `test/plugin/role-otc-rs-withdraw-eor.ci`, `test/interop/scenarios/51-role-otc-withdraw-frr` | The gate is `payloadAdvertisesNLRI` (`otc.go`), mutation-verified in both directions. Landed by `9c398078f`; the `.ci` and the FRR scenario followed |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -925,7 +928,7 @@ was wire-visible.
 | Config keying (5 tests) | Done | `config_keying_test.go,118,142,157,189` | |
 | Stale-role clearing (6 tests) | Done | `session_role_test.go,91,125,151,179,206` | |
 | Drop counters (4 tests) | Done | `metrics_test.go,255,302,346` | |
-| **Withdraw-only payload is not stamped** | **MISSING** | - | AC-11. No unit test, no `.ci`, no interop scenario |
+| **Withdraw-only payload is not stamped** | Done | `otc_test.go` (nine tests, listed in the AC-11 evidence table), `test/plugin/role-otc-fwd-withdraw.ci`, `test/plugin/role-otc-rs-withdraw-eor.ci`, `test/interop/scenarios/51-role-otc-withdraw-frr` | AC-11 |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -940,24 +943,26 @@ was wire-visible.
 | `internal/component/bgp/reactor/reactor_api_relay.go` | Changed | Not in the original plan. Its comment documented this gap as OPEN and would have gone stale (`ai/rules/stale-comments.md`) |
 | `ai/RFC-REQUIREMENTS.md`, `ai/CODE-TO-DOCS.md` | Changed | Not in the original plan. Regenerated: a new or moved RFC-tagged test shifts the ledger and `ze-rfc-check` fails on a stale one |
 | `docs/architecture/meta/role.md`, `docs/plugin-development/metrics.md` | Changed | Not in the original plan; required by `ai/rules/writing.md` once metadata semantics and counters changed |
-| `docs/guide/bgp-role.md`, `docs/architecture/route-selection.md` | **NOT updated** | Both carry source anchors into the changed code and describe the changed behaviour. A real omission, found 2026-07-27 |
+| `docs/guide/bgp-role.md` | Done | Updated by `9c398078f`, which added the "Address family" and "Reachable NLRI" rows describing the MP_UNREACH family read and the no-stamp rule for a withdrawal, an MP_UNREACH-only UPDATE and an End-of-RIB marker |
+| `docs/architecture/route-selection.md` | Done | Re-read 2026-08-11. Its one claim is that OTC mismatch is enforced by the bgp-role plugin, with a source anchor on `otc.go`. That is still exactly true after the `resolvePeerRole` widening, which changed where a role comes from and not which component enforces it. No edit needed |
+| `docs/features/rfc-status.md` | Done | The RFC 9234 row now states that both stamping rules are conditioned on the UPDATE advertising reachable NLRI, names `payloadAdvertisesNLRI` and `isPayloadUnicast`, and records the coverage gap as closed by the two `.ci` and scenario 51 |
 
 ### Audit Summary
-- **Total items:** 44 (9 Task requirements, 11 ACs, 12 TDD-plan tests, 12 file rows)
-- **Done:** 41
+- **Total items:** 47 (9 Task requirements, 11 ACs, 12 TDD-plan tests, 15 file rows)
+- **Done:** 47
 - **Partial:** 0
 - **Skipped:** 0
-- **NOT MET:** 3 -- the "advertised only" requirement, AC-11, and its missing test. These
-  are one defect counted at its three audit rows, not three separate gaps.
+- **NOT MET:** 0. The three rows that read NOT MET until 2026-08-03 were one defect,
+  and `9c398078f` fixed it. Its functional and interop coverage followed.
 - **Changed:** 10 (the exactness qualification, plus nine file rows touched beyond the
   plan). None reduces scope; all record scope that GREW.
-- **Documentation gap:** 2 doc files that carry anchors into the changed code were not
-  revisited, and one `rfc-status.md` claim is known-false pending the AC-11 fix.
+- **Documentation gap:** none. The two doc files and the one `rfc-status.md` claim this
+  summary listed as gaps are each accounted for in the file rows above.
 
-**Audit verdict: this spec CANNOT be closed.** Ten of eleven ACs are met with code and
-tests, but AC-11 is an unfixed, reproducible, wire-visible defect in the exact function
-this spec exists to correct, and `ai/rules/completion.md` makes "done with the
-following outstanding" a contradiction rather than a status.
+**Audit verdict (2026-08-11): this spec can close.** Every AC is met with code and with
+tests, AC-11 included, and the three ledger and guide claims that depended on it are
+corrected. The verdict recorded here on 2026-07-27 said the opposite and was correct
+then; it is superseded, not overruled.
 
 ## Goal Validation (BLOCKING)
 
@@ -976,11 +981,23 @@ following outstanding" a contradiction rather than a status.
 | A `role` block an operator writes actually takes effect, or says why not | Unit tests on both edges | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go`) and `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept`. Re-run 2026-07-27: PASS |
 | A role learned from a capability does not outlive its session | Unit tests over a reconnect | six tests in `session_role_test.go`, including `TestStaleRoleClearedEvenWhenOpenIsRejected`. Re-run 2026-07-27: PASS |
 | No suppression is invisible | Unit tests, including the discriminating negative | `TestRoleDropsAreCounted` (`metrics_test.go`) plus `TestRoleAcceptedRouteIsNotCounted`, which is what stops a counter that increments on every route from reading as proof. Re-run 2026-07-27: PASS |
-| **OTC is applied only to routes being advertised** | **NONE** | **This goal is NOT achieved.** No test, no `.ci`, no interop scenario asserts it, and the producing code has no gate. `ai/rules/interop-and-goal-validation.md` forbids marking a goal row "N/A" or "blocked" to avoid the work; the honest entry is that the goal fails. The interop scenario for it would be genuinely non-vacuous, which is rare for this spec: reverting the fix makes a conforming receiver session-reset per RFC 7606 Section 5.2, so the peer's observable behaviour changes |
+| **OTC is applied only to routes being advertised** | Unit, functional and interop, each discriminating | `payloadAdvertisesNLRI` (`otc.go`) is the gate. Nine unit tests over the withdrawal shapes, mutation-verified in both directions (forcing the gate open reddens the five no-stamp tests; forcing it shut reddens `TestOTCEgressStampsMixedWithdrawAndAnnounce`). `test/plugin/role-otc-fwd-withdraw.ci` asserts `attrLen=0000` and no attribute of any code on the wire; `test/plugin/role-otc-rs-withdraw-eor.ci` does the same for an End-of-RIB marker. `test/interop/scenarios/51-role-otc-withdraw-frr` runs FRR 10.3.1 against the shape RFC 7606 Section 5.2 escalates to a session reset |
 
-**Goal-validation verdict: incomplete.** Every goal the Task section states is achieved
-and evidenced. The goals the spec ACQUIRED during implementation are achieved except the
-last, and the last is the one with wire-visible, interop-fatal consequences.
+**Goal-validation verdict (2026-08-11): complete.** Every goal the Task section states,
+and every goal the spec acquired during implementation, is achieved and evidenced. The
+"incomplete" verdict recorded here on 2026-07-27 stood until `9c398078f` landed the gate
+and its coverage followed.
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The incomplete well-known attribute set on a relayed withdraw-only UPDATE, which FRR 10.3.1 answers with `Missing well-known attribute NEXT_HOP` (`plan/deferrals/fixit-otc-src-role-meta-fallback.md`) | done | Fixed in `spec-rfc7606-5-1-2-relay-shape`: `ASPathEdit.Record` (`internal/component/bgp/wireu/aspath_slot.go`) resolves a payload with no reachable NLRI as transcode-only, so `recordPrepend` cannot reach it. `test/plugin/role-otc-fwd-withdraw.ci` was re-baselined to `attrLen=0000` and `test/interop/scenarios/52-relay-withdraw-shape-frr` proves FRR accepts the shape |
+| The `src-role` config fallback dropped from `spec-fixit-bgp-egress-rail-divergence` and homed here (`plan/deferrals/fixit-bgp-egress-rail-divergence.md`) | done | This spec's AC-1..AC-5: `resolveSrcRole` (`role/otc.go`), proven by `TestOTCEgressSuppressProviderLearnedWithoutMeta`. The row is already marked `done` in that shard, which holds other live rows and therefore stays |
+
+The one row in this spec's own shard is terminal, so the shard is residue and this
+closure removes it. `plan/deferrals/fixit-bgp-egress-rail-divergence.md` is NOT removed:
+it belongs to another spec and holds rows beyond this one.
 
 ## Review Gate
 
@@ -990,22 +1007,30 @@ last, and the last is the one with wire-visible, interop-fatal consequences.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-otc-src-role-meta-fallback-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean (0 code files in the closure commit, hashes match) |
+| Rounds | 1 in this artifact. The implementation itself went through four earlier rounds, whose findings are recorded in the OPEN BLOCKER section and in the AC-6..AC-10 rows |
+| Reviewer lenses used | the advertisement gate and both its call sites, the MP_UNREACH family read, role resolution from the config complement, config keying, session-scoped role state, drop observability, and the discriminating power of each test |
+
+**This review reads code that is already at HEAD.** The implementation landed in
+`c398e97f0`, `276096afb`, `d373d9f40`, `e0607d0f4`, `f5dd2f040` and `9c398078f`; this
+closure carries no code, so the artifact records a review of the committed producers.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | The spec's audit, goal validation and pre-commit tables still said AC-11 was unmet, five days after `9c398078f` fixed it | this spec | fixed in this closure edit: each stale row now states what is at HEAD and says which date it superseded |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- None in the product. The review found no BLOCKER and no ISSUE. The one NOTE is a
+  false statement in this spec's own closure prose, which `ai/rules/planning.md` says
+  is fixed in one edit and never earns another round.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] Review shows 0 BLOCKER, 0 ISSUE
+- [ ] The one NOTE is recorded above
 
 ## Pre-Commit Verification
 
@@ -1032,7 +1057,8 @@ at `:392`, called at `:435`) which no longer resolve.
 | `internal/component/bgp/plugins/role/config_keying_test.go` | Yes | `-rw-r--r-- 1 thomas staff 8.8K Jul 27 15:53` (new file) |
 | `internal/component/bgp/plugins/role/session_role_test.go` | Yes | `-rw-r--r-- 1 thomas staff 9.8K Jul 27 15:48` (new file) |
 | `test/plugin/role-otc-{egress-filter,egress-stamp,export-unknown,ingress-reject,unicast-scope}.ci` | Yes | all five present, 4.4K-6.4K, dated 2026-07-14 to 2026-07-25 |
-| the AC-11 `.ci` and interop scenario | **No** | Not created. They are the missing proof for the open blocker, not an omission from a completed set |
+| `test/plugin/role-otc-fwd-withdraw.ci`, `test/plugin/role-otc-rs-withdraw-eor.ci`, `test/plugin/role-otc-rs-client-dest-stamp.ci` | Yes | `git ls-tree HEAD test/plugin/` lists all three (re-checked 2026-08-11) |
+| `test/interop/scenarios/51-role-otc-withdraw-frr/` | Yes | `git ls-tree -r HEAD test/interop/scenarios/` lists `check.py`, `ze.conf` and `inject.msg` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -1047,8 +1073,8 @@ at `:392`, called at `:435`) which no longer resolve.
 | AC-8 | Stamping is destination-conditioned only | `go test -race -run TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` -> `--- PASS`. Read `otc.go` to confirm no `srcCfg == nil` early return remains between the export check and the stamping block: the only `srcCfg` test left is `if srcCfg != nil && len(srcCfg.resolvedExport) > 0` at `:538`, which guards the EXPORT match and falls through |
 | AC-9 | Unreachable role config rejected | `go test -race -run 'TestRoleConfig|TestRoleCapabilityNotDeclared|TestUnusableRoleConfig'` -> `ok ... 1.413s` |
 | AC-10 | Stale roles cleared; drops counted | `go test -race -run 'TestReconnect|TestClearedRole|TestStaleRole|TestRoleAccepted|TestRoleFirstDrop|TestRoleMetrics'` -> `ok ... 1.413s`. `grep -n 'recordDrop' otc.go` -> five call sites (`:348,353,505,520,551`), matching the five `return false` / reject paths |
-| **AC-11** | **no OTC on a withdraw-only payload** | **FAILS.** `grep -rn -i 'unreach' internal/component/bgp/plugins/role/*.go` returns no code hit (only the `treat-as-withdraw` comments in `otc.go`). `otc.go` reads `if mods != nil && (destRemoteRole == roleCustomer || ...)` with no advertisement test. `otc.go` returns `true` for any payload with no MP_REACH, which includes every MP_UNREACH-only payload |
-| Whole package | no regression | `go test -race -count=1 ./internal/component/bgp/plugins/role/` -> `ok github.com/ze-software/ze/internal/component/bgp/plugins/role 5.110s` |
+| **AC-11** | no OTC on a withdraw-only payload | **PASSES**, re-checked at HEAD on 2026-08-11. `git show HEAD:internal/component/bgp/plugins/role/otc.go \| grep -n payloadAdvertisesNLRI` -> defined once and READ at both stamping branches, the ingress one guarded by `stampASN > 0 && payloadAdvertisesNLRI(payload)` and the egress one by `mods != nil && payloadAdvertisesNLRI(payload) && ...`. `mpUnreachAttrCode = byte(15)` is read inside `isPayloadUnicast`, so the family gate sees a withdraw-only payload |
+| Whole package | no regression | `make ze-test-pkg PKG=./internal/component/bgp/plugins/role` -> `ok github.com/ze-software/ze/internal/component/bgp/plugins/role (cached)`, exit 0, 2026-08-11 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -1056,8 +1082,8 @@ at `:392`, called at `:435`) which no longer resolve.
 | `RelayStoredRoute` -> `OTCEgressFilter` with `Meta: nil` | none | NO `.ci` for this path, stated rather than implied. The relay is driven by a peer-up replay, which the functional harness has no fixture for. Coverage is the unit test plus the code-level fact that `reactor_api_relay.go` sets `Meta: nil`. `ai/rules/testing.md` asks for a functional test per user-facing behavior; this is an internal safety net with no distinct user entry point, and the OTC egress behavior it protects is already covered by `test/plugin/role-otc-*.ci` |
 | Ingress/egress role gates for a capability-less peer | `test/plugin/role-otc-export-unknown.ci` | Partially. That `.ci` exists to prove `export unknown` still targets capability-less peers after the `resolvePeerRole` widening -- it is the regression guard for R-4, not a positive proof of the widening itself. The widening's proof is the two unit tests. Stated rather than claimed as end-to-end |
 | The egress stamp reaching the wire | `test/plugin/role-otc-egress-stamp.ci` | Yes -- byte-level: it asserts the OTC attribute in the UPDATE a Customer peer receives, which is the only thing that proves `mods.Op` -> `buildModifiedPayload` -> `otcAttrModHandler` actually emits bytes. The unit tests stop at `mods.Len()` |
-| The unicast family gate | `test/plugin/role-otc-unicast-scope.ci` | Yes for the MP_REACH branch. **No for the withdrawal shape** -- which is the AC-11 gap, and is why the `docs/features/rfc-status.md` "unicast-only scoping" claim is not fully backed |
-| **A withdraw-only UPDATE toward a Customer** | **none** | **MISSING.** AC-11 |
+| The unicast family gate | `test/plugin/role-otc-unicast-scope.ci` | Yes for the MP_REACH branch. The withdrawal shape is covered by the two `.ci` in the row below, so the `docs/features/rfc-status.md` scoping claim is now backed in both directions |
+| **A withdraw-only UPDATE toward a Customer** | `test/plugin/role-otc-fwd-withdraw.ci`, `test/plugin/role-otc-rs-withdraw-eor.ci` | Yes. Both files were read at HEAD on 2026-08-11, not inferred from their names: the first asserts the relayed withdrawal reaches the Customer with `attrLen=0000` and no attribute of any code, after asserting the stamp IS present on the advertisement that precedes it, so the negative cannot pass vacuously. The second covers the End-of-RIB marker on the route-server rail |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -1077,10 +1103,10 @@ No assumption is left `unvalidated`.
 | `docs/plugin-development/metrics.md` documents the drop counters | anchors at `:341-342` to `role/metrics.go` `recordDrop` and to both filters; the prose above them explains why a filtering plugin needs metrics even when it holds no state | Yes |
 | `ai/RFC-REQUIREMENTS.md` regenerated | `make ze-rfc-index` run in the implementing commits; the ledger gained `RFC9234-3.1-1` from `otc_test.go` and absorbed the `file:line` shifts. `grep -c 'RFC requirement:' otc_test.go` -> 21 tags | Yes |
 | `reactor_api_relay.go` comment no longer stale | It previously described this gap as open; now records it closed and names the proving test | Yes |
-| **`docs/guide/bgp-role.md` NOT updated** | It carries three anchors into the role plugin and describes when OTC is stamped and when routes are suppressed -- the exact behaviour five commits changed. No commit in this set touched it. Found by the grep above, not assumed | **No -- gap** |
-| **`docs/architecture/route-selection.md` NOT revisited** | Anchors `otc.go` for "RFC 9234 OTC validation". Whether its claim is still accurate after the `resolvePeerRole` widening was not checked | **No -- gap** |
-| **`docs/features/rfc-status.md` carries a claim now known to be false** | The row reads "No tracked gap in current source anchors" and credits "unicast-only (AFI 1/2, SAFI 1) OTC scoping". The OPEN BLOCKER shows the scoping does not hold for a withdraw-only payload | **No -- must be corrected WITH the AC-11 fix.** Correcting the doc first would be recording a defect instead of fixing it (`ai/rules/completion.md`) |
-| `make ze-doc-test` | Not run: this spec-fill pass edited no file under `docs/`. It was run by the implementing commits that did | n/a for this pass |
+| `docs/guide/bgp-role.md` updated | `9c398078f` added the "Address family" and "Reachable NLRI" rows. Read at HEAD 2026-08-11: they state the MP_UNREACH family read and that a withdraw-only UPDATE, an MP_UNREACH-only UPDATE and an End-of-RIB marker are forwarded untouched, with the RFC 4271 and RFC 7606 reasons | Yes |
+| `docs/architecture/route-selection.md` revisited | Its one role claim is "OTC mismatch (RFC 9234 ...): enforced by the bgp-role plugin", anchored on `otc.go`. Re-read 2026-08-11: the `resolvePeerRole` widening changed where a role comes from, not which component enforces the check, so the claim holds unedited | Yes |
+| `docs/features/rfc-status.md` corrected | The RFC 9234 row now states both stamping rules are conditioned on the UPDATE advertising reachable NLRI, names `payloadAdvertisesNLRI` and `isPayloadUnicast`, and records the coverage gap disclosed until 2026-08-05 as closed by the two `.ci` and scenario 51 | Yes |
+| `make ze-doc-test` | Not run in this closure pass, which edits no file under `docs/`. It was run by the implementing commits that did | n/a for this pass |
 
 ## Checklist
 

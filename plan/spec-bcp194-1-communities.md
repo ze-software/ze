@@ -303,7 +303,7 @@ Three entry points, one per direction.
 |----------|--------|
 | What breaks if this is wrong? | Routes suppressed to the wrong peer, or an AS_PATH prepended where it should not be. Both are wire-visible at every client of a route server and change path selection downstream. A wrong scrub silently deletes operator signalling |
 | How is it reverted? | Single commit revert for the code. Not revertible for routes peers already accepted, so the prepend and the suppression need their functional tests before release |
-| Who else touches this path? | `plan/spec-fixit-send-community-suppress-ignored.md` (egress community suppression), spec-fixit-rs-community-strip-arity, closed 2026-08-10 (strip arity on this exact rail: a Remove buffer may carry a whole number of wire values, `filter_community.wholeValues` judges it, and a violation is refused and counted as `ze_bgp_attr_mod_remove_buffer_refused_total`), `plan/spec-fixit-otc-src-role-meta-fallback.md` (role resolution), `plan/spec-fixit-dynamic-group-peer-config.md` (dynamic peers get no plugin config) |
+| Who else touches this path? | `plan/spec-fixit-send-community-suppress-ignored.md` (egress community suppression), spec-fixit-rs-community-strip-arity, closed 2026-08-10 (strip arity on this exact rail: a Remove buffer may carry a whole number of wire values, `filter_community.wholeValues` judges it, and a violation is refused and counted as `ze_bgp_attr_mod_remove_buffer_refused_total`), spec-fixit-otc-src-role-meta-fallback, closed 2026-08-11 (role resolution), `plan/spec-fixit-dynamic-group-peer-config.md` (dynamic peers get no plugin config) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
