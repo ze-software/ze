@@ -67,7 +67,7 @@
 </ol></li>
 <li><a href="#plugin-bindings">Plugin Bindings</a>
 <ol>
-<li><a href="#load-bgp-gr-in-the-daemon-never-with-run">Load bgp-gr in the daemon, never with run</a></li>
+<li><a href="#keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</a></li>
 </ol></li>
 <li><a href="#cli">CLI</a></li>
 <li><a href="#long-lived-graceful-restart-rfc-9494">Long-Lived Graceful Restart (RFC 9494)</a>
@@ -175,7 +175,7 @@ bgp {
 <p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 
-<h3 id="load-bgp-gr-in-the-daemon-never-with-run">Load bgp-gr in the daemon, never with <code>run</code></h3>
+<h3 id="keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</h3>
 <p>Load the plugin with <code>internal &lt;name&gt; { use bgp-gr; }</code>, as every example on this
 page does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process,
 and that arrangement changes what the daemon sends to every peer.</p>

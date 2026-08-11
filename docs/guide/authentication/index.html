@@ -296,10 +296,11 @@ listener bound <code>0.0.0.0</code> yesterday and binds the address the block na
 so a service you reached from off-box through the wildcard default now answers
 only where the block says. Delete the <code>server</code> entry, or name the address you
 want, to publish on every interface again.</p>
-<p><code>environment.web insecure</code> is the one exclusion. It removes authentication, so a
-block that does not start the web server does not supply it. The daemon logs a
-WARN that names the leaf when it drops it. Set <code>ze.web.insecure=1</code>, or write
-<code>enabled true</code> in the block, to run the web server without authentication.</p>
+<p><code>environment.web insecure</code> is the one exclusion, because it removes
+authentication. The block decides web authentication only when the block also
+starts the server and names the listen address. In every other case the daemon
+keeps authentication on and logs a WARN that names the leaf. Set
+<code>ze.web.insecure=1</code> to remove web authentication from the environment.</p>
 <p>Run <code>ze config validate</code> or <code>ze doctor --json</code> over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so
 check <code>ze.gnmi.listen</code>, <code>ze.mcp.listen</code>, and <code>ze.web.insecure</code> by hand.</p>

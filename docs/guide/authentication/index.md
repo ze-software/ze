@@ -200,10 +200,11 @@ so a service you reached from off-box through the wildcard default now answers
 only where the block says. Delete the `server` entry, or name the address you
 want, to publish on every interface again.
 
-`environment.web insecure` is the one exclusion. It removes authentication, so a
-block that does not start the web server does not supply it. The daemon logs a
-WARN that names the leaf when it drops it. Set `ze.web.insecure=1`, or write
-`enabled true` in the block, to run the web server without authentication.
+`environment.web insecure` is the one exclusion, because it removes
+authentication. The block decides web authentication only when the block also
+starts the server and names the listen address. In every other case the daemon
+keeps authentication on and logs a WARN that names the leaf. Set
+`ze.web.insecure=1` to remove web authentication from the environment.
 
 Run `ze config validate` or `ze doctor --json` over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so

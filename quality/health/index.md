@@ -11,10 +11,11 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 169** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **136 / 22222 (floor 135)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| Tests with no reachable failure call | Q1 | **136 / 22285 (floor 135)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| time.sleep() calls in .ci tests | Q1 | **82 (floor 79)** (attention) | Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change. |
 | Logged known-failing tests | Q3 | **1** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-7 further metric(s) are within threshold and are listed in full below.
+6 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -22,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 22222 (floor 135)** (attention)
+**136 / 22285 (floor 135)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -40,6 +41,14 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bgp/plugins/bmp/event_test.go | TestHandleSenderNoSenders |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_ShortUpdate_Skipped |
+
+### time.sleep() calls in .ci tests
+
+**82 (floor 79)** (attention)
+
+A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
+
+*Action if this degrades:* Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.
 
 ### Mutants killed, latest sample per package
 
@@ -61,14 +70,6 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bgp/attrpool | 62.3 |
 | internal/core/events | 66.5 |
 | internal/core/slogutil | 66.8 |
-
-### time.sleep() calls in .ci tests
-
-**79 (floor 79)** (ok)
-
-A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
-
-*Action if this degrades:* Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.
 
 ## Intent coverage
 
@@ -105,15 +106,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**22253 test functions** (ok)
+**22316 test functions** (ok)
 
-3010 Go test files, 78 fuzz targets, 137 benchmarks, 1599 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3017 Go test files, 78 fuzz targets, 137 benchmarks, 1608 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**1032 / 3010** (ok)
+**1034 / 3017** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 

@@ -99,7 +99,10 @@
 <li><a href="#example">Example</a></li>
 <li><a href="#interface-offload-and-steering">Interface Offload and Steering</a></li>
 <li><a href="#backend-capability-errors">Backend Capability Errors</a></li>
-<li><a href="#route-priority">Route Priority</a></li>
+<li><a href="#route-priority">Route Priority</a>
+<ol>
+<li><a href="#upgrading-from-a-release-that-installed-learned-routes-at-metric-0">Upgrading from a release that installed learned routes at metric 0</a></li>
+</ol></li>
 <li><a href="#vlan-8021p-qos-maps">VLAN 802.1p QoS Maps</a></li>
 <li><a href="#class-of-service-profiles">Class-of-Service Profiles</a></li>
 <li><a href="#reverse-path-filtering-rpf-check">Reverse Path Filtering (rpf-check)</a></li>
@@ -1925,13 +1928,29 @@ on that interface. Lower values are preferred by the kernel. When a link goes do
 the metric is increased by 1024 to deprioritize the interface, allowing traffic to
 shift to an alternative uplink. When the link comes back up, the original metric is
 restored.</p>
-<p>For IPv4, ze installs the default route with the configured metric when a DHCP lease
-provides a gateway. For IPv6, ze suppresses the kernel's automatic RA default route
-(<code>accept_ra_defrtr=0</code>) and installs <code>::/0</code> routes with the configured metric when
-NDP neighbor events indicate a router (NTF_ROUTER flag). Multiple routers on the
-same link are each installed with the same metric. On clean shutdown or config
-removal, <code>accept_ra_defrtr</code> is restored to 1.</p>
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- route-priority leaf -->
+<p>The leaf defaults to 254. A default route ze learns from the network (a DHCP lease,
+a PPPoE session) is installed at that metric, so it ranks below a static route and
+below every route a routing protocol produces. The number matches the order
+<code>rib admin-distance</code> uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
+isis 115, ibgp 200. It is also what a Cisco DHCP client uses for the same route.
+The <code>pppoe-client</code> list carries its own <code>route-priority</code> leaf with the same default,
+which ranks the route a PPPoE session installs when IPCP completes.</p>
+<p>The metric decides ownership, not only preference. ze installs a learned default
+route with <code>RTM_NEWROUTE</code> in replace mode, and the kernel matches such a route on
+destination, metric and table. It does not match on the protocol that installed it.
+Two default routes at different metrics are two kernel routes, and the lower metric
+forwards. Two default routes at the SAME metric are one kernel route, owned by
+whoever wrote it last: a learned route at metric 0 replaces an operator's static
+default at metric 0, gateway included.</p>
+<p>For IPv4, ze installs the default route with that metric when a DHCP lease provides
+a gateway. For IPv6, ze leaves the router advertisement default routes to the kernel
+until the unit WRITES <code>route-priority</code>. Writing it above 0 makes ze suppress the
+kernel's automatic RA default route (<code>accept_ra_defrtr=0</code>) and install <code>::/0</code> routes
+with the configured metric when NDP neighbor events indicate a router (NTF_ROUTER
+flag). Multiple routers on the same link are each installed with the same metric. On
+clean shutdown or config removal, <code>accept_ra_defrtr</code> is restored to 1.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- route-priority leaf, unit and pppoe-client -->
+<!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric, parseUnits, parsePPPoEClientEntry -->
 <!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp, handleLinkDownIPv6, handleLinkUpIPv6 -->
 <!-- source: internal/component/iface/register.go -- suppressAcceptRaDefrtr, handleRouterDiscovered -->
 
@@ -1966,8 +1985,29 @@ removal, <code>accept_ra_defrtr</code> is restored to 1.</p>
 </code></pre>
 <p>With this config, uplink (metric 1) is preferred over backup (metric 5). If uplink
 goes down, its metric becomes 1025 (1 + 1024), so backup (metric 5) takes over. When
-uplink recovers, its metric returns to 1 and traffic shifts back. The default value
-is 0 (kernel default), which preserves existing behavior when not configured.</p>
+uplink recovers, its metric returns to 1 and traffic shifts back. A unit that writes
+no <code>route-priority</code> installs its learned default routes at 254 and leaves the IPv6
+RA default routes to the kernel.</p>
+<h4 id="upgrading-from-a-release-that-installed-learned-routes-at-metric-0">Upgrading from a release that installed learned routes at metric 0</h4>
+<p><strong>A DHCP, PPPoE or dhcp-auto default route now lands at metric 254.</strong> Before this
+release ze installed it at metric 0, where a plain static default route also lands.
+The kernel holds one route per destination and metric, so the learned route replaced
+the operator's static default, took its gateway, and re-stamped it <code>proto 253</code>. The
+operator saw one route where they configured two. Both routes now exist and the
+static one forwards.</p>
+<p><strong>What changes on the box.</strong> Read the routes with <code>show route default</code>. A learned
+default that read <code>metric 0</code> yesterday reads <code>metric 254</code> today. Any policy that
+matches on that metric (a <code>ip rule</code>, a firewall mark, a monitoring check) must name
+254. A static default route that ze had silently taken over reappears with its own
+gateway after the next lease, because ze no longer writes over it.</p>
+<p><strong>To keep the old metric, write <code>route-priority 0</code> on the unit.</strong> An explicit 0 is
+not the same as an absent leaf: it puts learned routes back on metric 0, with the
+takeover that metric carries. The <code>pppoe-client</code> list takes the same leaf with the
+same meaning.</p>
+<p><strong>A unit that writes no <code>route-priority</code> still leaves IPv6 to the kernel.</strong> The
+non-zero default did not hand ze the RA default routes of every interface. Writing
+the leaf above 0 is what sets <code>accept_ra_defrtr=0</code> and installs <code>::/0</code>, exactly as
+before.</p>
 <h3 id="vlan-8021p-qos-maps">VLAN 802.1p QoS Maps</h3>
 <p>VLAN units (units with <code>vlan-id</code>) accept two QoS maps that translate between
 the 3-bit 802.1p PCP field of the 802.1Q tag header and the kernel's internal

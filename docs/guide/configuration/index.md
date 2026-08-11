@@ -1535,14 +1535,32 @@ the metric is increased by 1024 to deprioritize the interface, allowing traffic 
 shift to an alternative uplink. When the link comes back up, the original metric is
 restored.
 
-For IPv4, ze installs the default route with the configured metric when a DHCP lease
-provides a gateway. For IPv6, ze suppresses the kernel's automatic RA default route
-(`accept_ra_defrtr=0`) and installs `::/0` routes with the configured metric when
-NDP neighbor events indicate a router (NTF_ROUTER flag). Multiple routers on the
-same link are each installed with the same metric. On clean shutdown or config
-removal, `accept_ra_defrtr` is restored to 1.
+The leaf defaults to 254. A default route ze learns from the network (a DHCP lease,
+a PPPoE session) is installed at that metric, so it ranks below a static route and
+below every route a routing protocol produces. The number matches the order
+`rib admin-distance` uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
+isis 115, ibgp 200. It is also what a Cisco DHCP client uses for the same route.
+The `pppoe-client` list carries its own `route-priority` leaf with the same default,
+which ranks the route a PPPoE session installs when IPCP completes.
 
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- route-priority leaf -->
+The metric decides ownership, not only preference. ze installs a learned default
+route with `RTM_NEWROUTE` in replace mode, and the kernel matches such a route on
+destination, metric and table. It does not match on the protocol that installed it.
+Two default routes at different metrics are two kernel routes, and the lower metric
+forwards. Two default routes at the SAME metric are one kernel route, owned by
+whoever wrote it last: a learned route at metric 0 replaces an operator's static
+default at metric 0, gateway included.
+
+For IPv4, ze installs the default route with that metric when a DHCP lease provides
+a gateway. For IPv6, ze leaves the router advertisement default routes to the kernel
+until the unit WRITES `route-priority`. Writing it above 0 makes ze suppress the
+kernel's automatic RA default route (`accept_ra_defrtr=0`) and install `::/0` routes
+with the configured metric when NDP neighbor events indicate a router (NTF_ROUTER
+flag). Multiple routers on the same link are each installed with the same metric. On
+clean shutdown or config removal, `accept_ra_defrtr` is restored to 1.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- route-priority leaf, unit and pppoe-client -->
+<!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric, parseUnits, parsePPPoEClientEntry -->
 <!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp, handleLinkDownIPv6, handleLinkUpIPv6 -->
 <!-- source: internal/component/iface/register.go -- suppressAcceptRaDefrtr, handleRouterDiscovered -->
 
@@ -1579,8 +1597,34 @@ interface {
 
 With this config, uplink (metric 1) is preferred over backup (metric 5). If uplink
 goes down, its metric becomes 1025 (1 + 1024), so backup (metric 5) takes over. When
-uplink recovers, its metric returns to 1 and traffic shifts back. The default value
-is 0 (kernel default), which preserves existing behavior when not configured.
+uplink recovers, its metric returns to 1 and traffic shifts back. A unit that writes
+no `route-priority` installs its learned default routes at 254 and leaves the IPv6
+RA default routes to the kernel.
+
+#### Upgrading from a release that installed learned routes at metric 0
+
+**A DHCP, PPPoE or dhcp-auto default route now lands at metric 254.** Before this
+release ze installed it at metric 0, where a plain static default route also lands.
+The kernel holds one route per destination and metric, so the learned route replaced
+the operator's static default, took its gateway, and re-stamped it `proto 253`. The
+operator saw one route where they configured two. Both routes now exist and the
+static one forwards.
+
+**What changes on the box.** Read the routes with `show route default`. A learned
+default that read `metric 0` yesterday reads `metric 254` today. Any policy that
+matches on that metric (a `ip rule`, a firewall mark, a monitoring check) must name
+254. A static default route that ze had silently taken over reappears with its own
+gateway after the next lease, because ze no longer writes over it.
+
+**To keep the old metric, write `route-priority 0` on the unit.** An explicit 0 is
+not the same as an absent leaf: it puts learned routes back on metric 0, with the
+takeover that metric carries. The `pppoe-client` list takes the same leaf with the
+same meaning.
+
+**A unit that writes no `route-priority` still leaves IPv6 to the kernel.** The
+non-zero default did not hand ze the RA default routes of every interface. Writing
+the leaf above 0 is what sets `accept_ra_defrtr=0` and installs `::/0`, exactly as
+before.
 
 ### VLAN 802.1p QoS Maps
 

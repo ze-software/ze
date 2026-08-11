@@ -10,14 +10,14 @@ rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RF
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 1 |
+| Gate issues | 3 |
 | Gated MUST-level requirements | 2,963 |
 | Enrolled RFCs | 170 |
 | Resolved test tags | 3,339 |
 | Declared gaps | 528 |
 | RFCs with declared gaps | 82 |
-| Fresh semantic audit verdicts | 52 |
-| Shifted semantic audit verdicts | 0 |
+| Fresh semantic audit verdicts | 51 |
+| Shifted semantic audit verdicts | 1 |
 | Stale semantic audit verdicts | 0 |
 
 ## Requirement buckets
@@ -72,7 +72,7 @@ rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RF
 | Enrollment | `rfc/enrolled.txt` | 170 enrolled RFCs |
 | Test tags | `internal/, pkg/, test/` | 3,339 resolved tags |
 | Public ledger | `docs/features/rfc-status.md` | 82 RFCs with gaps |
-| Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,911 missing |
+| Semantic audits | `rfc/audit/*.json` | 51 fresh, 1 shifted, 0 stale, 2,911 missing |
 | AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | ON |
 | Verify integration | `Makefile` and `scripts/status/verify_run.go` | 2 verify stages |
 
@@ -88,5 +88,5 @@ rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RF
 | Requirement ID allocation | 0 |
 | Requirement coverage | 0 |
 | Public claim agreement | 0 |
-| Semantic audit freshness | 0 |
-| Generated ledger freshness | 1 |
+| Semantic audit freshness | 1 |
+| Generated ledger freshness | 2 |

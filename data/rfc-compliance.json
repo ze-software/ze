@@ -1,7 +1,7 @@
 {
   "gate": {
     "ok": false,
-    "error_count": 1,
+    "error_count": 3,
     "gated_must": 2963,
     "enrolled_rfcs": 170,
     "test_tags": 3339,
@@ -169,8 +169,8 @@
   },
   "audit": {
     "verdicts": 52,
-    "fresh": 52,
-    "shifted": 0,
+    "fresh": 51,
+    "shifted": 1,
     "stale": 0,
     "missing": 2911
   },
@@ -217,15 +217,18 @@
     },
     {
       "name": "Semantic audit freshness",
-      "errors": [],
-      "error_count": 0
+      "errors": [
+        "rfc/short/rfc7606.md:357: RFC7606-6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset, internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate, internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled), so nothing was re-judged. Re-stamp it mechanically: make ze-rfc-reseal"
+      ],
+      "error_count": 1
     },
     {
       "name": "Generated ledger freshness",
       "errors": [
-        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index"
+        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index",
+        "rfc/requirements/rfc7606.md is stale vs its sources -- run: make ze-rfc-index"
       ],
-      "error_count": 1
+      "error_count": 2
     }
   ],
   "agent_guard": {

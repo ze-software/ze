@@ -80,7 +80,7 @@ The GR plugin requires:
 The GR plugin depends on `bgp-rib` (declared in its registration). The engine ensures bgp-rib starts first.
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 
-### Load bgp-gr in the daemon, never with `run`
+### Keep the bgp-gr engine in the daemon process
 
 Load the plugin with `internal <name> { use bgp-gr; }`, as every example on this
 page does. `run "ze plugin bgp-gr"` starts the plugin engine in a child process,

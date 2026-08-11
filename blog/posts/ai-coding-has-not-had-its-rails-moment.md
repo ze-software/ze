@@ -9,9 +9,7 @@ An agent can locate and open any file in a large repository in under a second. N
 
 This is a problem about repository structure, and it is a good deal older than AI.
 
-At the start of the 2000s, Git did not exist. CVS was notorious because you could not rename a folder, a serious limitation when the structure of a project mattered. Subversion was the modern choice if CVS had not already put you off version control.
-
-Project layouts were not very standard either. At Exa, our initial convention put each project's configuration in `etc/`, its working data in `data/`, the reusable code in `lib/` and the rest in `src/`. It was not a one to one match with the Filesystem Hierarchy Standard (FHS), but changing `$ETC` and `$DATA` was enough to point a project at the right place on an installed system. During development, the repository acted as the installed root, leaving only a code-test loop.
+At the start of the 2000s, project layouts were not standard. At Exa, our initial convention put each project's configuration in `etc/`, its working data in `data/`, the reusable code in `lib/` and the rest in `src/`. It was not a one to one match with the Filesystem Hierarchy Standard (FHS), but changing `$ETC` and `$DATA` was enough to point a project at the right place on an installed system. During development, the repository acted as the installed root, leaving only a code-test loop.
 
 The same thinking is visible in the [first ExaBGP commit from September 2009](https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532). It had `daemon`, `etc`, `lib` and `test` directories, and a test which announced a route to a Cisco 7204 and kept the connection alive.
 
@@ -52,6 +50,10 @@ We keep improving the worker while leaving the workplace unexplained.
 Frontier labs are well placed to fix half of this, because they build the model and the harness together and can train one for the other. The other half is not theirs to fix. Nobody at a lab can decide where your architectural decisions live, which patterns your project considers correct, or what counts as evidence that a change works. That has to happen inside the repository, and for now it has to be built by hand.
 
 This is one reason opinions about AI coding are so divided. Some people see the failures of current harnesses and conclude that AI cannot produce serious software, while the people getting good results from it accept the awkwardness of today's tools as a permanent cost. Both positions treat the current state of the art as its final form.
+
+Version control went through this. At the start of the 2000s CVS was what most developers meant by the term, and it could not rename a folder, a serious limitation when the structure of a project was the thing you were working on. Enough engineers fought it to conclude that version control was ceremony which got in the way of writing software, and they said so for years. Subversion was the modern choice for anyone CVS had not already put off the idea entirely. It took Git, and the community which formed around it, before many of them looked again at something they had rejected on the evidence of one bad tool.
+
+The distrust of AI-generated code has the same shape. Code arrives faster than anyone can read it, nothing in the repository tells the agent which rules it is expected to respect, and nothing comes back with the change to show that it did. That is a description of the tooling, and it is being taken as a verdict on the technology.
 
 AI-assisted development reminds me of using the Internet at home over 64K between 1994 and 1996. I had already used a faster university connection, so home access was painful. It required technical skill and motivation, and bulletin board systems were still more popular than the Internet. Yet I loved it because the promise was obvious. ADSL and services such as BitTorrent and YouTube later made the Internet useful to far more people. Judging the Internet by 64K would have mistaken a temporary stage for the limits of the technology.
 
