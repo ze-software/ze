@@ -117,11 +117,15 @@ func TestSendNotificationLogsCeaseSubcodeName(t *testing.T) {
 	require.NotContains(t, out, "subcode=2")
 }
 
-// TestLogNotifyErrLogsCodeName covers the sibling Debug on the send-failure path.
+// TestLogNotifyErrLogsCodeName covers the sibling WARN on the send-failure path.
 //
-// VALIDATES: `notification send failed` names the code the same way the WARN does.
-// PREVENTS: the two log lines drifting apart, so that the line an operator reads when the
-// NOTIFICATION could NOT be sent is the less readable of the two.
+// VALIDATES: `notification send failed` is logged at WARN, the same level as the
+// success line, and names the code the same way it does.
+// PREVENTS: the two log lines drifting apart in level or in rendering. It was a
+// Debug against the success WARN until 2026-08-11, so an operator at the default
+// level saw every NOTIFICATION that went out and none of the ones that did not --
+// and the failure is the worse news of the two, because the session ends either
+// way and only there was the peer never told why.
 //
 // The send is forced to fail by closing the connection first, which is the situation
 // logNotifyErr exists for (an error/shutdown path where the conn may already be dead).
@@ -133,7 +137,9 @@ func TestLogNotifyErrLogsCodeName(t *testing.T) {
 	session.logNotifyErr(conn, message.NotifyCease, message.NotifyCeaseAdminShutdown, nil)
 
 	out := sink.String()
-	require.Contains(t, out, `msg="notification send failed"`)
+	require.Contains(t, out, `level=WARN msg="notification send failed"`,
+		"a NOTIFICATION that could not be sent must reach an operator at the same "+
+			"level as one that was")
 	require.Contains(t, out, "code=Cease")
 	require.Contains(t, out, `subcode="Administrative Shutdown"`)
 	require.NotContains(t, out, "code=6")

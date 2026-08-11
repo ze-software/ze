@@ -518,6 +518,31 @@ def docker_rm(name, strict=False):
         )
 
 
+def docker_signal(container, signal="TERM"):
+    """Send a signal to the container's PID 1.
+
+    The ze image entrypoint is `tini -- ze`, and tini forwards the signal to the
+    ze process, so this is the same administrative stop an init system gives a
+    daemon. `docker exec kill` is not equivalent: it would need the ze PID, and
+    a scenario that guesses one asserts against the wrong process when it is
+    wrong.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "kill", "--signal", signal, container],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("docker kill --signal %s %s timed out" % (signal, container))
+    if result.returncode != 0:
+        raise RuntimeError(
+            "docker kill --signal %s %s failed: %s"
+            % (signal, container, result.stderr.strip())
+        )
+
+
 def docker_logs(container, lines=30, strict=False):
     """Get last N lines of container logs.
 

@@ -40,4 +40,14 @@
 # mechanical improvement), and deleting them changes no coverage. About 120 record
 # real removed coverage and should become ordinary comments that name what went.
 
-748
+# raised-for: spec-fixit-forward-rail-initial-sync-ordering, 2026-08-11, 748 -> 752.
+# Phase 3 DELETED fwdReorderWithdrawalsFirst and fwdIsWithdrawal. The reorder
+# hoisted every withdrawal ahead of every announcement, which inverts an announce
+# and a withdraw of ONE prefix and leaves the peer holding a route it withdrew;
+# the classifier existed only to feed it. Four tokens, all for tests of those two
+# symbols: forward_pool_property_test.go (2, properties 1 and 3),
+# forward_pool_supersede_test.go (1, the five AC-25 tests), forward_update_test.go
+# (1, the withdrawal-flag comparison). No surviving behaviour lost its assertion:
+# supersede coverage is intact and the MP body-shape coverage moved to
+# TestForwardBucketKeepsMPOnlyBodies and property 3's parseBucketBody.
+752

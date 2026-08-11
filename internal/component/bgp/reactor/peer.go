@@ -247,6 +247,44 @@ type Peer struct {
 	// StartWithContext so stopping and restarting a peer is a fresh start.
 	operatorStarted atomic.Bool
 
+	// stopping is set by Reactor.stop (reactor.go) on every peer BEFORE it
+	// notifies them, and it closes the only window in which p.ctx says "keep
+	// going" while the engine is already leaving. Stop has to notify first --
+	// the cancel closes the sockets the NOTIFICATION needs -- so for the whole
+	// shutdown budget every peer context is still live, and a session torn down
+	// by ShutdownNotify would send run() straight back round the loop to dial
+	// again.
+	//
+	// It is read TWICE, and the second read is the load-bearing one. run()'s
+	// loop top is the cheap early exit. runOnce reads it again inside the p.mu
+	// hold that publishes p.session (peer_run.go), which is the field
+	// ShutdownNotify reads under the same lock: that pairing is what makes "the
+	// notify covered this session, or this session was never published" a
+	// guarantee rather than a likelihood. The loop top alone can be passed
+	// before Reactor.stop sets the mark, and the dial that follows takes a TCP
+	// handshake.
+	//
+	// Cleared only by Reactor.StartWithContext, for every peer under the r.mu
+	// that stop() sets it under. Peer.StartWithContext holds no such lock, so it
+	// must not clear it: Reactor.StartPeers reaches that method with r.mu
+	// released, and a SIGTERM during plugin startup used to re-open the outbound
+	// rail on a peer the stop had already marked and notified.
+	//
+	// Nothing on the accept path reads it -- acceptOrReject runs on a Listener
+	// goroutine (reactor_connection.go) and asks the peer, not this flag. What
+	// this flag gives that path is narrower and is what the seal is built on:
+	// after the mark, the peer publishes NO new session, so the accept rail can
+	// only reach the one session that was already published. Reactor.stop seals
+	// that one directly (sealSession below), and Session.connectionEstablished
+	// reads the seal inside the s.mu hold that publishes s.conn.
+	//
+	// Shutting the listeners and the r.stopping reads in
+	// startListenerForAddressPort and tryCreateDynamicPeer stop new SOCKETS and
+	// new PEERS. Neither of them stops a conn that a Listener had already
+	// accepted for a configured peer, which is why the seal is read at the two
+	// places a conn becomes a session rather than on each rail that reaches them.
+	stopping atomic.Bool
+
 	// Active prefix-threshold and prefix-stale warnings live on the report bus
 	// (internal/core/report). Producer-side dedup uses Session.prefixCounts.warned;
 	// the bus is the single source of truth for queries and the login banner.
@@ -371,6 +409,19 @@ type Peer struct {
 	health *sessionHealth
 
 	fwdFacts atomic.Pointer[peerForwardFacts]
+
+	// fwdOverflowPending is this peer's handle to the count its forward worker
+	// keeps of the bytes it still owes this peer through overflow
+	// (forward_pool.go, fwdWorker.overflowPending). DispatchOverflow publishes
+	// it when it parks the first real item for this peer, and nothing clears
+	// it: the counter it names reads zero once the worker has written what it
+	// owed, and a later worker for the same peer republishes its own.
+	//
+	// The counter stays on the worker, mutated only under that worker's
+	// overflowMu. This is a read handle, so the route-server rail asks with two
+	// atomic loads (forwardOverflowPending) instead of a pool lock and a key
+	// lookup. That rail exists to bypass the pool.
+	fwdOverflowPending atomic.Pointer[atomic.Int64]
 
 	// llScope holds the host facts RFC 2545 Section 3 needs to decide whether
 	// the link-local address belongs in the MP_REACH_NLRI Next Hop field. It is
@@ -1167,6 +1218,15 @@ func (p *Peer) StartWithContext(ctx context.Context) {
 	// operator starting (or restarting) a peer means.
 	p.operatorStarted.Store(false)
 
+	// p.stopping is deliberately NOT cleared here. Clearing it is the act of
+	// beginning a new engine generation, and that authority belongs to
+	// Reactor.StartWithContext, which clears it for every peer under the same
+	// r.mu that Reactor.stop sets it under (reactor.go). This method has no such
+	// lock and cannot order itself against a stop: Reactor.StartPeers reaches it
+	// through coord.OnPostStartup with r.mu released, so a SIGTERM landing
+	// during plugin startup used to be answered by re-opening the outbound rail
+	// on a peer the stop had already marked and notified.
+
 	p.wg.Add(1)
 	go p.run()
 }
@@ -1181,6 +1241,62 @@ func (p *Peer) StartWithContext(ctx context.Context) {
 // and to the ze_bgp_connect_retry_counter gauge.
 func (p *Peer) ConnectRetryCounter() uint32 {
 	return p.connectRetryCounter.Load()
+}
+
+// ShutdownNotify tells this peer's live session that the local system is being
+// taken out of service, with Cease / Administrative Shutdown (RFC 4486 subcode
+// 2). It is the ManualStop action of RFC 4271 Section 8.2.2, which OpenSent,
+// OpenConfirm and Established all list, and Teardown is state-blind for the
+// same reason: what it needs is an open socket, not a particular FSM state.
+//
+// It does NOT go through Peer.teardown, and the difference is the point. That
+// path QUEUES the teardown when no session is up or when the initial routes are
+// still going out, so the peer receives it after the queue drains -- and on the
+// way to exit nothing drains it, so the queued NOTIFICATION would simply never
+// be sent. A peer with no session here has nothing to say goodbye on and is
+// skipped. Nor does it set PeerStateConnecting: this peer is not reconnecting.
+func (p *Peer) ShutdownNotify() {
+	p.mu.Lock()
+	session := p.session
+	p.mu.Unlock()
+
+	if session == nil {
+		return
+	}
+	// Session.teardown returns nil on every path (session_connection.go): a
+	// NOTIFICATION that cannot be written is reported where the write error
+	// exists, by logNotifyErr (session.go, "notification send failed"). There
+	// is nothing to branch on here, and a branch that cannot run reads as
+	// coverage of a path nothing takes -- which is the defect this whole spec
+	// was written about.
+	_ = session.Teardown(message.NotifyCeaseAdminShutdown, "")
+}
+
+// sealSession is the peer's half of Reactor.stop's seal: it carries the seal to
+// the one session that can still publish a connection.
+//
+// Marking p.stopping stops a NEW session being published (runOnce reads it inside
+// the p.mu hold that publishes p.session), which leaves exactly one session per
+// peer -- the one already published when the stop landed. That one is reached by
+// the accept rail through AcceptConnection, so the seal has to land ON it, and
+// Session.connectionEstablished is where it is read (session_connection.go).
+//
+// It reads p.session under the same lock ShutdownNotify does, and after the same
+// mark, so the pairing is the one runOnce is written against: either the publish
+// got in first and is sealed here, or it never happens.
+//
+// This is not ShutdownNotify with the message removed. ShutdownNotify runs on
+// the notify path only, so without this a StopForRestart would seal no session
+// at all, and it also spends up to shutdownNotifyBudget on the wire -- the seal
+// must be in place before any of that starts.
+func (p *Peer) sealSession() {
+	p.mu.Lock()
+	session := p.session
+	p.mu.Unlock()
+
+	if session != nil {
+		session.seal()
+	}
 }
 
 // Stop signals the peer to stop.
@@ -1332,6 +1448,88 @@ func (p *Peer) ShouldQueue() bool {
 // and cleared without p.mu, and ShouldQueue reads it the same way.
 func (p *Peer) initialSyncInProgress() bool {
 	return p.sendingInitialRoutes.Load() != 0
+}
+
+// forwardOrderHold reports whether a forwarded UPDATE for this peer must be
+// parked behind the peer's own route operations instead of going to the wire.
+// ONE predicate for both halves of that decision: the dispatch gates on the two
+// forwarding rails (reactor_api_forward.go, forward_rs.go) and the hold in
+// drainOverflow (forward_pool.go, overflowHeld). A gate wider than its hold
+// parks items nothing will release, and a hold wider than its gate releases
+// items the gate never parked.
+//
+// It is ShouldQueue() narrowed twice, and each narrowing is load-bearing.
+//
+// Not-Established is excluded: that peer will never drain an opQueue, so holding
+// for it parks the items until its REPLACEMENT session has finished its own
+// sync, and then delivers a dead session's UPDATE after a full RIB dump -- the
+// duplicate delivery test/plugin/role-otc-rs-withdraw-eor.ci refuses. Not
+// gating instead lets fwdBatchHandler discard them, which is what the forwarding
+// rail already does for a destination that is not Established.
+//
+// A non-empty opQueue is excluded for the same reason by a different route.
+// setState stores the sync flag in the same call that publishes Established and
+// BEFORE it, so from establishment until sendInitialRoutes clears the flag,
+// every queued operation is covered by the flag alone. An opQueue that is still
+// non-empty with the flag CLEAR is one nothing will drain -- sendInitialRoutes
+// is the only drainer and it has returned -- so ordering a forwarded UPDATE
+// behind it would park that UPDATE for the life of the session.
+func (p *Peer) forwardOrderHold() bool {
+	return p.State() == PeerStateEstablished && p.initialSyncInProgress()
+}
+
+// forwardOverflowPending reports whether the forward pool still owes this peer
+// bytes it took through overflow: items queued in its worker's overflow buffer,
+// snapshotted by an in-flight drain, sitting in that worker's channel, or in the
+// batch being written right now.
+//
+// TryDispatch reads the same count inside the pool and refuses a channel send
+// while it is nonzero, so the pool's own rails preserve FIFO without asking. The
+// route-server fast path does not go through the pool at all --
+// tryDirectWriteNoFlush writes into the destination's bufWriter under the same
+// session.writeMu the worker has not taken yet -- so it asks here instead
+// (forward_rs.go). Reaching the wire first is exactly the inversion the ordering
+// hold exists to prevent, which is why the count covers the in-flight items and
+// not only the queued ones (forward_pool.go, fwdWorker.overflowPending).
+//
+// Two atomic loads, no lock and no map hash: the destination peer is already in
+// hand at the call site, and this runs per destination per UPDATE.
+//
+// A nil handle means no real item was ever parked for this peer, so this peer is
+// owed nothing through overflow. A barrier sentinel can raise the count on its
+// own (forward_pool_barrier.go) without naming a peer, and it carries no bytes:
+// a destination owed nothing but sentinels is owed nothing.
+func (p *Peer) forwardOverflowPending() bool {
+	c := p.fwdOverflowPending.Load()
+	return c != nil && c.Load() > 0
+}
+
+// wakeForwardOverflow releases the forwarded UPDATEs parked behind this peer's
+// initial route sync. Call it after every store that clears
+// sendingInitialRoutes.
+//
+// The forwarding rails park an UPDATE for a peer that forwardOrderHold()s in the
+// destination worker's overflow buffer, and drainOverflow keeps it there while
+// that stays true (forward_pool.go, overflowHeld). The worker re-evaluates the
+// hold only after something reaches its channel, and a held worker's channel is
+// empty by construction, so the store alone would leave the items parked until
+// the next forward to this peer.
+//
+// p.reactor is read WITHOUT p.mu, like every other reader of it (peer_run.go).
+// One of the call sites is the recover defer in sendInitialRoutes, and the drain
+// loop it guards holds p.mu.Lock across buildRIBRouteUpdate: a panic there
+// reaches this function write-locked, and an RLock would deadlock the peer's
+// goroutine for good.
+func (p *Peer) wakeForwardOverflow() {
+	r := p.reactor
+	if r == nil || r.fwdPool == nil {
+		return
+	}
+	// p.settings.PeerKey() is the key both forwarding rails dispatch under
+	// (peerForwardFacts.peerKey, peer_forward_facts.go). Read without p.mu like
+	// buildForwardFacts reads the same fields: address and port are set at
+	// construction (the contract on Peer.Settings).
+	r.fwdPool.wakeOverflow(fwdKey{peerAddr: p.settings.PeerKey()})
 }
 
 // PendingSync reports whether the peer still has route work that has not reached

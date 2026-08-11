@@ -199,7 +199,16 @@ func runReplay(path string, ident replayIdentity) (*replayReport, error) {
 	if acceptErr := session.Accept(conn); acceptErr != nil {
 		return nil, fmt.Errorf("install replay connection: %w", acceptErr)
 	}
-	defer func() { _ = session.Close() }()
+	// End the replay session the way an operator stop does, minus the wire: a
+	// replayed capture has no peer to tell, and replayConn holds no OS resource
+	// to release. Stop fires RFC 4271 Event 2 (ManualStop) and stops the timers,
+	// which is the whole of what a replay owns.
+	//
+	// This used to call Session.Close, which also built a Cease NOTIFICATION.
+	// That method is gone: it was the shutdown NOTIFICATION's only builder, and
+	// its one other caller could never reach it
+	// (plan/spec-fixit-bgp-shutdown-cease-notification.md).
+	defer func() { _ = session.Stop() }()
 
 	var announced, withdrawn []string
 	session.SetMessageCallback(func(_ netip.Addr, mt msgtype.MessageType, _ []byte,

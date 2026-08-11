@@ -55,9 +55,13 @@ type sshBuildInputs struct {
 // file is always-on, so naming the BGP type here would pin internal/component/bgp
 // into every binary and defeat //go:build ze_bgp.
 type sshWireInputs struct {
-	Reactor       infra.ReactorHandle
-	Params        infra.HookParams
-	WriteGRMarker func()
+	Reactor infra.ReactorHandle
+	Params  infra.HookParams
+	// StopForRestart persists the graceful-restart marker and then stops the
+	// reactor WITHOUT a Cease NOTIFICATION, which is the stop `restart` and
+	// `reboot` take. Built in infra_setup.go, where the marker write and the
+	// silent stop are paired -- see the comment there and RFC 4724 Section 5.
+	StopForRestart func()
 }
 
 // sshStandaloneInputs carries the inputs for the no-bgp{} startup path

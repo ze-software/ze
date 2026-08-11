@@ -85,7 +85,7 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	}
 	r := in.Reactor
 	params := in.Params
-	writeGRMarker := in.WriteGRMarker
+	stopForRestart := in.StopForRestart
 	d := r.Dispatcher()
 	apiServer := params.APIServer()
 
@@ -155,15 +155,18 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	sshSrv.SetPluginProtocolFunc(func(ctx context.Context, reader io.ReadCloser, writer io.WriteCloser) error {
 		return apiServer.HandleAdHocPluginSession(reader, writer)
 	})
+	// `shutdown` ends the daemon, so its peers are told why (Cease /
+	// Administrative Shutdown). `restart` and `reboot` come back, so they take
+	// stopForRestart, which writes the graceful-restart marker and stops in
+	// silence: RFC 4724 Section 5 has a peer delete every route of a connection
+	// that ends in a NOTIFICATION, with no condition on it. A bare TCP close is
+	// the only end a peer can ever retain across, so it is the only one a
+	// restart can use. See infra_setup.go, where the pair is built.
 	sshSrv.SetShutdownFunc(func() { r.Stop() })
-	sshSrv.SetRestartFunc(func() {
-		writeGRMarker()
-		r.Stop()
-	})
+	sshSrv.SetRestartFunc(stopForRestart)
 	sshSrv.SetRebootFunc(func() {
-		writeGRMarker()
 		rebootRequested.Store(true)
-		r.Stop()
+		stopForRestart()
 	})
 	rl := apiServer.Reactor()
 	sshSrv.SetLoginWarnings(func() []contract.LoginWarning {

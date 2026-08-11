@@ -23,35 +23,51 @@ type bucketBodyParts struct {
 	attrHash uint64
 }
 
-// bucketEligible pairs a batch index with its parsed body parts.
+// bucketEligible is one batch item's parsed body, and whether it can be merged
+// at all. An item that cannot is a BARRIER: see fwdBucketMerge.
 type bucketEligible struct {
-	idx   int
 	parts bucketBodyParts
+	ok    bool
+}
+
+// bucketRun is one span of adjacent, mergeable, identically-attributed items,
+// with the packed bodies it produced. bodyStart and bodyEnd index bucketScratch.merged.
+type bucketRun struct {
+	start     int
+	end       int // exclusive
+	bodyStart int
+	bodyEnd   int // exclusive
 }
 
 // bucketScratch holds reusable working buffers for fwdBucketMerge.
 type bucketScratch struct {
-	eligible []bucketEligible
-	groups   map[uint64][]int
-	merged   [][]byte
+	parsed []bucketEligible
+	runs   []bucketRun
+	merged [][]byte
 }
 
 var bucketScratchPool = sync.Pool{
-	New: func() any {
-		return &bucketScratch{
-			groups: make(map[uint64][]int),
-		}
-	},
+	New: func() any { return &bucketScratch{} },
 }
 
-// fwdBucketMerge attempts to merge fwdItems with identical path attributes
-// into fewer outbound UPDATEs by packing NLRIs. Items using the rawBodies
-// path (zero-copy) are eligible if they share byte-identical path attributes.
-// Items using the parsed updates path or with per-peer modifications pass
-// through unchanged.
+// fwdBucketMerge merges ADJACENT fwdItems that carry byte-identical path
+// attributes into fewer outbound UPDATEs by packing their NLRIs. An item on the
+// parsed-updates path, one with per-peer modifications, one carrying withdrawn
+// routes, and one whose body does not parse are all left alone.
 //
 // The merge reduces the number of BGP UPDATE messages written to TCP,
 // saving per-message header overhead and syscall count.
+//
+// ADJACENT is the whole safety argument, and it is why this does not group by
+// attribute hash across the batch. Packing item k's NLRI into a body emitted at
+// item i's position MOVES that announcement, and an announcement moved across an
+// operation on the SAME prefix inverts the pair: an announce packed past a
+// withdraw of its own prefix leaves the peer holding a route that was withdrawn,
+// which is the failure the batch is ordered to prevent. Every item that cannot
+// join a run is therefore a barrier rather than something to merge over, and a
+// run's members are equivalent to merge among themselves: same attributes, no
+// withdrawals, so packing their NLRIs into one message says exactly what the
+// separate messages said.
 //
 // maxBodySize is the max UPDATE body size (message size - header length).
 func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
@@ -64,131 +80,104 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 		return items
 	}
 	defer func() {
-		scratch.eligible = scratch.eligible[:0]
-		for k := range scratch.groups {
-			delete(scratch.groups, k)
-		}
+		scratch.parsed = scratch.parsed[:0]
+		scratch.runs = scratch.runs[:0]
 		scratch.merged = scratch.merged[:0]
 		bucketScratchPool.Put(scratch)
 	}()
 
-	eligible := scratch.eligible[:0]
+	parsed := scratch.parsed[:0]
 	for i := range items {
-		if len(items[i].rawBodies) != 1 || len(items[i].updates) > 0 || items[i].peerBufIdx > 0 {
-			continue
+		var e bucketEligible
+		if len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
+			if parts, okParse := parseBucketBody(items[i].rawBodies[0]); okParse && parts.wdLen == 0 {
+				e.parts, e.ok = parts, true
+			}
 		}
-		body := items[i].rawBodies[0]
-		parts, parsed := parseBucketBody(body)
-		if !parsed || parts.wdLen > 0 {
-			continue
-		}
-		eligible = append(eligible, bucketEligible{idx: i, parts: parts})
+		parsed = append(parsed, e)
 	}
-	scratch.eligible = eligible
+	scratch.parsed = parsed
 
-	if len(eligible) < 2 {
-		return items
-	}
-
-	// Group eligible items by attr hash.
-	for j := range eligible {
-		h := eligible[j].parts.attrHash
-		scratch.groups[h] = append(scratch.groups[h], j)
-	}
-
-	anyMerged := false
+	runs := scratch.runs[:0]
 	merged := scratch.merged[:0]
-	used := make([]bool, len(items))
 
-	// Track metadata and source peer for each merged body (from reference item of each group).
-	var mergedMeta []map[string]any
-	var mergedSourcePeer []string
-
-	for _, grp := range scratch.groups {
-		if len(grp) < 2 {
+	for i := 0; i < len(items); {
+		if !parsed[i].ok {
+			i++
 			continue
 		}
-		refAttrs := eligible[grp[0]].parts.attrs
-		sameCount := 0
-		for _, g := range grp {
-			if bytes.Equal(refAttrs, eligible[g].parts.attrs) {
-				sameCount++
-			}
+		j := i + 1
+		for j < len(items) && parsed[j].ok &&
+			parsed[j].parts.attrHash == parsed[i].parts.attrHash &&
+			bytes.Equal(parsed[j].parts.attrs, parsed[i].parts.attrs) {
+			j++
 		}
-		if sameCount < 2 {
+		if j-i < 2 {
+			i++
 			continue
 		}
 
-		refParts := &eligible[grp[0]].parts
-		refMeta := items[eligible[grp[0]].idx].meta
-		refSourcePeer := items[eligible[grp[0]].idx].sourcePeerStr
-		attrOverhead := 2 + refParts.wdLen + 2 + refParts.attrLen
-
+		ref := &parsed[i].parts
+		attrOverhead := 2 + ref.wdLen + 2 + ref.attrLen
+		bodyStart := len(merged)
 		var nlriBuf []byte
-		for _, g := range grp {
-			ep := &eligible[g]
-			if !bytes.Equal(refAttrs, ep.parts.attrs) {
-				continue
-			}
-			nlri := ep.parts.nlri
+		for k := i; k < j; k++ {
+			nlri := parsed[k].parts.nlri
 			if len(nlri) == 0 {
-				used[ep.idx] = true
+				// The prefixes live in the attributes (MP_REACH), so there is
+				// nothing to pack and the body must not be dropped.
 				continue
 			}
 			if len(nlriBuf)+len(nlri)+attrOverhead > maxBodySize && len(nlriBuf) > 0 {
-				merged = append(merged, buildBucketBody(refParts, nlriBuf))
-				mergedMeta = append(mergedMeta, refMeta)
-				mergedSourcePeer = append(mergedSourcePeer, refSourcePeer)
+				merged = append(merged, buildBucketBody(ref, nlriBuf))
 				nlriBuf = nil
 			}
 			nlriBuf = append(nlriBuf, nlri...)
-			used[ep.idx] = true
-			anyMerged = true
 		}
 		if len(nlriBuf) > 0 {
-			merged = append(merged, buildBucketBody(refParts, nlriBuf))
-			mergedMeta = append(mergedMeta, refMeta)
-			mergedSourcePeer = append(mergedSourcePeer, refSourcePeer)
+			merged = append(merged, buildBucketBody(ref, nlriBuf))
 		}
+		if len(merged) > bodyStart {
+			runs = append(runs, bucketRun{start: i, end: j, bodyStart: bodyStart, bodyEnd: len(merged)})
+		}
+		i = j
 	}
+	scratch.runs = runs
 	scratch.merged = merged
 
-	if !anyMerged {
+	if len(runs) == 0 {
 		return items
 	}
 
-	// Build result: keep consumed items (for done() callbacks) with cleared rawBodies,
-	// keep non-consumed items unchanged, then append merged synthetic items.
+	// Build the result in batch order: every consumed item stays in place with
+	// its rawBodies cleared (its done() and its pooled buffers are still owed),
+	// and the run's packed bodies go where the run was.
 	result := make([]fwdItem, 0, len(items)+len(merged))
-	for i := range items {
-		if used[i] {
-			stripped := items[i]
-			stripped.rawBodies = nil
-			result = append(result, stripped)
+	run := 0
+	for i := 0; i < len(items); {
+		if run >= len(runs) || i != runs[run].start {
+			result = append(result, items[i])
+			i++
 			continue
 		}
-		result = append(result, items[i])
-	}
-	// Merged items inherit the destination peer. Use the first NON-nil peer,
-	// not items[0].peer: a batch may lead with a nil-peer wake-up sentinel
-	// (fwdBatchHandler skips those for the write, but a merged item copying a
-	// nil peer would be a latent nil-deref for any future reader of .peer).
-	// All real items in a batch share one destination, so the first non-nil
-	// peer is the correct owner.
-	mergedPeer := items[0].peer
-	for i := range items {
-		if items[i].peer != nil {
-			mergedPeer = items[i].peer
-			break
+		r := runs[run]
+		for k := r.start; k < r.end; k++ {
+			stripped := items[k]
+			stripped.rawBodies = nil
+			result = append(result, stripped)
 		}
-	}
-	for i, body := range merged {
-		result = append(result, fwdItem{
-			peer:          mergedPeer,
-			rawBodies:     [][]byte{body},
-			meta:          mergedMeta[i],
-			sourcePeerStr: mergedSourcePeer[i],
-		})
+		for b := r.bodyStart; b < r.bodyEnd; b++ {
+			result = append(result, fwdItem{
+				// Every run member is a real item -- a nil-peer sentinel carries
+				// no body, so it never parses and never joins a run.
+				peer:          items[r.start].peer,
+				rawBodies:     [][]byte{merged[b]},
+				meta:          items[r.start].meta,
+				sourcePeerStr: items[r.start].sourcePeerStr,
+			})
+		}
+		i = r.end
+		run++
 	}
 	return result
 }

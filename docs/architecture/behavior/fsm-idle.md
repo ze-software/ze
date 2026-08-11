@@ -19,11 +19,14 @@ Idle is reached one of four ways:
    `StateIdle`.
    <!-- source: internal/component/bgp/fsm/fsm.go — New -->
 
-2. **Transition from any other state on `ManualStop`.** `Session.Close()`,
-   `Session.CloseWithNotification()`, and `Session.Teardown()` all fire
-   `EventManualStop` via `logFSMEvent`, which resolves to Idle in every
-   non-Idle state.
-   <!-- source: internal/component/bgp/reactor/session_connection.go — Close, CloseWithNotification, Teardown -->
+2. **Transition from any other state on `ManualStop`.** `Session.Stop()`
+   and `Session.Teardown()` fire `EventManualStop`, which resolves to Idle
+   in every non-Idle state. `Session.CloseWithNotification()` also reaches
+   Idle, but on Event 23 (`OpenCollisionDump`) rather than Event 2: the
+   collision is the local system's decision, and RFC 4271 Section 8.2.2 has
+   Event 23 increment the ConnectRetryCounter where Event 2 zeroes it.
+   <!-- source: internal/component/bgp/reactor/session.go — Stop -->
+   <!-- source: internal/component/bgp/reactor/session_connection.go — Teardown, CloseWithNotification -->
 
 3. **Transition from Connect/Active/OpenSent/OpenConfirm/Established on
    error events.** TCP connection failure, hold-timer expiry, notification
@@ -80,10 +83,10 @@ transitions Idle to Connect.
 
 None. Idle holds no TCP connection. Any NOTIFICATION that the system sends
 while transitioning *into* Idle is written by the caller of the FSM event
-(typically `Session.Close`, `Session.Teardown`, or the hold-timer callback)
-*before* the FSM is told to move. The FSM does not own wire I/O.
+(typically `Session.Teardown` or the hold-timer callback) *before* the FSM
+is told to move. The FSM does not own wire I/O.
 
-<!-- source: internal/component/bgp/reactor/session_connection.go — Close, Teardown -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — Teardown -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires callback -->
 
 ## Code map
@@ -95,13 +98,13 @@ Every file that participates when the system is in Idle:
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleIdle` |
 | Initial state constant | `internal/component/bgp/fsm/state.go` | `StateIdle` |
 | Start/stop entrypoints | `internal/component/bgp/reactor/session.go` | `Start`, `Stop` |
-| Teardown + NOTIFICATION on exit toward Idle | `internal/component/bgp/reactor/session_connection.go` | `Close`, `CloseWithNotification`, `Teardown` |
+| Teardown + NOTIFICATION on exit toward Idle | `internal/component/bgp/reactor/session_connection.go` | `CloseWithNotification`, `Teardown` |
 | Outer peer run loop that re-enters Idle via session lifecycle | `internal/component/bgp/reactor/peer_run.go` | run loop body |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleIdle -->
 <!-- source: internal/component/bgp/fsm/state.go — StateIdle -->
 <!-- source: internal/component/bgp/reactor/session.go — Start, Stop -->
-<!-- source: internal/component/bgp/reactor/session_connection.go — Close, CloseWithNotification, Teardown -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — CloseWithNotification, Teardown -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run loop around session.Start/Connect/Accept -->
 
 ## RFC deviations

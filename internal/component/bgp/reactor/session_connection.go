@@ -36,6 +36,12 @@ const socketSendBufSize = 65536
 // Connect initiates an outgoing TCP connection.
 // If LocalAddress is configured, binds to it for outgoing connections.
 // This ensures consistent source address for next-hop self resolution.
+//
+// This is the one rail that OWNS the connection it hands to
+// connectionEstablished: it dialed it, and runOnce -- its only production caller
+// (peer_run.go) -- never sees the socket and cannot close it. So a sealed session
+// refusing the dial is closed here. The accept rails are the other way round:
+// their callers keep the connection, so connectionEstablished must not close it.
 func (s *Session) Connect(ctx context.Context) error {
 	s.mu.Lock()
 	if s.conn != nil {
@@ -52,13 +58,28 @@ func (s *Session) Connect(ctx context.Context) error {
 		return fmt.Errorf("connect to %s: %w", addr, err)
 	}
 
-	return s.connectionEstablished(conn)
+	if err := s.connectionEstablished(conn); err != nil {
+		if errors.Is(err, ErrSessionTearingDown) {
+			closeConnQuietly(conn)
+		}
+		return err
+	}
+	return nil
 }
 
 // Accept accepts an incoming TCP connection.
+//
+// A sealed session is refused here rather than reused. The seal is one-way (see
+// seal below), so this is the cheap early answer and connectionEstablished holds
+// the authoritative one, under the lock that publishes s.conn.
+//
+// Refusing is not losing the connection, and that holds at BOTH answers: neither
+// this check nor connectionEstablished's closes conn. The caller keeps it.
+// acceptOrReject buffers it on ErrSessionTearingDown for a passive peer
+// (reactor_connection.go) and runOnce offers it to the NEXT cycle's session,
+// which is a new Session value (peer_run.go). That buffer is what reuse after a
+// teardown runs on; the session value itself is never reused.
 func (s *Session) Accept(conn net.Conn) error {
-	// Check if session is being torn down - reject if so.
-	// This prevents accepting a connection on a session that's about to exit.
 	if s.tearingDown.Load() {
 		return ErrSessionTearingDown
 	}
@@ -82,10 +103,6 @@ drainLoop:
 			break drainLoop
 		}
 	}
-
-	// Reset tearing down flag for new connection.
-	// This allows the session to be reused after a teardown.
-	s.tearingDown.Store(false)
 
 	err := s.connectionEstablished(conn)
 	if err != nil {
@@ -341,7 +358,43 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	// race on the s.bufWriter field (writer-reader mismatch on two separate
 	// locks). writeMu is released before sendOpen below because sendOpen
 	// re-acquires writeMu.
+	//
+	// This assignment is one of the two places a conn becomes a session, the
+	// other being p.session in Peer.runOnce (peer_run.go). A sealed session never
+	// gets one, and the check sits INSIDE the critical section that publishes
+	// the conn because that is what decides the order against a concurrent seal
+	// rather than racing it. seal stores true and teardown then reads s.conn
+	// under this same s.mu (see below), so either this section runs first --
+	// teardown sees the conn and the Cease goes out on it -- or teardown's read
+	// runs first, in which case its store happened-before this lock and the load
+	// below returns true.
+	//
+	// The seal is one-way: seal is the only writer of s.tearingDown and only
+	// ever writes true. Nothing clears it, and Session.Accept must not -- it did
+	// until 2026-08-11, between its own entry check and this one, which made
+	// this gate read a flag the accept rail had just erased.
+	//
+	// What that closes is every route a stopping daemon has to a live session:
+	// an inbound conn for a CONFIGURED peer (acceptOrReject -> AcceptConnection
+	// -> Accept), a conn a Listener had already accepted when Reactor.stop took
+	// r.mu, and a dial that was in flight when the seal landed. Each would send
+	// an OPEN the cancel then closes in silence (RFC 4271 Section 8.2.2,
+	// ManualStop). Connect, Accept and AcceptWithOpen reach the wire only
+	// through here, so one gate covers all three.
+	//
+	// The refusal does NOT close conn, because this function does not own it on
+	// two of those three rails. Accept's caller is acceptOrReject, which buffers
+	// the connection on ErrSessionTearingDown for a passive peer and offers it to
+	// the next cycle (reactor_connection.go); AcceptWithOpen's caller is
+	// acceptPendingConnection, which closes it itself. Closing here left both
+	// holding a dead socket -- the buffered one costs the peer a whole backoff
+	// when the next cycle accepts it. Connect is the one rail that owns what it
+	// hands in, and it closes its own dial on this error (see Connect above).
 	s.mu.Lock()
+	if s.tearingDown.Load() {
+		s.mu.Unlock()
+		return ErrSessionTearingDown
+	}
 	s.writeMu.Lock()
 	s.conn = conn
 	readBufSize := max(env.GetInt("ze.buf.read.size", 65536), 4096)
@@ -370,29 +423,6 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	openWait := env.GetDuration("ze.bgp.openwait", 120*time.Second)
 	s.timers.SetHoldTime(openWait)
 	s.timers.StartHoldTimer()
-
-	return nil
-}
-
-// Close gracefully closes the session.
-func (s *Session) Close() error {
-	s.timers.StopAll()
-
-	s.mu.Lock()
-	conn := s.conn
-	s.mu.Unlock()
-
-	if conn != nil {
-		// Send NOTIFICATION (Cease/Administrative Shutdown).
-		s.logNotifyErr(conn,
-			message.NotifyCease,
-			message.NotifyCeaseAdminShutdown,
-			nil,
-		)
-	}
-
-	s.closeConn()
-	s.logFSMEvent(fsm.EventManualStop)
 
 	return nil
 }
@@ -448,9 +478,24 @@ func (s *Session) TeardownAutomatic(subcode uint8, shutdownMsg string) error {
 	return s.teardown(subcode, shutdownMsg, fsm.EventAutomaticStop)
 }
 
-func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Event) error {
-	// Mark session as tearing down to prevent accepting new connections
+// seal is the ONLY writer of s.tearingDown, and it only ever writes true, so a
+// sealed session stays sealed for the rest of its life. That is what lets
+// connectionEstablished answer "no conn is published on this session" once,
+// instead of once per rail that can reach it.
+//
+// Two callers seal: teardown, on its way to the wire, and Reactor.stop, which
+// seals every live session as part of the stop's own seal (peer.go,
+// sealSession). The second is not covered by the first -- StopForRestart
+// notifies nobody, so nothing would tear those sessions down -- and the seal has
+// to hold for that stop too.
+func (s *Session) seal() {
 	s.tearingDown.Store(true)
+}
+
+func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Event) error {
+	// Seal first: a conn published after this point would carry a session the
+	// caller believes it has just ended.
+	s.seal()
 
 	s.timers.StopAll()
 

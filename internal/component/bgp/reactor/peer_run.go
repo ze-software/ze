@@ -31,6 +31,23 @@ func (p *Peer) run() {
 	attempt := 0
 
 	for {
+		// Two things stop this loop dialing again, and p.ctx is only one of them.
+		// Reactor.stop marks every peer stopping BEFORE it sends the shutdown
+		// NOTIFICATIONs, because the cancel that follows closes the sockets those
+		// NOTIFICATIONs need (reactor.go). For that whole window p.ctx is still
+		// live, so without this flag the ErrTeardown branch below -- which resets
+		// the delay and continues with no wait -- would dial the peer again,
+		// reach Established again, and then be killed by the cancel with nothing
+		// on the wire to say why. That is a shutdown flap, and a second RFC 4271
+		// Section 8.2.2 ManualStop miss on the same stop. The inbound half of
+		// that miss is closed at the session: Reactor.stop seals every published
+		// session, and connectionEstablished refuses a conn on a sealed one
+		// (peer.go, session_connection.go). Nothing on the accept path reads
+		// this flag.
+		if p.stopping.Load() {
+			return
+		}
+
 		select {
 		case <-p.ctx.Done():
 			return
@@ -228,7 +245,33 @@ func (p *Peer) runOnce() error {
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
 	session.SetOpenValidator(p.validateOpen)
 
+	// This assignment is one of the two places a conn becomes a session, the
+	// other being s.conn in Session.connectionEstablished (session_connection.go).
+	// The seal is re-read HERE, in the same hold of p.mu that publishes the
+	// session, and the pairing is what makes the answer ordered instead of
+	// raced. Reactor.stop marks every peer and then reads p.session under this
+	// same lock, through sealSession and ShutdownNotify (peer.go), so:
+	//
+	//   - if that read got in first, the mark happened-before this lock and this
+	//     load returns true, so no session is ever published and nothing below
+	//     dials or accepts;
+	//   - otherwise this publish got in first, the stop sees the session and
+	//     seals it, and connectionEstablished reads that seal before it
+	//     publishes a conn -- for the dial below and for the accept rail alike.
+	//
+	// One of the two always holds, so after the seal no conn can become a
+	// session out of this loop. The loop-top read in run() is the cheap early
+	// exit; this one is the correct one, because the loop top can be passed
+	// before the mark and the dial below then takes as long as a TCP handshake.
 	p.mu.Lock()
+	if p.stopping.Load() {
+		p.mu.Unlock()
+		p.stopCapture(capture)
+		// nil, not an error: run()'s loop top is the single place the seal ends
+		// the loop, and it is one statement away. An error here would send run()
+		// into its backoff select first, to sit there until the cancel.
+		return nil
+	}
 	p.session = session
 	p.mu.Unlock()
 
@@ -259,6 +302,12 @@ func (p *Peer) runOnce() error {
 		// This is needed because session.Teardown() may return before the old
 		// sendInitialRoutes() goroutine finishes its 500ms sleep.
 		p.sendingInitialRoutes.Store(0)
+		// The session is gone, so nothing will drain an opQueue for it. Release
+		// the forwarded UPDATEs parked behind the sync: fwdBatchHandler discards
+		// them for a peer that is no longer Established, which is what must
+		// happen -- holding them would deliver this session's UPDATEs to its
+		// replacement, after that session's own initial sync.
+		p.wakeForwardOverflow()
 		// A new session owes the peer a fresh End-of-RIB per family.
 		p.resetInitialSyncEOR()
 		p.mu.Lock()
@@ -570,12 +619,13 @@ func (p *Peer) cleanup() {
 	p.clearEncodingContexts()
 	p.ClearStats()
 	p.mu.Lock()
-	if p.session != nil {
-		if err := p.session.Close(); err != nil {
-			peerLogger().Debug("session close error", "error", err)
-		}
-		p.session = nil
-	}
+	// p.session is NOT read here. runOnce's own defer nils it, and that defer
+	// runs first: cleanup is `defer p.cleanup()` in run(), so it can only run
+	// after runOnce returned. The `if p.session != nil` that used to stand here
+	// was therefore always false, and the Session.Close it guarded -- the one
+	// place that built the shutdown NOTIFICATION -- had no reachable caller at
+	// all. The send now happens in Reactor.Stop, before the cancel that makes
+	// every downstream guard false (reactor.go, ShutdownNotify in peer.go).
 	inbound := p.inboundConn
 	p.inboundConn = nil
 	p.cancel = nil

@@ -31,7 +31,6 @@ type fwdBodyResult struct {
 	transcodeBuf BufHandle
 
 	supersedeKey uint64
-	withdrawal   bool
 }
 
 // fwdParseCache caches a parsed UPDATE across peers to avoid redundant parsing.
@@ -135,8 +134,6 @@ func buildFwdBody(
 	}
 
 	result.supersedeKey = fwdSupersedeKey(result.rawBodies)
-	tmp := fwdItem{rawBodies: result.rawBodies, updates: result.updates}
-	result.withdrawal = fwdIsWithdrawal(&tmp)
 	return result, true
 }
 
@@ -265,6 +262,84 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 		PathAttributes:  attrs,
 		NLRI:            announced,
 	}, transcodeBuf, nil
+}
+
+// ownOverflowBodies makes an item's payload bytes its own before it enters the
+// forward worker's overflow queue.
+//
+// A fast-path item aliases the source cache entry's buffers safely: it reaches
+// the channel and drains in microseconds. An overflow item cannot. It sits in
+// w.overflow for as long as the destination stays behind, and the recent-update
+// cache's safety valve force-evicts a passed-over entry after the valve elapses
+// (recent_cache.go runGapScan -> evictLocked: 5 minutes, or 30 seconds while the
+// read pool is under pressure). Eviction returns exactly the memory these bodies
+// point into -- poolBuf, the EBGP patched slots, and every per-forward handle
+// adopted onto the entry -- and the retain the item holds does not protect it,
+// because isGapEvictable force-evicts precisely the entries that still have
+// consumers. The worker would then write another session's bytes to the peer.
+// See plan/spec-fixit-forward-rail-initial-sync-ordering.md D-5.
+//
+// The copy goes into the tier 2 MixedBufMux handle the item already holds, which
+// is sized and byte-budgeted for exactly these bytes and was until now an
+// accounting token over borrowed memory. When there is no handle (mux absent,
+// congestion denial, or pool exhaustion) or the bodies do not fit one, the copy
+// goes on the heap: an allocation on the exhausted-pool path is the correct
+// trade against sending wrong bytes, and no route is dropped either way. The
+// handle stays with the item, so releaseItem returns it exactly once as before.
+func ownOverflowBodies(item *fwdItem) {
+	total := 0
+	for _, b := range item.rawBodies {
+		total += len(b)
+	}
+	for _, u := range item.updates {
+		total += len(u.WithdrawnRoutes) + len(u.PathAttributes) + len(u.NLRI)
+	}
+	if total == 0 {
+		return
+	}
+
+	dst := item.overflowBuf.Buf
+	if len(dst) < total {
+		dst = make([]byte, total)
+	}
+	off := 0
+	own := func(src []byte) []byte {
+		if len(src) == 0 {
+			return nil
+		}
+		n := copy(dst[off:], src)
+		out := dst[off : off+n]
+		off += n
+		return out
+	}
+
+	if len(item.rawBodies) > 0 {
+		// A fresh header slice, never a write into the caller's: one [][]byte is
+		// shared across every destination of an UPDATE through the forward body
+		// cache (reactor_api_forward.go, forward_rs.go), so re-pointing in place
+		// would repoint the other destinations' items too.
+		bodies := make([][]byte, len(item.rawBodies))
+		for i, b := range item.rawBodies {
+			bodies[i] = own(b)
+		}
+		item.rawBodies = bodies
+	}
+
+	if len(item.updates) > 0 {
+		// Same sharing, and the sections alias the entry's read buffer or the
+		// transcode handle adopted onto it. rawData is not carried: nothing on
+		// the send path reads it (RawData has one caller, fwdUpdateForDestination,
+		// which ran before this item was built).
+		updates := make([]*message.Update, len(item.updates))
+		for i, u := range item.updates {
+			updates[i] = &message.Update{
+				WithdrawnRoutes: own(u.WithdrawnRoutes),
+				PathAttributes:  own(u.PathAttributes),
+				NLRI:            own(u.NLRI),
+			}
+		}
+		item.updates = updates
+	}
 }
 
 func fwdPackUpdateBody(update *message.Update) []byte {

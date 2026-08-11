@@ -34,7 +34,7 @@ be called from the reactor's inbound connection plumbing. Accept runs
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `StartDamped()` call | ignored (RFC 4271) | none | `Active` |
-| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION in caller if conn exists | `Idle` |
+| `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | log transition | OPEN sent immediately after transition | `OpenSent` |
 | `EventTCPConnectionFails` | inbound connection setup error | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
@@ -63,9 +63,10 @@ be called from the reactor's inbound connection plumbing. Accept runs
   timer.
   <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished -->
 - **On `EventManualStop`:** if a partial connection exists, the caller
-  (`Close`, `Teardown`) sends a Cease NOTIFICATION before invoking the
-  FSM event.
-  <!-- source: internal/component/bgp/reactor/session_connection.go — Close, Teardown -->
+  (`Teardown`) sends a Cease NOTIFICATION before invoking the FSM event.
+  `Session.Stop` fires the same event and sends nothing.
+  <!-- source: internal/component/bgp/reactor/session_connection.go — Teardown -->
+  <!-- source: internal/component/bgp/reactor/session.go — Stop -->
 
 ## `AcceptWithOpen` variant
 

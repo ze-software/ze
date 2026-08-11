@@ -233,6 +233,19 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 		return peer
 	}
 
+	// A stop that has begun must not gain a peer. Reactor.stop closes the
+	// listeners under this same lock (reactor.go), so the only connection that
+	// still reaches here is one a Listener had already accepted at that
+	// instant, and its handler goroutine is holding it. Building a peer for it
+	// would put a session in OpenSent that no ShutdownNotify will ever cover --
+	// its snapshot was taken before the peer existed -- and the cancel would
+	// then close that socket with nothing on the wire to say why, which is the
+	// RFC 4271 Section 8.2.2 ManualStop miss the stop exists to prevent.
+	// The caller closes the connection (reactor_connection.go).
+	if r.stopping {
+		return nil
+	}
+
 	dg := r.findDynamicGroup(addr)
 	if dg == nil {
 		return nil

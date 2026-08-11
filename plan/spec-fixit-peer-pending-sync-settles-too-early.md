@@ -44,8 +44,10 @@ inside the barrier.
 That fix was implemented, proven RED to GREEN at the owning layer, and then
 REVERTED: any hold inside `sendInitialRoutes` keeps `sendingInitialRoutes`
 non-zero, which widens the window where `ShouldQueue` is true, and the
-forwarding rail does not consult `ShouldQueue`
-(`plan/spec-fixit-forward-rail-initial-sync-ordering.md`, open). Measured A/B on
+forwarding rail did not consult `ShouldQueue` when this was written
+(`spec-fixit-forward-rail-initial-sync-ordering`, closed 2026-08-11: both
+forwarding rails now hold on `Peer.forwardOrderHold`, and the pool worker holds
+its overflow with `overflowHeld`). Measured A/B on
 identical builds differing only in that gate:
 `test/plugin/role-otc-rs-withdraw-eor.ci` passes with the gate off and fails
 with it on, delivering the same relayed route twice. Separating "initial sync

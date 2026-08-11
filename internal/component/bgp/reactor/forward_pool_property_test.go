@@ -10,7 +10,6 @@ package reactor
 import (
 	"math/rand"
 	"net/netip"
-	"sort"
 	"sync"
 	"testing"
 	"testing/quick"
@@ -21,64 +20,53 @@ import (
 
 // TestForwardPoolOrderingProperty bundles the L94 invariants.
 //
-// VALIDATES: AC-1 / L94 -- withdrawals-first stable reordering, supersede-key
-// determinism, malformed-body classification robustness, and exactly-once
+// VALIDATES: AC-1 / L94 -- batch order preservation, supersede-key
+// determinism, malformed-body parsing robustness, and exactly-once
 // delivery under concurrent dispatch (channel + overflow paths).
-// PREVENTS: a batch reorder that reshuffles/duplicates/drops items, a
+// PREVENTS: a batch handler that reshuffles/duplicates/drops items, a
 // nondeterministic supersede key, a panic on malformed wire bytes, or a route
 // lost when TryDispatch overflows under concurrency.
 func TestForwardPoolOrderingProperty(t *testing.T) {
 	t.Parallel()
 
-	// Property 1 -- fwdReorderWithdrawalsFirst: the output partitions
-	// withdrawals before announcements, preserves relative order within each
-	// group (stability), and is a permutation of the input (no add/drop/dup).
-	t.Run("reorder_partition_stable_permutation", func(t *testing.T) {
+	// test-relax: property 1 tested fwdReorderWithdrawalsFirst, which is deleted.
+	// It hoisted every withdrawal ahead of every announcement, which inverts an
+	// announce and a withdraw of ONE prefix and leaves the peer holding a route
+	// that was withdrawn. The property below replaces it with the invariant the
+	// batch handler now owes: whatever the mixture of kinds, the handler sees the
+	// batch in the order it was queued.
+	t.Run("batch_order_preserved", func(t *testing.T) {
 		t.Parallel()
 		f := func(flags []bool) bool {
-			batch := make([]fwdItem, len(flags))
-			for i, w := range flags {
-				batch[i] = fwdItem{withdrawal: w, meta: map[string]any{"seq": i}}
-			}
-			out := fwdReorderWithdrawalsFirst(batch)
-			if len(out) != len(flags) {
-				return false
-			}
-			// Partition: no withdrawal may follow an announcement.
-			seenAnnounce := false
-			var wdSeqs, annSeqs, allSeqs []int
-			for i := range out {
-				seq, ok := out[i].meta["seq"].(int)
-				if !ok {
-					return false
-				}
-				allSeqs = append(allSeqs, seq)
-				if out[i].withdrawal {
-					if seenAnnounce {
-						return false // withdrawal after announcement: partition broken
+			var seen []int
+			fp := newFwdPool(func(_ fwdKey, items []fwdItem) {
+				for i := range items {
+					seq, ok := items[i].meta["seq"].(int)
+					if !ok {
+						return
 					}
-					wdSeqs = append(wdSeqs, seq)
-				} else {
-					seenAnnounce = true
-					annSeqs = append(annSeqs, seq)
+					seen = append(seen, seq)
 				}
+			}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
+			defer fp.Stop()
+
+			batch := make([]fwdItem, len(flags))
+			for i, isWithdrawal := range flags {
+				body := syncOrderAnnounceBody
+				if isWithdrawal {
+					body = syncOrderWithdrawBody
+				}
+				batch[i] = fwdItem{rawBodies: [][]byte{body}, meta: map[string]any{"seq": i}}
 			}
-			// Stability: original index == seq, so a stable partition keeps each
-			// group's seqs strictly increasing.
-			if !isStrictlyIncreasing(wdSeqs) || !isStrictlyIncreasing(annSeqs) {
+			fp.safeBatchHandle(fwdKey{}, batch)
+
+			if len(seen) != len(flags) {
 				return false
 			}
-			// Permutation: the multiset of seqs is exactly {0..n-1}.
-			sort.Ints(allSeqs)
-			for i, s := range allSeqs {
-				if s != i {
-					return false
-				}
-			}
-			return true
+			return isStrictlyIncreasing(seen)
 		}
 		if err := quick.Check(f, propertyQuickConfig(94)); err != nil {
-			t.Fatalf("reorder invariants violated: %v", err)
+			t.Fatalf("batch order not preserved: %v", err)
 		}
 	})
 
@@ -101,18 +89,29 @@ func TestForwardPoolOrderingProperty(t *testing.T) {
 		}
 	})
 
-	// Property 3 -- fwdIsWithdrawal robustness: never panics on arbitrary
-	// (possibly truncated/malformed) wire bytes. Reaching the assertion means no
-	// panic occurred during quick.Check.
-	t.Run("is_withdrawal_robust_to_garbage", func(t *testing.T) {
+	// Property 3 -- body-parsing robustness: never panics on arbitrary
+	// (possibly truncated/malformed) wire bytes, and a successful parse never
+	// claims more bytes than the body holds.
+	//
+	// test-relax: this covered fwdIsWithdrawal, deleted with the batch reorder it
+	// classified for. parseBucketBody reads the same UPDATE-body shape and is the
+	// reader that survives on the batch path, so the invariant moves to it.
+	t.Run("body_parse_robust_to_garbage", func(t *testing.T) {
 		t.Parallel()
 		f := func(bodies [][]byte) bool {
-			item := fwdItem{rawBodies: bodies}
-			_ = fwdIsWithdrawal(&item) // must not panic
+			for _, body := range bodies {
+				parts, ok := parseBucketBody(body)
+				if !ok {
+					continue
+				}
+				if len(parts.wd)+len(parts.attrs)+len(parts.nlri) > len(body) {
+					return false
+				}
+			}
 			return true
 		}
 		if err := quick.Check(f, propertyQuickConfig(96)); err != nil {
-			t.Fatalf("fwdIsWithdrawal panicked on generated input: %v", err)
+			t.Fatalf("parseBucketBody rejected an invariant on generated input: %v", err)
 		}
 	})
 

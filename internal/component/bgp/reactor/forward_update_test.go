@@ -1327,13 +1327,13 @@ func TestForwardBackpressureThroughFastPath(t *testing.T) {
 	close(blocker)
 }
 
-// TestFwdBodyCacheHoistsSupersedeAndWithdrawal verifies the rs-fastpath-3
-// hoisting decision: when two destinations share rawBodies, supersedeKey and
-// withdrawal are computed once (cache miss) and reused (cache hit).
+// TestFwdBodyCacheHoistsSupersede verifies the rs-fastpath-3 hoisting decision:
+// when two destinations share rawBodies, supersedeKey is computed once (cache
+// miss) and reused (cache hit).
 //
 // VALIDATES: Phase 2 hoisting decision.
 // PREVENTS: Regression where supersedeKey is recomputed per destination.
-func TestFwdBodyCacheHoistsSupersedeAndWithdrawal(t *testing.T) {
+func TestFwdBodyCacheHoistsSupersede(t *testing.T) {
 	const msgID uint64 = 700
 
 	adapter, peers, cache := fastpathSetup(t, 2, msgID)
@@ -1383,8 +1383,11 @@ func TestFwdBodyCacheHoistsSupersedeAndWithdrawal(t *testing.T) {
 	assert.NotZero(t, items[0].supersedeKey, "hoisted supersedeKey should be non-zero for rawBodies items")
 	assert.Equal(t, items[0].supersedeKey, items[1].supersedeKey,
 		"both destinations must observe the same supersedeKey (hoisted from cache)")
-	assert.Equal(t, items[0].withdrawal, items[1].withdrawal,
-		"both destinations must observe the same withdrawal flag (hoisted from cache)")
+	// test-relax: the second assertion compared the items' withdrawal flags. That
+	// field is deleted with the batch reorder it fed, so there is no longer a
+	// second hoisted value to compare.
+	assert.Same(t, &items[0].rawBodies[0][0], &items[1].rawBodies[0][0],
+		"both destinations must share the one cached body (zero-copy hoist)")
 }
 
 // TestForwardUpdateDirectMissingMsgIDIsLogged verifies AC-7a: when an id is

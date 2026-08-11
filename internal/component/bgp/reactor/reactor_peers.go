@@ -164,7 +164,13 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 
 	// If reactor is running, start the peer and create listener if needed.
 	// Active-only peers dial out and never accept inbound — skip listener.
-	if r.running {
+	//
+	// A stop that has begun stays sealed: reactor.go shuts the listeners and
+	// marks every peer stopping under this same lock, so starting one here
+	// would open a session nothing notifies and the cancel closes in silence
+	// (RFC 4271 Section 8.2.2, ManualStop). The peer stays in r.peers, inert,
+	// and the process is leaving.
+	if r.running && !r.stopping {
 		if settings.LocalAddress.IsValid() && settings.Connection.IsPassive() {
 			listenPort := r.peerListenPort(settings)
 			lkey := net.JoinHostPort(settings.LocalAddress.String(), strconv.Itoa(listenPort))

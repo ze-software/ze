@@ -1,7 +1,6 @@
 package reactor
 
 import (
-	"bytes"
 	"log/slog"
 	"net/netip"
 	"testing"
@@ -22,9 +21,20 @@ import (
 // usual default-logger recorder used elsewhere in this package cannot see these lines.
 // swapSessionLogger overrides it through that atomic.Value so the override is race-free
 // against any live session's cold-path logging.
-func captureSessionLog(t *testing.T, level slog.Level) *bytes.Buffer {
+//
+// The sink is a syncBuffer, not a bytes.Buffer: the override is process-global, so every
+// live session's background goroutines (keepalive and hold timers, the cancel goroutine)
+// write into it while the test reads it. A bare bytes.Buffer here is a data race, seen
+// under `make ze-race-reactor` between a keepalive timer's Debug line and this test's
+// String().
+//
+// rfc-test-change-approved: Thomas, 2026-08-11 -- captureSessionLog's sink changed from
+// bytes.Buffer to the package's existing syncBuffer (session_write_notify_log_test.go),
+// fixing the data race described above. No assertion, no expected value, and no
+// RFC7606-6-1 tag was changed.
+func captureSessionLog(t *testing.T, level slog.Level) *syncBuffer {
 	t.Helper()
-	buf := &bytes.Buffer{}
+	buf := &syncBuffer{}
 	lg := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level}))
 	t.Cleanup(swapSessionLogger(func() *slog.Logger { return lg }))
 	return buf

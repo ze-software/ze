@@ -1,0 +1,101 @@
+# Test: SIGTERM tells the peer WHY before the socket goes
+#
+# RFC requirement: RFC4271-8.2.2-18 positive -- ManualStop (Event 2) sends the
+# NOTIFICATION message with a Cease before the TCP connection is dropped. The
+# whole-daemon proof: a real SIGTERM to a real ze holding a real Established
+# session, asserted as the bytes the peer reads off the wire, not as a log line.
+#
+# WHY THIS IS A SEPARATE FILE FROM signal-stop.ci, AND WHAT TO DO ABOUT IT.
+# The assertion belongs in signal-stop.ci, which already drives the same signal
+# on the same session and asserts only the route, the EOR and a clean exit. It
+# could not be put there: adding the RFC tag to that file made it an RFC-tagged
+# test, after which .claude/hooks/pretool-writeedit.py refuses every
+# behaviour-bearing edit to it without a `rfc-test-change-approved:` marker that
+# only the user may write, and the tag and the assertion cannot go in one edit
+# because the hook reads the file from disk. Once the user approves, fold the
+# expect line below into signal-stop.ci and delete this file
+# (plan/spec-fixit-bgp-shutdown-cease-notification.md).
+#
+# WHAT THIS FILE GUARDS, AND WHAT IT DOES NOT.
+# It guards the FEATURE: before 2026-08-10 the daemon sent nothing at all on
+# shutdown. Session.Close built exactly this message and had no reachable
+# caller, because Peer.cleanup's `if p.session != nil` guard ran after runOnce's
+# defer had nil'd p.session, and the socket was already closed by then anyway.
+# Delete the send from Reactor.Stop and this file goes red on a bare FIN, with
+# the peer holding 2 messages and timing out on the third.
+#
+# It does NOT guard the ORDERING, and an earlier note here claimed it did. Move
+# notifyPeersShutdown after cancel() in Reactor.Stop and this file still passes,
+# measured 20/20 on 2026-08-10: the octets are already in the kernel send buffer
+# when the cancel goroutine closes the socket, and closeConn sends FIN rather
+# than RST, so the peer reads them anyway. The ordering guard is
+# TestReactorStopNotifiesWhileItsContextIsStillLive
+# (internal/component/bgp/reactor/shutdown_notify_test.go), which observes the
+# reactor context from inside the send and is red 50/50 on that revert.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: send SIGTERM to trigger graceful shutdown
+action=sigterm:conn=1:seq=2
+
+# The shutdown NOTIFICATION: Cease (code 6) / Administrative Shutdown (subcode
+# 2, RFC 4486), carrying the RFC 8203 shutdown communication -- one length octet
+# (0x17) and the 23-character default text "Administrative Shutdown" that
+# Session.Teardown substitutes for an empty operator message.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+# ze bgp configuration (tmpfs required so daemon.pid is written to tmpfs dir)
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=20s

@@ -227,8 +227,8 @@ producers were read, and every link preserves withdrawals-first:
 | `wireu/split.go` `buildCombinedUpdates` | drains IPv4 withdrawals BEFORE announces, by construction, with the order called load-bearing in its own comment |
 | `message` `SplitCompliant` (re-encode path) | pinned by `TestSplitCompliantWithdrawalsPrecedeAnnouncements` |
 | `reactor/forward_body.go` `buildFwdBody` | both splits land in ONE `fwdItem`'s `rawBodies`/`updates`, so no cross-item batching can reorder them |
-| `reactor/forward_bucket.go` `fwdBucketMerge` | skips multi-body items and any body carrying withdrawals |
-| `reactor/forward_pool.go` `fwdReorderWithdrawalsFirst` | only ever moves withdrawals EARLIER |
+| `reactor/forward_bucket.go` `fwdBucketMerge` | skips multi-body items and any body carrying withdrawals, and since 2026-08-10 merges only ADJACENT items, so nothing crosses one |
+| `reactor/forward_pool.go` `safeBatchHandle` | hands the batch to the handler in the order it was queued. It partitioned withdrawals-first until 2026-08-10, when that was deleted for inverting an announce and a withdraw of ONE prefix (spec-fixit-forward-rail-initial-sync-ordering, D-9). The split ordering this table is about never depended on it: both halves land in one `fwdItem` |
 | `runWorker` | one long-lived goroutine per destination peer, batches FIFO |
 
 **And the `.ci` header's claim that it does not assert AC-6 was FALSE.**
@@ -238,8 +238,10 @@ producers were read, and every link preserves withdrawals-first:
 pending. Declaration order across seq groups IS arrival order; the header's
 "matches every pending rule" is true only WITHIN a group. Demonstrated: reversing
 `result.rawBodies`/`result.updates` at the end of `buildFwdBody`, after
-`supersedeKey` and the withdrawal flag are computed so only emission order
-changes, fails 380 3/3 with "message mismatch". The header is corrected.
+`supersedeKey` is computed so only emission order changes, fails 380 3/3 with
+"message mismatch". The header is corrected. The withdrawal flag that stood
+beside `supersedeKey` when this was written was deleted on 2026-08-10 with the
+batch reorder it fed.
 
 **The destination-arm blackhole above is NOT closed here.** It was written with
 `81dd09dfa` already in the tree, so its author saw Phase 1 and kept it open. The

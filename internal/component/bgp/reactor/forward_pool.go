@@ -16,6 +16,10 @@
 // their channel in batches, writing wire bytes directly to the peer's TCP
 // bufio.Writer, then flushing once per batch.
 //
+// A channel item aliases the source cache entry's bytes zero-copy. An overflow
+// item does not: it can outlive the entry, so DispatchOverflow copies its bodies
+// into the overflow handle it already holds (ownOverflowBodies, forward_body.go).
+//
 // Weight tracking sizes per-peer channel capacity proportional to the peer's
 // NLRI volume. Congestion control uses two thresholds (warn/critical) on the
 // shared buffer pool usage ratio to pause slow peers before memory exhaustion.
@@ -55,11 +59,10 @@ type fwdItem struct {
 	done          func()            // Called after all ops complete (Release cache entry)
 	peerBufIdx    int               // 1-based index into per-peer pool; 0 = not from per-peer pool
 	peerPoolRef   *peerPool         // Pool to return buffer to (avoids map lookup + lock)
-	overflowBuf   BufHandle         // Holds overflow MixedBufMux handle; nil Buf = not from overflow
+	overflowBuf   BufHandle         // Overflow MixedBufMux handle holding this item's copied bodies (ownOverflowBodies); nil Buf = not from overflow
 	meta          map[string]any    // Route metadata from ReceivedUpdate; set on sent events
 	sourcePeerStr string            // Source peer address string for ribOut stale-scoping
 	supersedeKey  uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
-	withdrawal    bool              // True if this item contains only withdrawals (AC-25)
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -319,16 +322,34 @@ type fwdWorker struct {
 	overflowMu sync.Mutex
 	overflow   []fwdItem
 
-	// overflowPending counts items logically queued behind the overflow
-	// buffer, INCLUDING items an in-flight drainOverflow has snapshotted out
-	// of w.overflow but not yet moved into the channel. While nonzero,
-	// TryDispatch refuses new items so callers route them through
-	// DispatchOverflow behind the pending ones. Without this gate a newer
-	// item could enter the freed channel ahead of older overflow items and
-	// break the pool's per-key FIFO guarantee -- checking len(w.overflow)
-	// alone cannot close the drain window, because the snapshot empties the
-	// slice before its items reach the channel.
-	overflowPending atomic.Int64
+	// overflowPending counts items dispatched to overflow whose bytes have NOT
+	// yet been written to the destination. That is wider than len(w.overflow)
+	// on purpose: it also covers the items a drain has snapshotted out of the
+	// slice, the items sitting in w.ch, and the batch fwdBatchHandler is
+	// writing right now. While nonzero, TryDispatch refuses new items and the
+	// route-server rail refuses its direct write, so both route the newer item
+	// through DispatchOverflow behind the pending ones.
+	//
+	// Every narrower count leaves an inversion window. len(w.overflow) alone
+	// misses the drain snapshot. Decrementing as each item enters w.ch misses
+	// the gap between that enqueue and the worker taking session.writeMu, and
+	// a direct write that wins that race overtakes the very items an ordering
+	// hold has just released.
+	//
+	// Mutated only under overflowMu: DispatchOverflow adds one per appended
+	// item, and the worker re-derives the count from len(w.overflow) once a
+	// batch completes with an empty channel (runWorker), which is the first
+	// moment every item that left the slice is provably written.
+	//
+	// It is a POINTER because the destination peer holds the same counter
+	// (Peer.fwdOverflowPending): the route-server rail reads it there with two
+	// atomic loads instead of taking fp.mu.RLock and hashing a fwdKey per
+	// destination per UPDATE. A handle into this struct would work equally well
+	// for the read and would pin the whole worker after its goroutine exits,
+	// batchBuf included -- up to batchLimit fwdItems per peer that ever
+	// overflowed. Eight bytes on their own pin eight bytes. newWorker is the
+	// only place a fwdWorker is built, and it allocates this.
+	overflowPending *atomic.Int64
 
 	// congested tracks whether this worker's channel is full.
 	// Set on TryDispatch failure, cleared when channel drains below low-water.
@@ -587,12 +608,17 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 		}
 	}
 
-	// FIFO gate: while overflow items are pending (queued, or snapshotted by
-	// an in-flight drain), a direct channel send would let this newer item
-	// overtake them. Refuse so the caller routes it through DispatchOverflow
-	// behind the pending items. The congested flag is not touched here: it
-	// was already set when the overflow episode began, and clearing is the
-	// worker's job once overflow fully drains.
+	// FIFO gate: while overflow items are pending (queued, snapshotted by an
+	// in-flight drain, on the channel, or in the batch being written), a direct
+	// channel send would let this newer item overtake them. Refuse so the
+	// caller routes it through DispatchOverflow behind the pending items. A
+	// send behind items already ON the channel would keep FIFO on its own, so
+	// this refusal is wider than this rail strictly needs; the count is one
+	// condition serving both rails, and the route-server rail's direct write
+	// needs every one of those states (Peer.forwardOverflowPending, which reads
+	// this same counter through the destination). The congested flag
+	// is not touched here: it was already set when the overflow episode began,
+	// and clearing is the worker's job once overflow fully drains.
 	if w.overflowPending.Load() > 0 {
 		fp.mu.RUnlock()
 		fp.dispatchWG.Done()
@@ -717,7 +743,22 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 		// Layer 3 (read throttling) and Layer 4 (teardown) handle escalation.
 	}
 
+	// The item is about to sit in an unbounded queue for as long as this
+	// destination stays behind, so it must stop aliasing the source entry's
+	// buffers before it gets there (ownOverflowBodies).
+	ownOverflowBodies(&item)
+
 	w.overflowMu.Lock()
+
+	// Publish the count to the destination BEFORE the count can move. The
+	// route-server rail reads it there (Peer.forwardOverflowPending), so a
+	// reader that finds no handle is ordered before this store and therefore
+	// before the Add below: its answer describes a moment when the item had not
+	// arrived, which is the answer a pool lookup gives in the same window.
+	// Sentinels carry no peer and no bytes, so they publish nothing.
+	if item.peer != nil {
+		item.peer.fwdOverflowPending.Store(w.overflowPending)
+	}
 
 	// Route superseding (AC-23): if a pending item has the same content hash,
 	// replace it instead of appending. This bounds queue growth to unique
@@ -785,9 +826,10 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 // Caller must hold fp.mu.
 func (fp *fwdPool) newWorker(key fwdKey) *fwdWorker {
 	w := &fwdWorker{
-		ch:        make(chan fwdItem, fp.cfg.chanSize),
-		done:      make(chan struct{}),
-		addrLabel: key.peerAddr.Addr().String(),
+		ch:              make(chan fwdItem, fp.cfg.chanSize),
+		done:            make(chan struct{}),
+		addrLabel:       key.peerAddr.Addr().String(),
+		overflowPending: new(atomic.Int64),
 	}
 	fp.workers[key] = w
 	fp.count.Add(1)
@@ -941,11 +983,18 @@ func (fp *fwdPool) removeSourceStats(sourcePeer netip.Addr) {
 // even if the handler panics. Without this guarantee, a panicking handler would
 // leak cache entries.
 //
-// Reorders the batch so withdrawals are sent before announcements (AC-25).
-// This is safe because route superseding (AC-23) ensures no prefix appears
-// in both a withdrawal and announcement within the same overflow batch.
+// The batch is handed to the handler in the order it was queued. It used to be
+// partitioned withdrawals-first for convergence, copied from RustBGPd, where
+// that is safe because its PendingTx deduplicates by PREFIX so one prefix never
+// appears in both groups (docs/architecture/congestion-industry.md). Ze
+// deduplicates by BYTES instead -- fwdSupersedeKey hashes the whole body and
+// fwdBodiesEqual compares it -- and an announce and a withdraw of one prefix are
+// never byte-identical, so the partition inverted exactly that pair and left the
+// peer holding a prefix that had been withdrawn. It also bought nothing here:
+// fwdBatchHandler writes the whole batch under one writeMu and flushes once, so
+// the partition moved bytes inside a single write rather than sending a
+// withdrawal any sooner.
 func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
-	items = fwdReorderWithdrawalsFirst(items)
 	defer func() {
 		for i := range items {
 			if items[i].done != nil {
@@ -1021,153 +1070,6 @@ func fwdBodiesEqual(a, b [][]byte) bool {
 	return true
 }
 
-// fwdIsWithdrawal returns true if the fwdItem contains only withdrawals
-// (no announcements). Handles both IPv4 withdrawals (legacy Withdrawn Routes
-// field) and non-IPv4 withdrawals (MP_UNREACH_NLRI attribute code 15).
-// Used by AC-25 withdrawal priority.
-//
-// Classification rules:
-//   - Legacy NLRI present (IPv4 announce) -> announcement
-//   - MP_REACH_NLRI (attr code 14) present -> announcement
-//   - Legacy Withdrawn Routes present -> withdrawal (if no announcements)
-//   - MP_UNREACH_NLRI (attr code 15) present -> withdrawal (if no announcements)
-//   - Truncated or malformed body -> not classified (skipped)
-func fwdIsWithdrawal(item *fwdItem) bool {
-	hasWithdrawal := false
-
-	// Check parsed updates (re-encode path).
-	for _, u := range item.updates {
-		if len(u.NLRI) > 0 {
-			return false // Has IPv4 announcements.
-		}
-		if len(u.WithdrawnRoutes) > 0 {
-			hasWithdrawal = true
-		}
-		// Check PathAttributes for MP_REACH_NLRI (14) vs MP_UNREACH_NLRI (15).
-		if fwdAttrsHaveReach(u.PathAttributes) {
-			return false // Has MP_REACH = announcement.
-		}
-		if fwdAttrsHaveUnreach(u.PathAttributes) {
-			hasWithdrawal = true
-		}
-	}
-
-	// Check raw bodies (zero-copy path).
-	// UPDATE body format: [2B withdrawn_len][withdrawn][2B attr_len][attrs][nlri]
-	for _, body := range item.rawBodies {
-		if len(body) < 4 {
-			continue // Truncated, skip (don't classify malformed data).
-		}
-		wdLen := int(body[0])<<8 | int(body[1])
-		if wdLen > 0 {
-			hasWithdrawal = true
-		}
-
-		off := 2 + wdLen
-		if off+2 > len(body) {
-			continue // Truncated after withdrawn routes.
-		}
-		attrLen := int(body[off])<<8 | int(body[off+1])
-		attrStart := off + 2
-		attrEnd := attrStart + attrLen
-
-		// Check for legacy NLRI after attributes.
-		if attrEnd < len(body) {
-			return false // Has NLRI section = announcement.
-		}
-
-		// Check attributes for MP_REACH (14) / MP_UNREACH (15).
-		if attrEnd <= len(body) {
-			attrs := body[attrStart:attrEnd]
-			if fwdAttrsHaveReach(attrs) {
-				return false // MP_REACH = announcement.
-			}
-			if fwdAttrsHaveUnreach(attrs) {
-				hasWithdrawal = true
-			}
-		}
-	}
-
-	return hasWithdrawal
-}
-
-// fwdAttrsHaveReach scans path attributes for MP_REACH_NLRI (code 14).
-// Uses minimal parsing: reads flags + type code, skips by length.
-func fwdAttrsHaveReach(attrs []byte) bool {
-	return fwdAttrsScanCode(attrs, 14)
-}
-
-// fwdAttrsHaveUnreach scans path attributes for MP_UNREACH_NLRI (code 15).
-func fwdAttrsHaveUnreach(attrs []byte) bool {
-	return fwdAttrsScanCode(attrs, 15)
-}
-
-// fwdAttrsScanCode scans path attributes for a specific attribute code.
-// Attribute format: [1B flags][1B code][1-2B length][data].
-// Extended length (flag bit 4 set) uses 2-byte length.
-func fwdAttrsScanCode(attrs []byte, code byte) bool {
-	off := 0
-	for off+2 < len(attrs) {
-		flags := attrs[off]
-		attrCode := attrs[off+1]
-		off += 2
-
-		var attrLen int
-		if flags&0x10 != 0 { // Extended length.
-			if off+2 > len(attrs) {
-				return false
-			}
-			attrLen = int(attrs[off])<<8 | int(attrs[off+1])
-			off += 2
-		} else {
-			if off >= len(attrs) {
-				return false
-			}
-			attrLen = int(attrs[off])
-			off++
-		}
-
-		if attrCode == code {
-			return true
-		}
-		off += attrLen
-	}
-	return false
-}
-
-// fwdReorderWithdrawalsFirst reorders a batch so withdrawals come before
-// announcements (AC-25). This is safe because AC-23 route superseding
-// ensures no prefix appears in both a withdrawal and announcement within
-// the same batch. Reordering is stable within each group (withdrawal order
-// and announcement order are preserved).
-func fwdReorderWithdrawalsFirst(batch []fwdItem) []fwdItem {
-	// Count withdrawals to avoid allocation when none exist.
-	wdCount := 0
-	for i := range batch {
-		if batch[i].withdrawal {
-			wdCount++
-		}
-	}
-	if wdCount == 0 || wdCount == len(batch) {
-		return batch // Nothing to reorder.
-	}
-	// Stable partition: withdrawals first, then announcements.
-	// Uses a single pass with two write positions.
-	result := make([]fwdItem, len(batch))
-	wi, ai := 0, wdCount
-	for i := range batch {
-		if batch[i].withdrawal {
-			result[wi] = batch[i]
-			wi++
-		} else {
-			result[ai] = batch[i]
-			ai++
-		}
-	}
-	copy(batch, result)
-	return batch
-}
-
 // runWorker is the long-lived goroutine for one destination peer.
 // It reads items from the channel using drain-batch (one blocking receive +
 // non-blocking drain of available items), calls the batch handler, and exits
@@ -1217,6 +1119,17 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			if len(w.ch) <= lowWater {
 				var fireResumed bool
 				w.overflowMu.Lock()
+				// An empty channel here is the first moment every item that
+				// ever left w.overflow is provably WRITTEN: the batch above is
+				// done, and this goroutine is the only one that takes from
+				// w.ch. So what the destination is still owed is exactly what
+				// is still queued. Re-deriving the count here, rather than
+				// decrementing it as each item entered the channel, is what
+				// closes the enqueue-to-writeMu window against the route-server
+				// rail's direct write (Peer.forwardOverflowPending).
+				if len(w.ch) == 0 {
+					w.overflowPending.Store(int64(len(w.overflow)))
+				}
 				if w.congested && len(w.overflow) == 0 && w.overflowPending.Load() == 0 {
 					w.congested = false
 					fireResumed = true
@@ -1288,6 +1201,18 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 		return
 	}
 
+	// Ordering hold: the destination is inside its initial route sync, so the
+	// dispatch gates parked these items here to sit BEHIND the route operations
+	// its opQueue still holds (reactor_api_forward.go, forward_rs.go). Draining
+	// now would put a forwarded withdraw on the wire ahead of the queued
+	// announce of the same prefix and leave the peer holding a route that was
+	// withdrawn. sendInitialRoutes clears the flag and wakes this worker
+	// (Peer.wakeForwardOverflow), which is when the items go out.
+	if overflowHeld(w.overflow) {
+		w.overflowMu.Unlock()
+		return
+	}
+
 	// Take all overflow items under the lock, then release.
 	items := w.overflow
 	w.overflow = nil
@@ -1296,8 +1221,13 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	fp.mu.RLock()
 	if fp.stopped {
 		fp.mu.RUnlock()
-		w.overflowPending.Add(-int64(len(items)))
 		fp.safeBatchHandle(key, items)
+		// Written, so the destination is owed only what arrived in w.overflow
+		// while the batch ran. Same re-derivation runWorker makes, for the same
+		// reason: the count may not drop before the bytes are out.
+		w.overflowMu.Lock()
+		w.overflowPending.Store(int64(len(w.overflow)))
+		w.overflowMu.Unlock()
 		return
 	}
 	fp.dispatchWG.Add(1)
@@ -1316,11 +1246,12 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 		}
 		select {
 		case w.ch <- items[i]:
-			// Enqueued successfully -- worker loop will process it in FIFO
-			// order. Only now does the item stop being "pending overflow":
-			// decrementing at snapshot time would open the drain window
-			// TryDispatch's FIFO gate exists to close.
-			w.overflowPending.Add(-1)
+			// Enqueued successfully -- the worker loop will process it in FIFO
+			// order. The item stays counted in overflowPending until it has
+			// been WRITTEN: it is on the channel, not on the wire, and the
+			// route-server rail would overtake it here with a direct write.
+			// runWorker re-derives the count once a batch completes with an
+			// empty channel.
 		default: // channel full -- push remaining back to overflow to preserve FIFO
 			// Running them directly here would break FIFO relative to the
 			// items already in the channel. The next drainOverflow cycle
@@ -1328,6 +1259,65 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 			fp.requeueOverflow(w, items[i:])
 			return
 		}
+	}
+}
+
+// overflowHeld reports whether this worker's overflow must stay parked because
+// its destination peer is still inside its initial route sync.
+//
+// The predicate is Peer.forwardOrderHold, the same one the two dispatch gates
+// park on (peer.go). Gate and hold must be one condition: a gate wider than its
+// hold parks items nothing will release, and a hold wider than its gate releases
+// items the gate never parked.
+//
+// The decision belongs to the first REAL item: sentinels (barrier
+// done-callbacks, wake-ups) carry a nil peer, and fwdKey IS the destination, so
+// every real item in one worker's overflow names the same peer. A worker holding
+// nothing but sentinels holds nothing back.
+//
+// This runs with w.overflowMu held, and forwardOrderHold reads two atomics and
+// takes no peer lock. Keep it that way: a predicate that took p.mu here would
+// put p.mu under w.overflowMu, and the peer's own goroutine takes them the other
+// way round.
+func overflowHeld(items []fwdItem) bool {
+	for i := range items {
+		p := items[i].peer
+		if p == nil {
+			continue
+		}
+		return p.forwardOrderHold()
+	}
+	return false
+}
+
+// wakeOverflow nudges the worker for key so it re-evaluates the ordering hold in
+// drainOverflow. Called when a destination's initial route sync ends
+// (Peer.wakeForwardOverflow): the worker drains overflow only after a channel
+// item, and a held worker has an empty channel by construction, so without this
+// the parked items wait for the next forward to that peer.
+//
+// Same non-blocking nil-peer sentinel DispatchOverflow uses for the same reason.
+// A full channel needs no wake: the worker has items to process and reaches
+// drainOverflow on its own.
+func (fp *fwdPool) wakeOverflow(key fwdKey) {
+	fp.mu.RLock()
+	if fp.stopped {
+		fp.mu.RUnlock()
+		return
+	}
+	// Inside the dispatchWG window the channel cannot close under the send:
+	// Stop() sets stopped under the write lock, then waits.
+	fp.dispatchWG.Add(1)
+	w, ok := fp.workers[key]
+	fp.mu.RUnlock()
+	defer fp.dispatchWG.Done()
+
+	if !ok || len(w.ch) > 0 {
+		return
+	}
+	select {
+	case w.ch <- fwdItem{}:
+	default: // channel gained an item meanwhile -- that item wakes the worker
 	}
 }
 

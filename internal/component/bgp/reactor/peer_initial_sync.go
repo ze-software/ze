@@ -35,6 +35,7 @@ func (p *Peer) sendInitialRoutes() {
 			)
 			// Clear flag so ShouldQueue() returns false and peer isn't stuck.
 			p.sendingInitialRoutes.Store(0)
+			p.wakeForwardOverflow()
 		}
 	}()
 	addr := p.settings.Address.String()
@@ -63,6 +64,7 @@ func (p *Peer) sendInitialRoutes() {
 	if nc == nil {
 		peerLogger().Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
 		p.sendingInitialRoutes.Store(0) // Clear flag so ShouldQueue() returns false
+		p.wakeForwardOverflow()
 		return
 	}
 
@@ -351,6 +353,7 @@ func (p *Peer) sendInitialRoutes() {
 		// Clear flag under mutex for teardown path too
 		p.sendingInitialRoutes.Store(0)
 		p.mu.Unlock()
+		p.wakeForwardOverflow()
 		return // Don't send family-specific routes after teardown
 	}
 
@@ -492,6 +495,10 @@ func (p *Peer) sendInitialRoutes() {
 	}
 	p.sendingInitialRoutes.Store(0)
 	p.mu.Unlock()
+
+	// The initial sync is over: everything the opQueue held has reached the
+	// wire, so the forwarded UPDATEs parked behind it may go out now.
+	p.wakeForwardOverflow()
 }
 
 // sendUpdateDirect is the default send callback when writeMu is not held.

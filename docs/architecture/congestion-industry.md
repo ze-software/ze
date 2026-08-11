@@ -92,7 +92,7 @@ the TX path back to the routing table.
 | FRR | `stream_fifo` per peer (obuf) | Yes (outq_limit default 10K) | Yes (update groups) |
 | OpenBGPd | `msgbuf` per peer (wbuf) | XOFF at 2000 bytes, XON at 500 | No |
 | bio-rd | Unbounded `toSend` map per address family | No | No |
-| Ze (current) | Per-peer channel + weighted overflow pool with fail-closed teardown path | Partial | Yes (overflow superseding + withdrawal priority) |
+| Ze (current) | Per-peer channel + weighted overflow pool with fail-closed teardown path | Partial | Yes (overflow superseding on identical bodies) |
 
 *Sources: BIRD `packets.c` (bgp_bucket), GoBGP `fsm.go` (InfiniteChannel), RustBGPd `event.rs` (mpsc)*
 
@@ -290,12 +290,12 @@ BIRD, GoBGP, and RustBGPd all use unbounded queues and rely solely on TCP flow
 control.
 
 Ze's current congestion path combines per-peer workers, a weighted overflow pool,
-overflow superseding, withdrawal priority, batch limits, and GR-aware teardown.
+overflow superseding, batch limits, and GR-aware teardown.
 The read-loop pause/resume API exists separately and is exposed through peer
 operations; automatic congestion handling currently emits events and relies on
 pool denial plus teardown rather than directly pausing source reads.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdPool overflow, superseding, withdrawal priority, batch limit -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdPool overflow, superseding, batch limit -->
 <!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- two-threshold congestion controller -->
 <!-- source: internal/component/bgp/reactor/session_flow.go -- Pause and Resume -->
 <!-- source: internal/component/bgp/reactor/reactor.go -- congestion callbacks emit events -->
@@ -326,7 +326,28 @@ is cleared and the socket shares the event loop fairly with other protocols.
 | Write deadline on control messages | No implementation does this explicitly | **Done** |
 | Buffer pooling + bufio batching | No implementation does both | **Done** (existing) |
 | Route superseding | BIRD, FRR | **Done** (overflow raw-body superseding) |
-| Withdrawal priority | RustBGPd (safe due to per-prefix dedup) | **Done** (withdrawals before announcements inside batches) |
+| Withdrawal priority | RustBGPd (safe due to per-prefix dedup) | **Removed, by decision** (see below) |
 | TX budget | BIRD (1024), RustBGPd (2048) | **Done** (AC-24, default 1024) |
 | Real backpressure | FRR (queue limits), OpenBGPd (XOFF/XON) | **Done** (two-threshold buffer denial + forced teardown) |
 | GR-aware congestion teardown | None explicitly | **Done** (GR: TCP close, non-GR: Cease/OutOfResources) |
+
+**Why Ze removed withdrawal priority.** Ze partitioned each forward batch
+withdrawals-first until 2026-08-10, copied from RustBGPd. RustBGPd is safe there
+because `PendingTx` deduplicates by PREFIX, so one prefix never appears in both
+groups. Ze deduplicates by BYTES (`fwdSupersedeKey` hashes the whole UPDATE body,
+`fwdBodiesEqual` compares it), and an announce and a withdraw of one prefix are
+never byte-identical. The partition therefore inverted exactly that pair and left
+the peer holding a route that had been withdrawn, which is the failure the
+paragraph on RustBGPd above predicts. It also bought almost no time.
+`fwdBatchHandler` writes the whole batch under one write lock and calls
+`flushWrites` once at the end. A batch that fits the destination's write buffer
+therefore moved bytes inside a single write, and sent no withdrawal sooner. A
+larger batch is the exception: `bufWriter` is a 16K `bufio.Writer`
+(`ze.buf.write.size`, default 16384 with a floor of 4096, in
+`session_connection.go`) and one drain batch carries up to 1024 items
+(`ze.fwd.batch.limit`, in `reactor.go`). Above 16K the writer auto-flushes
+mid-batch, so a hoisted withdrawal can leave in an earlier flush. That gain is
+not tradeable: it costs the inversion above, and the order of two operations on
+one prefix is not a performance parameter.
+
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- safeBatchHandle, fwdSupersedeKey -->

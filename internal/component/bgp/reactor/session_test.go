@@ -462,8 +462,14 @@ func TestSessionNotification(t *testing.T) {
 	require.Equal(t, fsm.StateIdle, session.State())
 }
 
-// TestSessionGracefulClose verifies clean shutdown.
-func TestSessionGracefulClose(t *testing.T) {
+// TestSessionGracefulCloseSendsAdminShutdown verifies clean shutdown, and that
+// the peer is told WHY in bytes rather than in a log line.
+//
+// This test used to call the now-deleted Session.Close and assert only NoError
+// plus StateIdle. Both held on a path no production caller could reach, so the
+// dead code read as covered. The bytes are the assertion now: change the code,
+// the subcode, or the RFC 8203 shutdown communication and this goes red.
+func TestSessionGracefulCloseSendsAdminShutdown(t *testing.T) {
 	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
@@ -478,15 +484,43 @@ func TestSessionGracefulClose(t *testing.T) {
 
 	_ = acceptWithReader(t, session, server, client)
 
-	// Close session gracefully (sends NOTIFICATION)
+	// net.Pipe is unbuffered, so the read has to be in flight before the write.
+	got := make(chan []byte, 1)
 	go func() {
 		buf := make([]byte, 4096)
-		_, _ = client.Read(buf)
+		n, _ := client.Read(buf)
+		got <- buf[:n]
 	}()
 
-	err := session.Close()
-	require.NoError(t, err)
+	require.NoError(t, session.Teardown(message.NotifyCeaseAdminShutdown, ""))
 	require.Equal(t, fsm.StateIdle, session.State())
+
+	select {
+	case msg := <-got:
+		require.Equal(t, adminShutdownNotificationWire(), msg,
+			"graceful close must put Cease / Administrative Shutdown on the wire")
+	case <-time.After(2 * time.Second):
+		t.Fatal("no NOTIFICATION reached the peer on graceful close")
+	}
+}
+
+// adminShutdownNotificationWire builds the exact NOTIFICATION a graceful
+// administrative shutdown owes the peer: 16 marker octets, length, type 3,
+// Cease (RFC 4271 Section 4.5 error code 6), Administrative Shutdown (RFC 4486
+// subcode 2), then the RFC 8203 shutdown communication -- a length octet and
+// the default text Teardown substitutes for an empty operator message.
+func adminShutdownNotificationWire() []byte {
+	text := message.CeaseSubcodeString(message.NotifyCeaseAdminShutdown)
+	body := []byte{byte(message.NotifyCease), message.NotifyCeaseAdminShutdown, byte(len(text))}
+	body = append(body, text...)
+
+	wire := make([]byte, 19, 19+len(body))
+	for i := range 16 {
+		wire[i] = 0xFF
+	}
+	binary.BigEndian.PutUint16(wire[16:], uint16(19+len(body))) //nolint:gosec // fixed short message
+	wire[18] = byte(msgtype.TypeNOTIFICATION)
+	return append(wire, body...)
 }
 
 // TestSessionConnectContext verifies context cancellation during connect.

@@ -11,6 +11,8 @@
     "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "2026-08-04 re-judgement of RFC7606-5.4-1 over 15 units (12 unchanged, 3 added), by a session that did not write the tests. The three additions guard the Section 4 abandoned-walk bypass, the RFC 7911 composed path, and the BGP-MUP envelope end to end. Discrimination was measured with three overlay mutations rather than asserted; no source file was edited to run them. Verdict unchanged at enforced.",
     "2026-08-04 second pass, RFC7606-3.g-1 only. Stale-unit, not a line shift: the duplicate MP_UNREACH abandoned-walk fixture was corrected (a NEXT_HOP and an announced route added, no assertion touched) and the companion file's header comment re-worded. Re-judged from the RFC text and the producer, with three mutants run over ValidateUpdateRFC7606AddPath. Verdict stays enforced; the earlier weak finding on the corrected unit is resolved and is kept on the record.",
+    "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -24,7 +26,7 @@
         "internal/component/bgp/plugins/rib/rib_structured_test.go::TestRIBTreatAsWithdrawAddPathPreservesPathID": "e4156c72be83208f",
         "internal/component/bgp/plugins/rib/rib_structured_test.go::TestRIBTreatAsWithdrawRemovesInstalledRoute": "e4156c72be83208f",
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go::TestSessionRFC7606ValidUpdateDispatchesAnnouncement": "ea265ef1edea04d3",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "96602816a476555d"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "87b298c55849ac1d"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_withdraw_test.go::TestSynthesizeWithdrawConvertsMPReachToMPUnreach": "4bf7425583f3618f",
@@ -42,7 +44,7 @@
       "tests": {
         "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "e631404e10fbee92",
         "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "e631404e10fbee92",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "96602816a476555d"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "87b298c55849ac1d"
       },
       "units": {
         "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",
@@ -196,7 +198,7 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0b8739c630bb26fe",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "7a0fbc9ab56a1631",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "96602816a476555d",
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "87b298c55849ac1d",
         "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "93a7cb4c4a2825bf",
         "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "93a7cb4c4a2825bf",
         "internal/component/bgp/reactor/session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "9210e8342e7a4952"
@@ -518,9 +520,9 @@
       "requirement_sha": "324d3c47a4278c86",
       "tests": {
         "internal/component/bgp/reactor/session_rfc7606_diag_cost_test.go::TestRFC7606DiagnosticsCostsNothingWhenDisabled": "cf28baddb4c03fa0",
-        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset": "714bbc754d5d3f6f",
-        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate": "714bbc754d5d3f6f",
-        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled": "714bbc754d5d3f6f"
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset": "a79319e9a05adebd",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate": "a79319e9a05adebd",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled": "a79319e9a05adebd"
       },
       "units": {
         "internal/component/bgp/reactor/session_rfc7606_diag_cost_test.go::TestRFC7606DiagnosticsCostsNothingWhenDisabled": "f2537f84e2894288",
@@ -744,7 +746,7 @@
         "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "e631404e10fbee92",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "0b8739c630bb26fe",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "96602816a476555d"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "87b298c55849ac1d"
       },
       "units": {
         "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",

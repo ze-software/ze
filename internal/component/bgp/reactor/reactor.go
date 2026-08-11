@@ -100,6 +100,13 @@ var (
 	ErrPeerNotFound   = errors.New("peer not found")
 	ErrNoConfigPath   = errors.New("config path not set")
 	ErrNoReloadFunc   = errors.New("reload function not set")
+	// errReactorStopping refuses a new listening socket to a reactor whose stop
+	// has sealed. It is an error rather than a quiet nil because a caller that
+	// gets nil back reads it as "the socket is up": handleAddrAddedPayload
+	// publishes (bgp, listener-ready) on that answer (reactor_iface.go). It is
+	// unexported because nothing outside this package needs to tell this refusal
+	// from any other listen failure; the wrapped text is what a reader gets.
+	errReactorStopping = errors.New("reactor is stopping")
 )
 
 // Config holds reactor configuration.
@@ -374,7 +381,15 @@ type Reactor struct {
 	sessionCapturesMu sync.Mutex
 	sessionCaptures   map[*sessionCapture]struct{}
 
-	running   bool
+	running bool
+	// stopping is set by stop() and cleared by Reactor.StartWithContext, both
+	// under r.mu, which is also the one place Peer.stopping is cleared. It is
+	// the reactor-tier twin of Peer.stopping (peer.go): between the
+	// two, no peer either dials or is BORN once a stop has begun. running
+	// cannot carry this -- StartWithContext refuses a second run on it, so
+	// clearing it early would let a Start land inside a Stop and be torn down
+	// by the cleanup of the run it replaced.
+	stopping  bool
 	startTime time.Time
 
 	ctx    context.Context
@@ -1065,6 +1080,17 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		return ErrAlreadyRunning
 	}
 
+	// A fresh run is not stopped by the previous one's seal, and lifting the
+	// seal is one act rather than two: this is the only place either half of it
+	// is cleared, and it happens under the same r.mu that stop() sets both
+	// halves under. Peer.StartWithContext used to clear Peer.stopping itself,
+	// which let a peer start under a stop that had already marked and notified
+	// it (StartPeers holds no lock while it starts them).
+	r.stopping = false
+	for _, peer := range r.peers {
+		peer.stopping.Store(false)
+	}
+
 	r.ctx, r.cancel = context.WithCancel(ctx)
 	r.startTime = r.clock.Now()
 
@@ -1419,14 +1445,201 @@ func (r *Reactor) abortStartup() {
 	r.running = false
 }
 
-// Stop signals the reactor to stop.
+// shutdownNotifyBudget bounds the graceful NOTIFICATION step in Stop.
+//
+// The hub gives the whole engine 3s to stop (cmd/ze/hub/main.go) and
+// cleanup's Phase 2 spends up to 2s of it waiting for peers, so this step owns
+// the 1s in between. A healthy peer costs microseconds; the budget exists for
+// the peer whose socket is black-holed, where the write blocks until the
+// control-message deadline (10s minimum, session_write.go) and would otherwise
+// turn a fast exit into a hang.
+const shutdownNotifyBudget = time.Second
+
+// Stop signals the reactor to stop, and tells every live peer why first.
+//
+// RFC 4271 Section 8.2.2, ManualStop (Event 2): OpenSent, OpenConfirm and
+// Established each list "sends the NOTIFICATION message with a Cease" before
+// the connection is dropped, and RFC 4486 subcode 2 is the Administrative
+// Shutdown reason. RFC 4271 Section 6.7 is the keyword that governs the act,
+// and it is a MAY; the operator reason it carries is why Ze takes it.
+//
+// IT HAS TO HAPPEN BEFORE THE CANCEL, and nothing downstream of the cancel can
+// do it. r.ctx is the parent of every peer context, so canceling it wakes each
+// session's cancel goroutine, which calls closeConn and nils s.conn
+// (session.go, session_connection.go). By the time monitor() observes
+// <-r.ctx.Done() and runs cleanup(), the sockets are already closing, and by
+// the time a peer reaches Peer.cleanup, runOnce's own defer has nil'd
+// p.session. Both guards downstream are false by construction, not by race.
+//
+// A stop this speaker means to come back from takes StopForRestart instead.
 func (r *Reactor) Stop() {
+	r.stop(true)
+}
+
+// StopForRestart is Stop for a daemon restart or reboot: it drops the sessions
+// in SILENCE, with no Cease NOTIFICATION on any of them.
+//
+// The silence is the whole point, and RFC 4724 Section 5, "Changes to BGP
+// Finite State Machine", is why. That section REPLACES the FSM text of RFC 4271
+// Section 8.2.2, and in the replacement a received NOTIFICATION (Event 24 or
+// Event 25) still has the peer "delete all routes associated with this
+// connection" (rfc/full/rfc4724.txt, lines 569-585). Nothing qualifies that
+// clause: a NOTIFICATION deletes the routes whatever was negotiated.
+//
+// The retain branch is the conditional one. It needs a TcpConnectionFails
+// (Event 18) AND "the Graceful Restart Capability with one or more AFIs/SAFIs
+// has been received for the session" (lines 587-604). Ze advertises the
+// capability with an EMPTY tuple list today, so a peer does not take that
+// branch for a Ze session and does not retain: FRR reports `Remote GR Mode:
+// NotApplicable` and withdraws in 0.1s (the spec's Known Limitations). So the
+// claim here is not that a bare FIN preserves the peer's forwarding state.
+// It is that a bare FIN is the ONLY end a peer can ever retain across, and a
+// Cease forecloses it for every peer and every configuration. Fixing the tuple
+// list makes silence start working; it can never make a Cease work.
+//
+// The caller writes the RFC 4724 restarting-speaker marker on this path
+// (cmd/ze/hub/infra_setup.go, grmarker.Write) so the next start sets R=1. A
+// Cease sent one line later would tell every peer to drop exactly the routes
+// that marker asks them to keep. RFC 8538 is the extension that lets a
+// NOTIFICATION coexist with graceful restart, and Ze does not implement it
+// (docs/features/rfc-status.md), so there is no third option here.
+func (r *Reactor) StopForRestart() {
+	r.stop(false)
+}
+
+// stop cancels the reactor context, after telling the peers when notify is set.
+//
+// Seal first, notify second, cancel third, and the order is what makes the stop
+// final. The cancel has to come last, because it closes the sockets the
+// NOTIFICATION goes out on. That leaves r.ctx and every peer context LIVE for
+// the whole notify budget, so this seal is the only thing standing between the
+// stop and a session that comes up inside it -- one the notify's own snapshot
+// predates, which the cancel then closes with nothing on the wire to say why
+// (RFC 4271 Section 8.2.2, ManualStop).
+//
+// The property that has to hold is NOT "no new socket opens". It is "no conn
+// becomes a session after the seal", and the two differ on exactly the case that
+// broke this twice: a conn that ALREADY EXISTED when the seal was taken. Gating
+// each rail that can carry such a conn is what left another rail open each time,
+// because the rails are found by inspection and the list is never finished.
+//
+// So the seal is read at the two places a conn BECOMES a session, and that set
+// is closed by construction rather than by inspection. There are two writes,
+// one each, and grep finds them:
+//
+//   - p.session, published in Peer.runOnce (peer_run.go). The Peer.stopping read
+//     shares the p.mu hold that publishes it, and sealSession reads p.session
+//     under that same lock after the mark: either the publish got in first and
+//     the session is sealed, or no session is ever published.
+//   - s.conn, published in Session.connectionEstablished (session_connection.go).
+//     The s.tearingDown read shares the s.mu hold that publishes it, and the
+//     seal is one-way -- Session.seal is its only writer and only ever writes
+//     true.
+//
+// Every route a stopping daemon still has to the wire ends at one of those two:
+// an outbound dial (Session.Connect), an inbound conn for a CONFIGURED peer
+// (acceptOrReject -> Peer.AcceptConnection -> Session.Accept), a conn a Listener
+// had already accepted, and a collision accept (Session.AcceptWithOpen). None of
+// them needs its own gate.
+//
+// The listener shutdown and the r.stopping reads below are not part of that
+// argument and do not carry it. They stop new SOCKETS and new PEERS -- an
+// address-added netlink event reaching startListenerForAddressPort on the
+// EventBus goroutine that cleanup does not unsubscribe until after the cancel
+// (reactor_iface.go), and tryCreateDynamicPeer under this same lock. Doing less
+// work on the way out is worth having; it is not what makes the stop final.
+//
+// Peer.stopping's read at the top of Peer.run is likewise the cheap early exit
+// on the outbound rail; ShutdownNotify's teardown raises ErrTeardown, the one
+// error that loop answers by resetting the delay and continuing with no wait.
+//
+// Stopping a listener cannot disturb a session: Listener.Stop and
+// Listener.cleanup close l.listener, the LISTENING socket, and the Listener
+// keeps no reference to a connection it has handed to the handler (listener.go).
+// That is why the listeners can be shut here while the cancel must wait.
+//
+// The marks happen under r.mu, in one hold, and that is load-bearing rather than
+// tidy: tryCreateDynamicPeer, AddPeer and startListenerForAddressPort all take
+// the same lock, so each either runs before the seal or is refused by it. Only
+// Reactor.StartWithContext lifts them, for the reactor and for every peer at
+// once (Peer.StartWithContext must not, and no longer does).
+//
+// The sessions are sealed after that hold is released, and NOT because r.mu must
+// never nest p.mu. It does nest it, and that IS this package's lock order:
+// reactor_api.go reads peer.SettingsSnapshot and peer.currentSession (p.mu.RLock
+// both) under r.mu.RLock at two sites and calls peer.Stop (p.mu.Lock) under
+// r.mu.Lock at two more, and peerGRCapable takes p.mu under r.mu.RLock in this
+// file. The order is r.mu before p.mu everywhere, and nothing takes r.mu under
+// p.mu: a Peer method that needs the reactor copies p.reactor out and releases
+// p.mu first (peer.go, peer_run.go). Reading it the other way round -- believing
+// p.mu then r.mu is free -- is what would deadlock against those five sites.
+// Sealing outside the hold therefore adds no nesting in either direction, and
+// the ordering the seal depends on is against the MARK, which precedes both.
+//
+// Sealing runs on BOTH stops, notify or not. A restart sends no NOTIFICATION, so
+// nothing on that path would otherwise seal a session, and "no conn becomes a
+// session after the seal" would hold for one stop and not the other.
+func (r *Reactor) stop(notify bool) {
 	r.mu.Lock()
+
+	// A reactor that is not running has no session to say goodbye on.
 	cancel := r.cancel
+	if cancel == nil {
+		r.mu.Unlock()
+		return
+	}
+
+	peers := make([]*Peer, 0, len(r.peers))
+	for _, peer := range r.peers {
+		peers = append(peers, peer)
+		peer.stopping.Store(true)
+	}
+
+	r.stopping = true
+	if r.listener != nil {
+		r.listener.Stop()
+	}
+	for _, listener := range r.listeners {
+		listener.Stop()
+	}
+
 	r.mu.Unlock()
 
-	if cancel != nil {
-		cancel()
+	for _, peer := range peers {
+		peer.sealSession()
+	}
+
+	if notify {
+		r.notifyPeersShutdown(peers)
+	}
+
+	cancel()
+}
+
+// notifyPeersShutdown sends Cease / Administrative Shutdown to every peer that
+// still has a live session, and returns once they are all done or the budget
+// runs out.
+//
+// One goroutine per peer, because the sends are independent and a serial loop
+// would charge the budget once per peer. A send that outlives the budget is
+// abandoned rather than awaited: the peer that cannot be told is exactly the
+// peer that must not delay the exit (R-1), and the write carries its own
+// deadline so the goroutine cannot outlive the process it is stopping.
+func (r *Reactor) notifyPeersShutdown(peers []*Peer) {
+	if len(peers) == 0 {
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, peer := range peers {
+		wg.Go(peer.ShutdownNotify)
+	}
+
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), shutdownNotifyBudget)
+	defer waitCancel()
+	if err := syncutil.WaitGroupWait(waitCtx, &wg); err != nil {
+		reactorLogger().Warn("shutdown notification did not finish within its budget",
+			"budget", shutdownNotifyBudget, "error", err)
 	}
 }
 
@@ -1495,7 +1708,25 @@ func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
 // directly to that peer (no remote IP matching). Otherwise, it's a shared listener
 // that matches incoming connections by remote IP.
 // Must be called with r.mu held.
+//
+// This is the only place a listening socket is born after the reactor has
+// started, so it is where the stop's seal is read. Reactor.stop shuts the
+// listeners under r.mu, and this refusal is what keeps them shut for the whole
+// notify budget: r.ctx stays live until the notify finishes, so a listener
+// started inside that window would accept, answer with an OPEN, and then be
+// closed by the cancel with nothing on the wire to say why (RFC 4271 Section
+// 8.2.2, ManualStop). All four call sites hold r.mu: startMultiListeners in this
+// file, AddPeer twice (reactor_peers.go, once for a new listener and once to
+// restart one whose MD5 peer set changed) and handleAddrAddedPayload
+// (reactor_iface.go). The last one is a netlink address-added event, which
+// arrives on the EventBus delivery goroutine and is not unsubscribed until
+// cleanup, i.e. after the cancel. Gating the callers instead is what left this
+// rail open.
 func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey netip.AddrPort) error {
+	if r.stopping {
+		return fmt.Errorf("listen on %s: %w", net.JoinHostPort(addr.String(), strconv.Itoa(port)), errReactorStopping)
+	}
+
 	lkey := net.JoinHostPort(addr.String(), strconv.Itoa(port))
 
 	if _, exists := r.listeners[lkey]; exists {

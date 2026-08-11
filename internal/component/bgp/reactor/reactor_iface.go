@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"net/netip"
 	"slices"
@@ -176,6 +177,17 @@ func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
 	r.mu.Unlock()
 
 	if startErr != nil {
+		// A stopping reactor refuses the listener by design (reactor.go, the
+		// r.stopping read in startListenerForAddressPort), and this handler runs
+		// on the EventBus goroutine that cleanup unsubscribes only after the
+		// cancel -- so any address event during a shutdown lands here. That is
+		// the seal working, not an operator's problem, and Error would put it in
+		// front of them on every stop that meets a netlink event.
+		if errors.Is(startErr, errReactorStopping) {
+			reactorLogger().Debug("iface: listener not started, reactor is stopping",
+				"address", p.Address, "port", port)
+			return
+		}
 		reactorLogger().Error("iface: start listener failed",
 			"address", p.Address, "port", port, "error", startErr)
 		return

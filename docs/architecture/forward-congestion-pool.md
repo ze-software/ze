@@ -36,6 +36,53 @@ congestion thresholds escalate (denial at 80%, teardown at 95%).
 <!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, DispatchOverflow, overflowMux -->
 
+### The second reason an item takes the overflow path: order
+
+A full channel is not the only route into overflow. A destination peer that is
+still inside its initial route sync has UPDATEs of its own that must reach the
+wire first. Both forwarding rails ask `Peer.forwardOrderHold()` before they
+dispatch, and send the item to `DispatchOverflow` when the answer is yes.
+`drainOverflow` keeps the item there while the same predicate stays true
+(`overflowHeld`), so a forwarded withdraw cannot overtake a queued announce of
+the same prefix and leave the peer holding a route that was withdrawn. Gate and
+hold are ONE predicate on purpose: a gate wider than its hold parks items
+nothing will release, and a hold wider than its gate releases items the gate
+never parked.
+
+A batch is written in the order it was queued. Nothing sorts it by kind: an
+announce and a withdraw of one prefix are order-sensitive, and the whole batch
+leaves in a single flush, so a partition by kind would invert that pair and buy
+no time.
+
+The route-server fast path writes into the destination's `bufWriter` without
+going through the pool, so it also refuses while that destination has items
+pending in overflow. The pool's own `TryDispatch` refuses its channel for the
+same reason.
+
+"Pending in overflow" counts the bytes the worker still OWES that destination,
+not the items still sitting in `w.overflow`. An item the worker has moved onto
+its channel, and the batch it is writing right now, are both pending: the fast
+path takes the same `writeMu` the worker has not taken yet, so a count that
+stopped at the buffer would let a later UPDATE reach the wire first. The count
+falls back to the queue depth when a batch completes with an empty channel,
+which is the first moment every released item is provably written.
+
+The fast path reads that count through the destination peer, which it already
+holds: two atomic loads, with no pool lock and no key lookup. The worker keeps
+the count, and the peer keeps a handle to it, published when the first item is
+parked for that peer.
+
+The hold ends when `sendInitialRoutes` clears the sync flag. It wakes the
+destination's worker at that point, because a worker whose channel is empty
+re-reads the hold only when something arrives on that channel.
+
+One consequence is visible to operators: `request peer <sel> flush` blocks until
+every targeted peer has finished its initial sync, because the barrier sentinel
+queues behind the held items.
+
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- overflowHeld, wakeOverflow, safeBatchHandle, DispatchOverflow -->
+<!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, forwardOverflowPending, wakeForwardOverflow -->
+
 ## Buffer Ownership: Zero-Copy with Copy-on-Modify
 
 The forwarding path is zero-copy by default. When a source peer's UPDATE
@@ -43,7 +90,18 @@ is forwarded to N destination peers, all destinations share the same
 source read buffer. The source buffer is released via `done()` when the last
 destination has written to TCP.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem.rawBodies -->
+The overflow path is the exception, and it applies to EVERY item that takes it,
+modified or not. A channel item drains in microseconds and can alias the source
+entry safely. An overflow item cannot: it sits in `w.overflow` for as long as
+the destination stays behind, and the recent-update cache's safety valve
+force-evicts a passed-over entry after 5 minutes, or 30 seconds while the read
+pool is under pressure. Eviction returns exactly the memory those bodies point
+into. So `DispatchOverflow` copies the item's bodies into the overflow
+`MixedBufMux` handle it already holds, and re-points the item at the copy. When
+there is no handle, or the bodies do not fit one, the copy goes on the heap.
+
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem.rawBodies, DispatchOverflow -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- ownOverflowBodies -->
 
 When a destination peer requires modification (AS-PATH prepend, attribute
 rewrite), the egress filter path copies the payload into a buffer from
@@ -56,9 +114,11 @@ peers use the shared source buffer.
 
 | Path | Buffer source | Copy? | When |
 |------|--------------|-------|------|
-| No modification | Source read buffer | No | Most forwards |
+| No modification, channel | Source read buffer | No | Most forwards |
 | Egress filter modifies | Destination peer's Outgoing Peer Pool | Yes | AS-PATH prepend, attribute rewrite |
 | Outgoing Peer Pool exhausted | `modBufPool` or fresh allocation | Yes | Modified output buffer fallback |
+| Overflow, any item | The item's forward overflow `MixedBufMux` handle | Yes | Channel full, or the destination is held for its initial sync |
+| Overflow, no handle or too large | Fresh allocation | Yes | Mux absent, congestion denial, pool exhausted |
 
 Each Outgoing Peer Pool pre-allocates 64 buffers at the peer's negotiated
 message size (4K or 64K) in one contiguous allocation. The buffer is returned

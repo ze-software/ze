@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // --- AC-23: Route superseding ---
@@ -149,145 +147,57 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	assert.Equal(t, 2, depths[key.peerAddr.Addr().String()])
 }
 
-// --- AC-25: Withdrawal priority ---
+// --- Batch order ---
 
-// TestFwdIsWithdrawal_RawBody verifies withdrawal detection from wire format.
+// TestFwdBatchKeepsQueuedOrder pins the order the handler sees.
 //
-// VALIDATES: AC-25 withdrawal detection from raw UPDATE body.
-// PREVENTS: Misclassifying announcements as withdrawals.
-func TestFwdIsWithdrawal_RawBody(t *testing.T) {
+// test-relax: this replaces the five AC-25 tests of fwdIsWithdrawal and
+// fwdReorderWithdrawalsFirst, both deleted. The reorder hoisted every
+// withdrawal ahead of every announcement, which inverts an announce and a
+// withdraw of ONE prefix and leaves the peer holding a route that was
+// withdrawn; the classifier existed only to feed it.
+//
+// VALIDATES: AC-1 -- a batch reaches the handler in the order it was queued.
+// PREVENTS: any reordering by kind returning to the batch path, which is the
+// blackhole this spec exists to remove.
+func TestFwdBatchKeepsQueuedOrder(t *testing.T) {
 	t.Parallel()
 
-	// Withdrawal: withdrawn_len=3, withdrawn=[24,10,0], attr_len=0, no NLRI
-	withdrawalBody := []byte{
-		0x00, 0x03, // withdrawn_len = 3
-		0x18, 0x0a, 0x00, // 10.0.0.0/24
+	// One prefix, announced and then withdrawn: the pair the old partition
+	// inverted. Announce carries ORIGIN, AS_PATH and NEXT_HOP, then the NLRI.
+	announce := []byte{
+		0x00, 0x00, // withdrawn_len = 0
+		0x00, 0x0e, // attr_len = 14
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH = empty
+		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
+		0x18, 0x0a, 0x00, 0x00, // NLRI = 10.0.0.0/24
+	}
+	withdraw := []byte{
+		0x00, 0x04, // withdrawn_len = 4
+		0x18, 0x0a, 0x00, 0x00, // 10.0.0.0/24
 		0x00, 0x00, // attr_len = 0
-		// no NLRI
-	}
-	item := fwdItem{rawBodies: [][]byte{withdrawalBody}, peer: &Peer{}}
-	assert.True(t, fwdIsWithdrawal(&item))
-
-	// Announcement: withdrawn_len=0, attr_len>0, NLRI present
-	announcementBody := []byte{
-		0x00, 0x00, // withdrawn_len = 0
-		0x00, 0x07, // attr_len = 7
-		0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, // attrs
-		0x18, 0x0a, 0x00, // 10.0.0.0/24 NLRI
-	}
-	item2 := fwdItem{rawBodies: [][]byte{announcementBody}, peer: &Peer{}}
-	assert.False(t, fwdIsWithdrawal(&item2))
-}
-
-// TestFwdIsWithdrawal_ParsedUpdate verifies withdrawal detection from parsed Update.
-//
-// VALIDATES: AC-25 withdrawal detection from parsed UPDATE.
-// PREVENTS: Misclassifying re-encoded updates.
-func TestFwdIsWithdrawal_ParsedUpdate(t *testing.T) {
-	t.Parallel()
-
-	wd := &message.Update{WithdrawnRoutes: []byte{0x18, 0x0a, 0x00}}
-	item := fwdItem{updates: []*message.Update{wd}, peer: &Peer{}}
-	assert.True(t, fwdIsWithdrawal(&item))
-
-	ann := &message.Update{PathAttributes: []byte{0x40, 0x01, 0x01, 0x00}, NLRI: []byte{0x18, 0x0a, 0x00}}
-	item2 := fwdItem{updates: []*message.Update{ann}, peer: &Peer{}}
-	assert.False(t, fwdIsWithdrawal(&item2))
-}
-
-// TestFwdIsWithdrawal_MPUnreach verifies MP_UNREACH_NLRI (non-IPv4) withdrawal detection.
-//
-// VALIDATES: AC-25 withdrawal detection for IPv6/VPN/EVPN families.
-// PREVENTS: MP_UNREACH withdrawals misclassified as announcements (finding 3).
-func TestFwdIsWithdrawal_MPUnreach(t *testing.T) {
-	t.Parallel()
-
-	// MP_UNREACH_NLRI withdrawal: withdrawn_len=0, attrs contain code 15, no NLRI.
-	// Attr: flags=0x90 (optional, transitive, extended), code=15, len=3, AFI/SAFI+data
-	mpUnreachBody := []byte{
-		0x00, 0x00, // withdrawn_len = 0
-		0x00, 0x05, // attr_len = 5
-		0x80, 0x0f, 0x03, 0x00, 0x02, // attr: optional, code=15(MP_UNREACH), len=3
-		// no NLRI
-	}
-	item := fwdItem{rawBodies: [][]byte{mpUnreachBody}}
-	assert.True(t, fwdIsWithdrawal(&item), "MP_UNREACH_NLRI should be classified as withdrawal")
-
-	// MP_REACH_NLRI announcement: withdrawn_len=0, attrs contain code 14, no legacy NLRI.
-	mpReachBody := []byte{
-		0x00, 0x00, // withdrawn_len = 0
-		0x00, 0x05, // attr_len = 5
-		0x80, 0x0e, 0x03, 0x00, 0x01, // attr: optional, code=14(MP_REACH), len=3
-		// no NLRI
-	}
-	item2 := fwdItem{rawBodies: [][]byte{mpReachBody}}
-	assert.False(t, fwdIsWithdrawal(&item2), "MP_REACH_NLRI should be classified as announcement")
-}
-
-// TestFwdIsWithdrawal_Truncated verifies truncated bodies are not classified.
-//
-// VALIDATES: AC-25 edge case: malformed input handling.
-// PREVENTS: Truncated body misclassified as withdrawal (finding 10).
-func TestFwdIsWithdrawal_Truncated(t *testing.T) {
-	t.Parallel()
-
-	// Body too short to parse.
-	item := fwdItem{rawBodies: [][]byte{{0x00, 0x01, 0xFF}}}
-	assert.False(t, fwdIsWithdrawal(&item), "truncated body should not be classified as withdrawal")
-
-	// Empty item.
-	item2 := fwdItem{}
-	assert.False(t, fwdIsWithdrawal(&item2), "empty item should not be withdrawal")
-}
-
-// TestFwdReorderWithdrawalsFirst verifies batch reordering.
-//
-// VALIDATES: AC-25 withdrawals sent before announcements.
-// PREVENTS: Late withdrawals causing traffic to dead next-hops.
-func TestFwdReorderWithdrawalsFirst(t *testing.T) {
-	t.Parallel()
-
-	batch := []fwdItem{
-		{meta: map[string]any{"tag": "ann1"}, withdrawal: false},
-		{meta: map[string]any{"tag": "wd1"}, withdrawal: true},
-		{meta: map[string]any{"tag": "ann2"}, withdrawal: false},
-		{meta: map[string]any{"tag": "wd2"}, withdrawal: true},
 	}
 
-	result := fwdReorderWithdrawalsFirst(batch)
-	require.Len(t, result, 4)
+	var seen []string
+	fp := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		for i := range items {
+			tag, ok := items[i].meta["tag"].(string)
+			require.True(t, ok, "every item in the batch must carry its tag")
+			seen = append(seen, tag)
+		}
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
+	defer fp.Stop()
 
-	// Withdrawals first (stable order).
-	assert.Equal(t, "wd1", result[0].meta["tag"])
-	assert.Equal(t, "wd2", result[1].meta["tag"])
-	// Then announcements (stable order).
-	assert.Equal(t, "ann1", result[2].meta["tag"])
-	assert.Equal(t, "ann2", result[3].meta["tag"])
-}
+	fp.safeBatchHandle(fwdKey{}, []fwdItem{
+		{meta: map[string]any{"tag": "ann1"}, rawBodies: [][]byte{announce}},
+		{meta: map[string]any{"tag": "wd1"}, rawBodies: [][]byte{withdraw}},
+		{meta: map[string]any{"tag": "ann2"}, rawBodies: [][]byte{announce}},
+		{meta: map[string]any{"tag": "wd2"}, rawBodies: [][]byte{withdraw}},
+	})
 
-// TestFwdReorderWithdrawalsFirst_AllSameType returns unchanged batch
-// when all items are the same type.
-//
-// VALIDATES: AC-25 no-op when reordering is unnecessary.
-// PREVENTS: Unnecessary allocation.
-func TestFwdReorderWithdrawalsFirst_AllSameType(t *testing.T) {
-	t.Parallel()
-
-	allAnn := []fwdItem{
-		{meta: map[string]any{"tag": "a"}, withdrawal: false},
-		{meta: map[string]any{"tag": "b"}, withdrawal: false},
-	}
-	result := fwdReorderWithdrawalsFirst(allAnn)
-	assert.Equal(t, "a", result[0].meta["tag"])
-	assert.Equal(t, "b", result[1].meta["tag"])
-
-	allWd := []fwdItem{
-		{meta: map[string]any{"tag": "x"}, withdrawal: true},
-		{meta: map[string]any{"tag": "y"}, withdrawal: true},
-	}
-	result2 := fwdReorderWithdrawalsFirst(allWd)
-	assert.Equal(t, "x", result2[0].meta["tag"])
-	assert.Equal(t, "y", result2[1].meta["tag"])
+	assert.Equal(t, []string{"ann1", "wd1", "ann2", "wd2"}, seen,
+		"the handler must see the batch in the order it was queued")
 }
 
 // mustAddrPort parses an addr:port string or panics. Test helper.

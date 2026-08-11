@@ -1,6 +1,24 @@
 # Test: SIGTERM causes graceful daemon shutdown
 # Daemon starts, exchanges OPEN + route + EOR with peer, then receives SIGTERM.
-# Expected: daemon shuts down cleanly, connection closes as expected.
+# Expected: daemon shuts down cleanly, and the peer is TOLD WHY before the
+# socket goes.
+#
+# rfc-test-change-approved: Thomas, 2026-08-10. Removed an `RFC requirement:
+# RFC4271-8.2.2-18` tag this file never asserted. The tag was written here before
+# its assertion, which made the file RFC-tagged and then blocked the assertion
+# from being added. The obligation is proven, in test/reload/signal-stop-cease.ci,
+# which carries both the tag and the seq=3 wire expectation. Thomas chose one
+# subject per file: this file tests the shutdown signal, the sibling tests the
+# NOTIFICATION. No test was deleted and no proof was lost.
+#
+# THE WIRE PROOF LIVES IN THE SIBLING, AND IT MATTERS. Until 2026-08-10 the
+# daemon sent NOTHING on shutdown: Session.Close built exactly that message and
+# had no reachable caller, because Peer.cleanup's `if p.session != nil` guard ran
+# after runOnce's defer had nil'd p.session. This file drove the real signal and
+# asserted only the route, the EOR and a clean exit, so it stayed green for as
+# long as the behaviour was missing
+# (plan/spec-fixit-bgp-shutdown-cease-notification.md). That is why the assertion
+# is a separate file rather than a line nobody notices is absent.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

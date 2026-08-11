@@ -220,7 +220,7 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 //
 // Atomics (no lock interaction needed):
 //
-//	tearingDown   — set by Teardown to block Accept races
+//	tearingDown   — one-way seal; no further conn is published on this session
 //	paused        — fast-path pause check for the read loop
 //	closeReason   — first close reason wins (CompareAndSwap from nil)
 type Session struct {
@@ -262,7 +262,15 @@ type Session struct {
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error
 
-	// tearingDown is set when Teardown starts, preventing Accept race.
+	// tearingDown says this session is finished and will publish no further
+	// connection. Written only by seal, and only ever to true, so it is one-way:
+	// teardown seals on its way to the wire, and Reactor.stop seals every live
+	// session as part of its own seal (session_connection.go, reactor.go).
+	//
+	// Read by Accept, as the cheap early answer, and by connectionEstablished
+	// inside the s.mu hold that publishes s.conn, which is the authoritative
+	// one. Anything that cleared it would re-open that publish site to the whole
+	// accept rail; Accept used to, and that is the defect this wording replaces.
 	tearingDown atomic.Bool
 
 	// Backpressure pause gate: pauses the read loop without closing the connection.
@@ -869,10 +877,12 @@ var ErrPolicyTeardown = errors.New("session teardown requested by import policy"
 // Used on error/shutdown paths where the connection may already be dead.
 func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) {
 	if err := s.sendNotification(conn, code, subcode, data); err != nil {
-		// Same rendering as the success WARN in session_write.go: the line an operator
-		// reads when the NOTIFICATION could NOT be sent must not be the less readable of
-		// the two (ai/rules/cli.md).
-		sessionLogger().Debug("notification send failed",
+		// Same LEVEL and same rendering as the success WARN in session_write.go. A
+		// send that failed is the worse news of the two -- the session is ending and
+		// the peer was never told why -- so an operator at the default level who sees
+		// every "notification sent" must not have this one hidden below it
+		// (ai/rules/cli.md). At most one per teardown, the same as the success line.
+		sessionLogger().Warn("notification send failed",
 			"peer", s.settings.Address,
 			"code", code, "subcode", notifySubcodeValue(code, subcode),
 			"error", err,

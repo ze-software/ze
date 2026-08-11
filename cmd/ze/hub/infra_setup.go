@@ -169,23 +169,30 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 				return
 			}
 
-			// Persist the graceful-restart marker through the always-on seam.
-			// The writer is registered by the gated BGP config package; with
-			// ze_bgp off it stays nil and this is a no-op -- correct, since a
-			// BGP-less daemon has no session for a peer to treat as restarting.
-			writeGRMarker := func() {
-				apiSrv := params.APIServer()
-				if apiSrv == nil {
-					return
+			// The stop a restarting speaker takes: persist the
+			// graceful-restart marker through the always-on seam, then drop
+			// the sessions in SILENCE. The two halves live together here, and
+			// in one place only, because they are one decision -- RFC 4724
+			// Section 5 has a peer delete every route of a connection that
+			// ends in a NOTIFICATION, and puts no condition on that. A Cease
+			// sent beside this marker would therefore foreclose, for every
+			// peer, the retention the marker is written to ask for.
+			//
+			// The marker writer is registered by the gated BGP config package;
+			// with ze_bgp off it stays nil and the write is a no-op -- correct,
+			// since a BGP-less daemon has no session for a peer to treat as
+			// restarting.
+			stopForRestart := func() {
+				if apiSrv := params.APIServer(); apiSrv != nil {
+					infra.WriteGRMarker(apiSrv.AllPluginCapabilities(), params.Store)
 				}
-				infra.WriteGRMarker(apiSrv.AllPluginCapabilities(), params.Store)
+				r.StopForRestart()
 			}
 
 			if apiSrv := params.APIServer(); apiSrv != nil {
 				apiSrv.SetRebootFunc(func() {
-					writeGRMarker()
 					rebootRequested.Store(true)
-					r.Stop()
+					stopForRestart()
 				})
 			}
 
@@ -204,9 +211,9 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 
 			if sshSrv != nil && sshWirePostStart != nil {
 				sshWirePostStart(sshSrv, &sshWireInputs{
-					Reactor:       r,
-					Params:        params,
-					WriteGRMarker: writeGRMarker,
+					Reactor:        r,
+					Params:         params,
+					StopForRestart: stopForRestart,
 				})
 				log.Info("SSH command executor wired")
 			}

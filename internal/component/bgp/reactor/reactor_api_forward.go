@@ -432,7 +432,6 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		rawBodies    [][]byte
 		updates      []*message.Update
 		supersedeKey uint64
-		withdrawal   bool
 	}
 	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
 	var fwdBodyCache map[fwdBodyCacheKey]*fwdBodyCacheEntry
@@ -745,7 +744,6 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				item.rawBodies = cached.rawBodies
 				item.updates = cached.updates
 				item.supersedeKey = cached.supersedeKey
-				item.withdrawal = cached.withdrawal
 				goto dispatch
 			}
 		}
@@ -769,7 +767,6 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			item.rawBodies = body.rawBodies
 			item.updates = body.updates
 			item.supersedeKey = body.supersedeKey
-			item.withdrawal = body.withdrawal
 
 			if groupsEnabled {
 				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
@@ -777,7 +774,6 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 					rawBodies:    body.rawBodies,
 					updates:      body.updates,
 					supersedeKey: body.supersedeKey,
-					withdrawal:   body.withdrawal,
 				}
 			}
 		}
@@ -793,6 +789,20 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		a.r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
+			// Ordering gate: a destination inside its initial sync still has
+			// route operations of its own to put on the wire. Sending this
+			// UPDATE now would overtake them, and a forwarded withdraw landing
+			// before the queued announce of the same prefix leaves the peer
+			// holding a route that was withdrawn. Park it in overflow instead;
+			// drainOverflow releases it when the sync ends, on this same
+			// predicate (peer.go forwardOrderHold, forward_pool.go overflowHeld).
+			if dst := pending[i].item.peer; dst != nil && dst.forwardOrderHold() {
+				if a.r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
+					a.r.fwdPool.recordOverflowed(srcAddr)
+					dispatchedCount++
+				}
+				continue
+			}
 			if a.r.fwdPool.TryDispatch(pending[i].key, pending[i].item) {
 				a.r.fwdPool.recordForwarded(srcAddr)
 				dispatchedCount++

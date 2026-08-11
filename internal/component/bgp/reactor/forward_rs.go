@@ -191,7 +191,6 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		rawBodies  [][]byte
 		updates    []*message.Update
 		supersedeK uint64
-		withdrawal bool
 	}
 	groupsEnabled := r.updateGroups != nil && r.updateGroups.Enabled()
 	var bodySlots [4]fwdBodyCacheSlot
@@ -447,7 +446,6 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				item.rawBodies = bodySlots[j].rawBodies
 				item.updates = bodySlots[j].updates
 				item.supersedeKey = bodySlots[j].supersedeK
-				item.withdrawal = bodySlots[j].withdrawal
 				goto dispatch
 			}
 		}
@@ -469,7 +467,6 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			item.rawBodies = body.rawBodies
 			item.updates = body.updates
 			item.supersedeKey = body.supersedeKey
-			item.withdrawal = body.withdrawal
 
 			if groupsEnabled && bodySlotCount < len(bodySlots) {
 				bodySlots[bodySlotCount] = fwdBodyCacheSlot{
@@ -477,7 +474,6 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 					rawBodies:  body.rawBodies,
 					updates:    body.updates,
 					supersedeK: body.supersedeKey,
-					withdrawal: body.withdrawal,
 				}
 				bodySlotCount++
 			}
@@ -499,6 +495,33 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { r.recentUpdates.Release(updateID) }
+			// Ordering gate, ahead of the direct write for the same reason the
+			// plugin rail gates ahead of TryDispatch (reactor_api_forward.go):
+			// a destination inside its initial sync has route operations of its
+			// own still to reach the wire, and this UPDATE must not overtake
+			// them. The direct write is the rail that would, since it goes
+			// straight into the destination's bufWriter.
+			//
+			// Pending overflow gates it too, and only this rail has to ask. Once
+			// the sync ends, items released from the hold are on their way to
+			// the destination through the worker, and a direct write would
+			// overtake them in the same way. TryDispatch refuses its channel for
+			// exactly this reason (forward_pool.go, the FIFO gate); the direct
+			// write bypasses the pool, so it consults the same count here. It
+			// reads that count through the destination, which is already in
+			// hand: four atomic loads for the whole gate, where a pool lookup
+			// took fp.mu.RLock and hashed a fwdKey per destination per UPDATE.
+			dst := pending[i].item.peer
+			if dst != nil && (dst.forwardOrderHold() || dst.forwardOverflowPending()) {
+				if r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
+					delivered++
+					r.fwdPool.recordOverflowed(sourcePeerAddr)
+				} else {
+					fwdLogger().Warn("rs fast path: no rail accepted the deferred item",
+						"id", updateID, "peer", pending[i].key.peerAddr, "src", sourcePeerAddr)
+				}
+				continue
+			}
 			handled, written, dstSession := tryDirectWriteNoFlush(&pending[i].item)
 			switch {
 			case handled:

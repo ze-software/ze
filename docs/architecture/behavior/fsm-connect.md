@@ -38,7 +38,7 @@ Idle).
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `StartDamped()` call | ignored (RFC 4271) | none | `Connect` |
-| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | optional Cease NOTIFICATION in caller | `Idle` |
+| `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | no-op comment (reconnect handled externally) | none | `Connect` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after successful `dialer.DialContext` | log transition | OPEN sent immediately after transition | `OpenSent` |
@@ -72,10 +72,13 @@ Idle).
   simply returns the dial error to the peer run loop.
   <!-- source: internal/component/bgp/reactor/session_connection.go — Connect dial failure path -->
 - **On `EventManualStop`:** if a connection somehow exists at this point,
-  `Close` / `Teardown` sends the configured Cease NOTIFICATION before
-  invoking the FSM event. In practice the connection is nil in Connect
-  because the dial is blocking, so no NOTIFICATION is sent.
-  <!-- source: internal/component/bgp/reactor/session_connection.go — Close, Teardown -->
+  `Teardown` sends the configured Cease NOTIFICATION before invoking the
+  FSM event. In practice the connection is nil in Connect because the dial
+  is blocking, so no NOTIFICATION is sent. `Session.Stop` fires the same
+  event and sends nothing, on any connection; its only caller is the CLI
+  replay harness (`internal/test/cli/cmd_replay.go`).
+  <!-- source: internal/component/bgp/reactor/session_connection.go — Teardown -->
+  <!-- source: internal/component/bgp/reactor/session.go — Stop -->
 
 ## Code map
 

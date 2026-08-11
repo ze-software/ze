@@ -49,7 +49,7 @@ type LoginWarning struct {
 	Command string
 }
 
-// ReactorHandle is the always-on view of a running protocol reactor: the three
+// ReactorHandle is the always-on view of a running protocol reactor: the four
 // operations daemon-startup infrastructure needs once the engine exists. The
 // BGP *reactor.Reactor satisfies it; always-on code never names the concrete
 // type, which is what lets internal/component/bgp be compiled out
@@ -61,8 +61,13 @@ type ReactorHandle interface {
 	// Dispatcher returns the command dispatcher to attach authorization and
 	// accounting to. May be nil before post-start.
 	Dispatcher() *pluginserver.Dispatcher
-	// Stop signals the reactor to shut down (shutdown / restart / reboot).
+	// Stop signals the reactor to shut down for good, telling each peer why.
 	Stop()
+	// StopForRestart signals the reactor to shut down in silence, for a stop
+	// this daemon means to come back from. It pairs with WriteGRMarker: a
+	// restarting speaker asks its peers to hold its routes, and RFC 4724
+	// Section 5 has a peer DELETE them on any NOTIFICATION, unconditionally.
+	StopForRestart()
 }
 
 // HookParams holds the data passed to the infrastructure setup hook.
