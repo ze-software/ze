@@ -56,7 +56,7 @@ fi
 # Spec status summary (compact counts by status)
 if [ "$SPEC_COUNT" -gt 0 ]; then
     COUNTS=""
-    for status in in-progress ready design skeleton blocked deferred; do
+    for status in in-progress verification ready design skeleton blocked deferred; do
         N=$(grep -l "| Status | *${status}" plan/spec-*.md 2>/dev/null | wc -l | tr -d ' ')
         [ "$N" -gt 0 ] && COUNTS="${COUNTS:+$COUNTS, }${N} ${status}"
     done

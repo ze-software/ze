@@ -113,6 +113,18 @@ that wrote the code MUST NOT sit in judgment on it.
 
 This never overrides "Critical Review Is the Central Deliverable" below.
 
+### Two-Session Handoff (opt-in)
+
+- **A spec whose metadata carries `| Handoff | verify |` is implemented, COMMITTED and stopped by one session, then reviewed and closed by another.** The row is declared before implementation starts, because not every spec is worked this way. Absent, or `-`, closure stays in the implementing session and nothing below applies.
+- **The implementing session MUST set `| Status | verification |` before it commits, and MUST stop after the commit.** That status says the code is written, tested and in git, and that the spec awaits an independent review. It MUST NOT be used to park unfinished work: every acceptance criterion is implemented and green first (`ai/rules/completion.md`).
+- **The handoff commit MUST carry neither a `plan/learned/` file nor a removal of the spec.** Either one makes `commit_helper.py` read it as a closure commit and demand the Review Gate artifact, which the implementing session MUST NOT produce over its own work.
+- **This mode serves review INDEPENDENCE (above), and that is the only thing it buys.** The reviewing session reads a committed diff it did not write. A same-session close cannot give that.
+
+| Session | Skill | Commits it produces |
+|---------|-------|---------------------|
+| Implementation, any model | `/ze-implement` | ONE commit: code, tests, docs, and the spec at `Status: verification`. Then `scripts/dev/spec-session.sh release`, report the SHA, stop |
+| Review and closure, Opus 5 | `/ze-close` | commit A (journal row, spec, closure edits) and commit B (`git rm` the spec), after a Review Gate over that committed diff |
+
 ### Subagents
 
 - Subagents inherit the PHASE, not the task shape: reviewer subagents spawned during review stay on the review model, implementation subagents stay on the implementation model.
@@ -130,13 +142,12 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 
 ### Enforcement (model phases)
 
-- **`c_model_phase` in `.claude/hooks/pretool-writeedit.py` BLOCKS an implementation edit made on a planning/review model.** It resolves the running model from the transcript, because the hook payload carries none. It fires on `.go`, `.py`, `.sh`, `.ci`, `.et`, `.yang`, `.mk`, `.tmpl` and `.rego`, and never on `.md`. The table above puts "doc edits that follow from the code" in the implementation phase, so the gate is deliberately narrower than the rule: it cannot tell a spec from a doc that follows code, and blocking `/ze-spec` on its own model would be the worse error. Doc edits stay yours to judge.
-- **The escape is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. MUST NOT write that file except on the operator's instruction. It is the same contract as the spec-closure ack.
-- The gate cannot see PHASE, only the model. It reads an implementation edit as the boundary crossing, so a genuine one-line mechanical fix on the review model needs the ack too.
+- **NO gate blocks an implementation edit by model, and none MUST be written.** `c_model_phase` in `.claude/hooks/pretool-writeedit.py` did, and it went with the Opus 4.8 requirement above. What is gated now is review independence, at both ends. Which files you edit on which model is yours to judge.
+- **The escape from the spawn gate is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. MUST NOT write that file except on the operator's instruction. It is the same contract as the spec-closure ack.
 - **Review is gated at both ends.** `.claude/hooks/pretool-agent-skill.py` refuses to SPAWN a review agent when the session is not on Opus 5, and `scripts/dev/review_gate.py record` refuses to RECORD the artifact. The second is the one that matters, because recording is the moment a review is claimed.
 - **A subagent inherits the PHASE, not the task shape.** Spawning a reviewer from an implementation session still reviews on the wrong model, and it is usually the session that wrote the code.
 - **The record gate has an operator escape: `--model-override "<reason>"`.** Their call, not yours.
-- **All three gates share one reader, `scripts/dev/running_model.py`.** It resolves the model from the session transcript, skips subagent lines, and answers nothing when it cannot tell. Every caller then stands down and SAYS so, rather than going quiet.
+- **Both gates share one reader, `scripts/dev/running_model.py`.** It resolves the model from the session transcript, skips subagent lines, and answers nothing when it cannot tell. Every caller then stands down and SAYS so, rather than going quiet.
 
 ## Spec Selection
 
@@ -265,7 +276,8 @@ Every spec MUST have a metadata table immediately after the `# Spec:` title. Thi
 
 | Field | Purpose | Values |
 |-------|---------|--------|
-| Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `blocked`, `deferred` |
+| Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `verification`, `blocked`, `deferred` |
+| Handoff | Who closes this spec | `verify` for the two-session handoff, `-` for closure in the same session |
 | Depends | Blocking prerequisite | Spec filename (e.g., `spec-rib-04`) or `-` |
 | Phase | Multi-phase progress | `N/M` (e.g., `3/5`) or `-` for single-phase |
 | Updated | Date of last status change | `YYYY-MM-DD` -- NOT last file edit |
@@ -281,6 +293,7 @@ A spec that stays in `design` during implementation is lying about its state.
 | Spec approved | `design` to `ready` | - | Yes | After user approves design |
 | Start coding | `ready` to `in-progress` | Set `1/N` | Yes | When coding begins |
 | Finish a phase | - | Increment | Yes | After phase tests pass |
+| Hand off for review (`Handoff: verify` only) | `in-progress` to `verification` | - | Yes | Before the implementation session commits and stops |
 | Blocked | to `blocked` | - | Yes | When blocker identified |
 | Deferred | to `deferred` | - | Yes | When user agrees to defer |
 
@@ -292,6 +305,7 @@ A spec that stays in `design` during implementation is lying about its state.
 | `design` | Research/design in progress |
 | `ready` | Design complete, ready for implementation |
 | `in-progress` | Actively being implemented |
+| `verification` | Implementation complete and COMMITTED, awaiting an independent review and closure on Opus 5. Reached only under `Handoff: verify` (see "Two-Session Handoff") |
 | `blocked` | Waiting on prerequisite (see Depends) |
 | `deferred` | Explicitly postponed |
 

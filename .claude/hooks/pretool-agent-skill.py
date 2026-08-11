@@ -226,7 +226,7 @@ def review_model_refusal(prompt: str, transcript: str | None = None) -> str:
         "  model. Worse, it is usually the session that wrote the code.\n"
         "  Say so and stop, so the operator can switch or start a review session.\n"
         "  If the operator decides otherwise, their reason goes in\n"
-        "  tmp/session/.model-ack-<sid>, the same escape the edit gate uses."
+        "  tmp/session/.model-ack-<sid>."
     )
 
 

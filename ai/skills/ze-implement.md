@@ -209,7 +209,9 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
     plainly that closure (deliverables, security, docs, Review Gate, commits) is
     `/ze-close`, and that `ai/rules/planning.md` puts it on the review
     model. Do NOT append `plan/TEMPLATE-CLOSURE.md`, do NOT run `/ze-review` as
-    the gate, and do NOT prepare a commit script here.
+    the gate, and do NOT prepare a commit script here. The one exception is the
+    two-session handoff below, which the spec declares before implementation
+    starts.
     - **Write the handoff first.** Before you report, append your phase handoff
       to the per-spec state file (see Delegation, "Phase handoff"). The report
       is for the main thread. The handoff is for the next phase's agent. Both
@@ -217,6 +219,22 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
     - Closure is reached when the LAST phase is green, not when your phase is.
       A phase agent that is not the last one reports its phase and stops. The
       main thread spawns the next phase.
+    - **`| Handoff | verify |` in the spec metadata changes this step, and
+      nothing else in this skill.** The mode is declared before implementation
+      starts, so read the row rather than choosing here. When the row says
+      `verify` and the LAST phase is green, commit the work before you stop:
+      1. Set `| Status | verification |` and `| Updated |` to today.
+      2. Prepare ONE commit with `scripts/dev/commit_helper.py create`, carrying
+         the code, the tests, the docs and the spec file. Carry NO
+         `plan/learned/` file and NO `--remove` of the spec: those two make it a
+         closure commit, and a closure commit needs the Review Gate artifact
+         this session MUST NOT produce. Run the script the helper prints
+         (`ai/rules/git-safety.md`).
+      3. Run `scripts/dev/spec-session.sh release`.
+      4. Report the commit SHA, and state that `/ze-close` on Opus 5 is the next
+         phase. It reviews that commit.
+      When the row is absent or `-`, none of this applies: hand the uncommitted
+      diff to `/ze-close` as above.
 
 ## Rules
 

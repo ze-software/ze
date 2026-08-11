@@ -34,6 +34,9 @@ spec-work-runs-in-subagents-the-main-thread-supervises ## Spec Work Runs in Suba
   review-is-independent-of-the-author
   what-to-do-at-each-phase-boundary
   critical-review-still-governs-over-this-section
+  two-session-handoff
+  split-implementation-and-closure-over-two-sessions
+  which-session-does-what-in-a-two-session-handoff
   subagents
   never-downgrade-a-subagent-s-model
   banned-reasoning-model-phases

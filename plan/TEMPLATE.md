@@ -14,7 +14,10 @@
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/<stem>.md` (or `-` if nothing deferred) |
+| Handoff | - |
 | Updated | YYYY-MM-DD |
+
+<!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".

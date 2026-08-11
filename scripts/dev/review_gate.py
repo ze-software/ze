@@ -158,8 +158,8 @@ def cmd_hash(files: list[str]) -> int:
 # (ai/rules/planning.md, 2026-08-03), so this is the only edit-adjacent model
 # check left. Recording the artifact is the moment a review is
 # CLAIMED, so it is the right place to check. The reverse boundary -- editing
-# code on the review model -- is gated separately by c_model_phase in
-# .claude/hooks/pretool-writeedit.py.
+# code on the review model -- is gated by nothing: c_model_phase went with the
+# Opus 4.8 requirement, and no gate replaced it.
 
 
 def _running_model() -> str:

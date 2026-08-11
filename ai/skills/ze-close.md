@@ -58,6 +58,19 @@ The implementation is complete and `make ze-lint && make ze-unit-test && make
 ze-functional-test` is green (`/ze-implement` steps 1-10). If feature code is
 still missing, go back: this skill does not implement.
 
+Two entry statuses are valid, `in-progress` and `verification`, and they differ
+in one thing: where the diff is.
+
+| Entry status | Where the diff is | What changes below |
+|--------------|-------------------|--------------------|
+| `in-progress` | the working tree, uncommitted | nothing |
+| `verification` | already committed by the implementation session (`ai/rules/planning.md`, "Two-Session Handoff") | the reviewers read `git diff <handoff-sha>~1..<handoff-sha>` instead of the working tree, and `review_gate.py record` records over those same files |
+
+At `verification` the code is committed, so closure adds commit A (journal row,
+spec, any doc or fix edits this skill produced) and commit B (`git rm` the
+spec). The handoff commit is neither of them. Get the handoff SHA from
+`git log -1 --format=%H -- plan/<spec-name>`.
+
 ## Spec Sections Used by Each Step
 
 | Step | Spec Section(s) Consumed |

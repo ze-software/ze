@@ -840,6 +840,33 @@ def run_validate_spec(results: Results) -> None:
         f"rc={rc} err={err[:200]!r}",
     )
 
+    # --- the two-session handoff status -------------------------------------
+    # `verification` says the implementation is complete and COMMITTED and the
+    # spec awaits an independent review (ai/rules/planning.md, "Two-Session
+    # Handoff"). It sits between in-progress and done, so the Status check must
+    # accept it...
+    rc, err = _run_validate_spec(
+        script, base.replace("| Status | in-progress |", "| Status | verification |")
+    )
+    results.check(
+        "validate-spec-verification-status-accepted",
+        rc == 0 and "Invalid Status" not in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # ...and MUST NOT gain the skeleton placeholder licence by doing so. A
+    # placeholder at `verification` is a spec claiming committed code over an
+    # unwritten section.
+    rc, err = _run_validate_spec(
+        script,
+        _placeholder.replace("| Status | in-progress |", "| Status | verification |"),
+    )
+    results.check(
+        "validate-spec-verification-placeholder-blocks",
+        rc == 2 and "Entry Point contains placeholder" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
     # --- the two checklists plan/TEMPLATE.md ships --------------------------
     # "Documentation Update Checklist (BLOCKING)" bound a reader and nothing
     # else: REQUIRED_SECTIONS named neither it nor the Integration Checklist, so
@@ -2407,7 +2434,9 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         'func TestB(t *testing.T) { t.Skip("x") }\n',
         sticky,
     )
-    results.check("relax-token-same-wording-twice-in-a-file-allowed", r is None, repr(r))
+    results.check(
+        "relax-token-same-wording-twice-in-a-file-allowed", r is None, repr(r)
+    )
 
     # ...and whitespace is not a justification. Keying the hatch on raw LINES made a
     # months-old token re-indented by two columns read as newly written, so the whole
