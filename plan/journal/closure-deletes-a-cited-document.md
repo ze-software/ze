@@ -1,3 +1,4 @@
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
 | 2026-08-10 | fixit-spec-closure-leaves-dangling-spec-citations | workflow | Spec closure removes the spec file. Every sibling citation of it then points at nothing. The gate that finds them existed and was correct. No closure step fed it, so it drifted to 15 red rows | a BLOCKING step before commit B. The author who removes the spec names and repairs its citers, inside commit A |
+| 2026-08-11 | rfc-ledger-per-rfc-shards | workflow | Recurrence after the fix above. HEAD commit 8b85ada76 closed `spec-fixit-egress-filter-non-decision-channel`. It left a citation of that spec in `plan/deferrals/fixit-stored-route-relay-hardening.md`. `make ze-doc-links` is red at HEAD for a session that caused none of it | not fixed here. The repair belongs to the author of that closure |

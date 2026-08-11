@@ -722,17 +722,20 @@ mid-run.
 
 ### Another session's test edit reddens your RFC gate
 
-**Symptom.** `make ze-rfc-check` fails with the single violation
-`ai/RFC-REQUIREMENTS.md is stale vs its sources`. You changed no tagged
+**Symptom.** `make ze-rfc-check` fails with the violation
+`rfc/requirements/<stem>.md is stale vs its sources`. You changed no tagged
 test. `ze-doc-test`, `ze-verify-wiring-docs`, `ze-regen-check-readonly`
 and `TestRFCLedgerFresh` all go red at the same time, because each one
 reads the same freshness fact.
 
-**Cause.** `ai/RFC-REQUIREMENTS.md` is ONE global generated file, and it
-records every tagged test as `file:line`. One session adds or removes a
-single line above a tagged test. That shifts the line numbers and stales
-the ledger for every other session. This repository runs concurrent
-sessions by design, so the window is not rare.
+**Cause.** Each RFC's `file:line` records sit in one generated file under
+`rfc/requirements/`. One session adds or removes a single line above a
+tagged test. That shifts the line numbers and stales that RFC's file for
+every other session. This repository runs concurrent sessions by design,
+so the window is not rare.
+
+The split bounds the damage to the RFCs whose tests moved. Before it, one
+line shift staled the whole ledger.
 
 **Evidence.** Twice on 2026-07-30 during `spec-rfcgate-1b-rfc7296-pilot`.
 Both times the whole diff was line numbers in `internal/component/mcp/`,
@@ -740,9 +743,10 @@ which a different session was editing. `diff` of the regenerated ledger
 named the owning package in one line each time.
 
 **Avoid it by.** Running `make ze-rfc-index` immediately before you start
-a verify, not earlier in the session. Diff the regenerated ledger to see
-WHOSE files moved: if every changed row names a package you never touched,
-the staleness is not yours.
+a verify, not earlier in the session. Diff the regenerated files to see
+WHOSE tests moved: if every changed row names a package you never touched,
+the staleness is not yours. To read one RFC's rows and leave the index shut,
+run `python3 scripts/dev/rfc_requirements.py --show <stem>`.
 
 **Recover if you hit it.** Regenerate, then verify. Do not hand-edit the
 ledger, and do not reach for an override first: the gate is correct and

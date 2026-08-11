@@ -19,7 +19,7 @@ Generate a structured implementation summary from an RFC text file.
 3. WRITE: `rfc/short/$ARGUMENTS.md`
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one
-6. REGISTER: run `make ze-rfc-index` to render the requirement into `ai/RFC-REQUIREMENTS.md`,
+6. REGISTER: run `make ze-rfc-index` to render the requirement into `rfc/requirements/<stem>.md`,
    then `make ze-rfc-check`. **A summary that is new since HEAD and declares gated MUSTs
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
@@ -101,12 +101,19 @@ list says which sentence, by name.
 
 ## Keep the ledger committed (BLOCKING)
 
-`ai/RFC-REQUIREMENTS.md` is generated from the summaries and the `RFC requirement:` tags,
-and it records each enforcing test's `file:line`. So it goes stale not only when you add
-or retire a requirement, but whenever a tagged test is added, moved, deleted, or re-tagged,
-and even when an unrelated edit shifts a tagged test's line. Regenerate it with
-`make ze-rfc-index` and **commit the regenerated ledger in the SAME commit** as the change
-that caused the drift. `ze-rfc-check` renders the ledger and fails on any mismatch, and it
+`make ze-rfc-index` writes two outputs from the summaries and the `RFC requirement:` tags.
+One is `ai/RFC-REQUIREMENTS.md`, the index of counts, coverage rollup, audit coverage,
+extraction sign-off and backlog. The other is one file per RFC under `rfc/requirements/`,
+holding that RFC's requirement rows.
+
+The per-RFC file records each enforcing test's `file:line`. It goes stale when you add or
+retire a requirement. It also goes stale whenever a tagged test is added, moved, deleted or
+re-tagged. An unrelated edit that shifts a tagged test's line stales it too.
+
+Regenerate with `make ze-rfc-index`. **Commit BOTH outputs in the SAME commit** as the
+change that caused the drift: the index, and every changed file under `rfc/requirements/`.
+Commit the index alone and the gate is red for the next session.
+`ze-rfc-check` renders both and fails on any mismatch, and it
 runs in both `ze-verify` and `ze-verify-changed` (`check_ledger_fresh`,
 `scripts/dev/rfc_requirements.py`). A ledger left stale is not silently tolerated: it
 surfaces later as a cross-commit diff that the next session inherits and the freshness gate
@@ -195,7 +202,7 @@ Rules:
 - Within each group, order by section number.
 - The checkbox is always `[ ]` (unchecked). It is a template marker, NOT
   coverage state. Coverage is DERIVED from test tags and rendered in
-  `ai/RFC-REQUIREMENTS.md` — never tick a box to claim a requirement is met.
+  `rfc/requirements/<stem>.md` — never tick a box to claim a requirement is met.
 - Quote the RFC text when short enough; paraphrase only when the original
   is too long for a single line.
 - Include the section reference so the implementer can find the normative
@@ -272,7 +279,7 @@ re-derive it from the RFC text, and ask again if it still reads as less than ful
 ## Linking Requirements to Tests
 
 The link is two-way, but only ONE side is authored: the test tags itself.
-`ai/RFC-REQUIREMENTS.md` renders the reverse direction and is GENERATED — never hand-write
+`rfc/requirements/<stem>.md` renders the reverse direction and is GENERATED — never hand-write
 a test path into a summary (`ai/rules/evidence.md`). A hand-written back-link
 survives deletion of the test it names; a tag dies with the test.
 
@@ -362,10 +369,11 @@ Step-by-step, pseudocode if RFC provides it.
 - Errata: note any that affect implementation
 - Every checklist line gets a unique, permanent ID. Never renumber, never reuse
 - Never tick a checkbox — coverage is derived from test tags, not declared here
-- Never hand-write a test path into a summary — `ai/RFC-REQUIREMENTS.md` is generated
-- Regenerate `ai/RFC-REQUIREMENTS.md` (`make ze-rfc-index`) and commit it in the same change
-  whenever a tagged test is added, moved, deleted, or re-tagged; it records `file:line`, and
-  `ze-rfc-check` fails on a stale ledger
+- Never hand-write a test path into a summary — `rfc/requirements/<stem>.md` is generated
+- Run `make ze-rfc-index` and commit BOTH its outputs in the same change whenever a tagged
+  test is added, moved, deleted, or re-tagged: `ai/RFC-REQUIREMENTS.md` and every changed
+  file under `rfc/requirements/`. The per-RFC file records `file:line`, and `ze-rfc-check`
+  fails on a stale index and on a stale per-RFC file
 - Never annotate `{not-applicable}` / `{gap}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
 - Enrollment (`rfc/enrolled.txt`) means "every MUST here is CLASSIFIED": tested, or
@@ -383,6 +391,7 @@ Step-by-step, pseudocode if RFC provides it.
 | Need | Use |
 |------|-----|
 | Check requirements are covered | `make ze-rfc-check` |
-| Regenerate the requirement ledger | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` |
+| Regenerate the requirement ledger | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
+| Read one RFC's requirement → test rows | `python3 scripts/dev/rfc_requirements.py --show <stem>` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
 | Public per-RFC support status | `docs/features/rfc-status.md` (product ledger; must agree with `{gap}` annotations) |

@@ -1356,6 +1356,8 @@ class TestCoverageRollup(unittest.TestCase):
 
 
 class TestLedgerRender(unittest.TestCase):
+    """The requirement rows, which live in one shard per RFC stem."""
+
     def test_ledger_render_is_independent_of_input_order(self):
         """Varies the ORDER of both ordered inputs rather than calling the renderer twice
         with the same arguments: `f(x) == f(x)` in one process holds for every
@@ -1371,10 +1373,10 @@ class TestLedgerRender(unittest.TestCase):
             _tag("RFC7606-2-1", "negative", file="b_test.go", line=9),
             _tag("RFC7606-2-2", "positive", file="c_test.go", line=1),
         ]
-        forward = R.render_ledger(reqs, tags, {"rfc7606"})
-        backward = R.render_ledger(
+        forward = R.render_shards(reqs, tags, {"rfc7606"})["rfc7606"]
+        backward = R.render_shards(
             list(reversed(reqs)), list(reversed(tags)), {"rfc7606"}
-        )
+        )["rfc7606"]
         self.assertEqual(forward, backward)
         self.assertIn("RFC7606-2-1", forward)
         # Rows follow the requirement ID order, never the input order.
@@ -1389,7 +1391,7 @@ class TestLedgerRender(unittest.TestCase):
             _tag("RFC7606-2-1", "positive", file="p_test.go", line=7),
             _tag("RFC7606-2-1", "negative", file="n_test.go", line=9),
         ]
-        out = R.render_ledger(reqs, tags, {"rfc7606"})
+        out = R.render_shards(reqs, tags, {"rfc7606"})["rfc7606"]
         self.assertIn("p_test.go:7", out)
         self.assertIn("n_test.go:9", out)
 
@@ -1403,8 +1405,8 @@ class TestLedgerRender(unittest.TestCase):
             _tag("RFC7606-2-1", "negative", file="a_test.go", line=90),
             _tag("RFC7606-2-1", "negative", file="z_test.go", line=1),
         ]
-        forward = R.render_ledger(reqs, list(tags), {"rfc7606"})
-        backward = R.render_ledger(reqs, list(reversed(tags)), {"rfc7606"})
+        forward = R.render_shards(reqs, list(tags), {"rfc7606"})["rfc7606"]
+        backward = R.render_shards(reqs, list(reversed(tags)), {"rfc7606"})["rfc7606"]
         self.assertEqual(forward, backward)
         # sorted by (file, line): a:5 < a:90 (numeric, not lexical) < z:1
         self.assertLess(forward.index("a_test.go:5"), forward.index("a_test.go:90"))
@@ -1424,7 +1426,14 @@ class TestLedgerEvidenceTier(unittest.TestCase):
     """
 
     def _render(self, tags, reqs=None):
-        return R.render_ledger(reqs or [_req("RFC7606-2-1")], tags, {"rfc7606"})
+        """The rfc7606 SHARD: the requirement rows are what carries an evidence label."""
+        return R.render_shards(reqs or [_req("RFC7606-2-1")], tags, {"rfc7606"})[
+            "rfc7606"
+        ]
+
+    def _index(self, tags, reqs=None):
+        """The INDEX: the legend and the rollup, which summarise those rows."""
+        return R.render_index(reqs or [_req("RFC7606-2-1")], tags, {"rfc7606"})
 
     def test_ledger_row_carries_evidence_tier(self):
         """AC-10: every link carries its kind AND its tier, derived from CARRIERS."""
@@ -1487,13 +1496,13 @@ class TestLedgerEvidenceTier(unittest.TestCase):
         self.assertEqual(len(cov), 1)
         self.assertEqual(cov[0].nightly_only, 1)
         self.assertEqual(cov[0].both, 2, "both stays the polarity view, unweakened")
-        out = self._render([], reqs=[_req("RFC7606-2-1")])
+        out = self._index([], reqs=[_req("RFC7606-2-1")])
         self.assertIn("| Outstanding | Nightly-only | State |", out)
 
     def test_legend_is_derived_from_the_carrier_table(self):
         """A hand-written legend rots the moment a carrier is added
         (ai/rules/evidence.md)."""
-        out = self._render([])
+        out = self._index([])
         for c in R.CARRIERS:
             if c.tier == R.TIER_UNRUN:
                 self.assertNotIn(f"| `{c.label}` | `*{c.suffix}`", out, c.name)
@@ -1502,12 +1511,15 @@ class TestLedgerEvidenceTier(unittest.TestCase):
 
     def test_ledger_render_is_stable(self):
         """AC-12: two renders of one tree are byte-identical, so check_ledger_fresh stays
-        a real gate rather than a coin flip."""
+        a real gate rather than a coin flip. Both outputs: a shard is a committed generated
+        file too, so an unstable one reads as a hand edit on the next machine exactly as an
+        unstable index would."""
         tags = [
             _tag("RFC7606-2-1", "positive", file=_INTEROP_FILE, line=51),
             _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
         ]
         self.assertEqual(self._render(list(tags)), self._render(list(tags)))
+        self.assertEqual(self._index(list(tags)), self._index(list(tags)))
 
     def test_evidence_phrase_names_every_executable_label_including_zeros(self):
         """A label omitted when zero reads as 'not applicable', not as 'we have none'."""
@@ -1515,6 +1527,11 @@ class TestLedgerEvidenceTier(unittest.TestCase):
         self.assertIn("unit/verify 1", phrase)
         self.assertIn("interop/nightly 0", phrase)
         self.assertIn("editor/verify 0", phrase)
+
+
+def _FRESH_INDEX(case):
+    """The index the sources render to, evaluated where the outputs are patched."""
+    return R.render_index(case._reqs, case._tags, {"rfc7606"}) + "\n"
 
 
 class TestLedgerFreshness(unittest.TestCase):
@@ -1525,30 +1542,42 @@ class TestLedgerFreshness(unittest.TestCase):
     _reqs = [_req("RFC7606-2-1")]
     _tags = [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")]
 
-    def _with_ledger(self, contents):
-        """Point R.LEDGER_FILE at a temp file holding `contents` (None = absent)."""
-        path = _mkstemp(".md")
-        if contents is None:
-            os.unlink(path)
-        else:
-            with open(path, "w", encoding="utf-8") as fh:
-                fh.write(contents)
-        return path
-
     def _check(self, contents):
-        path = self._with_ledger(contents)
-        orig = R.LEDGER_FILE
+        """Run the freshness check over a scratch pair of outputs.
+
+        `contents` is what the index holds on disk: a string, None for an absent file, or a
+        callable rendering it. A callable runs INSIDE the patch, which is what
+        `_FRESH_INDEX` needs -- the index cites the shard directory, so a body rendered
+        against the real directory and checked against a scratch one reads stale for the
+        path alone, and the test would pass for a reason it was not written for.
+
+        The shards written here are the CORRECT render, so every case varies the index.
+        """
+        path = _mkstemp(".md")
+        shard_dir = _mkdtemp("fresh-shards-")
         try:
-            R.LEDGER_FILE = path
-            return R.check_ledger_fresh(self._reqs, self._tags, {"rfc7606"})
+            with _patched(LEDGER_FILE=path, SHARD_DIR=shard_dir):
+                for stem, body in R.render_shards(
+                    self._reqs, self._tags, {"rfc7606"}
+                ).items():
+                    with open(
+                        os.path.join(shard_dir, stem + ".md"), "w", encoding="utf-8"
+                    ) as fh:
+                        fh.write(body + "\n")
+                text = contents(self) if callable(contents) else contents
+                if text is None:
+                    os.unlink(path)
+                else:
+                    with open(path, "w", encoding="utf-8") as fh:
+                        fh.write(text)
+                return R.check_ledger_fresh(self._reqs, self._tags, {"rfc7606"})
         finally:
-            R.LEDGER_FILE = orig
+            shutil.rmtree(shard_dir, ignore_errors=True)
             if os.path.exists(path):
                 os.unlink(path)
 
     def test_fresh_when_file_matches_render(self):
-        body = R.render_ledger(self._reqs, self._tags, {"rfc7606"}) + "\n"
-        self.assertEqual(self._check(body), [])
+        self.assertEqual(self._check(_FRESH_INDEX), [])
 
     def test_stale_when_file_differs(self):
         errs = self._check("not the rendered ledger\n")
@@ -1560,6 +1589,599 @@ class TestLedgerFreshness(unittest.TestCase):
         vacuum (ai/rules/evidence.md)."""
         errs = self._check(None)
         self.assertEqual(len(errs), 1)
+
+
+# --------------------------------------------------------------------------
+# Per-RFC shards (plan/spec-rfc-ledger-per-rfc-shards.md)
+# --------------------------------------------------------------------------
+_SHARD_REQS = [_req("RFC7606-2-1"), _req("RFC9999-1-1", rfc="rfc9999")]
+_SHARD_TAGS = [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")]
+
+# The per-RFC table header. It appears in a shard and nowhere in the index, so it is what
+# tells the two files apart: a test that searched for a requirement id instead would also
+# match the audit worklist, which the index still carries.
+_ROW_HEADER = "| Requirement | Level | § | Positive test | Negative test | Note |"
+
+
+@contextlib.contextmanager
+def _shard_tree():
+    """Point BOTH outputs at a scratch tree: R.LEDGER_FILE at a file, R.SHARD_DIR at a
+    directory.
+
+    Patching only the ledger is the trap this helper exists to close -- run_write would
+    then write one shard per summary into the real rfc/requirements/.
+    """
+    root = _mkdtemp("shards-")
+    try:
+        with _patched(
+            LEDGER_FILE=os.path.join(root, "RFC-REQUIREMENTS.md"),
+            SHARD_DIR=os.path.join(root, "requirements"),
+        ):
+            yield root
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _read_dir(path):
+    """name -> contents for every file directly in `path` (absent directory = {})."""
+    if not os.path.isdir(path):
+        return {}
+    out = {}
+    for name in sorted(os.listdir(path)):
+        full = os.path.join(path, name)
+        if os.path.isfile(full):
+            with open(full, encoding="utf-8") as fh:
+                out[name] = fh.read()
+    return out
+
+
+class TestIndexRender(unittest.TestCase):
+    """AC-1, AC-3: ai/RFC-REQUIREMENTS.md becomes the index and keeps the head sections."""
+
+    def test_index_has_no_per_rfc_section(self):
+        """AC-1: the 97 percent of the old ledger that was per-RFC tables is gone from the
+        index, and the same rows are reachable through a named shard."""
+        body = R.render_index(_SHARD_REQS, _SHARD_TAGS, {"rfc7606"})
+        self.assertNotIn(_ROW_HEADER, body)
+        self.assertNotIn("## RFC7606 --", body)
+        self.assertNotIn("## RFC9999 --", body)
+        # The head sections the index keeps.
+        for section in (
+            "# RFC Requirement Ledger",
+            "## Coverage by RFC",
+            "## Evidence kinds",
+            "## Extraction sign-off",
+        ):
+            self.assertIn(section, body)
+        shards = R.render_shards(_SHARD_REQS, _SHARD_TAGS, {"rfc7606"})
+        self.assertIn(_ROW_HEADER, shards["rfc7606"])
+        self.assertIn("RFC7606-2-1", shards["rfc7606"])
+
+    def test_index_names_a_real_shard_as_its_example(self):
+        """R-5: check_doc_links.py sweeps every tracked file and requires each cited path to
+        exist, so a placeholder with an angle-bracket stem is a dead citation in a generated
+        file. The example is derived from the rendered set, so it cannot go dead."""
+        body = R.render_index(_SHARD_REQS, _SHARD_TAGS, {"rfc7606"})
+        self.assertIn("rfc/requirements/rfc7606.md", body)
+        self.assertNotIn("rfc/requirements/<", body)
+
+    def test_rollup_header_unchanged(self):
+        """AC-3: scripts/dev/testing_health.py collect_rfc pins the rollup's header and its
+        row shape and fails closed when either moves. The pins are read from that file, so
+        this test breaks if the consumer and the producer ever disagree."""
+        th_path = os.path.join(_HERE, "testing_health.py")
+        spec = importlib.util.spec_from_file_location("testing_health", th_path)
+        th = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(th)
+        body = R.render_index(_SHARD_REQS, _SHARD_TAGS, {"rfc7606"})
+        self.assertIn(th.RFC_TABLE_HEADER, body)
+        rows = [ln for ln in body.split("\n") if th.RFC_ROW.match(ln.strip())]
+        self.assertTrue(rows, "collect_rfc parses zero coverage rows from the index")
+        self.assertIn("enrolled", " ".join(rows))
+
+
+class TestShardBanner(unittest.TestCase):
+    def test_shard_declares_generated(self):
+        """AC-4: ai/rules/evidence.md permits a derived `file.go:line` in a document only
+        where a generator maintains it, and a file earns that by saying so in its first ten
+        lines. Every shard is a page of derived `file:line` citations."""
+        shards = R.render_shards(_SHARD_REQS, _SHARD_TAGS, {"rfc7606"})
+        for stem, body in shards.items():
+            head = "\n".join(body.split("\n")[:10])
+            self.assertIn("GENERATED", head, stem)
+            self.assertIn("do not edit", head, stem)
+            self.assertIn("make ze-rfc-index", head, stem)
+
+
+class TestShardWrite(unittest.TestCase):
+    """AC-1, AC-7, AC-12: the write owns the shard directory and nothing else in it."""
+
+    def _write(self):
+        with _patched(
+            _collect_for_check=lambda: ({"rfc7606"}, _SHARD_REQS, [], _SHARD_TAGS, {}),
+        ):
+            return _run_capturing(R.run_write)
+
+    def _write_with(self, collect):
+        with _patched(_collect_for_check=collect):
+            return _run_capturing(R.run_write)
+
+    def test_a_parse_error_refuses_the_write_and_deletes_nothing(self):
+        """The write DELETES, so an incomplete collection is a destructive input.
+
+        `_collect_for_check` catches a ParseError per summary and carries on, which is
+        right for the gate and wrong here: the stem that failed to parse renders nothing,
+        so the prune would remove that RFC's tracked file and the run would still exit 0.
+        Driven from `run_write`, the entry point, not from the guard's helper.
+
+        The collection carries a parse error AND renders normally, which is the shape of
+        the real defect: one summary of 178 fails while the rest are fine. A fixture that
+        rendered nothing would trip the empty-render guard instead, and then `if parse_errs
+        and not shards` would keep this test green while the defect was live.
+        """
+        with _shard_tree():
+            os.makedirs(R.SHARD_DIR, exist_ok=True)
+            # A stem the render does NOT produce: the file the prune would delete, and the
+            # one whose RFC lost its rows because its summary is the one that failed.
+            victim = os.path.join(R.SHARD_DIR, "rfc0000.md")
+            with open(victim, "w", encoding="utf-8") as fh:
+                fh.write("# RFC0000 -- rows an earlier write produced\n")
+
+            code, out = self._write_with(
+                lambda: (
+                    {"rfc7606"},
+                    _SHARD_REQS,
+                    ["rfc/short/rfc0000.md: unparseable table"],
+                    _SHARD_TAGS,
+                    {},
+                )
+            )
+            self.assertEqual(code, 2, out)
+            self.assertIn("unparseable table", out, "the swallowed error is printed")
+            self.assertIn("refusing to write", out)
+            self.assertTrue(
+                os.path.exists(victim),
+                "the file whose summary failed to parse must survive; the prune runs on "
+                "a trusted collection only",
+            )
+            self.assertEqual(
+                _read_dir(R.SHARD_DIR),
+                {"rfc0000.md": "# RFC0000 -- rows an earlier write produced\n"},
+                "a refused write writes nothing either, so the two stems that DID render "
+                "must not reach the directory",
+            )
+
+    def test_an_empty_render_refuses_the_write_and_deletes_nothing(self):
+        """An absent `rfc/short/` makes `summary_stems` return an empty set, so every file
+        in the directory becomes an orphan and one green run empties it. The refusal is
+        what stops a sparse or half-checked-out tree from deleting all 177."""
+        with _shard_tree():
+            os.makedirs(R.SHARD_DIR, exist_ok=True)
+            path = os.path.join(R.SHARD_DIR, "rfc7606.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("# a file an earlier write produced\n")
+
+            code, out = self._write_with(lambda: (set(), [], [], [], {}))
+            self.assertEqual(code, 2, out)
+            self.assertIn("refusing to write", out)
+            self.assertTrue(
+                os.path.exists(path), "nothing is deleted on an empty render"
+            )
+
+    def test_write_emits_one_file_per_stem(self):
+        """AC-1, the wiring test: `make ze-rfc-index` reaches the shard directory."""
+        with _shard_tree():
+            code, out = self._write()
+            self.assertEqual(code, 0, out)
+            self.assertEqual(
+                sorted(_read_dir(R.SHARD_DIR)), ["rfc7606.md", "rfc9999.md"], out
+            )
+            self.assertTrue(os.path.exists(R.LEDGER_FILE), "the index is still written")
+
+    def test_a_stem_with_no_requirement_renders_no_shard(self):
+        """The zero boundary. A summary that declares nothing rendered no section before
+        the split, so it must render no shard after it -- and the prune must not then be
+        asked to delete a file the render never wrote."""
+        self.assertEqual(R.render_shards([], [], set()), {})
+
+    def test_write_prunes_orphan_shard(self):
+        """AC-7: a shard whose stem no longer renders is deleted, so a retired RFC cannot
+        leave a stale page that reads as current (R-1)."""
+        with _shard_tree():
+            os.makedirs(R.SHARD_DIR, exist_ok=True)
+            orphan = os.path.join(R.SHARD_DIR, "rfc0000.md")
+            with open(orphan, "w", encoding="utf-8") as fh:
+                fh.write("# RFC0000 -- an RFC that no longer renders\n")
+            other = os.path.join(R.SHARD_DIR, "notes.txt")
+            with open(other, "w", encoding="utf-8") as fh:
+                fh.write("not markdown, not the generator's\n")
+            readme = os.path.join(R.SHARD_DIR, "README.md")
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write("# what this directory holds\n")
+            bare = os.path.join(R.SHARD_DIR, ".md")
+            with open(bare, "w", encoding="utf-8") as fh:
+                fh.write("a name whose stem is empty\n")
+            # Named `sub.md`, not `sub`: a bare `sub` is already excluded by the `*.md`
+            # test, so it pinned nothing and the isdir guard could be deleted with every
+            # test still green.
+            sub = os.path.join(R.SHARD_DIR, "sub.md")
+            os.makedirs(sub)
+            nested = os.path.join(sub, "rfc0000.md")
+            with open(nested, "w", encoding="utf-8") as fh:
+                fh.write("# in a subdirectory\n")
+
+            code, out = self._write()
+            self.assertEqual(code, 0, out)
+            self.assertFalse(os.path.exists(orphan), out)
+            self.assertIn("rfc0000", out, "the prune names what it deleted")
+            self.assertTrue(
+                os.path.exists(other), "the prune deletes markdown files only"
+            )
+            self.assertTrue(
+                os.path.exists(readme),
+                "an authored README beside the generated files must survive: its stem is "
+                "not a summary stem, so the generator does not own it",
+            )
+            self.assertTrue(
+                os.path.exists(bare),
+                "a bare `.md` has an empty stem and is not a shard",
+            )
+            self.assertTrue(os.path.isdir(sub), "the prune never removes a directory")
+            self.assertTrue(
+                os.path.exists(nested), "the prune never descends into a subdirectory"
+            )
+
+    def test_second_write_is_a_no_op(self):
+        """AC-12: the shard directory is an output, never an input. A generator that read
+        its own output would double every count on the second run, and the prune would
+        churn files it had just written."""
+        with _shard_tree():
+            self.assertEqual(self._write()[0], 0)
+            first_shards = _read_dir(R.SHARD_DIR)
+            with open(R.LEDGER_FILE, encoding="utf-8") as fh:
+                first_index = fh.read()
+
+            code, out = self._write()
+            self.assertEqual(code, 0, out)
+            self.assertEqual(_read_dir(R.SHARD_DIR), first_shards, out)
+            with open(R.LEDGER_FILE, encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), first_index, out)
+            self.assertNotIn("deleted", out, "the second run deletes nothing")
+
+
+class TestShardFreshness(unittest.TestCase):
+    """AC-5, AC-6: freshness compares the index, every shard, AND the set of files present.
+
+    A whole-file comparison carried deletion detection for free: bytes that vanished were
+    bytes that differed. Many files do not carry it, so each of the three staleness states
+    is driven here (R-1).
+    """
+
+    _reqs = _SHARD_REQS
+    _tags = _SHARD_TAGS
+    _enrolled = {"rfc7606"}
+
+    @contextlib.contextmanager
+    def _tree(self):
+        """A scratch tree holding the CORRECT index and the CORRECT shards.
+
+        Each test below breaks exactly ONE file, so the message it reads names that file and
+        the case cannot pass for an unrelated difference. The bodies are rendered inside the
+        patch because the index cites a shard path.
+        """
+        with _shard_tree():
+            os.makedirs(R.SHARD_DIR, exist_ok=True)
+            with open(R.LEDGER_FILE, "w", encoding="utf-8") as fh:
+                fh.write(R.render_index(self._reqs, self._tags, self._enrolled) + "\n")
+            for stem, body in R.render_shards(
+                self._reqs, self._tags, self._enrolled
+            ).items():
+                with open(R.shard_path(stem), "w", encoding="utf-8") as fh:
+                    fh.write(body + "\n")
+            yield
+
+    def _check(self):
+        return R.check_ledger_fresh(self._reqs, self._tags, self._enrolled)
+
+    def test_index_and_shards_together_read_fresh(self):
+        """The discriminating twin: without it the three cases below could pass against a
+        check that calls everything stale."""
+        with self._tree():
+            self.assertEqual(self._check(), [])
+
+    def test_edited_shard_is_stale(self):
+        """AC-5: a hand edit to one shard fails the gate, and the message names that shard
+        rather than the index a reader would otherwise regenerate and find unchanged."""
+        with self._tree():
+            with open(R.shard_path("rfc7606"), "a", encoding="utf-8") as fh:
+                fh.write("hand-edited\n")
+            errs = self._check()
+            self.assertEqual(len(errs), 1, errs)
+            self.assertIn(R.shard_rel("rfc7606"), errs[0])
+            self.assertIn("ze-rfc-index", errs[0])
+
+    def test_missing_shard_is_stale(self):
+        """AC-5: a deleted shard is the state a byte comparison over one file used to catch
+        for nothing. The index alone still matches, so only a per-file check can see it."""
+        with self._tree():
+            os.unlink(R.shard_path("rfc9999"))
+            errs = self._check()
+            self.assertEqual(len(errs), 1, errs)
+            self.assertIn(R.shard_rel("rfc9999"), errs[0])
+            self.assertIn("ze-rfc-index", errs[0])
+
+    def test_orphan_shard_is_stale(self):
+        """AC-6: a markdown file the render did not produce is an RFC page that reads as
+        current and is not (R-1).
+
+        The three limits are the prune's own, so the file the gate names is exactly the file
+        the write would delete: the non-markdown file and the subdirectory beside it are
+        untouched by both.
+        """
+        with self._tree():
+            with open(
+                os.path.join(R.SHARD_DIR, "rfc0000.md"), "w", encoding="utf-8"
+            ) as fh:
+                fh.write("# RFC0000 -- an RFC that no longer renders\n")
+            with open(
+                os.path.join(R.SHARD_DIR, "notes.txt"), "w", encoding="utf-8"
+            ) as fh:
+                fh.write("not markdown, not the generator's\n")
+            os.makedirs(os.path.join(R.SHARD_DIR, "sub"))
+            with open(
+                os.path.join(R.SHARD_DIR, "sub", "rfc0001.md"), "w", encoding="utf-8"
+            ) as fh:
+                fh.write("# in a subdirectory\n")
+
+            errs = self._check()
+            self.assertEqual(len(errs), 1, errs)
+            self.assertIn(R.shard_rel("rfc0000"), errs[0])
+            self.assertIn("ze-rfc-index", errs[0])
+
+    def test_the_gate_names_what_the_write_deletes(self):
+        """The gate and the prune must never disagree about what the generator owns. The
+        orphan the gate reported is the orphan the write removes, and the write then reads
+        fresh."""
+        with self._tree():
+            orphan = os.path.join(R.SHARD_DIR, "rfc0000.md")
+            with open(orphan, "w", encoding="utf-8") as fh:
+                fh.write("# RFC0000 -- an RFC that no longer renders\n")
+            self.assertEqual(len(self._check()), 1)
+            removed = R.prune_shards(
+                set(R.render_shards(self._reqs, self._tags, self._enrolled))
+            )
+            self.assertEqual(removed, ["rfc0000"])
+            self.assertFalse(os.path.exists(orphan))
+            self.assertEqual(self._check(), [])
+
+
+class TestShardShow(unittest.TestCase):
+    """AC-8, AC-9 and the Security Review row: one stem in, one shard out.
+
+    The mode reads the shard FROM DISK, which is the reason it exists -- reading is
+    instant, and freshness stays the gate's job (Key Design Decisions).
+    """
+
+    _reqs = _SHARD_REQS
+    _tags = _SHARD_TAGS
+    _enrolled = {"rfc7606"}
+    _SENTINEL = "SENTINEL: this line exists only on disk"
+
+    @contextlib.contextmanager
+    def _tree(self):
+        """Shards on disk, each carrying a line no render produces. A mode that re-rendered
+        the stem instead of reading the file would print the rows without the sentinel."""
+        with _shard_tree():
+            os.makedirs(R.SHARD_DIR, exist_ok=True)
+            for stem, body in R.render_shards(
+                self._reqs, self._tags, self._enrolled
+            ).items():
+                with open(R.shard_path(stem), "w", encoding="utf-8") as fh:
+                    fh.write(body + "\n" + self._SENTINEL + "\n")
+            yield
+
+    def _show(self, *argv):
+        return _run_capturing(lambda: R.main(["prog", "--show", *argv]))
+
+    def test_show_prints_shard(self):
+        """AC-8: the stem resolves to its file, and the bytes come off the disk."""
+        with self._tree():
+            code, out = self._show("rfc7606")
+            self.assertEqual(code, 0, out)
+            self.assertIn(_ROW_HEADER, out)
+            self.assertIn("RFC7606-2-1", out)
+            self.assertIn(self._SENTINEL, out)
+            self.assertNotIn("RFC9999-1-1", out, "one stem prints one shard")
+
+    def test_show_accepts_uppercase_stem(self):
+        """AC-8: a reader who types the stem the way the RFC spells it gets the same page.
+        The stems on disk are lower case, so this is case folding, not a second file."""
+        with self._tree():
+            lower = self._show("rfc7606")
+            upper = self._show("RFC7606")
+            self.assertEqual(upper[0], 0, upper[1])
+            self.assertEqual(upper[1], lower[1])
+
+    def test_show_unknown_stem_exits_two(self):
+        """AC-9: both halves. A stem with no shard, and no stem at all, exit 2 and name the
+        command that writes the shards."""
+        with self._tree():
+            code, out = self._show("rfc0000")
+            self.assertEqual(code, 2, out)
+            self.assertIn("ze-rfc-index", out)
+
+            code, out = _run_capturing(lambda: R.main(["prog", "--show"]))
+            self.assertEqual(code, 2, out)
+            self.assertIn("ze-rfc-index", out)
+
+    def test_show_refuses_a_separator_in_the_stem(self):
+        """Security Review row: the stem becomes a path, so it may never carry one.
+
+        Discriminating: the planted file really exists one directory above the shards and is
+        reachable by the traversal, so an unvalidated mode prints it. The upper-case spelling
+        is driven too, because the case folding runs BEFORE the validator -- lowering maps
+        letters and never a separator or a dot, so it cannot launder an escape.
+        """
+        with self._tree():
+            outside = os.path.join(os.path.dirname(R.SHARD_DIR), "secret.md")
+            with open(outside, "w", encoding="utf-8") as fh:
+                fh.write("SECRET: outside the shard directory\n")
+            for stem in ("../secret", "../SECRET", "sub/rfc7606", "..", "/etc/passwd"):
+                code, out = self._show(stem)
+                self.assertEqual(code, 2, f"{stem}: {out}")
+                self.assertNotIn("SECRET: outside", out, stem)
+                # The validator's own words. The usage text a missing mode prints also
+                # carries the word "stem", so a looser assertion would pass against no
+                # mode at all.
+                self.assertIn("not an RFC or draft stem", out, stem)
+
+
+# The rows below are VERBATIM from the ledger as it stood before the split: one fully
+# populated row, one with neither polarity proven, one carrying an annotation. Between them
+# every cell of the row is filled, and the two that can be empty (the test cells and the
+# note) are seen both ways. Pinned as literals on purpose -- a test that
+# rebuilt the expected string from the same f-string the renderer uses would agree with any
+# format the renderer drifted to, which is the vacuity trap in
+# ai/rules/interop-and-goal-validation.md ("Prove the test discriminates").
+_PRE_SPLIT_ROWS = {
+    "RFC4271-10-1": (
+        "| `RFC4271-10-1` | MUST | 10 | "
+        "`internal/component/bgp/reactor/rfc4271_test.go:269` (unit/verify) | "
+        "`internal/component/bgp/reactor/rfc4271_test.go:293` (unit/verify) |  |"
+    ),
+    "RFC7606-2-4": "| `RFC7606-2-4` | MAY | 2 | -- | -- |  |",
+    "RFC4659-4-3": (
+        "| `RFC4659-4-3` | MUST | 4 | -- | -- | {not-applicable} a data-plane "
+        "transport-selection decision for a forwarding PE, a role ze does not perform |"
+    ),
+}
+
+
+def _rows_by_stem(shards):
+    """stem -> {rid: row}, reading each shard's requirement table the way a human does.
+
+    A row counts only after the table header, so a shard's title and banner cannot be
+    mistaken for content.
+    """
+    out = {}
+    for stem, body in shards.items():
+        rows, in_table = {}, False
+        for line in body.split("\n"):
+            if line == _ROW_HEADER:
+                in_table = True
+                continue
+            if not in_table:
+                continue
+            if not line.startswith("| `"):
+                if line.startswith("|"):
+                    continue  # the |---|---| separator
+                in_table = False
+                continue
+            rid = line.split("`")[1]
+            rows[rid] = line
+        out[stem] = rows
+    return out
+
+
+class TestShardMigration(unittest.TestCase):
+    """AC-10: the split moved the requirement rows, it did not rewrite them.
+
+    Two halves, and the second is the one only this test owns:
+
+    - the row TEXT keeps the shape the pre-split ledger used, pinned as a literal string;
+    - a requirement id renders in exactly ONE shard. Before the split every row lived in one
+      file, so "exactly one" was free. Now it is a property of `shard_stems` and the
+      per-stem grouping in `render_shards`, and nothing else asserts it.
+
+    The one-time comparison of the CAPTURED pre-split ledger against the real tree cannot
+    live here: that capture is session scratch, so a test reading it would pass today and
+    error or silently skip forever after. Its numbers are recorded in
+    plan/spec-rfc-ledger-per-rfc-shards.md under AC-10.
+    """
+
+    _REQS = [
+        R.Requirement(
+            rfc="rfc4271",
+            rid="RFC4271-10-1",
+            level="MUST",
+            text="x",
+            section="10",
+            annotation=None,
+            source="rfc/short/rfc4271.md",
+            line=1,
+        ),
+        R.Requirement(
+            rfc="rfc7606",
+            rid="RFC7606-2-4",
+            level="MAY",
+            text="x",
+            section="2",
+            annotation=None,
+            source="rfc/short/rfc7606.md",
+            line=1,
+        ),
+        R.Requirement(
+            rfc="rfc4659",
+            rid="RFC4659-4-3",
+            level="MUST",
+            text="x",
+            section="4",
+            annotation=R.Annotation(
+                kind="not-applicable",
+                polarity=None,
+                reason=(
+                    "a data-plane transport-selection decision for a forwarding PE, "
+                    "a role ze does not perform"
+                ),
+            ),
+            source="rfc/short/rfc4659.md",
+            line=1,
+        ),
+    ]
+    _TAGS = [
+        _tag(
+            "RFC4271-10-1",
+            "positive",
+            file="internal/component/bgp/reactor/rfc4271_test.go",
+            line=269,
+        ),
+        _tag(
+            "RFC4271-10-1",
+            "negative",
+            file="internal/component/bgp/reactor/rfc4271_test.go",
+            line=293,
+        ),
+    ]
+    _ENROLLED = {"rfc4271", "rfc7606", "rfc4659"}
+
+    def _rows(self):
+        # load_audits is neutralised so the fixture answers from the fixture alone. The real
+        # rfc/audit/rfc7606.json holds no verdict for RFC7606-2-4 today, which is why the
+        # pre-split row's note cell is empty -- but an audit landing later would append a
+        # marker and redden this test for a reason that has nothing to do with the migration.
+        with _patched(load_audits=lambda *a, **k: {}):
+            return _rows_by_stem(
+                R.render_shards(self._REQS, self._TAGS, self._ENROLLED)
+            )
+
+    def test_every_requirement_row_survives(self):
+        """AC-10: each pre-split row renders, byte for byte, in the one shard that owns it."""
+        by_stem = self._rows()
+        for req in self._REQS:
+            expected = _PRE_SPLIT_ROWS[req.rid]
+            carriers = sorted(s for s, rows in by_stem.items() if req.rid in rows)
+            self.assertEqual(
+                carriers,
+                [req.rfc],
+                f"{req.rid} must render in exactly one shard, its own",
+            )
+            self.assertEqual(by_stem[req.rfc][req.rid], expected, req.rid)
+
+        # Nothing beyond the input renders, so a row cannot survive by being duplicated into
+        # a second shard, and no shard is written for a stem that declares nothing.
+        rendered = sorted(rid for rows in by_stem.values() for rid in rows)
+        self.assertEqual(rendered, sorted(r.rid for r in self._REQS))
+        self.assertEqual(sorted(by_stem), sorted({r.rfc for r in self._REQS}))
 
 
 # --------------------------------------------------------------------------
@@ -2937,27 +3559,42 @@ class TestLedgerStaleness(unittest.TestCase):
     TAGS = [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")]
 
     def _drive(self, committed):
+        """`committed` is the index on disk: a string, None for absent, or a callable that
+        renders it inside the patch. The render cites the shard directory, so a body built
+        against the real one would read stale for the path alone."""
         path = _mkstemp(".md")
-        if committed is None:
-            os.unlink(path)
-        else:
-            with open(path, "w", encoding="utf-8") as fh:
-                fh.write(committed)
-        orig = R.LEDGER_FILE
+        # The shard directory moves with the ledger, holding the CORRECT render, so every
+        # case below varies the index alone.
+        shard_dir = _mkdtemp("stale-shards-")
         try:
-            R.LEDGER_FILE = path
             with _patched(
+                LEDGER_FILE=path,
+                SHARD_DIR=shard_dir,
                 _collect_for_check=lambda: ({"rfc7606"}, self.REQS, [], self.TAGS, {}),
             ):
+                for stem, body in R.render_shards(
+                    self.REQS, self.TAGS, {"rfc7606"}
+                ).items():
+                    with open(
+                        os.path.join(shard_dir, stem + ".md"), "w", encoding="utf-8"
+                    ) as fh:
+                        fh.write(body + "\n")
+                text = committed(self) if callable(committed) else committed
+                if text is None:
+                    os.unlink(path)
+                else:
+                    with open(path, "w", encoding="utf-8") as fh:
+                        fh.write(text)
                 return _run_capturing(R.run_check_fresh)
         finally:
-            R.LEDGER_FILE = orig
+            shutil.rmtree(shard_dir, ignore_errors=True)
             if os.path.exists(path):
                 os.unlink(path)
 
     def test_fresh_ledger_passes(self):
-        fresh = R.render_ledger(self.REQS, self.TAGS, {"rfc7606"}) + "\n"
-        code, out = self._drive(fresh)
+        code, out = self._drive(
+            lambda case: R.render_index(case.REQS, case.TAGS, {"rfc7606"}) + "\n"
+        )
         self.assertEqual(code, 0, out)
 
     def test_stale_ledger_fails_and_names_regen_target(self):
@@ -2977,11 +3614,18 @@ class TestLedgerStaleness(unittest.TestCase):
         happened to find things in: scan_tree walks the filesystem, so the same tree yields
         the same tags in a different order on a different machine, and an order-sensitive
         render would report a fresh ledger as stale there. Reversing the inputs is the test
-        that can see that; re-rendering identical arguments is not."""
+        that can see that; re-rendering identical arguments is not.
+
+        Both outputs, because both are committed generated files: an order-sensitive shard
+        churns across machines exactly as an order-sensitive index does."""
         tags = list(reversed(self.TAGS))
         self.assertEqual(
-            R.render_ledger(self.REQS, self.TAGS, {"rfc7606"}),
-            R.render_ledger(list(reversed(self.REQS)), tags, {"rfc7606"}),
+            R.render_index(self.REQS, self.TAGS, {"rfc7606"}),
+            R.render_index(list(reversed(self.REQS)), tags, {"rfc7606"}),
+        )
+        self.assertEqual(
+            R.render_shards(self.REQS, self.TAGS, {"rfc7606"}),
+            R.render_shards(list(reversed(self.REQS)), tags, {"rfc7606"}),
         )
 
 
@@ -5329,9 +5973,10 @@ class TestExtractionLedger(unittest.TestCase):
         )
 
     def test_extraction_table_is_in_the_rendered_ledger(self):
-        """The table must reach ai/RFC-REQUIREMENTS.md, not just exist as a helper."""
+        """The table must reach ai/RFC-REQUIREMENTS.md, not just exist as a helper. It is a
+        whole-corpus backlog, so it belongs to the index and to no single shard."""
         with _extraction_tree(src={}):
-            body = R.render_ledger([_req("RFC7606-2-1")], [], {"rfc7606"})
+            body = R.render_index([_req("RFC7606-2-1")], [], {"rfc7606"})
         self.assertIn("Extraction sign-off", body)
 
     def test_stale_extraction_table_fails_check_fresh(self):
@@ -5340,23 +5985,52 @@ class TestExtractionLedger(unittest.TestCase):
         reqs = [_req("RFC7606-2-1")]
         tags = [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")]
         path = _mkstemp(".md")
-        orig = R.LEDGER_FILE
+        # SHARD_DIR moves with the ledger and holds the CORRECT render, so the index is the
+        # only thing that varies. Patching LEDGER_FILE alone left check_ledger_fresh walking
+        # the real rfc/requirements/, where 177 files read as orphans: `errs` was then
+        # non-empty whatever the extraction table did, and the test passed with
+        # render_extraction_table stubbed out to return nothing.
+        shard_dir = _mkdtemp("extraction-shards-")
         try:
             with _extraction_tree(src={}):
-                fresh = R.render_ledger(reqs, tags, {"rfc7606"}) + "\n"
-                without = "\n".join(
-                    ln for ln in fresh.split("\n") if "UNSIGNED" not in ln
-                )
-                with open(path, "w", encoding="utf-8") as fh:
-                    fh.write(without)
-                R.LEDGER_FILE = path
-                errs = R.check_ledger_fresh(reqs, tags, {"rfc7606"})
+                with _patched(LEDGER_FILE=path, SHARD_DIR=shard_dir):
+                    for stem, body in R.render_shards(reqs, tags, {"rfc7606"}).items():
+                        with open(
+                            os.path.join(shard_dir, stem + ".md"), "w", encoding="utf-8"
+                        ) as fh:
+                            fh.write(body + "\n")
+                    fresh = R.render_index(reqs, tags, {"rfc7606"}) + "\n"
+                    without = "\n".join(
+                        ln for ln in fresh.split("\n") if "UNSIGNED" not in ln
+                    )
+                    self.assertNotEqual(
+                        without,
+                        fresh,
+                        "the fixture must actually drop an extraction row, or the case "
+                        "asserts nothing",
+                    )
+                    # Control: the untouched index and the shards read fresh, so the one
+                    # error below is the extraction table and nothing else.
+                    with open(path, "w", encoding="utf-8") as fh:
+                        fh.write(fresh)
+                    self.assertEqual(R.check_ledger_fresh(reqs, tags, {"rfc7606"}), [])
+                    with open(path, "w", encoding="utf-8") as fh:
+                        fh.write(without)
+                    errs = R.check_ledger_fresh(reqs, tags, {"rfc7606"})
             self.assertTrue(
                 errs, "a ledger missing the extraction table must read stale"
             )
+            self.assertEqual(
+                len(errs), 1, f"the index alone must be named stale, got: {errs}"
+            )
             self.assertIn("ze-rfc-index", errs[0])
+            self.assertNotIn(
+                "requirements/",
+                errs[0],
+                "the index is what drifted, so no shard may be named",
+            )
         finally:
-            R.LEDGER_FILE = orig
+            shutil.rmtree(shard_dir, ignore_errors=True)
             if os.path.exists(path):
                 os.unlink(path)
 
@@ -8500,15 +9174,25 @@ class TestAuditLedger(_AuditFixture):
     `enforced`, so recording a finding cost the auditor effort and bought the project nothing.
     The first thing a finding needs is to be VISIBLE."""
 
-    def _render(self, value="enforced", **extra):
-        with _audit_tree(
+    def _audited(self, value="enforced", **extra):
+        """The audit fixture on disk, for the duration of the block."""
+        return _audit_tree(
             files={
                 "rfc9999": _audit_file(
                     "rfc9999", {self.req.rid: self.verdict(value=value, **extra)}
                 )
             }
-        ):
-            return R.render_ledger([self.req], self.tags, {"rfc9999"})
+        )
+
+    def _render(self, value="enforced", **extra):
+        """The INDEX: the audit coverage section and its worklist, which are corpus-wide."""
+        with self._audited(value, **extra):
+            return R.render_index([self.req], self.tags, {"rfc9999"})
+
+    def _shard(self, value="enforced", **extra):
+        """The rfc9999 SHARD: the per-row audit marker, which sits on the requirement."""
+        with self._audited(value, **extra):
+            return R.render_shards([self.req], self.tags, {"rfc9999"})["rfc9999"]
 
     def test_coverage_section_is_derived(self):
         body = self._render()
@@ -8519,10 +9203,12 @@ class TestAuditLedger(_AuditFixture):
         """AC-24: the requirement has BOTH polarities and is NOT proven, and the ledger says both
         without contradicting itself. The discriminating twin is
         TestAuditRatchetWiring.test_run_check_passes_on_a_freshly_recorded_weak_verdict, which
-        proves the same fixture exits 0 (AC-10)."""
-        body = self._render(value="weak")
-        self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", body)
-        self.assertIn("**audit: weak**", body)
+        proves the same fixture exits 0 (AC-10).
+
+        The two halves land in two files now: the count is a corpus fact and stays in the index,
+        the marker contradicts a row and must be visible where that row is."""
+        self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", self._render(value="weak"))
+        self.assertIn("**audit: weak**", self._shard(value="weak"))
 
     def test_findings_worklist_names_each_rid(self):
         """AC-18: a blur is not a worklist."""
@@ -8549,13 +9235,15 @@ class TestAuditLedger(_AuditFixture):
         v = self.verdict()
         v["units"] = {self.key: "0" * 16}
         with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {self.req.rid: v})}):
-            body = R.render_ledger([self.req], self.tags, {"rfc9999"})
-        self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", body)
-        self.assertIn("stale-unit", body)
+            index = R.render_index([self.req], self.tags, {"rfc9999"})
+            shard = R.render_shards([self.req], self.tags, {"rfc9999"})["rfc9999"]
+        self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", index)
+        self.assertIn("stale-unit", index)
+        self.assertIn("stale-unit", shard, "the row that carries the claim says so too")
 
     def test_an_unaudited_requirement_is_counted_as_such(self):
         with _audit_tree():
-            body = R.render_ledger([self.req], self.tags, {"rfc9999"})
+            body = R.render_index([self.req], self.tags, {"rfc9999"})
         self.assertIn("| `rfc9999` | 1 | 0 | 0 | 0 | 1 |", body)
         self.assertIn("never fails", body)
 
@@ -8563,6 +9251,7 @@ class TestAuditLedger(_AuditFixture):
         """check_ledger_fresh compares bytes, so an unstable render would report a fresh ledger
         as stale on another machine."""
         self.assertEqual(self._render(), self._render())
+        self.assertEqual(self._shard(), self._shard())
 
 
 class TestAuditCoverageCountsEveryVerdict(_AuditFixture):
@@ -8667,7 +9356,7 @@ class TestAuditCoverageCountsEveryVerdict(_AuditFixture):
         is a judgement the ledger holds and does not publish."""
         req, tag, v = self._single_polarity()
         with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {req.rid: v})}):
-            body = R.render_ledger([req], [tag], {"rfc9999"})
+            body = R.render_index([req], [tag], {"rfc9999"})
         self.assertIn("| `rfc9999` | 1 | 1 | 1 | 0 | 0 |", body)
 
 
@@ -9055,6 +9744,10 @@ class TestIndexNeverWritesAudit(_AuditFixture):
         shifted["tests"] = {self.key: "0" * 16}
         ledger = _mkstemp(".md")
         self.addCleanup(os.remove, ledger)
+        # run_write writes BOTH outputs. Patching only the ledger would put one shard per
+        # summary into the real rfc/requirements/ while proving the audit tree is untouched.
+        shards = _mkdtemp("audit-shards-")
+        self.addCleanup(shutil.rmtree, shards, True)
         with _audit_tree(
             files={stem: _audit_file(stem, {self.req.rid: shifted})}
         ) as adir:
@@ -9075,6 +9768,7 @@ class TestIndexNeverWritesAudit(_AuditFixture):
                 check_extraction_ratchet=lambda *a, **k: [],
                 check_drain_floor=lambda *a, **k: [],
                 LEDGER_FILE=ledger,
+                SHARD_DIR=shards,
             ):
                 _run_capturing(R.run_check)
                 self.assertEqual(
@@ -10587,7 +11281,7 @@ class TestLedgerBacklogTables(unittest.TestCase):
     """AC-18: the two grandfathered backlogs are RENDERED, not listed."""
 
     def _body(self, enrolled=("rfc7606",), rows=None, dispositions=None):
-        return R.render_ledger(
+        return R.render_index(
             [_req("RFC7606-2-1")],
             [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")],
             set(enrolled),
@@ -10635,15 +11329,15 @@ class TestLedgerBacklogTables(unittest.TestCase):
         self.assertEqual(self._body(**args), self._body(**args))
 
     def test_the_render_reads_the_real_files_when_not_given_them(self):
-        """run_write and run_check_fresh call render_ledger with three arguments. The bytes
+        """run_write and run_check_fresh call render_index with three arguments. The bytes
         must be the same as run_check's five-argument call, or the freshness gate compares a
         ledger to a different render of the same tree."""
         reqs = [_req("RFC7606-2-1")]
         tags = [_tag("RFC7606-2-1", "positive")]
         rows = _status_rows()
         self.assertEqual(
-            R.render_ledger(reqs, tags, {"rfc7606"}),
-            R.render_ledger(reqs, tags, {"rfc7606"}, rows, R.load_dispositions()),
+            R.render_index(reqs, tags, {"rfc7606"}),
+            R.render_index(reqs, tags, {"rfc7606"}, rows, R.load_dispositions()),
         )
 
 
@@ -10653,7 +11347,7 @@ class TestUnconvertedSummaries(unittest.TestCase):
     def test_advisory_only_summary_is_listed(self):
         """D5: `captured` meant "captured anything", the check meant "captured the
         obligations", and seven advisory-only summaries hid in the gap."""
-        body = R.render_ledger(
+        body = R.render_index(
             [_req("RFC7606-2-1", level="SHOULD")],
             [],
             {"rfc7606"},
@@ -10664,7 +11358,7 @@ class TestUnconvertedSummaries(unittest.TestCase):
         self.assertIn("`rfc7606`", body)
 
     def test_a_gated_summary_is_not_listed(self):
-        body = R.render_ledger([_req("RFC7606-2-1")], [], {"rfc7606"}, {}, {})
+        body = R.render_index([_req("RFC7606-2-1")], [], {"rfc7606"}, {}, {})
         rows = [ln for ln in body.split("\n") if ln.startswith("| `rfc7606` |")]
         self.assertFalse(
             any("RE-AUTHOR" in ln or "UNDECIDED" in ln for ln in rows), rows
@@ -10680,7 +11374,7 @@ class TestUnconvertedSummaries(unittest.TestCase):
             source_prose_keyword_count=lambda stem: 23,
         ):
             rows = R.unconverted_summaries(set())
-            body = R.render_ledger([], [], set(), {}, {})
+            body = R.render_index([], [], set(), {}, {})
         self.assertEqual(rows[0]["prose"], 23)
         self.assertIn("UNDECIDED", body)
         self.assertIn("pre-RFC-2119", body)
@@ -10694,7 +11388,7 @@ class TestUnconvertedSummaries(unittest.TestCase):
             source_keyword_count=lambda stem: 0,
             source_prose_keyword_count=lambda stem: 0,
         ):
-            body = R.render_ledger([], [], set(), {}, {})
+            body = R.render_index([], [], set(), {}, {})
         self.assertIn("consistent: source declares none", body)
         self.assertNotIn("UNDECIDED", body)
 
@@ -10704,7 +11398,7 @@ class TestUnconvertedSummaries(unittest.TestCase):
             source_keyword_count=lambda stem: 7,
             source_prose_keyword_count=lambda stem: 9,
         ):
-            body = R.render_ledger([], [], set(), {}, {})
+            body = R.render_index([], [], set(), {}, {})
         self.assertIn("RE-AUTHOR", body)
 
     def test_the_lowercase_counter_reads_rfc1035_as_normative(self):
@@ -11538,13 +12232,19 @@ class TestRealTree(unittest.TestCase):
             "regenerate with: make ze-rfc-index",
         )
 
-        with open(R.LEDGER_FILE, encoding="utf-8") as fh:
-            ledger = fh.read()
+        # The rows live in RFC 7296's own shard, which is where the operator's question
+        # ("which test enforces this requirement") is answered after the split.
+        path = R.shard_path("rfc7296")
+        self.assertTrue(
+            os.path.exists(path), f"{path} is absent -- run: make ze-rfc-index"
+        )
+        with open(path, encoding="utf-8") as fh:
+            shard = fh.read()
         # One id from each half of the pilot: a row that was already implemented and only
         # needed proof, one that was a LIVE defect (a peer Delete of the live Child SA was
         # ignored), and one the walk found had no producer at all (keys survived SA close).
         for rid in ("RFC7296-2.2-1", "RFC7296-1.4.1-6", "RFC7296-2.12-1"):
-            self.assertIn(rid, ledger, f"{rid} is absent from the generated ledger")
+            self.assertIn(rid, shard, f"{rid} is absent from the generated shard")
 
 
 class TestRealTreeIsGreen(unittest.TestCase):

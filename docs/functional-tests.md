@@ -684,8 +684,9 @@ Rules the gate enforces:
 - **`make ze-rfc-check` is the gate.** For every MUST-level requirement of an
   enrolled RFC (`rfc/enrolled.txt`) it requires the positive/negative pair, or a
   reasoned `{gap}` / `{not-applicable}` / `{single-polarity}` annotation. It scans
-  Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`, and
-  `make ze-rfc-index` renders the requirement to test ledger into
+  Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
+  `make ze-rfc-index` renders each RFC's requirement to test rows into
+  `rfc/requirements/<stem>.md`. It renders the index over them into
   `ai/RFC-REQUIREMENTS.md`.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag its behavior may not change without explicit user
@@ -761,8 +762,9 @@ the whole file. Six of the sixteen commits that have touched the one existing au
 re-stamps of exactly that kind, in which no verdict changed.
 
 `make ze-rfc-reseal` is the only thing that writes `rfc/audit/` without a human edit.
-`ze-rfc-check` is read-only, and `ze-rfc-index` touches the ledger alone. A re-stamp can
-therefore never happen as a side effect of unrelated work.
+`ze-rfc-check` is read-only, and `ze-rfc-index` touches `ai/RFC-REQUIREMENTS.md` and
+`rfc/requirements/` alone. A re-stamp can therefore never happen as a side effect of
+unrelated work.
 
 <!-- source: scripts/dev/rfc_requirements.py -- verdict_freshness/reseal_audits -->
 
@@ -2095,10 +2097,11 @@ func TestRFC7606MalformedOriginLength(t *testing.T) { ... }
 - Once tagged, a test's behaviour must not be edited without user approval — the
   `rfc-tagged-test` hook blocks it. Fix the code, not the test.
 
-`make ze-rfc-check` verifies every enrolled MUST has its pair of tags (or a reasoned
-annotation) and that `ai/RFC-REQUIREMENTS.md` — the generated requirement → test map —
-is fresh. See `docs/contributing/rfc-implementation-guide.md` §9.7 and
-`ai/skills/ze-rfc.md`.
+`make ze-rfc-check` verifies every enrolled MUST has its pair of tags, or a reasoned
+annotation. It also verifies that both generated outputs are fresh. Those outputs are
+`rfc/requirements/<stem>.md`, the requirement → test map for one RFC, and
+`ai/RFC-REQUIREMENTS.md`, the index over them.
+See `docs/contributing/rfc-implementation-guide.md` §9.7 and `ai/skills/ze-rfc.md`.
 
 ---
 

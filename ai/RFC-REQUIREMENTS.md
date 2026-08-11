@@ -10,7 +10,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 ## Evidence kinds
 
-Every test link below carries a `kind/tier` cell. **kind** is the layer the test exercises; **tier** is whether anything executes it. A unit test proves the algorithm, a `.ci` proves the daemon exposes the behavior to a user, an interop scenario proves a foreign peer accepts it -- and a tier of `nightly` means the proof does not run on the merge path.
+Every test link in the per-RFC requirement files carries a `kind/tier` cell. **kind** is the layer the test exercises; **tier** is whether anything executes it. A unit test proves the algorithm, a `.ci` proves the daemon exposes the behavior to a user, an interop scenario proves a foreign peer accepts it -- and a tier of `nightly` means the proof does not run on the merge path.
 
 | Cell | Carrier | Executed by | Pipeline |
 |---|---|---|---|

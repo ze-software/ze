@@ -30,13 +30,20 @@ only shrink.
 Usage:
     python3 scripts/dev/rfc_requirements.py --check        # gate (exit 2 on violation)
     python3 scripts/dev/rfc_requirements.py --check-fresh  # ledger staleness only (exit 1)
-    python3 scripts/dev/rfc_requirements.py --write        # render ai/RFC-REQUIREMENTS.md
+    python3 scripts/dev/rfc_requirements.py --write        # render the index and the shards
+    python3 scripts/dev/rfc_requirements.py --show rfc7606 # print one RFC's shard
     python3 scripts/dev/rfc_requirements.py --reseal       # re-stamp SHIFTED audit verdicts
     python3 scripts/dev/rfc_requirements.py --selftest     # run rfc_requirements_test.py
 
+--write renders two things: `ai/RFC-REQUIREMENTS.md`, the index (counts, evidence legend,
+coverage rollup, audit coverage, extraction sign-off, status backlog), and one file per RFC
+stem under `rfc/requirements/` holding that RFC's requirement rows. It also deletes a shard
+whose stem no longer renders, so a retired RFC leaves no page that reads as current.
+
 --reseal is the ONLY mode that writes under rfc/audit/. --check is read-only and --write
-touches the ledger alone, so every change to a hand-authored evidence file is either a human
-editing it or one greppable command (spec-rfcgate-3-audit-teeth.md, A-7).
+touches the index and the shard directory alone, so every change to a hand-authored evidence
+file is either a human editing it or one greppable command (spec-rfcgate-3-audit-teeth.md,
+A-7).
 
 Exit 0 = a comparison ran and found nothing wrong.
 Exit 2 = violations found, or the gate could not run (unparseable input, nothing
@@ -83,6 +90,12 @@ ENROLLED_FILE = os.path.join(PROJECT_DIR, "rfc", "enrolled.txt")
 NOT_ENROLLED_FILE = os.path.join(PROJECT_DIR, "rfc", "not-enrolled.txt")
 STATUS_FILE = os.path.join(PROJECT_DIR, "docs", "features", "rfc-status.md")
 LEDGER_FILE = os.path.join(PROJECT_DIR, "ai", "RFC-REQUIREMENTS.md")
+# One generated page per RFC stem, holding that RFC's requirement rows. LEDGER_FILE keeps
+# the head sections and becomes the index. The directory is an OUTPUT and never an input:
+# nothing here reads it, which is what lets a second write be a no-op
+# (plan/spec-rfc-ledger-per-rfc-shards.md, AC-12). Named as a constant so the tests can
+# point the write at a scratch tree, as they do for LEDGER_FILE.
+SHARD_DIR = os.path.join(PROJECT_DIR, "rfc", "requirements")
 AUDIT_DIR = os.path.join(PROJECT_DIR, "rfc", "audit")
 
 # Where a RELOCATED obligation's destination spec lives (see EXCLUSION_KINDS,
@@ -4982,7 +4995,8 @@ def _render_evidence_legend() -> List[str]:
     out.append("## Evidence kinds")
     out.append("")
     out.append(
-        "Every test link below carries a `kind/tier` cell. **kind** is the layer the test "
+        "Every test link in the per-RFC requirement files carries a `kind/tier` cell. "
+        "**kind** is the layer the test "
         "exercises; **tier** is whether anything executes it. A unit test proves the "
         "algorithm, a `.ci` proves the daemon exposes the behavior to a user, an interop "
         "scenario proves a foreign peer accepts it -- and a tier of `nightly` means the "
@@ -5095,14 +5109,149 @@ def _render_status_backlog(
     return out
 
 
-def render_ledger(
+def shard_stems(requirements: Sequence[Requirement]) -> List[str]:
+    """The stems that render a shard: one per RFC that declares at least one requirement.
+
+    The ONE producer of that set. `render_shards` iterates it, `render_index` takes its
+    first entry as the example path it cites, and `run_write` prunes against it -- so the
+    index can never name a shard the write did not produce, and the prune can never delete
+    one it did (R-5, and the Security Review row on the prune).
+    """
+    return sorted({r.rfc for r in requirements})
+
+
+def shard_path(stem: str) -> str:
+    """Where one stem's requirement table is written. The filename IS the summary's stem,
+    so `rfc/short/<stem>.md` and `rfc/requirements/<stem>.md` pair by name."""
+    return os.path.join(SHARD_DIR, stem + ".md")
+
+
+def shard_rel(stem: str) -> str:
+    """The repo-relative shard path, for citing inside a generated page."""
+    return os.path.relpath(shard_path(stem), PROJECT_DIR).replace(os.sep, "/")
+
+
+def summary_rel(stem: str) -> str:
+    """The repo-relative path of the authored summary a shard derives from.
+
+    Composed here rather than spelled into the banner's format string, because
+    `scripts/dev/check_doc_links.py` reads a backticked path out of ANY tracked file, this
+    one included. A summary path written with a brace placeholder in it is a dead citation
+    to that sweep, even though every path it renders resolves.
+    """
+    return os.path.relpath(
+        os.path.join(SUMMARY_DIR, stem + ".md"), PROJECT_DIR
+    ).replace(os.sep, "/")
+
+
+def render_shards(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+) -> Dict[str, str]:
+    """One RFC's requirement table per entry, keyed by summary stem.
+
+    The bodies `run_write` writes and the freshness gate compares, so a shard has exactly
+    ONE producer: a caller that assembled the same rows itself could drift from the file on
+    disk and the gate would never see it.
+
+    A stem absent from `requirements` renders nothing at all. That is the zero boundary the
+    old ledger already had -- a summary declaring no requirement rendered no section -- and
+    it is why the prune deletes only what this function did not produce.
+    """
+    by_rid: Dict[str, List[Tag]] = {}
+    for t in tags:
+        by_rid.setdefault(t.rid, []).append(t)
+
+    by_rfc: Dict[str, List[Requirement]] = {}
+    for r in requirements:
+        by_rfc.setdefault(r.rfc, []).append(r)
+
+    # The per-row audit marker, so a reader scanning ONE requirement sees the verdict without
+    # reconstructing it from the coverage section. Same shape as the nightly-only marker below.
+    verdicts_by_rid: Dict[str, str] = {}
+    audits = load_audits(enrolled)
+    states = audit_freshness(requirements, tags, enrolled, audits)
+    for r in requirements:
+        v = audits.get(r.rfc, {}).get(r.rid)
+        if not v:
+            continue
+        state = states.get(r.rid, (FRESH, []))[0]
+        verdicts_by_rid[r.rid] = (
+            v["verdict"] if state == FRESH else f"{v['verdict']}, {state}"
+        )
+
+    shards: Dict[str, str] = {}
+    for rfc in shard_stems(requirements):
+        reqs = by_rfc[rfc]
+        state = "enrolled (gated)" if rfc in enrolled else "not enrolled"
+        out: List[str] = []
+        out.append(f"# {rfc_prefix(rfc)} -- {state}")
+        out.append("")
+        # The banner sits inside the first ten lines because ai/rules/evidence.md allows a
+        # derived `file.go:line` in a document only where a generator maintains it, and a
+        # file declares that here. This page is nothing but such citations.
+        out.append(
+            f"GENERATED by `make ze-rfc-index` -- do not edit. Requirement text is "
+            f"authored in `{summary_rel(rfc)}`; the test links are derived from "
+            f"`RFC requirement:` tags in the tests themselves. The index over every RFC is "
+            f"`ai/RFC-REQUIREMENTS.md`."
+        )
+        out.append("")
+        out.append("| Requirement | Level | § | Positive test | Negative test | Note |")
+        out.append("|---|---|---|---|---|---|")
+        for r in sorted(reqs, key=lambda r: r.rid):
+            # Sort by (file, line) so the ledger is byte-stable regardless of the
+            # order scan_tree happened to walk the tree in -- os.walk order is
+            # filesystem-dependent, so an unsorted render churns across machines and
+            # defeats the freshness gate (AC-20).
+            found = sorted(by_rid.get(r.rid, []), key=lambda t: (t.file, t.line))
+            pos = ", ".join(
+                f"`{t.file}:{t.line}` ({evidence_label(t.file)})"
+                for t in found
+                if t.polarity == "positive"
+            )
+            neg = ", ".join(
+                f"`{t.file}:{t.line}` ({evidence_label(t.file)})"
+                for t in found
+                if t.polarity == "negative"
+            )
+            marks: List[str] = []
+            # AC-11: the marker is on the ROW, so a reader scanning one requirement sees
+            # the weakness without reconstructing it from the per-link tiers.
+            if is_nightly_only(found):
+                marks.append("**nightly-only**")
+            audited = verdicts_by_rid.get(r.rid)
+            if audited and audited != VERDICT_ENFORCED:
+                # An `enforced` verdict is unmarked on purpose: it says the row's tests do what
+                # the row already claims. Every OTHER value contradicts the row, and a
+                # contradiction has to be visible where the claim is made (AC-24).
+                marks.append(f"**audit: {audited}**")
+            if r.annotation:
+                marks.append(f"{{{r.annotation.kind}}} {r.annotation.reason}")
+            note = " ".join(marks)
+            out.append(
+                f"| `{r.rid}` | {r.level} | {r.section} | {pos or '--'} | "
+                f"{neg or '--'} | {note} |"
+            )
+        out.append("")
+        shards[rfc] = "\n".join(out)
+    return shards
+
+
+def render_index(
     requirements: Sequence[Requirement],
     tags: Sequence[Tag],
     enrolled: Set[str],
     rows: Optional[Dict[str, Dict[str, str]]] = None,
     dispositions: Optional[Dict[str, Disposition]] = None,
 ) -> str:
-    """The generated `ai/RFC-REQUIREMENTS.md` body.
+    """The generated `ai/RFC-REQUIREMENTS.md` body: every head section, no requirement row.
+
+    The per-RFC tables are `render_shards`. This is the index over them: the counts, the
+    evidence legend, the coverage rollup `scripts/dev/testing_health.py` `collect_rfc`
+    parses, the audit coverage, the extraction sign-off, the status backlog and the
+    no-MUST-summary table.
 
     `rows` and `dispositions` are passed in by `run_check`, which has already read both, so
     one run parses `docs/features/rfc-status.md` exactly once and every consumer shares that
@@ -5142,6 +5291,18 @@ def render_ledger(
         f"`make ze-rfc-check`."
     )
     out.append("")
+    stems = shard_stems(requirements)
+    if stems:
+        # A REAL shard, derived from the rendered set, never a placeholder with an
+        # angle-bracket stem: scripts/dev/check_doc_links.py sweeps every tracked file and
+        # requires each cited path to exist, so a placeholder here is a dead citation in a
+        # generated page (R-5).
+        out.append(
+            f"One RFC's requirement rows are one file, named for its summary's stem: "
+            f"`{shard_rel(stems[0])}` holds {rfc_prefix(stems[0])}. This page is the index "
+            f"over those {len(stems)} files."
+        )
+        out.append("")
     out.append(
         "An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it "
         "declares is covered by a positive AND a negative test, or annotated. Un-enrolled "
@@ -5153,64 +5314,6 @@ def render_ledger(
     out.extend(_render_rollup(by_rfc, by_rid, enrolled))
     out.extend(_render_audit_coverage(requirements, tags, enrolled))
     out.extend(render_extraction_table(requirements, enrolled))
-
-    # The per-row audit marker, so a reader scanning ONE requirement sees the verdict without
-    # reconstructing it from the coverage section. Same shape as the nightly-only marker below.
-    verdicts_by_rid: Dict[str, str] = {}
-    audits = load_audits(enrolled)
-    states = audit_freshness(requirements, tags, enrolled, audits)
-    for r in requirements:
-        v = audits.get(r.rfc, {}).get(r.rid)
-        if not v:
-            continue
-        state = states.get(r.rid, (FRESH, []))[0]
-        verdicts_by_rid[r.rid] = (
-            v["verdict"] if state == FRESH else f"{v['verdict']}, {state}"
-        )
-
-    for rfc in sorted(by_rfc):
-        reqs = by_rfc[rfc]
-        state = "enrolled (gated)" if rfc in enrolled else "not enrolled"
-        out.append(f"## {rfc_prefix(rfc)} -- {state}")
-        out.append("")
-        out.append("| Requirement | Level | § | Positive test | Negative test | Note |")
-        out.append("|---|---|---|---|---|---|")
-        for r in sorted(reqs, key=lambda r: r.rid):
-            # Sort by (file, line) so the ledger is byte-stable regardless of the
-            # order scan_tree happened to walk the tree in -- os.walk order is
-            # filesystem-dependent, so an unsorted render churns across machines and
-            # defeats the freshness gate (AC-20).
-            found = sorted(by_rid.get(r.rid, []), key=lambda t: (t.file, t.line))
-            pos = ", ".join(
-                f"`{t.file}:{t.line}` ({evidence_label(t.file)})"
-                for t in found
-                if t.polarity == "positive"
-            )
-            neg = ", ".join(
-                f"`{t.file}:{t.line}` ({evidence_label(t.file)})"
-                for t in found
-                if t.polarity == "negative"
-            )
-            marks: List[str] = []
-            # AC-11: the marker is on the ROW, so a reader scanning one requirement sees
-            # the weakness without reconstructing it from the per-link tiers.
-            if is_nightly_only(found):
-                marks.append("**nightly-only**")
-            audited = verdicts_by_rid.get(r.rid)
-            if audited and audited != VERDICT_ENFORCED:
-                # An `enforced` verdict is unmarked on purpose: it says the row's tests do what
-                # the row already claims. Every OTHER value contradicts the row, and a
-                # contradiction has to be visible where the claim is made (AC-24).
-                marks.append(f"**audit: {audited}**")
-            if r.annotation:
-                marks.append(f"{{{r.annotation.kind}}} {r.annotation.reason}")
-            note = " ".join(marks)
-            out.append(
-                f"| `{r.rid}` | {r.level} | {r.section} | {pos or '--'} | "
-                f"{neg or '--'} | {note} |"
-            )
-        out.append("")
-
     out.extend(_render_status_backlog(enrolled, rows, dispositions))
 
     # GATED, not "any requirement". The caller used to pass every parsed requirement at any
@@ -7196,29 +7299,60 @@ def check_ledger_fresh(
     rows: Optional[Dict[str, Dict[str, str]]] = None,
     dispositions: Optional[Dict[str, Disposition]] = None,
 ) -> List[str]:
-    """The generated ledger must match what its sources render to right now.
+    """The generated index AND every shard must match what their sources render to now.
 
-    `ai/RFC-REQUIREMENTS.md` is derived from the summaries and the `RFC requirement:`
-    tags; a test can be re-tagged, moved, or deleted without touching the ledger, and
-    then the committed ledger lies about which tests enforce which requirement. This is
-    the same staleness `docs_to_code.py --check` guards for `ai/DOCS-TO-CODE.md`
-    (`ai/rules/evidence.md`). It runs inside `ze-rfc-check`, which is in both
-    verify branches, so a stale ledger fails the build rather than rotting silently.
+    `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/*.md` are derived from the summaries and
+    the `RFC requirement:` tags; a test can be re-tagged, moved, or deleted without touching
+    either, and then the index's counts, coverage rollup, audit coverage and extraction
+    table, and the shards' `file:line` records, all describe a tree that no longer exists.
+    This is the same staleness `docs_to_code.py --check` guards for `ai/DOCS-TO-CODE.md`
+    (`ai/rules/evidence.md`). It runs inside `ze-rfc-check`, which is in both verify
+    branches, so a stale page fails the build rather than rotting silently.
 
-    `rows` and `dispositions` are forwarded to `render_ledger` so `run_check`'s single parse
+    THREE states, because the output is now many files. One whole-file comparison caught a
+    deletion for free -- bytes that vanished were bytes that differed -- and a set of files
+    does not: a shard can differ, a shard can be absent, and a file the render never produced
+    can sit in the directory reading as current (R-1). Each message names the offending
+    file's repo-relative path, so a reader regenerates knowing which page moved.
+
+    The orphan set is `_prunable_shards`, which is also what `prune_shards` deletes. ONE
+    producer, so the gate and the write can never disagree about what the generator owns: a
+    file this reports is exactly a file the next ACCEPTED write removes. A write that
+    refuses -- a summary that did not parse, or a render with no rows -- deletes nothing,
+    so the report is what the operator acts on rather than a promise about the next run.
+
+    `rows` and `dispositions` are forwarded to `render_index` so `run_check`'s single parse
     of `docs/features/rfc-status.md` reaches this call too. Absent, the render reads them
     itself; the bytes are the same, so a caller that omits them pays one extra parse and
     never gets a different verdict.
     """
-    body = render_ledger(requirements, tags, enrolled, rows, dispositions) + "\n"
+    errs: List[str] = []
+    body = render_index(requirements, tags, enrolled, rows, dispositions) + "\n"
     current = ""
     if os.path.exists(LEDGER_FILE):
         with open(LEDGER_FILE, encoding="utf-8") as fh:
             current = fh.read()
     if current != body:
         rel = os.path.relpath(LEDGER_FILE, PROJECT_DIR)
-        return [f"{rel} is stale vs its sources -- run: make ze-rfc-index"]
-    return []
+        errs.append(f"{rel} is stale vs its sources -- run: make ze-rfc-index")
+
+    shards = render_shards(requirements, tags, enrolled)
+    for stem in shard_stems(requirements):
+        path = shard_path(stem)
+        if not os.path.exists(path):
+            errs.append(f"{shard_rel(stem)} is missing -- run: make ze-rfc-index")
+            continue
+        with open(path, encoding="utf-8") as fh:
+            if fh.read() != shards[stem] + "\n":
+                errs.append(
+                    f"{shard_rel(stem)} is stale vs its sources -- run: make ze-rfc-index"
+                )
+    for stem in _prunable_shards(set(shards)):
+        errs.append(
+            f"{shard_rel(stem)} renders no requirement section and the generator no longer "
+            f"owns it -- run: make ze-rfc-index"
+        )
+    return errs
 
 
 def _collect_for_check() -> Tuple[
@@ -7497,25 +7631,116 @@ def run_check() -> int:
     return 0
 
 
+def _prunable_shards(keep: Set[str]) -> List[str]:
+    """Every stem in `SHARD_DIR` the write would delete, given the rendered set `keep`.
+
+    The ONE producer of "what the generator owns and no longer wants". `prune_shards`
+    deletes it and `check_ledger_fresh` reports it as an orphan, so the gate can never name
+    a file the write would leave, nor stay silent about one the write would remove.
+
+    The stem test below is what bounds that claim: it holds for the lower-case stems every
+    summary in `rfc/short/` carries today. Nothing enforces that convention -- `summary_stems`
+    is a bare `os.listdir` filter -- so a summary authored as `RFC7606.md` would render a
+    file this never names, neither pruned nor reported as an orphan. It is still covered by
+    the stale and missing branches, which iterate `shard_stems` rather than the directory.
+    Left unguarded on purpose: the failure direction is not-deleting, and a second
+    predicate here would defend a case the stale branch already sees.
+
+    Four limits, and each one is a deletion this must never make: only `*.md`, so a
+    `.gitkeep` beside the files survives; only a name whose stem could BE a summary stem,
+    which is what keeps `README.md` and a bare `.md` out of the candidate set -- a summary
+    stem is lower case (`rfc7606`), so an authored `README.md` beside a generated tree is
+    safe by the same rule that refuses a traversal in `--show`; only entries directly in
+    the directory, so a subdirectory and everything under it is untouched; and only a stem
+    the caller did not name, so a file this run has just written is never a candidate.
+
+    Sorted, so both callers speak about the files in one order.
+    """
+    stems: List[str] = []
+    if not os.path.isdir(SHARD_DIR):
+        return stems
+    for name in sorted(os.listdir(SHARD_DIR)):
+        if not name.endswith(".md") or name[:-3] in keep:
+            continue
+        if not _STEM_RE.match(name[:-3]):
+            continue
+        if os.path.isdir(os.path.join(SHARD_DIR, name)):
+            continue
+        stems.append(name[:-3])
+    return stems
+
+
+def prune_shards(keep: Set[str]) -> List[str]:
+    """Delete every shard `_prunable_shards` names, and return the deleted stems.
+
+    A shard the render no longer produces is a page about an RFC that no longer declares
+    anything, and it reads as current for as long as it sits there (R-1). The write owns
+    this directory, so the write removes it.
+    """
+    removed = _prunable_shards(keep)
+    for stem in removed:
+        os.remove(shard_path(stem))
+    return removed
+
+
 def run_write() -> int:
     try:
-        enrolled, reqs, _, tags, _ = _collect_for_check()
-        body = render_ledger(reqs, tags, enrolled)
+        enrolled, reqs, parse_errs, tags, _ = _collect_for_check()
+        index = render_index(reqs, tags, enrolled)
+        shards = render_shards(reqs, tags, enrolled)
     except (ParseError, OSError) as exc:
         # The render now reads rfc/extraction/*.json, so a malformed artifact reaches this
         # path too. Same clean exit-2 the other three drivers give, never a traceback.
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
         return 2
+    # The write DELETES, so an incomplete collection is a destructive input, not a partial
+    # one. `_collect_for_check` catches a ParseError per summary and carries on, which is
+    # right for the gate (`run_check` reports every one of them) and wrong here: the stem
+    # that failed to parse renders nothing, `shard_stems` omits it, and the prune removes
+    # that RFC's tracked file while the run exits 0. An absent `rfc/short/` is the same
+    # failure at full scale, because `summary_stems` returns an empty set and every file in
+    # the directory becomes an orphan. Refuse both, before anything is written or removed:
+    # a guard over a destructive operation fails closed (`ai/rules/evidence.md`).
+    if parse_errs:
+        for err in parse_errs:
+            print(f"{RED}*{RESET} {err}")
+        print(
+            f"{RED}{BOLD}rfc-requirements: refusing to write{RESET}: a summary did not "
+            "parse, so its requirements are absent from this render and the prune would "
+            "delete that RFC's file. Fix the summary, then re-run"
+        )
+        return 2
+    if not shards:
+        print(
+            f"{RED}{BOLD}rfc-requirements: refusing to write{RESET}: the render produced "
+            f"no requirement rows for any RFC, so every file in "
+            f"{os.path.relpath(SHARD_DIR, PROJECT_DIR)} would be deleted as an orphan. "
+            f"Check that {os.path.relpath(SUMMARY_DIR, PROJECT_DIR)} is present"
+        )
+        return 2
     os.makedirs(os.path.dirname(LEDGER_FILE), exist_ok=True)
     with open(LEDGER_FILE, "w", encoding="utf-8") as fh:
-        fh.write(body + "\n")
-    print(f"{GREEN}wrote{RESET} {os.path.relpath(LEDGER_FILE, PROJECT_DIR)}")
+        fh.write(index + "\n")
+    os.makedirs(SHARD_DIR, exist_ok=True)
+    for stem, body in sorted(shards.items()):
+        with open(shard_path(stem), "w", encoding="utf-8") as fh:
+            fh.write(body + "\n")
+    # After the write, never before: a crash between the two would otherwise leave the
+    # directory holding neither the old shard nor the new one.
+    removed = prune_shards(set(shards))
+    rel_dir = os.path.relpath(SHARD_DIR, PROJECT_DIR)
+    print(
+        f"{GREEN}wrote{RESET} {os.path.relpath(LEDGER_FILE, PROJECT_DIR)} and "
+        f"{len(shards)} shard(s) under {rel_dir}"
+    )
+    if removed:
+        print(f"{GREEN}deleted{RESET} orphan shard(s): {', '.join(removed)}")
     return 0
 
 
 def run_check_fresh() -> int:
-    """Just the ledger-freshness half of run_check -- what `ze-doc-test` runs so a
-    docs-focused pass catches a stale `ai/RFC-REQUIREMENTS.md` without paying for the
+    """Just the freshness half of run_check -- what `ze-doc-test` runs so a docs-focused
+    pass catches a stale `ai/RFC-REQUIREMENTS.md` or a stale shard without paying for the
     full coverage evaluation. The same check also runs inside `run_check` (ze-rfc-check),
     which is where verify catches it."""
     try:
@@ -7528,7 +7753,40 @@ def run_check_fresh() -> int:
         for e in errs:
             print(f"{RED}*{RESET} {e}")
         return 1
-    print(f"{GREEN}ai/RFC-REQUIREMENTS.md up to date{RESET}")
+    # The count is part of the clean claim: "up to date" over an empty shard directory
+    # would read the same as "up to date" over 177 compared files (ai/rules/evidence.md).
+    print(
+        f"{GREEN}{os.path.relpath(LEDGER_FILE, PROJECT_DIR)} and "
+        f"{len(shard_stems(reqs))} shard(s) up to date{RESET}"
+    )
+    return 0
+
+
+def run_show(stem: str) -> int:
+    """Print one RFC's requirement table, read FROM DISK.
+
+    The reason the mode exists: a reader who wants one RFC's coverage names the stem and
+    gets a few kilobytes, instead of opening the index and following a path. Reading is
+    instant, and re-rendering the stem here would cost a full summary parse and tree scan
+    for a page the gate already keeps fresh (`check_ledger_fresh` compares every shard).
+
+    The stem is folded to lower case BEFORE `_validated_stem` sees it, because the shards
+    are named in lower case and a reader types RFC7606 as often as rfc7606. The order is
+    safe in one direction only, and this is that direction: folding maps letters, never a
+    separator, a dot or a leading character, so `../RFC1` becomes `../rfc1` and is refused
+    for the same reason it was refused before the fold (Security Review row).
+    """
+    stem = _validated_stem(stem.lower())
+    path = shard_path(stem)
+    if not os.path.exists(path):
+        print(
+            f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: no requirement page for "
+            f"{stem} at {shard_rel(stem)}. Either the RFC declares no requirement, or the "
+            f"shards are not written -- run: make ze-rfc-index"
+        )
+        return 2
+    with open(path, encoding="utf-8") as fh:
+        sys.stdout.write(fh.read())
     return 0
 
 
@@ -7577,6 +7835,24 @@ def main(argv: Sequence[str]) -> int:
         return run_write()
     if "--check-fresh" in args:
         return run_check_fresh()
+    if "--show" in args:
+        # The value is taken the way --extract-skeleton takes its own, by index: the two
+        # value-taking flags in this CLI read their argument the same way, so a reader
+        # learns the shape once.
+        i = args.index("--show")
+        stem = args[i + 1] if i + 1 < len(args) else ""
+        if not stem or stem.startswith("-"):
+            print(
+                f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: --show needs a stem, "
+                f"e.g. --show rfc7296. The pages it reads are written by: "
+                f"make ze-rfc-index"
+            )
+            return 2
+        try:
+            return run_show(stem)
+        except (ParseError, OSError) as exc:
+            print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+            return 2
     if "--extraction-status" in args:
         # Always the JSON envelope: it is the only consumer this mode has (the umbrella's
         # drain quota), and a second human-readable shape nobody reads would be a mode to

@@ -21,8 +21,9 @@ audit; everything below serves it.
    alone: the summary is the thing under audit. RFC 7606's own list once said an UPDATE
    with no reachable NLRI must session-reset, dropping the RFC's "other than
    MP_UNREACH_NLRI" clause — which made it demand a reset on every End-of-RIB.
-4. Run `make ze-rfc-index`, then read the `$ARGUMENTS` section of `ai/RFC-REQUIREMENTS.md`
-   for the requirement → test map. If this regen produces a ledger diff you did not cause
+4. Run `make ze-rfc-index`, then print that RFC's requirement → test map with
+   `python3 scripts/dev/rfc_requirements.py --show $ARGUMENTS`, which reads
+   `rfc/requirements/$ARGUMENTS.md`. If this regen produces a diff you did not cause
    (a pure `file:line` refresh from someone else's un-regenerated test edit), do NOT fold it
    into the audit: it belongs to that other change's commit. See "Keep the ledger committed"
    in `ai/skills/ze-rfc.md`.
@@ -149,7 +150,8 @@ written note. And each one taught the reflex that re-stamping is what you do whe
 red. That is the failure mode at fleet scale, so the class is now automated away.
 
 `make ze-rfc-reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
-`make ze-rfc-check` is read-only and `make ze-rfc-index` touches the ledger alone.
+`make ze-rfc-check` is read-only, and `make ze-rfc-index` touches `ai/RFC-REQUIREMENTS.md`
+and `rfc/requirements/` alone.
 
 ## Rules
 
@@ -174,7 +176,8 @@ red. That is the failure mode at fleet scale, so the class is now automated away
 | Need | Use |
 |------|-----|
 | Does every MUST have its pair of tests? | `make ze-rfc-check` |
-| Requirement → test map, and the backlog | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` |
+| Requirement → test map for one RFC | `make ze-rfc-index`, then `python3 scripts/dev/rfc_requirements.py --show <stem>` → `rfc/requirements/<stem>.md` |
+| The backlog over every RFC | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` |
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
 | Clear a `shifted` verdict | `make ze-rfc-reseal`, then `make ze-rfc-index` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |

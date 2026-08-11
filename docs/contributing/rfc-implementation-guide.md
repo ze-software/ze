@@ -515,7 +515,8 @@ inside a `terminator=` block):
   with a reason (a bare annotation is rejected).
 - **Five RFC make targets, and each clears a different red.**
   - `make ze-rfc-check` gates coverage and validates the audit records.
-  - `make ze-rfc-index` renders the ledger (`ai/RFC-REQUIREMENTS.md`).
+  - `make ze-rfc-index` renders the ledger: one file per RFC under `rfc/requirements/`,
+    and the index over them (`ai/RFC-REQUIREMENTS.md`).
   - `make ze-rfc-extract STEM=<stem>` writes an extraction skeleton.
   - `make ze-rfc-extraction-status` prints the sign-off counts.
   - `make ze-rfc-reseal` re-stamps an audit verdict a mechanical edit staled.
