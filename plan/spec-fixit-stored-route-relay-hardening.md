@@ -464,9 +464,9 @@ would not have fixed that; reading the existing return does.
 than retiring it, so the AC is DONE in this spec rather than dropped
 (`ai/rules/no-partial-completion.md` — owed, done, or retired by the owner, and
 no fourth state). The `EgressFilterFunc` signature change is not owed by anyone:
-`plan/spec-fixit-egress-filter-non-decision-channel.md` keeps only its LLGR
-nil-state item, and the RFC-tagged edits to `otc_test.go` and `config_test.go`
-that the signature change would have dragged in are not needed.
+`spec-fixit-egress-filter-non-decision-channel` kept only its LLGR nil-state item
+and closed on 2026-08-10, and the RFC-tagged edits to `otc_test.go` and
+`config_test.go` that the signature change would have dragged in are not needed.
 
 ## Key Design Decisions
 
@@ -482,8 +482,12 @@ that the signature change would have dragged in are not needed.
 Rows live in `plan/deferrals/fixit-stored-route-relay-hardening.md`; each names an
 existing destination spec.
 
-- `LLGREgressFilter` accepts when its plugin state is not yet loaded (`s == nil`),
-  the RFC 9494 fail-open twin of R6-1 and outside R6-1/R6-2's scope.
+- ~~`LLGREgressFilter` accepts when its plugin state is not yet loaded
+  (`s == nil`), the RFC 9494 fail-open twin of R6-1 and outside R6-1/R6-2's
+  scope.~~ CLOSED 2026-08-10 by `spec-fixit-egress-filter-non-decision-channel`:
+  an unloaded state now resolves to `hasLLGR=false`, so the destination takes the
+  RFC 9494 Section 4.3 withdraw or the Section 4.6 depreference
+  (`internal/component/bgp/plugins/gr/gr_egress.go`, `LLGREgressFilter`).
 - RFC 2545 has no summary and no full text in the repository, so I-6's 32-byte
   next hop cannot be implemented against the RFC text.
 

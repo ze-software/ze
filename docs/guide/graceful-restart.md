@@ -80,6 +80,25 @@ The GR plugin requires:
 The GR plugin depends on `bgp-rib` (declared in its registration). The engine ensures bgp-rib starts first.
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 
+### Keep the bgp-gr engine in the daemon process
+
+Load the plugin with `internal <name> { use bgp-gr; }`, as every example on this
+page does. `run "ze plugin bgp-gr"` starts the plugin engine in a child process,
+and that arrangement changes what the daemon sends to every peer.
+
+The RFC 9494 egress filter runs in the daemon. The peer capability state it reads
+is written by the plugin engine, so with `run` that state stays empty for the life
+of the daemon process. The filter then treats every neighbor as a neighbor from
+which the LLGR Capability was never received: it withdraws stale routes from
+external peers (Section 4.3) and attaches NO_EXPORT with LOCAL_PREF 0 to the
+routes it sends to internal peers (Section 4.6). Peers that negotiated LLGR with
+the child engine get that same treatment.
+
+`ze doctor` reports the arrangement as `doctor-bgp-gr-out-of-process`. Run
+`ze explain doctor-bgp-gr-out-of-process` for the full text.
+<!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
+
 ## CLI
 
 ```

@@ -8,6 +8,7 @@ package gr
 import (
 	"encoding/binary"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -31,14 +32,28 @@ var communityNoExport = func() [4]byte {
 var localPrefZero [4]byte // zero-value is correct: 0x00000000
 
 // egressFilterState holds the shared state read by LLGREgressFilter.
-// Set atomically by RunGRPlugin; read by the egress filter on the hot path.
+//
+// peerLLGRCaps is grPlugin's live map, shared by reference so the filter sees
+// peers as they are learned and released. mu is grPlugin.mu, the lock every
+// writer of that map holds (gr.go, gr_removal.go). A reader must take it too:
+// a peer flap concurrent with a forward is otherwise a fatal concurrent map
+// read and map write, which recover() does not catch. Read it through hasLLGR.
 //
 // The local AS for iBGP detection is NOT stored here: the reactor supplies the
 // effective per-peer local AS per destination via filterapi.PeerFilterInfo.LocalAS
 // (dest.LocalAS), which correctly honors a per-peer local-as override where a
 // single captured global value would not.
 type egressFilterState struct {
-	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> LLGR capability (read under mu in grPlugin)
+	mu           *sync.Mutex             // grPlugin.mu: guards peerLLGRCaps
+	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> LLGR capability from the peer's OPEN
+}
+
+// hasLLGR reports whether the LLGR Capability was received from peerAddr.
+func (s *egressFilterState) hasLLGR(peerAddr string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.peerLLGRCaps[peerAddr]
+	return ok
 }
 
 // egressState is the package-level pointer to the filter's shared state.
@@ -52,25 +67,8 @@ type egressFilterState struct {
 var egressState atomic.Pointer[egressFilterState]
 
 // egressStateMissingWarned latches the one WARN emitted when the egress filter
-// runs on a stale route with no plugin state loaded (ai/rules/evidence.md, "or
-// say something"). The filter is registered from init() in register.go, so it is
-// live in the filterapi pipeline from process start, while the only store of
-// egressState is RunGRPlugin's OnConfigure callback (gr.go). Nothing closes that
-// gap by construction, and it never closes at all if the GR plugin engine does
-// not run in this process.
-//
-// Latched rather than logged per route because this sits on the forward path
-// (ai/rules/performance.md): at most one line per process, and the steady state
-// is a single atomic load.
-//
-// The latch made the message UNHEARABLE on the one path it exists for, until
-// egressWarnLogger below. Every caller of SetLogger is on the engine path
-// (ConfigureEngineLogger and the CLI ConfigLogger, both in register.go), so in
-// the case this warning is about -- the engine never runs, and the state is nil
-// for the whole process -- logger() is still the discard logger from init().
-// The latch was spent on a dropped line and no later occurrence could speak,
-// which fails the "or say something" half of ai/rules/evidence.md while the
-// fail-closed half still held.
+// runs on a stale route with no plugin state loaded. Latched rather than logged
+// per route because this sits on the forward path (ai/rules/performance.md).
 var egressStateMissingWarned atomic.Bool
 
 // grSubsystem is the canonical slog subsystem name for this plugin: the
@@ -78,14 +76,12 @@ var egressStateMissingWarned atomic.Bool
 // which is what ConfigureEngineLogger is handed on the engine path.
 const grSubsystem = "bgp.gr"
 
-// egressWarnLogger returns a logger that can actually carry the egress warning.
-//
-// When the engine path ran, it installed a logger and chose its level, so that
-// choice is respected. When it did not run, loggerPtr still holds init()'s
-// discard logger, and slogutil.Logger builds a live one from the same env
-// hierarchy the engine would have used (defaulting to WARN). An operator who
-// silenced the subsystem still gets silence: slogutil.Logger reads their
-// setting. Called at most once per process, from behind the latch.
+// egressWarnLogger returns a logger that can carry the egress warning even when
+// the engine never started. Every caller of SetLogger is on the engine path
+// (register.go), and the warning exists for the case where that path never runs,
+// leaving loggerPtr at init()'s discard logger. slogutil.Logger then builds a
+// live one from the env hierarchy the engine would have used, so an operator who
+// silenced the subsystem still gets silence.
 func egressWarnLogger() *slog.Logger {
 	if loggerConfigured.Load() {
 		return logger()
@@ -107,45 +103,28 @@ func setEgressState(s *egressFilterState) {
 // The exception is described in Section 4.6. Note that this requirement implies
 // that such routes should be withdrawn from any such neighbor."
 //
-// Fast path: a route with no stale metadata (the common case, staleLevel == 0)
-// returns true immediately with no modifications. That check comes first because
-// it needs no plugin state, so the state is consulted only for a route the RFC
-// actually governs.
-//
-// The capability is resolved from egressState, and an unloaded state answers
-// "not received" rather than accepting -- see egressState's comment.
+// A route with no stale metadata returns true immediately. That check comes
+// first because it needs no plugin state, so the state is read only for a route
+// the RFC governs. An unloaded state answers "not received" rather than
+// accepting -- see egressState.
 func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
 	// The stale level on the ROUTE is the authoritative signal, not a peer-state
-	// counter. A route carries meta["stale"] whenever it is being readvertised
-	// stale -- whether that was driven by an LLGR restart transition
-	// (onLLGREntryDone) OR by an operator/GR-timer `request bgp rib mark-stale`,
-	// which marks routes stale without any LLGR restart. An earlier version guarded
-	// this filter on a peer-restart counter and dropped the depreference for the
-	// mark-stale path entirely (the route went out fresh toward a non-LLGR iBGP
-	// peer, an RFC 9494 Section 4.6 violation), so the check below on staleLevel is
-	// the correct and sufficient fast exit.
+	// counter: a route carries meta["stale"] both for an LLGR restart transition
+	// (onLLGREntryDone) and for an operator or GR-timer `request bgp rib
+	// mark-stale`, which marks routes stale with no LLGR restart at all.
 	staleLevel := staleFromMeta(meta)
 	if staleLevel == 0 {
 		return true // Non-stale route, pass through. This is the real fast path.
 	}
 
-	// Route is stale. Resolve the destination peer's LLGR capability.
-	//
-	// A nil state does NOT mean "advertise anyway". RFC 9494 Section 4.3 keys the
-	// decision on whether the Long-Lived Graceful Restart Capability "has been
-	// received" from the neighbor, and with no state loaded nothing has been
-	// received from anyone. So nil resolves to hasLLGR=false and the destination
-	// takes the same path as a peer known not to have advertised the capability:
-	// withdraw for EBGP, Section 4.6 depreference for IBGP.
-	//
-	// This is the safe direction of the two. Being wrong here costs a transient
-	// withdraw or depreference toward a peer that turns out to be LLGR-capable,
-	// repaired as soon as OnConfigure stores the state. Being wrong the other way
-	// puts a long-lived stale route into a neighbor that never agreed to hold one,
-	// at normal preference, which is the risk Section 5.2 describes.
+	// Route is stale. Resolve the destination peer's LLGR capability. Being wrong
+	// on an unloaded state costs a withdraw or depreference toward a peer that
+	// turns out to be LLGR-capable; being wrong the other way puts a long-lived
+	// stale route into a neighbor that never agreed to hold one, which is the risk
+	// RFC 9494 Section 5.2 names.
 	hasLLGR := false
 	if s := egressState.Load(); s != nil {
-		_, hasLLGR = s.peerLLGRCaps[dest.Address.String()]
+		hasLLGR = s.hasLLGR(dest.Address.String())
 	} else if !egressStateMissingWarned.Load() && egressStateMissingWarned.CompareAndSwap(false, true) {
 		egressWarnLogger().Warn("LLGR egress state not loaded, treating every destination as LLGR-incapable",
 			"dest", dest.Address,
@@ -166,18 +145,20 @@ func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta m
 
 	if isIBGP {
 		// RFC 9494 Section 4.6: Optional Partial Deployment Procedure (IBGP).
-		// Attach NO_EXPORT community and set LOCAL_PREF=0.
-		// Route is delivered but deprioritized.
+		// The route is delivered but deprioritized.
 		mods.Op(attrCodeCommunity, filterapi.AttrModAdd, communityNoExport[:])
 		mods.Op(attrCodeLocalPref, filterapi.AttrModSet, localPrefZero[:])
 		return true
 	}
 
-	// EBGP non-LLGR peer: convert announce to withdrawal.
-	// RFC 9494: "routes with LLGR_STALE SHOULD NOT be advertised to
-	// peers that have not advertised the LLGR capability."
-	// The forward path converts the announce UPDATE to a withdrawal
-	// so the peer removes the now-stale route from its RIB.
+	// EBGP non-LLGR peer.
+	// RFC 9494 Section 4.3: "The route SHOULD NOT be advertised to any neighbor
+	// from which the Long-Lived Graceful Restart Capability has not been
+	// received. The exception is described in Section 4.6. Note that this
+	// requirement implies that such routes should be withdrawn from any such
+	// neighbor."
+	// The forward path converts the announce UPDATE to a withdraw, so the peer
+	// drops the stale route.
 	mods.SetWithdraw()
 	return true
 }

@@ -174,16 +174,16 @@ func RunGRPlugin(conn net.Conn) int {
 		}
 		p.SetCapabilities(caps)
 
-		// Initialize LLGR egress filter state with peerLLGRCaps. The local AS for
-		// iBGP detection is NOT captured here: the reactor hands the effective
-		// per-peer local AS via dest.LocalAS on the forward and readvertise rails.
-		// The filter reads this atomically; no lock needed for the pointer swap.
-		gp.mu.Lock()
-		s := &egressFilterState{
+		// Initialize LLGR egress filter state with peerLLGRCaps. The map is shared
+		// by reference so the filter sees peers as they are learned and released,
+		// which is why gp.mu travels with it: the filter reads the map under the
+		// same lock every writer below takes. The local AS for iBGP detection is
+		// NOT captured here: the reactor hands the effective per-peer local AS via
+		// dest.LocalAS on the forward and readvertise rails.
+		setEgressState(&egressFilterState{
+			mu:           &gp.mu,
 			peerLLGRCaps: gp.peerLLGRCaps,
-		}
-		gp.mu.Unlock()
-		setEgressState(s)
+		})
 
 		return nil
 	})

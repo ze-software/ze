@@ -1,0 +1,79 @@
+# Test: ze doctor reports a bgp-gr plugin that runs out of process
+# VALIDATES: checkGRInProcess (internal/component/bgp/plugins/gr/doctor.go) is
+#            WIRED into `ze doctor` -- `plugin { external X { run "ze plugin
+#            bgp-gr"; } }` produces the doctor-bgp-gr-out-of-process diagnostic,
+#            and `ze explain` answers for the code it reports.
+# PREVENTS:  the operator trap the check exists to close. With bgp-gr in a child
+#            process, RunGRPlugin never calls setEgressState in the daemon, so
+#            LLGREgressFilter treats every neighbor as LLGR-incapable and
+#            withdraws or depreferences every stale route for the life of the
+#            process -- peers that negotiated LLGR included. The filter's own
+#            WARN speaks only when the first stale route reaches it, which can
+#            be hours after the config is committed.
+#
+# This is the WIRING test. doctor_test.go calls checkGRInProcess directly, so
+# dropping the registration in register.go leaves every unit test green
+# (ai/rules/interop-and-goal-validation.md). Only this file drives the real
+# entry point: a config file on disk -> ExtractPluginsFromTree ->
+# DoctorCheckContext -> the registered check -> the JSON an operator reads.
+#
+# Every plugin below carries a DISTINCT name because the runner matches every
+# expect= line against one accumulated stdout buffer for the whole file
+# (runner_exec.go). The diagnostic message names the plugin, so "plugin <name>"
+# is what separates the arrangement that must be reported from the two that
+# must not be.
+#
+# The wire-level contrast is test/plugin/llgr-egress-state-unloaded.ci, which
+# stages the same arrangement and asserts what the blind filter does to a stale
+# route.
+
+# --- 1. The reported arrangement: bgp-gr forked as a child process ---
+tmpfs=gr-external.conf:terminator=EOF_EXTERNAL
+plugin {
+    external grext {
+        run "ze plugin bgp-gr"
+    }
+}
+EOF_EXTERNAL
+
+cmd=foreground:seq=1:exec=ze doctor --json gr-external.conf:exit=0
+# The `"code":` prefix matters: `ze explain` below prints the same code, so a
+# bare substring match on it would pass with the check unregistered.
+expect=stdout:contains="code": "doctor-bgp-gr-out-of-process"
+expect=stdout:contains=plugin grext: bgp-gr runs as a separate process
+expect=stdout:contains=LLGR egress filter in the daemon has no peer capability state
+
+# --- 2. The code ze doctor printed resolves through ze explain ---
+cmd=foreground:seq=2:exec=ze explain doctor-bgp-gr-out-of-process:exit=0
+expect=stdout:contains=Graceful Restart plugin runs out of process
+
+# --- 3. Contrast: `use bgp-gr` runs the engine in the daemon ---
+# Without this, a check that warned unconditionally would satisfy case 1.
+tmpfs=gr-internal.conf:terminator=EOF_INTERNAL
+plugin {
+    internal grint {
+        use bgp-gr
+    }
+}
+EOF_INTERNAL
+
+cmd=foreground:seq=3:exec=ze doctor --json gr-internal.conf:exit=0
+expect=stdout:!contains=plugin grint
+
+# --- 4. Contrast: an internal bgp-gr beside an external one ---
+# setEgressState stores into a package-level pointer, so one in-process engine
+# answers for every destination and the forked sibling costs the filter
+# nothing. Judging each `run` line on its own reported this config as blind.
+tmpfs=gr-both.conf:terminator=EOF_BOTH
+plugin {
+    internal grpair {
+        use bgp-gr
+    }
+    external grsib {
+        run "ze plugin bgp-gr"
+    }
+}
+EOF_BOTH
+
+cmd=foreground:seq=4:exec=ze doctor --json gr-both.conf:exit=0
+expect=stdout:!contains=plugin grsib

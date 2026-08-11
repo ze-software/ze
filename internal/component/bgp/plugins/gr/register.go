@@ -10,9 +10,14 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
+
+// grPluginName is the registration name of this plugin, and the name an
+// operator writes in `use bgp-gr` or `run "ze plugin bgp-gr"`.
+const grPluginName = "bgp-gr"
 
 func init() {
 	// Register LLGR well-known community names (RFC 9494).
@@ -28,9 +33,19 @@ func init() {
 		}
 	}
 
+	// The LLGR egress filter answers from state only RunGRPlugin stores, so an
+	// out-of-process engine leaves it blind. doctor.go reports that arrangement.
+	for _, m := range grDiagnosticCodes {
+		_ = diagnostic.Register(m)
+	}
+	if err := diagnostic.RegisterDoctorCheck(grDoctorCheck); err != nil {
+		fmt.Fprintf(os.Stderr, "gr: doctor check registration failed: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
 	if err := filterapi.Register(filterapi.Filter{
-		Name:  "bgp-gr",
+		Name:  grPluginName,
 		Stage: filterapi.FilterStageAnnotation,
 		// RFC 9494: the LLGR egress decision (keep+mark / depreference / withdraw)
 		// must run per destination peer on the RIB stale-readvertise rail, not just
@@ -43,7 +58,7 @@ func init() {
 	}
 
 	reg := registry.Registration{
-		Name:            "bgp-gr",
+		Name:            grPluginName,
 		Description:     "Graceful Restart capability and mechanism plugin",
 		RFCs:            []string{"4724", "9494"},
 		SupportsCapa:    true,

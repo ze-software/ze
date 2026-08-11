@@ -1,0 +1,229 @@
+# Test: LLGR egress filter with the GR plugin engine in ANOTHER process.
+#
+# The daemon registers LLGREgressFilter from init() (bgp/plugins/gr/register.go),
+# so the filter is live in every ze_bgp build. The only writer of the state it
+# reads is setEgressState, called from RunGRPlugin's OnConfigure callback. This
+# config runs bgp-gr with `run` rather than `use`, so ExtractPluginsFromTree
+# leaves PluginConfig.Internal false, Process.StartWithContext takes
+# startExternal, and RunGRPlugin executes in the CHILD. The daemon's own egress
+# state is therefore nil for the whole life of the process while the filter keeps
+# being called on the readvertise rail.
+#
+# RFC 9494 Section 4.3 keys the decision on whether the LLGR Capability "has been
+# received" from the neighbor. With nothing recorded in this process it has not,
+# so the filter treats the destination as LLGR-incapable and Section 4.6 applies:
+# the internal neighbor still receives the stale route, depreferenced with
+# NO_EXPORT and LOCAL_PREF 0.
+#
+# RFC requirement: RFC9494-4.3-3 positive -- "The route SHOULD NOT be advertised to
+#   any neighbor from which the Long-Lived Graceful Restart Capability has not been
+#   received. The exception is described in Section 4.6." This process records no
+#   capability for any neighbor, so the stale route leaves only by the Section 4.6
+#   exception: obsn's seq=2 expectation is the depreferenced form (NO_EXPORT,
+#   0xFFFFFF01), never the route as the source sent it. This is the daemon-level
+#   proof of the same decision the unit tests make on the filter
+#   (internal/component/bgp/plugins/gr/gr_egress_test.go).
+#
+# This is a config-only route to the unloaded state. It needs no test hook, which
+# is what plan/spec-fixit-egress-filter-non-decision-channel.md's withdrawn `.ci`
+# row wrongly claimed was impossible. `ze doctor` reports this arrangement as
+# doctor-bgp-gr-out-of-process (bgp/plugins/gr/doctor.go).
+#
+# VALIDATES: an unloaded LLGR egress state depreferences a stale route toward a
+#            non-LLGR internal neighbor, in the daemon, on the wire.
+# PREVENTS: the daemon advertising a stale route unchanged because the GR plugin
+#           engine runs in another process.
+#
+# Discrimination: reverting LLGREgressFilter to accept on a nil state re-sends the
+# route with no modification, so the NO_EXPORT expectation below never arrives.
+#
+# The state-LOADED contrast is llgr-readvertise-multipeer.ci: the same scenario
+# with `internal gr { use bgp-gr }`, which loads the state in the daemon.
+
+# --- source: LLGR RR-client, announces 10.0.0.0/24 then waits on ze's EOR ---
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+# iBGP UPDATE: ORIGIN igp, AS_PATH [65001], NEXT_HOP 10.0.0.1, LOCAL_PREF 200,
+# NLRI 10.0.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0000
+# Wait for ze's End-of-RIB so the peer stays established long enough for the
+# reflection to land.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# --- obsn: non-LLGR RR-client, observes the reflected route then depreference ---
+# Both peers are RR clients in AS 65000, and ze-peer's default OPEN mirrors ze's
+# router-id with the last octet incremented, so without an explicit identifier
+# BOTH would present 1.2.3.5 -- two RR clients sharing a BGP Identifier, which ze
+# rejects (RFC 6286 Section 2.1).
+stdin=obsn:terminator=EOF_OBSN
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=open:value=router-id:id=1.2.3.6
+# 1. Reflected route lands (NLRI 10.0.0.0/24). EORs and keepalives auto-skip.
+expect=bgp:conn=1:seq=1:contains=180A0000
+# 2. The readvertise depreferences it with no egress state in THIS process: the
+#    NO_EXPORT community (well-known 0xFFFFFF01) is stamped on.
+expect=bgp:conn=1:seq=2:contains=FFFFFF01
+EOF_OBSN
+
+tmpfs=observer.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+from ze_api import API, runtime_fail, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait until the source route is selected best (it is then reflected to the
+    # obsn RR-client). More robust than a fixed sleep.
+    for _ in range(60):
+        # poll interval; the loop breaks when `show bgp rib best` reports
+        # 10.0.0.0/24, and its else-branch runtime_fails after 15s.
+        time.sleep(0.25)
+        r = dispatch(api, 'show bgp rib best')
+        if r.get('status') == 'done' and '10.0.0.0/24' in result_text_data(r):
+            break
+    else:
+        runtime_fail('source route never became best')
+
+    # Give the reflection a moment to reach obsn on the wire (its seq=1 expect).
+    time.sleep(1.5)
+
+    # Mark the source's routes stale at the depreference level and readvertise.
+    ms = dispatch(api, 'request bgp rib mark-stale 127.0.0.1 60 2')
+    if ms.get('status') != 'done':
+        runtime_fail(f'mark-stale failed: {ms}')
+    cr = dispatch(api, 'clear bgp rib out * ipv4/unicast')
+    if cr.get('status') != 'done':
+        runtime_fail(f'clear-rib-out failed: {cr}')
+
+    print('OK: mark-stale + clear-rib-out dispatched', file=sys.stderr)
+
+    # Give the readvertise time to reach obsn before shutdown.
+    time.sleep(2.0)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external observer {
+		run ./observer.run
+		encoder json
+	}
+	external gr {
+		run "ze plugin bgp-gr"
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer source {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			route-reflector-client true
+			cluster-id 10.10.10.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 60
+					long-lived-stale-time 300
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process observer {
+		}
+		process gr {
+			send [ update ]
+		}
+		process bgp-rib {
+			send [ update ]
+		}
+	}
+
+	peer obsn {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			route-reflector-client true
+			cluster-id 10.10.10.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process observer {
+		}
+		process bgp-rib {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=obsn
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

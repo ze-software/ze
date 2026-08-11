@@ -18,12 +18,13 @@ import (
 // newTestEgressState creates an egressFilterState for testing with the given
 // LLGR peer capabilities. iBGP detection no longer reads a stored local AS: the
 // reactor supplies it per destination via dest.LocalAS, so tests set that field
-// on the destination PeerFilterInfo instead.
+// on the destination PeerFilterInfo instead. The mutex stands in for grPlugin.mu,
+// which the production state shares with the map's writers.
 func newTestEgressState(llgrPeers map[string]*llgrPeerCap) *egressFilterState {
-	s := &egressFilterState{
+	return &egressFilterState{
+		mu:           new(sync.Mutex),
 		peerLLGRCaps: llgrPeers,
 	}
-	return s
 }
 
 // TestLLGREgressFilter_NonStale verifies that non-stale routes pass through immediately.
@@ -370,12 +371,11 @@ func TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer(t *testing.T) {
 //
 // RFC requirement: RFC9494-4.6-2 negative -- NO_EXPORT is a partial-deployment measure, not a
 // blanket rewrite: when the destination is present in peerLLGRCaps the filter returns before the
-// iBGP branch and emits no community modification at all
-// (internal/component/bgp/plugins/gr/gr_egress.go:79-84).
+// iBGP branch and emits no community modification at all (LLGREgressFilter's `if hasLLGR` early
+// return, internal/component/bgp/plugins/gr/gr_egress.go).
 // RFC requirement: RFC9494-4.6-3 negative -- likewise no LOCAL_PREF is forced to zero for an
-// LLGR-capable neighbor: the early return leaves the accumulator empty
-// (internal/component/bgp/plugins/gr/gr_egress.go:79-84), so the depreference applies only to the
-// partial-deployment path.
+// LLGR-capable neighbor: that same early return leaves the accumulator empty, so the depreference
+// applies only to the partial-deployment path.
 func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
@@ -400,9 +400,9 @@ func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 // PREVENTS: Stale routes being advertised to peers that cannot handle LLGR_STALE.
 //
 // RFC requirement: RFC9494-4.6-1 negative -- an EXTERNAL neighbor without LLGR never receives the
-// stale route under the partial-deployment rules: with dest.PeerAS != dest.LocalAS the isIBGP test
-// fails and LLGREgressFilter converts the announce to a withdrawal instead
-// (internal/component/bgp/plugins/gr/gr_egress.go:90, :101-107).
+// stale route under the partial-deployment rules: with dest.PeerAS != dest.LocalAS LLGREgressFilter's
+// isIBGP test fails and it converts the announce to a withdrawal with mods.SetWithdraw
+// (internal/component/bgp/plugins/gr/gr_egress.go).
 func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
@@ -432,13 +432,13 @@ func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 // RFC requirement: RFC9494-4.6-1 positive -- the partial-deployment branch that still delivers a
 // stale route is reached only for an internal neighbor: LLGREgressFilter computes
 // isIBGP = dest.PeerAS == dest.LocalAS and only that branch keeps the announce
-// (internal/component/bgp/plugins/gr/gr_egress.go:90-98).
-// RFC requirement: RFC9494-4.6-2 positive -- that branch attaches NO_EXPORT (0xFFFFFF01) to the
-// stale route via mods.Op(attrCodeCommunity, AttrModAdd, communityNoExport)
-// (internal/component/bgp/plugins/gr/gr_egress.go:96, :22-26).
+// (internal/component/bgp/plugins/gr/gr_egress.go).
+// RFC requirement: RFC9494-4.6-2 positive -- that branch attaches NO_EXPORT to the stale route via
+// mods.Op(attrCodeCommunity, AttrModAdd, communityNoExport), the 0xFFFFFF01 wire value built by the
+// communityNoExport package var (internal/component/bgp/plugins/gr/gr_egress.go).
 // RFC requirement: RFC9494-4.6-3 positive -- the same branch sets LOCAL_PREF to zero via
-// mods.Op(attrCodeLocalPref, AttrModSet, localPrefZero)
-// (internal/component/bgp/plugins/gr/gr_egress.go:97, :29).
+// mods.Op(attrCodeLocalPref, AttrModSet, localPrefZero), the localPrefZero package var
+// (internal/component/bgp/plugins/gr/gr_egress.go).
 func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
@@ -540,10 +540,66 @@ func TestLLGREgressFilter_NilMeta(t *testing.T) {
 	assert.Equal(t, 0, mods.Len(), "no mods for nil meta")
 }
 
+// TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock runs the forward path
+// against the map's real WRITERS, which is the pairing that crashed the daemon.
+//
+// VALIDATES: LLGREgressFilter reads peerLLGRCaps under grPlugin.mu, the lock its
+// writers hold.
+// PREVENTS: `fatal error: concurrent map read and map write` on a peer flap. That
+// fault is unrecoverable -- recover() does not catch it -- so a peer bouncing
+// while any stale route is forwarded took the whole daemon down.
+//
+// egressFilterState carried gp.peerLLGRCaps BY REFERENCE (gr.go, OnConfigure)
+// and the filter indexed that map with no lock, while extractGRCaps (gr.go)
+// inserted and onPeerRemoved (gr_removal.go) deleted under gp.mu. This test
+// drives those two producers, not a stand-in map write, so it fails for the
+// reason the daemon failed.
+//
+// Reverting the fix (indexing s.peerLLGRCaps directly instead of s.hasLLGR)
+// makes `go test -race` report the read/write pair here.
+func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
+	gp := &grPlugin{
+		peerCaps:     make(map[string]*grPeerCap),
+		peerLLGRCaps: make(map[string]*llgrPeerCap),
+		removedPeers: make(map[string]bool),
+	}
+	gp.state = newGRStateManager(func(string) {})
+	setEgressState(&egressFilterState{mu: &gp.mu, peerLLGRCaps: gp.peerLLGRCaps})
+	defer setEgressState(nil)
+
+	// Capability 71 for ipv4/unicast, F-bit set, LLST 3600: one 7-byte tuple
+	// (RFC 9494 Section 3) wrapped in its code/length header.
+	llgrCapBytes := []byte{71, 7, 0x00, 0x01, 0x01, 0x80, 0x00, 0x0e, 0x10}
+	const peerAddr = "10.0.0.2"
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr(peerAddr), PeerAS: 65001, LocalAS: 65000}
+	meta := map[string]any{"stale": uint8(2)}
+
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() { // reader: the forward path
+			for range 500 {
+				var mods filterapi.ModAccumulator
+				LLGREgressFilter(src, dest, nil, meta, &mods)
+			}
+		})
+		wg.Go(func() { // writer: the peer flapping
+			for range 500 {
+				gp.extractGRCaps(peerAddr, llgrCapBytes, false)
+				gp.onPeerRemoved(peerAddr)
+			}
+		})
+	}
+	wg.Wait()
+}
+
 // TestLLGREgressFilter_ConcurrentAccess verifies thread safety of egress state access.
 //
 // VALIDATES: Concurrent egress filter calls do not race on shared state.
 // PREVENTS: Data race under concurrent ForwardUpdate to multiple peers.
+// It reads only; the concurrent WRITER case is
+// TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock above.
 func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},

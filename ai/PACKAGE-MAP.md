@@ -635,7 +635,7 @@ Total: 623 packages, 620 described, 3 TODO
 | `internal/plugins/isis/transport` | implements the raw L2 transport that carries IS-IS PDUs between the socket and the engine | isis-raw-socket |
 | `internal/plugins/isis/types` | defines the pure IS-IS domain value types: SystemID, SourceID, LSPID, NET, AreaID, the two wide metric widths (Metric and PrefixMetric), SequenceNumber, RemainingLifetime and HoldingTime |  |
 | `internal/plugins/isis/yang` | embeds and registers the IS-IS command and configuration YANG schema modules |  |
-| `internal/plugins/kernel` | externally-installed kernel routes (DHCP, PPP, manual) |  |
+| `internal/plugins/kernel` | externally-installed kernel routes (DHCP, PPP, manual) | kernel |
 | `internal/plugins/kernel/events` | registers the kernel redistribution protocol and its route-change events |  |
 | `internal/plugins/kernel/yang` | embeds and registers the kernel plugin's YANG configuration schema |  |
 | `internal/plugins/ldp` | implements the Label Distribution Protocol (RFC 5036) | ldp |
@@ -675,7 +675,7 @@ Total: 623 packages, 620 described, 3 TODO
 | `internal/plugins/policyroute/yang` | embeds and registers the policy-route plugin's YANG command and configuration schemas |  |
 | `internal/plugins/provision` | implements the ze provision command that runs DHCP, PXE, and TFTP servers for remote device installation |  |
 | `internal/plugins/resolve-cmd/yang` | embeds and registers the resolve command plugin's YANG schema |  |
-| `internal/plugins/routingtable` | Named routing table registry: maps names to kernel table IDs |  |
+| `internal/plugins/routingtable` | Named routing table registry: maps names to kernel table IDs | routing-table |
 | `internal/plugins/routingtable/yang` | embeds and registers the routing-table plugin's YANG configuration schema |  |
 | `internal/plugins/rsvpte` | implements RSVP-TE (RFC 3209) for explicitly-routed MPLS LSPs with bandwidth reservation | rsvp-te |
 | `internal/plugins/rsvpte/yang` | embeds and registers the RSVP-TE plugin's YANG schema modules |  |
@@ -722,7 +722,7 @@ Total: 623 packages, 620 described, 3 TODO
 | `internal/test/plugins/all` | blank-imports test-only internal plugins |  |
 | `internal/test/plugins/fakeas112` | is a test-only internal plugin that drives the AS112 redistribute producer namespace on demand, so `.ci` tests can exercise the | request fakeas112 emit |
 | `internal/test/plugins/fakeas112/yang` | provides the YANG schema for the fakeas112 test plugin |  |
-| `internal/test/plugins/fakeddos` | is a test-only plugin that drives the ddos-local responder end-to-end against a REAL nft backend |  |
+| `internal/test/plugins/fakeddos` | is a test-only plugin that drives the ddos-local responder end-to-end against a REAL nft backend | ddos-fake |
 | `internal/test/plugins/fakeddos/yang` | provides the YANG schema for the fakeddos test plugin |  |
 | `internal/test/plugins/fakeenrich` | Test-only in-process enricher (harmless when not invoked) |  |
 | `internal/test/plugins/fakefib` | Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) | request fakefib emit |

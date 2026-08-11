@@ -39,6 +39,14 @@ COMMENT_RE = re.compile(r"^//\s?(.*)$")
 # Struct-literal fields in a register.go Registration{...}. One-line string values.
 DESC_RE = re.compile(r'Description:\s*"((?:[^"\\]|\\.)*)"')
 NAME_RE = re.compile(r'\bName:\s*"((?:[^"\\]|\\.)*)"')
+# `Name:` is also written as a package constant, when the same spelling is read
+# by a doctor check or a filter registration and one const is what keeps them
+# from drifting. Seven register.go files do that, and a literal-only pattern left
+# their plugin-name column blank, which is the one fact the column exists for.
+# Tried ONLY when the file has no quoted `Name:` at all: several register.go
+# files declare a CLI command before their registration, so preferring whichever
+# form appears first would turn a command name into the plugin name.
+NAME_CONST_RE = re.compile(r"\bName:\s*([A-Za-z_]\w*)")
 
 
 def head(path: Path, n: int) -> list[str]:
@@ -87,6 +95,23 @@ def package_doc(path: Path) -> str:
     return ""
 
 
+def const_value(text: str, ident: str) -> str:
+    """Value of a same-file string constant, or "" when it is not one.
+
+    Covers the three Go spellings that carry a plugin name: `const X = "v"`,
+    `const X string = "v"`, and a bare `X = "v"` line inside a `const ( ... )`
+    block. A constant defined in another file resolves to "", which leaves the
+    column empty exactly as an unrecognized value did before.
+    """
+    pattern = re.compile(
+        r"^[ \t]*(?:const[ \t]+)?" + re.escape(ident) + r"(?:[ \t]+[\w.\[\]*]+)?"
+        r"[ \t]*=[ \t]*\"((?:[^\"\\]|\\.)*)\"",
+        re.MULTILINE,
+    )
+    m = pattern.search(text)
+    return m.group(1) if m else ""
+
+
 def registration(reg: Path) -> tuple[str, str]:
     """Return (registered name, Description) from a register.go, best effort."""
     try:
@@ -95,7 +120,12 @@ def registration(reg: Path) -> tuple[str, str]:
         return "", ""
     nm = NAME_RE.search(text)
     dm = DESC_RE.search(text)
-    return (nm.group(1) if nm else "", dm.group(1) if dm else "")
+    if nm:
+        name = nm.group(1)
+    else:
+        cm = NAME_CONST_RE.search(text)
+        name = const_value(text, cm.group(1)) if cm else ""
+    return (name, dm.group(1) if dm else "")
 
 
 def area_of(rel: str) -> str:
