@@ -1,4 +1,4 @@
-// Design: plan/spec-fixit-forward-rail-initial-sync-ordering.md D-5 -- overflow items own their bytes
+// Design: docs/architecture/forward-congestion-pool.md -- overflow items own their bytes
 // Related: forward_body.go -- ownOverflowBodies
 // Related: forward_pool.go -- DispatchOverflow
 // Related: recent_cache.go -- runGapScan / evictLocked, the safety valve that recycles the bytes
