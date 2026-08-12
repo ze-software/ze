@@ -42,7 +42,7 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 | `rfc1661` | 65 | 24 | 0 | 41 | 0 | 0 | 0 | **enrolled** |
 | `rfc1877` | 4 | 3 | 0 | 1 | 0 | 0 | 0 | **enrolled** |
 | `rfc1994` | 17 | 5 | 0 | 12 | 0 | 0 | 0 | **enrolled** |
-| `rfc1997` | 5 | 1 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
+| `rfc1997` | 5 | 5 | 0 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc2003` | 13 | 0 | 0 | 13 | 0 | 0 | 0 | **enrolled** |
 | `rfc2131` | 64 | 15 | 0 | 49 | 0 | 0 | 0 | **enrolled** |
 | `rfc2132` | 34 | 0 | 0 | 34 | 0 | 0 | 0 | **enrolled** |
@@ -206,13 +206,13 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 
 ## Audit coverage
 
-50 of 1594 auditable requirement(s) carry a `/ze-rfc-audit` verdict (3.14%), across 1 of 170 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
+50 of 1598 auditable requirement(s) carry a `/ze-rfc-audit` verdict (3.13%), across 1 of 170 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
 **Proven** (50) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 2 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
-The remaining 1544 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `make ze-rfc-check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
+The remaining 1548 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `make ze-rfc-check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1594) = `Audited` (50) + `Unaudited` (1544). **Records:** all 52 recorded verdict(s) = `Proven` (50) + `Not proven` (2), and the worklist below names every one of those 2. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1598) = `Audited` (50) + `Unaudited` (1548). **Records:** all 52 recorded verdict(s) = `Proven` (50) + `Not proven` (2), and the worklist below names every one of those 2. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
@@ -228,7 +228,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc1661` | 32 | 0 | 0 | 0 | 32 |
 | `rfc1877` | 3 | 0 | 0 | 0 | 3 |
 | `rfc1994` | 14 | 0 | 0 | 0 | 14 |
-| `rfc1997` | 1 | 0 | 0 | 0 | 1 |
+| `rfc1997` | 5 | 0 | 0 | 0 | 5 |
 | `rfc2131` | 19 | 0 | 0 | 0 | 19 |
 | `rfc2132` | 8 | 0 | 0 | 0 | 8 |
 | `rfc2181` | 12 | 0 | 0 | 0 | 12 |

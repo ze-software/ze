@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3286 files
+Total: 261 design docs, 3288 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1244,6 +1244,7 @@ Total: 261 design docs, 3286 files
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
 | `internal/component/bgp/reactor/forward_update_bench_test.go` | Forwarding Path (section 9): per-UPDATE in-process hot path throughput. |
+| `internal/component/bgp/reactor/forward_wellknown.go` | egress suppression on the forward rails |
 | `internal/component/bgp/reactor/link_scope.go` | RFC 2545 Section 3 link-local next-hop condition |
 | `internal/component/bgp/reactor/listener.go` | TCP listener management |
 | `internal/component/bgp/reactor/negotiated.go` | negotiated capability tracking |
@@ -1304,6 +1305,7 @@ Total: 261 design docs, 3286 files
 | `internal/component/bgp/types/reactor.go` | shared BGP types |
 | `internal/component/bgp/types/types.go` | shared BGP types |
 | `internal/component/bgp/wireu/community.go` | zero-copy community extraction from UPDATE wire bytes |
+| `internal/component/bgp/wireu/wellknown.go` | zero-copy community extraction from UPDATE wire bytes |
 | `internal/component/cli/client/main.go` | interactive CLI |
 | `internal/component/cli/client/transcript.go` | CLI transcript file creation |
 | `internal/component/cli/contract/contract.go` | component boundaries (cli/contract) |

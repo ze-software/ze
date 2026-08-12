@@ -1,0 +1,206 @@
+# RFC requirement: RFC1997-Well-1 positive -- "All routes received carrying a communities
+# attribute containing this value [NO_EXPORT] MUST NOT be advertised outside a BGP
+# confederation boundary" (RFC 1997, Well-known Communities). Ze runs a stand-alone AS,
+# which the same sentence says to consider a confederation itself, so the boundary is the
+# AS boundary and the external client (AS 65002) is outside it. Asserted on the daemon's
+# own wire: the prefix never reaches that session in any framing.
+# RFC requirement: RFC1997-Well-1 negative -- the clause's condition is "outside a BGP
+# confederation boundary". The internal client (AS 65000) is inside it, so the SAME route
+# carrying the SAME community IS advertised there.
+#
+# WHY A .ci AND NOT ONLY THE UNIT TESTS. The unit tests prove the decision function and the
+# rail that asks it. Only a running daemon proves the route never reaches a socket, and the
+# egress rails are where a leak actually happens.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). "The prefix is absent" passes when
+# nothing is advertised at all, so this run carries two controls, both on the SAME external
+# session the reject guards:
+#   1. the FENCE route 192.0.2.0/24, tagged with an ordinary community, IS delivered there;
+#   2. the internal session receives the NO_EXPORT route itself.
+# A build that forwards nothing reddens control 1. A build that suppresses on the wrong
+# side reddens control 2. A build with the check removed reddens the reject.
+#
+# ORDERING. The source sends the NO_EXPORT route BEFORE the fence, on one TCP stream that
+# ze processes in order on one goroutine. So the observer seeing the fence forwarded proves
+# the NO_EXPORT route was already handled, which is what makes the reject an assertion
+# rather than a race with shutdown.
+
+# Source peer -- external, AS 65001, on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The source must outlive the assertions: a source that closes makes ze withdraw its
+# routes, which would deliver the destinations messages they never asked for.
+option=linger:value=true
+# seq=1 -- 10.0.0.0/24: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, COMMUNITY=NO_EXPORT
+# (0xFFFFFF01). This is the route RFC 1997 governs.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FFFFFF01180A0000
+# seq=2 -- the FENCE, 192.0.2.0/24, identical in every way except the community, which is
+# an ordinary 64985:100 (0xFDE90064). RFC 1997 says nothing about it, so it must be
+# advertised to both destinations.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9006418C00002
+EOF_SOURCE
+
+# Internal destination -- AS 65000, the same AS ze runs, on 127.0.0.2.
+stdin=internal:terminator=EOF_INTERNAL
+option=tcp_connections:value=1
+option=timeout:value=30s
+# NEGATIVE control: an internal peer is inside the confederation boundary, so it receives
+# the NO_EXPORT route. 180A0000 is the NLRI 10.0.0.0/24.
+expect=bgp:conn=1:seq=1:contains=180A0000
+EOF_INTERNAL
+
+# External destination -- AS 65002, on 127.0.0.3. Every assertion about the prohibition
+# lives here.
+stdin=external:terminator=EOF_EXTERNAL
+option=tcp_connections:value=1
+option=timeout:value=30s
+# POSITIVE control: the fence route DOES reach this session, so the reject below cannot
+# pass by the session having received nothing. 18C00002 is the NLRI 192.0.2.0/24.
+expect=bgp:conn=1:seq=1:contains=18C00002
+# THE ASSERTION: 10.0.0.0/24 never reaches this external session, in any framing.
+reject=bgp:conn=1:pattern=180A0000
+EOF_EXTERNAL
+
+# Observer: hold the daemon up until the fence has actually been written to the external
+# destination, which proves the NO_EXPORT route ahead of it was already decided.
+tmpfs=wellknown-noexport.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Sequence shutdown behind the fence route reaching the external destination."""
+import sys
+from ze_api import API, runtime_fail
+
+EXTERNAL = '127.0.0.3'
+INTERNAL = '127.0.0.2'
+
+
+def real_updates(api, peer):
+    """UPDATEs written to peer, End-of-RIB markers excluded.
+
+    updates-sent counts every UPDATE written, the initial-sync EoR included
+    (IncrUpdatesSent, reactor/reactor_notify.go sees only the message type).
+    eor-sent is the separate marker counter, so the difference is route traffic.
+    """
+    return api.peer_counter('updates-sent', peer=peer) - api.peer_counter('eor-sent', peer=peer)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce FIRST so the polls behind it are a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC.
+    api.quiesce()
+
+    # The internal peer must have both routes: the NO_EXPORT one and the fence.
+    if not api.wait_until(lambda: real_updates(api, INTERNAL) >= 2, attempts=40):
+        runtime_fail('internal peer was not sent both routes')
+    print('OK: internal peer received both routes', file=sys.stderr)
+
+    # The external peer must have exactly the fence. One, not two: two would mean
+    # the NO_EXPORT route leaked, which the reject rule also catches on the wire.
+    if not api.wait_until(lambda: real_updates(api, EXTERNAL) >= 1, attempts=40):
+        runtime_fail('external peer was not sent the fence route')
+    if real_updates(api, EXTERNAL) != 1:
+        runtime_fail('external peer was sent more than the fence route')
+    print('OK: external peer received the fence and nothing else', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external wellknown-noexport {
+		run ./wellknown-noexport.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		process wellknown-noexport {
+			receive [ update state ]
+		}
+	}
+
+	peer internal-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+
+	peer external-peer {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=internal
+cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=external
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

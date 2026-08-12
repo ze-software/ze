@@ -493,9 +493,24 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// below, because the override is the base its rebuild runs over.
 	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
 
+	// RFC 1997 needs one scan per UPDATE, not one per destination: which
+	// well-known communities the RECEIVED route carries. Scanned over the SOURCE
+	// payload, never over a policy chain's wire override -- an export policy that
+	// strips NO_EXPORT does not license the leak, because the route arrived
+	// carrying it (wireu.WellKnown).
+	srcWellKnown := wireu.ScanWellKnown(update.WireUpdate.Payload())
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
+			continue
+		}
+
+		// RFC 1997: a well-known community is an unconditional prohibition, so it
+		// is asked BEFORE the egress step pass -- ahead of every operator policy,
+		// which cannot grant what the RFC refuses.
+		if !a.r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
+			suppressedCount++
 			continue
 		}
 

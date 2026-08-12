@@ -244,9 +244,22 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// (forward_local_pref.go) for why the answer gates the operation.
 	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
 
+	// RFC 1997 needs one scan per UPDATE, not one per client; see the identical
+	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay
+	// behaviorally identical: honoring the well-known communities on one only
+	// would leak on whichever path the deployment happens to select.
+	srcWellKnown := wireu.ScanWellKnown(update.WireUpdate.Payload())
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
+			continue
+		}
+
+		// RFC 1997: an unconditional prohibition, asked before every operator
+		// policy. A route-server client is an external peer, so a route received
+		// carrying NO_EXPORT reaches none of them.
+		if !r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
 			continue
 		}
 

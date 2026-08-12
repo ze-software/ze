@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — reactor-level Prometheus metrics
+// RFC: rfc/short/rfc1997.md — well-known community egress suppression counter
 // Overview: reactor.go — Reactor struct and lifecycle
 // Related: forward_pool.go — overflow depth, pool ratio, source stats polled by metrics loop
 
@@ -68,6 +69,14 @@ type reactorMetrics struct {
 	// for that destination rather than forwarded unmodified. The reason label
 	// set is closed (see modifyFailure.String, forward_modify_failure.go).
 	updateModifyFailed metrics.CounterVec // labels: reason
+
+	// RFC 1997 well-known community egress suppressions. A non-zero value means
+	// a route received carrying NO_EXPORT, NO_ADVERTISE or NO_EXPORT_SUBCONFED
+	// was withheld from a destination the community forbids. The suppression is
+	// not configurable and is never logged per route, so this counter is the
+	// only place an operator sees it. The label set is closed
+	// (wireu.WellKnown.BlockingName).
+	wellKnownSuppressed metrics.CounterVec // labels: community
 
 	// Config + operational
 	configReloads      metrics.Counter    // Successful config reloads
@@ -148,6 +157,12 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		fwdCongestionResume:  reg.CounterVec("ze_forward_congestion_resumed_total", "Channel resumed from congestion.", []string{"peer"}),
 		fwdBufferDeniedTotal: reg.Counter("ze_forward_buffer_denied_total", "Buffer denials due to congestion backpressure (AC-2)."),
 		fwdTeardownTotal:     reg.Counter("ze_forward_congestion_teardown_total", "Forced session teardowns due to pool exhaustion (AC-4)."),
+
+		wellKnownSuppressed: reg.CounterVec(
+			"ze_bgp_wellknown_community_suppressed_total",
+			"Routes withheld from a destination peer by an RFC 1997 well-known community.",
+			[]string{"community"},
+		),
 
 		updateModifyFailed: reg.CounterVec(
 			"ze_bgp_update_modify_failed_total",

@@ -1,0 +1,198 @@
+# RFC requirement: RFC1997-Well-2 positive -- "All routes received carrying a communities
+# attribute containing this value [NO_ADVERTISE] MUST NOT be advertised to other BGP peers"
+# (RFC 1997, Well-known Communities). The clause is unqualified, so 10.1.0.0/24 reaches
+# NEITHER destination: not the external client and not the internal one.
+# RFC requirement: RFC1997-Well-2 negative -- the clause's condition is a communities
+# attribute CONTAINING NO_ADVERTISE. The fence route 192.0.2.0/24, identical except for an
+# ordinary community, IS advertised to both destinations in the same run.
+# RFC requirement: RFC1997-Well-3 positive -- "All routes received carrying a communities
+# attribute containing this value [NO_EXPORT_SUBCONFED] MUST NOT be advertised to external
+# BGP peers" (RFC 1997, Well-known Communities). 10.2.0.0/24 never reaches the external
+# client.
+# RFC requirement: RFC1997-Well-3 negative -- the clause names EXTERNAL peers, and its
+# parenthesis extends that to confederation member-AS peers, not to internal ones. The SAME
+# route 10.2.0.0/24 IS advertised to the internal client.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). Every "absent" assertion here is
+# paired with a delivery on the SAME session in the SAME run:
+#   internal client: 10.1.0.0/24 absent, 10.2.0.0/24 and 192.0.2.0/24 delivered;
+#   external client: 10.1.0.0/24 and 10.2.0.0/24 absent, 192.0.2.0/24 delivered.
+# A build that forwards nothing reddens the deliveries. A build that suppresses on the
+# wrong side reddens the internal delivery of 10.2.0.0/24. The observer also pins the exact
+# route count on each session, so a leak fails even before the wire rule reads it.
+#
+# ORDERING. The fence is sent LAST on one TCP stream that ze processes in order on one
+# goroutine, so the observer seeing it forwarded proves the two governed routes ahead of it
+# were already decided.
+
+# Source peer -- external, AS 65001, on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=linger:value=true
+# seq=1 -- 10.1.0.0/24 with COMMUNITY=NO_ADVERTISE (0xFFFFFF02).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FFFFFF02180A0100
+# seq=2 -- 10.2.0.0/24 with COMMUNITY=NO_EXPORT_SUBCONFED (0xFFFFFF03).
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FFFFFF03180A0200
+# seq=3 -- the FENCE, 192.0.2.0/24, with an ordinary community 64985:100 (0xFDE90064).
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9006418C00002
+EOF_SOURCE
+
+# Internal destination -- AS 65000, on 127.0.0.2.
+stdin=internal:terminator=EOF_INTERNAL
+option=tcp_connections:value=1
+option=timeout:value=30s
+# Well-3 negative: NO_EXPORT_SUBCONFED permits an internal peer. 180A0200 is 10.2.0.0/24.
+expect=bgp:conn=1:seq=1:contains=180A0200
+# Well-2 negative: the fence reaches this session too. 18C00002 is 192.0.2.0/24.
+expect=bgp:conn=1:seq=1:contains=18C00002
+# Well-2 positive: NO_ADVERTISE refuses an internal peer as well. 180A0100 is 10.1.0.0/24.
+reject=bgp:conn=1:pattern=180A0100
+EOF_INTERNAL
+
+# External destination -- AS 65002, on 127.0.0.3.
+stdin=external:terminator=EOF_EXTERNAL
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The delivery that makes both rejects below assertions rather than an empty session.
+expect=bgp:conn=1:seq=1:contains=18C00002
+# Well-2 positive on an external peer.
+reject=bgp:conn=1:pattern=180A0100
+# Well-3 positive: NO_EXPORT_SUBCONFED must not be advertised to an external peer.
+reject=bgp:conn=1:pattern=180A0200
+EOF_EXTERNAL
+
+tmpfs=wellknown-noadv.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Pin the exact route count each destination was sent, then shut down."""
+import sys
+from ze_api import API, runtime_fail
+
+EXTERNAL = '127.0.0.3'
+INTERNAL = '127.0.0.2'
+
+
+def real_updates(api, peer):
+    """UPDATEs written to peer, End-of-RIB markers excluded (see relay-withdraw-reflector)."""
+    return api.peer_counter('updates-sent', peer=peer) - api.peer_counter('eor-sent', peer=peer)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    api.quiesce()
+
+    # Internal: 10.2.0.0/24 and the fence. NOT 10.1.0.0/24.
+    if not api.wait_until(lambda: real_updates(api, INTERNAL) >= 2, attempts=40):
+        runtime_fail('internal peer was not sent the subconfed route and the fence')
+    if real_updates(api, INTERNAL) != 2:
+        runtime_fail('internal peer was sent a route NO_ADVERTISE forbids')
+    print('OK: internal peer received exactly the subconfed route and the fence', file=sys.stderr)
+
+    # External: the fence alone.
+    if not api.wait_until(lambda: real_updates(api, EXTERNAL) >= 1, attempts=40):
+        runtime_fail('external peer was not sent the fence route')
+    if real_updates(api, EXTERNAL) != 1:
+        runtime_fail('external peer was sent a route a well-known community forbids')
+    print('OK: external peer received the fence and nothing else', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external wellknown-noadv {
+		run ./wellknown-noadv.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		process wellknown-noadv {
+			receive [ update state ]
+		}
+	}
+
+	peer internal-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+
+	peer external-peer {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=internal
+cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=external
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
