@@ -444,7 +444,11 @@ pass unchanged.
   log stream), not an edit right: every mutation route is a fresh request and is
   refused. Cancelling an in-flight stream needs the broker to learn which
   username each subscriber belongs to, which is a mechanism this spec does not
-  build. NOT closed, and not homed yet: it needs a decision from the owner.
+  build. HOMED 2026-08-08 by Thomas's ruling on B-14, recorded in
+  `plan/deferrals/fixit-connection-management-command.md`: removal affects NEW
+  connections only, because a reload that cut the editing operator's own session
+  would be worse than the window it closes. What is owed is the operator command
+  that closes a live connection deliberately, and it needs its own spec.
 - The live user list is read on EVERY request carrying an anchored session, not
   only at login: `SessionStore.ValidateToken` → `localUserDeclared` →
   `Provider.Root` → `ExtractAuthUsers` → `mergeAuthUsers`, so `/fragment/*` and
@@ -530,3 +534,256 @@ tests produced with that change in place.
 | `startWebServer` (`cmd/ze/hub/service_web.go`) reading zefs for itself instead of taking the caller's power users | `TestWebServerUsesTheCallersCredentialsWhenZefsIsUnreadable` | "Expected value not to be nil ... the web server must serve on the caller's power user", with the daemon printing "warning: web power-user auth unavailable" and then "warning: web server disabled: no authenticatable users". The web read failing while the caller's succeeded is the break-glass lockout: the chain admits the account and the session check does not declare it |
 | `bootPowerUsers` (`cmd/ze/hub/main.go`) logging the failed zefs read at Debug, which is what the daemon path did once the web factory's stderr warning was deleted | `TestBootPowerUsersSaysSoWhenZefsIsUnreadable` | "\"\" does not contain \"zefs power user unavailable\" ... an unreadable zefs database must be reported at a level the default logger prints". `slogutil.Logger` defaults to WARN, so at Debug the buffer is empty: the guard fails closed and says nothing |
 | `startWebServer` merging the `PowerUsers` snapshot into the serve-or-not test instead of refusing on a nil or erroring `LocalUsersLive` | `TestWebServerRefusesToServeWithNoUserSourceWired`, `TestWebServerRefusesToServeWhenTheUserSourceCannotBeRead` | "Expected nil, but got: &web.WebServer{... bound:[]string{\"127.0.0.1:64588\"}}", and "\"web UI default: workbench\\nweb server listening on https://127.0.0.1:64588/\\n\" does not contain \"no user source wired\"". One revert, both branches: the server bound a listener on a user list nobody could produce |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `authz.LocalAuthenticator.UsersFunc` (`internal/component/authz/auth.go`):
+  the credentials valid right now, read per call by `(*LocalAuthenticator).users()`.
+  It REPLACES the `Users` snapshot when set.
+- The AAA chain's local backend takes it: `aaa.BuildParams.LocalUsersFunc`
+  (`internal/component/aaa/types.go`) reaches `localBackend.Build`
+  (`internal/component/authz/register.go`).
+- One live producer in the hub: `liveConfigUsers` -> `liveLocalUsers`
+  (`cmd/ze/hub/main_servers.go`), built once in `main.go` and given to the AAA
+  chain, the web fallback, the session store, the SSH server and the API
+  authenticator. It denies and logs on a nil source and on a read failure, and
+  classifies an absent `system` root (`errNoSystemConfigRoot`) as a
+  configuration so the zefs power user keeps authenticating.
+- One producer of the user shape: `infra.ExtractAuthUsers`
+  (`internal/component/config/infra/ssh.go`); `ExtractSSHConfig` derives from it.
+- `Provider.Root(name) (map, bool)` (`internal/component/config/provider.go`)
+  reports root presence; `Get` derives from it.
+- Session revocation: `SessionStore.ValidateToken` re-checks an anchored session
+  against the live list per request; the anchor is `AuthResult.GrantedByLocalBackend()`
+  recorded at `CreateSession`; invalidation is token-scoped (`invalidateSession`).
+- SSH: `Config.UsersFunc` and `(*Server).users()` (`internal/component/ssh/ssh.go`),
+  read by `authenticatePublicKey` (`internal/component/ssh/pubkey.go`); both
+  `zessh.NewServer` sites set it (`cmd/ze/hub/service_ssh.go`).
+- API: `buildUserAuthenticator(users, usersLive)` (`cmd/ze/hub/api.go`), fed at
+  boot by `apiBuildInputs.UsersLive` and on reload by `mgmtAuthInputs.apiUsersLive`.
+- Web: `startWebServer` takes `PowerUsers` and `LocalUsersLive` from the hub,
+  reads zefs no second time, and refuses to serve on a nil or erroring source.
+
+### Bugs Found/Fixed
+
+- TWO snapshots, not one: the AAA chain's local backend answered before the web
+  fallback, so fixing the fallback alone changed nothing observable. Found by the
+  functional test, not by a unit test: it was a wiring fact.
+- The first AC-10 implementation re-derived the session anchor with a SECOND read
+  of the live list, which failed open in one direction and logged remote-backend
+  operators out in the other. Replaced by reporting the anchor from `AuthResult`.
+- `InvalidateUser(username)` destroyed a NEWER session on behalf of an older
+  revoked cookie. Replaced by token-scoped `invalidateSession`.
+- AC-13 was found by the independent review: REST and gRPC were a third
+  credential surface on the boot snapshot that no deferral row named.
+
+### Documentation Updates
+
+- `docs/architecture/web-components.md`: the session revocation row and the
+  one-live-list paragraph landed with the implementation (lines 202-205, 215).
+- `docs/guide/authentication.md`, "Step 3: reload": ADDED at closure. The page
+  said only "Existing sessions are not interrupted", which reads as a general
+  claim and is now false for a REMOVED user. The new paragraph names every
+  credential surface removal now reaches, and says a connection already open
+  outlives it. Three source anchors added: `liveLocalUsers`,
+  `SessionStore.ValidateToken`, `authenticatePublicKey`, each verified present.
+- `make ze-doc-test` NOT run in this closure session (see Pre-Commit Verification).
+
+### Deviations from Plan
+
+- `ServiceDeps.ConfigUsersLive`/`ConfigUsers` were replaced by `PowerUsers` +
+  `LocalUsersLive` mid-flight, which closed a deferral row as a side effect.
+- AC-10 to AC-13 were added after the original spec was approved, all from
+  review findings on more credential surfaces holding the same snapshot.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The web fallback was fixed first, on its own | The AAA chain's local backend answered FIRST and held the same snapshot | `test/ui/web-user-removed-by-reload.ci` failed with the probe user passing | Fixed the authenticator, not the edge |
+| approach | `CreateSession` re-derived the local anchor by reading the live list again | The authenticator had already reported the grant on `AuthResult.Source` | Independent review round 4 | Anchor is REPORTED, not re-derived |
+| approach | Invalidation was keyed on the username | The token is what failed; the username may hold a newer session | Review round 4 | `invalidateSession` is token-scoped |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An operator who removes a user and reloads has removed that user | Done | `cmd/ze/hub/main_servers.go` `liveLocalUsers` | Reached from every credential surface below |
+| The pre-bundle window keeps working | Done | `cmd/ze/hub/service_web.go:522` fallback | `liveAAABundleAuthenticator.fallback` carries `UsersFunc` |
+| A config user unknown to the chain keeps working | Done | same | The fallback is the same live authenticator |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `(*LocalAuthenticator).users()` reads `UsersFunc` per call (`internal/component/authz/auth.go:54`) | `TestWebAuthRejectsUserRemovedFromRunningConfig` |
+| AC-2 | Done | same | `TestWebAuthFollowsConfigInBothDirections` |
+| AC-3 | Done | same | same test |
+| AC-4 | Done | `service_web.go:522` fallback on the no-bundle path | `TestWebAuthFallsBackWhenNoBundle` |
+| AC-5 | Done | same | `TestWebAuthRejectsRemovedUserWhenChainInstalled` |
+| AC-6 | Done | `liveLocalUsers` err branch returns the error (`main_servers.go:182-187`) | Denies AND logs |
+| AC-7 | Done | `errNoSystemConfigRoot` branch sets `current = nil` and merges power users (`main_servers.go:172-181`) | `TestLiveLocalUsersKeepsPowerUsersWithNoSystemRoot` |
+| AC-8 | Done | `mergeAuthUsers(zefsUsers, current)` (`main_servers.go:188`) | Config entry wins |
+| AC-9 | Done | `localBackend.Build` sets `UsersFunc: params.LocalUsersFunc` (`authz/register.go:65`), fed by `infra_setup.go:46` | `TestAAABundleLocalBackendFollowsRunningConfig` |
+| AC-10 | Done | `SessionStore.ValidateToken` -> `localUserDeclared` (`internal/component/web/auth.go:251-283`) | Anchored sessions only |
+| AC-11 | Done | `authenticatePublicKey` -> `(*Server).users()` -> `Config.UsersFunc` (`ssh/pubkey.go:35`, `ssh/ssh.go:256`) | Both `NewServer` sites wired |
+| AC-12 | Done | `!session.LocalAnchored` early return (`web/auth.go:265`); kept users match | `TestSessionOfRemoteBackendUserSurvivesLocalRemoval` |
+| AC-13 | Done | `buildUserAuthenticator` prefers `usersLive` (`cmd/ze/hub/api.go:83`), fed at boot (`main.go:1208`) and on reload (`mgmt_auth_reload.go:178`) | Both construction sites |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 44 unit tests listed in the TDD plan | Done | `cmd/ze/hub`, `internal/component/{authz,aaa,web,ssh,config,config/infra}` | `make ze-test-pkg PKG=./cmd/ze/hub` green in this session |
+| `web-user-removed-by-reload` | Done | `test/ui/web-user-removed-by-reload.ci` | Present; not re-run in this session |
+| `api-user-removed-by-reload` | Done | `test/ui/api-user-removed-by-reload.ci` | Present; not re-run in this session |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in "Files to Modify" and "Files to Create" | Done | All present and committed at HEAD before this closure |
+| `cmd/ze/hub/mgmt_auth_reload.go` | Changed at closure | The spec-path citation became a bare stem, because commit B removes the spec |
+| `docs/guide/authentication.md` | Changed at closure | Documentation review found a claim removal made false |
+
+### Audit Summary
+
+- **Total items:** 13 AC + 3 task requirements
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 files edited at closure (recorded in Deviations and above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who removes a user and reloads has removed that user | functional | `test/ui/web-user-removed-by-reload.ci` drives a live daemon: login, delete, SIGHUP, login again, on BOTH a password and the `ze-session` cookie. Discrimination recorded: with the fix reverted it prints "FAIL: webuser is refused once the reload removes them from the config" while the probe user passes in the same run |
+| The same holds on the API | functional | `test/ui/api-user-removed-by-reload.ci` covers BOTH `buildUserAuthenticator` sites: reverting `buildAPIShared`'s live source fails the boot-built stage, reverting `apiAuthReloader`'s fails the reload-built stage ten assertions later |
+| The same holds on SSH keys | unit, real handshake | `TestPublicKeyAuthFollowsRunningConfig` runs a real client handshake against a live server; `TestInfraSetupSSHPublicKeyFollowsRunningConfig` and `TestSSHStandaloneBuildPublicKeyFollowsRunningConfig` each go red for a different missing wiring |
+| The pre-bundle and unknown-to-the-chain windows keep working | unit | `TestWebAuthFallsBackWhenNoBundle`, `TestWebAuthRejectsRemovedUserWhenChainInstalled` |
+| No guard fails open | unit | `TestWebAuthDeniesWhenRunningConfigUnreadable`, `TestWebAuthDeniesWithNoUserSourceWired`, `TestSessionRefusedWhenLiveUserListUnreadable`, `TestWebServerRefusesToServeWhenTheUserSourceCannotBeRead` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Rebuild the live AAA bundle on config reload (remote backends) | deferred | `spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild`, which owns the reload-time rebuild seam |
+| Web boot serve-or-not list independent of the ssh block | done 2026-08-08 | `ServiceDeps.ConfigUsers` deleted; `startWebServer` asks `LocalUsersLive` |
+| API per-user gate independent of the ssh block | deferred | `spec-hub-deferred-api-auth-independent-of-ssh-block` (present in `plan/`) |
+| SSH public-key auth on the startup snapshot | done 2026-08-08 | Implemented here as AC-11 |
+| SSE stream open at the moment of removal | homed, not this spec | Thomas's B-14 ruling, `plan/deferrals/fixit-connection-management-command.md`: removal affects NEW connections; the connection-closing command needs its own spec |
+
+The shard is NOT removed: two rows are still live (`deferred`), so it outlives
+its source spec (`ai/rules/planning.md`).
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-web-auth-deleted-user-survives-reload-640fa955-f03a-45e8-a58f-4b367f5859e6.md` (16 files) |
+| `review_gate.py check` | clean |
+| Rounds | 1 at closure. The implementation sessions ran four review rounds before this one, recorded in Findings fixed |
+| Reviewer lenses used | AC-to-producer verification at HEAD (every AC traced to its producing function), guard fail-closed audit, citation and documentation audit |
+
+This closure reviewed code ALREADY AT HEAD. The working tree carried no
+uncommitted change over any path this spec names, verified with
+`git status --porcelain` over `internal/component/{authz,aaa,web,ssh,config}`,
+`cmd/ze/hub`, `test/ui` and `docs/architecture/web-components.md` before the
+review began. The two edits this closure made are the citation repoint and the
+documentation correction listed above.
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The web fallback was fixed while the AAA chain's local backend answered first from a snapshot | `internal/component/authz/register.go` | `LocalUsersFunc` on the backend |
+| 2 | BLOCKER | SSH public-key auth kept a deleted user's shell | `internal/component/ssh/pubkey.go` | AC-11 |
+| 3 | BLOCKER | A session cookie survived removal for the 24h TTL | `internal/component/web/auth.go` | AC-10 |
+| 4 | BLOCKER | REST and gRPC `Bearer` auth was a third snapshot | `cmd/ze/hub/api.go` | AC-13 |
+| 5 | BLOCKER | The session anchor was re-derived by a second read and failed open | `internal/component/web/auth.go` | Anchor reported from `AuthResult` |
+| 6 | ISSUE | Invalidation by username destroyed a newer session | `internal/component/web/auth.go` | Token-scoped `invalidateSession` |
+| 7 | ISSUE | `startWebServer` read zefs a second time and could serve on a list nobody else agreed with | `cmd/ze/hub/service_web.go` | One reader; refuse on nil or erroring source |
+| 8 | NOTE | The spec claimed the SSE limitation was "not homed yet" | this spec, Known Limitations | Corrected: it is homed by Thomas's B-14 ruling |
+| 9 | NOTE | `docs/guide/authentication.md` said only "existing sessions are not interrupted" | `docs/guide/authentication.md` | Removal paragraph added with three source anchors |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `cmd/ze/hub/main_servers_test.go` | Yes | `ls -1` printed it |
+| `cmd/ze/hub/ssh_pubkey_live_test.go` | Yes | same |
+| `cmd/ze/hub/service_web_users_test.go` | Yes | same |
+| `test/ui/web-user-removed-by-reload.ci` | Yes | same |
+| `test/ui/api-user-removed-by-reload.ci` | Yes | same |
+| `internal/component/web/auth_session_revocation_test.go` | Yes | same |
+| `internal/component/ssh/pubkey_test.go` | Yes | same |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | The authenticator reads the live list per call | `internal/component/authz/auth.go:54-57`: `func (a *LocalAuthenticator) users()` returns `a.UsersFunc()` when set |
+| AC-4, AC-5 | The fallback is the same live authenticator | `cmd/ze/hub/service_web.go:522`: `liveAAABundleAuthenticator{fallback: &authz.LocalAuthenticator{UsersFunc: localUsersLive}}` |
+| AC-6 | A read failure denies and logs | `cmd/ze/hub/main_servers.go:182-187`: `case err != nil:` logs `cannot read running config users` then `return nil, err` |
+| AC-7 | No `system` root still authenticates the power user | `main_servers.go:172-181` sets `current = nil` and falls through to `mergeAuthUsers` |
+| AC-8 | Config entry wins | `main_servers.go:188`: `mergeAuthUsers(zefsUsers, current)` |
+| AC-9 | The CHAIN's local backend is live | `internal/component/authz/register.go:65`: `UsersFunc: params.LocalUsersFunc`, fed by `cmd/ze/hub/infra_setup.go:46` |
+| AC-10, AC-12 | Anchored sessions re-checked per request, others untouched | `internal/component/web/auth.go:265` `if !session.LocalAnchored { return session }`, then `:269` `localUserDeclared` |
+| AC-11 | The key path reads the live source | `internal/component/ssh/pubkey.go:35` `users, err := s.users()`; `ssh/ssh.go:256` prefers `UsersFunc`; `cmd/ze/hub/service_ssh.go:48,220` set it at both `NewServer` sites |
+| AC-13 | REST and gRPC follow the running config | `cmd/ze/hub/api.go:83` `auth = &authz.LocalAuthenticator{UsersFunc: usersLive}`; `main.go:1208` `UsersLive: localUsers`; `mgmt_auth_reload.go:178` `buildUserAuthenticator(users, in.apiUsersLive)` |
+| All | The package the wiring lives in is green | `make ze-test-pkg PKG=./cmd/ze/hub`: `ok github.com/ze-software/ze/cmd/ze/hub 106.382s` |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| HTTP Basic auth after a SIGHUP reload | `test/ui/web-user-removed-by-reload.ci` | Yes: the file carries 31 lines naming the cookie / `ze-session` path beside the password stages |
+| `buildWebService` installs the live fallback | none (unit) | Yes: `service_web.go:75-76` passes `deps.PowerUsers` and `deps.LocalUsersLive`, populated at `main.go:1131,1139` |
+| `ze-session` cookie after removal | `test/ui/web-user-removed-by-reload.ci` | Yes, same file |
+| SSH public key after removal | none (unit, real handshake) | Yes: `internal/component/ssh/pubkey_test.go` plus `cmd/ze/hub/ssh_pubkey_live_test.go` |
+| `Bearer <user>:<pass>` after removal | `test/ui/api-user-removed-by-reload.ci` | Yes: 3 `Bearer` occurrences, one per credential stage |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `main.go:615-617` builds the live source in the same function that later builds the services |
+| A-2 | confirmed | `doReload` calls `applyLoadedTreeToProvider` after `ReloadConfig` succeeds |
+| A-3 | confirmed | Dependency closure recorded in the deferral shard row 1, and the row stays live for that reason |
+| A-4 | confirmed | `TestExtractAuthUsersAgreesWithExtractSSHConfig`; `ExtractSSHConfig` now DERIVES from `ExtractAuthUsers` (`infra/ssh.go:74`), so agreement is by construction |
+| A-5 | confirmed | `test/plugin/rbac-web-config-deny.ci` corrected; the other 59 pass unchanged |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/web-components.md` session revocation row | `internal/component/web/auth.go:251-283` `ValidateToken` re-checks anchored sessions | Yes, read at HEAD |
+| `docs/guide/authentication.md` "Step 3: reload" | `cmd/ze/hub/main_servers.go` `liveLocalUsers`, `internal/component/web/auth.go` `SessionStore.ValidateToken`, `internal/component/ssh/pubkey.go` `authenticatePublicKey` all present | Yes, each symbol grepped at HEAD before the anchor was written |
+| Anchors pointing at changed files | `docs/guide/authentication.md:32` cites `usersFromZefsDB`, still present at `main_servers.go:211` | Yes, no drift |
+| Every other category | No new leaf, command, RPC, plugin, wire format, RFC behavior or metric | Yes, the Documentation Update Checklist rows stand |
+
+## Gates Not Run in This Closure Session
+
+`make ze-verify`, `ze-verify-changed`, `ze-doc-test`, `ze-ui-test`, and every
+`.ci` suite. The operator scoped this session to review and closure of code
+already at HEAD and forbade running a test suite. The one gate run is
+`make ze-test-pkg PKG=./cmd/ze/hub`, green. `make ze-tracked-build-check` runs
+after commit A, which carries one Go comment change.
+
+## Core Insight
+
+A fallback consulted on REJECTION is a privilege path. The stale answer was not
+in the fallback the defect report named: it was in the authenticator the chain
+asked FIRST, and both looked identical from the outside, because a snapshot
+cannot distinguish "the chain does not know this user" from "the config no
+longer declares this user". Fixing the producer, once, made five credential
+surfaces correct at the same time. Fixing each edge would have left four.

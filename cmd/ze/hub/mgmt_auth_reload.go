@@ -51,7 +51,7 @@ type mgmtAuthInputs struct {
 	// main.go). The rebuilt API authenticator answers from it, exactly as the
 	// boot one does, so a reload that changes a listener cannot put the API
 	// back on a snapshot and revive a deleted account (AC-13,
-	// plan/spec-fixit-web-auth-deleted-user-survives-reload.md).
+	// spec-fixit-web-auth-deleted-user-survives-reload).
 	apiUsersLive func() ([]authz.UserConfig, error)
 }
 

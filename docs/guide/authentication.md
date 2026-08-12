@@ -77,8 +77,24 @@ written to disk. This matches Junos's `plain-text-password` behaviour.
 
 ### Step 3: reload
 
-The daemon picks up the new user on the next config reload. Existing
-sessions are not interrupted.
+The daemon picks up the new user on the next config reload. A session
+already open for a user the reload KEEPS is not interrupted.
+
+Removal is the same reload, in the other direction. A user the reload
+deletes stops authenticating at once on every credential surface:
+
+- the web password
+- the web session cookie the browser still holds
+- the SSH password
+- the SSH public key
+- `Bearer <user>:<pass>` over REST and gRPC
+
+The daemon does not restart. The 24h session TTL is a ceiling, never the
+only test. A connection already open outlives the removal until it closes.
+
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
+<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
 
 ## Logging in as a YANG user
 
