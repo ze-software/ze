@@ -267,15 +267,6 @@ func (a *Aggregator) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
 	return 6
 }
 
-// checkedWriteToWithContext validates capacity before writing with context.
-func (a *Aggregator) checkedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
-	needed := a.LenWithContext(srcCtx, dstCtx)
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return a.WriteToWithContext(buf, off, srcCtx, dstCtx), nil
-}
-
 // ParseAggregator parses an AGGREGATOR attribute.
 //
 // RFC 4271 Section 5.1.7: Original 2-byte AS format (6 octets total).

@@ -170,11 +170,15 @@ func decodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
 }
 
 // ---- OSPFv3 SID/Label sub-TLV (RFC 8666 §3.1, type 7) ----
-
-// encodeSIDLabelSubTLVV6 frames an OSPFv3 SID/Label sub-TLV (type 7).
-func encodeSIDLabelSubTLVV6(isLabel bool, val uint32) []byte {
-	return writeSubTLV(V6TypeSIDLabel, sidBytes(isLabel, val))
-}
+//
+// No encoder, because RFC 8666 gives this sub-TLV no parent. §3.1 says only
+// that it "appears in multiple TLVs or sub-TLVs defined later in this
+// document", and it names none. Every TLV the document defines carries its SID
+// inline: Prefix-SID (§6), Adj-SID (§7.1), LAN-Adj-SID (§7.2) and Extended
+// Prefix Range (§5). Two TLVs do nest a SID/Label sub-TLV, the SID/Label Range
+// and the SR Local Block. §4 takes both from RFC 8665 unmodified, so both use
+// the OSPFv2 type-1 code (EncodeRangeValue, codec.go). V6TypeSIDLabel stays to
+// record the value RFC 8666 §9 assigns.
 
 // ---- OSPFv3 Extended Prefix Range TLV (RFC 8666 §5, type 9) ----
 // Layout: PrefixLength(1) AF(1) RangeSize(2) Flags(1) Reserved(3)

@@ -162,15 +162,6 @@ func (p *ASPath) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
 	return p.LenWithASN4(false)
 }
 
-// checkedWriteToWithContext validates capacity before writing with context.
-func (p *ASPath) checkedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
-	needed := p.LenWithContext(srcCtx, dstCtx)
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return p.WriteToWithContext(buf, off, srcCtx, dstCtx), nil
-}
-
 // writeSegmentWithSplit writes a segment, splitting if it exceeds MaxASPathSegmentLength.
 func writeSegmentWithSplit(buf []byte, off int, segType ASPathSegmentType, asns []uint32, asn4 bool) int {
 	if len(asns) == 0 {

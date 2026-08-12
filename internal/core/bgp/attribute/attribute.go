@@ -208,6 +208,21 @@ type Attribute interface {
 
 	// WriteToWithContext writes the attribute value with context-dependent encoding.
 	// Returns number of bytes written.
+	//
+	// Caller guarantees buf has sufficient capacity. ValueLenWithContext under
+	// the SAME dstCtx is the query that establishes it. Len() counts the
+	// four-octet AS form, so it over-counts a two-octet destination and never
+	// under-counts it (RFC 6793 Section 4.1). Any other size can be short.
+	//
+	// There is no checked counterpart, by design. Every caller sizes its buffer
+	// from that query first. A bounds check here re-derives the same number one
+	// call deeper, so it always agrees.
+	//
+	//   - attribute.packWithContext sums attrLenWithContext.
+	//   - rib.packAttributesWithContext sums AttributesSizeWithContext.
+	//   - rib.packAttributesWithASPath sums attrSizeWithContext.
+	//   - reactor.announceAttrs.add reserves ValueLenWithContext octets, then
+	//     rejects a write whose return disagrees with that count.
 	WriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int
 }
 
