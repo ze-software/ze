@@ -48,15 +48,17 @@ func TestRFCRequirementsGate(t *testing.T) {
 	}
 }
 
-// TestRFCLedgerFresh asserts the committed ai/RFC-REQUIREMENTS.md matches what its
-// sources render to right now. A failure means a test was re-tagged, moved, or deleted
-// without `make ze-rfc-index`, so the generated ledger lies about which tests enforce
-// which requirement (AC-20). This is the same staleness that once slipped through: two
-// commits re-tagged RFC 7606 tests and the ledger was not regenerated.
+// TestRFCLedgerFresh asserts the committed ai/RFC-REQUIREMENTS.md and every shard under
+// rfc/requirements/ match what their sources render to right now. A failure means a test
+// was re-tagged, moved, or deleted without `make ze-rfc-index`, so a generated page lies
+// about which tests enforce which requirement (AC-20). This is the same staleness that
+// once slipped through: two commits re-tagged RFC 7606 tests and the ledger was not
+// regenerated. The captured output names the file, which is the index, a shard that
+// differs or is absent, or a shard the render no longer produces.
 func TestRFCLedgerFresh(t *testing.T) {
 	code, out := runRFCGate(t, "--check-fresh")
 	if code != 0 {
-		t.Fatalf("ai/RFC-REQUIREMENTS.md is stale (exit %d) -- run: make ze-rfc-index\n%s", code, out)
+		t.Fatalf("a generated RFC requirement page is stale (exit %d) -- run: make ze-rfc-index\n%s", code, out)
 	}
 }
 
