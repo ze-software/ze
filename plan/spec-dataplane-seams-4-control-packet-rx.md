@@ -79,7 +79,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 ### Related Specs
 - [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-4
 - [ ] `plan/spec-dataplane-seams-5-copp-non-tcp.md` - the policing side of the same question
-- [ ] `plan/spec-cp-survival-0-umbrella.md` - in-progress, owns control-plane survivability
+- [ ] `spec-cp-survival-0-umbrella` - closed 2026-08-12; it owned control-plane survivability (read it from git history)
 
 **Key insights:** (minimal context to resume after compaction)
 - The deliverable is a decision plus a written design. "No shared path" is a complete answer.

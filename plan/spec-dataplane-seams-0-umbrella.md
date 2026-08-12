@@ -57,8 +57,8 @@ other four.
 | 1 | `plan/spec-dataplane-seams-1-route-type-numbering.md` | small | - |
 | 2 | `plan/spec-dataplane-seams-2-backend-typed-index.md` | medium | the static-interface-nexthops ruling, `docs/architecture/iface/logical-name-resolution.md` |
 | 3 | `plan/spec-dataplane-seams-3-route-egress-interface.md` | research first, may cancel | `plan/spec-fib-depth.md` (in-progress) |
-| 4 | `plan/spec-dataplane-seams-4-control-packet-rx.md` | design only | `plan/spec-cp-survival-0-umbrella.md` |
-| 5 | `plan/spec-dataplane-seams-5-copp-non-tcp.md` | medium | `plan/spec-cp-survival-0-umbrella.md` (owns copp) |
+| 4 | `plan/spec-dataplane-seams-4-control-packet-rx.md` | design only | `spec-cp-survival-0-umbrella` (closed) |
+| 5 | `plan/spec-dataplane-seams-5-copp-non-tcp.md` | medium | `spec-cp-survival-0-umbrella` (closed; owned copp) |
 
 ### Decisions taken at the scope gate (2026-08-07, user)
 
@@ -85,7 +85,7 @@ other four.
 
 ### Related Specs
 - [ ] `plan/spec-fib-depth.md` - in-progress, owns FIB programming depth; child 3 lands in its territory
-- [ ] `plan/spec-cp-survival-0-umbrella.md` - owns copp; children 4 and 5 must not contradict its closure record
+- [ ] `spec-cp-survival-0-umbrella` - closed 2026-08-12; it owned copp, and children 4 and 5 must not contradict its closure record (read it from git history)
 - [ ] `plan/spec-lifecycle-invariants.md` - ready, written by the same cross-cutting review method
 
 **Key insights:** (minimal context to resume after compaction)

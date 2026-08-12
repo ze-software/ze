@@ -73,7 +73,7 @@ and saying so in the docs.
 
 ### Related Specs
 - [ ] `plan/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-5
-- [ ] `plan/spec-cp-survival-0-umbrella.md` - **in-progress, owns copp.** Read its closure record before starting, and record the split there
+- [ ] `spec-cp-survival-0-umbrella` - **closed 2026-08-12; it owned copp.** Read its closure record from git history before starting
 - [ ] `plan/spec-dataplane-seams-4-control-packet-rx.md` - the receive side of the same question
 
 **Key insights:** (minimal context to resume after compaction)
