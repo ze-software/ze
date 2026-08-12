@@ -99,3 +99,23 @@
 # Verified on Linux: 5x 5/5 (avg 5.5s, down from 11.3s). One source mutation
 # proves the waits are not vacuous -- dropping the two mods.Op calls in the iBGP
 # branch of LLGREgressFilter (gr/gr_egress.go) fails it 3x 0/3.
+
+# test/plugin/llgr-egress-state-unloaded.ci: 3 -> 0. This is the rise 6ec2a10bc
+# caused, now paid for at its source, so the ceiling drops 79 -> 76 and the
+# comment above about a removal paying for someone else's rise is spent.
+# The file is RFC-tagged (RFC9494-4.3-3), so the change carries the
+# `rfc-test-change-approved:` marker Thomas approved on 2026-08-12. No expect,
+# reject, hex or config line was touched: only the observer's waits, and
+# option=linger on the source peer.
+#   The 0.25s best-route poll became dispatch_until on the same predicate.
+#   The 1.5s and 2.0s holds became wait_peer_eor_sent(2) and two polls on obsn's
+#     updates-sent minus eor-sent, which IncrUpdatesSent bumps after the bytes
+#     reach the socket.
+#
+# It had the SAME race as its sibling, and the barriers proved it rather than
+# inheriting the finding: with the barriers in and option=linger commented out,
+# 5x 0/5, obsn receiving UPDATE 001B WITHDRAWN 10.0.0.0/24 as its seq=2 instead
+# of the depreferenced form. With linger, 5x 5/5 at avg 5.5s. Dropping the two
+# mods.Op calls in the iBGP branch of LLGREgressFilter (gr/gr_egress.go) fails it
+# 3x 0/3, so the barriers are not vacuous on this file either.
+-3

@@ -40,10 +40,28 @@
 # The state-LOADED contrast is llgr-readvertise-multipeer.ci: the same scenario
 # with `internal gr { use bgp-gr }`, which loads the state in the daemon.
 
+# rfc-test-change-approved: 2026-08-12 Thomas approved an observer-timing change
+#   only. The RFC 9494 Section 4.3-3 assertions are UNCHANGED:
+#     expect=bgp:conn=1:seq=1:contains=180A0000
+#     expect=bgp:conn=1:seq=2:contains=FFFFFF01
+#   What DID change: 3 blind time.sleep calls became dispatch_until on the
+#   best-route predicate, wait_peer_eor_sent(2), and a poll on obsn's
+#   updates-sent minus eor-sent; and option=linger:value=true went on the source
+#   peer. No expect, reject, hex or config line was touched.
+
 # --- source: LLGR RR-client, announces 10.0.0.0/24 then waits on ze's EOR ---
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=20s
+# rfc-test-change-approved: 2026-08-12 -- see the block at the top of this file.
+# Assertions unchanged; this line is part of the approved timing change.
+# Hold the session open past this peer's own expect. A check-mode ze-peer closes
+# the instant its expectations are met, and the close reaches ze as a peer-down
+# that withdraws 10.0.0.0/24 from obsn -- obsn then reads that withdrawal as its
+# seq=2 and the depreference never arrives. The blind sleeps below were only ever
+# beating that withdrawal. The header above states the intent this restores: the
+# stale transition is driven by mark-stale + clear-rib-out, never by a disconnect.
+option=linger:value=true
 # iBGP UPDATE: ORIGIN igp, AS_PATH [65001], NEXT_HOP 10.0.0.1, LOCAL_PREF 200,
 # NLRI 10.0.0.0/24.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0000
@@ -70,17 +88,50 @@ EOF_OBSN
 
 tmpfs=observer.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
+# rfc-test-change-approved: 2026-08-12 -- observer timing only. The RFC 9494
+# Section 4.3-3 assertions (obsn's two expect=bgp lines) are UNCHANGED; this
+# script asserts nothing about the RFC and never did. What changed: the 0.25s
+# poll interval, the 1.5s hold and the 2.0s hold became dispatch_until,
+# wait_peer_eor_sent(2) and two polls on obsn's updates-sent minus eor-sent.
 import sys
-import time
-from ze_api import API, runtime_fail, result_text_data
+from ze_api import (
+    API,
+    dispatch,
+    dispatch_until,
+    result_text_data,
+    runtime_fail,
+)
+
+OBSN = '127.0.0.2'
 
 
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
+def obsn_counter(api, field):
+    """Return one integer counter from obsn's `show bgp peer * detail` row.
+
+    Indexed out of the all-peers dict rather than dispatched with the address as
+    the selector, because peer_fields keys its rows by address while this config
+    names its peers `source` and `obsn`. A row that is not there yet reads as 0,
+    which is what a poller wants.
+    """
+    row = api.peer_fields('*').get(OBSN, {})
+    if not isinstance(row, dict):
+        return 0
+    try:
+        return int(row.get(field, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def obsn_routes_sent(api):
+    """UPDATEs written to obsn that are not its End-of-RIB.
+
+    updates-sent counts every UPDATE written to the session, End-of-RIB
+    included: session_write.go calls onMessageReceived with DirectionSent once
+    the bytes are on the socket, and reactor_notify.go increments the counter on
+    TypeUPDATE. eor-sent is the separate marker, so the difference counts real
+    routes toward obsn -- the same two writes obsn's own expect rules read.
+    """
+    return obsn_counter(api, 'updates-sent') - obsn_counter(api, 'eor-sent')
 
 
 def main():
@@ -91,22 +142,33 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait until the source route is selected best (it is then reflected to the
-    # obsn RR-client). More robust than a fixed sleep.
-    for _ in range(60):
-        # poll interval; the loop breaks when `show bgp rib best` reports
-        # 10.0.0.0/24, and its else-branch runtime_fails after 15s.
-        time.sleep(0.25)
-        r = dispatch(api, 'show bgp rib best')
-        if r.get('status') == 'done' and '10.0.0.0/24' in result_text_data(r):
-            break
-    else:
-        runtime_fail('source route never became best')
+    # Barrier 1: the source route is selected best, so it can be reflected.
+    best = dispatch_until(
+        api,
+        'show bgp rib best',
+        lambda r: r.get('status') == 'done'
+        and '10.0.0.0/24' in result_text_data(r),
+        attempts=60,
+    )
+    if '10.0.0.0/24' not in result_text_data(best):
+        runtime_fail(f'source route never became best: {best}')
 
-    # Give the reflection a moment to reach obsn on the wire (its seq=1 expect).
-    time.sleep(1.5)
+    # Barrier 2: both peers have their initial-sync End-of-RIB on the wire. That
+    # frame IS the source peer's only expect, and eor-sent counts markers ze has
+    # flushed to the socket. It also makes the readvertise below a clean post-EOR
+    # incremental instead of a write racing a sync that is still draining.
+    if not api.wait_peer_eor_sent(expected_peers=2, attempts=60):
+        runtime_fail('ze never sent both peers their End-of-RIB')
+
+    # Barrier 3: the reflection has been WRITTEN to obsn, which is obsn's seq=1
+    # expect. The reflection and the readvertise below reach obsn over the same
+    # session, so this counter is what orders them; a duration only guessed.
+    if not api.wait_until(lambda: obsn_routes_sent(api) >= 1, attempts=60):
+        runtime_fail('obsn was never sent the reflected route '
+                     f'(routes sent={obsn_routes_sent(api)})')
 
     # Mark the source's routes stale at the depreference level and readvertise.
+    base = obsn_routes_sent(api)
     ms = dispatch(api, 'request bgp rib mark-stale 127.0.0.1 60 2')
     if ms.get('status') != 'done':
         runtime_fail(f'mark-stale failed: {ms}')
@@ -116,8 +178,13 @@ def main():
 
     print('OK: mark-stale + clear-rib-out dispatched', file=sys.stderr)
 
-    # Give the readvertise time to reach obsn before shutdown.
-    time.sleep(2.0)
+    # Barrier 4: the depreferenced readvertise is on the wire, which is obsn's
+    # seq=2 expect. Shutting down on a duration raced that write; this cannot.
+    if not api.wait_until(lambda: obsn_routes_sent(api) >= base + 1,
+                          attempts=60):
+        runtime_fail('the readvertise never reached obsn '
+                     f'(routes sent={obsn_routes_sent(api)}, want {base + 1})')
+
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
