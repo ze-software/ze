@@ -531,3 +531,301 @@ detect the fix being undone later, without a daemon.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Functional tests for end-to-end behavior
+
+## Deliverables Checklist
+
+<!-- ADDED AT CLOSURE. The spec was written before the template carried these
+     three tables, so /ze-close filled them from what shipped rather than
+     closing without the reviews they gate. -->
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| The widened seam exists and is one interface, not a per-service switch | `gopls symbols cmd/ze/hub/listener_migrate.go` shows `AuthUpdatable` (`:57`) with `Authenticated` and `UpdateAuth`, and no second classifier |
+| Both API transports implement it | `grep -rn 'func.*UpdateAuth' internal/component/api` returns exactly `rest/auth.go:75` and `grpc/server.go:534` |
+| The reload drives it | `ReloadListeners` (`:329`) calls `resolveAuthIntents`, `checkAuthRebuildable`, `applyAuthIntents`, `checkReloadExposure` in that order |
+| The undo reaches every failure path | `cmd/ze/hub/main_reload.go:298-304`: a `reloadApplied` flag and one `defer`, not a call per path |
+| Functional tests exist | `ls test/reload/mgmt-guard-reload-*.ci` returns three files beside the parent's |
+| Unit tests green | `make ze-test-pkg PKG=./cmd/ze/hub` |
+
+## Security Review Checklist
+
+<!-- ADDED AT CLOSURE, same reason. This spec is a security spec: every row
+     below is a way the reload could end less authenticated than it began. -->
+
+| Check | What to look for | Answer |
+|-------|-----------------|--------|
+| A guard failing open on an unknown service | `checkReloadExposure` SKIPS an unknown service, which is its permissive branch | Bounded: `markMgmtAuth` runs at `cmd/ze/hub/main.go:1087`, before `registerBuiltService` (`:1168`), `lm.SetREST` (`:1224`) and `lm.SetGRPC` (`:1238`), so no classified surface can be asked about before its record lands. Round 4 found and closed this window |
+| An unresolved authentication mode read as "no authentication" | `resolveAuthIntents` error branch | Fails closed: it returns `resolve %s authentication: %w` and the reload stops |
+| A rollback that lowers authentication | `(*GRPCServer).UpdateAuth`'s undo | `setAuthLocked` re-runs `checkGRPCListenAddr` on the restore too, and the undo KEEPS the reloaded credentials with an Error log when putting the old ones back would expose the listener |
+| A failed reload leaving reloaded credentials in place | `runReload` | The deferred `restoreAuth()` runs on every non-applied path, the `PromoteCandidate` failure included |
+| Transport secrecy read as authentication | `checkReloadExposure` doc comment | Stated explicitly: it judges authentication only, gRPC owns its TLS rule in `checkGRPCListenAddr`, and a pass here is not "safe to expose" |
+| Credential material in a log or error | `checkAuthRebuildable`'s message | Names the service and the two MODES (`authWord`), never a token or a hash |
+| A partially applied intent set | `applyAuthIntents` | `restoreAll()` runs in reverse before the error returns |
+
+## Documentation Update Checklist
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | Yes | `docs/guide/authentication.md`, "Authentication on reload". Already landed with the implementation: it states what a reload rebuilds, quotes the refusal message, and names the unbuilt-transport case |
+| 2 | Config syntax changed? | No | Same leaves; the reload reads what was already there |
+| 3 | CLI command added/changed? | No | - |
+| 4 | API/RPC added/changed? | No | `UpdateAuth` is an internal Go seam, not an RPC |
+| 5 | Plugin added/changed? | No | - |
+| 6 | Has a user guide page? | Yes | Same page as #1 |
+| 7 | Wire format changed? | No | - |
+| 8 | Plugin SDK/protocol changed? | No | - |
+| 9 | RFC behavior changed? | N-A | No RFC governs the reload of a management listener |
+| 10 | Test infrastructure changed? | No | Three new `.ci` files in the existing `test/reload/` form |
+| 11 | Affects daemon comparison? | No | - |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/web-interface.md` describes the `Reconfigurable` seam. `AuthUpdatable` is declared beside it and documented at its declaration; no architecture claim on that page became false, because the address seam is unchanged |
+| 13 | Route metadata keys? | No | - |
+| 14 | Prometheus counters? | No | The refusal reaches the operator's exit status, not a counter |
+| 15 | Registered plugin/command/capability? | No | - |
+| 16 | Changed file referenced by doc source anchors? | Yes | `docs/guide/authentication.md:247` anchors `cmd/ze/hub/mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders`; both symbols present at HEAD |
+| 17 | Existing docs show examples for this area? | Yes | The refusal message in the guide matches `checkAuthRebuildable`'s format string verbatim |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `AuthUpdatable` (`cmd/ze/hub/listener_migrate.go:57`), a narrow capability
+  interface beside `Reconfigurable`, twinned on `TLSUpdatable`. Drain-and-replace
+  was rejected: the web server bakes its auth decision into ~30 mux
+  registrations, and replacing the instance would replace the broker and the
+  shutdown handle with it.
+- `(*RESTServer).UpdateAuth` (`internal/component/api/rest/auth.go:75`) and
+  `(*GRPCServer).UpdateAuth` (`internal/component/api/grpc/server.go:534`), each
+  returning a restore closure.
+- Four steps in `ReloadListeners` (`:329`), in a fixed order: resolve, refuse the
+  unrebuildable, apply, re-check exposure. Every refusal happens before a
+  listener moves.
+- `authAtBoot` REPLACES the boot `unauth` name set, recording both polarities;
+  `runningAuth` prefers the live server, because a rebuilt server's boot record
+  is the stale answer this work removes.
+- `markMgmtAuth` (`cmd/ze/hub/mgmt_auth_reload.go:80`) classifies every surface
+  at boot, before any handle reaches the migrator; `resolveAuthIntents` drops the
+  surfaces with no handle.
+- The undo in `runReload` (`cmd/ze/hub/main_reload.go:298-304`) is a deferred
+  flag, so a new failure path inherits it.
+
+### Bugs Found/Fixed
+
+- Round 3 gated `markMgmtAuth` on `hasService`, which opened a fail-open window:
+  handles are installed before the mark, so `checkReloadExposure` skipped web and
+  mcp and would have migrated an unauthenticated web server to `0.0.0.0:3443`.
+  Round 4 moved the handle test to reload time.
+- The first implementation logged and dropped an unrebuildable service's change
+  and returned nil, so `ze config commit` reported success over a web server
+  still serving unauthenticated. `checkAuthRebuildable` now fails the reload.
+- The undo was hand-placed and the `PromoteCandidate` path had already been
+  written without it.
+- gRPC's undo could restore empty credentials onto a listener the same reload had
+  moved off loopback. `setAuthLocked` re-runs `checkGRPCListenAddr` on the undo.
+- AC-5's original condition does not reproduce: `ExtractAPIConfig` returns
+  `ok=false` for a block with no enabled transport. ONE transport enabled and the
+  sibling absent is the shape that reproduces, and it was common.
+
+### Documentation Updates
+
+- `docs/guide/authentication.md`, "Authentication on reload": landed with the
+  implementation. Verified at closure against the producers: the quoted refusal
+  matches `checkAuthRebuildable`'s format string, the unbuilt-transport paragraph
+  matches `resolveAuthIntents`'s `hasService` skip, and the anchor at `:247`
+  names `markMgmtAuth` and `registerMgmtAuthReloaders`, both present.
+- No further doc edit was owed. `make ze-doc-test` NOT run in this session.
+
+### Deviations from Plan
+
+- The seam was WIDENED, not drain-and-replace, which the spec's own Autonomous
+  Default of 2026-07-17 had preferred. The reason is recorded in-body: no service
+  is constructed in a way that survives replacement.
+- `internal/component/web/server.go`, `internal/component/lg/server.go` and
+  `cmd/ze/hub/service_mcp.go` were NOT modified. Web and MCP implement no
+  `AuthUpdatable`, so a mode change on either fails the reload with a message
+  naming the service, which is AC-4 rather than a gap.
+- AC-5 was added mid-flight from review round 3.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | An unrebuildable service's change was logged and dropped, and the reload returned nil | `runReload` then promoted the candidate, so the operator was told a reload succeeded over an unauthenticated server | Review, 2026-08-07 | `checkAuthRebuildable` fails the reload before anything applies |
+| approach | The handle test was placed at MARK time | Handles reach the migrator before the mark, so the window was fail-open for web and mcp | Review round 4 | Moved to `resolveAuthIntents`; `TestMarkMgmtAuthClassifiesOnlyBuiltSurfaces` DELETED, not left beside the new shape |
+| assumption | "Refusing a reload would lock out every later SIGHUP" | Inferred, never read. `PromoteCandidate` runs only after every step succeeds and the refusal paths clear the candidate | Reading `runReload` | Claim withdrawn in-body, with the one real divergence (`PromoteCandidate` failure clears nothing) named as separate |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An auth-mode change takes effect on SIGHUP | Done | `applyAuthIntents` (`listener_migrate.go:465`) -> `UpdateAuth` | REST and gRPC |
+| A service that cannot rebuild says so instead of lying | Done | `checkAuthRebuildable` (`:440`) | Web and MCP |
+| The reload cannot end more exposed than it began | Done | `checkReloadExposure` (`:526`) over LIVE auth | Plus gRPC's own address rule |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `applyAuthIntents` calls `au.UpdateAuth(ra.intent.token, ra.intent.authenticator)` unconditionally per intent (`:483`) | Applied even when the MODE is unchanged, because a rotated token changes the material |
+| AC-2 | Done | `UpdateAuth` returns a restore closure; `applyAuthIntents` composes them in reverse (`:466-471`); `runReload` runs the composite from a deferred `reloadApplied` flag (`main_reload.go:298-304`) | |
+| AC-3 | Done | `checkReloadExposure` reads `runningAuth`, which prefers the live `authUpdaters` entry over `authAtBoot` (`:205-209`) | Refuses before `migrateListeners` and restores the credentials first (`:346-349`) |
+| AC-4 | Done | `checkAuthRebuildable` returns before any apply (`ReloadListeners:337`) | The message names the service and both modes |
+| AC-5 | Done | `resolveAuthIntents` skips `!m.hasService(name)` (`:399`) BEFORE calling the reloader | Skipping the check alone would still have called `apiAuthReloader` for a server that does not exist |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| AC-1 unit | Done | `TestReloadListenersRebuildsAuthenticationOn` (`cmd/ze/hub/listener_migrate_test.go:135`) | Named differently from the TDD plan's placeholder |
+| AC-2 unit | Done | `TestReloadListenersRestoresAuthenticationWhenMigrationFails` (`:173`) | |
+| AC-3 unit | Done | `TestReloadListenersRefusesRebuiltUnauthenticatedNonLoopback` (`:201`) | |
+| AC-4 unit | Done | `TestReloadListenersFailsWhenAuthCannotBeRebuilt` (`:226`) | |
+| AC-5 unit | Done | `TestUnbuiltSurfaceResolvesNoAuthIntent`, `TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt` (`cmd/ze/hub/mgmt_auth_reload_test.go:224,252`) | |
+| Fail-open window | Done | `TestMarkMgmtAuthClassifiesBeforeAnyHandleExists` (`:195`) | Replaces the DELETED `TestMarkMgmtAuthClassifiesOnlyBuiltSurfaces` |
+| Install seam | Done | `TestApplyAuthIntentsInstallsAndRestoresCredentials` (`listener_migrate_test.go:462`) | |
+| Server-side | Done | `internal/component/api/rest/auth_test.go`, `internal/component/api/grpc/auth_reload_test.go` | The gRPC pair drives a real RPC |
+| `mgmt-guard-reload-auth-rebuild` | Done | `test/reload/mgmt-guard-reload-auth-rebuild.ci` | |
+| `mgmt-guard-reload-refuses-unauth` | Done | `test/reload/mgmt-guard-reload-refuses-unauth.ci` | |
+| `mgmt-guard-reload-unbuilt-transport` | Done | `test/reload/mgmt-guard-reload-unbuilt-transport.ci` | |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `cmd/ze/hub/listener_migrate.go` | Done | The seam, the four steps, `authAtBoot`, `runningAuth` |
+| `cmd/ze/hub/main_reload.go` | Done | The deferred undo |
+| `internal/component/api/rest/server.go` (auth.go) | Done | `UpdateAuth` landed in `auth.go` beside the middleware, not in `server.go` |
+| `internal/component/api/grpc/server.go` | Done | `UpdateAuth` plus the `setAuthLocked` address rule |
+| `internal/component/web/server.go`, `internal/component/lg/server.go`, `cmd/ze/hub/service_mcp.go` | Changed | Deliberately NOT modified; see Deviations |
+| `cmd/ze/hub/service_web.go` | Changed | Same reason: web's auth stays a construction decision, and AC-4 covers the change |
+| `cmd/ze/hub/mgmt_auth_reload.go` | Added, not in the plan | `markMgmtAuth`, `registerMgmtAuthReloaders`, `apiAuthReloader` |
+
+### Audit Summary
+
+- **Total items:** 5 AC + 3 task requirements + 11 test rows
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 file rows (web/lg/mcp untouched, `mgmt_auth_reload.go` added), both recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An authentication-mode change takes effect on SIGHUP, not at restart | functional | `test/reload/mgmt-guard-reload-auth-rebuild.ci`. Discrimination recorded in the spec: with `applyAuthIntents` returning before `au.UpdateAuth`, the test prints `after SIGHUP: unauthenticated read status=200, want 401` under a daemon that logged `sighup reload complete`, which IS the silent no-op |
+| A reload cannot end non-loopback and unauthenticated | functional | `test/reload/mgmt-guard-reload-refuses-unauth.ci`. With `runningAuth` answering from `authAtBoot`, the guard's own message disappears and only REST's private address rule fires, which would not have covered gRPC |
+| A server that was never built cannot refuse a reload | functional | `test/reload/mgmt-guard-reload-unbuilt-transport.ci`. With the `hasService` test dropped, the daemon prints `reload error: reload: listener migration: grpc cannot change its authentication while running` for a gRPC server it never started |
+| A failed reload leaves nothing authenticating against the rejected config | unit | `TestReloadListenersRestoresAuthenticationWhenMigrationFails`, `TestRESTUpdateAuthRestoreRevertsCredentials`, `TestGRPCUpdateAuthRestoreRevertsCredentials` |
+| The fail-open window at boot is closed | unit | `TestMarkMgmtAuthClassifiesBeforeAnyHandleExists` drives it directly: mark, install an unauthenticated web handle, run the exposure check |
+
+## Deferrals Resolved
+
+This spec has no deferral shard of its own: `ls plan/deferrals/` holds no
+`fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild.md`.
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| (own shard) none | N-A | No shard exists for this spec |
+| FOREIGN row homed here: "Rebuild the live AAA bundle on config reload" (`plan/deferrals/fixit-web-auth-deleted-user-survives-reload.md`) | re-homed, still deferred | This spec built the SEAM and not this work. `swapAAABundle` (`cmd/ze/hub/aaa_lifecycle.go`) still has exactly two non-test callers, `infraSetup` and `runYANGConfig`, both startup-only, re-verified 2026-08-12. The row now says the seam exists and the rebuilder does not, and needs its own spec. The shard keeps two live rows, so it is not removed |
+| gNMI token over plaintext | out of scope, verified real | Recorded in-body under "Not claimed, and now verified real". `(*gnmi.Server).Serve` adds the token interceptor and the TLS credentials from two independent conditions. It is a secrecy question, not an identity one, and the 2026-07-17 autonomous default keeps it out |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean |
+| Rounds | 1 at closure. Four review rounds ran during implementation and are recorded in Findings fixed |
+| Reviewer lenses used | AC-to-producer verification at HEAD, fail-open audit of every guard branch, boot-ordering audit, citation audit |
+
+This closure reviewed code ALREADY AT HEAD. `git status --porcelain` over
+`cmd/ze/hub`, `internal/component/api`, `internal/component/web`,
+`internal/component/lg` and `test/reload` reported no change to any path this
+spec names before the review began.
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | An unrebuildable service's change was dropped and the reload reported success | `cmd/ze/hub/listener_migrate.go` | `checkAuthRebuildable` fails the reload before any apply |
+| 2 | BLOCKER | Handles reach the migrator before `markMgmtAuth`, so the exposure guard took its permissive branch for web and mcp | `cmd/ze/hub/main.go`, `listener_migrate.go` | Mark before any handle; drop unhandled surfaces at reload time |
+| 3 | BLOCKER | A refused reload left REST and gRPC authenticating against the rolled-back config | `cmd/ze/hub/main_reload.go` | A deferred `reloadApplied` flag replaces hand-placed undo calls |
+| 4 | BLOCKER | gRPC's undo could restore empty credentials onto a listener moved off loopback in the same reload | `internal/component/api/grpc/server.go` | `setAuthLocked` re-runs `checkGRPCListenAddr` on the undo and keeps the reloaded credentials |
+| 5 | ISSUE | The reload refused over a gRPC server the daemon never built | `cmd/ze/hub/listener_migrate.go` | AC-5, the `hasService` skip in `resolveAuthIntents` |
+| 6 | ISSUE | No `.ci` covered any behaviour this spec adds | `test/reload/` | Three functional tests, each with a recorded revert |
+| 7 | NOTE | The spec's destination for the foreign AAA-bundle deferral row became dangling at closure | `plan/deferrals/fixit-web-auth-deleted-user-survives-reload.md` | Re-homed with the re-verified `swapAAABundle` caller set |
+| 8 | NOTE | The spec carried no Deliverables, Security or Documentation checklist | this spec | All three added and filled above, from what shipped |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/reload/mgmt-guard-reload-auth-rebuild.ci` | Yes | `ls test/reload/` listed it |
+| `test/reload/mgmt-guard-reload-refuses-unauth.ci` | Yes | same |
+| `test/reload/mgmt-guard-reload-unbuilt-transport.ci` | Yes | same |
+| `cmd/ze/hub/mgmt_auth_reload.go` | Yes | `gopls`/grep resolved `markMgmtAuth:80`, `registerMgmtAuthReloaders:98`, `apiAuthReloader:146` |
+| `internal/component/api/rest/auth.go` | Yes | `UpdateAuth` at `:75` |
+| `internal/component/api/grpc/auth_reload_test.go` | Yes | `grep -rln` returned it |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The reload installs the reloaded credentials | `listener_migrate.go:483` `restore, err := au.UpdateAuth(ra.intent.token, ra.intent.authenticator)`, reached from `ReloadListeners:341` |
+| AC-2 | Every failure path undoes them | `main_reload.go:298-304`: `reloadApplied := false` and a single `defer` calling `restoreAuth()` |
+| AC-3 | The exposure check reads LIVE auth | `listener_migrate.go:205-209`: `runningAuth` returns `au.Authenticated()` when an updater exists, and only then falls back to `authAtBoot` |
+| AC-4 | The refusal comes before any apply | `ReloadListeners:337` calls `checkAuthRebuildable` before `applyAuthIntents` at `:341` and `migrateListeners` at `:352` |
+| AC-5 | An unbuilt surface produces no intent and its reloader is never called | `listener_migrate.go:399-401`: `if !m.hasService(name) { continue }`, above the `m.authReloaders[name](tree)` call at `:405` |
+| Boot ordering | The mark precedes every handle | `cmd/ze/hub/main.go`: `markMgmtAuth` at `:1087`, `registerBuiltService` at `:1168`, `lm.SetREST` at `:1224`, `lm.SetGRPC` at `:1238` |
+| All | The package is green | `make ze-test-pkg PKG=./cmd/ze/hub`: `ok github.com/ze-software/ze/cmd/ze/hub 106.382s` |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| SIGHUP with auth turned ON | `test/reload/mgmt-guard-reload-auth-rebuild.ci` | Yes: header line 2 names this spec, and the spec records the revert that makes it red |
+| SIGHUP leaving a listener non-loopback and unauthenticated | `test/reload/mgmt-guard-reload-refuses-unauth.ci` | Yes: same header, and its recorded red is the guard's own message disappearing |
+| A transport never built | `test/reload/mgmt-guard-reload-unbuilt-transport.ci` | Yes: same header; its red is a refusal over a server that does not exist |
+| Auth rebuild fails midway | none (unit) | Yes: `TestReloadListenersRestoresAuthenticationWhenMigrationFails` (`listener_migrate_test.go:173`) |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | In-place rebuild was assumed unsafe and drain-and-replace preferred. Neither was taken: `UpdateAuth` swaps credentials under the server's own mutex without touching a listener or a handler chain, so no connection is drained. Recorded in Deviations and the Mistake Log |
+| A-2 | confirmed | `cmd/ze/hub/mgmt_guard.go` and `checkMgmtListeners` are on disk; this spec reuses that classifier and creates no second one |
+| A-3 | confirmed | Rollback is NOT the reverse-order reconfigure the assumption named. It is a composed restore closure plus a deferred flag in `runReload`, which covers the promote path the reverse-order form had missed |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "A config reload rebuilds the credentials of the running REST and gRPC servers" | `applyAuthIntents` calls `UpdateAuth` on every intent; only REST and gRPC implement `AuthUpdatable` | Yes |
+| The quoted refusal message | `checkAuthRebuildable`'s format string at `listener_migrate.go:449` matches the guide's block word for word | Yes |
+| "An `api-server` block that enables REST alone reloads on the REST server, and says nothing about gRPC" | `resolveAuthIntents:399` | Yes |
+| "it reads the rebuilt authentication rather than the mode the server started with" | `runningAuth:205-209` | Yes |
+| Anchor `mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders` | both symbols present at `:80` and `:98` | Yes, no drift |
+
+## Gates Not Run in This Closure Session
+
+`make ze-verify`, `ze-verify-changed`, `ze-doc-test`, and every `.ci` suite
+including `test/reload/`. The operator scoped this session to review and closure
+of code already at HEAD and forbade running a test suite. The one gate run is
+`make ze-test-pkg PKG=./cmd/ze/hub`, green. No Go file changes in this closure,
+so `make ze-tracked-build-check` is not owed.
+
+## Core Insight
+
+The seam was widened rather than replaced, and the reason generalises: a
+capability interface declared beside `Reconfigurable` lets a service opt IN to
+being reconfigured along one axis, and a service that does not implement it is
+visibly unable rather than silently stale. That is what turns "the reload did
+nothing" into "the reload refused and named the service". The fail-open branch
+that survived three review rounds was the mirror image: a service the guard
+could not classify was skipped, and skipping is permissive. Both halves of this
+spec are the same rule, applied to a capability and to a classification.
