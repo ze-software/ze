@@ -13,23 +13,57 @@
 # The value below passes the YANG schema on its own: the `use` leaf is
 # `type string { length "1..64" }`, so nothing but the custom validator can
 # refuse it. That is what makes this test discriminate -- revert the
-# ValidateCustomSections call in LoadConfig and the refusal disappears.
+# ValidateCustomSections call in LoadConfig and seq 1 stops exiting at all: the
+# daemon starts, logs "unknown internal plugin: p1" from plugin.server, and runs
+# until the timeout kills it.
 #
 # The enforcing producer is InternalPluginNameValidator
 # (internal/component/config/validators.go), reached through the ze:validate
 # extension on plugin/internal/use in
 # internal/component/plugin/yang/ze-plugin-conf.yang, walked by
 # ValidateCustomSections (internal/component/config/validate_sections.go).
+#
+# TWO SHAPES BELOW ARE LOAD-BEARING, and neither is about BGP.
+#
+#   The `bgp` block routes the config. `ze` picks its startup path from
+#   ProbeConfigType (internal/component/config/probe.go): a config whose only
+#   top-level block is `plugin` is ConfigTypeHub and runs
+#   runOrchestratorWithData (cmd/ze/hub/main.go), whose own parser accepts
+#   `external` alone and dies at "parse config: line 2: expected 'external',
+#   got internal". That is a hub parse error which never reaches LoadConfig, so
+#   it proves nothing about the validators. One more top-level block routes the
+#   same bytes to runYANGConfig, which is the path this test exists to hold.
+#
+#   The config is a `tmpfs=` file rather than a `stdin=` block because this
+#   suite's runner REWRITES a bare `-` argument into the path of the stdin file
+#   (runOneCommand, internal/test/runner/parsing.go), so `exec=ze -` here
+#   becomes `ze <path>` -- the bare-config invocation form that no longer
+#   exists, and the daemon answers "unknown command: <path>" with its usage.
+#   `ze start <file>` is the form that starts the daemon from a file, and both
+#   commands below read the one file, which is what makes them a comparison.
 
-stdin=config:terminator=EOF_CONF
+tmpfs=invalid-validator.conf:terminator=EOF_CONF
 plugin {
 	internal p1 {
 		use no-such-plugin-exists
 	}
 }
+
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+		}
+	}
+}
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=config:exit=1:timeout=20s
+cmd=foreground:seq=1:exec=ze start invalid-validator.conf:exit=1:timeout=20s
 expect=exit:code=1
 expect=stderr:contains=config validation failed
 expect=stderr:contains=plugin
@@ -39,6 +73,6 @@ expect=stderr:contains=is not a registered internal plugin
 # The same config through `ze config validate` refuses identically. Both
 # callers run one walk over one section list, so an operator who checks a
 # config before an upgrade learns exactly what the daemon will do with it.
-cmd=foreground:seq=2:exec=ze config validate -:stdin=config:exit=1
+cmd=foreground:seq=2:exec=ze config validate invalid-validator.conf:exit=1
 expect=exit:code=1
 expect=stdout:contains=is not a registered internal plugin
