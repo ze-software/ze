@@ -19,7 +19,7 @@ Ze gained a native IKEv2 implementation built from the wire format up, interop-t
 - Recursive next-hop resolution, ECMP path grouping, and IGP-cost-aware best-path selection, feeding richer route attributes (type, metric, table, MPLS) into both the kernel and VPP FIB backends
 - A route server mode for IXPs: dynamic peer groups that accept sessions from any address in a configured range, RS-client transparent AS-PATH forwarding, and community-based selective forwarding (announce-only, do-not-announce, RFC 7999 blackhole)
 - AIGP attribute support (RFC 7311)
-- PPPoE and L2TP subscriber sessions now share one session model, making PPPoE visible to the same auth, address-pool, shaping, and telemetry plugins L2TP already had
+- PPPoE and L2TP subscriber sessions now share one session model. PPPoE is visible to the same auth, address-pool, shaping, and telemetry plugins L2TP already had.
 - BGP FlowSpec routes (RFC 8955/8956) can now drive local firewall rules directly
 - RPKI ASPA verification, shipped opt-in last week, can now enforce a reject policy on invalid AS_PATHs (log-only by default; a route that is ROA-valid but ASPA-invalid is still rejected)
 
@@ -44,7 +44,7 @@ Ze gained a native IKEv2 implementation built from the wire format up, interop-t
 
 ## ⚡ Performance
 
-A focused pass on BGP's hot path: attributes are parsed once per UPDATE instead of once per NLRI, AS-PATH prepend and hold-timer resets are allocation-free on the fast path, JSON formatting for monitors and RIB output skips work when nothing is watching, and GC pressure across the reactor and event pipeline dropped significantly.
+A focused pass on BGP's hot path: attributes are parsed once per UPDATE instead of once per NLRI, AS-PATH prepend and hold-timer resets are allocation-free on the fast path, JSON formatting for monitors and RIB output skips work when nothing is watching, and GC pressure across the reactor and event pipeline dropped.
 
 ## 🛠️ Under the hood
 

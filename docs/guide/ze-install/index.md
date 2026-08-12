@@ -139,8 +139,8 @@ To check the service status, use `systemctl status ze.service` directly.
 
 This is the bare-metal walkthrough for the PXE install flow. It is exactly what
 `make ze-install-qemu-test` exercises in software (build an image, serve it,
-boot an installer kernel + initrd that writes the disk, then log in over SSH) —
-see [End-to-End QEMU Verification](#end-to-end-qemu-verification) to dry-run the
+boot an installer kernel + initrd that writes the disk, then log in over SSH). It lets you
+dry-run the
 same chain before touching hardware. The reference subsections below
 (Remote Provisioning, Installer Kernel, Installer Initrd, Bootstrap Mode) cover
 each piece in detail; this section sequences them.
@@ -242,7 +242,7 @@ commit; the committed config replaces the bootstrap config on the next restart.
 ### Troubleshooting
 
 - **Installer drops to a shell** instead of rebooting on a bad `ze.server`, no
-  writable disk, or a download that fails 3 times — read the serial/VGA console
+  writable disk, or a download that fails 3 times. Read the serial/VGA console
   for the `[ze-install] FATAL:` line.
 - **Wrong disk** written: the initrd picks the first non-removable disk; detach
   extra fixed disks or net-boot into the shell and inspect `/sys/block`.
@@ -829,7 +829,7 @@ default installer kernel.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `ZE_INSTALL_KERNEL` | (none — self-skips) | Path to the installer kernel `Image`/`vmlinuz` |
+| `ZE_INSTALL_KERNEL` | none; self-skips | Path to the installer kernel `Image`/`vmlinuz` |
 | `ZE_INSTALL_ARCH` | host arch (`amd64` for ISO evidence) | Target architecture for QEMU installer evidence and generated appliance config (`arm64`/`amd64`) |
 | `ZE_INSTALL_BOOT_TIMEOUT` | `300` | Seconds to wait for the installer to write the disk |
 | `ZE_INSTALL_IMAGE_SIZE` | appliance default (2 GiB) | Override image `size-bytes` (must stay large enough for the gokrazy A/B layout) |
@@ -844,5 +844,5 @@ The test points the guest at the slirp gateway (`ze.server=10.0.2.2
 ze.port=<ephemeral>`) rather than a `guestfwd` forward. A `guestfwd` services
 only the first guest connection, which stalls the installer's second and third
 downloads (image, zefs); the gateway handles the sequential connections the
-installer makes. This is purely a test-harness concern — real PXE installs use a
+installer makes. This is only a test-harness concern; real PXE installs use a
 real network and `ze install remote` on port 80.

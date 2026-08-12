@@ -104,9 +104,9 @@ the way back into a box whose mapping is wrong.
 
 ### What the mapped profiles govern
 
-The mapped profiles decide every command the session may run, not just whether
-the login succeeds. Ze resolves them once at authentication and authorizes each
-command against them, so `tacacs-profile 1 { profile [ read-only ]; }` gives that
+The mapped profiles decide every command the session may run after login
+succeeds. Ze resolves them once at authentication and authorizes each command
+against them, so `tacacs-profile 1 { profile [ read-only ]; }` gives that
 session exactly what the local `read-only` profile allows and refuses the rest
 with `command restricted by access control`.
 

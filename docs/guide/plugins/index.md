@@ -3,7 +3,7 @@
 Ze uses a plugin architecture for all features beyond core BGP session management. Plugins handle RIB storage, route reflection, graceful restart, RPKI validation, NLRI encoding, and more.
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry; internal/component/plugin/all/ -- blank imports -->
 
-## Which Plugins Do I Need?
+## Choosing plugins
 
 | Use case | Plugins | Why |
 |----------|---------|-----|
@@ -339,7 +339,7 @@ attributes as text for each UPDATE. Filters respond accept, reject, or modify
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
 
-| Category | Behavior | Example |
+| Category | Behaviour | Example |
 |----------|----------|---------|
 | Mandatory | Always on, cannot be overridden | `rfc:otc` |
 | Default | On by default, overridable per-peer | `rfc:no-self-as` |

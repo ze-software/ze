@@ -3,9 +3,9 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>BFD — Bidirectional Forwarding Detection - Ze</title>
+        <title>BFD: Bidirectional Forwarding Detection - Ze</title>
         <meta name="description" content="Ze documentation: guide/bfd.md" />
-        <meta property="og:title" content="BFD — Bidirectional Forwarding Detection - Ze" />
+        <meta property="og:title" content="BFD: Bidirectional Forwarding Detection - Ze" />
         <meta property="og:description" content="Ze documentation: guide/bfd.md" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
@@ -13,7 +13,7 @@
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="BFD — Bidirectional Forwarding Detection - Ze" />
+        <meta name="twitter:title" content="BFD: Bidirectional Forwarding Detection - Ze" />
         <meta name="twitter:description" content="Ze documentation: guide/bfd.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
@@ -50,7 +50,7 @@
             <section class="md-content reveal cat-routing">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
-    <h1 id="bfd-bidirectional-forwarding-detection">BFD — Bidirectional Forwarding Detection</h1>
+    <h1 id="bfd-bidirectional-forwarding-detection">BFD: Bidirectional Forwarding Detection</h1>
     <p><strong>Status:</strong> the plugin is live, the production transport is hardened
 (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
 RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the
@@ -135,7 +135,7 @@ a session down.</p>
 </tr>
 </tbody>
 </table>
-<p>Do not use BFD between two routers where the IGP already runs fast BFD —
+<p>Do not use BFD between two routers where the IGP already runs fast BFD;
 the redundant sessions double the packet rate and can amplify instability.</p>
 <h2 id="basic-configuration">Basic configuration</h2>
 <h3 id="profiles">Profiles</h3>
@@ -363,7 +363,7 @@ hop:</p>
 }
 </code></pre>
 <p><code>mode multi-hop</code> tells the plugin to use UDP port 4784 and skip GTSM.
-<code>min-ttl</code> is a weaker replacement for GTSM — packets arriving with a
+<code>min-ttl</code> is a weaker replacement for GTSM. Packets arriving with a
 TTL below the configured value are discarded. Choose <code>min-ttl</code> to be
 <code>256 - max-hops</code>; for example, <code>min-ttl 250</code> allows the packet to
 cross up to 5 hops. <code>min-ttl</code> must be non-zero for multi-hop; the
@@ -434,7 +434,7 @@ operator@router# commit
 <p>On <code>commit</code>, the plugin receives a diff section via <code>OnConfigure</code> and
 reconfigures affected sessions in place. Profile changes propagate to
 every session that references the profile via an in-band Poll/Final
-sequence — no session flap.</p>
+sequence without a session flap.</p>
 <h2 id="observing-state">Observing state</h2>
 <p>Stage 4 adds three operator-facing commands served by a snapshot of
 the engine's live session state. The handlers live in

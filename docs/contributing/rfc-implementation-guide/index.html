@@ -627,7 +627,7 @@ inside a <code>terminator=</code> block):</p>
 <li>
 <p><strong>A <code>SHIFTED</code> verdict is not your problem to re-read.</strong> When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
-  moved — a line shift, a sibling test, a rewritten import. Run
+  moved: a line shift, a sibling test, or a rewritten import. Run
   <code>make ze-rfc-reseal</code> then <code>make ze-rfc-index</code>. It is the only command that writes
   <code>rfc/audit/</code>, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored

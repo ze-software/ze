@@ -109,8 +109,8 @@ already run on the original announcement and is not applied twice.
 | COMMUNITY | 8 | `community` | Standard communities |
 | ORIGINATOR_ID | 9 | `originator-id` | Route reflector originator |
 | CLUSTER_LIST | 10 | `cluster-list` | Route reflector cluster list |
-| MP_REACH_NLRI | 14 | — | Multiprotocol reachable NLRI |
-| MP_UNREACH_NLRI | 15 | — | Multiprotocol unreachable NLRI |
+| MP_REACH_NLRI | 14 | none | Multiprotocol reachable NLRI |
+| MP_UNREACH_NLRI | 15 | none | Multiprotocol unreachable NLRI |
 | EXTENDED_COMMUNITY | 16 | `extended-community` | Extended communities |
 | LARGE_COMMUNITY | 32 | `large-community` | Large communities (RFC 8092) |
 | PREFIX_SID | 40 | `prefix-sid` | Segment Routing prefix SID |

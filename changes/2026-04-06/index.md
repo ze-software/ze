@@ -1,6 +1,6 @@
 # Week of 2026-04-06
 
-A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.
+A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.
 
 ## 🔒 BFD liveness detection
 
@@ -22,7 +22,7 @@ A complete BFD implementation shipped end to end:
 
 ## 🧩 Config editor and API
 
-A real REST and gRPC API landed on top of a shared transport engine, with TLS, a Swagger UI, and a working config editor with per-user auth.
+A REST and gRPC API landed on top of a shared transport engine, with TLS, a Swagger UI, and a working config editor with per-user auth.
 
 ## 🔌 Interfaces
 

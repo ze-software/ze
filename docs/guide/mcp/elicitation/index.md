@@ -175,7 +175,7 @@ encode. Requirement 6's "at least one of `inputRequests` or `requestState`" is
 satisfied by `inputRequests` alone, and requirement 3 makes `requestState` a
 MAY. The omission is therefore conformant, not a gap.
 
-That omission is a security property, not just a simplification. A retry is a
+That omission is also a security property. A retry is a
 self-contained, independently authenticated request. No carried authority exists
 for another principal to replay, and none survives a daemon restart to go stale.
 

@@ -140,7 +140,7 @@ DOCSHUB_DESC = (
 FAQ_DESC = "The questions people ask before they spend time on Ze, answered honestly."
 
 ROADMAP_DESC = (
-    "The work between here and a first release of Ze you can trust in production."
+    "The work between now and a first release of Ze you can trust in production."
 )
 
 LICENSE_DESC = "Ze is free software under the GNU Affero General Public License v3."

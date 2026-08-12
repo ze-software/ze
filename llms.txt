@@ -15,21 +15,21 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 390 CLI commands, 36 config sections, 95 plugin registrations, 40 direct Go dependencies, 35 weekly change entries.
-- Test evidence counts: 22,300+ unit tests, 78 fuzz targets, 1,600+ end-to-end transcript steps, 118 interop scenarios across 8 target implementations.
+- Test evidence counts: 22,200+ unit tests, 78 fuzz targets, 1,500+ end-to-end transcript steps, 120 interop scenarios across 9 target implementations.
 - Generated date: 2026-08-12.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 22,300+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 22,200+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 78 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 118 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 120 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -45,8 +45,8 @@ Useful commands: `go test -race -run TestName ./internal/...`, `make ze-fuzz-one
 ## Feature inventory
 
 ### Built for demanding operators. (33 cards: 33 current)
-Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.
-- AI-Friendly Surfaces [automate, current]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools inspect structured output; Plugins become discoverable tools; link: https://ze-software.net/docs/features/ai-first/index.md
+Ze owns its BGP engine, configuration model, plugin system, operator tools, minimal appliance runtime, and diagnostics as one product.
+- AI Tool Interfaces [automate, current]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools read structured output; Plugins expose discoverable tools; link: https://ze-software.net/docs/features/ai-first/index.md
 - SSH CLI [operate, current]: chips: Built-in SSH, RBAC; Manage Ze without OS shell accounts; Profiles, audit, and accounting; commit, rollback, diff, completion; link: https://ze-software.net/docs/features/cli-commands/index.md
 - YANG Configuration [operate, current]: chips: YANG, ExaBGP; Schema-driven validation; One model feeds every surface; Plugin defined config and commands; link: https://ze-software.net/docs/features/configuration/index.md
 - Output Formatting [operate, current]: chips: Shell-like pipes, Offline; table, json, yaml, ndjson; match, count, first/last; Offline via ze format; link: https://ze-software.net/docs/features/formatting/index.md
@@ -60,11 +60,11 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 - DNS Resolver [services, current]: chips: Cache, Pipes; Built-in cached resolver; | resolve and | origin pipe operators; No external daemon needed; link: https://ze-software.net/docs/features/dns-resolver/index.md
 - Plugin System [automate, current]: chips: ExaBGP, RPKI, Policy; Plugins add commands, RPCs, events; YANG roots join CLI and web; Independent, composable; link: https://ze-software.net/docs/features/plugins/index.md
 - Programmable [automate, current]: chips: REST, gRPC, gNMI; REST API, gRPC, gNMI; Shared engine for identical output; Automate from any language; link: https://ze-software.net/docs/features/api-commands/index.md
-- AI-First Design [automate, current]: chips: Self-describing, Skills; Self-describing command catalog from the live binary; Every command becomes automation surface; Structured diagnostics and repair plans; link: https://ze-software.net/docs/features/ai-first/index.md
+- AI-First Design [automate, current]: chips: Self-describing, Skills; Self-describing command catalogue from the live binary; Every command is an automation surface; Structured diagnostics and repair plans; link: https://ze-software.net/docs/features/ai-first/index.md
 - MCP Integration [automate, current]: chips: MCP, OAuth 2.1; Streamable HTTP transport, OAuth 2.1 resource server; Server-initiated elicitation, task-augmented tool calls; MCP Apps UI with embedded panels; link: https://ze-software.net/docs/features/mcp-integration/index.md
-- ExaBGP Compatibility [automate, current]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Smooth transition path; link: https://ze-software.net/docs/features/exabgp-compatibility/index.md
+- ExaBGP Compatibility [automate, current]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Migration path for existing scripts; link: https://ze-software.net/docs/features/exabgp-compatibility/index.md
 - Evidence Over Claims [observe, current]: chips: Fuzz, Interop, Docker; Unit, functional, fuzz, chaos; Performance benchmarks; Interop vs FRR, BIRD, GoBGP; link: https://ze-software.net/docs/features/interoperability-testing/index.md
-- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Regenerated from git history, not curated; Current Go code composition; link: https://ze-software.net/activity/index.md
+- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Built from git history each time; Current Go code composition; link: https://ze-software.net/activity/index.md
 - Prometheus Telemetry [observe, current]: chips: Netdata, Prometheus; 138 metrics from /proc and /sys; Netdata naming, drop-in replacement; Existing Grafana dashboards keep working; link: https://ze-software.net/docs/guide/monitoring/index.md
 - Health Registry [observe, current]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/docs/features/index.md
 - Host Inventory [observe, current]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/docs/features/index.md
@@ -73,15 +73,15 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 - Production Diagnostics [observe, current]: chips: CLI, MCP; 11 built-in tools replacing ss, dmesg, lsof; tcpdump, traceroute, ping, mtr; All exposed via MCP for AI debugging; link: https://ze-software.net/docs/guide/production-diagnostics/index.md
 - Secure by Default [secure, current]: chips: SSH, RBAC, RPKI, ASPA; SSH access to the CLI; RPKI route origin validation; No other daemons needed; link: https://ze-software.net/docs/features/plugins/index.md
 - TACACS+ AAA [secure, current]: chips: RFC 8907, Accounting; SSH login via TACACS+; Command accounting START/STOP; Server failover, local fallback; link: https://ze-software.net/docs/guide/tacacs/index.md
-- Audit Trail [secure, current]: chips: Commits, Auth; Config commit, discard, reload; Failed auth across all surfaces; Filter by action, actor, time; link: https://ze-software.net/docs/guide/audit/index.md
-- PKI Store [secure, current]: chips: X.509, TLS; YANG-modeled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; link: https://ze-software.net/docs/features/index.md
+- Audit Trail [secure, current]: chips: Commits, Auth; Config commit, discard, and reload; Failed auth on every interface; Filter by action, actor, and time; link: https://ze-software.net/docs/guide/audit/index.md
+- PKI Store [secure, current]: chips: X.509, TLS; YANG-modelled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; link: https://ze-software.net/docs/features/index.md
 - Minimal Appliance Mode [platform, current]: chips: Appliance, Server; Kernel, init, Ze runtime; No package manager or general shell; ISO/PXE bare-metal install; Linux server with systemd; link: https://ze-software.net/docs/guide/appliance/index.md
 - Runs Itself [platform, current]: chips: Update, Systemd; Binary self-update; Built-in readiness checks; No orchestrator needed; link: https://ze-software.net/docs/features/introspection/index.md
 - Docker Support [platform, current]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/docs/features/index.md
 - Feature Gates [platform, current]: chips: 36 subsystems, Default on; Compile out whole subsystems, BGP included; Smaller binary, smaller attack surface; Config fails closed on blocks the build lacks; link: https://ze-software.net/docs/guide/quickstart/index.md
 
 ### Experimental and growing. (18 cards: 18 experimental)
-Implemented and tested, not yet production-proven.
+Implemented and tested, still waiting for production evidence.
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; link: https://ze-software.net/docs/features/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/docs/guide/l2tp/index.md
 - PPPoE Access [services, experimental]: chips: RFC 2516, PPP; Access concentrator with discovery FSM; Shared PPP driver with L2TP; HMAC-SHA256 cookie, rate limiting; link: https://ze-software.net/docs/guide/pppoe/index.md
@@ -101,11 +101,11 @@ Implemented and tested, not yet production-proven.
 - Fleet Management [automate, experimental]: chips: Managed config, TLS hub; Per-client configuration and authentication; Cached config with reconnect and heartbeat; Version hashing and two-phase fetch; link: https://ze-software.net/docs/guide/fleet-config/index.md
 - IRR Route Filtering [secure, experimental]: chips: IRR, as-set; Prefix-lists from IRR data, live in the engine; Sourced from PeeringDB and RADB; Opt-in per peer, group or global filter chain; link: https://ze-software.net/docs/guide/irr-filtering/index.md
 
-### Spec'd, not built. (4 cards: 4 aspiration)
+### Specified, not built. (4 cards: 4 aspiration)
 Aspirations with written, reviewed specs. Nothing here is usable today.
 - OSPF L3VPN PE-CE [routing, aspiration]: chips: RFC 4576, RFC 4577, L3VPN; PE-CE DN bit loop prevention; Domain ID, route type, VPN route tag; Blocked on VRF/MPLS L3VPN infrastructure; link: https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md
 - VRF [routing, aspiration]: chips: VRF, L3VPN; VRF as a first-class concept; Per-VRF BGP stacks, YANG config; Kernel VRF devices, table binding; link: https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md
-- Kernel Lockdown [secure, aspiration]: chips: Lockdown, Integrity; Kernel lockdown integrity mode; Blocks unsigned modules, kexec, /dev/mem; Design reviewed, not yet scheduled; link: https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md
+- Kernel Lockdown [secure, aspiration]: chips: Lockdown, Integrity; Kernel lockdown integrity mode; Blocks unsigned modules, kexec, /dev/mem; Design reviewed, waiting for schedule; link: https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md
 - Cloud-Init Provisioning [platform, aspiration]: chips: Cloud-init, User-data; Appliance identity from cloud metadata; SSH keys and config via user-data; No pre-baked seed image needed; link: https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md
 
 ## Configuration model roots
@@ -813,7 +813,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [AI-First Design](https://ze-software.net/docs/features/ai-first/index.md): Ze is built around a single command and discovery surface. Commands, configuration nodes, RPCs, events, and plugin metadata are registered once, then exposed through MCP and the operator interfaces that need them. AI... (web: https://ze-software.net/docs/features/ai-first/)
 - [API Commands](https://ze-software.net/docs/features/api-commands/index.md): Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin. (web: https://ze-software.net/docs/features/api-commands/)
 - [BGP Protocol](https://ze-software.net/docs/features/bgp-protocol/index.md): When several BGP candidates tie under multipath selection, Ze carries the winner and its equal-cost sibling next hops into the shared Loc-RIB. The system RIB then emits one ECMP group to the active FIB backend... (web: https://ze-software.net/docs/features/bgp-protocol/)
-- [RFC Implementation Status](https://ze-software.net/docs/features/rfc-status/index.md): This page is the public standards ledger for Ze. It lists RFCs that Ze implements, partially implements, intentionally does not implement, or has deferred. It is a product-support view, not a formal IETF compliance... (web: https://ze-software.net/docs/features/rfc-status/)
+- [RFC Implementation Status](https://ze-software.net/docs/features/rfc-status/index.md): This page is Ze's public standards status page. It lists RFCs that Ze implements, partially implements, has deferred, or has explicitly decided not to implement. It is a product support view rather than a formal IETF... (web: https://ze-software.net/docs/features/rfc-status/)
 - [CLI Commands](https://ze-software.net/docs/features/cli-commands/index.md): Ping and traceroute: `show ping` and `show traceroute` run one-shot ICMP checks from the router itself using ze's internal engine -- no daemon required, they work as local handlers. `monitor ping` and `monitor... (web: https://ze-software.net/docs/features/cli-commands/)
 - [Configuration](https://ze-software.net/docs/features/configuration/index.md): This page walks through BGP peer configuration specifically, since it is the most-configured surface. For every other subsystem's config syntax (interfaces, firewall, L2TP, DHCP, and the rest of Ze's 38 plugin groups)... (web: https://ze-software.net/docs/features/configuration/)
 - [DNS Resolver](https://ze-software.net/docs/features/dns-resolver/index.md): Built-in DNS resolver component providing cached DNS queries to all Ze components. Uses `github.com/miekg/dns` (the library CoreDNS is built on). (web: https://ze-software.net/docs/features/dns-resolver/)
@@ -826,13 +826,13 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Looking Glass](https://ze-software.net/docs/features/looking-glass/index.md): Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port... (web: https://ze-software.net/docs/features/looking-glass/)
 - [MCP Integration](https://ze-software.net/docs/features/mcp-integration/index.md): Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon AI-ready. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through... (web: https://ze-software.net/docs/features/mcp-integration/)
 - [Web Interface](https://ze-software.net/docs/features/web-interface/index.md): Ze includes an HTTPS web interface for configuration viewing, editing, and runtime command execution through a browser. (web: https://ze-software.net/docs/features/web-interface/)
-- [Behavioral Anomaly Detection](https://ze-software.net/docs/guide/anomaly/index.md): Ze has a behavioral anomaly detector: a report-only subsystem that builds a per-source behavioral baseline, scores how far each source deviates from its own history and from its peers, and correlates weak signals into a... (web: https://ze-software.net/docs/guide/anomaly/)
-- [AS112](https://ze-software.net/docs/guide/as112/index.md): Ze's `as112` plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534) and the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). It answers on... (web: https://ze-software.net/docs/guide/as112/)
+- [Behavioural Anomaly Detection](https://ze-software.net/docs/guide/anomaly/index.md): Ze includes a report-only behavioural anomaly detector. It builds a per-source behavioural baseline, scores how far each source deviates from its own history and from its peers, and correlates weak signals into a single... (web: https://ze-software.net/docs/guide/anomaly/)
+- [AS112](https://ze-software.net/docs/guide/as112/index.md): Ze's `as112` plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected RFC 1918 and link-local reverse-DNS queries (RFC 7534), plus the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). It answers... (web: https://ze-software.net/docs/guide/as112/)
 - [Authentication](https://ze-software.net/docs/guide/authentication/index.md): Ze supports multiple SSH login users defined in the daemon's configuration, in addition to the bootstrap super-admin written to `database.zefs` by `ze init`. This guide covers adding YANG-configured users, hashing their... (web: https://ze-software.net/docs/guide/authentication/)
 - [Authorization](https://ze-software.net/docs/guide/authorization/index.md): Ze uses profile-based command authorization (RBAC) to control which commands each user can execute. Profiles are defined in the daemon configuration alongside user accounts. Each user is assigned one or more profiles... (web: https://ze-software.net/docs/guide/authorization/)
 - [Audit Trail](https://ze-software.net/docs/guide/audit/index.md): Ze keeps a local structured audit log for operator actions that change state or fail authentication. The log is append-only from the user's point of view: there is a query command, but no command to delete or truncate... (web: https://ze-software.net/docs/guide/audit/)
-- [Benchmarking](https://ze-software.net/docs/guide/benchmarking/index.md): Ze includes `ze-perf`, a standalone tool for measuring BGP route propagation latency through a device under test (DUT). It works with any BGP implementation, not just Ze. (web: https://ze-software.net/docs/guide/benchmarking/)
-- [BFD - Bidirectional Forwarding Detection](https://ze-software.net/docs/guide/bfd/index.md): Status: the plugin is live, the production transport is hardened (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF, RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the reactor... (web: https://ze-software.net/docs/guide/bfd/)
+- [Benchmarking](https://ze-software.net/docs/guide/benchmarking/index.md): Ze includes `ze-perf`, a standalone tool for measuring BGP route propagation latency through a device under test (DUT). It works with any BGP implementation, including Ze. (web: https://ze-software.net/docs/guide/benchmarking/)
+- [BFD: Bidirectional Forwarding Detection](https://ze-software.net/docs/guide/bfd/index.md): Status: the plugin is live, the production transport is hardened (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF, RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the reactor... (web: https://ze-software.net/docs/guide/bfd/)
 - [BMP (BGP Monitoring Protocol)](https://ze-software.net/docs/guide/bmp/index.md): Ze implements RFC 7854 BMP in both directions: as a receiver (accepting feeds from routers) and as a sender (streaming state to collectors). (web: https://ze-software.net/docs/guide/bmp/)
 - [Command Reference](https://ze-software.net/docs/guide/command-reference/index.md): Ze commands fall into two categories: shell commands that run locally and runtime commands sent to the running daemon via SSH. (web: https://ze-software.net/docs/guide/command-reference/)
 - [Configuration Editor](https://ze-software.net/docs/guide/config-editor/index.md): Ze includes an interactive configuration editor with YANG-driven tab completion, rollback history, and live validation. (web: https://ze-software.net/docs/guide/config-editor/)
@@ -879,7 +879,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Testing Guide](https://ze-software.net/docs/contributing/testing/index.md): This guide covers how to run tests, what the different test types are, and how to interpret their output. For the full technical reference (`.ci` format spec, `.et` directives, fuzz target list), see... (web: https://ze-software.net/docs/contributing/testing/)
 - [SRv6 (Segment Routing over IPv6)](https://ze-software.net/docs/features/srv6/index.md): Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252), extracts SRv6 SIDs, validates them, and programs encapsulation into the FIB. Operates as an ingress PE: consumes received SRv6 SIDs but... (web: https://ze-software.net/docs/features/srv6/)
 - [Glossary](https://ze-software.net/docs/glossary/index.md): Terms used in Ze documentation and operator output. (web: https://ze-software.net/docs/glossary/)
-- [ADD-PATH and PATHS-LIMIT](https://ze-software.net/docs/guide/add-path/index.md): ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. This is useful for route servers that need to forward all available paths, not just the best one. (web: https://ze-software.net/docs/guide/add-path/)
+- [ADD-PATH and PATHS-LIMIT](https://ze-software.net/docs/guide/add-path/index.md): ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path. (web: https://ze-software.net/docs/guide/add-path/)
 - [REST and gRPC API](https://ze-software.net/docs/guide/api/index.md): Ze exposes a programmatic API over REST (HTTP/JSON) and gRPC. Both transports share one engine -- they produce identical command output and support the same commands. (web: https://ze-software.net/docs/guide/api/)
 - [BGP Peering](https://ze-software.net/docs/guide/bgp-peering/index.md): Use this guide after the quick start when a peer needs groups, multiple address families, capabilities, prefix limits, or an explicit relationship role. (web: https://ze-software.net/docs/guide/bgp-peering/)
 - [BGP Policy](https://ze-software.net/docs/guide/bgp-policy/index.md): Ze applies ordered import and export filter chains to BGP updates. Define named policy objects once, attach them globally, to a group, or to one peer, then verify both accepted routes and the routes sent onward. (web: https://ze-software.net/docs/guide/bgp-policy/)
@@ -936,43 +936,43 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Start
 
 ### First steps
-- [Quickstart](https://ze-software.net/docs/guide/quickstart/index.md): Two BGP peers in under 5 minutes (web: https://ze-software.net/docs/guide/quickstart/)
+- [Quickstart](https://ze-software.net/docs/guide/quickstart/index.md): Two BGP peers in under five minutes (web: https://ze-software.net/docs/guide/quickstart/)
 - [Install Ze](https://ze-software.net/docs/guide/ze-install/index.md): Run Ze on Linux or as a bootable appliance (web: https://ze-software.net/docs/guide/ze-install/)
-- [Ubuntu build](https://ze-software.net/docs/guide/ubuntu-build-install/index.md): Compile, install, create zefs, and start SSH (web: https://ze-software.net/docs/guide/ubuntu-build-install/)
-- [Configuration](https://ze-software.net/docs/features/configuration/index.md): The YANG-modeled config shape Ze uses everywhere (web: https://ze-software.net/docs/features/configuration/)
-- [CLI Basics](https://ze-software.net/docs/features/cli-commands/index.md): Diff, commit, history, and operator commands (web: https://ze-software.net/docs/features/cli-commands/)
+- [Ubuntu build](https://ze-software.net/docs/guide/ubuntu-build-install/index.md): Compile Ze, install it, create zefs, and start SSH (web: https://ze-software.net/docs/guide/ubuntu-build-install/)
+- [Configuration](https://ze-software.net/docs/features/configuration/index.md): The YANG-modelled configuration Ze uses everywhere (web: https://ze-software.net/docs/features/configuration/)
+- [CLI basics](https://ze-software.net/docs/features/cli-commands/index.md): Diff, commit, history, and operator commands (web: https://ze-software.net/docs/features/cli-commands/)
 ### Before you run
-- [Project Status](https://ze-software.net/roadmap/index.md): What is ready today and where Ze is still young (web: https://ze-software.net/roadmap/)
-- [FAQ](https://ze-software.net/faq/index.md): Common questions before committing time to Ze (web: https://ze-software.net/faq/)
-- [Plugin Catalog](https://ze-software.net/docs/features/plugins/index.md): Search every runtime plugin by purpose, config, or dependency (web: https://ze-software.net/docs/features/plugins/)
+- [Project status](https://ze-software.net/roadmap/index.md): What works today and what may still change (web: https://ze-software.net/roadmap/)
+- [FAQ](https://ze-software.net/faq/index.md): Common questions before trying Ze (web: https://ze-software.net/faq/)
+- [Plugin catalogue](https://ze-software.net/docs/features/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/docs/features/plugins/)
 
 ## Evaluate
 
 ### Capabilities
 - [Features](https://ze-software.net/features/index.md): 51 features, color-coded by category (web: https://ze-software.net/features/)
-- [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
-- [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.net/performance/)
-- [Terminal Demos](https://ze-software.net/docs/guide/terminal-demonstrations/index.md): Reproducible recordings of Ze workflows (web: https://ze-software.net/docs/guide/terminal-demonstrations/)
+- [Compare](https://ze-software.net/compare/index.md): Compare Ze with BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
+- [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks and reports (web: https://ze-software.net/performance/)
+- [Terminal demos](https://ze-software.net/docs/guide/terminal-demonstrations/index.md): Reproducible recordings of Ze workflows (web: https://ze-software.net/docs/guide/terminal-demonstrations/)
 ### Trust
 - [Code Quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Testing Health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
-- [RFC Compliance Gate](https://ze-software.net/quality/rfc-compliance/index.md): AI-enforced RFC requirements, tests, gaps, and public claims (web: https://ze-software.net/quality/rfc-compliance/)
+- [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/index.md): RFC requirements, tests, gaps, and public claims checked by AI (web: https://ze-software.net/quality/rfc-compliance/)
 - [Dependencies](https://ze-software.net/dependencies/index.md): 40 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs
 
 ### Hub and core
-- [Documentation](https://ze-software.net/docs/index.md): All docs, organized by what you want to do (web: https://ze-software.net/docs/)
-- [Configuration](https://ze-software.net/docs/features/configuration/index.md): YANG-modeled, one model for everything (web: https://ze-software.net/docs/features/configuration/)
-- [CLI Commands](https://ze-software.net/docs/features/cli-commands/index.md): SSH CLI with diff, commit, and history (web: https://ze-software.net/docs/features/cli-commands/)
+- [Documentation](https://ze-software.net/docs/index.md): All docs, organised by what you want to do (web: https://ze-software.net/docs/)
+- [Configuration](https://ze-software.net/docs/features/configuration/index.md): One YANG model for the whole system (web: https://ze-software.net/docs/features/configuration/)
+- [CLI commands](https://ze-software.net/docs/features/cli-commands/index.md): SSH CLI with diff, commit, and history (web: https://ze-software.net/docs/features/cli-commands/)
 - [Architecture](https://ze-software.net/docs/architecture/index.md): How the pieces fit together (web: https://ze-software.net/docs/architecture/)
-- [Plugin Development](https://ze-software.net/docs/plugin-development/index.md): Build in-process and external Ze plugins (web: https://ze-software.net/docs/plugin-development/)
+- [Plugin development](https://ze-software.net/docs/plugin-development/index.md): Build in-process and external Ze plugins (web: https://ze-software.net/docs/plugin-development/)
 ### Operate
 - [Production Diagnostics](https://ze-software.net/docs/guide/production-diagnostics/index.md): Start from symptoms and debug safely (web: https://ze-software.net/docs/guide/production-diagnostics/)
 - [Monitoring](https://ze-software.net/docs/guide/monitoring/index.md): Metrics, health, and operational visibility (web: https://ze-software.net/docs/guide/monitoring/)
-- [VPP Dataplane](https://ze-software.net/docs/guide/vpp/index.md): FIB, traffic, and firewall via VPP (web: https://ze-software.net/docs/guide/vpp/)
-- [Looking Glass](https://ze-software.net/docs/guide/looking-glass-howto/index.md): Publish read-only BGP visibility (web: https://ze-software.net/docs/guide/looking-glass-howto/)
+- [VPP dataplane](https://ze-software.net/docs/guide/vpp/index.md): FIB, traffic, and firewall through VPP (web: https://ze-software.net/docs/guide/vpp/)
+- [Looking glass](https://ze-software.net/docs/guide/looking-glass-howto/index.md): Publish read-only BGP visibility (web: https://ze-software.net/docs/guide/looking-glass-howto/)
 - [BGP Peering](https://ze-software.net/docs/guide/bgp-peering/index.md): Groups, families, capabilities, limits, and checks (web: https://ze-software.net/docs/guide/bgp-peering/)
 - [BGP Policy](https://ze-software.net/docs/guide/bgp-policy/index.md): Import, export, validation, and redistribution (web: https://ze-software.net/docs/guide/bgp-policy/)
 - [BGP Resilience](https://ze-software.net/docs/guide/bgp-resilience/index.md): Refresh, restart, persistence, and reflection (web: https://ze-software.net/docs/guide/bgp-resilience/)
@@ -994,50 +994,50 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Examples
 
 ### Deployment examples
-- [Usage Examples](https://ze-software.net/usage/index.md): Complete deployment examples for real network roles (web: https://ze-software.net/usage/)
-- [AS112 Anycast DNS](https://ze-software.net/usage/as112/index.md): Ze as an AS112 DNS server with real router peers (web: https://ze-software.net/usage/as112/)
-- [ExaBGP Migration](https://ze-software.net/usage/exabgp-migration/index.md): A practical path from ExaBGP process scripts (web: https://ze-software.net/usage/exabgp-migration/)
-- [BGP performance tests](https://ze-software.net/usage/bgp-performance/index.md): Route-server performance tests with Ze (web: https://ze-software.net/usage/bgp-performance/)
-- [IXP Route Server](https://ze-software.net/usage/route-server/index.md): Member policy, RPKI validation, and replay (web: https://ze-software.net/usage/route-server/)
-- [Transit Edge with RPKI](https://ze-software.net/usage/transit-edge-rpki/index.md): Dual-transit policy and tested failover (web: https://ze-software.net/usage/transit-edge-rpki/)
-- [FlowSpec Injection](https://ze-software.net/usage/flowspec-injection/index.md): Authorised, atomic, reversible mitigation routes (web: https://ze-software.net/usage/flowspec-injection/)
+- [Usage examples](https://ze-software.net/usage/index.md): Complete examples for real network roles (web: https://ze-software.net/usage/)
+- [AS112 anycast DNS](https://ze-software.net/usage/as112/index.md): AS112 DNS with real router peers (web: https://ze-software.net/usage/as112/)
+- [ExaBGP migration](https://ze-software.net/usage/exabgp-migration/index.md): Migrate process scripts to Ze (web: https://ze-software.net/usage/exabgp-migration/)
+- [BGP performance tests](https://ze-software.net/usage/bgp-performance/index.md): Route-server performance tests driven by Ze (web: https://ze-software.net/usage/bgp-performance/)
+- [IXP route server](https://ze-software.net/usage/route-server/index.md): Member policy, RPKI validation, and replay (web: https://ze-software.net/usage/route-server/)
+- [Transit edge with RPKI](https://ze-software.net/usage/transit-edge-rpki/index.md): Dual-transit policy and tested failover (web: https://ze-software.net/usage/transit-edge-rpki/)
+- [FlowSpec injection](https://ze-software.net/usage/flowspec-injection/index.md): Authorised, atomic, reversible mitigation routes (web: https://ze-software.net/usage/flowspec-injection/)
 ### Runnable labs
-- [Testing Labs](https://ze-software.net/labs/index.md): Interop proof you can run yourself against real daemons (web: https://ze-software.net/labs/)
-- [BGP Interop](https://ze-software.net/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
-- [L2TP Access](https://ze-software.net/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.net/labs/l2tp-interop/)
-- [PPPoE Access](https://ze-software.net/labs/pppoe-interop/index.md): Ze vs real accel-ppp access concentrator (web: https://ze-software.net/labs/pppoe-interop/)
-- [IPsec / IKEv2](https://ze-software.net/labs/ipsec-interop/index.md): Ze as IKE initiator vs strongSwan (web: https://ze-software.net/labs/ipsec-interop/)
+- [Testing labs](https://ze-software.net/labs/index.md): Interop labs you can run against real daemons (web: https://ze-software.net/labs/)
+- [BGP interop](https://ze-software.net/labs/bgp-interop/index.md): FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
+- [L2TP access](https://ze-software.net/labs/l2tp-interop/index.md): Ze LNS against real xl2tpd (web: https://ze-software.net/labs/l2tp-interop/)
+- [PPPoE access](https://ze-software.net/labs/pppoe-interop/index.md): Ze against real accel-ppp (web: https://ze-software.net/labs/pppoe-interop/)
+- [IPsec / IKEv2](https://ze-software.net/labs/ipsec-interop/index.md): Ze IKE initiator against strongSwan (web: https://ze-software.net/labs/ipsec-interop/)
 ### Systems
-- [VPP Dataplane](https://ze-software.net/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in a real VPP daemon (web: https://ze-software.net/labs/vpp-dataplane/)
-- [Appliance Installer](https://ze-software.net/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, and real boots (web: https://ze-software.net/labs/appliance-install/)
-- [Looking Glass Graph](https://ze-software.net/labs/looking-glass-graph/index.md): Realistic UK topology, real external ASNs (web: https://ze-software.net/labs/looking-glass-graph/)
-- [VLAN QoS](https://ze-software.net/labs/vlan-qos/index.md): 802.1p PCP tagging, actually on the wire (web: https://ze-software.net/labs/vlan-qos/)
-- [Chaos-Tested Peering](https://ze-software.net/usage/chaos-tested-peering/index.md): Deterministic faults, properties, replay, and shrink (web: https://ze-software.net/usage/chaos-tested-peering/)
-- [AS-Path Topology](https://ze-software.net/usage/as-path-topology/index.md): Investigate path visibility in the Looking Glass (web: https://ze-software.net/usage/as-path-topology/)
+- [VPP dataplane](https://ze-software.net/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in real VPP (web: https://ze-software.net/labs/vpp-dataplane/)
+- [Appliance installer](https://ze-software.net/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, and tested boot paths (web: https://ze-software.net/labs/appliance-install/)
+- [Looking Glass graph](https://ze-software.net/labs/looking-glass-graph/index.md): UK topology with real external ASNs (web: https://ze-software.net/labs/looking-glass-graph/)
+- [VLAN QoS](https://ze-software.net/labs/vlan-qos/index.md): 802.1p PCP tagging verified on the wire (web: https://ze-software.net/labs/vlan-qos/)
+- [Chaos-tested peering](https://ze-software.net/usage/chaos-tested-peering/index.md): Deterministic faults, properties, replay, and shrink (web: https://ze-software.net/usage/chaos-tested-peering/)
+- [AS-path topology](https://ze-software.net/usage/as-path-topology/index.md): Investigate path visibility in the Looking Glass (web: https://ze-software.net/usage/as-path-topology/)
 
 ## Reference
 
 ### Generated references
 - [CLI Reference](https://ze-software.net/cli/index.md): 390 commands, generated from the live binary (web: https://ze-software.net/cli/)
 - [Configuration Reference](https://ze-software.net/config-reference/index.md): 36 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
-- [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
-- [RFC Status](https://ze-software.net/docs/features/rfc-status/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/docs/features/rfc-status/)
+- [Command equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands across Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
+- [RFC status](https://ze-software.net/docs/features/rfc-status/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/docs/features/rfc-status/)
 ### Written references
-- [Glossary](https://ze-software.net/docs/glossary/index.md): Routing, policy, configuration, and testing terms (web: https://ze-software.net/docs/glossary/)
-- [Deprecated Options](https://ze-software.net/docs/architecture/config/deprecated-options/index.md): Removed configuration syntax and replacements (web: https://ze-software.net/docs/architecture/config/deprecated-options/)
-- [Project History](https://ze-software.net/docs/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/docs/history/)
-- [Contributor Testing](https://ze-software.net/docs/contributing/testing/index.md): Choose and run the right proof layer (web: https://ze-software.net/docs/contributing/testing/)
+- [Glossary](https://ze-software.net/docs/glossary/index.md): Routing, policy, configuration, and test terms (web: https://ze-software.net/docs/glossary/)
+- [Deprecated options](https://ze-software.net/docs/architecture/config/deprecated-options/index.md): Removed configuration syntax and replacements (web: https://ze-software.net/docs/architecture/config/deprecated-options/)
+- [Project history](https://ze-software.net/docs/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/docs/history/)
+- [Contributor testing](https://ze-software.net/docs/contributing/testing/index.md): How to choose and run the right test layer (web: https://ze-software.net/docs/contributing/testing/)
 
 ## Project
 
 ### Progress
-- [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
+- [Roadmap](https://ze-software.net/roadmap/index.md): What works today and what remains before the first release (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
 - [Changes](https://ze-software.net/changes/index.md): 35 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 ### Community
-- [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)
-- [Talks](https://ze-software.net/talks/index.md): Presentations and conference material (web: https://ze-software.net/talks/)
+- [Blog](https://ze-software.net/blog/index.md): Project notes and release stories (web: https://ze-software.net/blog/)
+- [Talks](https://ze-software.net/talks/index.md): Talk slides and conference material (web: https://ze-software.net/talks/)
 - [Contribute](https://ze-software.net/contribute/index.md): How to send code, reports, and interop results (web: https://ze-software.net/contribute/)
 
 ## More

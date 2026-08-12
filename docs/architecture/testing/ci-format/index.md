@@ -69,7 +69,7 @@ broken file's own claim that it can be ignored.
 
 The consequences are asymmetric, which is what settles the ordering. 158 `.ci`
 files carry one of those markers (12 in `test/ui`), and on a non-Linux host they
-never run — so a wrongly-SKIPPED malformed file is invisible indefinitely, which
+never run. A wrongly-SKIPPED malformed file is invisible indefinitely, which
 is exactly how `test/ui` rotted. A wrongly-FAILED one is loud and costs a single
 commit. The check therefore lives in `parallel.go`'s per-test goroutine, ahead of
 the skip short-circuit: that is the real entry point, and both
@@ -297,15 +297,15 @@ option=<type>:key=value[:key=value...]
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
-| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down — withdrawing that peer's routes and racing any forwarding still in flight toward other peers. |
+| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration — creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets — `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See `ai/rules/platform-linux.md`. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets: `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See `ai/rules/platform-linux.md`. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an OPTIONAL heavyweight artifact the test cannot run without, and SKIPs (visibly, naming the path and the `hint` command) when it is absent. For prerequisites a checkout does not carry: the appliance module cache, where `gokrazy/modcache/.gitignore` ignores everything except the vendored gokrazy init source, so the pinned `rtr7/kernel` module and its 15 MB `vmlinuz` exist only after `make ze-gokrazy-deps`. The path is resolved against the repo root (each test runs in its own temp dir) and must be repo-relative with no `..`; a malformed value is a parse error on every platform. Deliberately a SKIP and not an `exit 0`: `test/install/ze-kernel-overlay.ci` read the pinned `vmlinuz` with no guard and failed `shasum: ... No such file or directory` on every CI run, and hiding that behind a silent pass would swap a red for a green bar over a test that ran nothing. |
-| `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself — a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-netns-qemu-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself: a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-netns-qemu-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
@@ -359,7 +359,7 @@ Adds a capability with the given code and hex-encoded value bytes to ze-peer's O
 | `code` | Capability code (1-255), e.g., 65 for ASN4, 2 for route-refresh |
 | `hex` | Hex-encoded capability value bytes (only for add-capability) |
 
-**Use case — testing capability mode enforcement:**
+**Use case: testing capability mode enforcement:**
 
 When Ze is configured with `require` mode for a capability, it sends a NOTIFICATION if the peer lacks that capability. To test this, use `drop-capability` to make ze-peer omit the capability from its response:
 
@@ -660,7 +660,7 @@ expect=exit:code=<N>
 ```
 
 Validates the foreground process exit code. A test whose ONLY assertion is
-`expect=exit:code=0` is **accept-only** (weak) and is gated by a lint — see
+`expect=exit:code=0` is **accept-only** (weak) and is gated by a lint; see
 [Assertion Strength](#assertion-strength-accept-only-tests-and-readback).
 
 ### Stdout Expectations
@@ -684,8 +684,8 @@ expect=stderr:contains=<text>
 ```
 
 Two modes:
-- `pattern=` — regex match against stderr (uses Go `regexp` syntax)
-- `contains=` — substring match against stderr
+- `pattern=`: regex match against stderr (uses Go `regexp` syntax)
+- `contains=`: substring match against stderr
 
 ### Await (deterministic stderr fence)
 
@@ -694,7 +694,7 @@ await=stderr:contains=<text>[:timeout=<dur>]
 ```
 
 Blocks the runner until the daemon's relayed stderr contains `<text>`, then tears
-the daemon down — a deterministic replacement for a blind `time.sleep` that only
+the daemon down. This is a deterministic replacement for a blind `time.sleep` that only
 held the daemon open long enough for a line to appear. `timeout=` is an optional
 Go duration (default 10s); on timeout the test fails with a precise message.
 `<text>` follows the same rule as `expect=stderr:contains=` (the needle must not

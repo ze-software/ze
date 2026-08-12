@@ -67,7 +67,7 @@
 <li><a href="#reproducing">Reproducing</a></li>
 </ol></nav>
 <blockquote>
-<p><strong>All benchmarks are lies.</strong></p>
+<p><strong>Benchmark numbers need context.</strong></p>
 <p>These numbers measure one specific scenario (route propagation latency through
 a single DUT with two peers) on one specific machine under artificial conditions.
 They do not predict real-world performance. Different hardware, different route
@@ -462,8 +462,8 @@ Ze penalized by RPKI validation gate enabling without cache servers (30s fail-op
 </table>
 <h2 id="reading-the-results">Reading the Results</h2>
 <p><strong>Convergence</strong> is the time from the first UPDATE sent to the last UPDATE
-received. Lower is better. This is the primary metric -- it answers "how long
-until all routes are propagated?"</p>
+received. Lower is better. This is the primary metric: the time until all routes
+are propagated.</p>
 <p><strong>Throughput</strong> is routes received per second, averaged over the convergence
 window. Higher is better. Zero means all routes arrived in a single burst
 (sub-second convergence with coalesced TCP delivery).</p>

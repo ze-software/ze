@@ -51,7 +51,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="as112">AS112</h1>
-    <p>Ze's <code>as112</code> plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534) and the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). It answers on four fixed anycast host addresses — no operator-typed IP address anywhere in this plugin's config.</p>
+    <p>Ze's <code>as112</code> plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected RFC 1918 and link-local reverse-DNS queries (RFC 7534), plus the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). It answers on four fixed anycast host addresses, so the plugin config never needs an operator-supplied service IP.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#quick-start">Quick Start</a></li>
@@ -59,8 +59,8 @@
 <li><a href="#cli-commands">CLI Commands</a></li>
 <li><a href="#bgp-integration-conditional-origination">BGP Integration (Conditional Origination)</a>
 <ol>
-<li><a href="#redistribute-origination-recommended-easy-path">Redistribute origination (recommended, easy path)</a></li>
-<li><a href="#hand-authored-origination-full-per-peer-control">Hand-authored origination (full per-peer control)</a></li>
+<li><a href="#redistribute-origination-same-settings-for-every-peer">Redistribute origination (same settings for every peer)</a></li>
+<li><a href="#hand-authored-origination-per-peer-settings">Hand-authored origination (per-peer settings)</a></li>
 <li><a href="#worked-example">Worked example</a></li>
 <li><a href="#probe-credentials">Probe credentials</a></li>
 <li><a href="#shared-watchdog-groups">Shared watchdog groups</a></li>
@@ -78,8 +78,8 @@
     }
 }
 </code></pre>
-<p>This is the entire config an operator needs. The four canonical addresses (192.175.48.1, 192.31.196.1, 2620:4f:8000::1, 2001:4:112::1) are Go constants, registered against the interface address-ownership registry and bound on <code>lo</code> automatically — never typed into config.</p>
-<p><code>as112</code> must run as an <strong>internal</strong> plugin (the default auto-load path, or an explicit <code>plugin { internal as112 { use as112 } }</code>) — never <code>plugin { external as112 { ... } }</code>. The address-ownership registration is a same-process call into the <code>iface</code> engine; run as a forked subprocess, it would silently register against its own copy of that state and never reach the kernel. <code>as112</code> refuses to start and logs an error if it detects it isn't running in-process.</p>
+<p>This is the full config for the DNS node. The four canonical addresses (192.175.48.1, 192.31.196.1, 2620:4f:8000::1, 2001:4:112::1) are Go constants, registered against the interface address-ownership registry and bound on <code>lo</code> automatically, so they are not typed into config.</p>
+<p><code>as112</code> must run as an <strong>internal</strong> plugin (the default auto-load path, or an explicit <code>plugin { internal as112 { use as112 } }</code>). It must not run as <code>plugin { external as112 { ... } }</code>. The address-ownership registration is a same-process call into the <code>iface</code> engine; as a forked subprocess, it would register against its own copy of that state and never reach the kernel. <code>as112</code> refuses to start and logs an error if it detects it is not running in-process.</p>
 <h2 id="configuration-reference">Configuration Reference</h2>
 <p>All leaves go under <code>service { as112 { ... } }</code>.</p>
 <table>
@@ -102,7 +102,7 @@
 <td><code>address-family</code></td>
 <td>enumeration</td>
 <td><code>both</code></td>
-<td><code>both</code>, <code>ipv4-only</code>, or <code>ipv6-only</code> — restrict to one address family (RFC 7534 §3.4 / RFC 7535 §3.1 single-stack option).</td>
+<td><code>both</code>, <code>ipv4-only</code>, or <code>ipv6-only</code>. Restricts the service to one address family (RFC 7534 §3.4 / RFC 7535 §3.1 single-stack option).</td>
 </tr>
 <tr>
 <td><code>hostname</code></td>
@@ -126,7 +126,7 @@
 <td><code>allow-from</code></td>
 <td>leaf-list (ip-prefix)</td>
 <td>(empty = answer all)</td>
-<td>Optional client-source access list. Non-empty: only queries from a listed prefix are answered, others are silently dropped. Loopback/on-box sources are always permitted regardless, so <code>request as112 healthcheck</code> is never blocked. Setting this makes the node non-public — correct for a local-use mirror, wrong for a globally-reachable AS112 contributor.</td>
+<td>Optional client-source access list. When non-empty, only queries from a listed prefix are answered; the rest are silently dropped. Loopback/on-box sources are always permitted, so <code>request as112 healthcheck</code> is never blocked. Setting this makes the node non-public, which is correct for a local-use mirror and wrong for a globally-reachable AS112 contributor.</td>
 </tr>
 <tr>
 <td><code>asn</code></td>
@@ -151,8 +151,8 @@
 <!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- YANG leaves -->
 
 <p>The combined <code>hostname</code>+<code>facility</code>+<code>location</code> TXT payload is bounded so the assembled HOSTNAME.AS112.* response always fits 512 octets with TC=0, even at every field's maximum length (RFC 7534 §3.5).</p>
-<p><code>allow-from</code> is the recommended way to restrict a local-use mirror to known client ranges — set it directly in <code>service { as112 { ... } }</code> rather than hand-authoring <code>firewall</code> section rules matching UDP/TCP port 53 across all four anycast addresses (two per family). Keeping access control in the plugin avoids splitting one policy decision across two subsystems, and the loopback/on-box carve-out is guaranteed to never be blocked, which a hand-authored firewall rule would have to replicate correctly on its own.</p>
-<p>The on-box carve-out recognizes both loopback and the node's own four anycast addresses as sources (the healthcheck probe deliberately queries the real anycast address, not loopback — see the BGP Integration section). Unlike loopback, the anycast addresses are ordinary public IPs a remote sender could forge as a UDP source, so a query claiming to originate from the node's own address bypasses <code>allow-from</code>. This does not enable data exfiltration (replies go to the real address, not the spoofed one), but <code>allow-from</code> should not be relied on as the sole access control against a source willing to spoof its own node's addresses.</p>
+<p><code>allow-from</code> is the recommended way to restrict a local-use mirror to known client ranges. Set it directly in <code>service { as112 { ... } }</code> rather than hand-authoring <code>firewall</code> section rules matching UDP/TCP port 53 across all four anycast addresses (two per family). Keeping access control in the plugin avoids splitting one policy decision across two subsystems, and the loopback/on-box carve-out is never blocked, which a hand-authored firewall rule would have to replicate correctly.</p>
+<p>The on-box carve-out recognises both loopback and the node's own four anycast addresses as sources. The healthcheck probe deliberately queries the real anycast address rather than loopback; see <a href="#bgp-integration-conditional-origination">BGP Integration</a>. Unlike loopback, the anycast addresses are ordinary public IPs that a remote sender could forge as a UDP source, so a query claiming to originate from the node's own address bypasses <code>allow-from</code>. This does not enable data exfiltration because replies go to the real address rather than the spoofed one, but <code>allow-from</code> should not be the only access control against a source willing to spoof the node's own addresses.</p>
 <h2 id="cli-commands">CLI Commands</h2>
 <table>
 <thead>
@@ -168,7 +168,7 @@
 </tr>
 <tr>
 <td><code>request as112 healthcheck [target &lt;ip&gt;]</code></td>
-<td>One-shot authoritative query against an anycast service address (or the given target; defaults to the address-family-appropriate loopback). Exit 0 iff the expected AS112 answer comes back — the tool a healthcheck probe or monitoring script calls, since <code>dig</code> is not on the gokrazy appliance and <code>ze resolve dns</code> cannot target a specific server.</td>
+<td>One-shot authoritative query against an anycast service address (or the given target; defaults to the address-family-appropriate loopback). Exit 0 when the expected AS112 answer comes back. This is the tool a healthcheck probe or monitoring script calls, since <code>dig</code> is not on the gokrazy appliance and <code>ze resolve dns</code> cannot target a specific server.</td>
 </tr>
 </tbody>
 </table>
@@ -188,20 +188,20 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Redistribute</strong> (easy)</td>
-<td>Default choice. One <code>import as112</code> line plus source-level <code>asn</code>/<code>community</code> in the <code>as112</code> block.</td>
+<td><strong>Redistribute</strong></td>
+<td>Use when the same ASN, community, and service-state gate should apply to every BGP peer. One <code>import as112</code> line plus source-level <code>asn</code>/<code>community</code> in the <code>as112</code> block.</td>
 <td>Source-level (<code>asn</code>, <code>community</code> leaves), identical on every peer.</td>
 <td>Process serving-state (<code>watchdog</code> leaf, default true): announce while the DNS node serves.</td>
 </tr>
 <tr>
-<td><strong>Hand-authored</strong> (full control)</td>
-<td>Per-peer origin-AS/community, dedicated peer-group policy, or anycast-path (not just process) liveness.</td>
+<td><strong>Hand-authored</strong></td>
+<td>Use when per-peer origin-AS/community, dedicated peer-group policy, or end-to-end anycast-path liveness matters.</td>
 <td>Per-peer, per-<code>update</code>-block (<code>as-path</code>, <code>community</code>, <code>replace-as</code>).</td>
-<td><code>healthcheck</code> probe gating a <code>watchdog</code> <code>update</code> block, which can probe the real anycast path, not just loopback.</td>
+<td><code>healthcheck</code> probe gating a <code>watchdog</code> <code>update</code> block, which can probe the real anycast path as well as loopback.</td>
 </tr>
 </tbody>
 </table>
-<h3 id="redistribute-origination-recommended-easy-path">Redistribute origination (recommended, easy path)</h3>
+<h3 id="redistribute-origination-same-settings-for-every-peer">Redistribute origination (same settings for every peer)</h3>
 <p>Model the AS112 node as a virtual router with its own ASN and let the four covering prefixes enter the BGP RIB like <code>static</code>/<code>connected</code> redistribution, triggered by one <code>import as112</code> line. The routes are announced only while the DNS node is serving (<code>watchdog</code> default true, RFC 7534 §3.3) and withdrawn on serving loss, <code>enabled false</code>, or shutdown.</p>
 <pre><code>service {
     as112 {
@@ -223,12 +223,12 @@ bgp {
 }
 </code></pre>
 <p>To an iBGP peer the AS_PATH is <code>[asn]</code> (e.g. <code>[112]</code>); to an eBGP peer the local AS is prepended, giving <code>[localAS, asn]</code>. <code>ze doctor</code> warns (<code>doctor-as112-redistribute-origin-uncoordinated</code>) when <code>asn 112</code> reaches an eBGP session to a public ASN, an uncoordinated global AS112 origin (RFC 7534 §3.2/§5): coordinate first, restrict with an egress filter, or set a private/operator <code>asn</code>.</p>
-<p>Choose the hand-authored path instead when the easy path's limitations matter: the covering prefixes go to <em>all</em> BGP peers (no dedicated-peer-group restriction in the redistribute block), the same <code>asn</code>/<code>community</code> applies to every peer, and the <code>watchdog</code> gate is process serving-state, not full anycast-path liveness.</p>
+<p>Choose the hand-authored path when these redistribute limits matter: the covering prefixes go to <em>all</em> BGP peers because the redistribute block has no dedicated peer-group restriction, the same <code>asn</code>/<code>community</code> applies to every peer, and the <code>watchdog</code> gate checks process serving state rather than the full anycast path.</p>
 <!-- source: internal/plugins/as112/redistribute.go -- as112 redistribute producer -->
 <!-- source: internal/component/bgp/redistribute/consumer.go -- origin-ASN/community wire emission -->
 
-<h3 id="hand-authored-origination-full-per-peer-control">Hand-authored origination (full per-peer control)</h3>
-<p>The original composition, a <code>healthcheck</code> probe gating a <code>watchdog</code>-controlled <code>update</code> block, remains available for per-peer origin-AS/community, dedicated peer-group policy, or anycast-path (not just process) liveness. No AS112-specific BGP code exists; it composes existing mechanisms (see <code>docs/guide/healthcheck.md</code>).</p>
+<h3 id="hand-authored-origination-per-peer-settings">Hand-authored origination (per-peer settings)</h3>
+<p>The <code>healthcheck</code> probe plus <code>watchdog</code>-controlled <code>update</code> block remains available for per-peer origin-AS/community, dedicated peer-group policy, or anycast-path liveness. No AS112-specific BGP code exists; it composes existing mechanisms (see <code>docs/guide/healthcheck.md</code>).</p>
 <h3 id="worked-example">Worked example</h3>
 <pre><code>service {
     as112 {
@@ -357,7 +357,7 @@ bgp {
 <li>Run <code>ze init</code> once against that same <code>ZE_CONFIG_DIR</code> after the daemon starts, so the client-side credential lookup succeeds on the probe's first tick.</li>
 </ol>
 <h3 id="shared-watchdog-groups">Shared watchdog groups</h3>
-<p>A single watchdog group name can be referenced by <code>update</code> blocks under multiple distinct peer-groups simultaneously — announce/withdraw state is shared, so "send AS112 routes to these two peer-groups" needs only one <code>healthcheck</code> probe and one <code>group</code> name, not one per peer-group.</p>
+<p>A single watchdog group name can be referenced by <code>update</code> blocks under multiple distinct peer-groups at the same time. Announce/withdraw state is shared, so sending AS112 routes to two peer-groups needs one <code>healthcheck</code> probe and one <code>group</code> name, not one per peer-group.</p>
 <h2 id="rfc-compliance-mapping">RFC Compliance Mapping</h2>
 <p>Every SHOULD/MUST from RFC 7534 (AS112 Nameserver Operations) and RFC 7535 (AS112 Redirection Using DNAME) this feature touches, with an explicit verdict.</p>
 <table>
@@ -374,7 +374,7 @@ bgp {
 <td>1</td>
 <td>RFC 7534 §3.5</td>
 <td>MUST answer authoritatively for each delegated zone</td>
-<td>Met — SOA parameters (refresh 1W, retry 1M, expire 1W, min-TTL 1W) and canonical NS/MNAME names are RFC-pinned and tested</td>
+<td>Met. SOA parameters (refresh 1W, retry 1M, expire 1W, min-TTL 1W) and canonical NS/MNAME names are RFC-pinned and tested</td>
 </tr>
 <tr>
 <td>2</td>
@@ -386,7 +386,7 @@ bgp {
 <td>3</td>
 <td>RFC 7534 §3.5</td>
 <td>MUST NOT host the site's own RFC 1918 records on the AS112 nameserver</td>
-<td>Met by design — the plugin only ever serves the fixed static empty-zone data</td>
+<td>Met by design: the plugin only ever serves the fixed static empty-zone data</td>
 </tr>
 <tr>
 <td>4</td>
@@ -398,12 +398,12 @@ bgp {
 <td>5</td>
 <td>RFC 7534 §3.3</td>
 <td>SHOULD dedicate the host to AS112 purpose</td>
-<td><strong>Not met — not software-enforceable.</strong> Deployment recommendation only</td>
+<td><strong>Not met.</strong> Not software-enforceable; deployment recommendation only</td>
 </tr>
 <tr>
 <td>6</td>
 <td>RFC 7534 §3.3</td>
-<td>SHOULD order startup: loopback → DNS → routing</td>
+<td>SHOULD order startup: loopback to DNS to routing</td>
 <td>Met, conditional on two things: (a) the <code>update</code> block includes the <code>watchdog</code> <code>withdraw</code> marker so the route starts withdrawn (its absence defaults to <em>announced</em>); (b) the healthcheck probe queries an anycast service address, not loopback</td>
 </tr>
 <tr>
@@ -416,7 +416,7 @@ bgp {
 <td>8</td>
 <td>RFC 7534 §3.4</td>
 <td>SHOULD restrict outbound advertisement to a prefix filter permitting only the service prefixes + an AS_PATH filter matching only locally-originated routes</td>
-<td>Conditionally met — true if the operator dedicates the target peer-group to AS112 only (recommended above); not enforceable if a general-purpose/transit peer-group is reused</td>
+<td>Conditionally met: true if the operator dedicates the target peer-group to AS112 only (recommended above); not enforceable if a general-purpose/transit peer-group is reused</td>
 </tr>
 <tr>
 <td>9</td>
@@ -428,7 +428,7 @@ bgp {
 <td>10</td>
 <td>RFC 7534 §3.5</td>
 <td>SHOULD keep HOSTNAME.AS112.{NET,ARPA} TXT answers within 512 octets without EDNS0</td>
-<td>Met — the assembled UDP response (all TXT strings + NS + SOA) is boundary-tested, not any single field in isolation</td>
+<td>Met. The assembled UDP response (all TXT strings + NS + SOA) is boundary-tested, not any single field in isolation</td>
 </tr>
 <tr>
 <td>11</td>
@@ -452,19 +452,19 @@ bgp {
 <td>14</td>
 <td>RFC 7534 §3.2/§5</td>
 <td>SHOULD notify the local community before installing; coordinate with other AS112 operators for globally-reachable nodes</td>
-<td><strong>Not met — not software-enforceable.</strong> Process/organizational step</td>
+<td><strong>Not met.</strong> Not software-enforceable; process/organisational step</td>
 </tr>
 <tr>
 <td>15</td>
 <td>RFC 7534 §3.4</td>
 <td>MAY configure only the relevant address family for single-stack nodes</td>
-<td>Met — <code>address-family</code> toggle</td>
+<td>Met. <code>address-family</code> toggle</td>
 </tr>
 <tr>
 <td>16</td>
 <td>RFC 7535 §6</td>
 <td>MUST NOT require DNAME support on the AS112 node itself</td>
-<td>Met — the plugin only answers EMPTY.AS112.ARPA directly, never processes a DNAME</td>
+<td>Met. The plugin only answers EMPTY.AS112.ARPA directly, never processes a DNAME</td>
 </tr>
 <tr>
 <td>17</td>
@@ -476,7 +476,7 @@ bgp {
 <td>18</td>
 <td>RFC 7535 §3.1</td>
 <td>SHOULD configure only the relevant address for single-stack nodes</td>
-<td>Met — same toggle as #15</td>
+<td>Met. Same toggle as #15</td>
 </tr>
 <tr>
 <td>19</td>
@@ -486,14 +486,14 @@ bgp {
 </tr>
 </tbody>
 </table>
-<p>Items #5 and #14 are deployment/process recommendations about how the operator runs and announces the service to the human AS112 community — not something Ze can verify or enforce in software. They are recorded here, not silently dropped, and repeated below.</p>
+<p>Items #5 and #14 are deployment/process recommendations about how the operator runs and announces the service to the human AS112 community, which Ze cannot verify or enforce in software. They are recorded here, not silently dropped, and repeated below.</p>
 <h2 id="known-limitations">Known Limitations</h2>
 <ul>
 <li>NSID (RFC 5001) is not implemented; the <code>hostname</code> TXT mechanism is the v1 node-identification approach.</li>
 <li>Only one address per service per family (4 total); BLACKHOLE-1/2 secondary IANA addresses are out of scope.</li>
-<li>Requires in-process deployment — depends on the iface address-ownership registry's Go-level API, not available to out-of-process/forked plugins.</li>
+<li>Requires in-process deployment because it depends on the iface address-ownership registry's Go-level API, not available to out-of-process/forked plugins.</li>
 <li><code>allow-from</code> drops out-of-range queries silently (no REFUSED response). On-box/loopback is always permitted, so <code>allow-from</code> cannot be used to firewall the node from its own healthcheck.</li>
-<li>This plugin ships no executable BGP integration code — operators hand-author the <code>healthcheck</code>/<code>update</code> composition from the worked example above; there is no single turnkey <code>as112 { bgp { ... } }</code> config block.</li>
+<li>This plugin ships no executable BGP integration code. Operators hand-author the <code>healthcheck</code>/<code>update</code> composition from the worked example above; there is no single turnkey <code>as112 { bgp { ... } }</code> config block.</li>
 <li>Two RFC 7534 SHOULDs cannot be enforced in software (RFC Compliance Mapping #5 and #14 above): dedicating the host to AS112 purpose, and community notification before installing a globally-reachable node. These are deployment/process responsibilities, documented here rather than coded.</li>
 </ul>
             </section>

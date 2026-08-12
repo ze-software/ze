@@ -58,7 +58,7 @@ Areas: CLI, BGP, Flowspec, IS-IS, MPLS, RSVP-TE, Firewall, Appliance, Installer,
 
 ## [Week of 2026-06-08](2026-06-08/index.md)
 
-A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.
+A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.
 
 Areas: CLI, Web UI, BGP, CoS, Installer, Under the Hood, Presentation: LINX 126
 
@@ -112,7 +112,7 @@ Areas: CoS, L2TP, PPP, AAA, Firewall, TACACS+, Interfaces, Performance, Under th
 
 ## [Week of 2026-04-06](2026-04-06/index.md)
 
-A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.
+A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.
 
 Areas: Config Editor, BFD, BGP, DHCP, API, Appliance, Interfaces, Presentation: Net Manchester
 
@@ -142,7 +142,7 @@ Areas: CLI, Config, Config Editor, Graceful Restart, Telemetry, RBAC, Security, 
 
 ## [Week of 2026-03-02](2026-03-02/index.md)
 
-Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.
+Best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.
 
 Areas: CLI, Config Editor, BGP, Graceful Restart, Quality Improvement, Under the Hood
 

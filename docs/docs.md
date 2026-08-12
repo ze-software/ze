@@ -7,12 +7,12 @@ job you are trying to do, then follow the links inside that path.
     <article class="card docs-path-card cat-operate">
         <span class="cat">Start</span>
         <h2>Get Ze running</h2>
-        <p>Learning-oriented pages that take you from a blank shell to a working setup.</p>
+        <p>Guides that take you from a blank shell to a working setup.</p>
         <div class="link-list">
             <a href="guide/quickstart/">Quickstart <span>two BGP peers talking in under five minutes</span></a>
             <a href="guide/ze-install/">Install Ze <span>daemon install or bootable appliance</span></a>
             <a href="guide/ubuntu-build-install/">Build on Ubuntu <span>compile, install, create zefs, set up SSH</span></a>
-            <a href="features/configuration/">Configuration <span>the YANG model Ze uses everywhere</span></a>
+            <a href="features/configuration/">Configuration <span>the YANG model behind Ze config</span></a>
             <a href="features/cli-commands/"><code>CLI</code> commands <span>diff, commit, history, and operator commands</span></a>
             <a href="guide/cli/">CLI tour <span>interactive, one-shot, pipes, and runtime control</span></a>
             <a href="guide/lifecycle/">Lifecycle and rollback <span>reload, restart, archive, update, and recover</span></a>

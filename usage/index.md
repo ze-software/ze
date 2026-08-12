@@ -2,7 +2,7 @@
 
 Use these pages when you want Ze to play a concrete role in a network.
 
-They are deployment examples, with the Ze config, the adjacent network config, and the lab evidence that backs the shape. The feature guides explain every knob. Usage pages show how the knobs fit together.
+They are deployment examples: the Ze config, the neighbouring network config, and the lab evidence behind each setup. Feature guides explain every knob. Usage pages show how the knobs fit together.
 
 ## Examples
 

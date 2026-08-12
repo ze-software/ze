@@ -10,7 +10,7 @@ Ze is written in Go and follows one rule about memory: the received wire represe
 
 Rust developers will recognise their borrow checker in that description, without a compiler to enforce it. Zig and Odin developers will recognise arena allocation.
 
-What follows is one BGP UPDATE walking through that design, from the receive buffer to the RIB and out to each peer, and then the tests which stop the design eroding quietly.
+The rest of this article follows one BGP UPDATE through that design, from the receive buffer to the RIB and out to each peer, then shows the tests which keep the design intact.
 
 *This article was co-authored with Claude. The architecture, design decisions, measurements and conclusions come from my work on ExaBGP and Ze. Claude helped organise the material and draft the text.*
 

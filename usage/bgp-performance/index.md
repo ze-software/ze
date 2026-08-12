@@ -2,9 +2,9 @@
 
 A route-server performance test is simple in outline: create a route source, connect it to a device under test, watch a monitor peer, and publish how many routes arrived and how long convergence took.
 
-AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalized the same idea with tester, target, and monitor containers. Ze can run that shape with `ze-perf`: Ze supplies the sender and receiver, the target is whatever BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.
+AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalised the same idea with tester, target, and monitor containers. Ze can run that setup with `ze-perf`: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.
 
-This page shows Ze in the tester role. The DUT can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.
+This page shows Ze in the tester role. The device under test can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.
 
 <!-- source: ../main/internal/perf/cli/cmd_run.go -- ze-perf sender, receiver, repeat, JSON, and output flags -->
 <!-- source: ../main/internal/perf/result.go -- result fields -->
@@ -12,7 +12,7 @@ This page shows Ze in the tester role. The DUT can be FRR, BIRD, GoBGP, OpenBGPD
 
 ## What a good test answers
 
-A performance test has to answer these questions, and publish the evidence for each.
+A performance test has to answer these questions and publish the evidence for each.
 
 | Question | Evidence to publish |
 | --- | --- |
@@ -208,9 +208,9 @@ Publish the method with the result.
 
 Ze already covers the core of the test: sender, DUT, receiver, route count, convergence, loss, and repeatable output.
 
-The current `ze-perf` shape is one sender session and one receiver session. That is enough to test route propagation and DUT table pressure. It is not the same as hundreds of independent BGP client sessions in one run.
+The current `ze-perf` setup is one sender session and one receiver session. That is enough to test route propagation and DUT table pressure, but not hundreds of independent BGP client sessions in one run.
 
-If the target is the full AMS-IX or bgperf style route-server scale test, the useful Ze feature would be a multi-peer mode:
+For a full AMS-IX or bgperf-style route-server scale test, Ze would need a multi-peer mode:
 
 | Missing shape | Feature to add |
 | --- | --- |

@@ -32,7 +32,7 @@ the step before it is genuinely done".
 
   <section class="roadmap-step">
     <h2>3. Prove it in production</h2>
-    <p>Tests and lab interop take Ze a long way, but they are not a substitute for real traffic on real hardware over real time. This step is about operational mileage: running Ze in places where it has to keep working, watching what breaks, and fixing it. This is also where feedback from operators matters most, which is exactly why the project is open this early.</p>
+    <p>Tests and lab interop take Ze a long way, but they are not a substitute for real traffic on real hardware for long enough to find operational failures. This step is about running Ze where it has to keep working, watching what breaks, and fixing it. Operator feedback matters most here, which is why the project is open this early.</p>
     <div class="roadmap-chip-row" aria-label="Step focus">
       <span class="roadmap-chip" data-tone="services">Real traffic</span>
       <span class="roadmap-chip" data-tone="observe">Telemetry</span>

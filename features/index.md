@@ -1,18 +1,18 @@
 # Every feature Ze ships.
 
-51 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+51 shipped features plus the planned roadmap. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
-Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.
+Ze owns its BGP engine, configuration model, plugin system, operator tools, minimal appliance runtime, and diagnostics as one product.
 
-### AI-Friendly Surfaces
+### AI Tool Interfaces
 
 *automate* -- `MCP` `Generated` `AI tools`
 
 - **MCP** exposes CLI/API commands
-- AI tools inspect **structured output**
-- Plugins become **discoverable tools**
+- AI tools read **structured output**
+- Plugins expose **discoverable tools**
 
 [Learn more](https://ze-software.net/docs/features/ai-first/)
 
@@ -150,8 +150,8 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 *automate* -- `Self-describing` `Skills`
 
-- **Self-describing** command catalog from the live binary
-- Every command becomes **automation** surface
+- **Self-describing** command catalogue from the live binary
+- Every command is an **automation** surface
 - Structured **diagnostics** and repair plans
 
 [Learn more](https://ze-software.net/docs/features/ai-first/)
@@ -172,7 +172,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 - Automatic config **migration**
 - **Plugin bridge** for existing workflows
-- Smooth **transition** path
+- Migration path for existing scripts
 
 [Learn more](https://ze-software.net/docs/features/exabgp-compatibility/)
 
@@ -191,7 +191,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 *observe* -- `Heatmap` `Live data`
 
 - A year of **commits** and added lines, at a glance
-- Regenerated from git history, not curated
+- Built from git history each time
 - Current Go code composition
 
 [Learn more](https://ze-software.net/activity/)
@@ -280,9 +280,9 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 *secure* -- `Commits` `Auth`
 
-- Config **commit**, discard, reload
-- Failed **auth** across all surfaces
-- Filter by action, actor, **time**
+- Config **commit**, discard, and reload
+- Failed **auth** on every interface
+- Filter by action, actor, and **time**
 
 [Learn more](https://ze-software.net/docs/guide/audit/)
 
@@ -290,7 +290,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 *secure* -- `X.509` `TLS`
 
-- YANG-modeled **certificate** management
+- YANG-modelled **certificate** management
 - Chain validation, **expiry** checks
 - Shared by IPsec, **TLS**, mutual auth
 
@@ -339,7 +339,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 ## Experimental and growing.
 
-Implemented and tested, not yet production-proven.
+Implemented and tested, still waiting for production evidence.
 
 > These still need deployment evidence or hardening before production claims. Configuration may change.
 
@@ -523,11 +523,11 @@ Implemented and tested, not yet production-proven.
 
 [Learn more](https://ze-software.net/docs/guide/irr-filtering/)
 
-## Spec'd, not built.
+## Specified, not built.
 
 Aspirations with written, reviewed specs. Nothing here is usable today.
 
-> Every card links to a pending spec in the main repo's `plan/` directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.
+> Every card links to a pending spec in the main repo's `plan/` directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.
 
 ### OSPF L3VPN PE-CE
 
@@ -555,7 +555,7 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 
 - Kernel **lockdown** integrity mode
 - Blocks unsigned **modules**, kexec, /dev/mem
-- Design **reviewed**, not yet scheduled
+- Design **reviewed**, waiting for schedule
 
 [Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md)
 

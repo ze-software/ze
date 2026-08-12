@@ -59,6 +59,7 @@
 <li><a href="#common-policy-building-blocks">Common policy building blocks</a></li>
 <li><a href="#irr-and-rpki">IRR and RPKI</a></li>
 <li><a href="#attribute-changes">Attribute changes</a></li>
+<li><a href="#well-known-communities-rfc-1997">Well-known communities (RFC 1997)</a></li>
 <li><a href="#route-server-control-communities">Route-server control communities</a></li>
 <li><a href="#redistribution">Redistribution</a></li>
 <li><a href="#verify-policy">Verify policy</a></li>
@@ -121,6 +122,42 @@
 <h2 id="attribute-changes">Attribute changes</h2>
 <p>Attribute modification belongs in an explicit export or import chain. Keep each named modifier narrow, then compose it with other filters. Typical operations include setting local preference or MED, changing next hop, and adding or removing communities.</p>
 <p>Inspect the live plugin documentation before using increment or decrement operations. Attribute ranges and missing-attribute behaviour are validated by the owning plugin.</p>
+<h2 id="well-known-communities-rfc-1997">Well-known communities (RFC 1997)</h2>
+<p>Ze honors three community values on egress with no configuration, for every peer and every deployment:</p>
+<table>
+<thead>
+<tr>
+<th>Community</th>
+<th>Value</th>
+<th>Ze sends the route to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NO_EXPORT</code></td>
+<td>0xFFFFFF01</td>
+<td>internal peers only</td>
+</tr>
+<tr>
+<td><code>NO_ADVERTISE</code></td>
+<td>0xFFFFFF02</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>NO_EXPORT_SUBCONFED</code></td>
+<td>0xFFFFFF03</td>
+<td>internal peers only</td>
+</tr>
+</tbody>
+</table>
+<p>The rule applies to a route ze RECEIVED from a peer. A route ze originates and tags itself is still advertised, because tagging your own route is how the community is meant to be used.</p>
+<p>Two properties are worth knowing before you write policy around this.</p>
+<p><strong>The check reads the received route, so an egress policy that strips these values does not restore advertisement.</strong> The value ze reads is the one the route arrived with. Removing <code>NO_EXPORT</code> in an export chain changes the bytes on the wire. It does not change what the peer asked for, and RFC 1997 states the prohibition as a MUST NOT. FRR and BIRD apply the route-map first, so a strip there does restore advertisement. Ze diverges from both, deliberately: an operator policy cannot grant what the RFC refuses. If a route must leave the AS, ask the peer to stop tagging it.</p>
+<p><strong>Withdrawals are not affected.</strong> All three clauses forbid ADVERTISING the route. One UPDATE can carry withdrawn routes and an announcement together. A peer refused the announcement still receives the withdrawals, so it never keeps a prefix ze can no longer take back.</p>
+<p>Each suppression increments <code>ze_bgp_wellknown_community_suppressed_total</code> with the community as its label. Nothing else reports it: there is no per-route log line and no configuration switch, because a switch here would be a switch to violate the RFC.</p>
+<!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->
+<!-- source: internal/component/bgp/reactor/forward_wellknown.go — wellKnownAllowsEgress -->
+
 <h2 id="route-server-control-communities">Route-server control communities</h2>
 <p>When ze runs as a route server, a client can steer its own routes by tagging them with communities the route server reads and then removes. A peer becomes a route-server client with <code>rs-client true</code> under its <code>session</code> block; the communities below are only interpreted for such peers.</p>
 <table>

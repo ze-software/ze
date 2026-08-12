@@ -286,7 +286,7 @@ the marker itself may be what was mis-parsed. Honoring it would mean trusting a
 broken file's own claim that it can be ignored.</p>
 <p>The consequences are asymmetric, which is what settles the ordering. 158 <code>.ci</code>
 files carry one of those markers (12 in <code>test/ui</code>), and on a non-Linux host they
-never run — so a wrongly-SKIPPED malformed file is invisible indefinitely, which
+never run. A wrongly-SKIPPED malformed file is invisible indefinitely, which
 is exactly how <code>test/ui</code> rotted. A wrongly-FAILED one is loud and costs a single
 commit. The check therefore lives in <code>parallel.go</code>'s per-test goroutine, ahead of
 the skip short-circuit: that is the real entry point, and both
@@ -641,7 +641,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>linger</code></td>
 <td><code>value=true</code></td>
-<td>Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down — withdrawing that peer's routes and racing any forwarding still in flight toward other peers.</td>
+<td>Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers.</td>
 </tr>
 <tr>
 <td><code>silent</code></td>
@@ -671,7 +671,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>needs-linux</code></td>
 <td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
-<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-all-test</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration — creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets — <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/platform-linux.md</code></span></span></td>
+<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-all-test</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets: <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/platform-linux.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>needs-path</code></td>
@@ -681,7 +681,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>netns-link</code></td>
 <td><code>name=&lt;if&gt;[:address=&lt;cidr&gt;]</code></td>
-<td>Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself — a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since <code>enterTestNetns</code> brings up only loopback. <strong>The option is a prerequisite, so declaring it makes the test SKIP outside netns mode</strong> (<code>ZE_TEST_NETNS</code>, set by <code>make ze-netns-test</code> and <code>make ze-netns-qemu-test</code>): nothing else may create the link (the names are real host interfaces such as <code>eth0</code>/<code>eth1</code>), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under <code>make ze-qemu-needs-linux-test</code> even though they also carry <code>needs-linux</code>.</td>
+<td>Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself: a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since <code>enterTestNetns</code> brings up only loopback. <strong>The option is a prerequisite, so declaring it makes the test SKIP outside netns mode</strong> (<code>ZE_TEST_NETNS</code>, set by <code>make ze-netns-test</code> and <code>make ze-netns-qemu-test</code>): nothing else may create the link (the names are real host interfaces such as <code>eth0</code>/<code>eth1</code>), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under <code>make ze-qemu-needs-linux-test</code> even though they also carry <code>needs-linux</code>.</td>
 </tr>
 <tr>
 <td><code>exclusive</code></td>
@@ -766,7 +766,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 </tr>
 </tbody>
 </table>
-<p><strong>Use case — testing capability mode enforcement:</strong></p>
+<p><strong>Use case: testing capability mode enforcement:</strong></p>
 <p>When Ze is configured with <code>require</code> mode for a capability, it sends a NOTIFICATION if the peer lacks that capability. To test this, use <code>drop-capability</code> to make ze-peer omit the capability from its response:</p>
 <pre><code># Test: Ze requires ASN4, ze-peer drops it → Ze should send NOTIFICATION
 option=open:value=drop-capability:code=65
@@ -1064,7 +1064,7 @@ expect=json:json=&lt;json-object&gt;
 <pre><code>expect=exit:code=&lt;N&gt;
 </code></pre>
 <p>Validates the foreground process exit code. A test whose ONLY assertion is
-<code>expect=exit:code=0</code> is <strong>accept-only</strong> (weak) and is gated by a lint — see
+<code>expect=exit:code=0</code> is <strong>accept-only</strong> (weak) and is gated by a lint; see
 <a href="#assertion-strength-accept-only-tests-and-readback">Assertion Strength</a>.</p>
 <h3 id="stdout-expectations">Stdout Expectations</h3>
 <pre><code>expect=stdout:contains=&lt;text&gt;
@@ -1080,13 +1080,13 @@ expect=stdout:pattern=&lt;regex&gt;
 expect=stderr:contains=&lt;text&gt;
 </code></pre>
 <p>Two modes:
-- <code>pattern=</code> — regex match against stderr (uses Go <code>regexp</code> syntax)
-- <code>contains=</code> — substring match against stderr</p>
+- <code>pattern=</code>: regex match against stderr (uses Go <code>regexp</code> syntax)
+- <code>contains=</code>: substring match against stderr</p>
 <h3 id="await-deterministic-stderr-fence">Await (deterministic stderr fence)</h3>
 <pre><code>await=stderr:contains=&lt;text&gt;[:timeout=&lt;dur&gt;]
 </code></pre>
 <p>Blocks the runner until the daemon's relayed stderr contains <code>&lt;text&gt;</code>, then tears
-the daemon down — a deterministic replacement for a blind <code>time.sleep</code> that only
+the daemon down. This is a deterministic replacement for a blind <code>time.sleep</code> that only
 held the daemon open long enough for a line to appear. <code>timeout=</code> is an optional
 Go duration (default 10s); on timeout the test fails with a precise message.
 <code>&lt;text&gt;</code> follows the same rule as <code>expect=stderr:contains=</code> (the needle must not

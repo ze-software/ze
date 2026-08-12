@@ -66,7 +66,7 @@
 <h2>I have heard this argument before</h2>
 <p>In 1983, Ed Post published <a href="https://www.pbm.com/~lindahl/real.programmers.html" target="_blank" rel="noopener">Real Programmers Don't Use Pascal</a>, a satire of the culture which treated FORTRAN and assembly as real programming and everything else as soft. It was funny because the attitude existed.</p>
 <p>The serious version of the argument was stronger than people now remember. Hand-written assembly was faster. It gave direct control over the machine. It avoided weak compilers, poor optimisers and unpredictable output. If you were writing the inner loop of a graphics engine or a codec, a good assembly programmer could beat the compiler.</p>
-<p>For a while, that was simply true.</p>
+<p>For a while, that was true.</p>
 <p>Then compilers improved and software got larger. The economics changed. The question became less about whether a human could beat the compiler in one loop, and more about whether a team could still understand, port and change the whole program.</p>
 <p>The history of id Software shows the transition well. The released <a href="https://github.com/id-Software/Quake" target="_blank" rel="noopener">Quake source</a> still contains hand-written x86 assembly in the rendering path, and Michael Abrash's <a href="https://www.jagregory.com/abrash-black-book/" target="_blank" rel="noopener">Graphics Programming Black Book</a> is still worth reading. By <a href="https://github.com/id-Software/DOOM-3" target="_blank" rel="noopener">Doom 3</a>, the engine was a large C++ codebase with isolated SIMD paths and the GPU doing the rasterisation work.</p>
 <p>Assembly did not disappear. <a href="https://github.com/FFmpeg/FFmpeg/tree/master/libavcodec/x86" target="_blank" rel="noopener">FFmpeg still carries pages of x86 SIMD assembly</a>, because there are places where it still pays, but nobody sane writes a control plane in assembly anymore.</p>
@@ -107,7 +107,7 @@
 <p>That is how Ze is being built, and it is why it is taking longer than I expected.</p>
 <p>Some people will still call it slop. Fine. The repository is open, the tests are there, the design notes are there, the benchmarks are there. I expected Ze to be finished by now. It is not ready because we see the issues and are fixing them instead of releasing slop.</p>
 <p>Good software eventually finds users and earns appreciation, even when it is niche. Bad software just makes up most of GitHub's content, the underwater part of the iceberg that almost nobody sees or discusses, but which still exists. I would rather Ze be late than join that pile.</p>
-<p>When Ze is ready, I hope the result of the work speaks for itself. I hope you will like it.</p>
+<p>When Ze is ready, I hope the result speaks for itself. I hope you will like it.</p>
             </section>
         </main>
 

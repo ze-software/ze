@@ -80,7 +80,7 @@
 <p>A source location means the place in the RFC where the rule was found: a section, a quoted sentence, a table entry, or another small piece of text. Ze checks the link in both directions.</p>
 <p>First, every possible requirement found in the RFC text must either point to a checklist id, or be excluded with a reason. Otherwise Ze may have missed a rule.</p>
 <p>Second, every requirement in the checklist must point back to the RFC text, or say that a reviewer found it while reading prose the extractor missed. Otherwise Ze may have invented a rule, or attached a test to the wrong part of the standard.</p>
-<p>This does not prove that Ze understands every RFC perfectly. The extractor can miss prose. A <code>manual-walk</code> sign-off is a record that a human read the document, not a magical proof of understanding. The useful property is smaller and more honest: a missed obligation becomes a named risk, rather than an invisible green check.</p>
+<p>This does not prove that Ze understands every RFC perfectly. The extractor can miss prose. A <code>manual-walk</code> sign-off records that a human read the document; it does not prove the human understood every obligation. The useful property is smaller and more honest: a missed obligation becomes a named risk, rather than an invisible green check.</p>
 <p>That helps a lot with AI. A model can read an RFC and produce a plausible list of tests. Plausible is not enough. If it invents a requirement, the link back to the RFC fails. If it ignores a sentence the extractor flagged, the link from the RFC to the checklist fails. If it tries to hide behind a hand-written count, the generated inventory disagrees.</p>
 <p>The process is boring on purpose. Boring checks are harder to fool.</p>
 <h2>Tests have to say what they prove</h2>
@@ -99,7 +99,7 @@
 <p>Some RFC requirements do not apply to Ze. Some can only sensibly be tested on the good side or the bad side. Some are real gaps. Ze records those cases as annotations.</p>
 <p>A gap is a promise that the requirement is known and not yet met. It is still counted. It is also tied to the public RFC status page.</p>
 <p>That page is not an IETF certificate. It is a support ledger for users. It says which RFCs Ze implements, partially implements, does not implement, or has deferred. If a feature is partial, the page should say which part is partial. If an RFC has no gated obligations, it should show why. If the implementation has a known gap, users should not have to guess from marketing language.</p>
-<p>This matters because networks are operated on risk, not slogans. A missing corner of an RFC may be harmless in one deployment and unacceptable in another. Hiding the gap does not make the product better. It only moves the risk from the vendor to the operator.</p>
+<p>Networks are operated on risk, not slogans. A missing corner of an RFC may be harmless in one deployment and unacceptable in another. Hiding the gap does not make the product better. It only moves the risk from the vendor to the operator.</p>
 <h2>The gates push back</h2>
 <p>The same idea appears while code is being edited. Ze's edit rules reject some changes before they can become part of Ze.</p>
 <p>RFC-tagged tests are one example. They are part of a public compliance claim. If Claude tries to change the behaviour of an RFC-tagged test, or remove the tag, the edit hook blocks the change unless the text carries an explicit approval marker. The marker is not magic. It is a human process boundary.</p>
@@ -122,7 +122,7 @@
 <h2>This is still not finished</h2>
 <p>There are limits.</p>
 <p>Extraction sign-off is still being expanded. Semantic audits are sampled, not total. A <code>manual-walk</code> record is an honest declaration, not a proof of understanding. A model can still produce a bad test, a narrow test or a correct test for the wrong reason. A human can still approve the wrong thing.</p>
-<p>The difference is that these are named risks. They are in the system. They are counted, surfaced or blocked. That is much better than trusting a confident paragraph in a pull request.</p>
+<p>Those risks are named. They are in the system. They are counted, surfaced or blocked, which is safer than trusting a confident paragraph in a pull request.</p>
 <p>I do not think the unique part of Ze is that AI writes a lot of the code. Many projects will do that. Some already do. The unique part is that Ze is being built around the assumption that generated code is untrusted until it earns its place.</p>
 <p>The code is cheap. The proof is the expensive part.</p>
             </section>

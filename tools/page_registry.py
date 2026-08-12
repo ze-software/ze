@@ -159,7 +159,7 @@ NAV_PATCH_TARGETS = [
 
 USAGE_DESC = (
     "Deployment examples for using Ze in a real network, with adjacent router "
-    "configs and the lab evidence behind each shape."
+    "configs and the lab evidence behind each setup."
 )
 
 USAGE_PAGES = [
@@ -188,7 +188,7 @@ USAGE_PAGES = [
     MarkdownPage(
         "route-server/index.md",
         "usage/route-server/index.html",
-        "Deploy Ze as an IXP route server with member policy, validation, and verification.",
+        "Deploy Ze as an IXP route server with member policy, validation, and checks.",
         "routing",
     ),
     MarkdownPage(
@@ -200,13 +200,13 @@ USAGE_PAGES = [
     MarkdownPage(
         "flowspec-injection/index.md",
         "usage/flowspec-injection/index.html",
-        "Inject and withdraw FlowSpec rules through an authorised, observable workflow.",
+        "Inject and withdraw FlowSpec rules through an authorised workflow with visible state and logs.",
         "secure",
     ),
     MarkdownPage(
         "chaos-tested-peering/index.md",
         "usage/chaos-tested-peering/index.html",
-        "Prove BGP convergence and recovery with deterministic chaos scenarios.",
+        "Check BGP convergence and recovery with deterministic chaos scenarios.",
         "observe",
     ),
     MarkdownPage(
@@ -221,7 +221,7 @@ LAB_DETAIL_PAGES = [
     MarkdownPage(
         "labs/l2tp-interop.md",
         "labs/l2tp-interop/architecture/index.html",
-        "Peer-isolated Docker lab details for full L2TP PPP/NCP/kernel dataplane evidence.",
+        "Peer-isolated Docker lab details for L2TP, PPP, NCP, and kernel dataplane checks.",
         "services",
     ),
     MarkdownPage(
@@ -233,7 +233,7 @@ LAB_DETAIL_PAGES = [
 ]
 
 COMPARE_DESC = (
-    "Comparison hub for Ze against BGP daemons and router network operating systems."
+    "Comparisons between Ze, BGP daemons, and router network operating systems."
 )
 
 COMPARE_PAGES = [
@@ -241,7 +241,7 @@ COMPARE_PAGES = [
     MarkdownPage(
         "bgp.md",
         "compare/bgp/index.html",
-        "How Ze compares to mature BGP daemon implementations, including where it is still behind.",
+        "How Ze compares to mature BGP daemons, including current gaps.",
         "routing",
     ),
     MarkdownPage(
@@ -253,8 +253,8 @@ COMPARE_PAGES = [
 ]
 
 QUALITY_DESC = (
-    "How Ze proves code quality with unit tests, functional scenarios, QEMU, "
-    "fuzzing, gomu mutation testing, and release evidence."
+    "How Ze checks code quality with unit tests, functional scenarios, QEMU, "
+    "fuzzing, gomu mutation testing, and release checks."
 )
 
 QUALITY_PAGES = [
@@ -280,13 +280,13 @@ QUALITY_PAGES = [
     MarkdownPage(
         "qemu-interop-release.md",
         "quality/qemu-interop-release/index.html",
-        "How to run Ze QEMU, interop, deployment, performance, and release evidence.",
+        "How to run Ze QEMU tests, interop labs, deployment checks, performance tests, and release checks.",
         "observe",
     ),
     MarkdownPage(
         "verify-debugging.md",
         "quality/verify-debugging/index.html",
-        "How Ze verify, failure routing, traces, and debug logging work.",
+        "How ze verify, failure routing, traces, and debug logging work.",
         "observe",
     ),
 ]

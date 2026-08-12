@@ -8,8 +8,8 @@
   "note": {
     "label": "RFC compliance progress",
     "category": "meta",
-    "title": "Every MUST, bound to a test",
-    "body": "2,950 MUST-level requirements are checked across 168 RFCs, and each one counts only when a test fails without it.",
+    "title": "Every MUST requirement tied to a test",
+    "body": "Ze checks 2,950 MUST-level requirements across 168 RFCs. A requirement counts only when its test would fail without it.",
     "link": {
       "href": "quality/rfc-compliance/",
       "label": "Compliance gate"

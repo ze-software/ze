@@ -7,7 +7,7 @@ A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI,
 Ze can now sit on the answering side of an IPsec tunnel, not just dial one:
 
 - Full IKEv2 responder role: it accepts an unsolicited IKE_SA_INIT, authenticates with PSK, X.509, or EAP (acting as the EAP-MSCHAPv2 / EAP-TLS server), and brings up the first Child SA.
-- Rekeying is now a real on-the-wire CREATE_CHILD_SA exchange for both Child and IKE SAs, with make-before-break, instead of a local key roll that silently desynced live tunnels. Interop verified against strongSwan 5.9.14.
+- Rekeying is now an on-the-wire CREATE_CHILD_SA exchange for both Child and IKE SAs, with make-before-break, instead of a local key roll that desynced live tunnels without reporting it. Interop verified against strongSwan 5.9.14.
 
 ## 🌐 Encrypted and validated DNS
 

@@ -1,5 +1,5 @@
 {
-  "intro": "The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, color-coded by category.",
+  "intro": "The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, colour-coded by category.",
   "milestones": [
     {
       "date": "2025-12-15",
@@ -31,10 +31,10 @@
     },
     {
       "date": "2026-02-23",
-      "title": "BGP Route Server",
+      "title": "BGP route server",
       "category": "routing",
       "blog": "2026-02-23",
-      "blurb": "A forward-all Route Server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution."
+      "blurb": "A forward-all route server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution."
     },
     {
       "date": "2026-03-02",
@@ -48,14 +48,14 @@
       "title": "SSH CLI, TCP-MD5, and RBAC",
       "category": "secure",
       "blog": "2026-03-09",
-      "blurb": "An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorization."
+      "blurb": "An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorisation."
     },
     {
       "date": "2026-03-16",
       "title": "RPKI origin validation",
       "category": "secure",
       "blog": "2026-03-16",
-      "blurb": "A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes arrive on the adjacency RIB-in path, not after the fact."
+      "blurb": "A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes enter the adjacency RIB-in path."
     },
     {
       "date": "2026-03-23",
@@ -90,7 +90,7 @@
       "title": "gokrazy appliance build",
       "category": "platform",
       "blog": "2026-04-06",
-      "blurb": "The first gokrazy VM appliance build for x86_64: the start of Ze shipping as a self-contained appliance image, not just a daemon."
+      "blurb": "The first gokrazy VM appliance build for x86_64 starts the appliance path: a self-contained image as well as daemon mode."
     },
     {
       "date": "2026-04-13",

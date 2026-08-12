@@ -78,8 +78,7 @@
                             <div class="hero-start-lead-wrap">
                                 <p class="hero-start-lead">
                                     Open routing today is split across daemons,
-                                    config syntaxes, tools, and operational
-                                    surfaces.
+                                    config syntaxes, and operator tools.
                                 </p>
                                 <p class="hero-start-lead">
                                     Ze makes Linux routing operable as one
@@ -184,8 +183,8 @@
                 </article>
                 <article class="whats-new-item cat-meta">
                     <span class="whats-new-label">RFC compliance progress</span>
-                    <h3><a href="quality/rfc-compliance/">Every MUST, bound to a test</a></h3>
-                    <p>2,950 MUST-level requirements are checked across 168 RFCs, and each one counts only when a test fails…</p>
+                    <h3><a href="quality/rfc-compliance/">Every MUST requirement tied to a test</a></h3>
+                    <p>Ze checks 2,950 MUST-level requirements across 168 RFCs. A requirement counts only when its test would fail…</p>
                 </article>
             </section>
 
@@ -193,23 +192,23 @@
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <span class="tag">Lab confidence</span>
-                        <h2 id="proof-title">Tests, fuzzing, and interop before claims.</h2>
+                        <span class="tag">Evidence</span>
+                        <h2 id="proof-title">Tests, fuzzing, and interop before release claims.</h2>
                         <p>
-                            These counts show what Ze proves before asking you
-                            to spend time on a lab. The interop strip names the
-                            peer stacks behind the protocol checks.
+                            These counts show what backs Ze before you spend
+                            time on a lab. The interop list names the peer
+                            daemons used in the protocol checks.
                         </p>
                     </div>
                     <div class="home-proof-actions">
                         <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
-                        <a class="button" href="quality/">Read the proof map</a>
+                        <a class="button" href="quality/">Read the evidence map</a>
                     </div>
                 </div>
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            >22,300+ <span class="label">unit tests</span></strong
+                            >22,200+ <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -219,7 +218,7 @@
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            >1,600+
+                            >1,500+
                             <span class="label">end to end tests</span></strong
                         >
                         <ul>
@@ -238,7 +237,7 @@
                     </a>
                     <a class="proof" href="quality/qemu-interop-release/#docker-interop">
                         <strong
-                            >8 <span class="label">interop targets</span></strong
+                            >9 <span class="label">interop targets</span></strong
                         >
                         <ul>
                             <li>Real third-party daemons</li>
@@ -248,7 +247,7 @@
                     </a>
                 </div>
                 <div class="interop-strip" aria-label="Tested BGP peer implementations">
-                    <span class="interop-strip-label">Tested against real routing stacks</span>
+                    <span class="interop-strip-label">Tested against routing stacks</span>
                     <a href="quality/qemu-interop-release/#docker-interop">FRR</a>
                     <a href="quality/qemu-interop-release/#docker-interop">BIRD</a>
                     <a href="quality/qemu-interop-release/#docker-interop">GoBGP</a>
@@ -264,8 +263,8 @@
                 <div class="section-head reveal cat-platform">
                     <h2 id="run-title">Run it as a lab, daemon, or appliance.</h2>
                     <p>
-                        Same binary and config. Pick the path that matches how
-                        much risk you want to take today.
+                        The same binary and configuration support each path,
+                        from a Docker lab to spare hardware.
                     </p>
                 </div>
                 <div class="audience run-path-grid reveal">
@@ -273,7 +272,7 @@
                         <span class="cat">Lab</span>
                         <h3><a href="labs/bgp-interop/">Run a BGP lab</a></h3>
                         <p>
-                            A reproducible interop lab starts Ze beside real BGP daemons, establishes sessions, and checks routes through each peer&#x27;s own CLI.
+                            The reproducible interop lab runs Ze beside real BGP daemons, establishes sessions, and checks routes through each peer&#x27;s own CLI.
                         </p>
                         <div class="chips">
                             <span class="chip">Docker</span>
@@ -287,7 +286,7 @@
                         <span class="cat">Daemon</span>
                         <h3><a href="docs/guide/quickstart/">Run as a daemon</a></h3>
                         <p>
-                            Runs on any existing Linux distro, managed by systemd or your process manager of choice. The easier on-ramp if you&#x27;re fitting Ze into infrastructure you already run.
+                            Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.
                         </p>
                         <div class="chips">
                             <span class="chip">Existing Linux</span>
@@ -299,11 +298,11 @@
                         <span class="cat">Appliance</span>
                         <h3><a href="docs/guide/ze-install/">Run as an appliance</a></h3>
                         <p>
-                            A dedicated bootable image built with gokrazy for purpose-built hardware: read-only rootfs, no shell, no package manager, automatic process supervision.
+                            A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision.
                         </p>
                         <div class="chips">
                             <span class="chip">gokrazy image</span>
-                            <span class="chip">Read-only rootfs</span>
+                            <span class="chip">Read-only root filesystem</span>
                         </div>
                         <span class="audience-card-cta">Install guide <small>PXE, ISO, or Ventoy</small></span>
                     </article>
@@ -322,9 +321,9 @@
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
                     <article class="card usp-card cat-observe">
                         <span class="cat">Model</span>
-                        <h3><a href="config-reference/">One model feeds the surfaces</a></h3>
+                        <h3><a href="config-reference/">One model feeds every interface</a></h3>
                         <p>
-                            The YANG model feeds CLI, SSH, web, REST/gRPC, MCP,
+                            The YANG model drives CLI, SSH, web, REST/gRPC, MCP,
                             docs, audit, diagnostics, and generated references.
                         </p>
                     </article>
@@ -334,25 +333,25 @@
                         <p>
                             Daemon mode and appliance mode use the same binary
                             and configuration, so a lab install exercises the
-                            behaviour you would later put on spare hardware.
+                            behaviour you would later run on spare hardware.
                         </p>
                     </article>
                     <article class="card usp-card cat-routing">
                         <span class="cat">Routing</span>
-                        <h3><a href="docs/architecture/">Engines and tools move together</a></h3>
+                        <h3><a href="docs/architecture/">Routing engines ship with their operator tools</a></h3>
                         <p>
-                            Native BGP, OSPF, and IS-IS engines are developed
-                            with the commands, APIs, references, and operator
-                            checks that expose them.
+                            Native BGP, OSPF, and IS-IS are developed with the
+                            commands, APIs, references, and checks operators use
+                            to inspect them.
                         </p>
                     </article>
                     <article class="card usp-card cat-secure">
                         <span class="cat">Honest</span>
-                        <h3><a href="quality/">Source and proof are inspectable</a></h3>
+                        <h3><a href="quality/">Source and test evidence are public</a></h3>
                         <p>
                             The source, generated docs, RFC report, and test
-                            evidence are public. Ze is young, so labs and
-                            feedback are the right first use.
+                            evidence are public. Ze is still pre-release, so
+                            labs and feedback are the right place to start.
                         </p>
                     </article>
                 </div>
@@ -360,16 +359,16 @@
 
             <section id="features-summary" class="home-section-panel home-section-panel-map" aria-labelledby="core-title">
                 <div class="section-head reveal">
-                    <h2 id="core-title">The generated map is part of the product.</h2>
-                    <p>Browse the source-backed references before you run it.</p>
+                    <h2 id="core-title">Generated references are part of the product.</h2>
+                    <p>Read the generated references before you run Ze.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
                         Ze owns its BGP engine, configuration model, plugin
-                        system, and operator surfaces, all designed together
-                        from the native BGP, OSPF, and IS-IS engines and SSH
-                        CLI to RPKI, looking glass, telemetry, firewall, VPN,
-                        MPLS, and appliance packaging.
+                        system, and operator tools. They are designed together,
+                        from native BGP, OSPF, IS-IS, and the SSH CLI through
+                        to RPKI, looking glass, telemetry, firewall, VPN, MPLS,
+                        and appliance packaging.
                     </p>
                 </div>
                 <div class="legend reveal" role="group" aria-label="Browse features by category">
@@ -385,8 +384,8 @@
 
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
                 <div class="section-head reveal cat-automate">
-                    <h2 id="try-title">First paths that produce useful feedback.</h2>
-                    <p>Run the BGP lab, try an ExaBGP migration, or install the appliance on spare hardware.</p>
+                    <h2 id="try-title">First paths for routing feedback.</h2>
+                    <p>The BGP lab, ExaBGP migration, and appliance install are good starting points.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -412,10 +411,10 @@
                         </div>
                     </div>
                     <div class="terminal-note">
-                        <span class="tag">Good first paths</span>
+                        <span class="tag">Good starting points</span>
                         <p>
-                            Start with a lab peer, a migrated ExaBGP config, or
-                            a looking-glass instance. The project needs reports
+                            A lab peer, a migrated ExaBGP config, or a
+                            looking-glass instance can produce useful reports
                             from people who know routing operations.
                         </p>
                         <div class="link-list">
@@ -437,21 +436,21 @@
                             >
                             <a href="docs/features/ai-first/"
                                 >AI-assisted operations
-                                <span>MCP exposes the same commands to tools</span></a
+                                <span>MCP exposes Ze commands to tools</span></a
                             >
                         </div>
                         <div class="link-list home-secondary-routes">
                             <a href="faq/"
-                                >FAQ <span>answers before you commit time</span></a
+                                >FAQ <span>answers before you try Ze</span></a
                             >
                             <a href="roadmap/"
                                 >Project status
-                                <span>what is ready and what is still young</span></a
+                                <span>what works and what may change</span></a
                             >
                             <a
                                 href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
                                 >Ask on Discord
-                                <span>talk to the project before a weekend build</span></a
+                                <span>talk to the project before a lab build</span></a
                             >
                         </div>
                     </div>
@@ -460,11 +459,11 @@
 
             <section class="home-section-panel home-section-panel-usecases" aria-labelledby="audience-title">
                 <div class="section-head reveal">
-                    <h2 id="audience-title">Use cases worth trying now.</h2>
+                    <h2 id="audience-title">Safe ways to try Ze before the first release.</h2>
                     <p>
-                        Ze is early enough that strong feedback can still
-                        change the system. These cards name the safe first
-                        path for each visitor.
+                        Ze is early enough that routing feedback can still
+                        change the system. These cards give each reader a
+                        low-risk starting point.
                     </p>
                 </div>
                 <div class="audience home-usecase-grid reveal">
@@ -485,7 +484,7 @@
                         <span class="cat">Lab</span>
                         <h3><a href="docs/guide/quickstart/">Lab router</a></h3>
                         <p>
-                            Network builders can bring up two BGP peers, inspect routes, and check whether the operator surfaces fit their workflow.
+                            Network builders can bring up two BGP peers, inspect routes, and check whether Ze&#x27;s operator tools fit their workflow.
                         </p>
                         <div class="chips">
                             <span class="chip">Quickstart</span>
@@ -497,7 +496,7 @@
                         <span class="cat">Migration</span>
                         <h3><a href="usage/exabgp-migration/">ExaBGP replacement</a></h3>
                         <p>
-                            ExaBGP users can try the migrator against an existing config and see which process scripts still map cleanly.
+                            ExaBGP users can try the migrator against an existing config and see which process scripts still translate cleanly.
                         </p>
                         <div class="chips">
                             <span class="chip">Migration</span>
@@ -507,9 +506,9 @@
                     </article>
                     <article class="card audience-card cat-platform">
                         <span class="cat">Appliance</span>
-                        <h3><a href="docs/guide/appliance/">Whitebox appliance</a></h3>
+                        <h3><a href="docs/guide/appliance/">White-box appliance</a></h3>
                         <p>
-                            People with spare x86 hardware can boot the appliance path and test the same configuration model without a general-purpose shell.
+                            People with spare x86 hardware can boot the appliance image and test the same configuration model without a general-purpose shell.
                         </p>
                         <div class="chips">
                             <span class="chip">ISO</span>
@@ -534,7 +533,7 @@
                         <span class="cat">Interop</span>
                         <h3><a href="labs/bgp-interop/">Protocol testbed</a></h3>
                         <p>
-                            Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then add a failing case.
+                            Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then turn a failure into a test case.
                         </p>
                         <div class="chips">
                             <span class="chip">Interop</span>
@@ -544,25 +543,25 @@
                     </article>
                     <article class="card audience-card cat-automate">
                         <span class="cat">MCP</span>
-                        <h3><a href="docs/features/ai-first/">AI-assisted network operations</a></h3>
+                        <h3><a href="docs/features/ai-first/">AI-assisted operations</a></h3>
                         <p>
-                            People testing AI-assisted operations can use MCP to expose Ze commands and structured output to their tool.
+                            MCP exposes Ze commands and structured output to AI tools without a separate command set.
                         </p>
                         <div class="chips">
                             <span class="chip">MCP</span>
-                            <span class="chip">CLI catalog</span>
+                            <span class="chip">CLI catalogue</span>
                         </div>
-                        <span class="audience-card-cta">AI via MCP <small>same command catalog</small></span>
+                        <span class="audience-card-cta">AI via MCP <small>same command catalogue</small></span>
                     </article>
                 </div>
             </section>
 
             <section class="home-section-panel home-section-panel-momentum" aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
-                    <h2 id="blog-teaser-title">Engineering momentum.</h2>
+                    <h2 id="blog-teaser-title">Recent engineering notes.</h2>
                     <p>
-                        Weekly update notes from git history and Discord's
-                        <code>ze-news</code>, kept specific and technical.
+                        Weekly updates come from git history and Discord's
+                        <code>ze-news</code>. They stay specific and technical.
                     </p>
                 </div>
                 <div class="cards reveal">
@@ -618,16 +617,16 @@
                 <div class="status-panel try-safely-panel reveal">
                     <div class="status-copy">
                         <span class="tag">Try safely</span>
-                        <h2 id="try-safely-title">Try safely before the first release.</h2>
+                        <h2 id="try-safely-title">Try Ze before the first release.</h2>
                         <p>
-                            Start with a path that cannot affect a live network.
+                            Start where a mistake cannot affect a live network.
                         </p>
                         <div class="actions">
                             <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
                             <a class="button" href="docs/guide/quickstart/">Read the quickstart</a>
                         </div>
                     </div>
-                    <div class="status-table" aria-label="Safe first paths">
+                    <div class="status-table" aria-label="Safe starting points">
                         <div class="status-row">
                             <strong>Release</strong>
                             <span
@@ -660,7 +659,7 @@
                             <strong>Source</strong>
                             <span
                                 >Read the code, generated docs, RFC gate, and
-                                test evidence before trusting the project.</span
+                                test evidence before deciding where Ze belongs.</span
                             >
                         </div>
                     </div>

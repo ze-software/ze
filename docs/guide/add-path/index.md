@@ -1,6 +1,6 @@
 # ADD-PATH and PATHS-LIMIT
 
-ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. This is useful for route servers that need to forward all available paths, not just the best one.
+ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.
 
 PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit) lets a receiver advertise the maximum number of paths it wants per prefix per family, preventing uncontrolled path proliferation.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
@@ -98,7 +98,7 @@ The `limit` leaf on a per-family entry advertises a PATHS-LIMIT capability (code
 |---------|--------|
 | No `limit` leaf | No path count limit for that family |
 | `limit 10` | Peer will send at most 10 paths per prefix |
-| `limit 1` | Effectively single-path behavior |
+| `limit 1` | Effectively single-path behaviour |
 <!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
 
 ## How It Works
@@ -128,5 +128,5 @@ To withdraw a specific path, the withdrawal NLRI includes the same path ID used 
 
 ## Interaction with Route Reflection
 
-ADD-PATH is particularly useful with the route server plugin (`bgp-rs`). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, all received paths are forwarded, allowing downstream routers to make their own best-path decisions.
+ADD-PATH fits the route server plugin (`bgp-rs`). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.
 <!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->

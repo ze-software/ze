@@ -492,8 +492,8 @@ it fails.</p>
 <ul>
 <li><strong>Type:</strong> <code>uint8</code> -- 18 values (0-17), extensible up to 255.</li>
 <li><strong>One field, not two:</strong> Biorouting splits this into <code>HiddenReason</code> (validation) and
-  implicit sort order (selection). Ze uses one field because both answer the same
-  question: "why is this route not the best?"</li>
+  implicit sort order (selection). Ze uses one field because both give the same
+  reason: why the route is not the best.</li>
 <li><strong>String conversion:</strong> Only on JSON output. Internal representation is always <code>uint8</code>.</li>
 <li><strong>Cost:</strong> One byte per route entry. Set once during validation or selection, never
   updated after.</li>

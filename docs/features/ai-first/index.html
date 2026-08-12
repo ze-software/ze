@@ -65,7 +65,7 @@ output while helping an operator use or debug the system.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#register-once-expose-everywhere">Register Once, Expose Everywhere</a></li>
-<li><a href="#principle-the-cli-is-the-api">Principle: The CLI Is the API</a></li>
+<li><a href="#cli-commands-as-the-api-surface">CLI commands as the API surface</a></li>
 <li><a href="#self-describing-command-reference">Self-Describing Command Reference</a></li>
 <li><a href="#structured-diagnostics">Structured Diagnostics</a></li>
 <li><a href="#version-matched-skills">Version-Matched Skills</a></li>
@@ -78,7 +78,7 @@ output while helping an operator use or debug the system.</p>
 separate hand-written glue for every surface. The same registration path can
 feed the CLI, SSH sessions, the web workbench, REST/gRPC, MCP, generated
 references, completion, authorization, audit, and diagnostics.</p>
-<h2 id="principle-the-cli-is-the-api">Principle: The CLI Is the API</h2>
+<h2 id="cli-commands-as-the-api-surface">CLI commands as the API surface</h2>
 <p>Every command available through <code>ze cli</code> (interactive or <code>ze cli -c</code> for
 one-shot) is exposed programmatically through MCP, and command output is shared
 with the API engine where those commands are surfaced. This means:</p>

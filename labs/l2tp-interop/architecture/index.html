@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>L2TP PPP/NCP Docker Interop Lab - Ze</title>
-        <meta name="description" content="Peer-isolated Docker lab details for full L2TP PPP/NCP/kernel dataplane evidence." />
+        <meta name="description" content="Peer-isolated Docker lab details for L2TP, PPP, NCP, and kernel dataplane checks." />
         <meta property="og:title" content="L2TP PPP/NCP Docker Interop Lab - Ze" />
-        <meta property="og:description" content="Peer-isolated Docker lab details for full L2TP PPP/NCP/kernel dataplane evidence." />
+        <meta property="og:description" content="Peer-isolated Docker lab details for L2TP, PPP, NCP, and kernel dataplane checks." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="L2TP PPP/NCP Docker Interop Lab - Ze" />
-        <meta name="twitter:description" content="Peer-isolated Docker lab details for full L2TP PPP/NCP/kernel dataplane evidence." />
+        <meta name="twitter:description" content="Peer-isolated Docker lab details for L2TP, PPP, NCP, and kernel dataplane checks." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -126,20 +126,20 @@ after LAC session teardown. BGP session stability is verified after
 withdrawal.</p>
 <h3 id="03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</h3>
 <p>The inverse topology: <strong>ze is the L2TP initiator (LAC/dialer)</strong> and a real
-<code>xl2tpd</code> runs as the LNS answerer. Proves ze's initiator half of the tunnel FSM
-(SCCRQ initiation → SCCRP handling → SCCCN → established) interoperates with an
-independent RFC 2661 implementation — confirmed on both sides (ze logs <code>tunnel
-now established (initiator)</code>; xl2tpd logs <code>Connection established ... LNS session
-is 'default'</code>). ze is triggered to dial by the <code>request l2tp outgoing-call</code> RPC
-over its token-guarded REST API.</p>
+<code>xl2tpd</code> runs as the LNS answerer. This proves ze's initiator half of the
+tunnel FSM (SCCRQ initiation → SCCRP handling → SCCCN → established)
+interoperates with an independent RFC 2661 implementation. Both sides confirm
+it: ze logs <code>tunnel now established (initiator)</code>, and xl2tpd logs
+<code>Connection established ... LNS session is 'default'</code>. ze is triggered to dial
+by the <code>request l2tp outgoing-call</code> RPC over its token-guarded REST API.</p>
 <p>Self-contained (<code>run.py</code>): <code>xl2tpd</code> runs in Docker (<code>--network host</code>); <code>ze</code> runs
 from <code>bin/ze</code> with isolated filesystem storage. Control-plane only, so it needs
 no PPPoL2TP modules and runs unprivileged. <code>xl2tpd</code> cannot answer the OCRQ that
-follows (it has no outgoing-call answerer — logs <code>Unimplemented message 7</code>), so
-the RPC returns an error by design; the interop proof is the established control
-connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
+follows because it has no outgoing-call answerer (logs <code>Unimplemented message 7</code>),
+so the RPC returns an error by design; the interop proof is the established
+control connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
 <code>test/l2tp/lns-outgoing-call.ci</code>. The LAC incoming-call PPP data plane (kernel
-channel bridge, A-4) is env-blocked — see the scenario README and
+channel bridge, A-4) is env-blocked; see the scenario README and
 <code>make ze-qemu-l2tp-ppp-test</code>.</p>
 <h3 id="04-radius-acct-attrs">04-radius-acct-attrs</h3>
 <p>Proves the subscriber attributes ze sends to a RADIUS server for a real PPP
@@ -226,7 +226,7 @@ domain-specific names, images, and daemon helpers.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../../docs/guide/l2tp/">
                         <span class="page-sidebar-link-label">L2TP guide</span>
-                        <small>Configuration and operator behavior.</small>
+                        <small>Configuration and operator behaviour.</small>
                     </a>
                 </section>
                 </nav>

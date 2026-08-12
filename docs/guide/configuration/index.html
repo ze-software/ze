@@ -146,7 +146,10 @@
 </ol></li>
 <li><a href="#hub-configuration">Hub Configuration</a></li>
 <li><a href="#outbound-source-address">Outbound Source Address</a></li>
-<li><a href="#validation">Validation</a></li>
+<li><a href="#validation">Validation</a>
+<ol>
+<li><a href="#upgrading-from-a-release-that-validated-only-on-demand">Upgrading from a release that validated only on demand</a></li>
+</ol></li>
 <li><a href="#healthcheck">Healthcheck</a></li>
 <li><a href="#static-routes_1">Static Routes</a></li>
 <li><a href="#policy-routing">Policy Routing</a></li>
@@ -1541,7 +1544,7 @@ DIS priority per level.</p>
 <code>384</code>/<code>512</code>), a <code>secret</code> (stored <code>$9$</code>-encoded, like PPPoE/WireGuard keys), and
 optional <code>send-lifetime</code> / <code>accept-lifetime</code> windows for hitless rotation. Chains
 are referenced by per-interface (IIH Hellos) and per-level (LSP/CSNP/PSNP)
-<code>auth-key-chain</code> leaves — the <em>area</em> key for Level 1 and the <em>domain</em> key for
+<code>auth-key-chain</code> leaves: the <em>area</em> key for Level 1 and the <em>domain</em> key for
 Level 2:</p>
 <pre><code>isis {
     net 49.0001.0000.0000.0001.00
@@ -3988,6 +3991,45 @@ These predate this feature and keep their existing leaf names.</p>
 <pre><code>ze config validate myconfig.conf
 </code></pre>
 <p>Unknown keys are rejected with a suggestion for the closest valid key.</p>
+<h3 id="upgrading-from-a-release-that-validated-only-on-demand">Upgrading from a release that validated only on demand</h3>
+<p>The daemon now applies the same value rules at startup that <code>ze config validate</code>
+applies, so a config that started a daemon yesterday can stop one today. Read
+this before you upgrade.</p>
+<p><strong>A value a registered validator refuses now stops the daemon.</strong> Until this
+release the rules ran in <code>ze config validate</code>, in the API commit hook and in the
+web editor, and nowhere else. A file edited by hand and loaded with <code>ze start</code>
+or <code>ze -</code> reached the protocol encoders unchecked. It no longer does: ze exits
+with status 1, prints one line for each refused value, and binds nothing, so the
+daemon does not half-start. The line names the section, the leaf and the rule:</p>
+<pre><code>error: load config: config validation failed: isis: isis/hostname: &quot;café.example&quot; is not a valid IS-IS hostname for isis/hostname: octet 4 is 0xc3. RFC 5301 section 3 encodes the value in 7-bit ASCII, so each character must be a printable ASCII character from space (0x20) to tilde (0x7e)
+</code></pre>
+<p>The rules cover <code>interface</code>, <code>sysctl</code>, <code>fib</code>, <code>plugin</code>, <code>telemetry</code>, <code>vpp</code>,
+<code>vpn</code>, <code>pki</code>, <code>l2tp</code>, <code>isis</code> and <code>ospf</code>. A BGP value is unaffected here because
+BGP has always had its own deeper check at startup. A missing mandatory field
+stays a warning and does not stop the daemon.</p>
+<p><strong>A reload refuses the same way, and the daemon keeps running.</strong> Send SIGHUP
+with a config a validator refuses and the reload fails, the staged candidate is
+cleared, and the daemon keeps serving the config it already runs. The listeners
+do not rebind and open sessions are not disturbed. The refusal is on stderr:</p>
+<pre><code>reload error: reload: parse config: config validation failed: isis: isis/net: &quot;49.0001.00&quot; is not a valid IS-IS NET for isis/net: length 4 octets, want 8..20
+</code></pre>
+<p>There is no override and no force flag. Fix the value and send SIGHUP again.</p>
+<p><strong>Check before you upgrade.</strong> Run <code>ze config validate</code> over the config first.
+It runs the same walk over the same sections, so what it refuses is what the
+daemon will refuse. It reports every refusal in one run, one line each, and it
+starts nothing:</p>
+<pre><code>ze config validate /etc/ze/ze.conf
+</code></pre>
+<p><code>ze doctor</code> loads the config the same way the daemon does, so a config a
+validator refuses now stops doctor at <code>doctor-config-parse</code> with that same
+message, and doctor's other checks do not run. That tells you the daemon will
+not start. It does not tell you what else is wrong with the machine, so run
+<code>ze config validate</code> first and <code>ze doctor</code> after the config is clean.</p>
+<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, the one walk -->
+<!-- source: internal/component/config/loader.go -- LoadConfig refusal -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReload keeps the running config on a load error -->
+<!-- source: internal/component/doctor/doctor.go -- runChecks reports a load failure as doctor-config-parse and returns -->
+
 <h2 id="healthcheck">Healthcheck</h2>
 <p>Service healthcheck probes monitor availability and control BGP route announcement via watchdog groups:</p>
 <pre><code>bgp {

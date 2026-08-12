@@ -82,7 +82,7 @@
 <li>A certificate chain is bounded on receive as well as on send. An overlong chain is refused, not truncated.</li>
 <li><code>dh-group</code> took any number from 1 to 31. Only 14, 19 and 20 exist.</li>
 <li>An identity containing NUL or CR reached the wire. It is refused now, at commit and on receive.</li>
-<li>Hash-and-URL certificate fetching is implemented, behind a leaf that defaults to off. The hash is checked before anything else sees the bytes, and the fetcher parses nothing. Around it: an http-only allowlist, a 64 KiB cap, five seconds, no redirects, eight fetches in flight, and a deny list for loopback, private, CGNAT, link-local and metadata addresses applied when the socket is dialled.</li>
+<li>Hash-and-URL certificate fetching is implemented behind a leaf that defaults to off. The hash is checked before anything else sees the bytes, and the fetcher parses nothing. The fetcher has an HTTP-only allowlist, a 64 KiB cap, a five-second timeout, no redirects, eight fetches in flight, and a deny list for loopback, private, CGNAT, link-local and metadata addresses applied when the socket is dialled.</li>
 <li>COOKIE challenges, the INVALID_KE retry and a conforming ECP key format all landed. An authenticated request that fails gets an answer instead of silence.</li>
 <li>The VPP IPsec backend refuses transport mode and port-restricted selectors. It used to install a tunnel for them and report success.</li>
 <li>RFC 7296 is fully extracted: 227 requirements, no gaps.</li>

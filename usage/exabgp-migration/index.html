@@ -182,12 +182,12 @@ bgp {
 <!-- source: internal/exabgp/bridge/bridge_event.go -- ZebgpToExabgpJSON -->
 <!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand -->
 
-<p>When launched by ze's process manager, the bridge detects <code>ZE_PLUGIN_HUB_TOKEN</code> and
+<p>When ze's process manager launches the bridge, the bridge detects <code>ZE_PLUGIN_HUB_TOKEN</code> and
 connects back via TLS using the SDK. The SDK handles the 5-stage startup protocol
 and MuxConn multiplexing automatically. In standalone mode (no env var), the bridge
 uses stdin/stdout with inline MuxConn framing.</p>
-<p>After each route command, the bridge injects a <code>peer &lt;addr&gt; flush</code> to block until
-the forward pool drains, ensuring the engine processes the route before continuing.</p>
+<p>After each route command, the bridge sends <code>peer &lt;addr&gt; flush</code> and waits until
+the forward pool drains. The engine processes the route before continuing.</p>
 <!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
 
 <h3 id="bridge-flags">Bridge Flags</h3>
@@ -344,11 +344,11 @@ rewrite.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../docs/features/bgp-protocol/">
                         <span class="page-sidebar-link-label">BGP protocol</span>
-                        <small>Behavior used by the route examples.</small>
+                        <small>Behaviour used by the route examples.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../labs/">
                         <span class="page-sidebar-link-label">Lab evidence</span>
-                        <small>Real daemon interop evidence.</small>
+                        <small>Real-daemon interop evidence.</small>
                     </a>
                 </section>
                 </nav>

@@ -21,11 +21,11 @@ Label switching across three layers, verified live in QEMU against FRR:
 
 ## 🖥️ CLI
 
-All plugin-owned commands were renamed to a consistent verb-first grammar. Command arguments are now declared as typed YANG leaves, driving completion, validation, and docs from one source. Other additions: `ze help command` for a self-documenting command catalog, `| first N` and `| last N` pipe operators, session transcript recording (so a crash or dropped SSH session still leaves a local record), a configurable default output format, and ANSI color support in the terminal buffer library.
+All plugin-owned commands were renamed to a consistent verb-first grammar. Command arguments are now declared as typed YANG leaves, driving completion, validation, and docs from one source. Other additions: `ze help command` for a self-documenting command catalogue, `| first N` and `| last N` pipe operators, session transcript recording (so a crash or dropped SSH session still leaves a local record), a configurable default output format, and ANSI colour support in the terminal buffer library.
 
 ## 🔒 Config & commit reliability
 
-Config commits are now transactional: changes go through candidate/active/rollback versions and are only promoted after a runtime reload actually succeeds, with automatic cleanup of failed candidates. A new operation-graph solver orders config changes correctly across components (so, for example, an address and the peer that depends on it apply in the right sequence). Config schemas now carry a release-based stamp with an evolution framework for future migrations, and YANG `type empty` leaves can be used as simple presence flags. Separately, a real auth bug was fixed: PXE and bootstrap-provisioned appliances were never loading the zefs "power user," which silently broke SSH login and the web/API per-user auth path on freshly provisioned boxes.
+Config commits are now transactional: changes go through candidate, active and rollback versions, and are promoted only after a runtime reload succeeds. Failed candidates are cleaned up automatically. A new operation-graph solver orders config changes across components, so an address and the peer that depends on it apply in the right sequence. Config schemas now carry a release-based stamp for future migrations, and YANG `type empty` leaves can be used as presence flags. Separately, an auth bug was fixed: PXE and bootstrap-provisioned appliances were not loading the zefs "power user," which broke SSH login and the web/API per-user auth path on freshly provisioned boxes.
 
 ## 🛰️ BGP policy & RIB efficiency
 

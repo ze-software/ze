@@ -274,8 +274,8 @@ confirmation before proceeding.</p>
 <h2 id="installing-on-real-hardware-end-to-end">Installing on Real Hardware (End to End)</h2>
 <p>This is the bare-metal walkthrough for the PXE install flow. It is exactly what
 <code>make ze-install-qemu-test</code> exercises in software (build an image, serve it,
-boot an installer kernel + initrd that writes the disk, then log in over SSH) —
-see <a href="#end-to-end-qemu-verification">End-to-End QEMU Verification</a> to dry-run the
+boot an installer kernel + initrd that writes the disk, then log in over SSH). It lets you
+dry-run the
 same chain before touching hardware. The reference subsections below
 (Remote Provisioning, Installer Kernel, Installer Initrd, Bootstrap Mode) cover
 each piece in detail; this section sequences them.</p>
@@ -354,7 +354,7 @@ commit; the committed config replaces the bootstrap config on the next restart.<
 <h3 id="troubleshooting">Troubleshooting</h3>
 <ul>
 <li><strong>Installer drops to a shell</strong> instead of rebooting on a bad <code>ze.server</code>, no
-  writable disk, or a download that fails 3 times — read the serial/VGA console
+  writable disk, or a download that fails 3 times. Read the serial/VGA console
   for the <code>[ze-install] FATAL:</code> line.</li>
 <li><strong>Wrong disk</strong> written: the initrd picks the first non-removable disk; detach
   extra fixed disks or net-boot into the shell and inspect <code>/sys/block</code>.</li>
@@ -1052,7 +1052,7 @@ default installer kernel.</p>
 <tbody>
 <tr>
 <td><code>ZE_INSTALL_KERNEL</code></td>
-<td>(none — self-skips)</td>
+<td>none; self-skips</td>
 <td>Path to the installer kernel <code>Image</code>/<code>vmlinuz</code></td>
 </tr>
 <tr>
@@ -1097,7 +1097,7 @@ default installer kernel.</p>
 ze.port=&lt;ephemeral&gt;</code>) rather than a <code>guestfwd</code> forward. A <code>guestfwd</code> services
 only the first guest connection, which stalls the installer's second and third
 downloads (image, zefs); the gateway handles the sequential connections the
-installer makes. This is purely a test-harness concern — real PXE installs use a
+installer makes. This is only a test-harness concern; real PXE installs use a
 real network and <code>ze install remote</code> on port 80.</p>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">

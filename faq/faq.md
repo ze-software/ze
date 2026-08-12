@@ -22,16 +22,16 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
   <details class="faq-card cat-routing" id="ready" open>
     <summary>Is Ze ready for production?</summary>
     <div>
-      <p>Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but operational mileage is still limited and the configuration syntax can still change before the first release.</p>
-      <p>The honest place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and tell us where it breaks. The <a href="../roadmap/">roadmap</a> explains what stands between here and a release you can run in anger.</p>
+      <p>Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but production exposure is still limited and the configuration syntax can still change before the first release.</p>
+      <p>The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The <a href="../roadmap/">roadmap</a> explains what remains before a stable release.</p>
     </div>
   </details>
 
   <details class="faq-card cat-platform" id="compare">
     <summary>Why would I use Ze instead of BIRD, FRR, or GoBGP?</summary>
     <div>
-      <p>Those are mature, and Ze does not pretend otherwise. The <a href="../compare/">comparison page</a> is blunt about where they are still ahead.</p>
-      <p>What Ze offers that they do not is a single design where the BGP engine, the configuration model, the plugins, and the operator tooling were built together: one YANG model for everything, a plugin architecture for extending the daemon, an SSH CLI with diff and commit, and an MCP server so an AI assistant can help you debug live state.</p>
+      <p>Those projects are mature, and Ze does not pretend otherwise. The <a href="../compare/">comparison page</a> is blunt about where they are still ahead.</p>
+      <p>Ze's difference is integration: the BGP engine, configuration model, plugins, and operator tooling were built together. One YANG model drives the system, plugins extend the daemon, the SSH CLI has diff and commit, and the MCP server lets an AI assistant inspect live state through the same command surface.</p>
     </div>
   </details>
 

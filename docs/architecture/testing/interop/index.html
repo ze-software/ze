@@ -118,6 +118,13 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <td>eBGP, route injection and verification</td>
 </tr>
 <tr>
+<td>StayRTR</td>
+<td>0.6.4</td>
+<td>Go builder</td>
+<td>HTTP. <span class="ev-src"><span class="ev-ref"><code>/rpki.json</code></span></span></td>
+<td>RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded</td>
+</tr>
+<tr>
 <td>ExaBGP</td>
 <td>main (API 6.0.0)</td>
 <td>Python harness</td>
@@ -226,6 +233,11 @@ GoBGP if <code>gobgp.toml</code> exists. This means each scenario only runs the 
 <td>172.30.0.11</td>
 <td><code>ze-iop-speaker2-&lt;pid&gt;</code></td>
 </tr>
+<tr>
+<td>StayRTR</td>
+<td>172.30.0.12</td>
+<td><code>ze-iop-stayrtr-&lt;pid&gt;</code></td>
+</tr>
 </tbody>
 </table>
 <p>Container names include the runner PID as suffix, so concurrent runs do not conflict.</p>
@@ -263,12 +275,19 @@ alongside <code>rpki-server</code> and <code>bmp-collector.py</code>:</p>
 <td>Minimal Python speaker (172.30.0.10; second at 172.30.0.11)</td>
 <td>Dial Ze with an INDEPENDENT strict peer that applies one per-test check. The fixed engine establishes, loads a plugin named in <code>speaker-args</code> (<code>--test /speaker/plugins/&lt;name&gt.py</code>), inspects every UPDATE, and prints a verdict <code>check.py</code> reads via <code>docker logs</code>. Unlike <code>ze-test peer</code>, which asserts only the bytes it was told to expect, a speaker plugin runs its own validator -- e.g. RFC 7606 Section 3(g) duplicate attributes -- so it catches wire output Ze's own lenient validator waves through. Started after Ze (like the daemons), so it exercises the replay rail; keep it connected with <code>--stop-after-updates 0</code> when the check bytes arrive on Ze's delta-replay rather than the first initial-sync UPDATE. A <code>speaker2-args</code> file starts a second instance at a distinct IP/router-id (scenario 49 proves two engines establish without colliding). See. <span class="ev-src"><span class="ev-ref"><code>test/interop/speaker/engine.py</code></span><span class="ev-ref"><code>plan/spec-bgp-plugin-speaker.md</code></span></span></td>
 </tr>
+<tr>
+<td><code>vrps.json</code></td>
+<td>StayRTR (172.30.0.12:8282)</td>
+<td>Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. <code>rpki-server</code> above runs <code>ze-test rpki</code>, which is Ze's encoder answering Ze's decoder, and that pair agrees with itself whatever it does. The file is the rpki-client / Routinator JSON export format: <code>roas</code> of prefix, <code>maxLength</code> and <code>asn</code>. StayRTR serves the same set back on. A <code>check.py</code> reads that export to learn what the CACHE meant, rather than what the scenario intended. A cache-side decode fault fails OPEN, because every prefix then reads NotFound and <code>not-found accept</code> accepts it. So assert the per-prefix validation ANSWER, never the session. Worked example: <code>58-rtr-stayrtr</code>. <span class="ev-src"><span class="ev-ref"><code>http://172.30.0.12:9847/rpki.json</code></span></span></td>
+</tr>
 </tbody>
 </table>
 <!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
 <!-- source: test/interop/interop.py -- speaker-args sidecar startup, SPEAKER_CONTAINER -->
+<!-- source: test/interop/interop.py -- vrps.json sidecar startup, STAYRTR_CONTAINER -->
 <!-- source: test/interop/scenarios/47-rfc7606-relay-shape-frr/ -- injector worked example -->
 <!-- source: test/interop/scenarios/48-rfc7606-speaker-dup-attr/ -- speaker worked example -->
+<!-- source: test/interop/scenarios/58-rtr-stayrtr/ -- StayRTR worked example -->
 
 <h3 id="prove-a-scenario-discriminates">Prove a scenario discriminates</h3>
 <p>An interop scenario is evidence only if it goes RED when the behaviour it tests is

@@ -51,7 +51,7 @@ Turning the decisions into encoded content is often called *materialisation*. De
 
 ## Reuse a completed answer when it matches
 
-How can Ze tell that two peers need exactly the same bytes? It compares both the received UPDATE and the complete list of changes.
+Ze tells that two peers need exactly the same bytes by comparing both the received UPDATE and the complete list of changes.
 
 To make that comparison efficient, Ze writes the change list in one stable form called a digest. It records whether the route becomes a withdrawal, the exact prefixes being announced or withdrawn, and every change to values such as the next hop, the communities and the AS path. The order and the length of each value are included, so two different instructions cannot accidentally look alike.
 
@@ -111,7 +111,7 @@ Those inputs form a build key. Peers with the same key reuse one encoding operat
 
 ## What we measured
 
-The fan-out benchmark isolates one question: what happens when one received UPDATE must go to several peers? The previous code encoded new content after every peer's policy decision. The current code still makes every policy decision, then reuses encoding when two complete results are equal. Receiving the route, applying filters, obtaining an output buffer and placing the result on the send queue are the same in both versions.
+The fan-out benchmark isolates the case where one received UPDATE must go to several peers. The previous code encoded new content after every peer's policy decision. The current code still makes every policy decision, then reuses encoding when two complete results are equal. Receiving the route, applying filters, obtaining an output buffer and placing the result on the send queue are the same in both versions.
 
 These measurements were taken on an Apple M4 Max. Each version ran six times for every case, in alternating order, and the table reports the median time per destination.
 

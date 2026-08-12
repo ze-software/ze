@@ -81,6 +81,7 @@
 <li><a href="#forward-pool-congestion">Forward Pool / Congestion</a></li>
 <li><a href="#attribute-index">Attribute Index</a></li>
 <li><a href="#egress-modification-failures">Egress Modification Failures</a></li>
+<li><a href="#well-known-community-suppressions">Well-Known Community Suppressions</a></li>
 <li><a href="#announces-refused-for-size">Announces Refused For Size</a></li>
 <li><a href="#prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</a></li>
 </ol></li>
@@ -92,7 +93,7 @@
 <h2 id="live-peer-dashboard">Live Peer Dashboard</h2>
 <pre><code>ze cli -c &quot;monitor bgp&quot;
 </code></pre>
-<p>Auto-refreshing dashboard showing router identity, sortable color-coded peer table with update rates. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit. Refreshes every 2 seconds.</p>
+<p>The dashboard refreshes every 2 seconds and shows router identity plus a sortable, colour-coded peer table with update rates. Keys: j/k moves, s/S sorts, Enter opens detail, and Esc exits.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 <h2 id="event-streaming">Event Streaming</h2>
@@ -910,6 +911,40 @@ forward rail, the route-server rail, the ingress and egress policy chains, and
 the RFC 9494 stale re-advertise rail.</p>
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
 
+<h4 id="well-known-community-suppressions">Well-Known Community Suppressions</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_wellknown_community_suppressed_total</code></td>
+<td>counter</td>
+<td><code>community</code></td>
+<td>A route was withheld from one destination peer by an RFC 1997 well-known community</td>
+</tr>
+</tbody>
+</table>
+<p>An increment means a route ze received carrying NO_EXPORT, NO_ADVERTISE or
+NO_EXPORT_SUBCONFED was not advertised to a peer that community forbids. One
+observation is one destination, so a route withheld from 20 peers counts 20. The
+suppression is not configurable and is never logged per route, so this counter is
+the only place an operator sees it.</p>
+<!-- source: internal/component/bgp/reactor/forward_wellknown.go -- wellKnownAllowsEgress -->
+
+<p>The <code>community</code> label set is closed and holds three values: <code>no-advertise</code>,
+<code>no-export-subconfed</code>, <code>no-export</code>. A route carrying more than one is counted
+under the strictest, so one suppressed route is always one observation.</p>
+<!-- source: internal/component/bgp/wireu/wellknown.go -- WellKnown.BlockingName -->
+
+<p>The counter says nothing about withdrawals. RFC 1997 forbids ADVERTISING such a
+route, so a suppressed destination still receives the withdrawals of the same
+UPDATE and keeps no route ze cannot take back.</p>
 <h4 id="announces-refused-for-size">Announces Refused For Size</h4>
 <table>
 <thead>

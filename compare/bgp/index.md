@@ -204,48 +204,48 @@ Ze includes a production BNG stack with two access methods: L2TPv2 (RFC 2661) an
 
 ## Where Ze is behind today
 
-After the detail tables above: the gaps, stated plainly, not buried in a "No" cell thirteen tables deep.
+The detail tables above are useful. The gaps also need to be visible without reading thirteen tables.
 
-- **No BGP confederations (RFC 5065)** -- BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr all support it.
-- **No privilege separation** -- a signature feature of at least one other implementation in this table.
-- **BFD integration is "Partial"** -- several other implementations here have full support.
-- **No embeddable library mode** -- at least two other implementations in this table offer one.
-- **No custom filter language** -- several implementations here have their own filter DSL; Ze relies on plugin chains instead.
-- **No Confederation, no Multi-Topology IS-IS (RFC 5120)** -- Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
-- **Pre-release, first release 2026** -- sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).
-- **Performance is not yet benchmarked at scale.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance](https://ze-software.net/performance/).
+- **BGP confederations (RFC 5065) are missing.** BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr support them.
+- **Privilege separation is missing.** At least one other implementation in this table has it.
+- **BFD integration is partial.** Several other implementations here have full support.
+- **Embeddable library mode is missing.** At least two other implementations in this table offer one.
+- **Custom filter language is missing.** Ze relies on plugin chains instead.
+- **Multi-Topology IS-IS (RFC 5120) is missing.** Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
+- **Ze is pre-release.** The first release is planned for 2026, and this table includes implementations with years to decades of production hardening.
+- **Performance has not been benchmarked under route-server-size load.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance](https://ze-software.net/performance/).
 
-None of this is hidden in the tables above -- it's restated here because a visitor shouldn't have to hunt for it.
+These points are repeated here so visitors do not have to hunt for them.
 
 ## Positioning
 
-**Ze** is an open-source network operating system and the successor to ExaBGP. It runs as a daemon on any Linux, or as a gokrazy appliance where gokrazy init starts Ze with no general shell or package manager. It speaks BGP, manages network interfaces, installs routes into the kernel FIB or VPP plane, and serves a config editor over SSH and a web UI. A plugin architecture with YANG-modeled schemas allows extending the engine without modifying it.
+**Ze** is an open-source network operating system and the successor to ExaBGP. It runs as a daemon on any Linux, or as a gokrazy appliance where gokrazy init starts Ze with no general shell or package manager. It speaks BGP, manages network interfaces, installs routes into the kernel FIB or VPP plane, and serves a config editor over SSH and a web UI. The plugin architecture uses YANG-modelled schemas, so plugins can extend the engine without modifying it.
 
-It is also pre-release, first released in 2026, sitting in this table next to implementations with years to decades of production hardening -- one dates to 1998. Its Go runtime carries an estimated 10-15% CPU overhead versus the C/Rust implementations in this table, and that estimate has not yet been benchmarked at scale. It does not yet support BGP confederations, privilege separation, or a custom filter language, all of which at least one other implementation here has shipped for years. Where it is strong -- plugin architecture, YANG-modeled configuration end to end, MCP integration, a production BNG stack alongside BGP -- it is strong because the project chose to build fewer things more deeply rather than match every implementation's full breadth on day one.
+It is also pre-release, with a first release planned for 2026. It sits beside implementations with years to decades of production hardening; one dates to 1998. Its Go runtime is expected to carry a 10-15% CPU cost compared with the C/Rust implementations in this table, and that estimate has not been benchmarked under real load. BGP confederations, privilege separation, and a custom filter language are still missing, while at least one other implementation has shipped each of them for years. Ze is strongest where it has chosen depth: plugin architecture, YANG-modelled configuration end to end, MCP integration, and a production BNG stack alongside BGP.
 
-**ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for traffic engineering, DDoS mitigation, route injection, and SDN integration. Broad address family support. Single-threaded Python, no RIB, no best-path selection, no route reflection -- by design. It is a route injector and event source, not a router.
+**ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for traffic engineering, DDoS mitigation, route injection, and SDN integration. It has broad address family support. It is single-threaded Python with no RIB, no best-path selection, and no route reflection by design. ExaBGP is a route injector and event source, not a router.
 
 **rustbgpd** is an API-first BGP daemon targeting IX route server and SDN controller use cases. It trades address family breadth for modern operational tooling (gRPC, Prometheus, structured logging, TUI, config diagnostics) and memory safety guarantees.
 
-**bio-rd** is a Go BGP library and daemon originating from DE-CIX. Designed as an embeddable library for building route servers and SDN controllers. Strong route server support with RFC 9234 (BGP Roles), BMP, and ECMP. IPv4/IPv6 unicast only -- no VPN, EVPN, FlowSpec, or other address families. No Graceful Restart or Route Refresh. Apache-2.0 license.
+**bio-rd** is a Go BGP library and daemon originating from DE-CIX. Designed as an embeddable library for building route servers and SDN controllers. It has strong route-server support with RFC 9234 (BGP Roles), BMP, and ECMP. IPv4/IPv6 unicast only: no VPN, EVPN, FlowSpec, or other address families. No Graceful Restart or Route Refresh. Apache-2.0 license.
 
-**RustyBGP** is an experimental Rust BGP daemon by the GoBGP team (OSRG). It offers a GoBGP-compatible gRPC API and multi-core design with low memory usage. Explicitly described as "very basic BGP features" -- limited address family and policy support. Useful for research and multi-core experimentation, not yet production-ready.
+**RustyBGP** is an experimental Rust BGP daemon by the GoBGP team (OSRG). It offers a GoBGP-compatible gRPC API and multi-core design with low memory usage. Its own README describes it as having "very basic BGP features": limited address family and policy support. It is useful for research and multi-core experimentation, not yet production-ready.
 
 **FRR** is the most feature-complete open-source routing suite, covering BGP plus OSPF, IS-IS, PIM, and more. Best choice when you need a full routing stack with broad AFI/SAFI coverage and kernel FIB integration.
 
-**BIRD 2/3** dominates IXP route server deployments. Best-in-class memory efficiency and a powerful filter language. BIRD 3 (stable Dec 2024) adds multithreading for 5000+ peer scale. Lacks a programmatic API -- management is CLI/config-file only.
+**BIRD 2/3** dominates IXP route server deployments. It is known for low memory use and a powerful filter language. BIRD 3 (stable Dec 2024) adds multithreading for 5000+ peer scale. Management is CLI/config-file only.
 
-**GoBGP** pioneered the API-first model with gRPC as its primary interface. Broadest AFI/SAFI coverage. Higher memory and CPU usage than C implementations at scale. Best as an SDN controller or route injector rather than a high-performance router.
+**GoBGP** pioneered the API-first model with gRPC as its primary interface. Broadest AFI/SAFI coverage. Higher memory and CPU usage than C implementations under large routing workloads. It is best used as an SDN controller or route injector rather than a high-performance router.
 
 **OpenBGPd** is security-focused with privilege separation and OpenBSD heritage. Deployed at major IXPs. Lean, reliable, and standards-compliant with strong RFC coverage including BGP Roles and Extended Messages. No programmatic API beyond the CLI socket.
 
-**freeRtr** is a comprehensive router OS written entirely in Java. It implements the full routing stack with its own TCP/IP forwarding plane that can be backed by DPDK, XDP, or P4 dataplanes. Broadest AFI/SAFI coverage of any implementation in this table, including MUP, MVPN, RTC, and VPN FlowSpec. Actively developed since 2012 with 4000+ functional test cases. No programmatic API (CLI-only), no YANG model, no structured logging.
+**freeRtr** is a full router OS written entirely in Java. It implements the full routing stack with its own TCP/IP forwarding plane that can be backed by DPDK, XDP, or P4 dataplanes. It has the broadest AFI/SAFI coverage of any implementation in this table, including MUP, MVPN, RTC, and VPN FlowSpec. It has been actively developed since 2012 with 4000+ functional test cases. It has no programmatic API, YANG model, or structured logging.
 
 ## FAQ
 
-**Ze is pre-release -- why should I trust it yet?**
+**Ze is pre-release. Why trust it yet?**
 
-Don't take that on faith: it's backed by 22,300+ unit tests, 1,600+ end-to-end tests, 78 fuzz targets, and interop testing against 8 independent BGP implementations. That's evidence you can check, not a promise. What it doesn't have yet is operational mileage -- real deployments, over real time, on real networks. Use it in labs first.
+Do not take that on faith: it is backed by 22,300+ unit tests, 1,600+ end-to-end tests, 78 fuzz targets, and interop testing against 9 independent BGP implementations. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 
@@ -253,12 +253,12 @@ Not implemented yet. It's a real gap against implementations that have had it fo
 
 **Why no custom filter language?**
 
-Ze doesn't have a bespoke filter DSL like some implementations here do. Instead, filters are external plugins chained per peer/group: JSON events in, text commands out, over a TLS connect-back socket, in any language that can read lines. That trades a purpose-built mini-language for the full power of a real programming language -- write a filter in Go, Python, or whatever you already know, instead of learning a new syntax.
+Ze does not have a bespoke filter DSL like some implementations here do. Instead, filters are external plugins chained per peer/group: JSON events in, text commands out, over a TLS connect-back socket, in any language that can read lines. You can write a filter in Go, Python, or whatever you already know, instead of learning a new syntax.
 
 **Is Ze's performance actually competitive with C/Rust implementations?**
 
-Unknown at scale. The current estimate is 10-15% CPU overhead from the Go runtime, but that number has not been benchmarked under real load. Treat it as an open question, not a claim. See [Performance](https://ze-software.net/performance/) for the actual convergence and throughput numbers measured so far.
+Unknown under large route-server load. The current estimate is 10-15% CPU overhead from the Go runtime, but that number has not been benchmarked under real load. Treat it as an open question rather than a claim. See [Performance](https://ze-software.net/performance/) for the actual convergence and throughput numbers measured so far.
 
 **Does Ze implement every BGP feature in this table?**
 
-No. The BGP-specific gaps are listed above: no BGP confederations, partial BFD integration, no custom filter DSL, no privilege separation, and no embeddable library mode. The broader question "does Ze match FRR, VyOS, or freeRtr as a full router OS?" belongs on the [Open Source Network OS comparison](https://ze-software.net/compare/nos/).
+No. The BGP-specific gaps are listed above: no BGP confederations, partial BFD integration, no custom filter DSL, no privilege separation, and no embeddable library mode. The full-router comparison belongs on the [Open Source Network OS comparison](https://ze-software.net/compare/nos/).

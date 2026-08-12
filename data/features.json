@@ -3,13 +3,13 @@
     {
       "id": "core",
       "heading": "Built for demanding operators.",
-      "lead": "Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.",
+      "lead": "Ze owns its BGP engine, configuration model, plugin system, operator tools, minimal appliance runtime, and diagnostics as one product.",
       "note": null,
       "cards": [
         {
           "category": "automate",
           "status": null,
-          "title": "AI-Friendly Surfaces",
+          "title": "AI Tool Interfaces",
           "href": "docs/features/ai-first/",
           "external": false,
           "chips": [
@@ -28,8 +28,8 @@
           ],
           "bullets": [
             "**MCP** exposes CLI/API commands",
-            "AI tools inspect **structured output**",
-            "Plugins become **discoverable tools**"
+            "AI tools read **structured output**",
+            "Plugins expose **discoverable tools**"
           ]
         },
         {
@@ -355,8 +355,8 @@
             }
           ],
           "bullets": [
-            "**Self-describing** command catalog from the live binary",
-            "Every command becomes **automation** surface",
+            "**Self-describing** command catalogue from the live binary",
+            "Every command is an **automation** surface",
             "Structured **diagnostics** and repair plans"
           ]
         },
@@ -401,7 +401,7 @@
           "bullets": [
             "Automatic config **migration**",
             "**Plugin bridge** for existing workflows",
-            "Smooth **transition** path"
+            "Migration path for existing scripts"
           ]
         },
         {
@@ -448,7 +448,7 @@
           ],
           "bullets": [
             "A year of **commits** and added lines, at a glance",
-            "Regenerated from git history, not curated",
+            "Built from git history each time",
             "Current Go code composition"
           ]
         },
@@ -657,9 +657,9 @@
             }
           ],
           "bullets": [
-            "Config **commit**, discard, reload",
-            "Failed **auth** across all surfaces",
-            "Filter by action, actor, **time**"
+            "Config **commit**, discard, and reload",
+            "Failed **auth** on every interface",
+            "Filter by action, actor, and **time**"
           ]
         },
         {
@@ -679,7 +679,7 @@
             }
           ],
           "bullets": [
-            "YANG-modeled **certificate** management",
+            "YANG-modelled **certificate** management",
             "Chain validation, **expiry** checks",
             "Shared by IPsec, **TLS**, mutual auth"
           ]
@@ -782,7 +782,7 @@
     {
       "id": "experimental",
       "heading": "Experimental and growing.",
-      "lead": "Implemented and tested, not yet production-proven.",
+      "lead": "Implemented and tested, still waiting for production evidence.",
       "note": "These still need deployment evidence or hardening before production claims. Configuration may change.",
       "cards": [
         {
@@ -1205,9 +1205,9 @@
     },
     {
       "id": "roadmap",
-      "heading": "Spec'd, not built.",
+      "heading": "Specified, not built.",
       "lead": "Aspirations with written, reviewed specs. Nothing here is usable today.",
-      "note": "Every card links to a pending spec in the main repo's `plan/` directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.",
+      "note": "Every card links to a pending spec in the main repo's `plan/` directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.",
       "cards": [
         {
           "category": "routing",
@@ -1276,7 +1276,7 @@
           "bullets": [
             "Kernel **lockdown** integrity mode",
             "Blocks unsigned **modules**, kexec, /dev/mem",
-            "Design **reviewed**, not yet scheduled"
+            "Design **reviewed**, waiting for schedule"
           ]
         },
         {

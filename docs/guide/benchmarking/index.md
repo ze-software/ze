@@ -2,7 +2,7 @@
 
 Ze includes `ze-perf`, a standalone tool for measuring BGP route propagation
 latency through a device under test (DUT). It works with any BGP implementation,
-not just Ze.
+including Ze.
 
 <!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
 

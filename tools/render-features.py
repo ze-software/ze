@@ -38,8 +38,8 @@ def render_markdown(data, feature_count):
     parts = [
         "# Every feature Ze ships.",
         "",
-        "%d features plus a spec'd roadmap, color-coded by category. A "
-        "card's category is how the feature fits into the system: operate, "
+        "%d shipped features plus the planned roadmap. "
+        "Each card's category shows where the feature fits: operate, "
         "routing, services, automate, observe, secure, or platform. "
         "Everything shipped runs in both daemon and appliance modes unless "
         "a card says otherwise." % feature_count,
@@ -142,8 +142,8 @@ def render(data):
 
     title = "Features - Ze"
     desc = (
-        "Every feature Ze ships and the spec'd roadmap ahead, "
-        "grouped by maturity and color-coded by category."
+        "Every shipped feature and the planned roadmap, "
+        "grouped by maturity and category."
     )
     out = [
         sitelib.page_head(
@@ -155,7 +155,7 @@ def render(data):
     out.append(
         sitelib.page_hero(
             "Every feature Ze ships.",
-            "%d features plus a spec'd roadmap, color-coded by category."
+            "%d shipped features plus the planned roadmap."
             % feature_count,
             "Project",
             h1_id="features-title",

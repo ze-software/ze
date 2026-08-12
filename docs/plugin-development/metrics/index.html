@@ -1053,7 +1053,7 @@ runs over the same shared SPF tree.</p>
 <p>The hook does <strong>not</strong> fire while the plugin is being spawned. <code>runPluginPhase</code>
 starts every process of a startup phase before it runs the tier-ordered
 handshake, and the Prometheus registry is not created until the bgp plugin's
-stage-2 <code>OnConfigure</code> builds the reactor — so at spawn time there is usually no
+stage-2 <code>OnConfigure</code> builds the reactor, so at spawn time there is usually no
 registry yet. <code>registry.InjectPluginMetrics</code> therefore defers the hook and
 <code>registry.SetMetricsRegistry</code> drains the deferred set the moment a registry
 exists; whichever of the two happens second performs the injection, exactly once

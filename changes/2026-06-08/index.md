@@ -1,6 +1,6 @@
 # Week of 2026-06-08
 
-A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.
+A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.
 
 ## 🛰️ BGP
 
@@ -17,7 +17,7 @@ A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-bas
 The web UI is now the default operator surface (the old bottom CLI bar is gone):
 
 - Live BGP summary and a streaming log view
-- Real health status and system resource reporting
+- Health status and system resource reporting
 - Peer detail, navigation, and Add Peer form fixes
 
 ## 🧩 CLI

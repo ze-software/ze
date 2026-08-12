@@ -237,12 +237,20 @@ user  1238  /opt/acme/plugin        # Third-party plugin
 4. Route JSON subtrees to plugins based on handler registration</p>
 <p>The config file has three sections, parsed in order:</p>
 <h3 id="section-1-environment">Section 1: Environment</h3>
-<p>Global settings applied before forking processes.</p>
-<pre><code>env {
-    log-level debug;
-    working-dir /var/run/ze;
+<p>Global settings applied before forking processes. The block is <code>environment</code>,
+modeled in <code>ze-hub-conf.yang</code> like every other top-level block.</p>
+<pre><code>environment {
+    log {
+        level debug
+    }
+    daemon {
+        pid /var/run/ze.pid
+    }
 }
 </code></pre>
+<p>An older <code>env { }</code> block existed for a second runtime that parsed the config
+itself. That runtime is deleted, and <code>env { }</code> is not a top-level keyword: it
+fails <code>ze config validate</code> and it fails at boot, with the same message.</p>
 <h3 id="section-2-plugin-declarations">Section 2: Plugin Declarations</h3>
 <p>Which processes to fork. Uses YANG schema from <code>ze-plugin-conf.yang</code>.</p>
 <pre><code>plugin {
@@ -499,7 +507,7 @@ event bgp.peer.up peer=192.0.2.1 asn=65002
 <hr />
 <h2 id="startup-sequence">Startup Sequence</h2>
 <h3 id="10-step-protocol">10-Step Protocol</h3>
-<pre><code>1. Hub parses env { }              → Set global settings (api-socket, log-level, etc.)
+<pre><code>1. Hub parses environment { }      → Set global settings (api-socket, log level, etc.)
 2. Hub parses plugin { } block     → Build process list from ze-plugin-conf.yang
 3. Hub forks each plugin           → ze bgp, ze rib, ze gr, third-party, ...
 4. Each plugin: Stage 1            → Declare YANG module + handlers
@@ -864,7 +872,7 @@ declare done
 
 <h3 id="plugin-tls-transport">Plugin TLS Transport</h3>
 <p>External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via <code>plugin { hub { server &lt;name&gt; { ip ...; port ...; secret ...; } } }</code>), forks child processes with <code>ZE_PLUGIN_HUB_HOST</code>/<code>ZE_PLUGIN_HUB_PORT</code>/<code>ZE_PLUGIN_HUB_TOKEN</code> env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.</p>
-<!-- source: internal/component/hub/ -- hub TLS listener -->
+<!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 
 <h3 id="plugin-process-isolation">Plugin Process Isolation</h3>

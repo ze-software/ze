@@ -1,6 +1,6 @@
 # Week of 2026-03-02
 
-Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.
+Best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.
 
 ## 🛰️ Routing
 

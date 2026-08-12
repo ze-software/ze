@@ -72,6 +72,29 @@ Attribute modification belongs in an explicit export or import chain. Keep each 
 
 Inspect the live plugin documentation before using increment or decrement operations. Attribute ranges and missing-attribute behaviour are validated by the owning plugin.
 
+## Well-known communities (RFC 1997)
+
+Ze honors three community values on egress with no configuration, for every peer and every deployment:
+
+| Community | Value | Ze sends the route to |
+|-----------|-------|-----------------------|
+| `NO_EXPORT` | 0xFFFFFF01 | internal peers only |
+| `NO_ADVERTISE` | 0xFFFFFF02 | no peer at all |
+| `NO_EXPORT_SUBCONFED` | 0xFFFFFF03 | internal peers only |
+
+The rule applies to a route ze RECEIVED from a peer. A route ze originates and tags itself is still advertised, because tagging your own route is how the community is meant to be used.
+
+Two properties are worth knowing before you write policy around this.
+
+**The check reads the received route, so an egress policy that strips these values does not restore advertisement.** The value ze reads is the one the route arrived with. Removing `NO_EXPORT` in an export chain changes the bytes on the wire. It does not change what the peer asked for, and RFC 1997 states the prohibition as a MUST NOT. FRR and BIRD apply the route-map first, so a strip there does restore advertisement. Ze diverges from both, deliberately: an operator policy cannot grant what the RFC refuses. If a route must leave the AS, ask the peer to stop tagging it.
+
+**Withdrawals are not affected.** All three clauses forbid ADVERTISING the route. One UPDATE can carry withdrawn routes and an announcement together. A peer refused the announcement still receives the withdrawals, so it never keeps a prefix ze can no longer take back.
+
+Each suppression increments `ze_bgp_wellknown_community_suppressed_total` with the community as its label. Nothing else reports it: there is no per-route log line and no configuration switch, because a switch here would be a switch to violate the RFC.
+
+<!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->
+<!-- source: internal/component/bgp/reactor/forward_wellknown.go — wellKnownAllowsEgress -->
+
 ## Route-server control communities
 
 When ze runs as a route server, a client can steer its own routes by tagging them with communities the route server reads and then removes. A peer becomes a route-server client with `rs-client true` under its `session` block; the communities below are only interpreted for such peers.

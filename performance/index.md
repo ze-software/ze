@@ -4,7 +4,7 @@ Benchmarks
 
 Measured, not claimed.
 
-All benchmarks are lies: these numbers measure one scenario, on one machine, under artificial conditions. They show relative differences between implementations, not absolute performance. If it matters to you, run `ze-perf` on your own hardware with your own workload.
+Benchmark numbers need context: these numbers measure one scenario, on one machine, under artificial conditions. They show relative differences between implementations, not absolute performance. If it matters to you, run `ze-perf` on your own hardware with your own workload.
 
 `BGP benchmark`
 

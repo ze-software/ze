@@ -78,7 +78,7 @@
 <li>New PPPoE access concentrator (RFC 2516): discovery, anti-DoS cookies, per-interface session tables, and rate limiting</li>
 <li>IPv6 wired into the PPP session lifecycle: prefix pools, DHCPv6-PD, and Router Advertisement building</li>
 <li>RADIUS accounting now reports real traffic counters, and Access-Accept attributes are consumed to configure sessions</li>
-<li>A string of Linux kernel-integration fixes were needed to get real PPP data flowing over L2TP: a missing kernel config option was silently disabling the L2TP Netlink module, tunnel sockets weren't connected to their peer (so transmission failed silently), and LCP's first request needed a retransmit timer since pppd wasn't ready to receive it yet</li>
+<li>Several Linux kernel-integration fixes were needed before PPP data flowed over L2TP: a missing kernel config option disabled the L2TP Netlink module, tunnel sockets were not connected to their peer (so transmission failed without an error), and LCP's first request needed a retransmit timer because pppd was not ready to receive it yet</li>
 </ul>
                         </div>
                     </div>

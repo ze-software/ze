@@ -146,7 +146,7 @@
       "eyebrow": "BGP comparison",
       "groups": [
         {
-          "title": "Navigate",
+          "title": "More comparisons",
           "links": [
             {
               "href": "compare/",
@@ -171,7 +171,7 @@
             {
               "href": "labs/bgp-interop/",
               "label": "BGP interop lab",
-              "desc": "Use when checking behavior against real peers."
+              "desc": "Use when checking behaviour against real peers."
             },
             {
               "href": "usage/exabgp-migration/",
@@ -223,7 +223,7 @@
       "eyebrow": "NOS comparison",
       "groups": [
         {
-          "title": "Navigate",
+          "title": "More comparisons",
           "links": [
             {
               "href": "compare/",
@@ -491,7 +491,7 @@
       "eyebrow": "Research",
       "groups": [
         {
-          "title": "Use the catalog",
+          "title": "Use the catalogue",
           "links": [
             {
               "href": "docs/",
@@ -500,7 +500,7 @@
             },
             {
               "href": "docs/features/plugins/",
-              "label": "Plugin catalog",
+              "label": "Plugin catalogue",
               "desc": "Runtime plugins behind feature areas."
             },
             {
@@ -606,11 +606,11 @@
       "eyebrow": "Plugins",
       "groups": [
         {
-          "title": "Use the catalog",
+          "title": "Use the catalogue",
           "links": [
             {
               "href": "features/",
-              "label": "Feature catalog",
+              "label": "Feature catalogue",
               "desc": "Feature view grouped by operator outcome."
             },
             {
@@ -621,7 +621,7 @@
             {
               "href": "docs/features/configuration/",
               "label": "Configuration guide",
-              "desc": "How plugin config is modeled and applied."
+              "desc": "How plugin config is modelled and applied."
             }
           ]
         }
@@ -636,7 +636,7 @@
             {
               "href": "cli/",
               "label": "CLI reference",
-              "desc": "Generated Ze command catalog."
+              "desc": "Generated Ze command catalogue."
             },
             {
               "href": "docs/guide/command-reference/",
@@ -646,7 +646,7 @@
             {
               "href": "docs/features/cli-commands/",
               "label": "CLI commands",
-              "desc": "CLI design and behavior."
+              "desc": "CLI design and behaviour."
             }
           ]
         },
@@ -673,22 +673,22 @@
       "eyebrow": "Labs",
       "groups": [
         {
-          "title": "Run by intent",
+          "title": "Choose a lab",
           "links": [
             {
               "href": "labs/bgp-interop/",
               "label": "BGP interop",
-              "desc": "Research BGP behavior against real daemons."
+              "desc": "Test BGP behaviour with real daemons."
             },
             {
               "href": "labs/vpp-dataplane/",
               "label": "VPP dataplane",
-              "desc": "Debug forwarding through a real VPP daemon."
+              "desc": "Trace forwarding through real VPP."
             },
             {
               "href": "labs/appliance-install/",
               "label": "Appliance install",
-              "desc": "Validate boot, install, and provisioning paths."
+              "desc": "Check boot, install, and provisioning paths."
             },
             {
               "href": "quality/qemu-interop-release/",
@@ -718,7 +718,7 @@
             {
               "href": "docs/guide/l2tp/",
               "label": "L2TP guide",
-              "desc": "Configuration and operator behavior."
+              "desc": "Configuration and operator behaviour."
             }
           ]
         }
@@ -743,7 +743,7 @@
             {
               "href": "docs/guide/l2tp/",
               "label": "L2TP guide",
-              "desc": "Configuration and operator behavior."
+              "desc": "Configuration and operator behaviour."
             }
           ]
         }
@@ -768,7 +768,7 @@
             {
               "href": "docs/guide/pppoe/",
               "label": "PPPoE guide",
-              "desc": "Configuration and operator behavior."
+              "desc": "Configuration and operator behaviour."
             }
           ]
         }
@@ -793,7 +793,7 @@
             {
               "href": "docs/guide/pppoe/",
               "label": "PPPoE guide",
-              "desc": "Configuration and operator behavior."
+              "desc": "Configuration and operator behaviour."
             }
           ]
         }
@@ -808,7 +808,7 @@
             {
               "href": "usage/as112/",
               "label": "AS112 anycast DNS",
-              "desc": "Ze config, peer configs, and lab evidence in one shape."
+              "desc": "Ze config, peer configs, and lab evidence together."
             },
             {
               "href": "usage/exabgp-migration/",
@@ -853,17 +853,17 @@
             {
               "href": "docs/guide/as112/",
               "label": "AS112 feature guide",
-              "desc": "Every config leaf, command, and RFC note."
+              "desc": "Config leaves, commands, and RFC notes."
             },
             {
               "href": "docs/features/bgp-protocol/",
               "label": "BGP feature guide",
-              "desc": "Protocol behavior behind the peer examples."
+              "desc": "Protocol behaviour behind the peer examples."
             },
             {
               "href": "labs/",
               "label": "Lab evidence",
-              "desc": "Interop proof against real daemons."
+              "desc": "Interop evidence from real daemons."
             }
           ]
         }
@@ -919,7 +919,7 @@
             {
               "href": "docs/features/cli-commands/",
               "label": "CLI commands",
-              "desc": "CLI behavior, modes, and generated command registration."
+              "desc": "CLI behaviour, modes, and generated command registration."
             },
             {
               "href": "docs/guide/command-reference/",
@@ -1158,7 +1158,7 @@
       "eyebrow": "Command detail",
       "groups": [
         {
-          "title": "Navigate",
+          "title": "More commands",
           "links": [
             {
               "href": "command-equivalents/",
@@ -1168,12 +1168,12 @@
             {
               "href": "cli/",
               "label": "CLI reference",
-              "desc": "Open the generated Ze command catalog."
+              "desc": "Open the generated Ze command catalogue."
             },
             {
               "href": "docs/features/cli-commands/",
               "label": "CLI commands",
-              "desc": "Understand CLI behavior and design."
+              "desc": "Understand CLI behaviour and design."
             }
           ]
         },
@@ -1277,12 +1277,12 @@
             {
               "href": "docs/features/bgp-protocol/",
               "label": "BGP protocol",
-              "desc": "Behavior used by the route examples."
+              "desc": "Behaviour used by the route examples."
             },
             {
               "href": "labs/",
               "label": "Lab evidence",
-              "desc": "Real daemon interop evidence."
+              "desc": "Real-daemon interop evidence."
             }
           ]
         }

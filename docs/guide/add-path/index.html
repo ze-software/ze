@@ -51,7 +51,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="add-path-and-paths-limit">ADD-PATH and PATHS-LIMIT</h1>
-    <p>ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. This is useful for route servers that need to forward all available paths, not just the best one.</p>
+    <p>ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#configuration">Configuration</a>
@@ -199,7 +199,7 @@
 </tr>
 <tr>
 <td><code>limit 1</code></td>
-<td>Effectively single-path behavior</td>
+<td>Effectively single-path behaviour</td>
 </tr>
 </tbody>
 </table>
@@ -221,7 +221,7 @@
 <h3 id="route-withdrawal">Route Withdrawal</h3>
 <p>To withdraw a specific path, the withdrawal NLRI includes the same path ID used in the announcement. Withdrawing without a path ID removes all paths for that prefix.</p>
 <h2 id="interaction-with-route-reflection">Interaction with Route Reflection</h2>
-<p>ADD-PATH is particularly useful with the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, all received paths are forwarded, allowing downstream routers to make their own best-path decisions.</p>
+<p>ADD-PATH fits the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.</p>
 <!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->
             </section>
             <aside class="page-sidebar" aria-label="Related page links">

@@ -80,21 +80,21 @@ withdrawal.
 ### 03-ze-lac-xl2tpd-lns
 
 The inverse topology: **ze is the L2TP initiator (LAC/dialer)** and a real
-`xl2tpd` runs as the LNS answerer. Proves ze's initiator half of the tunnel FSM
-(SCCRQ initiation → SCCRP handling → SCCCN → established) interoperates with an
-independent RFC 2661 implementation — confirmed on both sides (ze logs `tunnel
-now established (initiator)`; xl2tpd logs `Connection established ... LNS session
-is 'default'`). ze is triggered to dial by the `request l2tp outgoing-call` RPC
-over its token-guarded REST API.
+`xl2tpd` runs as the LNS answerer. This proves ze's initiator half of the
+tunnel FSM (SCCRQ initiation → SCCRP handling → SCCCN → established)
+interoperates with an independent RFC 2661 implementation. Both sides confirm
+it: ze logs `tunnel now established (initiator)`, and xl2tpd logs
+`Connection established ... LNS session is 'default'`. ze is triggered to dial
+by the `request l2tp outgoing-call` RPC over its token-guarded REST API.
 
 Self-contained (`run.py`): `xl2tpd` runs in Docker (`--network host`); `ze` runs
 from `bin/ze` with isolated filesystem storage. Control-plane only, so it needs
 no PPPoL2TP modules and runs unprivileged. `xl2tpd` cannot answer the OCRQ that
-follows (it has no outgoing-call answerer — logs `Unimplemented message 7`), so
-the RPC returns an error by design; the interop proof is the established control
-connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
+follows because it has no outgoing-call answerer (logs `Unimplemented message 7`),
+so the RPC returns an error by design; the interop proof is the established
+control connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
 `test/l2tp/lns-outgoing-call.ci`. The LAC incoming-call PPP data plane (kernel
-channel bridge, A-4) is env-blocked — see the scenario README and
+channel bridge, A-4) is env-blocked; see the scenario README and
 `make ze-qemu-l2tp-ppp-test`.
 
 ### 04-radius-acct-attrs

@@ -74,7 +74,7 @@ this router.
 
 On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
 of adjacencies. Instead one router per level is elected the **Designated IS**
-(DIS), and the LAN is represented as a single virtual node — the **pseudo-node**.
+(DIS), and the LAN is represented as a single virtual node, the **pseudo-node**.
 
 **Election.** Every router advertises a DIS **priority** (0..127, default 64) in
 its LAN Hello. The router with the highest priority wins; an equal priority is
@@ -126,7 +126,7 @@ types, all carried in the IS-IS Authentication TLV (type 10):
 
 | Type | Wire code | Standard | Use |
 |------|-----------|----------|-----|
-| `cleartext` | 1 | ISO/IEC 10589 | Basic sanity check only — the password rides the wire in clear; not a security mechanism. |
+| `cleartext` | 1 | ISO/IEC 10589 | Basic sanity check only. The password rides the wire in clear; it is not a security mechanism. |
 | `hmac-md5` | 54 | RFC 5304 | HMAC-MD5 integrity protection. |
 | `hmac-sha-256` (and `hmac-sha-1`/`224`/`384`/`512`) | 3 | RFC 5310 | Generic cryptographic authentication, HMAC-SHA family; SHA-256 recommended. |
 
@@ -162,7 +162,7 @@ isis {
 **Per-PDU-class keys.** Hellos (IIH) authenticate with the **per-interface** chain
 referenced under `interfaces/interface/<name>/level-N/auth-key-chain` (the Link Level
 Authentication string); LSPs and the CSNP/PSNP sequence-number PDUs authenticate
-with the **per-level** chain — the *area* key for Level 1 and the *domain* key for
+with the **per-level** chain: the *area* key for Level 1 and the *domain* key for
 Level 2. The two are independent, so an IIH key never accepts an LSP and vice
 versa.
 
@@ -218,7 +218,7 @@ redistribute {
 ```
 
 Each redistributed prefix is advertised with a fixed default metric. TLV 135 (IPv4)
-carries **no external bit** — a redistributed route is an ordinary reachability
+carries **no external bit**. A redistributed route is an ordinary reachability
 entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
 `destination isis { import isis }` is accepted by the schema but is a no-op:
@@ -267,7 +267,7 @@ With `ipv6-unicast` enabled on at least one circuit, the node:
   Address TLV (232), and its **non-link-local** addresses in the LSP TLV 232
   (RFC 5308 sec 3 scope rules), so a dual-stack neighbour learns the IPv6
   next-hop (a link-local `fe80::` address with the egress interface);
-- advertises its IPv6 prefixes as IPv6 Reachability (TLV 236) in its own LSP —
+- advertises its IPv6 prefixes as IPv6 Reachability (TLV 236) in its own LSP;
   **link-local prefixes are never advertised** in TLV 236 (RFC 5308 sec 2);
 - runs an IPv6 route-extraction pass over the **same** Dijkstra tree (no second
   SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
@@ -289,9 +289,9 @@ isis { import connected/static/bgp } }` imports IPv6 prefixes as TLV 236 entries
 `afi=ipv6` label.
 
 **Single-topology caveat.** Because IPv6 rides the IPv4 SPF tree, Ze assumes the
-IPv4 and IPv6 topologies are **congruent** (every link that carries IPv4 also
-carries IPv6 with the same metric ordering). On a **non-congruent** topology — a
-link that is IPv4-only or IPv6-only, or with per-family metric differences — an
+IPv4 and IPv6 topologies are **congruent** when every link that carries IPv4 also
+carries IPv6 with the same metric ordering. On a **non-congruent** topology, meaning a
+link that is IPv4-only or IPv6-only, or with per-family metric differences, an
 IPv6 route may be computed with a next-hop that has no IPv6 reachability,
 blackholing that traffic. The correct fix for non-congruent deployments is RFC
 5120 Multi-Topology (a separate per-topology SPF), which Ze does not implement.
@@ -369,11 +369,11 @@ with labels is listed in `docs/plugin-development/metrics.md`.
 
 `ze doctor` reports IS-IS readiness problems before the engine starts:
 
-- `doctor-isis-raw-socket` — IS-IS is configured but a raw `AF_PACKET` socket
+- `doctor-isis-raw-socket`: IS-IS is configured but a raw `AF_PACKET` socket
   cannot be opened (needs `CAP_NET_RAW`); IS-IS forms no adjacencies without it.
-- `doctor-isis-net-missing` — the `isis` block is present but no `net` is set;
+- `doctor-isis-net-missing`: the `isis` block is present but no `net` is set;
   IS-IS cannot derive a System ID or originate LSPs.
-- `doctor-isis-system-id-mismatch` — an explicit `system-id` disagrees with the
+- `doctor-isis-system-id-mismatch`: an explicit `system-id` disagrees with the
   System ID embedded in the first NET.
 
 Each code is explainable with `ze explain <code>`.

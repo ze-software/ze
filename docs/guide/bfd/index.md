@@ -1,4 +1,4 @@
-# BFD — Bidirectional Forwarding Detection
+# BFD: Bidirectional Forwarding Detection
 
 **Status:** the plugin is live, the production transport is hardened
 (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
@@ -33,7 +33,7 @@ a session down.
 | Static route to a gateway | Withdraw the route when the gateway stops forwarding, even if the physical link is up |
 | OSPF adjacency (when ze has OSPF) | Collapse the hello-based timeout from 40 s to 150 ms |
 
-Do not use BFD between two routers where the IGP already runs fast BFD —
+Do not use BFD between two routers where the IGP already runs fast BFD;
 the redundant sessions double the packet rate and can amplify instability.
 
 ## Basic configuration
@@ -246,7 +246,7 @@ bgp {
 ```
 
 `mode multi-hop` tells the plugin to use UDP port 4784 and skip GTSM.
-`min-ttl` is a weaker replacement for GTSM — packets arriving with a
+`min-ttl` is a weaker replacement for GTSM. Packets arriving with a
 TTL below the configured value are discarded. Choose `min-ttl` to be
 `256 - max-hops`; for example, `min-ttl 250` allows the packet to
 cross up to 5 hops. `min-ttl` must be non-zero for multi-hop; the
@@ -334,7 +334,7 @@ operator@router# commit
 On `commit`, the plugin receives a diff section via `OnConfigure` and
 reconfigures affected sessions in place. Profile changes propagate to
 every session that references the profile via an in-band Poll/Final
-sequence — no session flap.
+sequence without a session flap.
 
 ## Observing state
 

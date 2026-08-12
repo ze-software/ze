@@ -118,8 +118,8 @@ plugin dispatches command `"show routes"` scoped to peer `"10.0.0.1"`,
 the authorization string is `"peer show routes"`, not
 `"peer 10.0.0.1 show routes"`.
 
-For CLI-entered commands (the common case), the authorization string is
-simply what the user typed: `show bgp peer list`, `clear counters`,
+For CLI-entered commands (the common case), the authorization string is exactly
+what the user typed: `show bgp peer list`, `clear counters`,
 `configure`, etc.
 
 ## Configuration
@@ -383,7 +383,7 @@ For user `ops`, the command `show bgp peer list` matches entry 10 in
 `ops-extra` (deny). An unmatched command like `summary` falls to the
 first profile's default (deny).
 
-## Fail-closed behavior
+## Fail-closed behaviour
 
 When user assignments are configured (at least one user has a profile
 list), unassigned users are **denied all commands**. This prevents

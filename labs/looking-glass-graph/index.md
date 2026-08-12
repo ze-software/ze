@@ -2,13 +2,13 @@ Demo lab
 
 # Looking Glass Graph Demo
 
-A realistic UK topology with real external ASNs, populating the Looking Glass topology graph -- the one lab that's actually browsable today.
+A realistic UK topology with real external ASNs populates the Looking Glass topology graph. This is the one lab that is browsable today.
 
 `Daemon`
 
-Injects 36 routes into a running Ze instance describing a small but realistic network: a core ring (Telehouse, Leeds, Manchester, Birmingham) with edge sites (Slough, Bradford), peered with real external ASNs -- NTT (transit), Cogent (transit), Cloudflare (peering), and Akamai (peering), all under AS65000.
+Injects 36 routes into a running Ze instance that describes a small but realistic network: a core ring (Telehouse, Leeds, Manchester, Birmingham) with edge sites (Slough, Bradford), peered with real external ASNs: NTT (transit), Cogent (transit), Cloudflare (peering), and Akamai (peering), all under AS65000.
 
-Unlike the interop labs, this one starts a real Looking Glass on localhost and prints a URL -- open it in a browser and the topology graph and route views are populated with this data.
+Unlike the interop labs, this one starts a real Looking Glass on localhost and prints a URL. Open it in a browser and the topology graph and route views are populated with this data.
 
 - **Proves:** The Looking Glass topology graph and route views render correctly against a realistic multi-site, multi-peer network
 - **Topology:** AS65000 core ring + edge sites, external peers NTT/Cogent/Cloudflare/Akamai

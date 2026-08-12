@@ -561,7 +561,7 @@ inside a `terminator=` block):
   <!-- source: scripts/dev/rfc_requirements.py — AUDIT_VERDICTS, check_audit_schema, audit_coverage -->
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
-  moved — a line shift, a sibling test, a rewritten import. Run
+  moved: a line shift, a sibling test, or a rewritten import. Run
   `make ze-rfc-reseal` then `make ze-rfc-index`. It is the only command that writes
   `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored

@@ -4,7 +4,7 @@ Testing labs
 
 These aren't browser demos. Each lab runs Ze for real, on your own machine.
 
-Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or boot Ze for real in a VM, using Docker or QEMU. Some need Docker with host-kernel features Docker Desktop on macOS doesn't provide; a QEMU path is noted where one exists. This is what "evidence over claims" means in practice. Looking for speed rather than correctness? See [Performance](https://ze-software.net/performance/).
+Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or boot Ze in a VM using Docker or QEMU. Some need Docker with host-kernel features Docker Desktop on macOS doesn't provide; a QEMU path is noted where one exists. This is what "evidence over claims" means in practice. For speed rather than correctness, see [Performance](https://ze-software.net/performance/).
 
 ### [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/)
 

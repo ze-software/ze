@@ -9,7 +9,7 @@ Ze provides real-time BGP event monitoring and a live peer dashboard through the
 ze cli -c "monitor bgp"
 ```
 
-Auto-refreshing dashboard showing router identity, sortable color-coded peer table with update rates. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit. Refreshes every 2 seconds.
+The dashboard refreshes every 2 seconds and shows router identity plus a sortable, colour-coded peer table with update rates. Keys: j/k moves, s/S sorts, Enter opens detail, and Esc exits.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 ## Event Streaming
@@ -387,6 +387,28 @@ at the point the modification is built, on all five paths that build one: the
 forward rail, the route-server rail, the ingress and egress policy chains, and
 the RFC 9494 stale re-advertise rail.
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
+
+#### Well-Known Community Suppressions
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_wellknown_community_suppressed_total` | counter | `community` | A route was withheld from one destination peer by an RFC 1997 well-known community |
+
+An increment means a route ze received carrying NO_EXPORT, NO_ADVERTISE or
+NO_EXPORT_SUBCONFED was not advertised to a peer that community forbids. One
+observation is one destination, so a route withheld from 20 peers counts 20. The
+suppression is not configurable and is never logged per route, so this counter is
+the only place an operator sees it.
+<!-- source: internal/component/bgp/reactor/forward_wellknown.go -- wellKnownAllowsEgress -->
+
+The `community` label set is closed and holds three values: `no-advertise`,
+`no-export-subconfed`, `no-export`. A route carrying more than one is counted
+under the strictest, so one suppressed route is always one observation.
+<!-- source: internal/component/bgp/wireu/wellknown.go -- WellKnown.BlockingName -->
+
+The counter says nothing about withdrawals. RFC 1997 forbids ADVERTISING such a
+route, so a suppressed destination still receives the withdrawals of the same
+UPDATE and keeps no route ze cannot take back.
 
 #### Announces Refused For Size
 

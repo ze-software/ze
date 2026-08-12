@@ -74,7 +74,7 @@
 <li><a href="#see-also">See also</a></li>
 </ol></nav>
 <blockquote>
-<p><strong>Pre-Alpha.</strong> This page describes behavior that may change.</p>
+<p><strong>Pre-Alpha.</strong> This page describes behaviour that may change.</p>
 </blockquote>
 <p>Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels. It does not require strongSwan, libreswan, or another external IKE daemon. The IKE engine, cryptographic primitives, wire codec, and XFRM dataplane integration are all in-tree. The Ze binary negotiates IKE SAs, installs XFRM policies and states, and programs routes through XFRM interfaces from the same YANG config tree as every other subsystem.</p>
 <h2 id="architecture">Architecture</h2>
@@ -221,7 +221,7 @@ vpn {
 </tbody>
 </table>
 <h2 id="ikev2-responder-role">IKEv2 responder role</h2>
-<p>Ze can act as the IKEv2 responder as well as the initiator. A peer with <code>connection-type respond</code> waits for an unsolicited inbound IKE_SA_INIT from its configured <code>remote-address</code>, answers IKE_AUTH, and installs the first Child SA. <code>connection-type initiate</code>, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.</p>
+<p>Ze can act as an IKEv2 responder or initiator. A peer with <code>connection-type respond</code> waits for an unsolicited inbound IKE_SA_INIT from its configured <code>remote-address</code>, answers IKE_AUTH, and installs the first Child SA. <code>connection-type initiate</code>, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.</p>
 <p>As responder, Ze authenticates with a pre-shared key, X.509 certificate, or EAP. For EAP it acts as the EAP-MSCHAPv2 or EAP-TLS server for a road-warrior client. It presents its own certificate or PSK first, runs the EAP method, and derives session keys from the EAP MSK.</p>
 <p>A new inbound IKE_SA_INIT can proceed while an older established SA for the
 same peer is still being maintained. Once the replacement authenticates, its
@@ -356,7 +356,7 @@ issues to more than one client.</p>
 <p><code>certificate-count</code> bounds the X.509 chain in both directions. It is the most
 certificates Ze sends for the peer, and the most it accepts from it. RFC 7296
 Section 3.6 sets that figure at four, and the default is four, so a peer you never
-configure gets the conformant behavior.</p>
+configure gets the conformant behaviour.</p>
 <p>A peer that sends more than the bound is REFUSED. Ze does not truncate the chain.
 A silent trim hides from you that the limit was reached. It also makes the
 surviving certificates depend on the order the peer chose.</p>
@@ -523,7 +523,7 @@ policy RFC 7296 Section 2.9 narrows a peer's proposal against.</p>
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- traffic-selector list -->
 
 <p>When the list is absent the peer accepts whatever the remote endpoint proposes. That is the
-behavior of every configuration written before the list existed, so adding the list is what
+behaviour of every configuration written before the list existed, so adding the list is what
 restricts a peer, never omitting it.</p>
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->
 

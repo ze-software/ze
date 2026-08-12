@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Features - Ze</title>
-        <meta name="description" content="Every feature Ze ships and the spec&#x27;d roadmap ahead, grouped by maturity and color-coded by category." />
+        <meta name="description" content="Every shipped feature and the planned roadmap, grouped by maturity and category." />
         <meta property="og:title" content="Features - Ze" />
-        <meta property="og:description" content="Every feature Ze ships and the spec&#x27;d roadmap ahead, grouped by maturity and color-coded by category." />
+        <meta property="og:description" content="Every shipped feature and the planned roadmap, grouped by maturity and category." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Features - Ze" />
-        <meta name="twitter:description" content="Every feature Ze ships and the spec&#x27;d roadmap ahead, grouped by maturity and color-coded by category." />
+        <meta name="twitter:description" content="Every shipped feature and the planned roadmap, grouped by maturity and category." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -52,7 +52,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Project</span>
                     <h1 id="features-title">Every feature Ze ships.</h1>
-                    <p>51 features plus a spec&#x27;d roadmap, color-coded by category.</p>
+                    <p>51 shipped features plus the planned roadmap.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
@@ -72,12 +72,12 @@
             <section id="core" aria-labelledby="core-title" data-cards>
                 <div class="section-head reveal">
                     <h2 id="core-title">Built for demanding operators.</h2>
-                    <p>Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.</p>
+                    <p>Ze owns its BGP engine, configuration model, plugin system, operator tools, minimal appliance runtime, and diagnostics as one product.</p>
                 </div>
                 <div class="cards feature-grid reveal">
                     <article class="card feature-card cat-automate" data-cat="automate">
                     <span class="cat">Automate</span>
-                    <h3><a href="../docs/features/ai-first/">AI-Friendly Surfaces</a></h3>
+                    <h3><a href="../docs/features/ai-first/">AI Tool Interfaces</a></h3>
                     <div class="chips">
                     <span class="chip">MCP</span>
                     <span class="chip">Generated</span>
@@ -85,8 +85,8 @@
                     </div>
                     <ul>
                     <li><strong>MCP</strong> exposes CLI/API commands</li>
-                    <li>AI tools inspect <strong>structured output</strong></li>
-                    <li>Plugins become <strong>discoverable tools</strong></li>
+                    <li>AI tools read <strong>structured output</strong></li>
+                    <li>Plugins expose <strong>discoverable tools</strong></li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-operate" data-cat="operate">
@@ -271,8 +271,8 @@
                     <span class="chip">Skills</span>
                     </div>
                     <ul>
-                    <li><strong>Self-describing</strong> command catalog from the live binary</li>
-                    <li>Every command becomes <strong>automation</strong> surface</li>
+                    <li><strong>Self-describing</strong> command catalogue from the live binary</li>
+                    <li>Every command is an <strong>automation</strong> surface</li>
                     <li>Structured <strong>diagnostics</strong> and repair plans</li>
                     </ul>
                     </article>
@@ -299,7 +299,7 @@
                     <ul>
                     <li>Automatic config <strong>migration</strong></li>
                     <li><strong>Plugin bridge</strong> for existing workflows</li>
-                    <li>Smooth <strong>transition</strong> path</li>
+                    <li>Migration path for existing scripts</li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-observe" data-cat="observe">
@@ -325,7 +325,7 @@
                     </div>
                     <ul>
                     <li>A year of <strong>commits</strong> and added lines, at a glance</li>
-                    <li>Regenerated from git history, not curated</li>
+                    <li>Built from git history each time</li>
                     <li>Current Go code composition</li>
                     </ul>
                     </article>
@@ -444,9 +444,9 @@
                     <span class="chip">Auth</span>
                     </div>
                     <ul>
-                    <li>Config <strong>commit</strong>, discard, reload</li>
-                    <li>Failed <strong>auth</strong> across all surfaces</li>
-                    <li>Filter by action, actor, <strong>time</strong></li>
+                    <li>Config <strong>commit</strong>, discard, and reload</li>
+                    <li>Failed <strong>auth</strong> on every interface</li>
+                    <li>Filter by action, actor, and <strong>time</strong></li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-secure" data-cat="secure">
@@ -457,7 +457,7 @@
                     <span class="chip">TLS</span>
                     </div>
                     <ul>
-                    <li>YANG-modeled <strong>certificate</strong> management</li>
+                    <li>YANG-modelled <strong>certificate</strong> management</li>
                     <li>Chain validation, <strong>expiry</strong> checks</li>
                     <li>Shared by IPsec, <strong>TLS</strong>, mutual auth</li>
                     </ul>
@@ -522,7 +522,7 @@
             <section id="experimental" aria-labelledby="experimental-title" data-cards>
                 <div class="section-head reveal">
                     <h2 id="experimental-title">Experimental and growing.</h2>
-                    <p>Implemented and tested, not yet production-proven.</p>
+                    <p>Implemented and tested, still waiting for production evidence.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>These still need deployment evidence or hardening before production claims. Configuration may change.</p>
@@ -790,11 +790,11 @@
 
             <section id="roadmap" aria-labelledby="roadmap-title" data-cards>
                 <div class="section-head reveal">
-                    <h2 id="roadmap-title">Spec&#x27;d, not built.</h2>
+                    <h2 id="roadmap-title">Specified, not built.</h2>
                     <p>Aspirations with written, reviewed specs. Nothing here is usable today.</p>
                 </div>
                 <div class="section-note reveal">
-                    <p>Every card links to a pending spec in the main repo's <code>plan/</code> directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.</p>
+                    <p>Every card links to a pending spec in the main repo's <code>plan/</code> directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.</p>
                 </div>
                 <div class="cards feature-grid reveal">
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">
@@ -837,7 +837,7 @@
                     <ul>
                     <li>Kernel <strong>lockdown</strong> integrity mode</li>
                     <li>Blocks unsigned <strong>modules</strong>, kexec, /dev/mem</li>
-                    <li>Design <strong>reviewed</strong>, not yet scheduled</li>
+                    <li>Design <strong>reviewed</strong>, waiting for schedule</li>
                     </ul>
                     </article>
                     <article class="card feature-card aspiration cat-platform" data-cat="platform">
@@ -861,13 +861,13 @@
                 <p class="page-sidebar-eyebrow">Research</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
                 <section class="page-sidebar-group">
-                    <h2>Use the catalog</h2>
+                    <h2>Use the catalogue</h2>
                     <a class="page-sidebar-link" href="../docs/">
                         <span class="page-sidebar-link-label">Documentation</span>
                         <small>Learn how to use the features.</small>
                     </a>
                     <a class="page-sidebar-link" href="../docs/features/plugins/">
-                        <span class="page-sidebar-link-label">Plugin catalog</span>
+                        <span class="page-sidebar-link-label">Plugin catalogue</span>
                         <small>Runtime plugins behind feature areas.</small>
                     </a>
                     <a class="page-sidebar-link" href="../compare/">

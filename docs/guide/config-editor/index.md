@@ -22,7 +22,7 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `show <path>` | Display a specific section |
 | `show \| blame` | Annotate with authorship |
 | `show \| changes [all]` | Pending changes (session or all) |
-| `show \| compare` | Diff against committed config — shows only the parts that differ |
+| `show \| compare` | Diff against committed config; shows only the parts that differ |
 | `show \| errors` | Validation issues |
 | `show \| history` | List rollback revisions |
 | `commit` | Save changes and notify daemon |

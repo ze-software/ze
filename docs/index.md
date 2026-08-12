@@ -6,12 +6,12 @@ Pick the path that matches your intent. Start with the card that describes the j
 
 ## Get Ze running
 
-Learning-oriented pages that take you from a blank shell to a working setup.
+Guides that take you from a blank shell to a working setup.
 
 - [Quickstart two BGP peers talking in under five minutes](https://ze-software.net/docs/guide/quickstart/)
 - [Install Ze daemon install or bootable appliance](https://ze-software.net/docs/guide/ze-install/)
 - [Build on Ubuntu compile, install, create zefs, set up SSH](https://ze-software.net/docs/guide/ubuntu-build-install/)
-- [Configuration the YANG model Ze uses everywhere](https://ze-software.net/docs/features/configuration/)
+- [Configuration the YANG model behind Ze config](https://ze-software.net/docs/features/configuration/)
 - [`CLI` commands diff, commit, history, and operator commands](https://ze-software.net/docs/features/cli-commands/)
 - [CLI tour interactive, one-shot, pipes, and runtime control](https://ze-software.net/docs/guide/cli/)
 - [Lifecycle and rollback reload, restart, archive, update, and recover](https://ze-software.net/docs/guide/lifecycle/)

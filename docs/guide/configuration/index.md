@@ -1159,7 +1159,7 @@ DIS priority per level.
 `384`/`512`), a `secret` (stored `$9$`-encoded, like PPPoE/WireGuard keys), and
 optional `send-lifetime` / `accept-lifetime` windows for hitless rotation. Chains
 are referenced by per-interface (IIH Hellos) and per-level (LSP/CSNP/PSNP)
-`auth-key-chain` leaves — the *area* key for Level 1 and the *domain* key for
+`auth-key-chain` leaves: the *area* key for Level 1 and the *domain* key for
 Level 2:
 
 ```
@@ -2925,6 +2925,59 @@ ze config validate myconfig.conf
 ```
 
 Unknown keys are rejected with a suggestion for the closest valid key.
+
+### Upgrading from a release that validated only on demand
+
+The daemon now applies the same value rules at startup that `ze config validate`
+applies, so a config that started a daemon yesterday can stop one today. Read
+this before you upgrade.
+
+**A value a registered validator refuses now stops the daemon.** Until this
+release the rules ran in `ze config validate`, in the API commit hook and in the
+web editor, and nowhere else. A file edited by hand and loaded with `ze start`
+or `ze -` reached the protocol encoders unchecked. It no longer does: ze exits
+with status 1, prints one line for each refused value, and binds nothing, so the
+daemon does not half-start. The line names the section, the leaf and the rule:
+
+```
+error: load config: config validation failed: isis: isis/hostname: "café.example" is not a valid IS-IS hostname for isis/hostname: octet 4 is 0xc3. RFC 5301 section 3 encodes the value in 7-bit ASCII, so each character must be a printable ASCII character from space (0x20) to tilde (0x7e)
+```
+
+The rules cover `interface`, `sysctl`, `fib`, `plugin`, `telemetry`, `vpp`,
+`vpn`, `pki`, `l2tp`, `isis` and `ospf`. A BGP value is unaffected here because
+BGP has always had its own deeper check at startup. A missing mandatory field
+stays a warning and does not stop the daemon.
+
+**A reload refuses the same way, and the daemon keeps running.** Send SIGHUP
+with a config a validator refuses and the reload fails, the staged candidate is
+cleared, and the daemon keeps serving the config it already runs. The listeners
+do not rebind and open sessions are not disturbed. The refusal is on stderr:
+
+```
+reload error: reload: parse config: config validation failed: isis: isis/net: "49.0001.00" is not a valid IS-IS NET for isis/net: length 4 octets, want 8..20
+```
+
+There is no override and no force flag. Fix the value and send SIGHUP again.
+
+**Check before you upgrade.** Run `ze config validate` over the config first.
+It runs the same walk over the same sections, so what it refuses is what the
+daemon will refuse. It reports every refusal in one run, one line each, and it
+starts nothing:
+
+```
+ze config validate /etc/ze/ze.conf
+```
+
+`ze doctor` loads the config the same way the daemon does, so a config a
+validator refuses now stops doctor at `doctor-config-parse` with that same
+message, and doctor's other checks do not run. That tells you the daemon will
+not start. It does not tell you what else is wrong with the machine, so run
+`ze config validate` first and `ze doctor` after the config is clean.
+
+<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, the one walk -->
+<!-- source: internal/component/config/loader.go -- LoadConfig refusal -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReload keeps the running config on a load error -->
+<!-- source: internal/component/doctor/doctor.go -- runChecks reports a load failure as doctor-config-parse and returns -->
 
 ## Healthcheck
 

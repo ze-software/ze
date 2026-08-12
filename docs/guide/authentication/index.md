@@ -77,8 +77,24 @@ written to disk. This matches Junos's `plain-text-password` behaviour.
 
 ### Step 3: reload
 
-The daemon picks up the new user on the next config reload. Existing
-sessions are not interrupted.
+The daemon picks up the new user on the next config reload. A session
+already open for a user the reload KEEPS is not interrupted.
+
+Removal is the same reload, in the other direction. A user the reload
+deletes stops authenticating at once on every credential surface:
+
+- the web password
+- the web session cookie the browser still holds
+- the SSH password
+- the SSH public key
+- `Bearer <user>:<pass>` over REST and gRPC
+
+The daemon does not restart. The 24h session TTL is a ceiling, never the
+only test. A connection already open outlives the removal until it closes.
+
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
+<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
 
 ## Logging in as a YANG user
 
@@ -263,8 +279,8 @@ export ZE_SSH_PASSWORD=...
 Set **both**, or neither. Completion never prompts for a password: it runs while
 you are typing, so a prompt would block the shell instead of asking a question
 you could answer. With a username but no password there is no usable credential,
-so completion stays silent and you simply get no peer completions. Everything
-else keeps working; only dynamic peer names are missing.
+so completion stays silent and returns no peer completions. Other completion
+still works; only dynamic peer names are missing.
 
 If you would rather not keep a password in the environment, leave both unset and
 completion resolves as the zefs super-admin, which needs no password.

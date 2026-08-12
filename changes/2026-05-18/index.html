@@ -80,7 +80,7 @@
 <li>Recursive next-hop resolution, ECMP path grouping, and IGP-cost-aware best-path selection, feeding richer route attributes (type, metric, table, MPLS) into both the kernel and VPP FIB backends</li>
 <li>A route server mode for IXPs: dynamic peer groups that accept sessions from any address in a configured range, RS-client transparent AS-PATH forwarding, and community-based selective forwarding (announce-only, do-not-announce, RFC 7999 blackhole)</li>
 <li>AIGP attribute support (RFC 7311)</li>
-<li>PPPoE and L2TP subscriber sessions now share one session model, making PPPoE visible to the same auth, address-pool, shaping, and telemetry plugins L2TP already had</li>
+<li>PPPoE and L2TP subscriber sessions now share one session model. PPPoE is visible to the same auth, address-pool, shaping, and telemetry plugins L2TP already had.</li>
 <li>BGP FlowSpec routes (RFC 8955/8956) can now drive local firewall rules directly</li>
 <li>RPKI ASPA verification, shipped opt-in last week, can now enforce a reject policy on invalid AS_PATHs (log-only by default; a route that is ROA-valid but ASPA-invalid is still rejected)</li>
 </ul>
@@ -116,7 +116,7 @@
                     <div class="blog-block" aria-label="⚡ Performance">
                         <div class="md-content">
                             <h2>⚡ Performance</h2>
-                            <p>A focused pass on BGP's hot path: attributes are parsed once per UPDATE instead of once per NLRI, AS-PATH prepend and hold-timer resets are allocation-free on the fast path, JSON formatting for monitors and RIB output skips work when nothing is watching, and GC pressure across the reactor and event pipeline dropped significantly.</p>
+                            <p>A focused pass on BGP's hot path: attributes are parsed once per UPDATE instead of once per NLRI, AS-PATH prepend and hold-timer resets are allocation-free on the fast path, JSON formatting for monitors and RIB output skips work when nothing is watching, and GC pressure across the reactor and event pipeline dropped.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">

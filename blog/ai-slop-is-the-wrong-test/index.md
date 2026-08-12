@@ -20,7 +20,7 @@ In 1983, Ed Post published [Real Programmers Don't Use Pascal](https://www.pbm.c
 
 The serious version of the argument was stronger than people now remember. Hand-written assembly was faster. It gave direct control over the machine. It avoided weak compilers, poor optimisers and unpredictable output. If you were writing the inner loop of a graphics engine or a codec, a good assembly programmer could beat the compiler.
 
-For a while, that was simply true.
+For a while, that was true.
 
 Then compilers improved and software got larger. The economics changed. The question became less about whether a human could beat the compiler in one loop, and more about whether a team could still understand, port and change the whole program.
 
@@ -102,4 +102,4 @@ Some people will still call it slop. Fine. The repository is open, the tests are
 
 Good software eventually finds users and earns appreciation, even when it is niche. Bad software just makes up most of GitHub's content, the underwater part of the iceberg that almost nobody sees or discusses, but which still exists. I would rather Ze be late than join that pile.
 
-When Ze is ready, I hope the result of the work speaks for itself. I hope you will like it.
+When Ze is ready, I hope the result speaks for itself. I hope you will like it.

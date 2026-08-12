@@ -24,7 +24,7 @@ Work on the BGP engine itself: route encoding correctness, session robustness, a
 
 ## 🧰 API
 
-A real command surface for controlling BGP sessions and routes is taking shape:
+A command surface for controlling BGP sessions and routes is taking shape:
 
 - Session-level commands: status, enable, disable
 - RIB flush/clear commands

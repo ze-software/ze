@@ -11,17 +11,17 @@
   "generated_at": "2026-08-12",
   "github_stars": 50,
   "interop": {
-    "scenario_dirs_raw": 118,
-    "scenarios": 118,
-    "target_display": "8",
-    "targets": 8
+    "scenario_dirs_raw": 120,
+    "scenarios": 120,
+    "target_display": "9",
+    "targets": 9
   },
   "tests": {
-    "e2e": 1608,
-    "e2e_display": "1,600+",
+    "e2e": 1597,
+    "e2e_display": "1,500+",
     "fuzz": 78,
     "fuzz_display": "78",
-    "unit": 22316,
-    "unit_display": "22,300+"
+    "unit": 22240,
+    "unit_display": "22,200+"
   }
 }

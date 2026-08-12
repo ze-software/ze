@@ -61,7 +61,7 @@ domains, VXLAN, policers, ACLs, SRv6, sFlow) are designed but not yet
 wired.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#why-this-matters">Why this matters</a></li>
+<li><a href="#why-vpp-is-in-ze">Why VPP is in Ze</a></li>
 <li><a href="#how-the-two-halves-fit-together">How the two halves fit together</a></li>
 <li><a href="#what-ze-does-for-you">What ze does for you</a></li>
 <li><a href="#running-against-an-externally-supervised-vpp">Running against an externally supervised VPP</a></li>
@@ -79,7 +79,7 @@ wired.</p>
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller -->
 
-<h2 id="why-this-matters">Why this matters</h2>
+<h2 id="why-vpp-is-in-ze">Why VPP is in Ze</h2>
 <p>Ze is a BGP daemon. BGP produces forwarding decisions; something else has
 to carry the packets. The default answer on Linux is the kernel route
 table, programmed via netlink by the <code>fib-kernel</code> plugin. That works,
@@ -96,10 +96,10 @@ for VXLAN. IPng Networks has run this stack in production on AS8298 for
 several years.</p>
 <!-- source: docs/research/vpp-deployment-reference.md -- IPng production performance table -->
 
-<p>Adding VPP to ze is not about replacing BGP. It is about giving ze a
-credible answer when someone asks "can I use this for an IXP route
-server, a production edge router, or a gokrazy appliance on an N100
-mini-PC?" The control plane stays in ze (BGP, RIB, config, CLI, web UI).
+<p>Adding VPP to ze is not about replacing BGP. It gives ze a
+forwarding-plane answer for IXP route servers, production edge routers,
+and gokrazy appliances on small hardware such as an N100 mini-PC. The
+control plane stays in ze (BGP, RIB, config, CLI, web UI).
 The forwarding plane becomes VPP. The two talk through a small, typed
 interface (GoVPP over a Unix socket).</p>
 <!-- source: internal/component/vpp/conn.go -- GoVPP AsyncConnect -->
@@ -315,7 +315,7 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.external</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>When <code>true</code>, ze connects to an existing VPP via <code>api-socket</code> but does NOT generate <code>startup.conf</code>, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the <code>ze-test vpp</code> stub harness. Default <code>false</code> preserves the ze-owned-lifecycle behavior.</td>
+<td>When <code>true</code>, ze connects to an existing VPP via <code>api-socket</code> but does NOT generate <code>startup.conf</code>, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the <code>ze-test vpp</code> stub harness. Default <code>false</code> preserves the ze-owned-lifecycle behaviour.</td>
 </tr>
 <tr>
 <td><code>vpp.api-socket</code></td>

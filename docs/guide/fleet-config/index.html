@@ -65,7 +65,7 @@
 <li><a href="#resilience">Resilience</a></li>
 <li><a href="#cli-overrides">CLI Overrides</a></li>
 </ol></nav>
-<!-- source: cmd/ze/hub/main.go -- hub orchestrator; internal/component/hub/ -- hub implementation -->
+<!-- source: cmd/ze/hub/managed_server.go -- fleet hub server; internal/component/managed/ -- managed client and fleet protocol -->
 
 <blockquote>
 <p><strong>Status:</strong> Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and <code>ze start</code> managed mode are functional.</p>
@@ -172,7 +172,7 @@ ze config history edge-01.conf      # View rollback history
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/hub/ -- hub TLS and client auth -->
+<!-- source: internal/component/managed/ -- fleet TLS and client auth -->
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>

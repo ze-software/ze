@@ -16,7 +16,7 @@ Twenty-three more subsystems compile out behind build tags, taking the total to 
 
 - BGP itself is now gated, along with BMP and MRT. Dropping BGP from a full build takes the binary from about 70 MB to 60 MB, and that build still runs OSPF, IS-IS, static routes, the FIB, MRT and flow export.
 - Also new this week: BFD, IKE/IPsec, L2TP, RADIUS, TACACS+, DHCP, PXE, AS112 and GeoDNS, NTP, VPP, flow export, DDoS and anomaly detection, CoS, CoPP, MPLS, policy routing, traffic usage, and the ExaBGP bridge. OSPF, IS-IS, LDP, RSVP-TE, VRRP and the management surfaces were already gated.
-- The config loader fails closed on a config carrying blocks the running build has no code for. A stripped build used to boot a full build's config with the missing blocks quietly pruned, which could reduce TACACS+ or RADIUS authentication to local-only without a word.
+- The config loader fails closed on a config carrying blocks the running build has no code for. A stripped build used to boot a full build's config with the missing blocks pruned without reporting it, which could reduce TACACS+ or RADIUS authentication to local-only.
 
 ## 🔒 Security
 
@@ -38,14 +38,14 @@ Elsewhere:
 
 Forwarding and replay:
 
-- Peer-up replay and live forwarding were two unsynchronised writers to one session, so a route arriving during establishment went out twice. Replay carries announcements only, so a replayed announcement landing after a live withdrawal resurrected a withdrawn route permanently. The two rails are now partitioned at a cut.
+- Peer-up replay and live forwarding were two unsynchronised writers to one session, so a route arriving during establishment went out twice. Replay carries announcements only, so a replayed announcement landing after a live withdrawal resurrected a withdrawn route permanently. Replay and live forwarding now meet at one cut-over point.
 - The delta replay re-sent its boundary route on every iteration, and a peer's first session replayed its own sends back to it.
-- A route reflector forwarded updates whose source peer could not be resolved, which suppressed reflection checks and ORIGINATOR_ID and CLUSTER_LIST injection, the loop prevention RFC 4456 exists to provide. Such a forward is now refused.
+- A route reflector forwarded updates whose source peer could not be resolved, which suppressed the reflection checks and ORIGINATOR_ID and CLUSTER_LIST injection that RFC 4456 provides for loop prevention. Such forwarding is now refused.
 - A peer could receive the same End-of-RIB twice for one family in one session.
 
 Wire output:
 
-- An as-path supplied through the API went out verbatim to every peer. RFC 7947 grants that transparency to route-server clients; a plain eBGP peer now gets the local AS prepended, as RFC 4271 requires, so the path no longer travels invisible to the receiver's loop detection.
+- An as-path supplied through the API went out verbatim to every peer. RFC 7947 grants that transparency to route-server clients; a plain eBGP peer now gets the local AS prepended, as RFC 4271 requires, so the receiver's loop detection can see the path.
 - One route could encode to two different byte strings depending on when it was sent, because one of three builders wrote MP_REACH_NLRI out of type-code order.
 - A re-encoded route carried NEXT_HOP twice, which a strict receiver such as FRR treats as a withdrawal.
 - Splitting an oversized UPDATE that carried both an MP attribute and the legacy IPv4 fields dropped the IPv4 half entirely, with no error and a success return. A dropped withdrawal leaves a stale route installed on the peer.

@@ -147,7 +147,7 @@ this router.</p>
 <h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
 <p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
 of adjacencies. Instead one router per level is elected the <strong>Designated IS</strong>
-(DIS), and the LAN is represented as a single virtual node — the <strong>pseudo-node</strong>.</p>
+(DIS), and the LAN is represented as a single virtual node, the <strong>pseudo-node</strong>.</p>
 <p><strong>Election.</strong> Every router advertises a DIS <strong>priority</strong> (0..127, default 64) in
 its LAN Hello. The router with the highest priority wins; an equal priority is
 broken by the higher interface MAC address. Priority 0 is allowed (it only lowers
@@ -201,7 +201,7 @@ types, all carried in the IS-IS Authentication TLV (type 10):</p>
 <td><code>cleartext</code></td>
 <td>1</td>
 <td>ISO/IEC 10589</td>
-<td>Basic sanity check only — the password rides the wire in clear; not a security mechanism.</td>
+<td>Basic sanity check only. The password rides the wire in clear; it is not a security mechanism.</td>
 </tr>
 <tr>
 <td><code>hmac-md5</code></td>
@@ -246,7 +246,7 @@ logs, or backups.</p>
 <p><strong>Per-PDU-class keys.</strong> Hellos (IIH) authenticate with the <strong>per-interface</strong> chain
 referenced under <code>interfaces/interface/&lt;name&gt;/level-N/auth-key-chain</code> (the Link Level
 Authentication string); LSPs and the CSNP/PSNP sequence-number PDUs authenticate
-with the <strong>per-level</strong> chain — the <em>area</em> key for Level 1 and the <em>domain</em> key for
+with the <strong>per-level</strong> chain: the <em>area</em> key for Level 1 and the <em>domain</em> key for
 Level 2. The two are independent, so an IIH key never accepts an LSP and vice
 versa.</p>
 <p><strong>Hitless rotation.</strong> A chain may hold several keys. The active <strong>signing</strong> key is
@@ -290,7 +290,7 @@ LSPs, which flood to peers like any other prefix:</p>
 }
 </code></pre>
 <p>Each redistributed prefix is advertised with a fixed default metric. TLV 135 (IPv4)
-carries <strong>no external bit</strong> — a redistributed route is an ordinary reachability
+carries <strong>no external bit</strong>. A redistributed route is an ordinary reachability
 entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
 <code>destination isis { import isis }</code> is accepted by the schema but is a no-op:
@@ -331,7 +331,7 @@ IPv6 reachability:</p>
   Address TLV (232), and its <strong>non-link-local</strong> addresses in the LSP TLV 232
   (RFC 5308 sec 3 scope rules), so a dual-stack neighbour learns the IPv6
   next-hop (a link-local <code>fe80::</code> address with the egress interface);</li>
-<li>advertises its IPv6 prefixes as IPv6 Reachability (TLV 236) in its own LSP —
+<li>advertises its IPv6 prefixes as IPv6 Reachability (TLV 236) in its own LSP;
   <strong>link-local prefixes are never advertised</strong> in TLV 236 (RFC 5308 sec 2);</li>
 <li>runs an IPv6 route-extraction pass over the <strong>same</strong> Dijkstra tree (no second
   SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
@@ -350,9 +350,9 @@ isis { import connected/static/bgp } }</code> imports IPv6 prefixes as TLV 236 e
 (with the external bit set, RFC 5308 sec 2). The redistribution counters carry an
 <code>afi=ipv6</code> label.</p>
 <p><strong>Single-topology caveat.</strong> Because IPv6 rides the IPv4 SPF tree, Ze assumes the
-IPv4 and IPv6 topologies are <strong>congruent</strong> (every link that carries IPv4 also
-carries IPv6 with the same metric ordering). On a <strong>non-congruent</strong> topology — a
-link that is IPv4-only or IPv6-only, or with per-family metric differences — an
+IPv4 and IPv6 topologies are <strong>congruent</strong> when every link that carries IPv4 also
+carries IPv6 with the same metric ordering. On a <strong>non-congruent</strong> topology, meaning a
+link that is IPv4-only or IPv6-only, or with per-family metric differences, an
 IPv6 route may be computed with a next-hop that has no IPv6 reachability,
 blackholing that traffic. The correct fix for non-congruent deployments is RFC
 5120 Multi-Topology (a separate per-topology SPF), which Ze does not implement.
@@ -428,11 +428,11 @@ with labels is listed in <code>docs/plugin-development/metrics.md</code>.</p>
 <h3 id="readiness-checks">Readiness checks</h3>
 <p><code>ze doctor</code> reports IS-IS readiness problems before the engine starts:</p>
 <ul>
-<li><code>doctor-isis-raw-socket</code> — IS-IS is configured but a raw <code>AF_PACKET</code> socket
+<li><code>doctor-isis-raw-socket</code>: IS-IS is configured but a raw <code>AF_PACKET</code> socket
   cannot be opened (needs <code>CAP_NET_RAW</code>); IS-IS forms no adjacencies without it.</li>
-<li><code>doctor-isis-net-missing</code> — the <code>isis</code> block is present but no <code>net</code> is set;
+<li><code>doctor-isis-net-missing</code>: the <code>isis</code> block is present but no <code>net</code> is set;
   IS-IS cannot derive a System ID or originate LSPs.</li>
-<li><code>doctor-isis-system-id-mismatch</code> — an explicit <code>system-id</code> disagrees with the
+<li><code>doctor-isis-system-id-mismatch</code>: an explicit <code>system-id</code> disagrees with the
   System ID embedded in the first NET.</li>
 </ul>
 <p>Each code is explainable with <code>ze explain &lt;code&gt;</code>.</p>

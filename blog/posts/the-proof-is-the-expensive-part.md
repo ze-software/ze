@@ -51,7 +51,7 @@ First, every possible requirement found in the RFC text must either point to a c
 
 Second, every requirement in the checklist must point back to the RFC text, or say that a reviewer found it while reading prose the extractor missed. Otherwise Ze may have invented a rule, or attached a test to the wrong part of the standard.
 
-This does not prove that Ze understands every RFC perfectly. The extractor can miss prose. A `manual-walk` sign-off is a record that a human read the document, not a magical proof of understanding. The useful property is smaller and more honest: a missed obligation becomes a named risk, rather than an invisible green check.
+This does not prove that Ze understands every RFC perfectly. The extractor can miss prose. A `manual-walk` sign-off records that a human read the document; it does not prove the human understood every obligation. The useful property is smaller and more honest: a missed obligation becomes a named risk, rather than an invisible green check.
 
 That helps a lot with AI. A model can read an RFC and produce a plausible list of tests. Plausible is not enough. If it invents a requirement, the link back to the RFC fails. If it ignores a sentence the extractor flagged, the link from the RFC to the checklist fails. If it tries to hide behind a hand-written count, the generated inventory disagrees.
 
@@ -89,7 +89,7 @@ A gap is a promise that the requirement is known and not yet met. It is still co
 
 That page is not an IETF certificate. It is a support ledger for users. It says which RFCs Ze implements, partially implements, does not implement, or has deferred. If a feature is partial, the page should say which part is partial. If an RFC has no gated obligations, it should show why. If the implementation has a known gap, users should not have to guess from marketing language.
 
-This matters because networks are operated on risk, not slogans. A missing corner of an RFC may be harmless in one deployment and unacceptable in another. Hiding the gap does not make the product better. It only moves the risk from the vendor to the operator.
+Networks are operated on risk, not slogans. A missing corner of an RFC may be harmless in one deployment and unacceptable in another. Hiding the gap does not make the product better. It only moves the risk from the vendor to the operator.
 
 ## The gates push back
 
@@ -135,7 +135,7 @@ There are limits.
 
 Extraction sign-off is still being expanded. Semantic audits are sampled, not total. A `manual-walk` record is an honest declaration, not a proof of understanding. A model can still produce a bad test, a narrow test or a correct test for the wrong reason. A human can still approve the wrong thing.
 
-The difference is that these are named risks. They are in the system. They are counted, surfaced or blocked. That is much better than trusting a confident paragraph in a pull request.
+Those risks are named. They are in the system. They are counted, surfaced or blocked, which is safer than trusting a confident paragraph in a pull request.
 
 I do not think the unique part of Ze is that AI writes a lot of the code. Many projects will do that. Some already do. The unique part is that Ze is being built around the assumption that generated code is untrusted until it earns its place.
 

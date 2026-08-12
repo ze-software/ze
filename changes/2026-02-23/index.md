@@ -4,7 +4,7 @@ A route-server-focused week: reliability fixes for BGP Route Server under load, 
 
 ## 🛰️ Route Server (RFC 7947)
 
-The route-server plugin is renamed from bgp-rr to bgp-rs to match what it actually does (forward-all Route Server semantics, not Route Reflector client/non-client selection); `rs status`/`rs peers` commands replace the old `rr` names.
+The route-server plugin is renamed from `bgp-rr` to `bgp-rs` to match forward-all Route Server semantics rather than Route Reflector client/non-client selection. `rs status` and `rs peers` commands replace the old `rr` names.
 
 - Reconnecting peers now get a targeted replay of just their own routes from a dedicated adj-rib-in plugin, instead of triggering a full ROUTE-REFRESH storm across every peer and family
 - Fixed several route-loss bugs under backpressure: an overflow buffer stops silent drops when a peer can't keep up, and per-entry cache acknowledgment prevents cumulative eviction from losing routes

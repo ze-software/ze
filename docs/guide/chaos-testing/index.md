@@ -20,7 +20,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 | `--chaos-rate <f>` | Probability of fault per operation (0.0 to 1.0) | 0.1 |
 <!-- source: cmd/ze/ze_core_dispatch.go -- chaosSeed, chaosRate global flags -->
 <!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
-<!-- source: internal/component/bgp/cli/childmode.go -- injectChaosFromEnv, ze.bgp.chaos.seed/rate -->
+<!-- source: internal/component/bgp/config/loader_create.go -- chaosRateFromEnv, ze.bgp.chaos.seed/rate -->
 
 ## ze-chaos Tool
 

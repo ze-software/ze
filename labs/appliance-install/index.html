@@ -49,7 +49,7 @@
                     <span class="journey-eyebrow">Appliance lab</span>
                     <h1 id="lab-title">Appliance Installer Evidence</h1>
                     <p>
-                        The installer boots and completes for real in QEMU --
+                        The installer boots and completes for real in QEMU
                         across HTTP/PXE, ISO, and Ventoy-on-FAT paths, plus
                         failure-path and rescue scenarios.
                     </p>
@@ -60,34 +60,34 @@
                         <p>
                             Four QEMU evidence scripts cover the installer end
                             to end: the PXE/HTTP chain boots the installer
-                            kernel + initrd, serves the image over HTTP, and
-                            asserts serial success markers before re-booting
+                            kernel and initrd, serves the image over HTTP, and
+                            asserts serial success markers before rebooting
                             into the written disk and logging in over SSH. The
                             ISO path wraps the same image in a bootable ISO
-                            and additionally verifies GPT layout and
-                            power-off-not-reboot behavior. The Ventoy path
+                            and also verifies GPT layout and
+                            power-off-not-reboot behaviour. The Ventoy path
                             proves the installer finds the appliance ISO as a
                             <em>file</em> on a FAT/exFAT data partition rather
                             than as burned boot media. The scenarios script
-                            covers what the other three don't: a forced
+                            covers what the other three do not: a forced
                             mid-init panic recovering cleanly, MAC-based
                             install pinning on multi-homed boxes, and rescue
                             console access.
                         </p>
                         <p>
                             The installer kernel is operator-supplied by
-                            design -- Ze neither ships nor builds it. Point
+                            design; Ze neither ships nor builds it. Point
                             any script at one with <code>ZE_INSTALL_KERNEL</code>.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
                             <strong>Proves</strong>
-                            <span>Installer boots and completes for real across HTTP/PXE, ISO, and Ventoy paths, plus fault/pin/rescue scenarios</span>
+                            <span>Installer boots and completes for real across HTTP/PXE, ISO, and Ventoy paths, plus fault, pinning, and rescue scenarios</span>
                         </div>
                         <div class="status-row">
                             <strong>Environment</strong>
-                            <span>QEMU only, no Docker (the installer initrd is pure Go, no busybox)</span>
+                            <span>QEMU only, no Docker (the installer initrd is pure Go, no BusyBox)</span>
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>

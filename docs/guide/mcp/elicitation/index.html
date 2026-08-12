@@ -267,7 +267,7 @@ argument that the retry carries anyway, so there is no continuation state to
 encode. Requirement 6's "at least one of <code>inputRequests</code> or <code>requestState</code>" is
 satisfied by <code>inputRequests</code> alone, and requirement 3 makes <code>requestState</code> a
 MAY. The omission is therefore conformant, not a gap.</p>
-<p>That omission is a security property, not just a simplification. A retry is a
+<p>That omission is also a security property. A retry is a
 self-contained, independently authenticated request. No carried authority exists
 for another principal to replay, and none survives a daemon restart to go stale.</p>
 <p>The consequence for clients: because the result carries no <code>requestState</code>, "the

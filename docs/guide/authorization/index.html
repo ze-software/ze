@@ -90,7 +90,7 @@ commands.</p>
 <li><a href="#restrict-sub-commands-with-regex">Restrict sub-commands with regex</a></li>
 <li><a href="#multiple-profiles">Multiple profiles</a></li>
 </ol></li>
-<li><a href="#fail-closed-behavior">Fail-closed behavior</a></li>
+<li><a href="#fail-closed-behaviour">Fail-closed behaviour</a></li>
 <li><a href="#validation">Validation</a></li>
 <li><a href="#things-that-do-not-work">Things that do NOT work</a></li>
 <li><a href="#reference">Reference</a></li>
@@ -249,8 +249,8 @@ tokens (but not the peer selector value itself). For example, if a
 plugin dispatches command <code>"show routes"</code> scoped to peer <code>"10.0.0.1"</code>,
 the authorization string is <code>"peer show routes"</code>, not
 <code>"peer 10.0.0.1 show routes"</code>.</p>
-<p>For CLI-entered commands (the common case), the authorization string is
-simply what the user typed: <code>show bgp peer list</code>, <code>clear counters</code>,
+<p>For CLI-entered commands (the common case), the authorization string is exactly
+what the user typed: <code>show bgp peer list</code>, <code>clear counters</code>,
 <code>configure</code>, etc.</p>
 <h2 id="configuration">Configuration</h2>
 <h3 id="defining-profiles">Defining profiles</h3>
@@ -484,7 +484,7 @@ order; the first profile with a matching entry wins:</p>
 <code>restricted</code> (allow). The command <code>kill</code> matches entry 10 in
 <code>ops-extra</code> (deny). An unmatched command like <code>summary</code> falls to the
 first profile's default (deny).</p>
-<h2 id="fail-closed-behavior">Fail-closed behavior</h2>
+<h2 id="fail-closed-behaviour">Fail-closed behaviour</h2>
 <p>When user assignments are configured (at least one user has a profile
 list), unassigned users are <strong>denied all commands</strong>. This prevents
 unassigned users from silently becoming admin-equivalent.</p>

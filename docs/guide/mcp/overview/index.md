@@ -226,7 +226,7 @@ Every successful result carries `resultType: "complete"` and
 | `-32022` | 400 | The declared version is not one this server implements. `data.supported` lists what is |
 | `-32602` | 400 | A required `params._meta` field is missing or malformed |
 | `-32601` | 404 | Unknown method. The 404 lets a client tell a modern server from a legacy one that does not host the endpoint |
-| — | 405 | GET or DELETE to `/mcp` |
+| n/a | 405 | GET or DELETE to `/mcp` |
 
 Only `-32601` and `-32021` carry a mandated HTTP status at dispatch time, plus
 the three pre-dispatch rejections above (`-32020`, `-32022`, and a malformed
@@ -326,7 +326,7 @@ The published `inputSchema` says the same thing, and says it per request. The
 elicitation. The array is absent for a client that did declare it.
 
 Ze cannot advertise a single answer here, because the two clients get different
-behavior. A schema-validating host would otherwise refuse to make the very call
+behaviour. A schema-validating host would otherwise refuse to make the very call
 that reaches the prompt.
 
 <!-- source: internal/component/mcp/mrtr.go -- gateExecuteCommandRequired -->

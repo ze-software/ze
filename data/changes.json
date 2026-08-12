@@ -754,7 +754,7 @@
   },
   {
     "slug": "2026-06-08",
-    "intro": "A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.",
+    "intro": "A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.",
     "is_draft": false,
     "topics": [
       {
@@ -1252,7 +1252,7 @@
   },
   {
     "slug": "2026-04-06",
-    "intro": "A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.",
+    "intro": "A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.",
     "is_draft": false,
     "topics": [
       {
@@ -1507,7 +1507,7 @@
   },
   {
     "slug": "2026-03-02",
-    "intro": "Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.",
+    "intro": "Best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.",
     "is_draft": false,
     "topics": [
       {

@@ -697,17 +697,17 @@ VPP-specific detector code is needed.</p>
 <p><code>show ddos</code> is a namespace; the subcommands are each owned by the plugin that
 holds the data, so a subcommand appears only while its plugin is loaded:</p>
 <ul>
-<li><code>show ddos status</code> (<code>ddos-observe</code>) — one-line status: whether observation is
+<li><code>show ddos status</code> (<code>ddos-observe</code>): one-line status showing whether observation is
   running, how many attacks are currently active, and how many incidents are held
   in the ring.</li>
-<li><code>show ddos incidents</code> (<code>ddos-observe</code>) — the incident ring, newest first: per
+<li><code>show ddos incidents</code> (<code>ddos-observe</code>): the incident ring, newest first. Per
   incident the target vector (prefix / proto / port), attack family, top source
   addresses, peak pps/bps, start/end time, and whether it is still active. The
   ring is bounded by <code>incident-ring-size</code> and fed by the detector's
   <code>AttackDetected</code> / <code>AttackCleared</code> events.</li>
-<li><code>show ddos local</code> (<code>ddos-local</code>) — whether an on-host nft drop is installed and
+<li><code>show ddos local</code> (<code>ddos-local</code>): whether an on-host nft drop is installed and
   the target vector it covers.</li>
-<li><code>show ddos flowspec</code> (<code>ddos-flowspec</code>) — whether an upstream FlowSpec rule is
+<li><code>show ddos flowspec</code> (<code>ddos-flowspec</code>): whether an upstream FlowSpec rule is
   announced, its target vector, and whether the leak-probe is running.</li>
 </ul>
 <!-- source: internal/plugins/ddos/observe/show.go -- handleShowDdos, handleShowDdosIncidents -->

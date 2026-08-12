@@ -51,7 +51,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Compare</span>
     <h1 id="open-source-network-os-comparison">Open Source Network OS comparison</h1>
-    <p>A source-grounded comparison of Ze, VyOS, and freeRtr as router operating systems rather than only BGP implementations.</p>
+    <p>A source-backed comparison of Ze, VyOS, and freeRtr as router operating systems rather than only BGP implementations.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#status-legend">Status legend</a></li>
@@ -113,7 +113,7 @@
 </ol></li>
 </ol></nav>
 <blockquote>
-<p><strong>Scope and evidence:</strong> this page summarizes the local research artifact produced from the checked-out Ze, VyOS <code>vyos-1x</code>, and freeRtr sources. Runtime protocol daemons external to <code>vyos-1x</code> are intentionally labeled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behavior. <code>Not found</code> means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.</p>
+<p><strong>Scope and evidence:</strong> this page summarises the local research artefact produced from the checked-out Ze, VyOS <code>vyos-1x</code>, and freeRtr sources. Runtime protocol daemons external to <code>vyos-1x</code> are intentionally labelled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behaviour. <code>Not found</code> means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.</p>
 </blockquote>
 <div class="compare-tools" data-compare-filter>
   <label class="compare-field">Find in this page
@@ -146,7 +146,7 @@
 </tr>
 <tr>
 <td><code>Unclear</code></td>
-<td>Related source evidence exists, but the exact feature or behavior was not traced to a producer.</td>
+<td>Related source evidence exists, but the exact feature or behaviour was not traced to a producer.</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
@@ -156,9 +156,9 @@
 </table>
 <h2 id="executive-conclusion">Executive conclusion</h2>
 <ul>
-<li><strong>VyOS</strong> has the broadest polished Linux-router integration surface in the inspected source: CLI schema, config/op scripts, firewall/NAT/VPN/services, commit-confirm/rollback/archive, REST/OpenAPI, GraphQL, and platform integration. Runtime protocol implementation is mostly delegated to external packages such as FRR and the Linux/VPP/system service stack.</li>
-<li><strong>freeRtr</strong> has the broadest router-native protocol and service implementation surface in the inspected source: many routing protocols, LSP/tunnel families, crypto/VPNs, NETCONF, Java CLI/config, internal services, and dataplane export paths. Its breadth is concentrated in large Java registries and runtime classes.</li>
-<li><strong>Ze</strong> has the strongest integrated management plane among the three in the inspected source: own BGP/control-plane architecture, YANG-modeled config and commands, generated plugin registration, register-once operator surfaces across CLI/web/REST/gRPC/MCP, built-in SSH management without host shell accounts, HTMX web UI, minimal kernel, init, and Ze appliance runtime with ISO/PXE install, doctor-style diagnostics, and explicit performance/testing tools. Its feature catalog is narrower in legacy and service breadth than VyOS/freeRtr today.</li>
+<li><strong>VyOS</strong> has the widest Linux-router integration surface in the inspected source. Its own code covers CLI schema, config and operational scripts, firewall, NAT, VPNs, services, commit-confirm, rollback, archive, REST/OpenAPI, GraphQL, and platform integration. Runtime protocol implementation mostly comes from FRR and the Linux/VPP/system service stack.</li>
+<li><strong>freeRtr</strong> has the widest router-native protocol and service surface in the inspected source: many routing protocols, LSP/tunnel families, crypto/VPNs, NETCONF, Java CLI/config, internal services, and dataplane export paths. Most of that breadth sits in large Java registries and runtime classes.</li>
+<li><strong>Ze</strong> has the most integrated management plane among the three in the inspected source. Its BGP/control-plane architecture, YANG-modelled config and commands, generated plugin registration, CLI/web/REST/gRPC/MCP surfaces, built-in SSH management, HTMX web UI, minimal kernel/init, appliance runtime, diagnostics, and performance/testing tools are designed together. It is narrower than VyOS and freeRtr in legacy protocols and services today.</li>
 </ul>
 <h2 id="feature-matrices-by-category">Feature matrices by category</h2>
 <p>These are the operator-facing feature matrices. Cells intentionally start with
@@ -1671,18 +1671,18 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 </table>
 <h2 id="scope-faq">Scope FAQ</h2>
 <p><strong>Does Ze support everything VyOS, FRR, or freeRtr does?</strong></p>
-<p>No. As a full Network OS, VyOS plus FRR and freeRtr still cover many features
-Ze does not: RIP/RIPng, EIGRP, Babel/OpenFabric/OLSR, multicast routing,
-bonding, QinQ, VXLAN dataplane integration, MACsec, wireless, DHCP relay,
-SNMP, LLDP, PTP, proxy, load balancing, TFTP, support bundles, NETCONF,
-GraphQL, multi-image boot management, and broader package or installer flows.
-Ze has source-confirmed <code>commit confirmed</code> in file mode, but not yet in ZeFS
-session mode. Ze also has strong source-confirmed coverage in BGP, OSPF,
-IS-IS, LDP, RSVP-TE, RPKI, BMP, MRT, YANG-modeled config, REST/OpenAPI,
-gNMI, MCP, plugin SDKs, VPP/netlink backends, PPPoE/L2TP BNG, appliance
-tooling, testing, and diagnostics. The important answer is not "Ze matches
-everything"; it is "Ze is deeper in selected modern control-plane and API
-areas, while VyOS and freeRtr are broader router OSes today."</p>
+<p>No. VyOS with FRR, and freeRtr, still cover many features Ze does not:
+RIP/RIPng, EIGRP, Babel/OpenFabric/OLSR, multicast routing, bonding, QinQ,
+VXLAN dataplane integration, MACsec, wireless, DHCP relay, SNMP, LLDP,
+PTP, proxy, load balancing, TFTP, support bundles, NETCONF, GraphQL,
+multi-image boot management, and broader package or installer flows.</p>
+<p>Ze has source-confirmed <code>commit confirmed</code> in file mode, but not yet in
+ZeFS session mode. It also has strong source-confirmed coverage in BGP,
+OSPF, IS-IS, LDP, RSVP-TE, RPKI, BMP, MRT, YANG-modelled config,
+REST/OpenAPI, gNMI, MCP, plugin SDKs, VPP/netlink backends,
+PPPoE/L2TP BNG, appliance tooling, testing, and diagnostics. Ze is
+deeper in selected modern control-plane and API areas. VyOS and freeRtr
+are broader router OSes today.</p>
 <p>This question belongs on this page, not the BGP daemon page, because it asks
 about non-BGP router OS breadth.</p>
 <h2 id="product-model-snapshot">Product model snapshot</h2>
@@ -1779,20 +1779,20 @@ about non-BGP router OS breadth.</p>
 <h2 id="product-strengths-and-limits">Product strengths and limits</h2>
 <h3 id="ze">Ze</h3>
 <ul>
-<li>Strongest where the product owns the protocol/control implementation and exposes structured APIs: BGP wire/RIB/capabilities, YANG schemas, plugin registration, REST/OpenAPI, gNMI, MCP, HTMX web UI, appliance/update flows.</li>
-<li>Narrower than VyOS/freeRtr in traditional router breadth today: no source evidence found for RIP/RIPng/EIGRP/Babel/PIM/MSDP, general DHCP relay, SNMP, LLDP, PTP, load balancer, TFTP server, captive portal, NETCONF, GraphQL, or multi-image boot management in inspected sources. <code>commit confirmed</code> exists in file mode, but not ZeFS session mode.</li>
-<li>Best fit from this evidence: a modern Network OS core with a strong BGP/control-plane architecture, API-first management, and appliance integration.</li>
+<li>Ze is strongest where the product owns the protocol/control implementation and exposes structured APIs: BGP wire/RIB/capabilities, YANG schemas, plugin registration, REST/OpenAPI, gNMI, MCP, HTMX web UI, appliance/update flows.</li>
+<li>Ze is narrower than VyOS/freeRtr in traditional router breadth today: no source evidence was found for RIP/RIPng/EIGRP/Babel/PIM/MSDP, general DHCP relay, SNMP, LLDP, PTP, load balancer, TFTP server, captive portal, NETCONF, GraphQL, or multi-image boot management in inspected sources. <code>commit confirmed</code> exists in file mode, but not ZeFS session mode.</li>
+<li>Best fit from this evidence: a modern network OS core with strong BGP/control-plane architecture, API-first management, and appliance integration.</li>
 </ul>
 <h3 id="vyos">VyOS</h3>
 <ul>
-<li>Broadest operator-facing Linux router surface in <code>vyos-1x</code>: schemas and Python owners for protocols, interfaces, services, VPN, firewall/NAT, QoS, VPP, management APIs, platform config, commit-confirm, rollback, and support archive.</li>
-<li>Source root is the CLI/config/runtime integration layer, not the full image builder and not the daemon implementations themselves. README says image builds belong in <code>vyos-build</code>, and protocol runtime commonly delegates to FRR, nftables, strongSwan, systemd, Linux, VPP, and related packages.</li>
+<li>VyOS has the broadest operator-facing Linux router surface in <code>vyos-1x</code>: schemas and Python owners for protocols, interfaces, services, VPN, firewall/NAT, QoS, VPP, management APIs, platform config, commit-confirm, rollback, and support archive.</li>
+<li>Source root is the CLI/config/runtime integration layer. The image builder and protocol daemon implementations are outside this checkout. The README says image builds belong in <code>vyos-build</code>, and protocol runtime commonly delegates to FRR, nftables, strongSwan, systemd, Linux, VPP, and related packages.</li>
 <li>Best fit from this evidence: mature Linux distribution router UX and integration surface with very broad feature exposure.</li>
 </ul>
 <h3 id="freertr">freeRtr</h3>
 <ul>
-<li>Broadest router-native protocol and service catalog in inspected source: many routing protocols, tunnels, LSP mechanisms, crypto/VPNs, services, NETCONF, Java-based CLI/config, test topology corpus, and optional native/P4/XDP dataplanes.</li>
-<li>Feature evidence is concentrated in large Java registries and config/runtime classes, which gives huge breadth but less small-file discoverability than Ze or VyOS.</li>
+<li>freeRtr has the broadest router-native protocol and service catalogue in inspected source: many routing protocols, tunnels, LSP mechanisms, crypto/VPNs, services, NETCONF, Java-based CLI/config, test topology corpus, and optional native/P4/XDP dataplanes.</li>
+<li>Feature evidence is concentrated in large Java registries and config/runtime classes. That gives huge breadth but less small-file discoverability than Ze or VyOS.</li>
 <li>Best fit from this evidence: all-in-one router process and protocol laboratory with exceptional feature breadth and multiple dataplane export paths.</li>
 </ul>
 <h2 id="source-roots-inspected">Source roots inspected</h2>
@@ -3303,7 +3303,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Topology and interop tests</td>
-<td>Docker interop against FRR, BIRD, GoBGP, ExaBGP, scenario orchestration, container lifecycle, 117 scenarios, and BGP, IS-IS, OSPF coverage; Make targets for interop and IPsec interop. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/testing/interop.md:1-16</code>, <code>:29-53</code>, <code>:97-113</code>, <code>:167-186</code></span><span class="ev-ref"><code>mk/test-integration.mk:35-50</code></span></span></td>
+<td>Docker interop against FRR, BIRD, GoBGP, ExaBGP, scenario orchestration, container lifecycle, 120 scenarios, and BGP, IS-IS, OSPF coverage; Make targets for interop and IPsec interop. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/testing/interop.md:1-16</code>, <code>:29-53</code>, <code>:97-113</code>, <code>:167-186</code></span><span class="ev-ref"><code>mk/test-integration.mk:35-50</code></span></span></td>
 <td>GitHub workflow builds a custom ISO and runs smoketests in containers with privileged options; VPP smoketest and config-load jobs, <code>:225-252</code>, <code>:325-352</code>. Topology/interop beyond QEMU/VPP smoketest not found in inspected <code>vyos-1x</code> source. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:150-183</code>, <code>:192-218</code></span></span></td>
 <td>Readme says <code>img</code> VM images are used for interop and dataplane testing; tester can launch multiple routers with generated ports and captures, selftest/topology scripts and. <span class="ev-src"><span class="ev-ref"><code>readme.md:55-60</code></span><span class="ev-ref"><code>src/org/freertr/user/userTester.java:36-48</code>, <code>:1437-1440</code>, <code>:2422-2429</code></span><span class="ev-ref"><code>src/t*.sh</code></span><span class="ev-ref"><code>cfg/*.tst</code></span></span></td>
 <td>Ze has most explicit source docs for third-party interop.</td>
@@ -3557,7 +3557,7 @@ about non-BGP router OS breadth.</p>
                 <p class="page-sidebar-eyebrow">NOS comparison</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
                 <section class="page-sidebar-group">
-                    <h2>Navigate</h2>
+                    <h2>More comparisons</h2>
                     <a class="page-sidebar-link" href="../../compare/">
                         <span class="page-sidebar-link-label">Comparison choices</span>
                         <small>Return to the comparison hub.</small>

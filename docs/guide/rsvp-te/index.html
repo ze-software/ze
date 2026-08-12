@@ -119,8 +119,8 @@ pending. Use for evaluation, not production forwarding.</p>
   tunnel endpoint); <code>type strict|loose</code> defaults to strict.</li>
 <li><code>fast-reroute</code> (on a tunnel) -- request RFC 4090 local protection. <code>backup</code>
   is <code>facility</code> (one bypass protects many LSPs, the default) or <code>one-to-one</code>;
-  <code>node-protection true</code> asks for a backup around the next node (not just the
-  next link); <code>bandwidth-protection</code> and <code>hop-limit</code> (default 16) tune the
+  <code>node-protection true</code> asks for a backup around the next node, so the backup
+  avoids the next link and the next router; <code>bandwidth-protection</code> and <code>hop-limit</code> (default 16) tune the
   backup. Presence of the container is what enables protection.</li>
 <li><code>bypass</code> -- a facility-backup bypass LSP from this node (a Point of Local
   Repair) to a <code>merge-point</code> along an <code>explicit-route</code> that avoids the protected
@@ -164,7 +164,7 @@ resource):</p>
 <li>The head-end re-optimizes onto a fresh path (make-before-break) and tears the
    locally-repaired LSP once the replacement is up.</li>
 </ol>
-<p>An LSP with no matching bypass keeps the base behavior (tear down + <code>PathErr</code> on
+<p>An LSP with no matching bypass keeps the base behaviour (tear down + <code>PathErr</code> on
 a link failure). One-to-one (detour) backup is tracked separately
 (<code>spec-mpls-9-rsvp-te-one-to-one-backup</code>).</p>
 <h2 id="inspecting-lsps">Inspecting LSPs</h2>

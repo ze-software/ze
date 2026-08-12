@@ -261,9 +261,9 @@ resolves nothing and is denied, not granted admin. Local break-glass accounts
 (the <code>ze init</code> bootstrap admin, or any <code>system.authentication.user</code> you keep) are
 the way back into a box whose mapping is wrong.</p>
 <h3 id="what-the-mapped-profiles-govern">What the mapped profiles govern</h3>
-<p>The mapped profiles decide every command the session may run, not just whether
-the login succeeds. Ze resolves them once at authentication and authorizes each
-command against them, so <code>tacacs-profile 1 { profile [ read-only ]; }</code> gives that
+<p>The mapped profiles decide every command the session may run after login
+succeeds. Ze resolves them once at authentication and authorizes each command
+against them, so <code>tacacs-profile 1 { profile [ read-only ]; }</code> gives that
 session exactly what the local <code>read-only</code> profile allows and refuses the rest
 with <code>command restricted by access control</code>.</p>
 <p>Only the profile <em>names</em> are fixed at login. Each command is evaluated against

@@ -61,7 +61,7 @@
                     <div class="blog-block" aria-label="🛰️ Route Server (RFC 7947)">
                         <div class="md-content">
                             <h2>🛰️ Route Server (RFC 7947)</h2>
-                            <p>The route-server plugin is renamed from bgp-rr to bgp-rs to match what it actually does (forward-all Route Server semantics, not Route Reflector client/non-client selection); <code>rs status</code>/<code>rs peers</code> commands replace the old <code>rr</code> names.</p>
+                            <p>The route-server plugin is renamed from <code>bgp-rr</code> to <code>bgp-rs</code> to match forward-all Route Server semantics rather than Route Reflector client/non-client selection. <code>rs status</code> and <code>rs peers</code> commands replace the old <code>rr</code> names.</p>
 <ul>
 <li>Reconnecting peers now get a targeted replay of just their own routes from a dedicated adj-rib-in plugin, instead of triggering a full ROUTE-REFRESH storm across every peer and family</li>
 <li>Fixed several route-loss bugs under backpressure: an overflow buffer stops silent drops when a peer can't keep up, and per-entry cache acknowledgment prevents cumulative eviction from losing routes</li>
