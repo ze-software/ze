@@ -42,21 +42,17 @@ func SupportedTypes() []string {
 	}
 }
 
-// TunnelKindNames returns the canonical list of tunnel encapsulation kind
-// names. Used by UI components that need to enumerate tunnel subtypes.
-func TunnelKindNames() []string {
-	names := make([]string, 0, len(tunnelKindNames))
-	for _, name := range tunnelKindNames {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
 // kernelTunnelKinds is the set of Linux netlink link types reported by the
 // kernel for the tunnel encapsulation kinds Ze supports. Used to map kernel
 // types into the single "tunnel" zeType (the YANG list is one tunnel list
-// regardless of encapsulation).
+// regardless of encapsulation), and by zeManageable (config_apply.go) to say
+// which link types Ze creates and deletes.
+//
+// It must hold every value of kernelLinkTypes (tunnel.go), which is the same
+// mapping the other way. TestKernelTunnelKindsCoversEveryModeledKind pins the
+// two together: "vxlan" was missing here from the day the kind was modeled, so
+// Ze created a vxlan and then refused to delete it, and a vxlan on the host was
+// classified as ethernet by the MAC fallback at the end of infoToZeType.
 var kernelTunnelKinds = map[string]bool{
 	"gre":       true,
 	"gretap":    true,
@@ -65,6 +61,7 @@ var kernelTunnelKinds = map[string]bool{
 	"ipip":      true,
 	"sit":       true,
 	"ip6tnl":    true,
+	"vxlan":     true,
 }
 
 // DiscoverInterfaces enumerates OS network interfaces and classifies them

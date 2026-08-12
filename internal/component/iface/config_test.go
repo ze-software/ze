@@ -2120,6 +2120,12 @@ type routeCall struct {
 	proto     rtproto.Proto
 }
 
+// errFakeLinkExists is what the fake backend answers when a create names a
+// link that already exists. The kernel answers RTM_NEWLINK with EEXIST there,
+// whose Go text is "file exists"; a fake that overwrites instead cannot tell an
+// idempotent apply from one that fails on a real backend.
+var errFakeLinkExists = errors.New("file exists")
+
 // fakeBackend implements Backend for testing config application.
 type fakeBackend struct {
 	ifaces           map[string]fakeIface
@@ -2136,6 +2142,7 @@ type fakeBackend struct {
 	staleRoutes      []RouteInfo // returned by ListRoutes for stale cleanup tests
 	listErr          error       // if non-nil, ListInterfaces returns this instead of enumerating
 	createDummyErr   map[string]error
+	createTunnelErr  map[string]error // per-name CreateTunnel error injection
 	addAddressErr    map[string]error
 	lcpPairs         map[string]string      // vppIface -> hostName recorded by SetupLCPPair
 	macSet           map[string]string      // ifaceName -> mac recorded by SetMACAddress
@@ -2221,11 +2228,52 @@ func (b *fakeBackend) CreateVLAN(spec VLANSpec) error {
 
 func (b *fakeBackend) UpdateVLANQoSMap(_ string, _, _ map[uint32]uint32) error { return nil }
 
+// fakeKernelLinkTypes spells the netlink link type Linux reports for a device
+// of each tunnel kind, so a read-back from this fake carries what the kernel
+// would carry (ip -d link show, netlink.Link.Type()). It is written out here
+// rather than taken from kernelLinkTypes (tunnel.go) on purpose: a fake that
+// reads the production map agrees with a wrong entry in it, and the kept-netdev
+// guard in applyConfig compares against exactly that map.
+var fakeKernelLinkTypes = map[TunnelKind]string{
+	TunnelKindGRE:       "gre",
+	TunnelKindGRETap:    "gretap",
+	TunnelKindIP6GRE:    "ip6gre",
+	TunnelKindIP6GRETap: "ip6gretap",
+	TunnelKindIPIP:      "ipip",
+	TunnelKindSIT:       "sit",
+	TunnelKindIP6Tnl:    "ip6tnl",
+	// ipip6 is the ip6_tunnel driver with the inner protocol set to IPIP; the
+	// kernel reports the driver, not the protocol.
+	TunnelKindIPIP6: "ip6tnl",
+	TunnelKindVxlan: "vxlan",
+}
+
+// fakeUnknownLinkType is the link type the fake leaves behind for a tunnel kind
+// no driver answers to. It is not TunnelKind.String()'s "unknown", which names
+// a KIND with no YANG spelling; this names a LINK TYPE no kernel reports.
+const fakeUnknownLinkType = "unknown"
+
 func (b *fakeBackend) CreateTunnel(spec TunnelSpec) error {
 	b.ensureMaps()
+	if err := b.createTunnelErr[spec.Name]; err != nil {
+		// A refused create leaves no netdev behind, which is what separates
+		// this from the EEXIST case below.
+		return err
+	}
+	if _, exists := b.ifaces[spec.Name]; exists {
+		return errFakeLinkExists
+	}
+	linkType, known := fakeKernelLinkTypes[spec.Kind]
+	if !known {
+		// No driver answers to a kind Ze does not model, so the device such a
+		// spec would leave behind is of no known type. Spelled here rather
+		// than returning an error, because the tests that build a bare
+		// TunnelSpec exercise later phases and not the create itself.
+		linkType = fakeUnknownLinkType
+	}
 	b.created[spec.Name] = true
 	b.tunnels[spec.Name] = spec
-	b.ifaces[spec.Name] = fakeIface{name: spec.Name, linkType: "tunnel-" + spec.Kind.String()}
+	b.ifaces[spec.Name] = fakeIface{name: spec.Name, linkType: linkType}
 	return nil
 }
 

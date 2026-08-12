@@ -1,0 +1,237 @@
+# Test: ze starts a second time over a tunnel netdev its own first run created
+# Exercises: iface OnConfigure -> applyConfig(cfg, nil, b) -> CreateTunnel ->
+#            RTM_NEWLINK EEXIST -> the kept-netdev branch
+#            (internal/component/iface/config_apply.go, D-5/D-6/D-7)
+# VALIDATES: the second start applies cleanly and KEEPS the device the first
+#            start made. The kernel ifindex is carried from the first run to the
+#            second and compared, so "the netdev survives" means the same
+#            device, not merely a device with that name.
+# PREVENTS:  the restart failure this branch exists for. netlink.LinkAdd sends
+#            NLM_F_CREATE|NLM_F_EXCL (vendor/github.com/vishvananda/netlink/
+#            link_linux.go), nothing in internal/component/iface deletes tunnels
+#            when the daemon stops, and OnConfigure runs applyConfig with a nil
+#            previous at EVERY plugin start. So the second start met EEXIST over
+#            ze's own netdev, failed the whole interface apply, and the
+#            fail-closed startup cascade then refused to start the daemon.
+#
+# Why unit evidence cannot reach this obligation: every unit test of the branch
+# runs against fakeBackend (internal/component/iface/config_test.go), whose
+# EEXIST answer and link-type read-back are hand-written. They prove the branch
+# reacts to what the fake says. Only a real kernel says whether RTM_NEWLINK
+# answers EEXIST for a tunnel a dead process left behind, and whether that
+# netdev is still there to answer for.
+#
+# Why the assertion discriminates:
+#  - Revert the kept-netdev branch and the second apply fails on `file exists`,
+#    the startup cascade stops the daemon, the pass 2 observer never runs, and
+#    the seq=3 daemon does not exit 0.
+#  - Replace "keep" with "delete and re-create" and the netdev is a NEW device:
+#    the ifindex differs and pass 2 fails on the comparison, not on absence.
+#  - Break the FIRST run instead and pass 1 fails on its own reading of
+#    /sys/class/net, so a second run that merely creates the tunnel itself
+#    cannot carry the test.
+#
+# The two ze runs are sequential, not concurrent: cmd=stop with signal=term
+# reaps the first daemon before the second starts (internal/test/runner/
+# runner_exec_util.go, stopBackgroundProcess). The first run is a background
+# command so the runner waits for daemon.ready, which cmd/ze/hub/main.go writes
+# only after WaitForStartupComplete -- that is, after the interface apply.
+#
+# The endpoint pair 192.0.2.211 -> 198.51.100.211 is this test's own. The kernel
+# refuses a second tunnel of one driver on a pair it already holds whatever the
+# device is named, and the suites share one VM.
+# TestCITunnelEndpointsAreUniqueAcrossTests
+# (internal/test/runner/tunnel_endpoint_lint_test.go) enforces that. The same
+# interface name appears in both configs below and is one holder there, because
+# one device answers for both runs.
+
+# Creating links needs CAP_NET_ADMIN, not merely Linux (ai/rules/platform-linux.md).
+option=needs-linux:caps=net-admin
+
+tmpfs=iface-tunnel-restart-boot.run:mode=755:terminator=EOF_BOOT
+#!/usr/bin/env python3
+"""First run: assert the tunnel was created, and record its kernel ifindex."""
+
+import sys
+
+from ze_api import API, runtime_fail
+
+NAME = 'trs0'
+IFINDEX_FILE = 'restart-ifindex'
+
+
+def kernel_ifindex():
+    """Read the ifindex the kernel holds for NAME, through sysfs.
+
+    sysfs rather than `show interface`: the second run reads it the same way,
+    and neither reading goes through the code under test.
+    """
+    path = '/sys/class/net/' + NAME + '/ifindex'
+    try:
+        with open(path) as handle:
+            return handle.read().strip()
+    except OSError as exc:
+        runtime_fail(f'first run: {path}: {exc}: the kernel holds no netdev '
+                     f'named {NAME}, so the tunnel was never created')
+        return ''
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    index = kernel_ifindex()
+    with open(IFINDEX_FILE, 'w') as handle:
+        handle.write(index)
+    print(f'OK: tunnel restart pass 1 created {NAME} ifindex {index}',
+          file=sys.stderr)
+
+    # No shutdown request: the runner stops this daemon with cmd=stop, which is
+    # what makes the second run start against a process the OS has torn down.
+    api.wait_for_shutdown(timeout=30.0)
+
+
+if __name__ == '__main__':
+    main()
+EOF_BOOT
+
+tmpfs=iface-tunnel-restart-check.run:mode=755:terminator=EOF_CHECK
+#!/usr/bin/env python3
+"""Second run: assert the apply kept the netdev the first run created."""
+
+import json
+import sys
+
+from ze_api import API, dispatch, runtime_fail, result_text_data
+
+NAME = 'trs0'
+IFINDEX_FILE = 'restart-ifindex'
+
+
+def decoded(resp, label):
+    status = resp.get('status')
+    if status != 'done':
+        runtime_fail(f'{label}: status={status} data={result_text_data(resp)}')
+    data = result_text_data(resp)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    return data
+
+
+def kernel_ifindex():
+    path = '/sys/class/net/' + NAME + '/ifindex'
+    try:
+        with open(path) as handle:
+            return handle.read().strip()
+    except OSError as exc:
+        runtime_fail(f'second run: {path}: {exc}: the netdev the first run '
+                     f'created did not survive the restart')
+        return ''
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        with open(IFINDEX_FILE) as handle:
+            before = handle.read().strip()
+        if not before:
+            runtime_fail('the first run recorded no ifindex, so this run has '
+                         'nothing to compare against')
+
+        after = kernel_ifindex()
+        if after != before:
+            runtime_fail(f'{NAME} ifindex {before} -> {after}: the apply '
+                         f'replaced the netdev instead of keeping it, so every '
+                         f'flow crossing the tunnel was broken by the restart')
+
+        # ze's own read must agree with the kernel: the interface is still
+        # there AND the daemon can see it.
+        every = decoded(dispatch(api, 'show interface'), 'interface-all')
+        if not isinstance(every, list) or not every:
+            runtime_fail(f'interface-all: expected a non-empty list, got {every!r}')
+        present = {i.get('name') for i in every if isinstance(i, dict)}
+        if NAME not in present:
+            runtime_fail(f'{NAME} is in the kernel and absent from `show '
+                         f'interface`, which reported {sorted(present)}')
+
+        print(f'OK: tunnel restart pass 2 kept {NAME} same ifindex {after}',
+              file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_CHECK
+
+# First run's config. The interface stanza is byte-identical to the second
+# run's: only the observer differs, so the restart applies one tunnel config
+# twice.
+stdin=boot:terminator=EOF_BOOT_CONF
+plugin {
+	external iface-tunnel-restart-boot {
+		run ./iface-tunnel-restart-boot.run
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	tunnel trs0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.211; }
+				remote { ip 198.51.100.211; }
+			}
+		}
+	}
+}
+EOF_BOOT_CONF
+
+# Second run's config: same tunnel, the checking observer.
+stdin=restart:terminator=EOF_RESTART_CONF
+plugin {
+	external iface-tunnel-restart-check {
+		run ./iface-tunnel-restart-check.run
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	tunnel trs0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.211; }
+				remote { ip 198.51.100.211; }
+			}
+		}
+	}
+}
+EOF_RESTART_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=boot:name=ze1
+cmd=stop:seq=2:name=ze1:signal=term
+cmd=foreground:seq=3:exec=ze -:stdin=restart:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: tunnel restart pass 1 created trs0 ifindex
+expect=stderr:contains=OK: tunnel restart pass 2 kept trs0 same ifindex
+# The symptom the kept-netdev branch removes. A second start that fails the
+# interface apply logs it and takes the daemon down with it.
+reject=stderr:pattern=file exists
+reject=stderr:pattern=panic

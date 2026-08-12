@@ -78,6 +78,40 @@ func parseTunnelKind(name string) (TunnelKind, bool) {
 	return k, true
 }
 
+// kernelLinkTypes maps each tunnel kind to the netlink link type the kernel
+// reports for a device of that kind. This is the value linkToInfo
+// (internal/plugins/iface/netlink/show_linux.go) copies from netlink.Link.Type()
+// into InterfaceInfo.Type, so it is what a read-back of an existing netdev can
+// be compared against.
+//
+// ipip6 and ip6tnl share one entry: both are the ip6_tunnel driver, and the
+// two differ only by the inner protocol, which the read-back drops. A device
+// reported as "ip6tnl" can therefore be either of them, and no comparison over
+// InterfaceInfo can say which.
+//
+// Related: kernelTunnelKinds (discover.go) maps the same kernel names the other
+// way, for classifying discovered links into the single "tunnel" ze type.
+var kernelLinkTypes = map[TunnelKind]string{
+	TunnelKindGRE:       "gre",
+	TunnelKindGRETap:    "gretap",
+	TunnelKindIP6GRE:    "ip6gre",
+	TunnelKindIP6GRETap: "ip6gretap",
+	TunnelKindIPIP:      "ipip",
+	TunnelKindSIT:       "sit",
+	TunnelKindIP6Tnl:    "ip6tnl",
+	TunnelKindIPIP6:     "ip6tnl",
+	TunnelKindVxlan:     "vxlan",
+}
+
+// kernelLinkType returns the netlink link type the kernel reports for this
+// kind. The second result is false for a kind with no entry, which the callers
+// must treat as "cannot be identified" and fail closed on: an unknown kind
+// names no device, so no existing device can be shown to be one.
+func (k TunnelKind) kernelLinkType() (string, bool) {
+	name, ok := kernelLinkTypes[k]
+	return name, ok
+}
+
 // v6UnderlayKinds enumerates the tunnel kinds whose outer header is IPv6.
 var v6UnderlayKinds = map[TunnelKind]bool{
 	TunnelKindIP6GRE:    true,
@@ -89,20 +123,6 @@ var v6UnderlayKinds = map[TunnelKind]bool{
 // IsV6Underlay reports whether the tunnel uses an IPv6 outer header.
 func (k TunnelKind) IsV6Underlay() bool {
 	return v6UnderlayKinds[k]
-}
-
-// greFamilyKinds enumerates the tunnel kinds that carry a GRE header
-// (and therefore support the optional 32-bit key from RFC 2890).
-var greFamilyKinds = map[TunnelKind]bool{
-	TunnelKindGRE:       true,
-	TunnelKindGRETap:    true,
-	TunnelKindIP6GRE:    true,
-	TunnelKindIP6GRETap: true,
-}
-
-// IsGREFamily reports whether the tunnel uses a GRE header.
-func (k TunnelKind) IsGREFamily() bool {
-	return greFamilyKinds[k]
 }
 
 // bridgeableKinds enumerates the L2 tunnel kinds that carry Ethernet frames

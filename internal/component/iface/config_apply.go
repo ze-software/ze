@@ -329,6 +329,15 @@ func xfrmSpecEqual(a, b XFRMSpec) bool {
 // only those tunnels are deleted-and-recreated; tunnels with unchanged Spec
 // stay up across SIGHUP, preserving any traffic flowing through them.
 //
+// previous describes this process, and a netdev outlives the process that made
+// it. An apply with no previous spec for a name -- daemon start, plugin start,
+// the second apply of a reload that starts the plugin -- therefore meets links
+// an earlier run created, or links an operator made. Every create step below
+// treats a name already held as success and keeps the link. The tunnel step
+// keeps it only when the device is a tunnel of the configured kind and fails
+// the apply otherwise, since keeping a device of another kind would hand the
+// later phases something that is not the configured interface.
+//
 // Returns collected errors. The first mutating failure aborts the apply and
 // rolls back successful steps that have an exact inverse.
 func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
@@ -461,7 +470,40 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateTunnel(e.Spec); err != nil {
-				return err
+				// What holds the name decides. Nothing holds it: the
+				// create failed on its own merits, so report that error. A
+				// tunnel of this kind holds it: the kernel answered EEXIST
+				// for a netdev that outlived the process which made it, so
+				// keep it as the five sibling steps keep theirs, since
+				// rebuilding an identical link would break the traffic
+				// crossing it. created stays false, so the rollback below
+				// cannot delete a netdev this pass did not make. Any other
+				// device holds it, a tunnel of another kind included: fail
+				// the apply, as reconcileOwnedDevices does on that state,
+				// because Phases 2, 2c and 3 would otherwise push this
+				// tunnel's MTU, admin state and addresses onto a device
+				// that is not it. An operator who edits the encapsulation
+				// while ze is down reaches that failure, as they did
+				// before this branch existed: previous is nil at plugin
+				// start, so the edit never reaches the delete-then-create
+				// branch above.
+				//
+				// Only the KIND is checked. InterfaceInfo carries no
+				// encapsulation field, so the WARN says the parameters
+				// were not verified rather than claiming the kept link
+				// agrees with the config.
+				info, getErr := b.GetInterface(e.Name)
+				if getErr != nil {
+					return err
+				}
+				wantType, known := e.Spec.Kind.kernelLinkType()
+				if info == nil || !known || info.Type != wantType {
+					return fmt.Errorf("%w: %q is held by a device of type %s, not by a %s tunnel",
+						err, e.Name, existingLinkType(info), e.Spec.Kind)
+				}
+				log.Warn("iface config: kept existing tunnel netdev, parameters not verified",
+					"name", e.Name, "kind", e.Spec.Kind.String())
+				return nil
 			}
 			created = true
 			return nil
@@ -1118,6 +1160,17 @@ func ownedMacvlanMatchesSpec(cur InterfaceInfo, desired MacvlanSpec, currentByNa
 		}
 	}
 	return true
+}
+
+// existingLinkType names the kind of device a read-back found, for an error
+// that must say what occupies a name. A backend that reports no error and no
+// info is a contract break rather than an empty answer, so it is named as
+// unreadable instead of being spelled as an empty string in the message.
+func existingLinkType(info *InterfaceInfo) string {
+	if info == nil || info.Type == "" {
+		return "unreadable"
+	}
+	return info.Type
 }
 
 func interfaceExists(b Backend, name string) bool {

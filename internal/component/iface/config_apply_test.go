@@ -593,3 +593,208 @@ func TestOwnedMacvlanMatchesSpec_ModeDrift(t *testing.T) {
 		t.Error("unknown mode must be tolerated, not force a needless re-create")
 	}
 }
+
+// tunnelTestConfig returns a one-tunnel GRE config carrying one address, so an
+// apply exercises the create step and the address step over the same netdev.
+func tunnelTestConfig(remote string) *ifaceConfig {
+	return tunnelTestConfigOfKind(TunnelKindGRE, remote)
+}
+
+// tunnelTestConfigOfKind is tunnelTestConfig with the encapsulation kind under
+// the caller's control, for the cases where the kind of the device holding the
+// name is what the assertion is about.
+func tunnelTestConfigOfKind(kind TunnelKind, remote string) *ifaceConfig {
+	return &ifaceConfig{
+		Backend: "fake",
+		Tunnel: []tunnelEntry{
+			{
+				ifaceEntry: ifaceEntry{
+					Name:  "tgre0",
+					Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/30"}}},
+				},
+				Spec: TunnelSpec{
+					Kind:          kind,
+					Name:          "tgre0",
+					LocalAddress:  "192.0.2.1",
+					RemoteAddress: remote,
+				},
+			},
+		},
+	}
+}
+
+// TestApplyTunnelKeepsExistingNetdevWhenPreviousSpecIsLost proves an apply that
+// holds no previous spec for a tunnel succeeds when a tunnel of the configured
+// kind already holds the name, and leaves that netdev alone.
+//
+// The case is a ze RESTART. previous is nil at every plugin start, nothing in
+// this package deletes tunnels when the daemon stops, and netlink.LinkAdd sends
+// NLM_F_CREATE|NLM_F_EXCL (vendor/github.com/vishvananda/netlink/link_linux.go),
+// so the second start meets EEXIST over ze's own netdevs. Before this branch
+// that failed the whole interface apply, and the fail-closed startup cascade
+// then refused to start the daemon.
+//
+// It is NOT the QEMU failure first recorded here. That one was a collision
+// between two tests: test/plugin/iface-tunnel-kinds.ci used the endpoint pairs
+// of test/reload/test-tx-iface-tunnel-create.ci, ran first in the shared VM,
+// and left its links behind. The kernel answers EEXIST on a duplicate
+// local/remote pair whatever the device is named, so moving the endpoints made
+// all three tests pass with no product change.
+//
+// VALIDATES: a second plugin start over ze's own leftover tunnel netdevs
+// applies cleanly.
+// PREVENTS: a restart failing the whole interface apply on EEXIST, and a
+// delete-then-create "fix" breaking the traffic crossing an unchanged tunnel.
+func TestApplyTunnelKeepsExistingNetdevWhenPreviousSpecIsLost(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+
+	require.Empty(t, applyConfig(tunnelTestConfig("198.51.100.1"), nil, b), "first apply must create the tunnel")
+	require.Contains(t, b.tunnels, "tgre0", "first apply must reach the backend")
+
+	// Second apply with no previous view: what OnConfigure does at start, and
+	// what the reload did in QEMU after the plugin had just created the links.
+	errs := applyConfig(tunnelTestConfig("198.51.100.1"), nil, b)
+	require.Empty(t, errs, "an apply meeting a netdev ze already created must succeed")
+	require.Contains(t, b.ifaces, "tgre0", "the netdev must survive the second apply")
+	require.False(t, b.deleted["tgre0"], "an unchanged tunnel must not be deleted and rebuilt")
+	require.Equal(t, "198.51.100.1", b.tunnels["tgre0"].RemoteAddress, "the kept netdev must not be re-created")
+}
+
+// TestApplyTunnelChangedSpecStillReachesTheKernel proves the kept-netdev branch
+// above does not swallow an operator edit: a tunnel whose Spec changed is
+// deleted and re-created, so the new encapsulation reaches the kernel.
+//
+// VALIDATES: a reload is idempotent for an unchanged tunnel WITHOUT becoming
+// blind to a changed one.
+// PREVENTS: "create failed, a link exists, carry on" silently keeping a netdev
+// built from the previous config.
+func TestApplyTunnelChangedSpecStillReachesTheKernel(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+
+	first := tunnelTestConfig("198.51.100.1")
+	require.Empty(t, applyConfig(first, nil, b), "first apply must create the tunnel")
+
+	errs := applyConfig(tunnelTestConfig("198.51.100.9"), first, b)
+	require.Empty(t, errs, "a changed tunnel must apply cleanly")
+	require.True(t, b.deleted["tgre0"], "a changed tunnel must be deleted before it is re-created")
+	require.Equal(t, "198.51.100.9", b.tunnels["tgre0"].RemoteAddress, "the edited remote must reach the backend")
+}
+
+// TestApplyTunnelRollbackDoesNotDeleteAKeptNetdev proves the rollback of a
+// later failing step never deletes a netdev this pass did not create.
+//
+// The create step's rollback deletes the link it made. A pass that KEPT an
+// existing tunnel made nothing, so an unrelated failure downstream (here an
+// address add) must leave the operator's tunnel standing.
+//
+// VALIDATES: the kept-netdev branch leaves `created` false.
+// PREVENTS: a failed reload destroying a tunnel that predates it.
+func TestApplyTunnelRollbackDoesNotDeleteAKeptNetdev(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{
+		ifaces:        map[string]fakeIface{"tgre0": {name: "tgre0", linkType: "gre"}},
+		addAddressErr: map[string]error{addressErrKey("tgre0", "10.0.0.1/30"): errors.New("boom")},
+	}
+
+	errs := applyConfig(tunnelTestConfig("198.51.100.1"), nil, b)
+	require.NotEmpty(t, errs, "the address failure must abort the apply")
+	require.False(t, b.deleted["tgre0"], "rollback must not delete a netdev this pass did not create")
+	require.Contains(t, b.ifaces, "tgre0", "the pre-existing tunnel must survive the rollback")
+}
+
+// TestEveryTunnelKindHasAKernelLinkType proves the guard above can identify a
+// device of every kind Ze models.
+//
+// kernelLinkType returning false makes the apply fail closed, which is the safe
+// direction but the wrong answer for a kind Ze can create: a restart would
+// refuse a tunnel it made itself. A kind added to tunnelKindNames with no entry
+// in kernelLinkTypes fails here rather than in the field.
+func TestEveryTunnelKindHasAKernelLinkType(t *testing.T) {
+	for kind, name := range tunnelKindNames {
+		linkType, known := kind.kernelLinkType()
+		require.True(t, known, "tunnel kind %q has no entry in kernelLinkTypes", name)
+		require.Equal(t, fakeKernelLinkTypes[kind], linkType,
+			"tunnel kind %q must map to the link type the kernel reports", name)
+	}
+}
+
+// TestApplyTunnelFailsWhenAnotherDeviceKindHoldsTheName proves the kept-netdev
+// branch reads the kind of the device it found and fails the apply when that
+// device is not a tunnel at all.
+//
+// EEXIST says a name is taken; it does not say by what. A dummy, a bridge or a
+// physical NIC carrying the configured name is not this tunnel, and keeping it
+// hands Phase 2 its MTU, Phase 2c its admin state and Phase 3 its addresses.
+// reconcileOwnedDevices fails closed on the same state ("name occupied by a
+// non-owned %s device"), and this step now matches it.
+//
+// VALIDATES: the guard is on the device KIND, not on the name being taken.
+// PREVENTS: an operator's dummy0 silently becoming the carrier of a tunnel's
+// addresses because the two share a name.
+func TestApplyTunnelFailsWhenAnotherDeviceKindHoldsTheName(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{ifaces: map[string]fakeIface{"tgre0": {name: "tgre0", linkType: "dummy"}}}
+
+	errs := applyConfig(tunnelTestConfig("198.51.100.1"), nil, b)
+	require.NotEmpty(t, errs, "a foreign device holding the name must fail the apply")
+	require.ErrorContains(t, errors.Join(errs...), `"tgre0" is held by a device of type dummy, not by a gre tunnel`,
+		"the error must name what holds it and what was wanted")
+	require.False(t, b.deleted["tgre0"], "a device ze did not create must never be deleted")
+	require.Empty(t, b.addrs["tgre0"], "the tunnel's addresses must not reach a foreign device")
+}
+
+// TestApplyTunnelFailsWhenTheNameHoldsAnotherTunnelKind proves the same guard
+// separates one encapsulation from another.
+//
+// This is the operator who edits `encapsulation` while ze is down. previous is
+// nil at plugin start, so the changed Spec never reaches the delete-then-create
+// branch: it reaches the create, gets EEXIST, and finds an ipip link under a
+// name the config now calls gre. That config failed loudly before the
+// kept-netdev branch existed and it still does, rather than starting the daemon
+// on the old encapsulation with the new addresses.
+//
+// VALIDATES: kernelLinkTypes is compared against the read-back, not ignored.
+// PREVENTS: an encapsulation edit applied while ze was down being silently
+// dropped, with a WARN as the only trace.
+func TestApplyTunnelFailsWhenTheNameHoldsAnotherTunnelKind(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{ifaces: map[string]fakeIface{"tgre0": {name: "tgre0", linkType: "ipip"}}}
+
+	errs := applyConfig(tunnelTestConfigOfKind(TunnelKindGRE, "198.51.100.1"), nil, b)
+	require.NotEmpty(t, errs, "a tunnel of another kind under the name must fail the apply")
+	require.ErrorContains(t, errors.Join(errs...), `"tgre0" is held by a device of type ipip, not by a gre tunnel`,
+		"the error must name both encapsulations")
+	require.False(t, b.deleted["tgre0"], "the existing tunnel must not be deleted on the failing path")
+}
+
+// TestApplyTunnelReportsTheCreateErrorWhenTheNameIsFree proves the deny path:
+// when the create fails and NOTHING holds the name, the apply reports the
+// kernel's own error.
+//
+// This is the real-world failure the kept-netdev branch must not swallow: a
+// kernel with no driver for the kind answers `operation not supported` and
+// leaves no netdev, which is exactly the state this spec's kernel work was
+// written to remove. The branch is reached only through a successful read-back,
+// so a free name must fall through to the error.
+//
+// VALIDATES: the branch keys on a device being found, never on the create
+// having failed.
+// PREVENTS: a create refused by the kernel being reported as success, which
+// would leave the daemon running with a tunnel that does not exist.
+func TestApplyTunnelReportsTheCreateErrorWhenTheNameIsFree(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{
+		ifaces:          map[string]fakeIface{},
+		createTunnelErr: map[string]error{"tgre0": errors.New("operation not supported")},
+	}
+
+	errs := applyConfig(tunnelTestConfig("198.51.100.1"), nil, b)
+	require.NotEmpty(t, errs, "a refused create must fail the apply")
+	require.ErrorContains(t, errors.Join(errs...), "operation not supported",
+		"the kernel's own error must survive to the caller")
+	require.NotContains(t, errors.Join(errs...).Error(), "is held by",
+		"a free name is not a name conflict")
+	require.NotContains(t, b.ifaces, "tgre0", "no netdev may be reported for a refused create")
+}

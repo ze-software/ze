@@ -358,7 +358,30 @@ the rest of the per-case leaves) are deleted and recreated, because Linux does
 not support in-place modification of most tunnel kinds. The recreate briefly
 drops traffic on the changed tunnel only; unrelated tunnels are not disturbed.
 
+A third case applies when the previously applied config is not available. The
+comparison above reads the config this process applied before, and a netdev
+outlives the process that made it. A tunnel therefore has no previous spec at
+every plugin start, at every daemon start, and in the second apply of a reload
+that starts the interface plugin, so the apply tries to create a link that is
+already there. What holds the name decides the result:
+
+| What holds the name | Result |
+|---------------------|--------|
+| Nothing | The create runs. A failure here is the kernel's own answer, and it fails the apply |
+| A tunnel of the configured kind | Ze keeps it and logs a WARN. The link is not deleted and not rebuilt, so traffic crossing it is not interrupted. Its encapsulation parameters are not compared: the read-back carries the link type and no encapsulation field |
+| Any other device: a dummy, a bridge, a physical NIC, or a tunnel of a different kind | The apply fails. Ze does not delete a device it did not create, and it does not push this tunnel's MTU, admin state and addresses onto a device that is not the tunnel |
+
+<!-- source: internal/component/iface/config_apply.go — applyConfig, the tunnel create step -->
+<!-- source: test/plugin/iface-tunnel-restart.ci — ze runs twice over one tunnel config; the kernel ifindex is compared across the restart -->
+
+The last row is also what an operator meets after editing `encapsulation` while
+the daemon is down. There is no previous spec to compare against, so the edit
+does not reach the delete-and-recreate path. Ze refuses the config instead of
+running the old encapsulation under the new addresses. Delete the tunnel, or
+give the new encapsulation a new interface name.
+
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, indexTunnelSpecs -->
+<!-- source: internal/component/iface/tunnel.go -- kernelLinkTypes, the link type each kind reports -->
 
 ## Tunnel Validation Scope
 
