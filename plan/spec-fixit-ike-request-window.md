@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; window-size negotiation was never in scope and is conditional on a peer that does not exist. Create `plan/deferrals/fixit-ike-request-window.md` on the first deferral) |
-| Updated | 2026-08-04 |
+| Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -567,9 +567,11 @@ No shard is removed by this closure, because none exists. No FOREIGN shard was e
 
 | Field | Value |
 |-------|-------|
-| Artifact | **none recorded -- the gate is NOT satisfied** |
-| `review_gate.py check` | not run. The round produced a BLOCKER, so there is no clean pass to record |
-| Reviewer lenses used | Three independent subagents through `/ze-review`: logic+wiring+removed-behaviour; security+edge-cases+test-vacuity; RFC 7296 conformance+interop |
+| Artifact | `tmp/review/fixit-ike-request-window-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | `review_gate: OK (clean, hashes match)`, 2026-08-12 |
+| Rounds | 2. Round 1 was the three-lens round of 2026-08-03 recorded below. Round 2 is the closure re-verification of 2026-08-12, over code already at HEAD |
+| Verdict | 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | Round 1: three independent subagents through `/ze-review` (logic+wiring+removed-behaviour; security+edge-cases+test-vacuity; RFC 7296 conformance+interop). Round 2: every AC and all seven round-1 findings re-read at their producing functions |
 
 **Round 1 scope, written before the round ran:** the whole five-spec IKE changeset at HEAD
 (`git log --oneline -14 -- internal/component/ike/`), including the sibling call sites of
@@ -691,6 +693,10 @@ first time.
 
 ## CLOSURE REFUSED 2026-08-03 -- the window made a Delete droppable, against an enrolled MUST
 
+**Superseded on 2026-08-12. Every finding below is fixed at HEAD; see "Closure 2026-08-12"
+at the end of this file for where each fix sits. This section is kept as the record of the
+round that found them.**
+
 `/ze-close` re-verified AC-1 through AC-8 against their producing functions and put the
 changeset to three independent reviewer subagents. **This spec is NOT closed.** Everything
 recorded above holds: the slot exists, all seven emitters take it, both release sites sit
@@ -770,3 +776,59 @@ message" and "the one place that has authenticated the message" are different pl
 the first is the tempting one because it is single. Releasing a security-relevant resource
 before authentication hands the attacker the resource. Only one assertion in the whole
 suite could see the difference between a real answer and a datagram that resembled one.
+
+---
+
+## Closure 2026-08-12
+
+The code this spec owns was committed by earlier sessions. This closure reviewed the tree
+at HEAD, not a working-tree diff. Every claim below names the producing function.
+
+### The 2026-08-03 findings, re-verified at HEAD
+
+| # | Finding | Producer at HEAD | Verdict |
+|---|---------|------------------|---------|
+| 1 | A Delete is never remembered and is dropped outright | `PeerSession.writeDelete` (`internal/component/ike/engine/delete.go`) calls `sa.armRequestRetransmit(msg)` after `advanceMsgID`. `sendDeleteIKE` and `sendDeleteESP` both reserve first and route through it | Fixed |
+| 2 | `sendIKESATeardown` spends a Message ID before it reserves | `SA.requestWindowAvailable` (`msgid.go`) is read by `sendIKESATeardown` (`delete.go`) BEFORE `advanceMsgID`, and the reservation still runs after | Fixed |
+| 3 | The goodbye Delete is dropped whenever a probe is in flight | `PeerSession.sayGoodbye` and `PeerSession.waitForRequestWindow` (`established.go`) wait `goodbyeWindowWait` for the answer, then send | Fixed |
+| 4 | `pendingIKESwap` outlives its session | Still true. `runEstablished` (`established.go`) does not clear it; the two clear sites are `handleInformationalOwned` (`inbound.go`) and `recordIKESwap` (`reconcile.go`) | NOT fixed. NOTE severity, and not this spec's producer. Carried to `plan/journal/premature-closure.md` |
+| 5 | Abandoning the outstanding request before the goodbye is itself a Section 2.3 violation | `sayGoodbye` waits rather than releasing. No `releaseRequestWindow` sits on the goodbye path | Fixed |
+| 6 | An unanswered request is forgotten while the SA runs on | `PeerSession.serviceRequestWindow` (`established.go`) sets `sa.State = StateDead`, RFC 7296 Section 2.1's second exit | Fixed |
+| 7 | The deferral queue can never fire | `deferDelete` does not exist in the tree | Fixed, by deletion |
+
+### Acceptance Criteria at HEAD
+
+| AC | Verdict | Producer |
+|----|---------|----------|
+| AC-1 | Met | `SA.reserveRequestWindow` (`msgid.go`). Seven non-test emitters reserve before they read `sa.NextMsgID`: `delete.go` three sites, `dpd.go` one, `established.go` two, `notify_invalid_msgid.go` one |
+| AC-2 | Met | `TestWinOneRequestPerTick`, `TestWinDeleteDefersWhileProbeOutstanding` (`rfc7296_window_test.go`) |
+| AC-3 | Met | `TestWinResponseReleasesSlot` |
+| AC-4 | Met, by the superseding owner ruling | `SA.answerAuthenticatedResponse` (`msgid.go`), called at two post-decrypt sites in `handleOwnedInbound` (`inbound.go`) |
+| AC-5 | Met | `TestWinTeardownDoesNotHang`, three cases |
+| AC-6 | Met | `RFC7296-2.3-2` carries a positive and a negative tag in `rfc7296_window_test.go`, and a second negative in `dpd_test.go` |
+| AC-7 | Met | `RFC7296-2.3-4` carries a positive and two negatives in `rfc7296_window_test.go` |
+| AC-8 | Met | `TestWinOneRequestPerTick`. Its pre-fix red output is recorded under Tests FAIL |
+
+Defect 3 of "What was left to fix" also holds: `TestNegSharedSecretRefusesWrongLength`
+(`rfc7296_negotiation_test.go`) carries no `RFC requirement:` tag at HEAD. The wrong
+`RFC7296-1.3-2` tag is gone, and the comment above the test states why the behaviour earns
+a test and not a tag.
+
+### Gates
+
+| Gate | Run? |
+|------|------|
+| `make ze-verify` | NOT run. The closure session was instructed to run no test suite |
+| `make ze-verify-changed`, `ze-plugin-test`, QEMU, Docker, `bin/ze-test` | NOT run, same instruction |
+| `make ze-ipsec-interop-test` | NOT run. Scenario `24-delete-while-window-held` exists in `test/ipsec-interop/scenarios/` and its recorded pass is the one under "Fixed 2026-08-04" |
+| `make ze-tracked-build-check` | Not applicable. This closure carries no Go |
+| `review_gate.py check` | Run, clean |
+
+The commit script is prepared with `--unverified`, because this is a shared checkout whose
+working tree carries several other sessions' half-finished edits, and this closure changes
+no code.
+
+### What this spec does not claim
+
+The window stays 1 and SET_WINDOW_SIZE is never sent. That is Known Limitations above, and
+it is not deferred work: neither strongSwan nor libreswan implements the negotiation.

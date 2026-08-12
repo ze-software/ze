@@ -84,7 +84,7 @@ leaves the two sides deriving the new IKE SA with different algorithms.
 | `rfc/full/rfc7296.txt` sections 1.3, 2.8.2, 3.3.6 | The obligations, verbatim. The file is line-wrapped |
 | `ai/rules/rfc-compliance.md` | Conformance is not negotiable, and who decides a deviation |
 | `ai/rules/evidence.md` | Cite the producing function, never the caller |
-| `plan/spec-fixit-ike-request-window.md` | The pattern this spec follows, and the shared request-window slot that landed with it |
+| `spec-fixit-ike-request-window` (closed 2026-08-12) | The pattern this spec follows, and the shared request-window slot that landed with it. `SA.reserveRequestWindow` (`internal/component/ike/engine/msgid.go`) is that slot |
 
 ## Current Behavior (MANDATORY)
 
