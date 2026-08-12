@@ -76,7 +76,7 @@ that decreases to a stopping value. Then read `cmd_check` (`scripts/dev/review_g
 and look for a round counter. Neither exists.
 
 **Provenance.** Raised by Thomas on 2026-08-08 while the deferral-shard gate spec
-(`plan/spec-fixit-deferral-shard-gate-reads-only-head.md`) was in design: "this code can
+(`spec-fixit-deferral-shard-gate-reads-only-head`, since closed) was in design: "this code can
 not NOT forever run and find something as code can never be perfect and there will always
 be something to complain about, ie: it will run forever". The rule text and `cmd_check`
 were read to confirm the mechanism before this spec was written. No deferral row: a
