@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3286 files
+Total: 261 design docs, 3288 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1656,6 +1656,7 @@ Total: 261 design docs, 3286 files
 | `internal/plugins/as112/health.go` | `ze ... request as112 healthcheck` command (finding M4) |
 | `internal/plugins/as112/integration_linux_test.go` | end-to-end DNS-serving proof against the real privileged port 53 |
 | `internal/plugins/as112/metrics.go` | as112 Prometheus metrics |
+| `internal/plugins/as112/port_rfc1035_test.go` | serverEndpoints is the one place |
 | `internal/plugins/as112/register.go` | as112 plugin registration, OnConfigure |
 | `internal/plugins/as112/server.go` | as112 DNS server (answer policy, |
 | `internal/plugins/as112/show.go` | show as112 status command |
@@ -1700,6 +1701,7 @@ Total: 261 design docs, 3286 files
 | `internal/core/dnsserver/manager.go` | generic DNS listener lifecycle |
 | `internal/core/dnsserver/matcher.go` | CIDR longest-prefix matcher |
 | `internal/core/dnsserver/rfc4035_test.go` | the authoritative wrapper |
+| `internal/plugins/geodns/compression_rfc1035_test.go` | the harness disables name |
 | `internal/plugins/geodns/server.go` | listener lifecycle, client-IP and |
 | `internal/plugins/geodns/server_rfc1035_transport_test.go` | the datagram size bound |
 | `internal/plugins/geodns/server_rfc7871_test.go` | geodns consumes the EDNS0 |

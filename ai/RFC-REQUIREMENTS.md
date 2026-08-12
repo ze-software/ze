@@ -25,7 +25,7 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 
 ## Coverage by RFC
 
-63 MUST-level requirement(s) still owe work across 172 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+56 MUST-level requirement(s) still owe work across 172 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (0 requirement(s)) counts what is proven ONLY by evidence no `ze-verify` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -200,8 +200,8 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 | `rfc9728` | 7 | 2 | 0 | 5 | 0 | 0 | 0 | **enrolled** |
 | `rfc9830` | 96 | 60 | 0 | 36 | 0 | 0 | 0 | **enrolled** |
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | 0 | **enrolled** |
+| `rfc1035` | 27 | 24 | 0 | 0 | 3 | 3 | 0 | backlog |
 | `rfc7999` | 4 | 0 | 0 | 0 | 4 | 4 | 0 | backlog |
-| `rfc1035` | 27 | 17 | 0 | 0 | 10 | 10 | 0 | backlog |
 | `rfc9190` | 51 | 2 | 0 | 0 | 49 | 49 | 0 | backlog |
 
 ## Audit coverage
