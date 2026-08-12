@@ -664,7 +664,7 @@ ze-validate:
 # of an edit cannot meet: check_cross_package_wiring wants a cross-package
 # caller for every new exported symbol, check_cli_handler_coverage wants a .ci
 # test naming every newly registered command. That already happened once with
-# the checker run by hand (plan/spec-session-scoped-build-artifacts.md: 10
+# the checker run by hand (spec-session-scoped-build-artifacts: 10
 # pre-existing findings pulled into one session's scope), and inside ze-verify
 # it would red a run whose author changed none of it. Same reasoning as
 # ze-ste-check, which stays out of ze-doc-test for the same reason (mk/inventory.mk).

@@ -1,4 +1,4 @@
-// Design: (none — build/test artifact placement; see plan/spec-session-scoped-build-artifacts.md)
+// Design: (none — build/test artifact placement; see spec-session-scoped-build-artifacts, closed)
 
 // Package sessionpath answers one question: where do THIS AI session's build and
 // test artifacts go?
