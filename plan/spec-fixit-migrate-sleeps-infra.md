@@ -60,7 +60,7 @@ the infra-gated cases. Revised Approach signed off 2026-07-16.
 **Re-read these after context compaction:**
 1. This spec file.
 2. `plan/deferrals.md` (the two 2026-07-14 `spec-migrate-plugin-sleeps` rows: bgp-redistribute group + DEFER/KEEP buckets).
-3. `plan/spec-migrate-plugin-sleeps.md` (the completed primitive-migration; its Design Insights hold the conversion recipes).
+3. `spec-migrate-plugin-sleeps` (closed 2026-08-12; the completed primitive-migration, whose Design Insights hold the conversion recipes -- read it from git history).
 4. `test/scripts/ze_api.py` (existing primitives) and `internal/test/runner/` (the runner / engine-step executor).
 
 ## Task
