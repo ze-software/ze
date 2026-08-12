@@ -100,6 +100,15 @@ func typeMatches(qtype uint16, kind recordKind) bool {
 	}
 }
 
+// hdr builds an RR header. The TTL reaches the wire as configured.
+//
+// It is NOT floored against the zone's SOA MINIMUM. RFC 1035 Section 3.3.13
+// asks for that floor, and RFC 2308 (Standards Track, "Updates: 1034, 1035")
+// Section 4 withdraws it: "Despite being the original defined meaning, the
+// first of these, the minimum TTL value of all RRs in a zone, has never in
+// practice been used and is hereby deprecated." MINIMUM's one remaining meaning
+// is the negative-caching TTL, which buildSOA already carries in the SOA it
+// puts in the Authority section.
 func hdr(name string, rrtype uint16, ttl uint32) dns.RR_Header {
 	return dns.RR_Header{Name: name, Rrtype: rrtype, Class: dns.ClassINET, Ttl: ttl}
 }

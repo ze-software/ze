@@ -37,14 +37,29 @@ type Peer interface {
 type AnswerFunc func(msg, r *dns.Msg, p Peer) (send bool)
 
 // Authoritative wraps fn as a dns.HandlerFunc that owns the RFC 1035
-// authoritative-answer shape, the single wire write, and the panic-recovery
-// guard. It shapes msg before fn (so fn builds on a correct base) and
-// re-asserts the same shape after fn (so no answer func can advertise
-// recursion, clear the authoritative bit, or enable compression), then writes
-// msg exactly once when fn returns send=true. If fn panics, onPanic (if
-// non-nil) receives the recovered value and no reply is written -- one bad
-// query can never crash the listener, nor receive a malformed or
+// authoritative-answer shape, the opcode check, the transport size bound, the
+// single wire write, and the panic-recovery guard. It shapes msg before fn (so
+// fn builds on a correct base) and re-asserts the same shape after fn (so no
+// answer func can advertise recursion or clear the authoritative bit), then
+// bounds and writes msg exactly once when fn returns send=true. If fn panics,
+// onPanic (if non-nil) receives the recovered value and no reply is written --
+// one bad query can never crash the listener, nor receive a malformed or
 // accidentally-recursive answer.
+//
+// A query whose opcode is not a standard query never reaches fn: it draws Not
+// Implemented here, before any zone lookup or client resolution, so an opcode
+// Ze does not serve costs one header.
+//
+// RFC 1035 Section 6.4: "If a name server receives an inverse query that it
+// does not support, it returns an error response with the "Not Implemented"
+// error set in the header.  While inverse query support is optional, all name
+// servers must be at least able to return the error response."
+//
+// Ze serves standard queries only, so every other opcode -- inverse query,
+// server status request, notify, update -- draws that same reply. Without the
+// check they fall through to fn, where a name inside a served zone draws a
+// normal answer and a name outside one draws NXDOMAIN. Both claim Ze acted on
+// a request it never implemented.
 func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
 	return func(w dns.ResponseWriter, r *dns.Msg) {
 		defer func() {
@@ -53,14 +68,80 @@ func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
 			}
 		}()
 		msg := new(dns.Msg)
+		if r.Opcode != dns.OpcodeQuery {
+			msg.SetRcode(r, dns.RcodeNotImplemented)
+			shapeAuthoritative(msg)
+			send(w, msg, r)
+			return
+		}
 		msg.SetReply(r)
 		shapeAuthoritative(msg)
 		if !fn(msg, r, w) {
 			return
 		}
 		shapeAuthoritative(msg)
-		_ = w.WriteMsg(msg)
+		send(w, msg, r)
 	}
+}
+
+// send bounds msg for the transport it goes out on, then writes it exactly
+// once.
+//
+// RFC 1035 Section 4.2.1: "Messages carried by UDP are restricted to 512 bytes
+// (not counting the IP or UDP headers).  Longer messages are truncated and the
+// TC bit is set in the header."
+//
+// The bound is a datagram one. Section 4.2.1 is headed "UDP usage" and Section
+// 4.2.2 puts no length ceiling on a stream, so a reply on TCP, DoT or DoH is
+// written whole and never carries TC.
+//
+// Msg.Truncate enables compression on a reply it has to shorten, and measures
+// its octet budget against that compressed form, so the Compress=false half of
+// shapeAuthoritative is deliberately not re-asserted after it. The invariant
+// that matters survives: an answer func still cannot put compression on the
+// wire, because only an oversized reply on a datagram transport gets it and the
+// harness decides that, never fn. Forcing Compress=false back on would pack the
+// reply longer than the budget Truncate measured, which is the bound this
+// function exists to hold.
+func send(w dns.ResponseWriter, msg, r *dns.Msg) {
+	if isDatagram(w) {
+		msg.Truncate(udpReplyLimit(r))
+	}
+	_ = w.WriteMsg(msg)
+}
+
+// isDatagram reports whether the query arrived over a datagram transport, the
+// only transport RFC 1035 Section 4.2.1 bounds.
+//
+// miekg/dns reports a *net.UDPAddr from both of its UDP read paths (the
+// SessionUDP remote address, and the generic PacketConn source address). TCP,
+// DoT and DoH all report a *net.TCPAddr -- DoH through dohResponseWriter, which
+// synthesizes one from the HTTP peer so client-IP policy reads it identically.
+func isDatagram(w dns.ResponseWriter) bool {
+	if w == nil {
+		return false
+	}
+	_, ok := w.RemoteAddr().(*net.UDPAddr)
+	return ok
+}
+
+// udpReplyLimit returns the largest reply, in octets, that can go out over a
+// datagram transport in answer to r.
+//
+// RFC 1035 Section 2.3.4 states the size limit as "UDP messages    512 octets
+// or less", and that is a floor rather than a constant: RFC 6891 Section 6.2.3
+// lets a requestor raise it by advertising its own reassembly buffer in an OPT
+// record, and a responder answers up to the size the requestor offered. A query
+// advertising less than 512 does not lower the bound, so a requestor cannot
+// shrink a reply below what Section 2.3.4 already allows.
+func udpReplyLimit(r *dns.Msg) int {
+	limit := dns.MinMsgSize
+	if opt := r.IsEdns0(); opt != nil {
+		if advertised := int(opt.UDPSize()); advertised > limit {
+			limit = advertised
+		}
+	}
+	return limit
 }
 
 // shapeAuthoritative applies the authoritative-only answer shape -- the
@@ -69,6 +150,12 @@ func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
 // after fn (so no answer func can leave the message non-authoritative,
 // recursion-advertising, or compressed), keeping the whole shape a single
 // invariant defined in exactly one place.
+//
+// One step runs after the last call: send truncates an oversized datagram
+// reply, and Msg.Truncate turns compression back on for exactly those replies
+// because its octet budget is measured against the compressed form. That is the
+// harness's own decision on a reply it must shorten, so what this function
+// guarantees is unchanged -- no answer func can put compression on the wire.
 func shapeAuthoritative(msg *dns.Msg) {
 	msg.Authoritative = true
 	msg.RecursionAvailable = false

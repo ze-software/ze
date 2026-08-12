@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 3,5,6/13 |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard is created only if something is deferred. Create `plan/deferrals/fixit-dns-rfc1035-conformance.md` on the first deferral) |
-| Updated | 2026-07-30 |
+| Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -58,6 +58,69 @@ implementation. `rfc/short/rfc1035.md` records the same reading.
 
 → Constraint: all 27 rows are `prose`-register obligations. Do not re-derive them
 under a keyword scan, because that scan yields zero rows.
+
+### `RFC1035-3.3.13-1` is superseded by RFC 2308. Do not implement it (2026-08-12)
+
+**The SOA MINIMUM TTL floor MUST NOT be implemented.** RFC 2308 (Standards
+Track, March 1998) carries the header `Updates: 1034, 1035`, and its Section 4
+withdraws the RFC 1035 Section 3.3.13 meaning of the field:
+
+> "Despite being the original defined meaning, the first of these, the minimum
+> TTL value of all RRs in a zone, has never in practice been used and is hereby
+> deprecated."
+
+RFC 2308 leaves MINIMUM one meaning, the negative-caching TTL, and geodns
+already serves that: `buildSOA` (`internal/plugins/geodns/server.go`) puts the
+SOA in the Authority section of a negative answer with `SOA.Minimum` as both its
+TTL and its `Minttl`.
+
+The floor WAS implemented on 2026-08-12 and reverted the same day. What it cost
+while it stood is worth recording, because it is what the deprecation is about:
+the default MINIMUM of 300 raised every record configured below 300 seconds, and
+`TestRFC2181_RRSetEqualTTL` (`internal/plugins/geodns/server_test.go`) went red
+with `RRSet TTL = 300, want the configured 120`. Ze's own YANG leaf is already
+described as `"SOA minimum / negative-cache TTL seconds"`, the RFC 2308 reading.
+
+→ Decision: `hdr` stamps the configured TTL and applies no floor. The reason
+lives in its doc comment, so the next reader who finds Section 3.3.13 meets the
+update that withdrew it.
+
+→ Constraint: **enrolment status is not a reason to prefer an older RFC.** The
+instruction that started this work said to implement Section 3.3.13 "since RFC
+1035 is what is enrolled here". That was wrong. `ai/rules/rfc-compliance.md`
+puts the RFC TEXT first, and the governing text is the later one.
+
+→ Constraint: no annotation kind can express this, so none was applied. The
+reason is a gap in the ledger itself, recorded in its own section below.
+
+### Structural gap: the ledger cannot say "a later RFC withdrew this"
+
+**This is a property of the requirement ledger, not a fact about RFC 1035.** It
+recurs for every summary carrying an obligation a later Standards-Track RFC
+withdrew, and RFC 1035 is unlikely to be the only one: `Updates:` and
+`Obsoletes:` headers are ordinary in the corpus.
+
+`scripts/dev/rfc_requirements.py` holds two closed vocabularies, both validated
+at parse time, and neither carries the RFC-to-RFC relation:
+
+| Vocabulary | Values | Why none fits |
+|------------|--------|---------------|
+| `ANNOTATION_KINDS` (a requirement row in `rfc/short/<stem>.md`) | `not-applicable`, `gap`, `single-polarity` | `{not-applicable}` claims the obligation misses Ze's role. False: Ze is the authoritative server the section addresses. `{gap}` publishes a debt that does not exist, and `check_status_agreement` carries it onto the public Remaining count as an unmet MUST |
+| `EXCLUSION_KINDS` (an extraction site in `rfc/extraction/<stem>.json`) | `not-a-requirement`, `binds-another-role`, `duplicate-of`, `cross-document`, `advisory-in-context`, `relocated-to-spec` | `advisory-in-context` says the sentence is advisory in ITS OWN document, which is the wrong axis: the text binds in RFC 1035 and a different document withdrew it. `cross-document` is closest and still says the obligation belongs elsewhere, not that it was retired |
+
+A withdrawn requirement is neither inapplicable, nor owed-and-missing, nor
+someone else's. It is settled, and the ledger has no word for settled.
+
+→ Decision: nothing was annotated, and `RFC1035-3.3.13-1` stays the unproven row
+it was before this work. Nothing false is published, because rfc1035 is not
+enrolled. The absence of the floor is held by a test instead
+(`TestRFC2308_NoZoneWideTTLFloor`, `internal/plugins/geodns/server_rfc1035_test.go`).
+
+→ Constraint: adding a `superseded` kind is its own work with its own owner
+decision. It would need the superseding RFC's stem and section as required
+fields, so the annotation carries its grounds rather than an assertion, and it
+would have to be refused for a stem whose superseding document is not in the
+repo.
 
 ## Work Package Partition
 
@@ -406,9 +469,9 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-2 | A UDP query whose complete reply is at most 512 octets | The reply is complete and TC is clear. This is the negative polarity for AC-1. |
 | AC-3 | A TCP, DoT, or DoH query whose reply exceeds 512 octets | The reply is complete and TC is clear. `TestDoHIgnoresEDNSUDPSize` stays green. |
 | AC-4 | A UDP reply truncated mid-answer for a negative answer | No partial record is emitted and the zone SOA survives in the Authority section. |
-| AC-5 | A geodns A record whose configured TTL is below the zone SOA MINIMUM | The emitted TTL equals the SOA MINIMUM. Positive tag for `RFC1035-3.3.13-1`. |
-| AC-6 | A geodns A record whose configured TTL is above the zone SOA MINIMUM | The emitted TTL equals the record TTL, unchanged. This is the negative polarity for AC-5. |
-| AC-7 | An as112 reply | Every emitted TTL is at least the zone SOA MINIMUM. The `soaMinTTL` and `zoneTTL` equality is asserted so it cannot drift silently. |
+| ~~AC-5~~ | ~~A geodns A record whose configured TTL is below the zone SOA MINIMUM~~ | ~~The emitted TTL equals the SOA MINIMUM. Positive tag for `RFC1035-3.3.13-1`.~~ VOID 2026-08-12: RFC 2308 Section 4 deprecates the floor. See "`RFC1035-3.3.13-1` is superseded by RFC 2308". |
+| AC-6 | A geodns A record whose configured TTL is below or above the zone SOA MINIMUM | The emitted TTL equals the record TTL, unchanged, in both cases. No floor is applied. |
+| ~~AC-7~~ | ~~An as112 reply~~ | ~~Every emitted TTL is at least the zone SOA MINIMUM.~~ VOID 2026-08-12, same reason. The `soaMinTTL` and `zoneTTL` equality is a coincidence with no obligation behind it. |
 | AC-8 | A configured TTL outside 0..2147483647 | The config is rejected at validate time with the offending value named. Positive and negative tags for `RFC1035-2.3.4-1`, `RFC1035-4.1.3-1`. |
 | AC-9 | A query carrying an opcode Ze does not support, including an inverse query | The reply carries RCODE 4 Not Implemented. Positive tag for `RFC1035-6.4-1`. |
 | AC-10 | A standard QUERY opcode | The query is answered as usual and never draws Not Implemented. This is the negative polarity for AC-9. |
