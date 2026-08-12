@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 3,5,6/13 |
+| Phase | WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 landed; WP-4 and two escalations open |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard is created only if something is deferred. Create `plan/deferrals/fixit-dns-rfc1035-conformance.md` on the first deferral) |
 | Updated | 2026-08-12 |
 
@@ -92,6 +92,60 @@ puts the RFC TEXT first, and the governing text is the later one.
 
 → Constraint: no annotation kind can express this, so none was applied. The
 reason is a gap in the ledger itself, recorded in its own section below.
+
+### Position on 2026-08-12: 24 of 27 rows proven, 3 open
+
+`rfc/requirements/rfc1035.md` is the measurement. WP-1, WP-3 and the
+`RFC1035-2.3.4-1` half of WP-2 landed earlier that day; WP-5, WP-6, WP-7 and
+`RFC1035-4.1.3-1` landed in three commits after it. Every one of the 21 rows in
+those packages carries a positive and a negative tagged test, and every test was
+proven to discriminate by breaking the behaviour it names and watching that
+named test go red.
+
+Two obligations had no code path at all and now do. `shapeAuthoritative` holds
+the Z field (and the AD bit RFC 4035 took from it) to zero, which no answer func
+could be stopped from setting before. `parseConfig` bounds every configured name
+to the two size limits of section 3.1, including the `ns<N>.<zone>` glue name it
+synthesizes and no config leaf holds; `parseSOA` and the YANG `minimum` leaf
+bound the one SOA field that reaches the wire as a TTL.
+
+Three rows remain, and each is a different kind of open.
+
+| Row | Kind | State |
+|-----|------|-------|
+| `RFC1035-3.3.13-1` | settled, unrecordable | RFC 2308 section 4 withdrew it. Held by `TestRFC2308_NoZoneWideTTLFloor` and by the section above. The ledger has no word for "superseded" |
+| `RFC1035-4.1.1-3` | a real gap, escalated | Neither responder emits RCODE 3 for a name in a zone it serves, and its only RCODE 3 carries AA=1 for a name it serves no zone for. See the section below |
+| `RFC1035-4.2-1` | not implemented | Zone transfer. WP-4, untouched, and the partition above splits cleanly at WP-4a |
+
+### `RFC1035-4.1.1-3` has no honest test, and the reason is a defect
+
+RFC 1035 section 4.1.1 defines RCODE 3 as "Name Error - Meaningful only for
+responses from an authoritative name server, this code signifies that the domain
+name referenced in the query does not exist."
+
+`answerQuestions` (`internal/plugins/geodns/server.go`) answers a name inside a
+served zone that has no record with NOERROR plus the zone SOA. RFC 2308 section
+2 reserves that shape for a name which EXISTS and holds no data of the requested
+type, so a name that is simply absent from the zone draws the wrong code.
+`internal/plugins/as112/zones.go` has the same shape. The only path to RCODE 3 in
+either responder is `matchZone` finding no zone at all, and `shapeAuthoritative`
+then stamps AA=1 on that reply.
+
+So Ze's one Name Error says two things it cannot support at once: that Ze is the
+authority for a name it serves no zone for, and that the name exists nowhere.
+Writing a positive tagged test against either half would pin the defect with a
+green bar on it, so no tag was written.
+
+→ Decision required from Thomas. The NXDOMAIN/NODATA split is client-dependent
+in geodns, because a host-set is chosen by source prefix and "the name does not
+exist" is therefore not a property of the zone alone. The out-of-zone half
+reaches as112, whose RFC 7534 behaviour is separately enrolled. Both halves
+change what every operator and every existing test sees. The question is which
+way he wants each fixed, never whether to leave them.
+
+→ Constraint: the row stays unproven and unannotated until he answers.
+`ai/rules/rfc-compliance.md` reserves the classification to him, and rfc1035 is
+not enrolled, so nothing false is published meanwhile.
 
 ### Structural gap: the ledger cannot say "a later RFC withdrew this"
 
