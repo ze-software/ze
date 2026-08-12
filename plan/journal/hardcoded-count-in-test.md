@@ -2,3 +2,4 @@
 |------|------|---------|---------|-----|
 | 2026-03-21 | - | tests | `assert len(rpcs) == 14` broke on every feature addition | replaced literal with registry query |
 | 2026-03-21 | - | tests | two sessions added features, both broke the same count assertion | used `>= min_expected` with documented floor |
+| 2026-08-12 | - | verify stage golden | `stagesForMode` gained a `ze-relax-census` stage in both mode branches (`scripts/status/verify_run.go`, commit `a26dfb154`) and neither hand-duplicated golden list in `verify_run_test.go` was updated, so `TestStagesForModeMatchesGolden` was red at HEAD for every session that ran `./scripts/status` | added the stage to both goldens, in the position the code lists it. The test's own guidance names this two-sided edit; only the second side was missing |
