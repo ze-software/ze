@@ -594,7 +594,14 @@ func (s *Server) replyContext() context.Context {
 }
 
 // Stop signals the server to stop and cleans up resources.
+//
+// An in-flight config transaction is stood down FIRST, and given a bounded
+// moment to unwind (stopTransaction, reload.go). cleanup closes every plugin
+// connection, and the transaction is still using them. Closed under it, the
+// bridge reads each connection as a crashed plugin. That elects a rollback,
+// which restarts plugins the next line is about to kill.
 func (s *Server) Stop() {
+	s.stopTransaction(txShutdownGrace)
 	if s.cancel != nil {
 		s.cancel()
 	}

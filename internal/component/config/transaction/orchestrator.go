@@ -52,6 +52,28 @@ const (
 // errConfigWriteFailed is a sentinel for config file write failure tests.
 var errConfigWriteFailed = errors.New("config write failed")
 
+// ErrShutdown is the cancellation CAUSE a caller sets, through
+// context.WithCancelCause, when it stops a transaction because the process is
+// going down. It is not an ordinary cancellation and it is not a plugin
+// failure. Execute unwinds, and it emits no abort and no rollback:
+//
+//   - there is no running system left to restore, and every participant is
+//     about to be killed, so the rollback fan-out and the broken-plugin
+//     RESTART it can trigger are work started on processes that are exiting;
+//   - the same events tell operators a plugin crashed when nothing crashed.
+//
+// An ordinary cancellation still rolls back. A reload whose own deadline
+// expires mid-apply leaves participants half-applied inside a daemon that
+// keeps running, and that daemon must be told to undo it.
+var ErrShutdown = errors.New("config transaction canceled by shutdown")
+
+// canceledByShutdown reports whether ctx carries ErrShutdown as its
+// cancellation cause. context.Cause returns the ctx error itself when no
+// cause was set, so a plain cancel and a deadline both answer false here.
+func canceledByShutdown(ctx context.Context) bool {
+	return errors.Is(context.Cause(ctx), ErrShutdown)
+}
+
 // Participant describes a plugin participating in a config transaction.
 type Participant struct {
 	Name             string
@@ -204,6 +226,9 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 
 	// Phase 1: Verify.
 	if err := o.runVerify(ctx, diffs); err != nil {
+		if canceledByShutdown(ctx) {
+			return o.abortForShutdown("verify", err)
+		}
 		o.publishAbort(err.Error())
 		return &TxResult{State: StateAborted, Err: err}
 	}
@@ -211,6 +236,9 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 	if o.operationPlanner != nil {
 		ops, err := o.operationPlanner(ctx, OperationPlanRequest{TransactionID: o.txID, Diffs: diffs})
 		if err != nil {
+			if canceledByShutdown(ctx) {
+				return o.abortForShutdown("operation planning", err)
+			}
 			o.publishAbort(err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
@@ -235,6 +263,9 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 
 	// Phase 2: Apply.
 	if err := o.runApply(ctx, diffs); err != nil {
+		if canceledByShutdown(ctx) {
+			return o.abortForShutdown("apply", err)
+		}
 		o.publishRollback(err.Error())
 		o.collectRollbackAcks(ctx)
 		return &TxResult{State: StateRolledBack, Err: err}
@@ -463,15 +494,24 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 	o.mu.Unlock()
 	executor.SetDeadlineMS(time.Now().Add(deadline).UnixMilli())
 	if err := executor.Verify(ctx, sorted); err != nil {
+		if canceledByShutdown(ctx) {
+			return o.abortForShutdown("operation verify", err)
+		}
 		o.publishAbort(err.Error())
 		return &TxResult{State: StateAborted, Err: err}
 	}
 	if err := executor.Execute(ctx, sorted); err != nil {
+		if canceledByShutdown(ctx) {
+			return o.abortForShutdown("operation apply", err)
+		}
 		o.publishRollback(err.Error())
 		o.collectRollbackAcks(ctx)
 		return &TxResult{State: StateRolledBack, Err: err}
 	}
 	if err := executor.Commit(ctx, sorted); err != nil {
+		if canceledByShutdown(ctx) {
+			return o.abortForShutdown("operation commit", err)
+		}
 		o.publishRollback(err.Error())
 		o.collectRollbackAcks(ctx)
 		return &TxResult{State: StateRolledBack, Err: err}
@@ -665,6 +705,18 @@ func (o *TxCoordinator) publishAbort(reason string) {
 		"config commit aborted during verify: "+reason,
 		map[string]any{"reason": reason, "phase": "verify"},
 	)
+}
+
+// abortForShutdown ends the transaction and emits no event. The returned
+// error wraps ErrShutdown, so the reload caller can tell a canceled
+// transaction from a failed one and report it as such.
+func (o *TxCoordinator) abortForShutdown(phase string, err error) *TxResult {
+	logger().Info("config transaction canceled by shutdown",
+		"tx", o.txID, "phase", phase, "error", err)
+	return &TxResult{
+		State: StateAborted,
+		Err:   fmt.Errorf("%w during %s: %w", ErrShutdown, phase, err),
+	}
 }
 
 func (o *TxCoordinator) publishRollback(reason string) {

@@ -406,6 +406,26 @@ If the current transaction completes, the queued SIGHUP fires. If a second SIGHU
 arrives while one is already queued, it replaces the queued one (only the latest
 config matters).
 
+### Shutdown while a transaction runs
+
+The transaction owns the plugin connections. The daemon MUST NOT close them
+under a running transaction. A closed connection is indistinguishable from a
+crashed plugin, so the orchestrator reads a shutdown as a wave of crashes. It
+then elects a rollback and restarts plugins the same shutdown is about to kill.
+
+Shutdown therefore cancels the transaction and waits for it. It also names the
+reason: the cancellation CAUSE is `transaction.ErrShutdown`. A transaction
+canceled with that cause emits no abort and no rollback, because there is no
+running system left to restore.
+
+The wait is bounded at 3 seconds. After that the connections close anyway: a
+shutdown that hangs on a stuck reload is worse than the log noise the wait
+removes.
+
+Any OTHER cancellation still rolls back. A reload that exceeds its own
+30-second deadline leaves participants half-applied inside a daemon that keeps
+running, and that daemon must be told to undo the change.
+
 ---
 
 ## 7. Apply Journal

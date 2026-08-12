@@ -13,15 +13,18 @@ import (
 )
 
 // findReportError returns the first active report.Issue matching the given
-// source and code. Tests use it to assert the orchestrator pushed a
-// report-bus entry alongside the stream event. The helper filters on the
-// subject as well so tests with multiple transactions (or overlapping
-// re-runs within the package's single process-wide report store) stay
-// deterministic.
-func findReportError(source, code, subject string) *report.Issue {
+// code. Tests use it to assert the orchestrator pushed a report-bus entry
+// alongside the stream event. The helper filters on the subject as well, so a
+// test with several transactions stays deterministic. Re-runs that overlap
+// within the package's one process-wide report store do too.
+//
+// The source is always reportSourceConfig: this package raises under no other
+// one, so taking it as a parameter only gave every call site the same word to
+// repeat.
+func findReportError(code, subject string) *report.Issue {
 	issues := report.Errors(0)
 	for i := range issues {
-		if issues[i].Source == source && issues[i].Code == code && issues[i].Subject == subject {
+		if issues[i].Source == reportSourceConfig && issues[i].Code == code && issues[i].Subject == subject {
 			return &issues[i]
 		}
 	}
@@ -1199,7 +1202,7 @@ func TestCommitAbortRaisesReportError(t *testing.T) {
 		t.Fatalf("state = %s, want %s", result.State, StateAborted)
 	}
 
-	issue := findReportError(reportSourceConfig, reportCodeCommitAborted, txID)
+	issue := findReportError(reportCodeCommitAborted, txID)
 	if issue == nil {
 		t.Fatalf("report bus missing commit-aborted entry for tx %s; have %d errors", txID, len(report.Errors(0)))
 	}
@@ -1264,7 +1267,7 @@ func TestCommitRollbackRaisesReportError(t *testing.T) {
 		t.Fatalf("state = %s, want %s", result.State, StateRolledBack)
 	}
 
-	issue := findReportError(reportSourceConfig, reportCodeCommitRollback, txID)
+	issue := findReportError(reportCodeCommitRollback, txID)
 	if issue == nil {
 		t.Fatalf("report bus missing commit-rollback entry for tx %s; have %d errors", txID, len(report.Errors(0)))
 	}
@@ -1328,7 +1331,7 @@ func TestCommitSaveFailedRaisesReportError(t *testing.T) {
 		t.Error("Saved = true, want false (writer returned an error)")
 	}
 
-	issue := findReportError(reportSourceConfig, reportCodeCommitSaveFail, txID)
+	issue := findReportError(reportCodeCommitSaveFail, txID)
 	if issue == nil {
 		t.Fatalf("report bus missing commit-save-failed entry for tx %s; have %d errors", txID, len(report.Errors(0)))
 	}

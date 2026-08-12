@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -33,10 +35,18 @@ type affectedPlugin struct {
 
 // txLock enforces one config transaction at a time.
 // CLI/API commits are rejected when locked. SIGHUP is queued.
+//
+// It also holds the handle Stop needs to stand down a running transaction.
+// cancel stops it, and done reports when it has unwound. The transaction owns
+// the plugin connections cleanup is about to close. Closed under it, the
+// bridge reads every connection as a crashed plugin (config_tx_bridge.go,
+// the conn == nil arm of subscribePhase).
 type txLock struct {
 	mu     sync.Mutex
 	locked bool
 	sighup bool
+	cancel context.CancelCauseFunc
+	done   chan struct{}
 }
 
 // tryAcquire attempts to acquire the transaction lock. Returns false if already held.
@@ -47,13 +57,37 @@ func (l *txLock) tryAcquire() bool {
 		return false
 	}
 	l.locked = true
+	l.done = make(chan struct{})
 	return true
 }
 
-// release releases the transaction lock.
+// setCancel records the cancel function of the transaction now holding the
+// lock. The holder calls it right after tryAcquire.
+func (l *txLock) setCancel(cancel context.CancelCauseFunc) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.cancel = cancel
+}
+
+// inFlight returns the running transaction's cancel function and its done
+// channel, or (nil, nil) when no transaction holds the lock. cancel is nil in
+// the window between tryAcquire and setCancel. done is not nil there, so a
+// caller that waits on done still covers that window.
+func (l *txLock) inFlight() (context.CancelCauseFunc, <-chan struct{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.cancel, l.done
+}
+
+// release releases the transaction lock and wakes anyone waiting on done.
 func (l *txLock) release() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.done != nil {
+		close(l.done)
+		l.done = nil
+	}
+	l.cancel = nil
 	l.locked = false
 }
 
@@ -149,13 +183,55 @@ func (s *Server) ReloadConfig(ctx context.Context, newTree map[string]any) error
 	return s.reloadConfig(ctx, newTree)
 }
 
+// txShutdownGrace bounds how long Stop waits for a canceled transaction to
+// unwind before it closes the plugin connections anyway. A canceled
+// transaction emits no event and returns on its next select, so this is a
+// backstop and not a budget. It matches the daemon's own 3-second shutdown
+// budget (cmd/ze/hub/main.go, stopCtx). A shutdown that can hang forever on a
+// stuck reload is worse than the noise the wait removes.
+const txShutdownGrace = 3 * time.Second
+
+// stopTransaction cancels the in-flight config transaction, if there is one,
+// and waits for it to unwind. Stop calls it BEFORE cleanup closes the plugin
+// connections, because the transaction is still using them.
+//
+// The cause is transaction.ErrShutdown, which is what makes the orchestrator
+// skip its rollback and its broken-plugin restart (orchestrator.go,
+// canceledByShutdown). Cancellation alone would not: an apply interrupted for
+// any other reason must still roll back.
+func (s *Server) stopTransaction(grace time.Duration) {
+	cancel, done := s.txLock.inFlight()
+	if done == nil {
+		return
+	}
+	logger().Info("shutdown: canceling in-flight config transaction")
+	if cancel != nil {
+		cancel(transaction.ErrShutdown)
+	}
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		logger().Warn("shutdown: config transaction did not unwind in time, closing plugin connections anyway",
+			"grace", grace)
+	}
+}
+
 // reloadConfig is the internal implementation of ReloadConfig.
 func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error {
 	// Prevent concurrent reloads via transaction lock.
 	if !s.txLock.tryAcquire() {
 		return ErrReloadInProgress
 	}
-	defer s.txLock.release()
+	// Publish the cancel handle so Stop can stand this transaction down
+	// instead of pulling the plugin connections out from under it.
+	ctx, cancelTx := context.WithCancelCause(ctx)
+	s.txLock.setCancel(cancelTx)
+	defer func() {
+		cancelTx(nil)
+		s.txLock.release()
+	}()
 
 	if s.reactor == nil {
 		return errNoReactorConfigured
@@ -261,6 +337,14 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	// same state machine it uses for real plugin-reported failures.
 	logger().Info("config reload: verify+apply phase", "plugins", len(affected))
 	if err := s.runTxCoordinator(ctx, affected, diff, running, newTree); err != nil {
+		if errors.Is(err, transaction.ErrShutdown) {
+			// Not a failure: Stop stood this transaction down. A WARN here
+			// would say the reload was refused when it was interrupted.
+			// The auto-loaded plugins below are not stopped either, because
+			// cleanup is about to kill those processes.
+			logger().Info("config reload: canceled by shutdown", "error", err)
+			return err
+		}
 		logger().Warn("config reload: transaction failed", "error", err)
 		if len(autoLoaded) > 0 {
 			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
