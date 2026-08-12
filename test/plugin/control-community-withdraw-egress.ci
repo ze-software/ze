@@ -1,15 +1,24 @@
-# rs-control-community-withdraw-egress -- the RFC 7947 sibling of
-# wellknown-no-export-withdraw-egress.ci, on the route-server fast-path rail.
+# control-community-withdraw-egress -- the GENERAL forward rail's copy of
+# rs-control-community-withdraw-egress.ci, which asserts the same behavior on the
+# route-server fast-path rail.
+#
+# WHY BOTH. reactorForwardRS (forward_rs.go) and forwardUpdateCore
+# (reactor_api_forward.go) both answer the RFC 7947 control-community question, and which
+# one answers it is decided by the SOURCE peer's rs-fast-path flag, not by anything the
+# operator asked about withdrawals. The two rails MUST therefore stay behaviorally
+# identical, and they did not: the route-server rail sent a refused client its withdrawals
+# while this rail dropped them. This file is the copy of that assertion with the fast path
+# OFF, so a fix landing on one rail only cannot go green.
 #
 # WHAT IT GUARDS. A ze route-server control community names a whitelist or a blacklist of
 # CLIENT ASNs, and wireu.ParseCommunityPolicy reads it off the ANNOUNCED route's COMMUNITY
 # attribute. CommunityPolicy.ShouldForwardTo is therefore a decision about ONE ROUTE, while
-# reactorForwardRS applies it to a whole MESSAGE. One UPDATE can carry both halves -- RFC
-# 7606 Section 5.1 tells a sender not to emit that shape and ze must still handle it on
-# receipt (wireu.MixesNLRIFields) -- and the Withdrawn Routes field carries no attributes,
-# so it was tagged by nobody. Refusing the whole message leaves the excluded client holding
-# a prefix an earlier UPDATE did advertise to it and ze can no longer take back until the
-# session resets.
+# the rail applied it to a whole MESSAGE. One UPDATE can carry both halves -- RFC 7606
+# Section 5.1 tells a sender not to emit that shape and ze must still handle it on receipt
+# (wireu.MixesNLRIFields) -- and the Withdrawn Routes field carries no attributes, so it was
+# tagged by nobody. Refusing the whole message leaves the excluded client holding a prefix
+# an earlier UPDATE did advertise to it and ze can no longer take back until the session
+# resets.
 #
 # RFC 7947 requires per-client import and export policy and places no normative requirement
 # on these communities: the control convention is ze's own (wireu.StripControlCommunities).
@@ -17,9 +26,10 @@
 # `RFC requirement:` tag.
 #
 # WHY A .ci AND NOT ONLY THE UNIT TESTS. The unit tests
-# (TestForwardRSWithdrawsFromClientRefusedByControlCommunity) prove the rail splits the
-# message. Only a running daemon proves the withdrawal reaches a socket while the
-# announcement does not, and the egress rail is where a stranded route actually happens.
+# (TestForwardWithdrawsFromClientRefusedByControlCommunity, and the rails-agree test beside
+# it) prove the rail splits the message. Only a running daemon proves the withdrawal reaches
+# a socket while the announcement does not, and the egress rail is where a stranded route
+# actually happens.
 #
 # NON-VACUITY (ai/rules/interop-and-goal-validation.md). Three controls, and the reject rule
 # covers the leak in the other direction:
@@ -35,7 +45,9 @@
 # the mixed UPDATE was already decided.
 
 # ONE peer process holds all three sessions, and the conn number is the peer's address
-# rather than the order ze happened to connect in (option=conn_map, peer_connmap.go).
+# rather than the order ze happened to connect in (option=conn_map, peer_connmap.go). Three
+# separate ze-peer processes would be simpler to read and are NOT usable here: the barrier
+# below is per-batch, so it exists only inside one process.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=3
 option=timeout:value=30s
@@ -44,21 +56,23 @@ option=bind:value=0.0.0.0
 # (included): remote-ip sorts the accepted batch by TCP source address, which is each peer's
 # `local ip` below.
 option=conn_map:value=remote-ip
-# THE BARRIER, and this test was unsound without it. bgp-rs registers a client as a forward
-# target at its state=up event and takes its peer-up cut there, and ze emits the End-of-RIB
-# only after that peer's initial sync, so the EoR is the first frame proving the client is a
-# live target. Without the barrier the source's UPDATE can be forwarded while a client is
+# THE BARRIER, and this test is unsound without it. ze emits its End-of-RIB to a peer only
+# after that peer's initial sync, so the EoR is the first frame proving the peer is a live
+# forward target. Without the barrier the source's UPDATE can be forwarded while a client is
 # still coming up, and that client then loses the WITHDRAWAL for good: an announcement is
 # replayed from the Adj-RIB-In when the session comes up, and a withdrawal has nothing to
-# replay from. Measured on 2026-08-12, before the barrier was added: this file failed about
-# one run in four, always on the client that lost the withdrawal. Same reasoning, and the
-# same option, as rfc7606-relay-one-field.ci.
+# replay from. Measured before the barrier was added: this file and its route-server sibling
+# each failed about one run in four, always on the client that lost the withdrawal. Same
+# reasoning, and the same option, as rfc7606-relay-one-field.ci.
 option=await_eor:value=true
 # The peers must outlive the assertions: a source that closes makes ze withdraw its routes,
 # which would deliver the clients messages they never asked for.
 option=linger:value=true
 
-# conn=1, the SOURCE -- external, AS 65001, on 127.0.0.1.
+# conn=1, the SOURCE -- external, AS 65001, on 127.0.0.1. NO rs-fast-path in its config
+# below: that flag is what selects the route-server rail, so its absence is what puts this
+# test on the general one.
+#
 # seq=1 -- the MIXED UPDATE. Withdrawn Routes = 198.51.100.0/24 (18C63364). NLRI =
 # 10.0.0.0/24 (180A0000) with ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1,
 # LOCAL_PREF=100, COMMUNITY=0:65002 (0000FDEA). The 0:X form is the ze route-server
@@ -92,7 +106,7 @@ EOF_PEER
 
 # Observer: hold the daemon up until the fence has reached the excluded client, which proves
 # the mixed UPDATE ahead of it was already decided, then count what each client was sent.
-tmpfs=rs-community-withdraw.run:mode=755:terminator=EOF_RUN
+tmpfs=control-community-withdraw.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Sequence shutdown behind the fence route reaching the excluded client."""
 import sys
@@ -147,11 +161,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	internal rs {
-		use bgp-rs
-	}
-	external rs-community-withdraw {
-		run ./rs-community-withdraw.run
+	external control-community-withdraw {
+		run ./control-community-withdraw.run
 		encoder json
 	}
 }
@@ -172,7 +183,6 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
-			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -180,14 +190,10 @@ bgp {
 				graceful-restart disable
 			}
 		}
-		# The source-side flag that selects the fast-path rail (reactorForwardRS)
-		# instead of the bgp-rs ForwardCached chain; see
-		# bgp-rs-community-strip-multi-fastpath.ci for why the gate is source-side.
 		behavior {
 			group-updates disable
-			rs-fast-path enable
 		}
-		process rs-community-withdraw {
+		process control-community-withdraw {
 			receive [ update state ]
 		}
 	}
@@ -208,7 +214,7 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			# LOAD-BEARING: the RFC 7947 policy branch in reactorForwardRS is gated on
+			# LOAD-BEARING: the RFC 7947 policy branch in forwardUpdateCore is gated on
 			# facts.rsClient, which is this leaf. Without it the control community
 			# decides nothing and every assertion below passes against a broken build.
 			rs-client true
@@ -261,7 +267,7 @@ EOF_CONF
 # they need to be sound. The barrier is per accepted BATCH (peer_connmap.go), so it cannot
 # span processes -- one process is the only shape in which these assertions are not a race.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

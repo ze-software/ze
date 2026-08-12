@@ -500,13 +500,20 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// carrying it (wireu.WellKnown).
 	srcWellKnown := a.r.scanWellKnownEgress(update.WireUpdate.Payload(), update.SourcePeerIP)
 
-	// The withdrawal half of that same UPDATE, for the destinations RFC 1997
-	// refuses. Derived once per UPDATE and only when there is a prohibition to
-	// apply, so an UPDATE carrying no well-known community pays one comparison.
-	// Nil means the UPDATE withdraws nothing, and then a refused destination
-	// receives nothing at all (wireu.WithdrawalsOnly).
+	// The withdrawal half of that same UPDATE, for the destinations an egress gate
+	// refuses. Derived once per UPDATE, so an UPDATE no gate refuses pays one
+	// comparison. Nil means the UPDATE withdraws nothing, and then a refused
+	// destination receives nothing at all (wireu.WithdrawalsOnly).
+	//
+	// TWO gates share it, so a flag guards the derivation rather than either gate's
+	// own condition. RFC 1997 asks its question of every destination, so the part
+	// is derived up front for an UPDATE carrying a well-known community. RFC 7947
+	// below derives it on its first refusal, because a control community refuses a
+	// subset of the route-server clients rather than all of them.
 	var srcWithdrawOnly *wireu.WireUpdate
+	withdrawOnlyDerived := false
 	if srcWellKnown != 0 {
+		withdrawOnlyDerived = true
 		srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
 	}
 
@@ -543,9 +550,31 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				communityPolicy = &cp
 				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
 			}
+			// THE CONTROL COMMUNITIES DECIDE ABOUT A ROUTE, NOT ABOUT A MESSAGE.
+			// ShouldForwardTo reads RSBlackhole, WhitelistASNs and BlacklistASNs off
+			// the policy parsed from the ANNOUNCED route's communities
+			// (wireu.ParseCommunityPolicy). The withdrawn routes traveling in the
+			// same UPDATE carry no attribute and were tagged by nobody. Refusing the
+			// whole message would leave an excluded client holding a prefix an
+			// earlier UPDATE did advertise to it, and ze can no longer take that
+			// prefix back until the session resets. Same reasoning, and the same
+			// repair, as RFC 1997 above and on the route-server rail
+			// (reactorForwardRS, forward_rs.go): the two rails MUST stay
+			// behaviorally identical.
 			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
-				suppressedCount++
-				continue
+				if !withdrawOnlyDerived {
+					withdrawOnlyDerived = true
+					srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+				}
+				if srcWithdrawOnly == nil {
+					// Counted as suppressed only HERE, where the client receives
+					// nothing at all. A client still sent the withdrawal half was
+					// not skipped, so counting it would report a destination this
+					// UPDATE reached as one it did not (errAllDestinationsSuppressed).
+					suppressedCount++
+					continue
+				}
+				destBaseWire = srcWithdrawOnly
 			}
 		}
 
@@ -634,9 +663,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		//
 		// Asked over peerBaseWire rather than over the source, because the payload
 		// the rebuild reads is not always the source. A policy chain's wire
-		// override replaces it. So does the RFC 1997 withdrawal part, which
-		// carries no attribute at all. Re-asking whenever the two differ keeps the
-		// answer about the bytes this destination is sent.
+		// override replaces it. So does the withdrawal part either egress gate
+		// hands a destination it refuses, which carries no attribute at all.
+		// Re-asking whenever the two differ keeps the answer about the bytes this
+		// destination is sent.
 		baseHasLocalPref := srcHasLocalPref
 		if peerBaseWire != update.WireUpdate {
 			baseHasLocalPref = payloadHasLocalPref(peerBaseWire.Payload())
@@ -651,9 +681,12 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
 		// Set wins, and the override winning is the order these two have always had.
 		peerBaseSrcASN4 := srcASN4
-		// Against destBaseWire, not against the source: an RFC 1997 withdrawal part
-		// carries the source's own context id, so only a policy chain's wire
-		// override can change the width the rebuild must read.
+		// Against destBaseWire, not against the source: the withdrawal part either
+		// egress gate hands a refused destination carries the source's own context
+		// id, so only a policy chain's wire override can change the width the
+		// rebuild must read. Comparing against update.WireUpdate instead would
+		// re-look-up the source's OWN width for such a destination and read
+		// peerBaseSrcASN4 off a context that never differs.
 		if peerBaseWire != destBaseWire {
 			if c := bgpctx.Registry.Get(peerBaseWire.SourceCtxID()); c != nil {
 				peerBaseSrcASN4 = c.ASN4()

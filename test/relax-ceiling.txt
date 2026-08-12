@@ -50,4 +50,19 @@
 # (1, the withdrawal-flag comparison). No surviving behaviour lost its assertion:
 # supersede coverage is intact and the MP body-shape coverage moved to
 # TestForwardBucketKeepsMPOnlyBodies and property 3's parseBucketBody.
-752
+
+# raised-for: forward-rail control-community withdrawal, 2026-08-12, 752 -> 754.
+# NO COVERAGE WAS REMOVED, and this is the `.ci` arm counting lines rather than
+# assertions -- the class the prose above says about 430 of the corpus belongs to.
+# test/plugin/rs-control-community-withdraw-egress.ci and
+# test/plugin/control-community-withdraw-egress.ci each ran their source and their
+# two destinations as three separate ze-peer processes, which is a race: nothing
+# proved a destination was a live forward target when the source sent, and a
+# destination that came up late lost the WITHDRAWAL each file exists to assert
+# (measured 3/4 on both, serially, on an unchanged tree). The barrier that fixes it
+# is per accepted BATCH (option=await_eor, peer_connmap.go), so it exists only
+# inside ONE process. Three background cmd= lines therefore became one, the token
+# count fell from four to two per file, and every expect= and reject= survived on
+# conn=2 / conn=3. Both files then measured 6/6 and 12/12, and the general-rail one
+# still goes red under its discrimination probe.
+754
