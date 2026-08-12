@@ -1722,3 +1722,31 @@ on stdin and NOTHING on argv, and says so loudly when given argv. That is good
 design, but the manual-invocation line it prints is the only place the contract
 is written; a reader who reaches for `bash validate-spec.sh <path>` first learns
 it by failing. Worth one line in `ai/rules/repo-maintenance.md`.
+
+---
+
+## Filed 2026-08-11: `no-session-state` blocks a subagent whose sibling re-claimed the session
+
+**Trigger.** `pretool-writeedit.py` refuses a code edit with
+`No session state (tmp/session/<date>-<SID>/state/session-state-<spec-stem>-<SID>.md)`.
+The stem comes from `scripts/dev/spec-session.sh current`, which is ONE marker per
+Claude session id -- and one session id now runs many subagents concurrently.
+
+**What happens.** Agent A is running `/ze-implement` on spec X and has
+`session-state-X-<SID>.md`. Agent B, a sibling in the same session, claims spec Y.
+The marker now says Y. Agent A's next `.go` edit is refused, naming a state file
+for Y that A has no business creating. Nothing A did caused it, and A cannot fix
+it: writing the Y state file would fabricate another agent's recovery record.
+
+**Workaround (session-verified).** None that is honest. The edit either waits for
+the marker to point back, or is dropped. In this session the blocked edit was a
+comment reflow, so it was dropped and reported. A blocked edit that MATTERS has to
+go back to the main thread, which owns the claim.
+
+**Aggravating case: the WIP cap.** A subagent handed a spec whose `claim` exits 3
+(too many in-progress) never owns the marker at all, so every code edit it makes is
+one sibling claim away from this refusal.
+
+**Correct fix.** Key the state file on the SPEC the agent was handed, not on a
+session-wide marker, or let the check pass when a state file exists for ANY spec in
+the session directory. The marker was written when a session was one agent.

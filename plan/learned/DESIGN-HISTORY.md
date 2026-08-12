@@ -930,6 +930,7 @@ built and then deleted (see Abandoned approaches).
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
 | Internal plugin full 5-stage startup can deadlock | `DirectBridge` startup | Engine blocks waiting for plugin `ready`; plugin blocks waiting for engine config. Decode-only path skips stages. (198, 264) |
+| ANY plugin failure aborts the whole startup tier, and that is CORRECT | `StartupCoordinator.PluginFailed` records the first failure and closes the shared `stageCh`, so every plugin waiting in `WaitForStageProgress` gets the same error and is stopped | Owner ruling, 2026-08-11. Raised as a possible defect after one unsupported GRE tunnel in an interface stanza failed the `interface` plugin's configure RPC and took every `bgp-*` plugin down with it. Thomas ruled the blast radius is the point: a router that starts with half its features is worse than one that does not start. A firewall plugin that failed to load while BGP came up anyway would forward traffic unfiltered and look healthy doing it. Fail-closed is the only safe reading, so DO NOT propose making a config-rejection failure survivable |
 | `net.Pipe()` writes block until reader is ready | test helpers | Zero-buffering. Tests must start readers before writes OR wrap writes in goroutines. (210, 264, 459) |
 | Plugin subprocess stderr consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's `expect=stderr:contains=`. (451) |
 | Strict role (RFC 9234) enforcement stays in plugin | `bgp-role` plugin | Engine is policy-free. (239) |

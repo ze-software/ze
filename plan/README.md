@@ -14,6 +14,7 @@ long time by design); `ready` and `in-progress` specs are current work.
 | `journal/` | One file per problem class, one row per occurrence (`plan/journal/README.md`) |
 | `learned/` | The hand-written meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
 | `deferrals/` (sharded per source), `known-failures/` (sharded per failure) | Cross-spec tracking |
+| `future/` | Work that does not block the first release. A defect never goes there (`plan/future/README.md`) |
 
 ## Lifecycle
 
