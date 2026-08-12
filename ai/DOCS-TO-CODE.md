@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3284 files
+Total: 261 design docs, 3286 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1669,8 +1669,10 @@ Total: 261 design docs, 3284 files
 | `internal/plugins/geodns/config.go` | geodns config parse + validation |
 | `internal/plugins/geodns/doctor.go` | geodns listen-port bind-capability doctor check |
 | `internal/plugins/geodns/metrics.go` | geodns Prometheus metrics |
+| `internal/plugins/geodns/name_case_rfc1035_test.go` | every name comparison geodns makes |
 | `internal/plugins/geodns/name_limits_rfc1035_test.go` | geodns validates every configured |
 | `internal/plugins/geodns/record.go` | geodns record model (A/AAAA/SRV) |
+| `internal/plugins/geodns/rr_rfc1035_test.go` | geodns stamps every RR header |
 | `internal/plugins/geodns/server.go` | geodns DNS server (listener, EDNS0, answer synthesis) |
 | `internal/plugins/geodns/server_rfc1035_test.go` | geodns owns answer policy, and the |
 | `internal/plugins/geodns/server_rfc4035_test.go` | geodns answer policy; the |
