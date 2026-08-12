@@ -271,3 +271,41 @@ func TestISISConfigEnabledCircuits(t *testing.T) {
 		t.Errorf("EnabledCircuits = %+v, want [eth0]", circuits)
 	}
 }
+
+// TestISISHostnameYANGDeclaresValidator asserts the hostname leaf routes to the
+// isis-hostname custom validator, and that it declares NO `pattern`. Reading the
+// YANG from disk keeps the test independent of the generated embed.go, the same
+// way TestISISConfigBoundaries does.
+//
+// The absent `pattern` is load-bearing, not an omission. A pattern is applied by
+// ValidateLeafValue on the config-file parse path. That path aborts before the
+// YANG tree walk reaches applyCustomValidators. A pattern here would therefore
+// replace the validator's actionable error with `value %q does not match
+// pattern %q` (spec-fixit-isis-hostname-ascii, D-1).
+func TestISISHostnameYANGDeclaresValidator(t *testing.T) {
+	src, err := os.ReadFile("yang/ze-isis-conf.yang")
+	if err != nil {
+		t.Fatalf("read yang: %v", err)
+	}
+	text := string(src)
+
+	start := strings.Index(text, "leaf hostname {")
+	if start < 0 {
+		t.Fatal("YANG has no hostname leaf")
+	}
+	end := strings.Index(text[start:], "\n        }")
+	if end < 0 {
+		t.Fatal("hostname leaf is not closed")
+	}
+	leaf := text[start : start+end]
+
+	if !strings.Contains(leaf, `ze:validate "isis-hostname"`) {
+		t.Error(`hostname leaf has no ze:validate "isis-hostname": nothing enforces the 7-bit ASCII rule`)
+	}
+	if !strings.Contains(leaf, `length "1..255"`) {
+		t.Error(`hostname leaf lost its length "1..255" bound (RFC 5301 sec 3, TLV 137 value)`)
+	}
+	if strings.Contains(leaf, "pattern") {
+		t.Error("hostname leaf declares a pattern: it would preempt the custom validator's message on the parse path")
+	}
+}

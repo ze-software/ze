@@ -40,13 +40,42 @@ def check():
             have_route = True
             break
         time.sleep(2)
+    # 3. FRR must render Ze's LSP by the NAME Ze advertises, not by its system
+    #    ID. FRR prints a hostname there only after decoding TLV 137, so this is
+    #    an independent implementation reading Ze's Dynamic Hostname off the
+    #    wire. It is asserted on the happy path, never inside the route
+    #    fall-back: an assertion reachable only when the route check fails
+    #    proves nothing on a passing run.
+    #
+    # RFC requirement: RFC5301-3-4 positive -- "The Dynamic hostname TLV is
+    # defined here as TLV type 137" (RFC 5301 Section 3). FRR resolves the name
+    # only by decoding type 137, so a different type would leave a raw system ID
+    # in its database.
+    #
+    # RFC requirement: RFC5301-3-6 positive -- "Value - a string of 1 to 255
+    # bytes" (RFC 5301 Section 3). FRR reads the whole configured name, so the
+    # length octet framed the value FRR then rendered.
+    #
+    # The 7-bit ASCII rule (RFC5301-3-7) is NOT provable here: a conforming peer
+    # accepts any octets it is given, so a non-ASCII name would leave this
+    # assertion green. That rule is enforced and proven at the config boundary
+    # (test/isis/isis-hostname-ascii.ci).
+    if not frr.has_database_lsp("ze-p2p"):
+        # This read only prints diagnostics on a path that already decided to
+        # fail. An empty result prints nothing and the AssertionError below
+        # still raises, so it can mask no failure.
+        # fail-open-ok: diagnostics on an already-failing path
+        print(frr._vtysh_quiet("show isis database")[:800])
+        raise AssertionError(
+            "FRR did not render Ze's hostname 'ze-p2p' in its IS-IS database: "
+            "TLV 137 (Dynamic Hostname) did not reach it or did not decode"
+        )
     if not have_route:
-        # Fall back: assert the LSDB carries Ze's LSP (adjacency proven; the route
-        # may be FRR's own connected). The LSDB sync itself proves convergence.
-        if not frr.has_database_lsp("ze-p2p"):
-            raise AssertionError("FRR did not learn Ze's LSP over the P2P adjacency")
+        log_info(
+            "no IS-IS route installed; the LSDB sync above is the convergence proof"
+        )
 
-    # 3. Stability: the adjacency must still be Up after a short settle.
+    # 4. Stability: the adjacency must still be Up after a short settle.
     time.sleep(5)
     if not frr.adjacency_up():
         raise AssertionError("P2P IS-IS adjacency did not stay Up (flapping)")

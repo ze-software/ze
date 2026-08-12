@@ -17,6 +17,7 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("mac-address", MACAddressValidator())
 	reg.Register("isis-net", ISISNETValidator())
 	reg.Register("isis-system-id", ISISSystemIDValidator())
+	reg.Register("isis-hostname", ISISHostnameValidator())
 	reg.Register("ospf-router-id", ospfRouterIDValidator())
 	reg.Register("ospf-area-id", ospfAreaIDValidator())
 	reg.Register("redistribute-source", RedistributeSourceValidator())

@@ -214,7 +214,13 @@ func writeProtocolsSupportedTLV(buf []byte, off int, t protocolsSupportedTLV) in
 
 // ---- TLV 137: Dynamic Hostname (RFC 5301 sec 3) ----
 //
-// Value is a 1..255 byte 7-bit-ASCII hostname (not null-terminated).
+// Value is a 1..255 byte hostname with no NUL at its end. RFC 5301 sec 3 says
+// the value is encoded in 7-bit ASCII, and this codec does not check that.
+// ISISHostnameValidator produces that guarantee at the config boundary
+// (internal/component/config/validators.go), and hostnameTLV carries it
+// unchanged (internal/plugins/isis/lsdb/encode.go). A value arriving from a PEER
+// carries no such guarantee, and the display path filters it instead
+// (sanitizeHostname, internal/plugins/isis/show.go).
 
 // writeHostnameTLV emits TLV 137 carrying name into buf at off. The caller
 // ensures len(name) is 1..255 (RFC 5301 sec 3); a longer name is a caller

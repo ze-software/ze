@@ -54,8 +54,23 @@ func encodeAreaTLV(areas []types.AreaID) packet.TLV {
 	return packet.TLV{Type: packet.TLVAreaAddresses, Value: val}
 }
 
-// hostnameTLV builds a whole TLV 137 (Dynamic Hostname, RFC 5301 sec 3): the
-// raw hostname bytes, truncated to the 255-octet TLV value limit.
+// hostnameTLV builds a whole TLV 137 (Dynamic Hostname, RFC 5301 sec 3) from the
+// configured name, unchanged.
+//
+// RFC 5301 Section 3: "The Value field is encoded in 7-bit ASCII." This function
+// does not produce that guarantee. ISISHostnameValidator produces it at the
+// config boundary (internal/component/config/validators.go). That validator
+// refuses any name carrying an octet outside 0x20..0x7e, and any name breaking
+// RFC 2181 section 11's label lengths. This function must not sanitize. A
+// value the operator configured and a value Ze advertises have to be the same
+// string (ai/rules/protocol.md).
+//
+// The 255-octet bound below is a defensive guard, not a policy. A config-shaped
+// name can never reach it, because the validator refuses a name over 255 octets
+// first (TestISISHostnameTLVTruncationUnreachable pins that). It fires only for
+// a NodeInfo built in Go that bypassed config, which is an invariant violation.
+// Shortening a name is NOT intended behavior. It bounds the TLV rather than
+// overflow it, and the caller is already wrong by the time it runs.
 func hostnameTLV(name string) packet.TLV {
 	b := []byte(name)
 	if len(b) > packet.MaxTLVValueLen {

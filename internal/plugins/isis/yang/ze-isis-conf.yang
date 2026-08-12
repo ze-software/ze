@@ -7,6 +7,7 @@ module ze-isis-conf {
          RFC 5305 wide metrics, RFC 5301 dynamic hostname, RFC 5304/5310
          authentication). Presence of the isis container enables the component.";
     revision 2026-06-18 { description "Initial revision (spec-isis-4)."; }
+    revision 2026-08-10 { description "hostname: enforce RFC 5301 section 3 7-bit ASCII and the RFC 2181 section 11 label lengths (spec-fixit-isis-hostname-ascii)."; }
 
     container isis {
         description "IS-IS routing instance configuration.";
@@ -65,10 +66,24 @@ module ze-isis-conf {
             description "Set the overload bit (RFC 3787).";
         }
 
-        // RFC 5301: the dynamic hostname (TLV 137) advertised by this IS.
+        // RFC 5301 section 3: the dynamic hostname (TLV 137) advertised by this
+        // IS. "The Value field is encoded in 7-bit ASCII" and "The content of
+        // this value is a domain name, see [RFC2181]". The isis-hostname
+        // validator enforces both: printable 7-bit ASCII octets, and the RFC
+        // 2181 section 11 label lengths. It carries no `pattern` on purpose. A
+        // pattern is applied on the config-file parse path, which aborts before
+        // the custom validator runs, so it would replace an actionable error
+        // with a regex.
         leaf hostname {
             type string { length "1..255"; }
-            description "Dynamic hostname to advertise (RFC 5301).";
+            ze:validate "isis-hostname";
+            description
+                "Dynamic hostname to advertise (RFC 5301 section 3). Printable
+                 7-bit ASCII only, from space (0x20) to tilde (0x7e). Each
+                 dot-separated label is 1 to 63 octets and the whole name is at
+                 most 255 octets, including the separators (RFC 2181 section 11).
+                 One trailing dot is permitted. A non-ASCII name is refused, not
+                 converted.";
         }
 
         container interfaces {

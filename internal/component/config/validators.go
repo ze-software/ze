@@ -1,6 +1,8 @@
 // Design: docs/architecture/config/yang-config-design.md — custom validators
 // Detail: validators_register.go — init registration of validators into registry
 // Related: schema.go — schema types and validation
+// RFC: rfc/short/rfc5301.md -- TLV 137 Dynamic Hostname: the 7-bit ASCII value and the domain-name content (sec 3)
+// RFC: rfc/short/rfc2181.md -- label and full-name length limits behind that domain-name reference (sec 11)
 
 package config
 
@@ -279,6 +281,126 @@ func ISISSystemIDValidator() yang.CustomValidator {
 			return nil
 		},
 	}
+}
+
+// IS-IS dynamic hostname bounds (TLV 137 value, RFC 5301 section 3 and RFC 2181
+// section 11). The octet range is Ze's own decision. It is narrower than the
+// literal RFC text. 7-bit ASCII alone would admit NUL and the control characters
+// into a value RFC 5301 section 3 calls a domain name.
+const (
+	isisHostnameMinOctet  = 0x20 // space, the lowest printable ASCII octet
+	isisHostnameMaxOctet  = 0x7e // tilde, the highest printable ASCII octet
+	isisHostnameMaxLabel  = 63   // RFC 2181 section 11
+	isisHostnameMaxOctets = 255  // RFC 2181 section 11, and the TLV 137 value cap
+)
+
+// ISISHostnameValidator validates the IS-IS dynamic hostname advertised in TLV
+// 137. It is the ONLY enforcement point for the value's shape, so every path
+// that accepts a config has to reach it. All of them do, through one walk:
+// ValidateCustomSections (validate_sections.go) runs applyCustomValidators over
+// the isis section, and its two callers are LoadConfig (the daemon start and
+// the SIGHUP reload) and runValidation (`ze config validate`, the hub config
+// API and the web editor).
+//
+// The leaf deliberately carries NO YANG `pattern`. A pattern is applied by
+// ValidateLeafValue (schema.go) on the config-file parse path, and that path
+// aborts before the tree walk runs. A pattern would therefore preempt this
+// validator, and the operator would read a regex instead of an actionable error
+// (spec-fixit-isis-hostname-ascii, D-1). It is inline here rather than
+// in the isis plugin because config cannot import isis without a cycle. That is
+// the arrangement isis-net and isis-system-id already use.
+//
+// RFC 5301 Section 3: "The Value field is encoded in 7-bit ASCII."
+// RFC 5301 Section 3: "The content of this value is a domain name, see [RFC2181]."
+// The value is REFUSED here rather than sanitized at emit. A backend that cannot
+// deliver the operator's request exactly must fail at verify or commit with a
+// clear error. It must never silently approximate (ai/rules/protocol.md).
+func ISISHostnameValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			return isisCheckHostname(path, str)
+		},
+	}
+}
+
+// isisCheckHostname reports the first rule the value breaks, in this order: the
+// value is present, the total length, the character set, then the label
+// structure. The character set is checked before the labels because for a UTF-8
+// name the offending octet is the operator's actual mistake, and a label
+// complaint about the same value would name a consequence instead of the cause.
+// The total length is checked before both, so a 400-octet UTF-8 name is reported
+// as too long rather than as non-ASCII: the length is the rule that no edit to
+// the character set can satisfy.
+func isisCheckHostname(path, s string) error {
+	if s == "" {
+		return fmt.Errorf(
+			"%q is not a valid IS-IS hostname for %s: the value is empty. "+
+				"RFC 5301 section 3 gives the value 1 to %d octets",
+			s, path, isisHostnameMaxOctets)
+	}
+	if len(s) > isisHostnameMaxOctets {
+		return fmt.Errorf(
+			"%q is not a valid IS-IS hostname for %s: the value is %d octets. "+
+				"RFC 2181 section 11 limits a full domain name to %d octets, "+
+				"including the separators",
+			s, path, len(s), isisHostnameMaxOctets)
+	}
+	// RFC 5301 Section 3: "The Value field is encoded in 7-bit ASCII."
+	for i := range len(s) {
+		c := s[i]
+		if c < isisHostnameMinOctet || c > isisHostnameMaxOctet {
+			return fmt.Errorf(
+				"%q is not a valid IS-IS hostname for %s: octet %d is 0x%02x. "+
+					"RFC 5301 section 3 encodes the value in 7-bit ASCII, so each "+
+					"character must be a printable ASCII character from space (0x%02x) "+
+					"to tilde (0x%02x)",
+				s, path, i+1, c, isisHostnameMinOctet, isisHostnameMaxOctet)
+		}
+	}
+	return isisCheckHostnameLabels(path, s)
+}
+
+// isisCheckHostnameLabels applies RFC 2181 section 11: "The length of any one
+// label is limited to between 1 and 63 octets. A full domain name is limited to
+// 255 octets (including the separators)." It bounds LENGTHS only. RFC 2181
+// section 11 also says an implementation must not restrict which characters a
+// label carries. RFC 5301 section 3 says the value can be any string operators
+// want to use. No letter-digit-hyphen rule is applied.
+//
+// One trailing dot is accepted. It is the conventional absolute form, and RFC
+// 2181 section 11 gives the zero-length name the root. A bare "." carries no
+// label at all and is refused, as is any other empty label.
+func isisCheckHostnameLabels(path, s string) error {
+	body := strings.TrimSuffix(s, ".")
+	if body == "" {
+		return fmt.Errorf(
+			"%q is not a valid IS-IS hostname for %s: it carries no label. "+
+				"RFC 2181 section 11 gives each label 1 to %d octets. One trailing "+
+				"dot is permitted and marks the root",
+			s, path, isisHostnameMaxLabel)
+	}
+	start := 0
+	for n, label := range strings.Split(body, ".") {
+		switch {
+		case label == "":
+			return fmt.Errorf(
+				"%q is not a valid IS-IS hostname for %s: label %d is empty at octet %d. "+
+					"RFC 2181 section 11 gives each label 1 to %d octets. Only one "+
+					"trailing dot is permitted, and it marks the root",
+				s, path, n+1, start+1, isisHostnameMaxLabel)
+		case len(label) > isisHostnameMaxLabel:
+			return fmt.Errorf(
+				"%q is not a valid IS-IS hostname for %s: label %d is %d octets and "+
+					"starts at octet %d. RFC 2181 section 11 gives each label 1 to %d octets",
+				s, path, n+1, len(label), start+1, isisHostnameMaxLabel)
+		}
+		start += len(label) + 1
+	}
+	return nil
 }
 
 // ospfRouterIDValidator validates the OSPFv2 Router ID dotted-quad form. It
