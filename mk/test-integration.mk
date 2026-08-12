@@ -574,10 +574,18 @@ endif
 
 # Package list is DERIVED from `//go:build integration && linux` tags so a new
 # linux-only package cannot be silently omitted (ai/rules/platform-linux.md).
-# Exclusions: ldp runs in ze-qemu-ldp-frr-test (needs FRR in the VM).
 # firewall/vpp is added explicitly: its fakeOps tests are linux-tagged but not
 # integration-tagged, and still need a linux GOOS to compile.
-ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/ 2>/dev/null | sed 's|/[^/]*$$||' | sort -u | grep -v '^internal/plugins/ldp$$' | sed 's|^|./|')
+#
+# NO exclusions. internal/plugins/ldp was excluded here "because ldp runs in
+# ze-qemu-ldp-frr-test (needs FRR in the VM)", and both halves of that were
+# wrong. The whole PACKAGE was dropped, not the one test that needs FRR, so
+# TestWaitForInterfaceFoundResolves (resolve_integration_linux_test.go, netns
+# only, no FRR) executed nowhere: ze-qemu-ldp-frr-test selects
+# `-run TestLDPInteropFRR`. And the FRR test needs no exclusion at all --
+# startFRRPeer t.Skips when zebra/ldpd are absent, which is exactly how the
+# unexcluded internal/plugins/isis sibling behaves here.
+ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/ 2>/dev/null | sed 's|/[^/]*$$||' | sort -u | sed 's|^|./|')
 
 # The installer initrd suite (`//go:build linux && ze_installer`) is EXECUTED
 # here, not by `make ze-installer-unit-test`. That target can only run these for

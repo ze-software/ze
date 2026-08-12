@@ -141,8 +141,8 @@ func TestLDPInteropFRR(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	setLogger(log)
 
-	lib := NewLIB()
-	adjTable := NewAdjacencyTable()
+	lib := newLIB()
+	adjTable := newAdjacencyTable()
 	var sessionsMu sync.Mutex
 	sessions := make(map[string]*Session)
 	bus := &captureBus{}
@@ -182,7 +182,7 @@ func TestLDPInteropFRR(t *testing.T) {
 		for _, s := range sessions {
 			if s.State() == StateOperational {
 				operational = true
-				peerAddrs = s.PeerAddresses()
+				peerAddrs = s.peerAddresses()
 			}
 		}
 		sessionsMu.Unlock()
@@ -202,7 +202,7 @@ func TestLDPInteropFRR(t *testing.T) {
 	require.True(t, operational, "ze did not reach an operational LDP session with FRR")
 	require.NotZero(t, lib.Len(), "ze received no label binding from FRR")
 
-	bindings := lib.AllBindings()
+	bindings := lib.allBindings()
 	t.Logf("ze learned %d binding(s) from FRR; first: %s -> label %d", len(bindings), bindings[0].FEC, bindings[0].Label)
 
 	// ze must have decoded FRR's Address message (RFC 5036 Section 3.5.5) and
