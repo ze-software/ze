@@ -53,7 +53,7 @@ conflict detection via `ze:listener`.
 
 Beyond answering tunnels, ze can INITIATE them (send SCCRQ) toward a
 configured remote. A `remote` list under `l2tp {}` declares dial targets;
-declaring one grants no dial by itself — an operator action (RPC) or a PPPoE
+declaring one grants no dial by itself. An operator action (RPC) or a PPPoE
 relay binding drives the dial.
 
 ```
@@ -457,7 +457,7 @@ The detail page renders a client-side CQM graph using uPlot. The
 chart loads 24h of historical data via JSON, then appends new
 100-second buckets in real time via SSE.
 
-Chart colors are CSS custom properties (configurable via theme):
+Chart colours are CSS custom properties (configurable via theme):
 - `--color-l2tp-established` (default: green #22c55e)
 - `--color-l2tp-negotiating` (default: amber #f59e0b)
 - `--color-l2tp-down` (default: purple #a855f7)

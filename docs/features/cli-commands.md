@@ -51,11 +51,11 @@
 | Command | Description |
 |---------|-------------|
 | `ze <config-file>` | Start daemon with configuration |
-| `ze signal reload` | Send SIGHUP — reload configuration |
+| `ze signal reload` | Send SIGHUP and reload configuration |
 | `ze signal stop` | Graceful shutdown (no GR marker) |
 | `ze signal restart` | Graceful restart (writes GR marker, then shuts down) |
 | `ze signal status` | Dump process status (SIGUSR1 equivalent) |
-| `ze signal quit` | Send SIGQUIT — goroutine dump + halt |
+| `ze signal quit` | Send SIGQUIT, dump goroutines, and halt |
 | `ze status` | Check if daemon is running |
 
 <!-- source: internal/plugins/signal/main.go -- Commands registry -->
@@ -82,7 +82,7 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 <!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
 <!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
 
-**Live peer dashboard:** `monitor bgp` in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.
+**Live peer dashboard:** `monitor bgp` in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every 2 seconds. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 <!-- terminal-demo: cli-dashboard -->

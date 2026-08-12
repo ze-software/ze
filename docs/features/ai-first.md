@@ -19,7 +19,7 @@ separate hand-written glue for every surface. The same registration path can
 feed the CLI, SSH sessions, the web workbench, REST/gRPC, MCP, generated
 references, completion, authorization, audit, and diagnostics.
 
-## Principle: The CLI Is the API
+## CLI commands as the API surface
 
 Every command available through `ze cli` (interactive or `ze cli -c` for
 one-shot) is exposed programmatically through MCP, and command output is shared

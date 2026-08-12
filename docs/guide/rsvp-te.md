@@ -62,8 +62,8 @@ rsvp-te {
   tunnel endpoint); `type strict|loose` defaults to strict.
 - `fast-reroute` (on a tunnel) -- request RFC 4090 local protection. `backup`
   is `facility` (one bypass protects many LSPs, the default) or `one-to-one`;
-  `node-protection true` asks for a backup around the next node (not just the
-  next link); `bandwidth-protection` and `hop-limit` (default 16) tune the
+  `node-protection true` asks for a backup around the next node, so the backup
+  avoids the next link and the next router; `bandwidth-protection` and `hop-limit` (default 16) tune the
   backup. Presence of the container is what enables protection.
 - `bypass` -- a facility-backup bypass LSP from this node (a Point of Local
   Repair) to a `merge-point` along an `explicit-route` that avoids the protected
@@ -109,7 +109,7 @@ resource):
 5. The head-end re-optimizes onto a fresh path (make-before-break) and tears the
    locally-repaired LSP once the replacement is up.
 
-An LSP with no matching bypass keeps the base behavior (tear down + `PathErr` on
+An LSP with no matching bypass keeps the base behaviour (tear down + `PathErr` on
 a link failure). One-to-one (detour) backup is tracked separately
 (`spec-mpls-9-rsvp-te-one-to-one-backup`).
 

@@ -1,8 +1,8 @@
-# Behavioral Anomaly Detection
+# Behavioural Anomaly Detection
 
-> **Pre-Alpha.** This page describes behavior that may change.
+> **Pre-Alpha.** This page describes behaviour that may change.
 
-Ze has a behavioral anomaly detector: a report-only subsystem that builds a per-source behavioral baseline, scores how far each source deviates from its own history and from its peers, and correlates weak signals into a single incident. It is a separate domain from the volumetric DDoS subsystem, which reacts to raw packet and bandwidth rates. DDoS asks whether an interface is being flooded. Anomaly detection asks whether a source is behaving unlike itself and unlike its neighbours.
+Ze includes a report-only behavioural anomaly detector. It builds a per-source behavioural baseline, scores how far each source deviates from its own history and from its peers, and correlates weak signals into a single incident. It is separate from the volumetric DDoS subsystem, which reacts to raw packet and bandwidth rates. DDoS detects interface floods. Anomaly detection detects sources behaving unlike themselves and unlike their neighbours.
 
 For the volumetric subsystem, see [DDoS detection and mitigation](ddos-mitigation.md).
 

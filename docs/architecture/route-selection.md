@@ -149,8 +149,8 @@ it fails.
 
 - **Type:** `uint8` -- 18 values (0-17), extensible up to 255.
 - **One field, not two:** Biorouting splits this into `HiddenReason` (validation) and
-  implicit sort order (selection). Ze uses one field because both answer the same
-  question: "why is this route not the best?"
+  implicit sort order (selection). Ze uses one field because both give the same
+  reason: why the route is not the best.
 - **String conversion:** Only on JSON output. Internal representation is always `uint8`.
 - **Cost:** One byte per route entry. Set once during validation or selection, never
   updated after.

@@ -279,8 +279,8 @@ export ZE_SSH_PASSWORD=...
 Set **both**, or neither. Completion never prompts for a password: it runs while
 you are typing, so a prompt would block the shell instead of asking a question
 you could answer. With a username but no password there is no usable credential,
-so completion stays silent and you simply get no peer completions. Everything
-else keeps working; only dynamic peer names are missing.
+so completion stays silent and returns no peer completions. Other completion
+still works; only dynamic peer names are missing.
 
 If you would rather not keep a password in the environment, leave both unset and
 completion resolves as the zefs super-admin, which needs no password.

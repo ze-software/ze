@@ -1,6 +1,6 @@
 ---
 title: Terminal Demonstrations
-description: Watch Ze command, configuration, monitoring, and access-control workflows recorded from reproducible VHS tapes.
+description: Recorded Ze command, configuration, monitoring, and access-control workflows from reproducible VHS tapes.
 category: observe
 journey: Evaluate
 ---

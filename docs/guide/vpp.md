@@ -12,7 +12,7 @@ wired.
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller -->
 
-## Why this matters
+## Why VPP is in Ze
 
 Ze is a BGP daemon. BGP produces forwarding decisions; something else has
 to carry the packets. The default answer on Linux is the kernel route
@@ -31,10 +31,10 @@ for VXLAN. IPng Networks has run this stack in production on AS8298 for
 several years.
 <!-- source: docs/research/vpp-deployment-reference.md -- IPng production performance table -->
 
-Adding VPP to ze is not about replacing BGP. It is about giving ze a
-credible answer when someone asks "can I use this for an IXP route
-server, a production edge router, or a gokrazy appliance on an N100
-mini-PC?" The control plane stays in ze (BGP, RIB, config, CLI, web UI).
+Adding VPP to ze is not about replacing BGP. It gives ze a
+forwarding-plane answer for IXP route servers, production edge routers,
+and gokrazy appliances on small hardware such as an N100 mini-PC. The
+control plane stays in ze (BGP, RIB, config, CLI, web UI).
 The forwarding plane becomes VPP. The two talk through a small, typed
 interface (GoVPP over a Unix socket).
 <!-- source: internal/component/vpp/conn.go -- GoVPP AsyncConnect -->
@@ -200,7 +200,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | Path | Type | Default | What it controls |
 |------|------|---------|------------------|
 | `vpp.enabled` | boolean | `false` | Master switch. `false` means ze does not start VPP at all. |
-| `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `ze-test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behavior. |
+| `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `ze-test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behaviour. |
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
 | `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. Omit for VPP default. |
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze allocates `main-core+1 .. main-core+workers` for `corelist-workers` in startup.conf. |

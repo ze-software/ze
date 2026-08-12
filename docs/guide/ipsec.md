@@ -1,6 +1,6 @@
 # Native IKEv2 and IPsec
 
-> **Pre-Alpha.** This page describes behavior that may change.
+> **Pre-Alpha.** This page describes behaviour that may change.
 
 Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels. It does not require strongSwan, libreswan, or another external IKE daemon. The IKE engine, cryptographic primitives, wire codec, and XFRM dataplane integration are all in-tree. The Ze binary negotiates IKE SAs, installs XFRM policies and states, and programs routes through XFRM interfaces from the same YANG config tree as every other subsystem.
 
@@ -92,7 +92,7 @@ Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic 
 
 ## IKEv2 responder role
 
-Ze can act as the IKEv2 responder as well as the initiator. A peer with `connection-type respond` waits for an unsolicited inbound IKE_SA_INIT from its configured `remote-address`, answers IKE_AUTH, and installs the first Child SA. `connection-type initiate`, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.
+Ze can act as an IKEv2 responder or initiator. A peer with `connection-type respond` waits for an unsolicited inbound IKE_SA_INIT from its configured `remote-address`, answers IKE_AUTH, and installs the first Child SA. `connection-type initiate`, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.
 
 As responder, Ze authenticates with a pre-shared key, X.509 certificate, or EAP. For EAP it acts as the EAP-MSCHAPv2 or EAP-TLS server for a road-warrior client. It presents its own certificate or PSK first, runs the EAP method, and derives session keys from the EAP MSK.
 
@@ -234,7 +234,7 @@ issues to more than one client.
 `certificate-count` bounds the X.509 chain in both directions. It is the most
 certificates Ze sends for the peer, and the most it accepts from it. RFC 7296
 Section 3.6 sets that figure at four, and the default is four, so a peer you never
-configure gets the conformant behavior.
+configure gets the conformant behaviour.
 
 A peer that sends more than the bound is REFUSED. Ze does not truncate the chain.
 A silent trim hides from you that the limit was reached. It also makes the
@@ -376,7 +376,7 @@ vpn { ipsec { site-to-site { peer branch-1 {
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- traffic-selector list -->
 
 When the list is absent the peer accepts whatever the remote endpoint proposes. That is the
-behavior of every configuration written before the list existed, so adding the list is what
+behaviour of every configuration written before the list existed, so adding the list is what
 restricts a peer, never omitting it.
 
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->

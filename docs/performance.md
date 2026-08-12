@@ -1,6 +1,6 @@
 # Performance Comparison
 
-> **All benchmarks are lies.**
+> **Benchmark numbers need context.**
 >
 > These numbers measure one specific scenario (route propagation latency through
 > a single DUT with two peers) on one specific machine under artificial conditions.
@@ -127,8 +127,8 @@ First benchmark run, before any optimization work.
 ## Reading the Results
 
 **Convergence** is the time from the first UPDATE sent to the last UPDATE
-received. Lower is better. This is the primary metric -- it answers "how long
-until all routes are propagated?"
+received. Lower is better. This is the primary metric: the time until all routes
+are propagated.
 
 **Throughput** is routes received per second, averaged over the convergence
 window. Higher is better. Zero means all routes arrived in a single burst

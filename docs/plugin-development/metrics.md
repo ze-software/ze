@@ -332,7 +332,7 @@ runs over the same shared SPF tree.
 The hook does **not** fire while the plugin is being spawned. `runPluginPhase`
 starts every process of a startup phase before it runs the tier-ordered
 handshake, and the Prometheus registry is not created until the bgp plugin's
-stage-2 `OnConfigure` builds the reactor — so at spawn time there is usually no
+stage-2 `OnConfigure` builds the reactor, so at spawn time there is usually no
 registry yet. `registry.InjectPluginMetrics` therefore defers the hook and
 `registry.SetMetricsRegistry` drains the deferred set the moment a registry
 exists; whichever of the two happens second performs the injection, exactly once

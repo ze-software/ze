@@ -1162,7 +1162,7 @@ DIS priority per level.
 `384`/`512`), a `secret` (stored `$9$`-encoded, like PPPoE/WireGuard keys), and
 optional `send-lifetime` / `accept-lifetime` windows for hitless rotation. Chains
 are referenced by per-interface (IIH Hellos) and per-level (LSP/CSNP/PSNP)
-`auth-key-chain` leaves — the *area* key for Level 1 and the *domain* key for
+`auth-key-chain` leaves: the *area* key for Level 1 and the *domain* key for
 Level 2:
 
 ```
