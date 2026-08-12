@@ -122,6 +122,9 @@ func readModulePath(path string) (string, error) {
 	}
 	defer f.Close()
 
+	// A scan that stops early leaves the module directive unseen, and the
+	// error below then stops the generator. No file is written from a partial
+	// go.mod.
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

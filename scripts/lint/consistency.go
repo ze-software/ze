@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ANSI colors.
@@ -373,9 +375,25 @@ func walkGoFiles(root string, fn func(path string)) {
 	})
 }
 
+// unreadable reports a file this tool could not read in full.
+//
+// A skipped file is the fail-open shape: every check over it then finds
+// nothing, and nothing distinguishes that from a clean file.
+func unreadable(path string, line int, what string, err error) {
+	var tb textbuf.Buffer
+	report(sevError, "unreadable", path, line, tb.Str(what).Str(": ").Err(err).String())
+}
+
+// scanLines feeds every line of path to fn.
+//
+// Scan returns false on EOF, on a read error, and on a line above
+// bufio.MaxScanTokenSize alike. A gate that treats "loop ended" as "file
+// finished" checks the head of a file and calls the whole of it clean, so the
+// error is read back and reported.
 func scanLines(path string, fn func(line int, text string)) {
 	f, err := os.Open(path)
 	if err != nil {
+		unreadable(path, 0, "cannot open, so no check ran over this file", err)
 		return
 	}
 	defer f.Close()
@@ -385,18 +403,29 @@ func scanLines(path string, fn func(line int, text string)) {
 		lineNum++
 		fn(lineNum, scanner.Text())
 	}
+	if err := scanner.Err(); err != nil {
+		unreadable(path, lineNum, "read stopped early, so the rest of this file was not checked", err)
+	}
 }
 
+// countLines returns the line count of path, and -1 when the file cannot be
+// read in full. A partial count is a smaller number, which is the direction
+// that passes the file-size check without saying anything.
 func countLines(path string) int {
 	f, err := os.Open(path)
 	if err != nil {
-		return 0
+		unreadable(path, 0, "cannot open, so file size was not checked", err)
+		return -1
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	n := 0
 	for scanner.Scan() {
 		n++
+	}
+	if err := scanner.Err(); err != nil {
+		unreadable(path, n, "read stopped early, so file size was not checked", err)
+		return -1
 	}
 	return n
 }

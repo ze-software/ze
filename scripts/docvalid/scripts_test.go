@@ -325,6 +325,54 @@ func TestCodeToDocsCheckModeIsReadOnly(t *testing.T) {
 	}
 }
 
+// VALIDATES: scripts/docvalid/doc_drift.go reports a source file it could not
+// read in full, instead of counting the lines it managed to reach.
+// PREVENTS: a low test or fuzz count agreeing with a document that understates
+// the tree, because the scan stopped on a line above bufio.MaxScanTokenSize and
+// nobody was told.
+func TestDocDriftReportsUnreadableSource(t *testing.T) {
+	root := t.TempDir()
+	readToolSource(t, "doc_drift.go", "func countMatchingLines(")
+
+	// One line above bufio.MaxScanTokenSize (64 KiB) stops the scan, so the
+	// `func Test` below it is never counted.
+	writeTempDoc(t, root, "internal/z/z_test.go",
+		"package z\n\n// "+strings.Repeat("x", 70*1024)+"\nfunc TestA()\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go", "--root", root)...)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("doc_drift.go counted a file it could not read in full:\n%s", out)
+	}
+	if !strings.Contains(string(out), "read stopped early") {
+		t.Fatalf("doc_drift.go did not report the unreadable file:\n%s", out)
+	}
+	if !strings.Contains(string(out), "z_test.go") {
+		t.Fatalf("doc_drift.go did not name the unreadable file:\n%s", out)
+	}
+}
+
+// readToolSource reads a build-ignored tool in this directory and checks it
+// still holds want.
+//
+// The read is what binds the test cache to the tool. A build-ignored file is
+// not an input to this test package's build, and a subprocess read is not an
+// input to the cache either, so without this an edit to the tool comes back as
+// a cached pass.
+func readToolSource(t *testing.T, name, want string) {
+	t.Helper()
+	src, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatalf("read the tool under test: %v", err)
+	}
+	if !strings.Contains(string(src), want) {
+		t.Fatalf("%s no longer holds %q; this test drives the wrong tool", name, want)
+	}
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs("../..")

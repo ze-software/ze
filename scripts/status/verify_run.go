@@ -809,6 +809,11 @@ func safeStageLogName(name string) string {
 	return b.String()
 }
 
+// splitLines splits captured stage output into lines.
+//
+// The reader is a strings.Reader, so Read returns only io.EOF. Every caller
+// shapes the failure REPORT of a stage that already failed; the run's verdict
+// is the stage exit code collected in runVerify, never anything derived here.
 func splitLines(text string) []string {
 	s := bufio.NewScanner(strings.NewReader(text))
 	lines := []string{}

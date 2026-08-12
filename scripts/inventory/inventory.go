@@ -31,12 +31,27 @@ import (
 )
 
 func main() {
-	root, err := findModuleRoot()
-	if err != nil {
-		fatal(err)
+	// --root names the tree to walk. It defaults to the module root, and it
+	// exists so a test can point the tool at a fixture tree.
+	root := ""
+	jsonMode := false
+	for i := 1; i < len(os.Args); i++ {
+		switch {
+		case os.Args[i] == "--json":
+			jsonMode = true
+		case os.Args[i] == "--root" && i+1 < len(os.Args):
+			i++
+			root = os.Args[i]
+		}
 	}
 
-	jsonMode := len(os.Args) > 1 && os.Args[1] == "--json"
+	if root == "" {
+		var err error
+		root, err = findModuleRoot()
+		if err != nil {
+			fatal(err)
+		}
+	}
 
 	inv := collect(root)
 
@@ -55,6 +70,24 @@ func main() {
 func fatal(err error) {
 	fmt.Println("inventory:", err)
 	os.Exit(1)
+}
+
+// scanAll feeds every line of f to fn, and stops the run when the scan ends
+// early.
+//
+// Scan returns false on EOF, on a read error, and on a line above
+// bufio.MaxScanTokenSize alike. Every number this tool publishes is a count of
+// scanned lines, so a partial read lowers a published count with nothing said.
+// The header of this file claims the output is always accurate, and a count
+// nobody finished taking is how that claim stops being true.
+func scanAll(path string, f *os.File, fn func(line string)) {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fn(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fatal(fmt.Errorf("reading %s: %w", path, err))
+	}
 }
 
 // Inventory holds all collected data.
@@ -258,9 +291,8 @@ func extractRPCs(root string) (map[string]int, []RPCInfo) {
 
 		module := d.Name()
 		count := 0
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
+		scanAll(path, f, func(text string) {
+			line := strings.TrimSpace(text)
 			if strings.HasPrefix(line, "rpc ") {
 				count++
 				// Extract RPC name: "rpc foo-bar {" or "rpc foo { desc... }" -> "foo-bar"
@@ -273,7 +305,7 @@ func extractRPCs(root string) (map[string]int, []RPCInfo) {
 					Module: module,
 				})
 			}
-		}
+		})
 		if count > 0 {
 			counts[module] = count
 		}
@@ -378,10 +410,7 @@ func countGoStats(dir string) AreaStats {
 			return nil
 		}
 		defer f.Close()
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			stats.Lines++
-		}
+		scanAll(path, f, func(string) { stats.Lines++ })
 		return nil
 	})
 

@@ -98,8 +98,27 @@ func runChecks(root string) []issue {
 	issues = append(issues, checkFunctionalTestsMD(root, releaseGateSuites)...)
 	issues = append(issues, checkMakefileHelp(root, releaseGateSuites)...)
 	issues = append(issues, checkForbiddenDocClaims(root)...)
+	issues = append(issues, unreadableFiles...)
 
 	return issues
+}
+
+// unreadableFiles collects the files this tool could not read in full.
+//
+// Every count and every check here is drawn from a file scan, and a scan that
+// stops early yields a low count and no finding. That is the shape that reports
+// a document accurate because the check never reached the drift, so it is
+// reported as drift of its own.
+var unreadableFiles []issue
+
+// noteUnreadable records a file whose scan stopped before the end.
+func noteUnreadable(path string, err error) {
+	var tb textbuf.Buffer
+	unreadableFiles = append(unreadableFiles, issue{
+		File:    path,
+		Message: "read stopped early, so the checks over this file are incomplete",
+		Detail:  tb.Err(err).String(),
+	})
 }
 
 type forbiddenDocClaim struct {
@@ -326,6 +345,31 @@ func countInteropScenarios(scenariosDir string) int {
 	return count
 }
 
+// countMatchingLines returns how many lines of path match re.
+//
+// A scan that stops early is recorded through noteUnreadable. It yields a LOW
+// count, and a low count is the direction that agrees with a document claiming
+// fewer tests than the tree holds.
+func countMatchingLines(path string, re *regexp.Regexp) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	count := 0
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if re.MatchString(scanner.Text()) {
+			count++
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		noteUnreadable(path, err)
+	}
+	return count
+}
+
 func countFuzzTargets(root string) int {
 	count := 0
 	re := regexp.MustCompile(`^func Fuzz`)
@@ -336,17 +380,7 @@ func countFuzzTargets(root string) int {
 		if strings.Contains(path, "vendor") {
 			return nil
 		}
-		f, err := os.Open(path)
-		if err != nil {
-			return nil
-		}
-		defer f.Close()
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			if re.MatchString(scanner.Text()) {
-				count++
-			}
-		}
+		count += countMatchingLines(path, re)
 		return nil
 	})
 	return count
@@ -360,17 +394,7 @@ func countGoTestFunctions(root string) int {
 			if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), "_test.go") {
 				return nil
 			}
-			f, err := os.Open(path)
-			if err != nil {
-				return nil
-			}
-			defer f.Close()
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				if re.MatchString(scanner.Text()) {
-					count++
-				}
-			}
+			count += countMatchingLines(path, re)
 			return nil
 		})
 	}
@@ -841,6 +865,13 @@ func readLines(path string) ([]string, error) {
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		// Callers skip a file that fails to open, because an absent document is
+		// not drift. A file that opened and then stopped is a different fact,
+		// so it is recorded here rather than left to that skip.
+		noteUnreadable(path, err)
+		return nil, err
 	}
 	return lines, nil
 }
