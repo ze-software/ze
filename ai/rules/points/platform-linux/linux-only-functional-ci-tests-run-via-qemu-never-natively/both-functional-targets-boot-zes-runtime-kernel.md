@@ -5,8 +5,21 @@ stage:
 ---
 **Both targets boot ze's own runtime kernel, never the stock Alpine one
 (2026-08-07).** Each passes `--kernel tmp/kernel/vmlinuz` and refuses to start
-without it, so `make ze-kernel KERNEL_ARCH=<amd64|arm64>` is a precondition of
-each. That command costs a copy on a cache hit and only builds on a miss.
+without it, so `make ze-kernel-vmlinuz KERNEL_ARCH=<amd64|arm64>` is a
+precondition of each. That command costs a copy on a cache hit and only builds
+on a miss. `make ze-kernel` also satisfies it and additionally assembles the
+gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps`
+downloads and a VM boot never reads.
+
+**A caller that runs one of these targets MUST supply the kernel itself
+(2026-08-11).** The guard denies before the VM, so a caller that cannot stage a
+kernel runs no test at all. `.github/workflows/qemu-nightly.yml` was that caller
+for four nights: it never staged one, and its job-level `continue-on-error`
+reported every failed run as `success`.
+`TestQemuKernelPreconditionIsMetInTheSameJob`
+(`scripts/dev/github_workflows_test.go`) now derives both sides from the make
+fragments. It fails when a workflow JOB runs a guarded target and no target in
+that same job stages a kernel.
 
 **The guard compares, it does not merely check existence.** `GOKRAZY_ARCH`
 defaults to `amd64` on every host while `QEMU_GOARCH` follows `uname`, so a bare

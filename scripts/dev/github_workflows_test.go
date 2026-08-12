@@ -27,6 +27,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -113,11 +114,15 @@ func onBlock(t *testing.T, name string) string {
 // jobBlock is one entry of a workflow's `jobs:` mapping.
 type jobBlock struct {
 	name     string
-	advisory bool // carries `continue-on-error: true` as a DIRECT key of this job
+	advisory bool   // carries `continue-on-error: true` as a DIRECT key of this job
+	body     string // every line under this job, comments stripped
 }
 
 // jobBlocks parses `jobs:` into per-job blocks and reports, for each, whether
-// `continue-on-error: true` is one of that job's own keys.
+// `continue-on-error: true` is one of that job's own keys, plus the job's own
+// lines. The body lets a check ask whether ONE job does two things. A
+// precondition and the target that needs it must run on the same runner. A
+// whole-file scan cannot tell that from two jobs that each do one.
 //
 // Indentation-agnostic by construction: a job's key level is derived from the
 // first key inside that job, not assumed. Anything indented deeper (a steps:
@@ -149,6 +154,7 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 		}
 		cur := jobBlock{name: strings.TrimSuffix(strings.TrimSpace(ln), ":")}
 		var keyIndent string
+		var body []string
 		for _, next := range lines[i+1:] {
 			if strings.TrimSpace(next) == "" {
 				continue
@@ -157,6 +163,7 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 			if len(ind) <= len(jobIndent) {
 				break // back at job level: this job's block ended
 			}
+			body = append(body, next)
 			if keyIndent == "" {
 				keyIndent = ind // first key inside the job defines its key level
 			}
@@ -168,6 +175,7 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 				cur.advisory = true
 			}
 		}
+		cur.body = strings.Join(body, "\n")
 		out = append(out, cur)
 	}
 	if len(out) == 0 {
@@ -399,6 +407,161 @@ func TestQemuNightlyIsScheduledAdvisoryAndRunsTheLinuxOnlySuite(t *testing.T) {
 			t.Errorf("qemu-nightly.yml job %q has no job-level `continue-on-error: true`; "+
 				"KVM availability on hosted runners is not guaranteed, so this reports rather than wedges", j.name)
 		}
+	}
+}
+
+// makefileRecipes maps every target in a make fragment to its recipe: the
+// tab-indented lines below its `name:` line. That is where make itself ends a
+// recipe. Blank and comment lines below a recipe are NOT part of it, so a
+// comment quoting a command cannot satisfy a check built on this.
+//
+// One line can declare SEVERAL targets (`a b: deps`). Each of them owns the
+// recipe below it. Reading only the first word drops the rest, so a check built
+// on this would miss a guard a consolidated target line carries. A derived set
+// that silently shrinks is the fail-open shape. The vacuity Fatal in the caller
+// fires only when it shrinks all the way to zero.
+type makefileTarget struct {
+	recipe  string
+	prereqs []string
+}
+
+func makefileRecipes(src string) map[string]makefileTarget {
+	out := map[string]makefileTarget{}
+	var cur []string
+	var prereqs []string
+	var body []string
+	flush := func() {
+		for _, name := range cur {
+			out[name] = makefileTarget{recipe: strings.Join(body, "\n"), prereqs: prereqs}
+		}
+		cur, prereqs, body = nil, nil, nil
+	}
+	for ln := range strings.SplitSeq(src, "\n") {
+		if strings.HasPrefix(ln, "\t") {
+			if len(cur) > 0 {
+				body = append(body, ln)
+			}
+			continue
+		}
+		flush()
+		head, after, ok := strings.Cut(ln, ":")
+		if !ok || strings.ContainsAny(head, "#=") || strings.HasPrefix(after, "=") {
+			continue // a comment, or an assignment (`FOO = x`, `FOO := x`), never a rule
+		}
+		for name := range strings.FieldsSeq(head) {
+			if strings.HasPrefix(name, ".") {
+				continue // .PHONY and friends declare nothing this reads
+			}
+			cur = append(cur, name)
+		}
+		prereqs = strings.Fields(after)
+	}
+	flush()
+	return out
+}
+
+// TestQemuKernelPreconditionIsMetInTheSameJob
+//
+// VALIDATES: any workflow JOB that runs a QEMU target guarded by
+// ze-qemu-kernel-guard also runs, in that same job, a target that stages
+// tmp/kernel/vmlinuz.
+// PREVENTS: the failure that ran for four nights unseen. b38706464 put both QEMU
+// functional targets on ze's own runtime kernel and made the staged vmlinuz a
+// hard precondition. qemu-nightly.yml was not updated. Every scheduled run from
+// 2026-08-08 died in about a minute on "tmp/kernel/vmlinuz not found", and
+// job-level continue-on-error reported each of those runs as `success`.
+//
+// Two guards were blind to it.
+// TestQemuNightlyIsScheduledAdvisoryAndRunsTheLinuxOnlySuite pins that the
+// workflow CALLS the target. scripts/evidence/qemu_kernel_wiring_test.go pins
+// that the target CARRIES the guard. Neither asks whether the caller can
+// satisfy what the guard demands.
+//
+// Both sides are DERIVED from the make fragments. A target that adopts the
+// guard later, and a renamed staging target, are covered with no edit here.
+// Same job, not same file: a precondition met in a different job runs on a
+// different runner with a different filesystem, which is no precondition.
+func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
+	root := repoRoot(t)
+	integration := readFileOrFail(t, filepath.Join(root, "mk", "test-integration.mk"))
+	gokrazy := readFileOrFail(t, filepath.Join(root, "mk", "gokrazy.mk"))
+
+	var guarded []string
+	for name, target := range makefileRecipes(integration) {
+		if strings.Contains(target.recipe, "$(ze-qemu-kernel-guard)") {
+			guarded = append(guarded, name)
+		}
+	}
+	if len(guarded) == 0 {
+		t.Fatal("no target in mk/test-integration.mk runs $(ze-qemu-kernel-guard); the guard or the layout moved, and this test must not pass vacuously")
+	}
+
+	// A stager either copies the kernel into place itself, or depends on one that
+	// does. The second case is what keeps `make ze-kernel` a valid answer here.
+	//
+	// The copy and the path must be on the SAME line. Over a joined recipe the
+	// two substrings meet without the staging command existing. ze-kernel-vmlinuz's
+	// cache branches both run `cp -R`, and its echo names the path. So deleting
+	// the one line that stages the kernel left the target still reading as a
+	// stager. A guard that survives the deletion of what it checks for is not one.
+	recipes := makefileRecipes(gokrazy)
+	stagers := map[string]bool{}
+	for name, target := range recipes {
+		for ln := range strings.SplitSeq(target.recipe, "\n") {
+			if strings.Contains(ln, "tmp/kernel/vmlinuz") && strings.Contains(ln, "cp ") {
+				stagers[name] = true
+			}
+		}
+	}
+	if len(stagers) == 0 {
+		t.Fatal("no target in mk/gokrazy.mk stages tmp/kernel/vmlinuz; this test must not pass vacuously")
+	}
+	// To a fixpoint, because map iteration is unordered. One pass resolves a
+	// direct prerequisite. It resolves a two-link chain only when the map
+	// happens to yield it in order.
+	for grew := true; grew; {
+		grew = false
+		for name := range recipes {
+			if stagers[name] {
+				continue
+			}
+			for _, prereq := range recipes[name].prereqs {
+				if stagers[prereq] {
+					stagers[name] = true
+					grew = true
+				}
+			}
+		}
+	}
+
+	workflows, err := filepath.Glob(filepath.Join(root, workflowsDir, "*.yml"))
+	if err != nil || len(workflows) == 0 {
+		t.Fatalf("glob %s/*.yml: %v (%d found)", workflowsDir, err, len(workflows))
+	}
+	checked := 0
+	for _, wf := range workflows {
+		for _, j := range jobBlocks(t, filepath.Base(wf)) {
+			targets := parseMakeTargets(j.body)
+			var needsKernel []string
+			for _, target := range targets {
+				if slices.Contains(guarded, target) {
+					needsKernel = append(needsKernel, target)
+				}
+			}
+			if len(needsKernel) == 0 {
+				continue
+			}
+			checked++
+			if !slices.ContainsFunc(targets, func(target string) bool { return stagers[target] }) {
+				t.Errorf("%s job %q runs %v, which requires a staged tmp/kernel/vmlinuz (ze-qemu-kernel-guard), "+
+					"but the job runs no target that stages one (any of %v). The guard denies before the VM starts, "+
+					"and on an advisory job that reads as a green run.",
+					filepath.Base(wf), j.name, needsKernel, slices.Sorted(maps.Keys(stagers)))
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatalf("no workflow job runs a kernel-guarded QEMU target (%v); the Linux-only surface lost its home, or the scan broke", guarded)
 	}
 }
 

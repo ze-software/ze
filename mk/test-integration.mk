@@ -363,9 +363,10 @@ ZE_QEMU_PARALLEL ?= 4
 
 # ─── The runtime kernel both functional QEMU targets boot ───────────────────
 #
-# Staged by `make ze-kernel` (mk/gokrazy.mk), which materializes it from the
-# durable arch+config-keyed cache under ~/.cache/ze in seconds on a hit, and
-# builds only on a miss.
+# Staged by `make ze-kernel-vmlinuz` (mk/gokrazy.mk), which materializes it from
+# the durable arch+config-keyed cache under ~/.cache/ze in seconds on a hit, and
+# builds only on a miss. `make ze-kernel` stages it too and then assembles the
+# gokrazy kernel package, which nothing here reads.
 ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
 
 # Refuse to boot anything but THIS host's architecture and THIS tree's kernel
@@ -398,7 +399,7 @@ ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
 # TestQemuTargetsGuardTheStagedKernel now checks for every user of the guard
 # rather than for a hand-written list of two.
 define ze-qemu-kernel-guard
-@hint="run: make ze-kernel KERNEL_ARCH=$(QEMU_GOARCH)"; \
+@hint="run: make ze-kernel-vmlinuz KERNEL_ARCH=$(QEMU_GOARCH)"; \
 	cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(QEMU_GOARCH) --print-cache-dir)"; \
 	test -f "$(ZE_QEMU_KERNEL)" || { echo "error: $(ZE_QEMU_KERNEL) not found -- this target boots ze's runtime kernel and never stock Alpine ($$hint)"; exit 1; }; \
 	{ test -n "$$cache_dir" && test -f "$$cache_dir/vmlinuz"; } || { echo "error: no $(QEMU_GOARCH) runtime kernel in the durable cache ($$hint)"; exit 1; }; \

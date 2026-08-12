@@ -35,7 +35,7 @@
 # (internal/appliance/instance). No build step writes to a tracked path, so a
 # custom-kernel build needs nothing reverted afterwards.
 
-.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-gokrazy-gosum-check ze-kernel ze-kernel-clean ze-host bin/gok
+.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-gokrazy-gosum-check ze-kernel ze-kernel-vmlinuz ze-kernel-clean ze-host bin/gok
 
 GOKRAZY_INSTANCE   := ze
 GOKRAZY_DIR        := gokrazy
@@ -281,7 +281,8 @@ ze-host:
 	@echo "--- Building host ze binary (ze-host: -tags ze_core,ze_setup, NO GOARCH override) ---"
 	@$(GO) build -tags 'ze_core ze_setup' -o "$(CURDIR)/ze-host" ./cmd/ze
 
-# ze-kernel routes the runtime kernel through the durable cache (~/.cache/ze, Option C):
+# ze-kernel-vmlinuz routes the runtime kernel through the durable cache (~/.cache/ze,
+# Option C):
 # it asks ze-host for the arch+config-keyed cache dir, materializes from it on a HIT (no
 # ~30-min rebuild), or builds via run.py then populates the cache on a MISS. The copy is
 # staged in a sibling .copytree-* dir and swapped in with a rename -- the sanctioned
@@ -290,13 +291,22 @@ ze-host:
 # macOS lacks) guarded by an existence check: if a concurrent populate already won the key,
 # the loser discards its staging instead of nesting it inside the winner's tree.
 # tmp/kernel/build stays a materialized VIEW, so `rm -rf tmp` costs only a copy.
-ze-kernel: ze-host
+#
+# It stops at tmp/kernel/vmlinuz, which is the whole of what the QEMU functional
+# targets need (mk/test-integration.mk, ze-qemu-kernel-guard). ze-kernel then adds
+# the gokrazy package assembly, and THAT half needs the module cache
+# `make ze-gokrazy-deps` downloads. One target carrying both made booting a VM
+# depend on an appliance build's downloads: .github/workflows/qemu-nightly.yml
+# could not satisfy the guard without them, so it staged no kernel at all and
+# every scheduled run died before the VM (2026-08-08 onwards).
+ze-kernel-vmlinuz: ze-host
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
 	@: "Dry-run guard: this recipe line embeds $$(MAKE), so GNU make executes it"; \
 	: "even under -n. Without this, a dry run (or a make -n inspection test) would"; \
 	: "run the real cache materialize/build/populate and, on a cold cache, fail the"; \
-	: "magic check on a not-yet-built vmlinuz. The staging lines below (268+) still"; \
-	: "print, so callers still see the out-of-tree assembly. The real (non -n) path"; \
+	: "magic check on a not-yet-built vmlinuz. The staging lines below still print,"; \
+	: "and so does ze-kernel's assembly, so a dry run still shows the whole path."; \
+	: "The real (non -n) path"; \
 	: "is byte-identical -- the guard is unreachable unless -n is set."; \
 	case "$(firstword -$(MAKEFLAGS))" in *n*) echo "--- (dry-run) runtime kernel: materialize from durable cache on HIT, or build via run.py into $(KERNEL_BUILD_DIR) on MISS ---"; exit 0 ;; esac; \
 	cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(KERNEL_ARCH) --print-cache-dir)"; \
@@ -335,6 +345,11 @@ ze-kernel: ze-host
 	@echo "--- Staging test kernel to tmp/kernel/vmlinuz (QEMU evidence: ze-qemu-l2tp-ppp-test, ze-qemu-pppoe-accel-test) ---"
 	@mkdir -p tmp/kernel
 	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" tmp/kernel/vmlinuz
+
+# ze-kernel is the appliance path: the staged vmlinuz above, plus the out-of-tree
+# gokrazy kernel package built from the pinned module cache. Unchanged for every
+# caller -- it still builds or materializes, stages, and assembles.
+ze-kernel: ze-kernel-vmlinuz
 	@echo "--- Assembling out-of-tree kernel package ($(KERNEL_PKG_DIR)) ---"
 	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version (run: make ze-gokrazy-deps)"; exit 1; }
 	@test -d "$(KERNEL_MODCACHE_DIR)" || { echo "error: $(KERNEL_MODCACHE_DIR) not found (run: make ze-gokrazy-deps)"; exit 1; }

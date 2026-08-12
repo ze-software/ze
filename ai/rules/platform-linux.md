@@ -54,8 +54,21 @@ runner, so the QEMU pass discovers `needs-linux` tests automatically.
 
 **Both targets boot ze's own runtime kernel, never the stock Alpine one
 (2026-08-07).** Each passes `--kernel tmp/kernel/vmlinuz` and refuses to start
-without it, so `make ze-kernel KERNEL_ARCH=<amd64|arm64>` is a precondition of
-each. That command costs a copy on a cache hit and only builds on a miss.
+without it, so `make ze-kernel-vmlinuz KERNEL_ARCH=<amd64|arm64>` is a
+precondition of each. That command costs a copy on a cache hit and only builds
+on a miss. `make ze-kernel` also satisfies it and additionally assembles the
+gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps`
+downloads and a VM boot never reads.
+
+**A caller that runs one of these targets MUST supply the kernel itself
+(2026-08-11).** The guard denies before the VM, so a caller that cannot stage a
+kernel runs no test at all. `.github/workflows/qemu-nightly.yml` was that caller
+for four nights: it never staged one, and its job-level `continue-on-error`
+reported every failed run as `success`.
+`TestQemuKernelPreconditionIsMetInTheSameJob`
+(`scripts/dev/github_workflows_test.go`) now derives both sides from the make
+fragments. It fails when a workflow JOB runs a guarded target and no target in
+that same job stages a kernel.
 
 **The guard compares, it does not merely check existence.** `GOKRAZY_ARCH`
 defaults to `amd64` on every host while `QEMU_GOARCH` follows `uname`, so a bare
@@ -218,7 +231,7 @@ The pattern (do all four in the same change):
 
 1. **Netns evidence script** `scripts/evidence/effective-<feature>.py`: you MUST run Ze and the peer daemon in two network namespaces joined by a veth, no Docker. You MUST mirror `effective-l2tp-ppp.py` (LineCollector, marker waits, kernel probe, cleanup).
 2. **Peer from Alpine packages**: you MUST install the peer daemon with `apk` via `--packages`, e.g. `xl2tpd` (L2TP) or `accel-ppp` (PPPoE). If the lab's Docker image built the peer from source, you MUST switch it to the Alpine package so both paths use the same build: `accel-ppp`, `frr`, and `xl2tpd` are all in Alpine community.
-3. **Runtime kernel for kernel modules**: if the feature needs a module absent from the stock Alpine VM kernel, you MUST run with `--kernel tmp/kernel/vmlinuz`, add the `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel` stages the kernel to `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains the repo `cache` symlink (and, after the opt-in `make ze-migrate-scratch`, the `tmp` symlink) so the expensive artifacts live outside the disposable scratch tree.
+3. **Runtime kernel for kernel modules**: if the feature needs a module absent from the stock Alpine VM kernel, you MUST run with `--kernel tmp/kernel/vmlinuz`, add the `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel-vmlinuz` stages the kernel to `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains the repo `cache` symlink (and, after the opt-in `make ze-migrate-scratch`, the `tmp` symlink) so the expensive artifacts live outside the disposable scratch tree.
 4. **You MUST add a `ze-qemu-<feature>-test` target** in `mk/test-integration.mk` calling `qemu-run.py --kernel ... --packages ... --run 'python3 scripts/evidence/effective-<feature>.py'`, and add it to `.PHONY` and the `Makefile` help block.
 
 | Lab | Docker target | QEMU target | Netns script |

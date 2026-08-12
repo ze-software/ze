@@ -1108,6 +1108,7 @@ help-deploy:
 	@echo ""
 	@echo "  Custom kernel:"
 	@echo "    ze-kernel KERNEL_ARCH=amd64  Build/materialize the runtime kernel (L2TP/PPP built in; ~30 min cold via KERNEL_BUILDER=docker, instant from cache)"
+	@echo "    ze-kernel-vmlinuz KERNEL_ARCH=amd64  Stage tmp/kernel/vmlinuz only (what the QEMU targets need; no gokrazy module cache)"
 	@echo "    ze-kernel-clean              Restore pinned rtr7/kernel"
 	@echo ""
 	@echo "  Deployment evidence:"
