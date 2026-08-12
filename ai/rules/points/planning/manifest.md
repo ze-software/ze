@@ -143,6 +143,7 @@ deferred-work-blocking ## Deferred Work (BLOCKING)
   verify-every-deferral-before-marking-a-spec-done
 deferral-tracking ## Deferral Tracking
   record-and-home-every-scope-reduction
+  a-dedicated-spec-replaces-the-row
   why-the-homing-gate-warns-instead-of-blocking
   central-log
   where-deferrals-live-one-shard-per-source
