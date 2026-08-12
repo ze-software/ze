@@ -1003,7 +1003,7 @@ internal/component/bgp/plugins/      Plugin implementations (rib, rs, gr, role, 
 internal/component/bgp/attrpool/     Memory pools (per-attribute-type dedup)
 internal/component/config/           Configuration pipeline
 internal/component/plugin/           Plugin infrastructure (registry, process, server)
-internal/component/hub/              Hub / bus architecture
+internal/component/hub/yang/         Environment and daemon YANG module (ze-hub-conf)
 pkg/plugin/sdk/                      Public plugin SDK
 pkg/plugin/rpc/                      Shared RPC types + MuxConn
 pkg/zefs/                            ZeFS blob store library

@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 623 packages, 620 described, 3 TODO
+Total: 622 packages, 619 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -299,7 +299,6 @@ Total: 623 packages, 620 described, 3 TODO
 | `internal/component/gnmi/yang` | embeds and registers the gNMI component's YANG schema module |  |
 | `internal/component/gokrazy` | provides a reverse proxy handler for the gokrazy management interface, mounted on ze's web server at /gokrazy/ |  |
 | `internal/component/host` | reads the physical hardware inventory from sysfs, procfs, and netlink |  |
-| `internal/component/hub` | provides the hub/orchestrator process for ze |  |
 | `internal/component/hub/yang` | embeds and registers the hub component's YANG schema module |  |
 | `internal/component/iface` | implements the interface monitoring and management plugin | interface |
 | `internal/component/iface/cli` | provides the ze interface subcommand for managing OS network interfaces (dummy, veth, VLAN units, addresses) |  |

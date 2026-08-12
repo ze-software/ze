@@ -1,6 +1,15 @@
 # Hub Architecture
 
-**Status:** Design aspiration (partially implemented)
+**Status:** Design aspiration, and the part that was built has since been removed.
+
+The standalone orchestrator this document describes (`internal/component/hub/`,
+which forked each plugin as `ze <name> --child`) was deleted on 2026-08-12.
+`PluginManager` took over that job inside the one daemon in March 2026. The
+orchestrator survived only as a second parser, reached by a config whose top
+level held nothing but `plugin` and `env`. That parser accepted the word
+`external` and refused `internal`. A config `ze config validate` accepted
+therefore failed to boot. Read this document for the plugin model it describes,
+not for the process model.
 
 **Purpose:** Document the future architecture where `ze` acts as a central Hub orchestrating separate processes for BGP, RIB, GR, and third-party plugins.
 

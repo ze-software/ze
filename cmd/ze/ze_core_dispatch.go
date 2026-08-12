@@ -291,12 +291,9 @@ func zeDispatch(args []string) int {
 	if zeFlags.fileOverride != "" {
 		store := storage.NewFilesystem()
 		zeFlags.fileOverride = config.ResolveConfigPath(zeFlags.fileOverride)
-		switch detectConfigType(store, zeFlags.fileOverride) {
-		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			return withPanicCapture(func() int {
-				return hub.Run(store, zeFlags.fileOverride, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, false, "", false, "", "")
-			})
-		}
+		return withPanicCapture(func() int {
+			return hub.Run(store, zeFlags.fileOverride, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, false, "", false, "", "")
+		})
 	}
 
 	if len(args) < 1 {
@@ -565,14 +562,6 @@ func extractHelpPath(args []string) []string {
 		return args[:len(args)-1]
 	}
 	return nil
-}
-
-func detectConfigType(store storage.Storage, path string) config.ConfigType {
-	data, err := store.ReadFile(path)
-	if err != nil {
-		return config.ConfigTypeUnknown
-	}
-	return config.ProbeConfigType(string(data))
 }
 
 func dispatchHelp(args []string) int {

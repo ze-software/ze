@@ -69,7 +69,6 @@ add the annotation to the new files.
 | `internal/plugins/flowexport` | `// Design: docs/architecture/flowexport/flow-export-0-umbrella.md - flow export component` |
 | `internal/component/gnmi` | `// Design: docs/architecture/api/architecture.md - gNMI service` |
 | `internal/component/host` | `// Design: docs/architecture/host/inventory.md - host inventory and hardware facts` |
-| `internal/component/hub` | `// Design: docs/architecture/hub-architecture.md - hub coordination` |
 | `internal/component/iface` | `// Design: docs/features/interfaces.md - interface component` |
 | `internal/component/iface/cli` | `// Design: docs/architecture/iface/management.md - interface config and CLI` |
 | `internal/component/iface/cmd` | `// Design: docs/architecture/iface/netlink-monitor.md - interface show commands and netlink monitor` |

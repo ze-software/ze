@@ -209,18 +209,11 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 				store = storage.NewFilesystem()
 			}
 		}
-		switch detectConfigType(store, configPath) {
-		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			return withPanicCapture(func() int {
-				return hub.Run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
-			})
-		}
-		// ProbeConfigType only yields BGP/Hub/Unknown, so the switch above always
-		// returns; this guards against a future ConfigType silently falling into
-		// the blob-default path and ignoring the operator's file.
-		store.Close() //nolint:errcheck // defensive close on an unreachable path
-		fmt.Fprintf(os.Stderr, "error: could not determine config type for %q\n", configPath)
-		return 1
+		// One runtime for every config: hub.Run reads the file and parses it
+		// against the YANG schema, whatever top-level blocks it declares.
+		return withPanicCapture(func() int {
+			return hub.Run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+		})
 	}
 
 	store := resolveStorage()
@@ -288,13 +281,11 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		hub.PeerLifecycleCallback = hr
 	}
 
-	ct := detectConfigType(store, configName)
-	if ct == config.ConfigTypeUnknown && webEnabled {
-		fmt.Fprintf(os.Stderr, "error: config %q has unknown type; cannot start daemon with --web\n", configName)
-		fmt.Fprintf(os.Stderr, "hint: use --web-only to start the web UI without a daemon\n")
-		return 1
-	}
-
+	// No config-type gate on --web. Every config the YANG schema accepts runs on
+	// one daemon, so "the daemon cannot serve this config" is not a state a probe
+	// can report: a config it cannot parse fails in runYANGConfig and says why.
+	// The gate used to key on ConfigTypeUnknown, which covers every config with
+	// no `bgp {}` block -- an interface-only or plugin-only config among them.
 	return withPanicCapture(func() int {
 		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
 	})

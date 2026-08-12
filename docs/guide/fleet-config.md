@@ -1,7 +1,7 @@
 # Fleet Configuration
 
 Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS.
-<!-- source: cmd/ze/hub/main.go -- hub orchestrator; internal/component/hub/ -- hub implementation -->
+<!-- source: cmd/ze/hub/managed_server.go -- fleet hub server; internal/component/managed/ -- managed client and fleet protocol -->
 
 > **Status:** Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and `ze start` managed mode are functional.
 
@@ -114,4 +114,4 @@ ze config history edge-01.conf      # View rollback history
 | `--server <addr>` | Override hub address |
 | `--name <name>` | Override instance name |
 | `--token <secret>` | Override auth token |
-<!-- source: internal/component/hub/ -- hub TLS and client auth -->
+<!-- source: internal/component/managed/ -- fleet TLS and client auth -->

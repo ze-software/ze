@@ -31,7 +31,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/engine"
-	"github.com/ze-software/ze/internal/component/hub"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/managed"
 	zepki "github.com/ze-software/ze/internal/component/pki"
@@ -200,21 +199,11 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		return 1
 	}
 
-	// Probe config type using shared function
-	switch zeconfig.ProbeConfigType(string(data)) {
-	case zeconfig.ConfigTypeBGP, zeconfig.ConfigTypeUnknown:
-		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
-		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliAttach, managedClient)
-	case zeconfig.ConfigTypeHub:
-		if len(plugins) > 0 {
-			fmt.Fprintf(os.Stderr, "error: --plugin is not supported with hub/orchestrator configs; use plugin { external ... } in the config file\n")
-			logStartupFailure("flag validation", errors.New("--plugin is not supported with hub/orchestrator configs"))
-			return 1
-		}
-		return runOrchestratorWithData(store, configPath, data)
-	}
-
-	return 1
+	// One config, one parser, one runtime. Every config the YANG schema accepts
+	// boots here, `plugin {}` on its own included: a config that passes
+	// `ze config validate` must boot, and a second runtime with its own parser
+	// is how the two used to disagree.
+	return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliAttach, managedClient)
 }
 
 func clearStaleCandidateOnBoot(store storage.Storage, configPath string) error {
@@ -1434,87 +1423,6 @@ func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan s
 			return
 		}
 	}
-}
-
-// runOrchestratorWithData parses hub config and runs the orchestrator.
-func runOrchestratorWithData(store storage.Storage, configPath string, data []byte) int {
-	cfg, err := hub.ParseHubConfig(string(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: parse config: %v\n", err)
-		logStartupFailure("parse hub config", err)
-		return 1
-	}
-	cfg.ConfigPath = configPath
-
-	o := hub.NewOrchestrator(cfg)
-	o.SetStorage(store)
-
-	// Setup signal handling
-	ctx, cancel := context.WithCancel(context.Background())
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-
-	go func() {
-		for sig := range sigCh {
-			switch sig {
-			case syscall.SIGINT, syscall.SIGTERM:
-				fmt.Fprintf(os.Stderr, "received %s, shutting down...\n", sig)
-				cancel()
-				return
-			case syscall.SIGHUP:
-				fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-				if err := o.Reload(configPath); err != nil {
-					fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
-					// A failed hub reload shuts the daemon down; mirror the
-					// reason onto slog (kmsg on the appliance) like the
-					// pre-serve failures, or the death is invisible on serial.
-					slogutil.Logger("hub").Error("config reload failed; shutting down", "err", err)
-					cancel()
-					return
-				}
-				// The hub-config reload loop, selected by Run on
-				// zeconfig.ProbeConfigType. It must announce completion for the
-				// same reason handleSIGHUPReload does: without it a hub daemon's
-				// last word is "received SIGHUP, reloading config...", whether
-				// the reload finished or wedged, and no .ci can fence on it.
-				reloadComplete()
-			}
-		}
-	}()
-
-	// Start orchestrator
-	if err := o.Start(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "error: start: %v\n", err)
-		logStartupFailure("start orchestrator", err)
-		return 1
-	}
-
-	// Drop privileges after port binding.
-	if err := dropPrivileges(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
-		logStartupFailure("drop privileges", err)
-		o.Stop()
-		return 1
-	}
-
-	fmt.Fprintf(os.Stderr, "hub: started with config %s\n", configPath)
-
-	// Signal readiness to test infrastructure. Written after signal.Notify
-	// and o.Start so the test runner knows signal handlers are registered.
-	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
-		if f, err := os.Create(readyFile); err == nil { //nolint:gosec // test infrastructure path from env
-			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
-		}
-	}
-
-	// Wait for shutdown
-	<-ctx.Done()
-
-	// Clean shutdown — stop signal handler goroutine before returning.
-	signal.Stop(sigCh)
-	close(sigCh)
-	o.Stop()
-	return 0
 }
 
 func (st *standaloneTelemetry) Close() {

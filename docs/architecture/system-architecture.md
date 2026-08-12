@@ -119,14 +119,23 @@ The config file has three sections, parsed in order:
 
 ### Section 1: Environment
 
-Global settings applied before forking processes.
+Global settings applied before forking processes. The block is `environment`,
+modeled in `ze-hub-conf.yang` like every other top-level block.
 
 ```
-env {
-    log-level debug;
-    working-dir /var/run/ze;
+environment {
+    log {
+        level debug
+    }
+    daemon {
+        pid /var/run/ze.pid
+    }
 }
 ```
+
+An older `env { }` block existed for a second runtime that parsed the config
+itself. That runtime is deleted, and `env { }` is not a top-level keyword: it
+fails `ze config validate` and it fails at boot, with the same message.
 
 ### Section 2: Plugin Declarations
 
@@ -431,7 +440,7 @@ ze bgp                        ze (hub)                      ze rib
 ### 10-Step Protocol
 
 ```
-1. Hub parses env { }              → Set global settings (api-socket, log-level, etc.)
+1. Hub parses environment { }      → Set global settings (api-socket, log level, etc.)
 2. Hub parses plugin { } block     → Build process list from ze-plugin-conf.yang
 3. Hub forks each plugin           → ze bgp, ze rib, ze gr, third-party, ...
 4. Each plugin: Stage 1            → Declare YANG module + handlers
@@ -714,7 +723,7 @@ Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after
 ### Plugin TLS Transport
 
 External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
-<!-- source: internal/component/hub/ -- hub TLS listener -->
+<!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 
 ### Plugin Process Isolation

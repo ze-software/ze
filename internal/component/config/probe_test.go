@@ -8,8 +8,8 @@ import (
 
 // TestProbeConfigType verifies config type detection from content.
 //
-// VALIDATES: Detects bgp, hub, unknown from top-level blocks.
-// PREVENTS: Wrong daemon started for config type.
+// VALIDATES: Detects a top-level bgp block; everything else is unknown.
+// PREVENTS: A plugin-only config being read as a separate daemon's config.
 func TestProbeConfigType(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -29,21 +29,22 @@ func TestProbeConfigType(t *testing.T) {
 		{
 			name:    "plugin_external",
 			content: "plugin {\n\texternal bgp { run \"ze bgp\"; }\n}",
-			want:    ConfigTypeHub,
-		},
-		{
-			// A built-in protocol block alongside an external plugin routes to the
-			// full YANG daemon, NOT the plugin-hub orchestrator: built-in OSPF must
-			// run and the external observer needs a TLS acceptor. Regression guard
-			// for the misrouted ldp-sync/multiaf/vlink ospf tests.
-			name:    "plugin_with_ospf_is_yang_not_hub",
-			content: "plugin {\n\texternal obs { run \"./obs\"; }\n}\nospf {\n\trouter-id 1.2.3.4\n}",
 			want:    ConfigTypeUnknown,
 		},
 		{
-			name:    "plugin_with_env_stays_hub",
-			content: "env {\n\tKEY value\n}\nplugin {\n\texternal x { run \"./x\"; }\n}",
-			want:    ConfigTypeHub,
+			// A plugin-only config declares no bgp block, so it is unknown here and
+			// boots on the single YANG daemon path like every other config. Until
+			// 2026-08-12 this shape selected a second runtime whose hand-written
+			// parser accepted only `external`, so `plugin { internal ... }` passed
+			// `ze config validate` and then refused to boot.
+			name:    "plugin_internal",
+			content: "plugin {\n\tinternal static { use static; }\n}",
+			want:    ConfigTypeUnknown,
+		},
+		{
+			name:    "plugin_with_ospf",
+			content: "plugin {\n\texternal obs { run \"./obs\"; }\n}\nospf {\n\trouter-id 1.2.3.4\n}",
+			want:    ConfigTypeUnknown,
 		},
 		{
 			name:    "unknown_empty",
@@ -83,14 +84,10 @@ func TestProbeConfigType(t *testing.T) {
 		{
 			name:    "set_format_plugin",
 			content: "set plugin hub listen 127.0.0.1:5555",
-			want:    ConfigTypeHub,
+			want:    ConfigTypeUnknown,
 		},
 		{
-			// A committed OSPF + external-plugin config serializes to set format
-			// and is probed on `ze start`/reboot; it must route to the YANG daemon,
-			// not the acceptor-less orchestrator (regression guard for the reboot
-			// path of the ospf-observer misroute).
-			name:    "set_format_plugin_with_ospf_is_yang",
+			name:    "set_format_plugin_with_ospf",
 			content: "set plugin external obs run ./obs\nset ospf router-id 1.2.3.4",
 			want:    ConfigTypeUnknown,
 		},
@@ -117,7 +114,7 @@ func TestProbeConfigType(t *testing.T) {
 		{
 			name:    "delete_format_plugin",
 			content: "delete plugin hub listen",
-			want:    ConfigTypeHub,
+			want:    ConfigTypeUnknown,
 		},
 		{
 			name:    "set_format_bgp_precedence",

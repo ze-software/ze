@@ -1,7 +1,7 @@
 # Configuration Reload
 
 Ze supports live configuration reload without restarting the daemon. Changed peers are updated, new peers are added, and removed peers are disconnected.
-<!-- source: cmd/ze/hub/main.go -- SIGHUP handler, o.Reload -->
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, doReload -->
 
 ## Triggering a Reload
 

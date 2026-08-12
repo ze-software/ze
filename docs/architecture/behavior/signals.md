@@ -239,13 +239,13 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 
 | Signal | Action | Handler |
 |--------|--------|---------|
-| SIGTERM | Graceful shutdown | `cmd/ze/hub/main.go` — both BGP and orchestrator paths |
+| SIGTERM | Graceful shutdown | `cmd/ze/hub/main.go` |
 | SIGINT | Graceful shutdown | Same as SIGTERM (Ctrl+C) |
-| SIGHUP | Config reload | `reactor.SignalHandler.OnReload` (BGP path); `Orchestrator.Reload` (hub path — shuts down on failure) |
-| SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` (BGP path only) |
+| SIGHUP | Config reload | `handleSIGHUPReload` (`cmd/ze/hub/main_reload.go`), then `reactor.SignalHandler.OnReload` |
+| SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` |
 | SIGQUIT | Goroutine dump + exit | Go runtime default (not caught -- useful for debugging) |
 <!-- source: internal/component/bgp/reactor/signal.go -- handleSignal, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, runOrchestratorWithData -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 ### Daemon Liveness
 
@@ -270,21 +270,19 @@ Usage: `ze signal <command>`
 
 ### Startup Paths
 
-**BGP in-process** (`runYANGConfig`):
-1. Load config via YANG parser
+There is one startup path, `runYANGConfig`, and every config takes it:
+
+1. Load config via the YANG parser
 2. Start SSH server (binds configured listen addresses)
 3. Start reactor with `SignalHandler` (handles SIGHUP/SIGUSR1)
 4. Wait for SIGTERM/SIGINT or reactor done
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
-**Hub orchestrator** (`runOrchestratorWithData`):
-1. Parse hub config
-2. Start SSH server
-3. Start orchestrator
-4. Signal goroutine handles SIGTERM/SIGINT/SIGHUP
-<!-- source: cmd/ze/hub/main.go -- runOrchestratorWithData -->
+A second path existed until 2026-08-12, `runOrchestratorWithData`, reached by a
+config whose top-level blocks were only `plugin` and `env`. It parsed the config
+with its own parser and handled its own signals. It is deleted.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler.StartWithContext -->
 
 ---
 
-**Last Updated:** 2026-02-11
+**Last Updated:** 2026-08-12

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3288 files
+Total: 261 design docs, 3283 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1932,11 +1932,6 @@ Total: 261 design docs, 3288 files
 | `cmd/ze/hub/session_factory.go` | SSH session model factory |
 | `cmd/ze/hub/ssh_infra.go` | infrastructure server setup |
 | `internal/component/config/infra/hook.go` | infrastructure setup hook |
-| `internal/component/hub/config.go` | hub coordination |
-| `internal/component/hub/hub.go` | hub coordination |
-| `internal/component/hub/reload.go` | hub coordination |
-| `internal/component/hub/router.go` | hub coordination |
-| `internal/component/hub/schema.go` | hub coordination |
 
 ## `docs/architecture/iface/logical-name-resolution.md`
 
