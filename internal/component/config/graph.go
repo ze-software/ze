@@ -96,7 +96,7 @@ func addSectionNodes(g *Graph, tree *Tree) {
 
 // addBGPEdges adds peer, group, and plugin-binding edges from the bgp section.
 func addBGPEdges(g *Graph, tree *Tree) {
-	bgp := tree.GetContainer("bgp")
+	bgp := tree.GetContainer(sectionBGP)
 	if bgp == nil {
 		return
 	}
@@ -249,13 +249,14 @@ func listenerSectionName(service string) string {
 		return sectionInterface
 	case strings.HasPrefix(service, "l2tp"):
 		return sectionEnvironment
-	case strings.HasPrefix(service, "bgp"):
-		return "bgp"
+	case strings.HasPrefix(service, sectionBGP):
+		return sectionBGP
 	}
 	return ""
 }
 
 const (
+	sectionBGP         = "bgp"
 	sectionEnvironment = "environment"
 	sectionInterface   = "interface"
 	sectionPlugin      = "plugin"
@@ -362,7 +363,7 @@ func addAddressUsageEdges(g *Graph, tree *Tree) {
 		return
 	}
 
-	bgp := tree.GetContainer("bgp")
+	bgp := tree.GetContainer(sectionBGP)
 	if bgp == nil {
 		return
 	}
