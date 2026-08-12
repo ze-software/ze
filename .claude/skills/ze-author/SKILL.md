@@ -53,7 +53,7 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 
 - **Em dashes.** Never, in any register. Use a comma, a full stop, a colon, or parentheses.
 - **Rhetorical questions.** None, anywhere. Do not pose a question for effect, to open a section, to voice an objection on the reader's behalf, or as a transition. State the point instead. The only questions that may appear in the text are ones the reader is genuinely meant to ask and act on, such as the practical checklists in his own posts ("Which test proves the normal case?"). Everything else becomes a statement.
-- **The "X not Y" contrast.** "Not push, transfer." "It is not just X, it is Y." "Not only X but also Y." State what the thing IS, directly, and leave out what it is not.
+- **The "X not Y" contrast.** "Not push, transfer." "It is not just X, it is Y." "Not only X but also Y." State what the thing IS, directly, and leave out what it is not. The form that survives review is the bare comma: "worth funding, not patching", "would slow delivery, not stop it", "a statement, not a promise". It reads as concision rather than contrast, and it multiplies under a word limit, because deleting the positive half of a sentence is the cheapest cut available. When a draft is over length, check whether the trimming introduced this rather than assuming length was the only casualty.
 - **"Wave" writing.** Stating a principle abstractly and then restating it concretely ("The principle stays the same, the way it is applied changes."). Say it once, in the form that carries the most information.
 - **Three-point structures.** Three-part metaphors, tricolons ("faster, cheaper and more reliable"), three-item previews of what an article covers. Two items or four are fine when the material genuinely has that many.
 - **Trailing participial clauses.** ", making it easier to X", ", ensuring that Y", ", allowing the reader to Z". Start a new sentence, or name who does the making.
@@ -118,7 +118,7 @@ Re-read the draft against this list and fix what it catches. Mechanical checks f
 - `grep -n '—' <file>` returns nothing.
 - Every `?` outside a code block is a genuine question, answered or asked of the reader.
 - No word from the vocabulary list survives.
-- No sentence contains "not X, Y", "not just", "not only".
+- `grep -nEi ', not [a-z]|\bnot (just|only|merely)\b|is not [a-z]+, (it|that)|n.t [a-z]+, (it|that).s' <file>` returns nothing. Written out, "no sentence contains not X, Y" is a rule nobody can run; the comma form is the one that gets missed, so grep for it.
 - No `, making` / `, ensuring` / `, allowing` clause.
 
 Then read it once as a reader, paragraph by paragraph. For each one, name its point in a few words. A paragraph you cannot summarise that way holds two ideas or none, and it needs splitting or cutting. Check that the points, read in order, form the argument on their own.
