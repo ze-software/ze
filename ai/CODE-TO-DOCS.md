@@ -343,11 +343,10 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/co
 
 ## `internal/component/bgp/cli/`
 
-Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture/cli/plugin-modes.md`, `docs/features/cli-commands.md`, `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`
+Files: 4 | Docs: `docs/DESIGN.md`, `docs/architecture/cli/plugin-modes.md`, `docs/features/cli-commands.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`
 
 | File | Docs |
 |------|------|
-| `childmode.go` | `docs/guide/chaos-testing.md` |
 | `cmd_plugin.go` | `docs/architecture/cli/plugin-modes.md`, `docs/features/cli-commands.md`, `docs/guide/plugins.md` |
 | `decode.go` | `docs/guide/command-reference.md` |
 | `encode.go` | `docs/guide/command-reference.md` |
@@ -355,13 +354,14 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture/cli/plugin-modes.md`, `doc
 
 ## `internal/component/bgp/config/`
 
-Files: 7 | Docs: `docs/DESIGN.md`, `docs/architecture/api/commands.md`, `docs/architecture/config/syntax.md`, `docs/architecture/core-design.md`, `docs/architecture/meta/role.md`, `docs/config-reference.md`, `docs/features.md`, `docs/features/configuration.md`, `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`, `docs/guide/config-reload.md`, `docs/guide/configuration.md`, `docs/guide/flowspec-route-reflector.md`, `docs/guide/operational-reports.md`, `docs/guide/plugins.md`, `docs/guide/redistribution.md`
+Files: 8 | Docs: `docs/DESIGN.md`, `docs/architecture/api/commands.md`, `docs/architecture/config/syntax.md`, `docs/architecture/core-design.md`, `docs/architecture/meta/role.md`, `docs/config-reference.md`, `docs/features.md`, `docs/features/configuration.md`, `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`, `docs/guide/config-reload.md`, `docs/guide/configuration.md`, `docs/guide/flowspec-route-reflector.md`, `docs/guide/operational-reports.md`, `docs/guide/plugins.md`, `docs/guide/redistribution.md`
 
 | File | Docs |
 |------|------|
 | `filter_registry.go` | `docs/architecture/config/syntax.md` |
 | `infra_hook.go` | `docs/architecture/core-design.md` |
 | `loader.go` | `docs/architecture/api/commands.md`, `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`, `docs/guide/operational-reports.md` |
+| `loader_create.go` | `docs/guide/chaos-testing.md` |
 | `peers.go` | `docs/config-reference.md`, `docs/features/configuration.md`, `docs/guide/configuration.md`, `docs/guide/redistribution.md` |
 | `plugins.go` | `docs/guide/flowspec-route-reflector.md` |
 | `redistribution.go` | `docs/architecture/config/syntax.md`, `docs/architecture/core-design.md`, `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/guide/redistribution.md` |

@@ -237,8 +237,8 @@ func TestReactorBorrowModeErrorsWithoutServer(t *testing.T) {
 // borrow-mode reactor would have errored before this).
 //
 // VALIDATES: P3 AC-2 -- standalone mode self-hosts (calls the server maker).
-// PREVENTS: standalone consumers (ze-chaos sim, integration harness, ze bgp
-// --child) accidentally getting the borrow guard.
+// PREVENTS: standalone consumers (ze-chaos sim, integration harness)
+// accidentally getting the borrow guard.
 func TestReactorStandaloneSelfHosts(t *testing.T) {
 	reactor := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
 	makerCalled := false

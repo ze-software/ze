@@ -192,7 +192,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		Hub:                       hubPtr,
 		RecentUpdateMax:           coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
 		// Borrow (production) unless the caller requests self-hosting (ze-chaos
-		// in-process sim, integration harness, ze bgp --child). See reactor.Config.
+		// in-process sim, integration harness). See reactor.Config.
 		Standalone: standalone,
 	}
 	if port, ok := portOverrideFromEnv(); ok {

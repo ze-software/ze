@@ -185,8 +185,8 @@ type Config struct {
 
 	// Standalone selects self-hosting mode: the reactor creates and owns its own
 	// plugin server, runs its own signal handler, and starts peers inline. Used by
-	// the ze-chaos in-process simulation, the integration harness, and `ze bgp
-	// --child`. When false (the default, production), the reactor is borrow-only:
+	// the ze-chaos in-process simulation and the integration harness.
+	// When false (the default, production), the reactor is borrow-only:
 	// the hub injects its server via SetPluginServer before start, and starting
 	// without an injected server is an error rather than a silent self-host.
 	Standalone bool

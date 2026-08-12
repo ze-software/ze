@@ -1480,7 +1480,7 @@ edit-time gates, and what does and does not cross a process boundary.
 | Renaming a package to a short common noun collides with local variables at every call site | renames such as `peer`, `runner` | A local `peer` shadows the package import, and the failure appears as unrelated compile errors far from the rename. (133) |
 | Bulk `sed` over source and specs has two recurring traps | mechanical field removal, doc rewrites | A line-delete pattern removes the WHOLE registration when the struct literal is one line, so use field-only substitution. A bulk replacement over `.md` corrupts specs that quote the old format as before/after evidence. (133, 395) |
 | A package-level `var logger = slogutil.Logger(...)` is a bug | logger construction | Package vars run before `main()` reads config, so config log settings are silently ignored. `LazyLogger()` wraps `sync.Once` to defer construction. (182) |
-| CLI flags do not reach forked child processes | `internal/component/bgp/cli/childmode.go` | Env vars are the only reliable channel, which is why the chaos seed and rate are plumbed as `ze.bgp.chaos.seed` in addition to the flag. (265) |
+| CLI flags do not reach forked child processes | `internal/component/bgp/config/loader_create.go` | Env vars are the only reliable channel, which is why the chaos seed and rate are plumbed as `ze.bgp.chaos.seed` in addition to the flag. (265) |
 | Creating a set of interconnected new files is blocked by the related-refs hook, which reads the file on disk before applying an edit | `require-related-refs` | Cross-references to files that do not exist yet are rejected, and an Edit that WOULD fix stale refs is blocked by those stale refs. Create empty stubs first. (400) |
 
 ---

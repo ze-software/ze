@@ -128,17 +128,13 @@ func LoadReactorFile(store storage.Storage, path string) (*reactor.Reactor, erro
 // LoadReactorFileWithPlugins loads config from file and creates a borrow-mode
 // (production) Reactor.
 func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
-	return loadReactorFile(store, path, cliPlugins, false)
+	return loadReactorFile(store, path, cliPlugins)
 }
 
-// LoadReactorFileStandalone loads config from file and creates a self-hosting
-// (standalone) reactor. Used by `ze bgp --child`, which owns the reactor lifecycle
-// itself rather than borrowing a hub-owned plugin server.
-func LoadReactorFileStandalone(store storage.Storage, path string) (*reactor.Reactor, error) {
-	return loadReactorFile(store, path, nil, true)
-}
-
-func loadReactorFile(store storage.Storage, path string, cliPlugins []string, standalone bool) (*reactor.Reactor, error) {
+// loadReactorFile reads the config at path and creates a borrow-mode (production)
+// reactor. A standalone reactor comes from LoadReactorWithPluginsStandalone, whose
+// callers hold the config text rather than a path.
+func loadReactorFile(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
 	// "-" reads stdin (claiming it once); a real path goes through the storage
 	// abstraction, which may be a blob store where path is a key, not a file.
 	var data []byte
@@ -164,7 +160,7 @@ func loadReactorFile(store storage.Storage, path string, cliPlugins []string, st
 		return nil, err
 	}
 
-	return CreateReactor(cfg, path, store, standalone)
+	return CreateReactor(cfg, path, store, false)
 }
 
 // injectChaos wraps the reactor's clock, dialer, and listener with chaos fault injection
