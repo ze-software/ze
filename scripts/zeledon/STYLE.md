@@ -68,6 +68,30 @@ trusting the words even when the facts are right, so avoid the tells:
 - **Rephrase, never paste.** Turn commit messages, spec text, and internal notes
   into plain user-facing capability in your own words. Do not quote them verbatim.
 
+## How long
+
+**Three Discord messages. Four at the very most.** `post_weekly.py` prints the
+count on a dry run, so the budget is measured rather than guessed.
+
+An update is read in a chat window, in one pass, by someone who did not ask for
+it. Every line spends attention the next line then has to earn back. The posts
+that worked ran 300 to 600 words. By 2026-07-20 one ran 2062, and nothing in
+the writing had got worse: the week had simply been listed instead of reported.
+
+**Over budget means too many items, not too many words.** Cut whole entries and
+keep the survivors at full strength. Compressing everything by a third is the
+wrong move: it costs every item its clarity and saves the reader nothing,
+because the count of things to read is what makes an update feel long.
+
+What to cut first, in order:
+
+1. Anything an operator cannot see: internal refactors, test-only work, tooling.
+2. A fix nobody would have noticed, unless an RFC section is the point of it.
+3. The fourth, fifth and sixth example of a story already told once.
+
+Ten fixes in a week is a good week and a bad list. Name the two that matter and
+say the rest were the same programme, in one line.
+
 ## How much detail
 
 A fix and a feature earn different budgets, because the reader does different

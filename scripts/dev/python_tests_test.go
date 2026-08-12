@@ -69,6 +69,11 @@ var pythonTestRoots = []string{
 	// destroy for each other. demos/terminal/test_render.py sat unrun for the
 	// same reason test/interop/speaker did: no root covered the directory.
 	"demos/terminal",
+	// The weekly-update poster writes to a public Discord channel, and a
+	// mistake there is visible to everyone and cannot be taken back. It sent
+	// the 2026-08-03 update as seven of its eight messages, because a rate
+	// limit on the last one exited the run instead of waiting.
+	"scripts/zeledon",
 }
 
 // pythonTestGlobs are the file-name shapes that count as a Python test.

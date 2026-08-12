@@ -18,6 +18,7 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 - Do not mention internal process in the public update: specs, acceptance criteria, review gates, agent sessions, learned summaries, commit-count bragging, or implementation bureaucracy.
 - Write as Zeledon, not as Thomas. Use the project voice. If Thomas must be named, use third person.
 - No em dashes. Use commas, periods, colons, or parentheses.
+- The whole update fits in 3 Discord messages, 4 at the very most. Check with a dry run before showing it to Thomas. Over budget means too many items, so cut items (`scripts/zeledon/STYLE.md`, "How long").
 - A fix gets one line. A new command, field, config leaf, counter or default keeps its full spelling (`scripts/zeledon/STYLE.md`, "How much detail").
 - No repo vocabulary and no raw wire bytes in the post (`scripts/zeledon/STYLE.md`, "Hard rules").
 - Do not hand-edit generated site pages. Edit the source data or Markdown, then run the generator.
@@ -50,7 +51,9 @@ If your working directory is `../gh-pages`, then the main repo is `../main`. If 
 
 Ze is being checked against every RFC it implements, one MUST at a time. Every
 weekly update says so: that the work has started rather than finished, where it
-stands, and what it turned up that week. Owner instruction, 2026-08-10.
+stands, and the best two or three things it turned up that week. Owner
+instruction, 2026-08-10. One section, and it lives under the same budget as
+every other section.
 
 Read the counts live. Never copy them from a commit message or a previous post.
 
@@ -61,8 +64,8 @@ Read the counts live. Never copy them from a commit message or a previous post.
 | Documents read end to end against their own text, and those not | `make ze-rfc-extraction-status` |
 
 State the limit honestly: a green run proves everything on the list, and does
-not yet prove the list is complete. That gap is the reason the end-to-end
-reading is on the roadmap.
+not yet prove the list is complete. That is why the end-to-end reading is on
+the roadmap.
 
 **MUST comes before SHOULD, and `Coming up` keeps that order.** Close what the
 checking found, then the MUSTs still owing a test, then the documents not yet
@@ -81,13 +84,15 @@ tags: <comma-separated allowed tags>
 ```
 
 3. Choose tags from `../gh-pages/data/topics.json`. If the week needs a genuinely new topic, add it to `data/topics.json` with the right category. Do not force a near miss.
-4. Write the body in Zeledon style:
+4. Decide what the week is about before writing, and leave the rest out. A full week yields far more than fits, so `STYLE.md` ("How long") governs what survives: 3 sections is normal, 5 is the ceiling, and a section carrying one bullet is a sentence in the wrong shape.
+5. Write the body in Zeledon style:
    - `**📅 Ze Weekly Update**` header,
    - one short framing sentence,
-   - 3 to 6 themed sections with bold emoji headers,
+   - themed sections with bold emoji headers,
    - bullets for multiple items,
    - `**🔭 Coming up**` only for planned or design work.
-5. Run a self-review against the hard gates. Grep for what a grep can find rather than re-reading:
+6. Dry-run the post and read the message count. Over 4, go back to step 4 and cut items. Do not compress the prose instead.
+7. Run a self-review against the hard gates. Grep for what a grep can find rather than re-reading:
    - no em dashes,
    - no first person,
    - no internal process language,
@@ -97,7 +102,7 @@ tags: <comma-separated allowed tags>
    - no hype,
    - fixes at one line, new surfaces named in full,
    - no sentence past about 30 words.
-6. Show Thomas the exact draft and wait for approval before posting.
+8. Show Thomas the exact draft and wait for approval before posting.
 
 If Thomas asks only for a draft, stop after the draft. Do not post, archive, or regenerate the site unless asked.
 
@@ -125,6 +130,14 @@ python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.
 ```
 
 The posting tool refuses incomplete weeks unless `--force` is used. Do not use `--force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `scripts/zeledon/weekly/<covers-start>-weekly.md` after a successful post.
+
+5. **A run that stops partway has already put messages in the channel.** Read what it printed. It names the chunk that failed and the flag that finishes the post:
+
+```sh
+python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --resume-from <N> --yes
+```
+
+Never answer a partial send by running the command again without `--resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.
 
 ## Phase 4: Update the website
 

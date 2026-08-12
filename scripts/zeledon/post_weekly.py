@@ -32,6 +32,11 @@ when the work happened. Override with --date-stamp / --no-date-stamp.
 Without --yes this only prints what would be sent (message count, char
 counts, full text) and does not touch Discord -- review the plan first.
 
+A chunk Discord refuses for rate limiting is retried, because that refusal
+is transient. Any other failure stops the post and prints the --resume-from
+number that finishes it, since re-running from the top would repeat every
+chunk that already landed in the channel.
+
 After a successful post, writes weekly/<covers-start-date>-weekly.md
 (posted date, channel, covers, date_stamped flag, and the exact text sent
 -- not the source file's text, so the archive is a byte-accurate record of
@@ -44,17 +49,38 @@ import datetime
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 WEEKLY_DIR = HERE / "weekly"
-# discord.sh carries the bot token, so it stays in the private ~/Unix repo
-# rather than this public one. Override the location with the DISCORD_SH env var.
-DISCORD_SH = pathlib.Path(
-    os.environ.get("DISCORD_SH", pathlib.Path.home() / "Unix" / "bin" / "discord.sh")
+# discord.sh carries the bot token, so it stays in the owner's private bin
+# rather than this public repo. Which private bin differs per machine, and a
+# single hardcoded default sent one weekly update to a "not found" exit, so
+# the known locations are searched in turn and PATH answers the rest.
+# DISCORD_SH overrides all of it.
+DISCORD_SH_CANDIDATES = (
+    pathlib.Path.home() / "Unix" / "bin" / "discord.sh",
+    pathlib.Path.home() / "bin" / "discord.sh",
 )
+
+
+def find_discord_sh():
+    override = os.environ.get("DISCORD_SH")
+    if override:
+        return pathlib.Path(override)
+    for candidate in DISCORD_SH_CANDIDATES:
+        if candidate.exists():
+            return candidate
+    on_path = shutil.which("discord.sh")
+    if on_path:
+        return pathlib.Path(on_path)
+    return DISCORD_SH_CANDIDATES[0]
+
+
+DISCORD_SH = find_discord_sh()
 
 LIMIT = 1900  # Discord's hard cap is 2000; leave margin
 # Discord's client groups consecutive same-author messages (no repeated
@@ -68,6 +94,9 @@ LIMIT = 1900  # Discord's hard cap is 2000; leave margin
 # the ~1 minute window.
 SEND_DELAY = 65.0
 STALE_AFTER_DAYS = 7  # older than this since week-end -> stamp the date
+# Seconds to wait before each retry of a chunk Discord refused for rate
+# limiting. One entry per retry, so the list length is the retry count.
+RATE_LIMIT_BACKOFF = [5, 15, 30, 60]
 
 FRONT_MATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 SECTION_SPLIT_RE = re.compile(r"(?=^\*\*[^\n]+\*\*$)", re.MULTILINE)
@@ -142,28 +171,59 @@ def chunk(body):
     return chunks
 
 
-def send(chunks, channel):
+def send(chunks, channel, resume_from=1):
     """Send every chunk of one post back-to-back, with no delay between
     chunks: the parts of a single weekly update are meant to read as one
     grouped block. The gap that breaks Discord's message grouping is
     inserted between distinct posts (see the --all loop in main), not
-    between the parts of one post."""
+    between the parts of one post.
+
+    Sending them back-to-back is what runs into Discord's per-channel
+    message rate limit, so a chunk refused that way is retried on the
+    schedule in RATE_LIMIT_BACKOFF rather than killing the post. The
+    limit is transient by definition: the only correct answer is to wait
+    and send the same chunk again.
+
+    discord.sh reports the API's `message` field and drops `retry_after`,
+    so the wait cannot be read from the refusal and the schedule is fixed.
+
+    resume_from is 1-based and names the first chunk to send, so a post
+    left half-delivered by an unrecoverable failure can be finished
+    without repeating what already landed in the channel."""
     if not DISCORD_SH.exists():
         print("error: %s not found" % DISCORD_SH, file=sys.stderr)
         sys.exit(1)
     for i, c in enumerate(chunks):
-        result = subprocess.run(
-            ["bash", str(DISCORD_SH), "--channel", channel, "--text", c],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0 or "ok" not in result.stdout:
-            print(
-                "error: send failed on chunk %d/%d: %s %s"
-                % (i + 1, len(chunks), result.stdout, result.stderr),
-                file=sys.stderr,
+        if i + 1 < resume_from:
+            print("skip chunk %d/%d -- already sent" % (i + 1, len(chunks)))
+            continue
+        for attempt, wait in enumerate(RATE_LIMIT_BACKOFF + [None]):
+            result = subprocess.run(
+                ["bash", str(DISCORD_SH), "--channel", channel, "--text", c],
+                capture_output=True,
+                text=True,
             )
-            sys.exit(1)
+            if result.returncode == 0 and "ok" in result.stdout:
+                break
+            report = "%s %s" % (result.stdout.strip(), result.stderr.strip())
+            if wait is None or "rate limited" not in report.lower():
+                print(
+                    "error: send failed on chunk %d/%d: %s"
+                    % (i + 1, len(chunks), report.strip()),
+                    file=sys.stderr,
+                )
+                print(
+                    "chunks 1 to %d are in %s. Finish this post with "
+                    "--resume-from %d (a fresh run would repeat them)."
+                    % (i, channel, i + 1),
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            print(
+                "rate limited on chunk %d/%d, retrying in %ds (attempt %d/%d)"
+                % (i + 1, len(chunks), wait, attempt + 1, len(RATE_LIMIT_BACKOFF))
+            )
+            time.sleep(wait)
         print("sent chunk %d/%d (%d chars)" % (i + 1, len(chunks), len(c)))
 
 
@@ -179,7 +239,7 @@ def write_archive(date, meta, body, channel, date_stamped):
     print("archived -> %s" % dest)
 
 
-def process_one(path, channel, date_stamp, confirm, today, force):
+def process_one(path, channel, date_stamp, confirm, today, force, resume_from=1):
     meta, body = parse_post(path)
     date = start_date(meta["covers"])
     remaining_days = -days_since_week_end(meta["covers"], today)
@@ -200,13 +260,22 @@ def process_one(path, channel, date_stamp, confirm, today, force):
 
     chunks = chunk(body)
 
+    if resume_from > len(chunks):
+        print(
+            "error: --resume-from %d but %s splits into %d chunk(s)"
+            % (resume_from, path.name, len(chunks)),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     print(
         "=== %s (covers %s) -- date-stamped: %s ==="
         % (date, meta["covers"], date_stamp)
     )
     print("%d message(s):" % len(chunks))
     for i, c in enumerate(chunks):
-        print("--- chunk %d/%d (%d chars) ---" % (i + 1, len(chunks), len(c)))
+        state = " -- already sent, skipping" if i + 1 < resume_from else ""
+        print("--- chunk %d/%d (%d chars)%s ---" % (i + 1, len(chunks), len(c), state))
         print(c)
         print()
 
@@ -214,7 +283,7 @@ def process_one(path, channel, date_stamp, confirm, today, force):
         print("(dry run -- pass --yes to actually post)")
         return False
 
-    send(chunks, channel)
+    send(chunks, channel, resume_from)
     write_archive(date, meta, body, channel, date_stamp)
     return True
 
@@ -251,16 +320,38 @@ def main():
         action="store_true",
         help="allow posting a week that hasn't fully ended yet (single-file mode only)",
     )
+    parser.add_argument(
+        "--resume-from",
+        type=int,
+        default=1,
+        metavar="N",
+        help="finish a post left half-sent: start at chunk N and treat the "
+        "earlier ones as already in the channel (single-file mode only)",
+    )
     args = parser.parse_args()
 
     if not args.source and not args.all:
         parser.error("give a source file or --all <dir>")
 
+    if args.resume_from < 1:
+        parser.error("--resume-from takes a 1-based chunk number")
+
+    if args.resume_from > 1 and not args.source:
+        parser.error(
+            "--resume-from names chunks of one post, so it needs a source file"
+        )
+
     today = datetime.date.today()
 
     if args.source:
         process_one(
-            args.source, args.channel, args.date_stamp, args.yes, today, args.force
+            args.source,
+            args.channel,
+            args.date_stamp,
+            args.yes,
+            today,
+            args.force,
+            args.resume_from,
         )
         return 0
 
