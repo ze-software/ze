@@ -208,7 +208,7 @@ func TestStripBeforeTag(t *testing.T) {
 		ingressTag:   []string{"add-me"},
 	}
 
-	modified := applyIngressFilter(payload, defs, fc)
+	modified := applyIngressFilter(payload, defs, fc, 0, 0)
 	require.NotNil(t, modified)
 
 	communities := extractCommunities(modified)

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-bcp194-0-umbrella |
-| Phase | - |
+| Phase | 3b/6 |
 | Deferral shard | `plan/deferrals/bcp194-1-communities.md` |
-| Updated | 2026-08-08 |
+| Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -277,13 +277,13 @@ Three entry points, one per direction.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No operator relies on `RS:101..103:X` being ignored | `PrependCount` has no non-test caller, so the request has never reached the wire | An upgrade starts prepending where it did not before, changing path selection at clients | Owner confirmation plus a release note | unvalidated |
-| A-2 | `resolvePeerRole` answers for every peer with a role configured or advertised | `internal/component/bgp/plugins/role/otc.go`, read 2026-08-08 | The relation tag is absent or wrong for some peers | Unit test over the five role values plus the empty case | unvalidated |
-| A-3 | A dynamic-group peer reaches the ingress filter with no role config | `plan/deferrals/ad-hoc-2026-07-27-423eaa77.md` records exactly this | Dynamic peers silently get no relation tag | Read `extractPeerRoleConfigs`, then a functional test with a dynamic peer | unvalidated |
+| A-2 | `resolvePeerRole` answers for every peer with a role configured or advertised | `internal/component/bgp/plugins/role/otc.go`, read 2026-08-08 | The relation tag is absent or wrong for some peers | Unit test over the five role values plus the empty case | confirmed 2026-08-12: `TestRelationParameterFromRole` covers all five plus empty; `TestOTCIngressPublishesPeerRole` covers the producer, including capability-over-config preference. A peer with NEITHER resolves to "" and the key stays ABSENT, so no tag is written -- the closed branch, not a wrong one |
+| A-3 | A dynamic-group peer reaches the ingress filter with no role config | `plan/deferrals/ad-hoc-2026-07-27-423eaa77.md` records exactly this | Dynamic peers silently get no relation tag | Read `extractPeerRoleConfigs`, then a functional test with a dynamic peer | confirmed 2026-08-12 by reading the producer `configjson.ForEachPeer` (`internal/component/bgp/configjson/traverse.go`): it visits only entries under `bgp.peer` and `bgp.group.*.peer`, and a dynamic-group peer has no list entry in either. `filter_community` inherits the SAME limitation from the same walker, so such a peer has no entry in `peerConfigs`, every ingress filter returns early, and it gets no tag AND no scrub. Fail-closed. The functional test is not written |
 | A-4 | Function 4 suppression composes with existing egress filters without reordering them | `buildOrderedEgressSteps` resolves order from the declared stage | A suppression decision runs before a filter that would have modified the route | Read the ordered egress builder, then an ordering test | unvalidated |
 | A-5 | Ingress scrubbing does not break the route-server rail, which reads communities after ingress | The scrub is peer-scoped and eBGP-only | A route server scrubs the control communities its clients send it | Functional test: a client sends a control community and the route server still acts on it | unvalidated |
 | A-6 | `source_keyword_count` is the only reader that counts the RFC 2119 boilerplate as a gate input | Read of `check_new_summaries` and both counters on 2026-08-08 | Narrowing it leaves the red in place, or moves it elsewhere | Run `make ze-rfc-check` before and after | unvalidated |
-| A-7 | New leaves under the existing `ingress/community` container inherit the four augment sites without a new augment statement | `ze-filter-community.yang` uses one grouping at four sites | The new leaves are settable at some levels and not others | Read the generated schema, then a config test setting the leaf at group level | unvalidated |
-| A-8 | The keep-list can be expressed without changing `strip` semantics | `strip` is an exact whole-value match today and a wildcard there would change every existing config | Operators find `strip` silently matching more than before | Separate container, plus a test that an existing `strip` set still matches exactly | unvalidated |
+| A-7 | New leaves under the existing `ingress/community` container inherit the four augment sites without a new augment statement | `ze-filter-community.yang` uses one grouping at four sites | The new leaves are settable at some levels and not others | Read the generated schema, then a config test setting the leaf at group level | confirmed 2026-08-12: every new leaf sits inside `grouping community-filter-fields`, which four `augment` statements `uses`, so no new augment was needed. `make ze-doc-test` and `make ze-cli-grammar-check` both load the module and pass. `TestMergeScalarLeavesOverrideOnlyWhenSet` covers the group-then-peer layering |
+| A-8 | The keep-list can be expressed without changing `strip` semantics | `strip` is an exact whole-value match today and a wildcard there would change every existing config | Operators find `strip` silently matching more than before | Separate container, plus a test that an existing `strip` set still matches exactly | confirmed 2026-08-12: the scrub got its own leaves and REUSES `ingressStripCommunities`, so it selects different values through the same exact-value rebuild rather than giving `strip` a wildcard. `TestStripSetStillExact` proves a named set still matches exactly, with a sibling value sharing its ASN left in place |
 
 ### Risks
 
@@ -360,15 +360,15 @@ Three entry points, one per direction.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRelationParameterFromRole` | `internal/component/bgp/plugins/filter_community/relation_test.go` | The five role values and the empty case map to the RFC 8195 parameters, with rs and rs-client producing no tag | |
-| `TestScrubKeepList` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | Own-GA values outside the keep-list are removed and values inside it survive | |
-| `TestScrubIgnoresForeignGA` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | A community whose Global Administrator is another ASN is never removed, per §11 bullet two | |
-| `TestScrubThenTagOrder` | `internal/component/bgp/plugins/filter_community/filter_test.go` | A forged Function 3 does not survive the pass | |
-| `TestStripSetStillExact` | `internal/component/bgp/plugins/filter_community/filter_test.go` | Adding the scrub does not make `strip` match more than before (AC-18) | |
+| `TestRelationParameterFromRole` | `internal/component/bgp/plugins/filter_community/relation_test.go` | The five role values and the empty case map to the RFC 8195 parameters, with rs and rs-client producing no tag | PASS |
+| `TestScrubKeepList` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | Own-GA values outside the keep-list are removed and values inside it survive | PASS |
+| `TestScrubIgnoresForeignGA` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | A community whose Global Administrator is another ASN is never removed, per §11 bullet two | PASS |
+| `TestScrubThenTagOrder` | `internal/component/bgp/plugins/filter_community/filter_relation_test.go` | A forged Function 3 does not survive the pass | PASS |
+| `TestStripSetStillExact` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | Adding the scrub does not make `strip` match more than before (AC-18) | PASS |
 | `TestPrependCountReachesGenerator` | `internal/component/bgp/wireu/community_test.go` | The recorded count produces the right number of AS_PATH entries | |
 | `TestStripControlCommunitiesLarge` | `internal/component/bgp/wireu/community_test.go` | Code 32 control values are returned for removal, and foreign-GA large values are not | |
-| `TestRFC7999BlackholeFieldHasReader` | `internal/component/bgp/wireu/community_test.go` | `RFC7999Blackhole` drives the propagation guard, so the field is no longer write-only | |
-| `TestWellKnownCommunitiesSurviveScrub` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | BLACKHOLE, NO_EXPORT and NO_ADVERTISE all survive the own-GA scrub (AC-20) | |
+| `TestRFC7999BlackholeFieldHasReader` | `internal/component/bgp/plugins/filter_community/blackhole_test.go` | `RFC7999Blackhole` drives the propagation guard, so the field is no longer write-only. MOVED from `wireu/community_test.go`: a test in package `wireu` can assert the field is SET, only a test at the reader can assert it is USED | PASS, discriminates |
+| `TestWellKnownCommunitiesSurviveScrub` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | BLACKHOLE, NO_EXPORT and NO_ADVERTISE all survive the own-GA scrub (AC-20) | PASS |
 | `test_new_summary_boilerplate_only_passes` | `scripts/dev/rfc_requirements_test.py` | A 2119-boilerplate-only source with zero gated requirements passes, and a genuine MUST still fails | |
 
 ### Boundary Tests (numeric inputs)

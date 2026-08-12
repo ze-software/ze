@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3283 files
+Total: 261 design docs, 3286 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1163,11 +1163,14 @@ Total: 261 design docs, 3283 files
 | `internal/component/bgp/plugins/filter_aspath_length/aspath_length.go` | AS-path length evaluation |
 | `internal/component/bgp/plugins/filter_aspath_length/config.go` | AS-path length filter config parsing |
 | `internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go` | AS-path length policy filter |
+| `internal/component/bgp/plugins/filter_community/blackhole.go` | community filter ingress path |
 | `internal/component/bgp/plugins/filter_community/config.go` | community filter config parsing |
 | `internal/component/bgp/plugins/filter_community/egress.go` | community filter egress path |
 | `internal/component/bgp/plugins/filter_community/filter.go` | community filter ingress path |
 | `internal/component/bgp/plugins/filter_community/filter_community.go` | community filter plugin |
 | `internal/component/bgp/plugins/filter_community/handler.go` | community filter egress AttrModHandlers |
+| `internal/component/bgp/plugins/filter_community/relation.go` | community filter ingress path |
+| `internal/component/bgp/plugins/filter_community/scrub.go` | community filter ingress path |
 | `internal/component/bgp/plugins/filter_community_match/config.go` | community match filter config parsing |
 | `internal/component/bgp/plugins/filter_community_match/filter_community_match.go` | community match filter plugin |
 | `internal/component/bgp/plugins/filter_community_match/match.go` | community match filter matching |

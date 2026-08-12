@@ -1,7 +1,13 @@
 // Design: docs/architecture/core-design.md — community filter ingress path
+// RFC: rfc/short/rfc7454.md — Section 11, the own-Global-Administrator scrub step
+// RFC: rfc/short/rfc7999.md — Section 3.2, the blackhole propagation guard step
+// RFC: rfc/short/rfc8195.md — Section 3.2, the relation-to-origin tag
 // Overview: filter_community.go — plugin entry point
 // Related: egress.go — egress filter (ModAccumulator ops)
 // Related: config.go — config parsing
+// Related: scrub.go — Section 11 keep-list match
+// Related: blackhole.go — RFC 7999 guard
+// Related: relation.go — the role-to-parameter mapping
 // Related: handler.go — AttrModHandlers for progressive build
 
 package filter_community
@@ -13,9 +19,34 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// applyIngressFilter applies community strip then tag for a peer's ingress config.
-// Returns modified payload, or nil if no changes needed.
-func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig) []byte {
+// applyIngressFilter applies a peer's ingress community rules in order.
+// Returns the modified payload, or nil if no changes are needed.
+//
+// The order is fixed here and each step reads what the step before it
+// produced:
+//
+//  1. the operator's named `strip` sets — exact whole-value removal;
+//  2. RFC 7454 Section 11 own-Global-Administrator scrub;
+//  3. RFC 7999 Section 3.2 blackhole propagation guard;
+//  4. the operator's named `tag` sets.
+//
+// Scrub before guard is load-bearing, not cosmetic: the guard adds a
+// well-known community. Running the scrub afterwards over a route from a
+// peer with both features on would delete what the guard just added. Scrub
+// before tag is the existing contract and stays: an operator's tag must not
+// be removed by a scrub running later.
+//
+// RFC 8195 relation tag is NOT here. It runs in a second registered filter
+// at filterapi.FilterStageAnnotation, because it needs the peer role the
+// role plugin publishes at that stage and this filter runs at
+// FilterStagePolicy, before it. The stage declaration is what orders them
+// (register.go); code position does not.
+//
+// localAS is the Global Administrator both RFC-derived steps key on. It
+// comes from PeerFilterInfo.LocalAS, so a peer using a local-AS override is
+// scrubbed against the ASN that peer actually sees. peerAS is compared
+// against it to tell an iBGP session from an eBGP one.
+func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig, localAS, peerAS uint32) []byte {
 	if len(payload) < 4 {
 		return nil
 	}
@@ -24,6 +55,26 @@ func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig) []b
 
 	// Strip first (free space, less data to iterate).
 	current = applyIngressOps(current, defs, fc.ingressStrip, false)
+
+	// RFC 7454 Section 11 scrub, over the local AS's own Global
+	// Administrator.
+	//
+	// eBGP ONLY. Section 11 is about what a NEIGHBOR may assert with our own
+	// AS number. On an iBGP session the sender is inside the local AS, so an
+	// own-GA value is this AS's own signaling to itself. Scrubbing it would
+	// delete the operator's internal policy rather than a forgery. A peer
+	// whose remote AS equals the local AS is that case, and it is skipped
+	// even when the leaf is on.
+	if fc.scrubEnabled() && peerAS != localAS {
+		if modified := scrubOwnGACommunities(current, localAS, fc.scrubKeepSet(), fc.scrubRelationFunction()); modified != nil {
+			current = modified
+		}
+	}
+
+	// RFC 7999 Section 3.2 propagation guard.
+	if modified := blackholePropagationGuard(current, localAS, fc.blackholeGuardToken()); modified != nil {
+		current = modified
+	}
 
 	// Then tag.
 	current = applyIngressOps(current, defs, fc.ingressTag, true)
@@ -34,7 +85,52 @@ func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig) []b
 	return current
 }
 
-// applyIngressOps applies either tag or strip operations for the given community names.
+// applyRelationTag writes RFC 8195 Section 3.2 relation-to-origin community
+// for one received route. It returns the modified payload, or nil.
+//
+// Two things happen and they are inseparable on purpose. Any own-Global-
+// Administrator value already carrying the relation function is removed
+// FIRST, then the value Ze derived is appended. Without the removal a
+// neighbor could send <ourAS>:3:<whatever> and have its own claim about our
+// relationship stored (AC-5). A route that already passed through this
+// filter would accumulate a second value. Making the de-forge a separate
+// opt-in leaf would let an operator enable the tag without it, so it is not
+// one.
+//
+// It is written ONCE, on ingress, per received route. It does not vary per
+// destination, so it costs the fan-out dedup nothing: a per-destination tag
+// would give every destination a distinct edit set and defeat it
+// (docs/architecture/core-design.md).
+func applyRelationTag(payload []byte, fc filterConfig, localAS uint32, peerRole string) []byte {
+	if len(payload) < 4 || !fc.relationTagEnabled() || localAS == 0 {
+		return nil
+	}
+	parameter := relationParameterFor(peerRole)
+	if parameter == 0 {
+		return nil
+	}
+	function := fc.relationFunctionNumber()
+
+	current := payload
+	if forged := ownGALargeValuesWithFunction(current, localAS, function); len(forged) > 0 {
+		if modified := ingressStripCommunities(current, attribute.AttrLargeCommunity, 12, forged); modified != nil {
+			current = modified
+		}
+	}
+
+	if modified := ingressTagCommunities(current, attribute.AttrLargeCommunity,
+		[][]byte{relationWireValue(localAS, function, parameter)}); modified != nil {
+		current = modified
+	}
+
+	if bytes.Equal(current, payload) {
+		return nil
+	}
+	return current
+}
+
+// applyIngressOps applies either tag or strip operations for the given
+// community names.
 func applyIngressOps(payload []byte, defs communityDefs, names []string, isTag bool) []byte {
 	for _, name := range names {
 		def, ok := defs[name]
@@ -69,7 +165,8 @@ func communityAttrCode(typ int) attribute.AttributeCode {
 	return attribute.AttrCommunity // unreachable: typ is always one of the three constants
 }
 
-// communityValueSize returns the wire size of one community value for the type.
+// communityValueSize returns the wire size of one community value for the
+// type.
 func communityValueSize(typ int) int {
 	switch typ {
 	case communityTypeStandard:
@@ -82,9 +179,9 @@ func communityValueSize(typ int) int {
 	return 4 // unreachable: typ is always one of the three constants
 }
 
-// ingressTagCommunities appends wire values to the target attribute in payload.
-// Creates the attribute if absent. Always uses extended-length format.
-// Returns modified payload or nil if unchanged.
+// ingressTagCommunities appends wire values to the target attribute in
+// payload. Creates the attribute if absent. Always uses extended-length
+// format. Returns modified payload or nil if unchanged.
 func ingressTagCommunities(payload []byte, code attribute.AttributeCode, wireValues [][]byte) []byte {
 	if len(wireValues) == 0 {
 		return nil
@@ -112,7 +209,8 @@ func ingressTagCommunities(payload []byte, code attribute.AttributeCode, wireVal
 		// Create new attribute: flags(1) + code(1) + extlen(2) + data.
 		newAttrLen := 4 + addLen
 
-		// Cap at uint16 max for both attribute data length and path attr total length.
+		// Cap at uint16 max for both attribute data length and path attr total
+		// length.
 		if addLen > 65535 || pal+newAttrLen > 65535 {
 			return nil // Would exceed BGP limits; skip modification.
 		}
@@ -153,7 +251,8 @@ func ingressTagCommunities(payload []byte, code attribute.AttributeCode, wireVal
 		extraBytes = 1 // Need 1 extra byte for extended-length header.
 	}
 
-	// Cap at uint16 max for both attribute data length and total path attr length.
+	// Cap at uint16 max for both attribute data length and total path attr
+	// length.
 	pal := safePathAttrLen(payload)
 	if newDataLen > 65535 || (pal >= 0 && pal+addLen+extraBytes > 65535) {
 		return nil // Would exceed BGP length limits.
@@ -195,8 +294,8 @@ func ingressTagCommunities(payload []byte, code attribute.AttributeCode, wireVal
 	return result
 }
 
-// ingressStripCommunities removes matching wire values from the target attribute.
-// Returns modified payload or nil if no changes needed.
+// ingressStripCommunities removes matching wire values from the target
+// attribute. Returns modified payload or nil if no changes needed.
 func ingressStripCommunities(payload []byte, code attribute.AttributeCode, valueSize int, wireValues [][]byte) []byte {
 	attrStart, attrEnd, dataStart, dataEnd, found := findAttribute(payload, code)
 	if !found {
@@ -209,8 +308,8 @@ func ingressStripCommunities(payload []byte, code attribute.AttributeCode, value
 		stripSet[string(v)] = true
 	}
 
-	// Scan existing values, keep those not in strip set.
-	// Trailing partial-value bytes (malformed attribute) are silently dropped.
+	// Scan existing values, keep those not in strip set. Trailing
+	// partial-value bytes (malformed attribute) are silently dropped.
 	oldData := payload[dataStart:dataEnd]
 	var kept [][]byte
 	stripped := false
@@ -259,16 +358,17 @@ func ingressStripCommunities(payload []byte, code attribute.AttributeCode, value
 	}
 	copy(result[off:], payload[attrEnd:])
 
-	// Update attribute data length (preserves original length format -- stripping
-	// can only reduce size, so no promotion from 1-byte to 2-byte length is needed).
+	// Update attribute data length (preserves original length format --
+	// stripping can only reduce size, so no promotion from 1-byte to 2-byte
+	// length is needed).
 	safeUpdateAttrDataLen(result, attrStart, newDataLen)
 	safeUpdatePathAttrLen(result, pal+diff)
 
 	return result
 }
 
-// findAttribute locates an attribute by code in the path attributes section.
-// Returns (attrStart, attrEnd, dataStart, dataEnd, found).
+// findAttribute locates an attribute by code in the path attributes
+// section. Returns (attrStart, attrEnd, dataStart, dataEnd, found).
 func findAttribute(payload []byte, code attribute.AttributeCode) (int, int, int, int, bool) {
 	if len(payload) < 4 {
 		return 0, 0, 0, 0, false
@@ -320,7 +420,8 @@ func findAttribute(payload []byte, code attribute.AttributeCode) (int, int, int,
 	return 0, 0, 0, 0, false
 }
 
-// safePathAttrLen returns the total path attributes length, or -1 if payload is malformed.
+// safePathAttrLen returns the total path attributes length, or -1 if
+// payload is malformed.
 func safePathAttrLen(payload []byte) int {
 	if len(payload) < 4 {
 		return -1
@@ -332,7 +433,8 @@ func safePathAttrLen(payload []byte) int {
 	return int(binary.BigEndian.Uint16(payload[2+withdrawnLen : 4+withdrawnLen]))
 }
 
-// safePathAttrEnd returns the offset just past the path attributes section, or -1 if malformed.
+// safePathAttrEnd returns the offset just past the path attributes section,
+// or -1 if malformed.
 func safePathAttrEnd(payload []byte) int {
 	pal := safePathAttrLen(payload)
 	if pal < 0 {
@@ -349,8 +451,8 @@ func safePathAttrEnd(payload []byte) int {
 	return end
 }
 
-// safeUpdatePathAttrLen writes the new path attributes length into the payload.
-// No-op if payload is too short or newLen exceeds uint16 max.
+// safeUpdatePathAttrLen writes the new path attributes length into the
+// payload. No-op if payload is too short or newLen exceeds uint16 max.
 func safeUpdatePathAttrLen(payload []byte, newLen int) {
 	if newLen < 0 || newLen > 65535 || len(payload) < 4 {
 		return
@@ -362,8 +464,9 @@ func safeUpdatePathAttrLen(payload []byte, newLen int) {
 	binary.BigEndian.PutUint16(payload[2+withdrawnLen:], uint16(newLen)) //nolint:gosec // capped above
 }
 
-// safeUpdateAttrDataLen updates the data length field of an attribute at attrStart.
-// Handles both regular (1-byte) and extended (2-byte) length formats.
+// safeUpdateAttrDataLen updates the data length field of an attribute at
+// attrStart. Handles both regular (1-byte) and extended (2-byte) length
+// formats.
 func safeUpdateAttrDataLen(payload []byte, attrStart, newDataLen int) {
 	if attrStart+3 > len(payload) || newDataLen < 0 {
 		return

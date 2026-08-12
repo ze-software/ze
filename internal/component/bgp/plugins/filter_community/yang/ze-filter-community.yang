@@ -7,6 +7,14 @@ module ze-filter-community {
 
     description "Community filter plugin for ZeBGP — tag/strip communities on ingress/egress";
 
+    revision 2026-08-12 {
+        description
+          "Ingress leaves for RFC 8195 Section 3.2 relation tagging, RFC 7454
+           Section 11 own-Global-Administrator scrub, and RFC 7999 Section 3.2
+           blackhole propagation guard. All sit inside community-filter-fields, so
+           the four existing augment sites carry them with no new augment.";
+    }
+
     revision 2026-03-27 {
         description "Initial revision";
     }
@@ -64,6 +72,80 @@ module ze-filter-community {
                     type string;
                     ze:cumulative;
                     description "Named communities to remove on ingress";
+                }
+
+                leaf relation-tag {
+                    type boolean;
+                    default "false";
+                    description
+                      "Write the RFC 8195 Section 3.2 relation-to-origin large
+                       community on each route received from this peer. The
+                       Global Administrator is the session local AS. The
+                       parameter comes from what the peer IS to us: 2 for a
+                       customer, 3 for a peer, 4 for a provider. A route-server
+                       or route-server-client session writes nothing, because
+                       RFC 7947 requires transparency there. An iBGP session
+                       writes nothing. Its sender is inside the local AS and has
+                       no such relation.";
+                }
+
+                leaf relation-function {
+                    type uint32;
+                    default 3;
+                    description
+                      "Function number of the relation tag. RFC 8195 Section 3.2
+                       leaves this number to each AS and gives 3 as its example.
+                       The number is a local convention, not a protocol
+                       constant. Change it here when the AS already uses 3 for
+                       something else.";
+                }
+
+                leaf scrub-own-ga {
+                    type boolean;
+                    default "false";
+                    description
+                      "Remove inbound communities whose Global Administrator is
+                       the local AS. Only the function numbers listed in
+                       scrub-keep-function survive. RFC 7454 Section 11. It
+                       covers standard and large communities. It runs on eBGP
+                       sessions only. On an iBGP session an own-AS value is this
+                       network's own signal to itself. Well-known communities are
+                       never reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE
+                       always survive.";
+                }
+
+                leaf-list scrub-keep-function {
+                    type uint32;
+                    ze:cumulative;
+                    description
+                      "Function numbers a peer may send with the local AS as the
+                       Global Administrator. This is RFC 7454 Section 11
+                       carve-out for what customers and peers use as a signaling
+                       mechanism. An empty list keeps nothing. The relation-tag
+                       function number is never kept, whatever this list says: a
+                       kept relation function would let a peer state its own
+                       relation to this AS.";
+                }
+
+                leaf blackhole-propagation {
+                    type enumeration {
+                        enum none {
+                            description "Add nothing. RFC 7999 Section 3.1 makes ignoring the community conformant.";
+                        }
+                        enum no-export {
+                            description "Add NO_EXPORT (65535:65281).";
+                        }
+                        enum no-advertise {
+                            description "Add NO_ADVERTISE (65535:65282).";
+                        }
+                    }
+                    default "none";
+                    description
+                      "Community to add to a route received carrying BLACKHOLE
+                       (65535:666). It stops the prefix propagating outside the
+                       local AS. RFC 7999 Section 3.2. The choice between the two
+                       follows the operator routing policy, so neither is forced.
+                       This adds the community. It does not discard traffic.";
                 }
             }
         }

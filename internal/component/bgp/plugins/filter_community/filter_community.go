@@ -1,11 +1,17 @@
 // Design: docs/architecture/core-design.md — community filter plugin
+// RFC: rfc/short/rfc8195.md — Section 3.2, the relation-to-origin tag filter
+// RFC: rfc/short/rfc7454.md — Section 11, the own-Global-Administrator scrub
+// RFC: rfc/short/rfc7999.md — Section 3.2, the blackhole propagation guard
 // Detail: config.go — config parsing for community definitions and filter rules
 // Detail: filter.go — ingress filter (direct payload mutation)
 // Detail: egress.go — egress filter (ModAccumulator ops)
 // Detail: handler.go — AttrModHandlers for progressive build
+// Detail: relation.go — RFC 9234 role to RFC 8195 parameter mapping
+// Detail: scrub.go — Section 11 keep-list match
+// Detail: blackhole.go — RFC 7999 propagation guard
 
-// Package filter_community implements the bgp-filter-community plugin.
-// It allows operators to tag and strip BGP communities on ingress and egress
+// Package filter_community implements the bgp-filter-community plugin. It
+// allows operators to tag and strip BGP communities on ingress and egress
 // using named community definitions and cumulative filter rules.
 package filter_community
 
@@ -25,16 +31,17 @@ var errFilterCommunityInvalidBgpConfigJson = errors.New("filter-community: inval
 
 var logger = slogutil.LazyLogger("bgp.filter.community")
 
-// state holds the plugin's runtime state, populated via OnConfigure callback.
-// Protected by mu for concurrent access from filter closures.
+// state holds the plugin's runtime state, populated via OnConfigure
+// callback. Protected by mu for concurrent access from filter closures.
 var (
 	mu          sync.RWMutex
 	definitions communityDefs
 	peerConfigs map[string]filterConfig // keyed by peer name
 )
 
-// runFilterCommunity runs the community filter plugin using the SDK RPC protocol.
-// This is the in-process entry point called via InternalPluginRunner.
+// runFilterCommunity runs the community filter plugin using the SDK RPC
+// protocol. This is the in-process entry point called via
+// InternalPluginRunner.
 func runFilterCommunity(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-community", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
@@ -67,9 +74,10 @@ func runFilterCommunity(conn net.Conn) int {
 	return 0
 }
 
-// configureCommunityFilter parses community definitions and per-peer filter configs
-// from the raw BGP config subtree, accumulating filter tag/strip lists across
-// bgp-level, group-level, and peer-level (same inheritance as ResolveBGPTree).
+// configureCommunityFilter parses community definitions and per-peer filter
+// configs from the raw BGP config subtree, accumulating filter tag/strip
+// lists across bgp-level, group-level. Peer-level (same inheritance as
+// ResolveBGPTree).
 func configureCommunityFilter(bgpCfg map[string]any) error {
 	defs, err := parseCommunityDefinitions(bgpCfg)
 	if err != nil {
@@ -97,8 +105,7 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 			fc = mergeFilterConfigs(fc, peerFilter)
 		}
 
-		if len(fc.ingressTag) == 0 && len(fc.ingressStrip) == 0 &&
-			len(fc.egressTag) == 0 && len(fc.egressStrip) == 0 {
+		if !fc.hasAnyRule() {
 			return
 		}
 
@@ -111,6 +118,9 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 			if err := validateCommunityRefs(defs, refs); err != nil {
 				return fmt.Errorf("peer %s: %w", peerName, err)
 			}
+		}
+		if err := validateScrubKeepList(fc); err != nil {
+			return fmt.Errorf("peer %s: %w", peerName, err)
 		}
 	}
 
@@ -127,8 +137,10 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 	return nil
 }
 
-// ingressFilter is the registered IngressFilterFunc.
-// Looks up the source peer's filter config and applies strip then tag.
+// ingressFilter is the registered IngressFilterFunc at
+// filterapi.FilterStagePolicy. Looks up the source peer's filter config and
+// applies strip, RFC 7454 Section 11 scrub, RFC 7999 propagation guard,
+// then tag.
 func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
 	mu.RLock()
 	defs := definitions
@@ -139,19 +151,69 @@ func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]an
 		return true, nil
 	}
 
-	modified := applyIngressFilter(payload, defs, fc)
+	modified := applyIngressFilter(payload, defs, fc, src.LocalAS, src.PeerAS)
 	if modified != nil {
 		logger().Info("community ingress applied",
 			"peer", src.Name,
 			"tag", fc.ingressTag,
 			"strip", fc.ingressStrip,
+			"scrub-own-ga", fc.scrubEnabled(),
+			"blackhole-propagation", fc.blackholeGuardToken(),
 		)
 	}
 	return true, modified
 }
 
-// egressFilter is the registered EgressFilterFunc.
-// Looks up the destination peer's filter config and accumulates ops.
+// relationIngressFilter is the registered IngressFilterFunc at
+// filterapi.FilterStageAnnotation, one priority behind the role plugin.
+//
+// It is a SECOND registered filter rather than a step inside ingressFilter
+// above, and the reason is ordering rather than tidiness. The relation
+// parameter derives from what the source peer IS to us, which only the role
+// plugin can answer. That plugin publishes the answer from its own ingress
+// filter at FilterStageAnnotation, and this plugin's policy-stage filter
+// runs before it. A step inside ingressFilter would read a key nothing had
+// written yet.
+//
+// Stage and priority are the declaration that orders the two (register.go).
+// filterapi.LessOrder sorts by stage, then priority, then name, so priority
+// 1 here sorts after bgp-role's priority 0 in the same stage.
+//
+// It is also the correct stage on its own terms: FilterStageAnnotation is
+// documented as "protocol modifications that stamp routes", which is
+// exactly what an RFC 8195 relation tag is.
+func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
+	mu.RLock()
+	fc, hasCfg := peerConfigs[src.Name]
+	mu.RUnlock()
+
+	if !hasCfg || !fc.relationTagEnabled() {
+		return true, nil
+	}
+
+	// iBGP carries no customer/peer/provider relation: the source is inside
+	// the local AS, so RFC 8195 Section 3.2 has nothing to state about it. A
+	// tag written here would be a claim about a relationship that does not
+	// exist.
+	if src.PeerAS == src.LocalAS {
+		return true, nil
+	}
+
+	peerRole := relationPeerRoleFromMeta(meta)
+	modified := applyRelationTag(payload, fc, src.LocalAS, peerRole)
+	if modified != nil {
+		logger().Info("community relation tag applied",
+			"peer", src.Name,
+			"peer-role", peerRole,
+			"function", fc.relationFunctionNumber(),
+			"parameter", relationParameterFor(peerRole),
+		)
+	}
+	return true, modified
+}
+
+// egressFilter is the registered EgressFilterFunc. Looks up the destination
+// peer's filter config and accumulates ops.
 func egressFilter(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 	mu.RLock()
 	defs := definitions

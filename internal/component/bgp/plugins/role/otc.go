@@ -135,10 +135,10 @@ func attrHeaderAt(attrs []byte, off int) (code byte, valStart, hdrLen, attrLen i
 // Reading MP_UNREACH is not cosmetic. Inspecting only code 14 meant EVERY
 // MP_UNREACH-only UPDATE -- a VPNv4, EVPN, flowspec or multicast withdrawal --
 // fell through to the "no MP_REACH" branch and was classified IPv4 unicast, so
-// the RFC 9234 Section 5 procedures ran on address families the same sentence
+// RFC 9234 Section 5 procedures ran on address families the same sentence
 // forbids them for. That is the MUST NOT above, not merely a scoping nicety.
 //
-// An UPDATE carrying neither attribute is the RFC 4271 native encoding, whose
+// An UPDATE carrying neither attribute is RFC 4271 native encoding, whose
 // NLRI and Withdrawn Routes fields are IPv4 unicast by definition. Returning
 // true there is a positive family determination, not an absence-of-evidence
 // default (ai/rules/evidence.md).
@@ -404,6 +404,14 @@ func payloadToWithdrawal(payload []byte) []byte {
 // The egress filter uses this for suppression decisions -- our configured knowledge of the
 // peer relationship, independent of whether OTC is in the wire bytes.
 // If we don't configure a role for a peer, we don't filter its routes.
+//
+// Sets meta["src-peer-role"] to what the source peer IS to us, the answer
+// resolvePeerRole gives. The two keys are NOT the same value and one is not the
+// other spelled differently: src-role is OUR role toward that peer, taken from
+// the `import` keyword alone; src-peer-role is the peer's role toward us, which
+// prefers the Role capability the peer announced and falls back to RFC 9234
+// Table 2 complement of the config. A reader that wants "is this a provider"
+// wants the second (docs/architecture/meta/role.md).
 func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
 	cfg, capRole := getFilterConfig(src.Address.String())
 
@@ -421,6 +429,18 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 	// Peer ASN mismatch check, and the stamp that lets a leak be caught hops
 	// away -- because remoteRole was "" and the guard below returned early.
 	remoteRole := resolvePeerRole(capRole, cfg)
+
+	// Publish the resolved peer role BEFORE the OTC early return below. The
+	// return means "this plugin has no OTC work for this peer", which is a
+	// different question from "what is this peer to us": a peer that announced a
+	// Role capability but has no local role config resolves here and is skipped
+	// there, and its role is still the answer another filter needs. Published
+	// unconditionally on the resolved value, so an unresolvable peer leaves the
+	// key ABSENT rather than present and empty -- a reader must not be able to
+	// mistake "we could not tell" for a role (ai/rules/evidence.md).
+	if remoteRole != "" {
+		meta["src-peer-role"] = remoteRole
+	}
 
 	// No role config or no resolvable peer role: no OTC filtering.
 	if cfg == nil || remoteRole == "" {
@@ -523,7 +543,7 @@ func resolveSrcRole(meta map[string]any, srcCfg *peerRoleConfig) string {
 }
 
 // peerRoleComplement maps OUR configured local role toward a peer to what that
-// peer IS to us. It is the value form of the RFC 9234 Section 4.2 Table 2 pair
+// peer IS to us. It is the value form of RFC 9234 Section 4.2 Table 2 pair
 // table in validate.go (validRolePairs), which is keyed by wire code.
 var peerRoleComplement = map[string]string{
 	roleCustomer: roleProvider,
@@ -533,7 +553,7 @@ var peerRoleComplement = map[string]string{
 	rolePeer:     rolePeer,
 }
 
-// resolvePeerRole returns what a peer IS to us, for the RFC 9234 Section 5
+// resolvePeerRole returns what a peer IS to us, for RFC 9234 Section 5
 // procedures. It serves BOTH directions: the source peer on ingress and the
 // destination peer on egress.
 //
@@ -593,7 +613,7 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	srcCfg, _ := getFilterConfig(src.Address.String())
 	destCfg, destCapRole := getFilterConfig(dest.Address.String())
 
-	// destRemoteRole gates the RFC 9234 Section 5 MUSTs and falls back to the
+	// destRemoteRole gates RFC 9234 Section 5 MUSTs and falls back to the
 	// config complement when the peer sent no Role capability (resolvePeerRole).
 	// destCapRole stays capability-only for the operator export set below, where
 	// "unknown" is a documented target rather than a missing answer.
