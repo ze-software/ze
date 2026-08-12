@@ -49,11 +49,26 @@ EXIT_BUDGET = 15
 
 
 def notification_seen():
-    """Report how FRR says the session ended, or an empty string."""
+    """Report how FRR says the session ended.
+
+    Three probes, tried in order, because FRR words the answer differently per
+    version. Returns the reason line, or "" when FRR ANSWERED and named no
+    administrative shutdown.
+
+    Raises when no probe answered at all. `docker_exec_quiet` returns "" for a
+    command that failed as readily as for one that had nothing to say, and the
+    caller reads "" as "ze sent no NOTIFICATION" -- so a broken vtysh, a
+    container that is gone, or a docker daemon that refused would be reported
+    as a protocol defect in ze. Every probe coming back empty is the one state
+    in which that verdict is unavailable, and saying so is the whole point.
+    """
+    answered = False
+
     output = docker_exec_quiet(
         FRR_CONTAINER, ["vtysh", "-c", "show bgp neighbor %s json" % ZE_IP]
     )
     if output.strip():
+        answered = True
         try:
             peer = json.loads(output).get(ZE_IP, {})
             for key in ("lastNotificationReason", "lastErrorCodeSubcode"):
@@ -66,17 +81,27 @@ def notification_seen():
     output = docker_exec_quiet(
         FRR_CONTAINER, ["vtysh", "-c", "show bgp neighbor %s" % ZE_IP]
     )
-    for line in output.splitlines():
-        low = line.lower()
-        if "notification received" in low and "dministrat" in low:
-            return line.strip()
+    if output.strip():
+        answered = True
+        for line in output.splitlines():
+            low = line.lower()
+            if "notification received" in low and "dministrat" in low:
+                return line.strip()
 
     output = docker_exec_quiet(FRR_CONTAINER, ["cat", "/tmp/frr.log"])
-    for line in output.splitlines():
-        low = line.lower()
-        if "notification" in low and "recv" in low and "dministrat" in low:
-            return line.strip()
+    if output.strip():
+        answered = True
+        for line in output.splitlines():
+            low = line.lower()
+            if "notification" in low and "recv" in low and "dministrat" in low:
+                return line.strip()
 
+    if not answered:
+        raise RuntimeError(
+            "no answer from any of the three FRR probes (`show bgp neighbor "
+            "%s json`, the plain form, and /tmp/frr.log): the query failed, so "
+            "whether ze sent a NOTIFICATION is unknown rather than answered no" % ZE_IP
+        )
     return ""
 
 
