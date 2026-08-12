@@ -238,7 +238,7 @@ The pattern (do all four in the same change):
 |-----|---------------|-------------|--------------|
 | L2TP (Ze LNS vs xl2tpd) | `ze-deployment-l2tp-ppp-docker-test` | `ze-qemu-l2tp-ppp-test` | `effective-l2tp-ppp.py` |
 | PPPoE (Ze client vs accel-ppp) | `ze-deployment-pppoe-accel-docker-test` | `ze-qemu-pppoe-accel-test` | `effective-pppoe-accel.py` |
-| VRRP (Ze vs keepalived) | `ze-interop-test INTEROP_SCENARIO=vrrp-*-keepalived` | `ze-qemu-vrrp-keepalived-test` | `effective-vrrp-keepalived.py` |
+| VRRP (Ze vs keepalived) | `ze-interop-test INTEROP_SCENARIO=vrrp-mastership-keepalived` | `ze-qemu-vrrp-keepalived-test` | `effective-vrrp-keepalived.py` |
 
 **When you add a new interop lab, you MUST add its row here and ship both targets together.**
 

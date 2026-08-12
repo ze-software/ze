@@ -543,6 +543,30 @@ def docker_signal(container, signal="TERM"):
         )
 
 
+def docker_start(container):
+    """Start a stopped container again, with the config it already has.
+
+    The pair of `docker_signal`. A scenario that proves a router comes BACK --
+    a VRRP master returning and preempting, a peer re-establishing -- must
+    restart the same container: `docker run` a second time would build a new
+    one, and any state the first accumulated (its interfaces, its addresses,
+    its logs) would be gone from the evidence the check reads.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "start", container],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("docker start %s timed out" % container)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "docker start %s failed: %s" % (container, result.stderr.strip())
+        )
+
+
 def docker_logs(container, lines=30, strict=False):
     """Get last N lines of container logs.
 

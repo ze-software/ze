@@ -834,6 +834,18 @@ pre-started collector sidecar on the run's `.6` address so Ze's internal BMP
 sender can connect before peer events are generated. A scenario that includes
 `rpki-server` starts `ze-test rpki --bind 0.0.0.0` on the run's `.7` address.
 
+The tree is not BGP-only. A scenario that includes `keepalived.conf` gets a real
+keepalived on the run's `.8` address, and `vrrp-mastership-keepalived` is the
+scenario that uses it: Ze at priority 200 and keepalived at 100 contend for one
+virtual IP on the run's `.100` address. It asserts who owns that address, read
+with `ip -o -f inet addr` inside each container, over three phases -- Ze holds it
+alone for longer than keepalived's Active_Down_Interval, keepalived takes it over
+inside Skew_Time when Ze is sent SIGTERM (which is Ze's RFC 9568 Section 6.4.3
+Priority 0 advertisement being accepted, not a timeout), and Ze preempts and
+takes it back. Before it existed, VRRP had 150 unit tags and no executed interop.
+
+<!-- source: test/interop/scenarios/vrrp-mastership-keepalived/check.py -- VRRP mastership assertions -->
+
 **Positive tests** (expect success):
 ```
 # test/parse/simple-v4.ci
