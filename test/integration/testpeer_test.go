@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/test/peer"
 )
@@ -62,7 +63,7 @@ func runPeerTest(t *testing.T, peerConfig *peer.Config) peer.Result {
 	}()
 
 	<-sessionCtx.Done()
-	_ = session.Close()
+	_ = session.Teardown(message.NotifyCeaseAdminShutdown, "")
 
 	cancel()
 	return <-peerDone
