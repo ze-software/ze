@@ -1,0 +1,178 @@
+# Test: RFC 7454 Section 11 own-Global-Administrator scrub
+# VALIDATES: AC-6, AC-7 -- an own-GA value outside the keep-list is removed on
+#            ingress, one inside it survives, and a foreign GA is never touched
+# PREVENTS: a scrub that removes everything (which would delete a customer's
+#           signal to its own upstream, the failure Section 11 bullet two names)
+#           and a scrub that removes nothing (which would leave every forged
+#           value in place). Either failure alone still leaves a route in the
+#           RIB, so this test asserts all three values by name.
+#
+# Flow:
+# 1. ze-peer sends a route carrying three STANDARD communities:
+#      65000:64  own AS in the high half, function 64, IN the keep-list -> survives
+#      65000:99  own AS in the high half, function 99, NOT in the list  -> removed
+#      64512:99  another AS in the high half                            -> survives
+# 2. The peer has `scrub-own-ga true` and `scrub-keep-function 64`.
+# 3. The stored route carries exactly the two survivors.
+#
+# STANDARD rather than LARGE, and the reason is the RIB rather than the scrub.
+# Section 11 speaks of "your number in the high-order bits", which the scrub reads
+# in both widths (ownGAStandardValues and ownGALargeValues). Only the standard
+# width can be ASSERTED here: for a RECEIVED route the RIB emits no
+# large-community field at all (enrichRouteMapFromBundle,
+# internal/component/bgp/plugins/rib/rib_attr_format.go) and the pipeline offers
+# no large-community filter (rib_pipeline.go). The large width is proven by
+# TestScrubKeepList and TestScrubIgnoresForeignGA. The RIB gap has its own row in
+# plan/journal/unwired-feature.md.
+
+option=env:var=ze.log.bgp.filter.community:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Marker(16) + Len=003E(62) + Type=02 + WdLen=0000 + AttrLen=0023(35)
+#   ORIGIN:    40010100 (IGP)
+#   AS_PATH:   40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP:  40030401010101
+#   COMMUNITY: C0 08 0C (code 8, 12 octets = three 4-octet values)
+#       FDE80040 (65000:64)  FDE80063 (65000:99)  FC000063 (64512:99)
+#   NLRI:      180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020602010000FDE940030401010101C0080CFDE80040FDE80063FC000063180A0000
+EOF_PEER
+
+# Python test plugin: exactly the two survivors, and not the scrubbed value.
+tmpfs=test-scrub.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify the RFC 7454 Section 11 scrub keeps the keep-list and foreign GAs."""
+import sys
+from ze_api import API, runtime_fail, result_json_data
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def route_count(api, value):
+    """How many received routes still carry this community?
+
+    The `count` terminal answers with a number, so absence is a 0 rather than
+    an empty rendering that a command error would also produce.
+    """
+    result = dispatch(api, f'show bgp rib received community {value} count')
+    return result_json_data(result, {}).get('count', -1)
+
+def fail(msg):
+    print(f'FAIL: {msg}', file=sys.stderr)
+    sys.stderr.flush()
+    runtime_fail(msg)
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Poll until the route lands, rather than sleeping blind.
+    result = api.dispatch_until('show bgp adj-rib-in status',
+                                lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)
+    total = result_json_data(result, {}).get('total-routes', -1)
+    if total < 0:
+        fail(f'adj-rib-in query failed, got total={total}')
+
+    # The keep-list survivor. Removing it would be the "scrub removes
+    # everything" failure, which deletes what customers and peers signal.
+    if route_count(api, '65000:64') != 1:
+        fail('65000:64 is in the keep-list and must survive the scrub')
+
+    # The foreign high half. RFC 7454 Section 11 bullet two (RFC7454-11-2)
+    # forbids removing another AS's communities.
+    if route_count(api, '64512:99') != 1:
+        fail('64512:99 carries another ASN and must never be removed')
+
+    # The scrubbed value. Leaving it would be the "scrub removes nothing"
+    # failure, which is the forgery Section 11 exists to prevent.
+    if route_count(api, '65000:99') != 0:
+        fail('65000:99 is our own number outside the keep-list and must be removed')
+
+    print('OK: keep-list and foreign values survived, own-number 99 scrubbed', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: one eBGP peer with the Section 11 scrub and one kept function.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-scrub {
+		run ./test-scrub.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			ingress {
+				community {
+					scrub-own-ga true
+					scrub-keep-function 64
+				}
+			}
+		}
+		process test-scrub {
+			receive [ update state ]
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter emits one info log per modified payload. scrub-own-ga proves the
+# leaf reached the filter, and the payload only changes here because the scrub
+# removed a value: no tag and no strip set is configured.
+expect=stderr:pattern=community ingress applied
+expect=stderr:pattern=peer=peer1
+expect=stderr:pattern=scrub-own-ga=true
+# Negative regressions:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

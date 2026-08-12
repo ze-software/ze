@@ -385,13 +385,13 @@ Three entry points, one per direction.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-community-relation-tag` | `test/plugin/*.ci` | Operator sees the relation community on a route from a declared provider | |
-| `test-community-scrub-own-ga` | `test/plugin/*.ci` | A forged relation tag from a neighbour does not survive | |
+| `test-community-relation-tag` | `test/plugin/community-relation-tag.ci` | Operator sees the relation community on a route from a declared provider | PASS, discriminates: removing the role plugin's meta publish, and changing the relation filter's priority from 1 to 0, each turn it red |
+| `test-community-scrub-own-ga` | `test/plugin/community-scrub-own-ga.ci` | An own-number community outside the keep-list does not survive | PASS, discriminates in three directions: keep-everything, keep-nothing and ignore-the-Global-Administrator each turn it red on their own assertion. Uses STANDARD communities: the RIB emits no large-community field for a received route (journal row 2026-08-12) |
 | `test-community-function4-noexport` | `test/plugin/*.ci` | A route is withheld from one peer and delivered to another | |
 | `test-community-function6-prepend` | `test/plugin/*.ci` | One peer sees a prepended AS_PATH and another does not | |
 | `test-rs-prepend-control-community` | `test/plugin/*.ci` | The Euro-IX prepend community changes the AS_PATH one client sees | |
 | `test-rs-control-community-strip` | `test/plugin/*.ci` | Large control communities do not reach clients | |
-| `test-community-blackhole-noexport` | `test/plugin/*.ci` | A blackhole request from a customer does not leave the local AS | |
+| `test-community-blackhole-noexport` | `test/plugin/community-blackhole-noexport.ci` | A route received carrying BLACKHOLE gains NO_EXPORT | PASS, discriminates: disabling the guard turns it red. NOTE the title's claim is only half met -- Ze adds the community and does not itself honor it (journal row 2026-08-12, RFC1997-Well-1..4) |
 
 ### Interop Tests (Scope: protocol)
 
