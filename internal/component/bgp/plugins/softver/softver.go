@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/softver/yang"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -230,6 +231,13 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			jsonBytes, _ := json.Marshal(result)
 			writeJSON(jsonBytes)
 		}
+	}
+	// bufio.Scanner reports a read failure and an over-long line through Err(),
+	// never through Scan(). Without this the caller sees a clean, complete decode.
+	if err := scanner.Err(); err != nil {
+		var eb textbuf.Buffer
+		writeResponse(eb.Str("decoded error ").Err(err).Byte('\n').String())
+		return 1
 	}
 	return 0
 }

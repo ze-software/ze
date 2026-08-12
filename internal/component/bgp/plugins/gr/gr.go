@@ -37,6 +37,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -905,6 +906,13 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 		} else {
 			decodeLLGRMode(format, hexData, writeJSON, writeText, writeUnknown)
 		}
+	}
+	// bufio.Scanner reports a read failure and an over-long line through Err(),
+	// never through Scan(). Without this the caller sees a clean, complete decode.
+	if err := scanner.Err(); err != nil {
+		var eb textbuf.Buffer
+		writeOut(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
+		return 1
 	}
 	return 0
 }

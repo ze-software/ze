@@ -65,6 +65,13 @@ func runDecodeMode(input io.Reader, output io.Writer) int {
 		var tb textbuf.Buffer
 		writeResponse(output, tb.Str("decoded json ").Str(string(jsonBytes)).Byte('\n').String())
 	}
+	// bufio.Scanner reports a read failure and an over-long line through Err(),
+	// never through Scan(). Without this the caller sees a clean, complete decode.
+	if err := scanner.Err(); err != nil {
+		var eb textbuf.Buffer
+		writeResponse(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
+		return 1
+	}
 	return 0
 }
 

@@ -109,6 +109,13 @@ func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
 			writeError("unsupported object type")
 		}
 	}
+	// bufio.Scanner reports a read failure and an over-long line through Err(),
+	// never through Scan(). Without this the caller sees a clean, complete decode.
+	if err := scanner.Err(); err != nil {
+		var eb textbuf.Buffer
+		protocolWrite(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
+		return 1
+	}
 	return 0
 }
 

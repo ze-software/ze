@@ -332,7 +332,7 @@ func TestRunDecodeMode(t *testing.T) {
 			output := &bytes.Buffer{}
 
 			exitCode := RunDecodeMode(input, output)
-			assert.Equal(t, 0, exitCode, "RunDecodeMode should always return 0")
+			assert.Equal(t, 0, exitCode, "RunDecodeMode returns 0 when the input is read to EOF")
 
 			line := strings.TrimSpace(output.String())
 			assert.True(t, strings.HasPrefix(line, tt.wantPrefix),

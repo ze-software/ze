@@ -148,11 +148,12 @@ func runBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut i
 
 // runBGPLSDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
 func runBGPLSDecode(input io.Reader, output io.Writer) int {
-	writeUnknown := func() {
-		if _, err := fmt.Fprintln(output, "decoded unknown"); err != nil { //nolint:errcheck // output
+	write := func(s string) {
+		if _, err := fmt.Fprintln(output, s); err != nil { //nolint:errcheck // output
 			bgplsLogger.Debug("write error", "err", err)
 		}
 	}
+	writeUnknown := func() { write("decoded unknown") }
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -187,6 +188,13 @@ func runBGPLSDecode(input io.Reader, output io.Writer) int {
 		} else if cmd == cmdDecode {
 			writeUnknown()
 		}
+	}
+	// bufio.Scanner reports a read failure and an over-long line through Err(),
+	// never through Scan(). Without this the caller sees a clean, complete decode.
+	if err := scanner.Err(); err != nil {
+		var eb textbuf.Buffer
+		write(eb.Str("decoded error ").Err(err).String())
+		return 1
 	}
 	return 0
 }
