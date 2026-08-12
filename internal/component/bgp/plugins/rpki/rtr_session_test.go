@@ -79,13 +79,14 @@ func TestHandlePDUVersionDowngrade(t *testing.T) {
 // hour.
 //
 // VALIDATES: RFC 6810 Section 6.1 -- the router polls (Serial/Reset Query) no less frequently than
-// once an hour. The Run loop re-connects and re-queries after waiting s.retryInterval; the default
-// retryInterval seeds that cadence below the one-hour ceiling.
+// once an hour. The Run loop re-connects and re-queries after waiting pollDelay: the refresh
+// interval when the last sync completed, the retry interval when the last query failed (RFC 8210
+// Section 6). Both defaults seed that cadence at or below the one-hour ceiling.
 // PREVENTS: A default cadence that lets VRP data go stale for more than an hour.
 func TestPollingCadenceAtLeastHourly(t *testing.T) {
-	// RFC requirement: RFC6810-6.1-1 positive -- a fresh session's default retryInterval (the wait
-	// between one sync completing and the next query in Run's loop) is <= one hour, so the router
-	// re-queries at least hourly without any cache-supplied interval.
+	// RFC requirement: RFC6810-6.1-1 positive -- a fresh session's default intervals (the wait
+	// between one query and the next in Run's loop, whichever branch it takes) are <= one hour, so
+	// the router re-queries at least hourly without any cache-supplied interval.
 	// RFC requirement: RFC8210-8.1-1 positive -- the same Run-loop wait is what makes the router send
 	// a Serial Query or Reset Query periodically under v1; the seeded interval is finite and short, so
 	// polling recurs rather than stopping after the first sync.

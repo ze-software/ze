@@ -107,13 +107,36 @@ func (s *RTRSession) Run() {
 		}
 		s.close()
 
-		// Wait before retry, or exit on stop signal.
+		// Wait before the next poll, or exit on stop signal.
 		select {
 		case <-s.stopCh:
 			return
-		case <-time.After(s.retryInterval):
+		case <-time.After(s.pollDelay(err == nil)):
 		}
 	}
+}
+
+// pollDelay returns how long to wait before the next Serial Query or Reset Query.
+//
+// RFC 8210 Section 6: the Refresh Interval "tells the router how long to wait before
+// next attempting to poll the cache", and its countdown "starts upon receipt of the
+// containing End Of Data PDU". The Retry Interval "tells the router how long to wait
+// before retrying a failed Serial Query or Reset Query", and its countdown "starts
+// upon failure of the query". Waiting the retry interval after a sync completed polls
+// the cache more often than the cache asked for: against a cache sending refresh 3600
+// and retry 600, six times more often.
+//
+// A query that failed takes the retry interval whatever a previous End of Data said,
+// which also covers the same section's "if the router has never issued a successful
+// query against a particular cache, it SHOULD retry periodically using the default
+// Retry Interval".
+func (s *RTRSession) pollDelay(synced bool) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if synced {
+		return s.refreshInterval
+	}
+	return s.retryInterval
 }
 
 // stopped returns true if the stop channel has been closed.
