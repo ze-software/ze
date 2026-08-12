@@ -459,6 +459,13 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 		return MethodResult{MSK: msk, Done: true}
 	}
 
+	// The peer half reports a stall here instead of an ACK (readAndSendTLS,
+	// peer.go, errTLSClientStalled). This half MUST NOT. The two branches above
+	// already turn every state runTLSServer leaves into an error, so what remains
+	// is a defensive path. The ACK also keeps the eapTLSMaxPeerBuffered ceiling
+	// reachable. feedPeerData runs BEFORE waitServerData, so an error here ends
+	// the exchange on the first message. No second message reaches the ceiling
+	// (TestEAPTLSProcessRefusesUnboundedPeerBuffer).
 	if len(serverData) == 0 {
 		return MethodResult{
 			Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: []byte{0}},

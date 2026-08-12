@@ -212,7 +212,7 @@ A TLS 1.3 `CertificateRequest` arriving at Ze's EAP-TLS client from charon, insi
 |----------|--------|
 | What breaks if this is wrong? | Nothing in the daemon. The whole surface is one interop scenario's PKI plus two upstream reports |
 | How is it reverted? | Single commit. The scenario-local PKI is additive |
-| Who else touches this path? | `plan/spec-fixit-eap-tls-clienthello-race.md` owns the EAP-TLS client behavior for scenario 04; it does not touch the CA key type or the extension |
+| Who else touches this path? | `spec-fixit-eap-tls-clienthello-race` owns the EAP-TLS client behavior for scenario 04; it does not touch the CA key type or the extension |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

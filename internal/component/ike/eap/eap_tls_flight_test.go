@@ -8,9 +8,12 @@
 // conforming authenticator refuses it: strongSwan logs "EAP method EAP_TLS
 // failed" before any TLS record crosses.
 //
-// VALIDATES: the peer's answer to an EAP-TLS Start carries a real ClientHello
-// record, and the authenticator's answer to that ClientHello carries a real
-// ServerHello record.
+// VALIDATES:
+//   - The peer's answer to an EAP-TLS Start carries a real ClientHello record.
+//   - The authenticator's answer to that ClientHello carries a real ServerHello
+//     record.
+//   - A peer whose TLS engine settles and writes nothing reports that stall by
+//     name, rather than the empty-ACK form.
 // PREVENTS: regressing either side back to an unsynchronised buffer snapshot,
 // which emits a spurious empty-ACK and fails the method against any conforming
 // peer. Governing requirement: RFC5216-2.1.5-1.
@@ -18,6 +21,7 @@
 package eap
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -81,6 +85,14 @@ func eapTLSStart() *Packet {
 // Without the transport's output wakeup this is deterministically red: the peer
 // starts the TLS handshake on a goroutine and then snapshots the output buffer,
 // which cannot yet hold the ClientHello, so TypeData is []byte{0}.
+//
+// RFC requirement: RFC5216-2.1.1-2 positive -- RFC 5216 Section 2.1.1: "The
+// EAP-TLS conversation will then begin, with the peer sending an EAP-Response
+// packet with EAP-Type=EAP-TLS. The data field of that packet will encapsulate
+// one or more TLS records in TLS record layer format, containing a TLS
+// client_hello handshake message." The assertions below read the answer's code,
+// its type, its TLS content type and its handshake message type. The packet this
+// test accepts is therefore the packet the sentence describes.
 func TestEAPTLSPeerFirstResponseCarriesClientHello(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
@@ -195,3 +207,92 @@ func TestEAPTLSAuthenticatorFirstResponseCarriesServerHello(t *testing.T) {
 		resp = next.Response
 	}
 }
+
+// TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging drives readAndSendTLS
+// against a transport no TLS engine serves, so the wait settles on
+// eapTLSSettleBackstop with nothing written.
+//
+// This is the case the spec's R-1 names. A bounded wait CAN hide a real stall as
+// a slow start, so the peer must say so. The bare flags octet hands the
+// authenticator an empty EAP-TLS message instead. RFC 5216 Section 2.1.5 permits
+// that message only in answer to a message with the M flag. The authenticator
+// refuses the method, and the operator learns nothing about why.
+//
+// It calls readAndSendTLS rather than Process because the state under test is a
+// TLS engine that never answers. A real engine always answers.
+//
+// VALIDATES: an empty settle with the handshake incomplete yields
+// errTLSClientStalled, carries no EAP-Response at all, and fails the session.
+// PREVENTS: the empty branch falling back to TypeData []byte{0} for a stalled
+// engine, which is the fragment-ACK form that started this spec.
+//
+// RFC requirement: RFC5216-2.1.1-2 negative -- the answer Section 2.1.1 describes
+// carries a client_hello, so a peer with no handshake data owes no EAP-Response
+// at all. This asserts the bare flags octet is refused in that state. That octet
+// is the only other packet the branch can put on the Start's answer.
+func TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging(t *testing.T) {
+	// No goroutine reads or writes this transport, so it never reaches readIdle,
+	// finished, closed or err. The backstop alone releases the wait, which is the
+	// stall this test asserts.
+	ps := &PeerSession{tlsTransport: newEAPTLSTransport()}
+
+	res := ps.readAndSendTLS(7)
+
+	if res.Err == nil {
+		t.Fatalf("a peer whose TLS client produced nothing reported no error and replied %+v; a "+
+			"stall must be named, never sent as an empty EAP-TLS message", res.Response)
+	}
+	if !errors.Is(res.Err, errTLSClientStalled) {
+		t.Errorf("the peer reported %v, want errTLSClientStalled", res.Err)
+	}
+	if res.Response != nil {
+		t.Errorf("the peer answered a stalled TLS client with %+v; the engine drops the response "+
+			"whenever Err is set, so this packet only hides the cause", res.Response)
+	}
+	if ps.state != peerStateFailed {
+		t.Errorf("the session state is %d after a stalled TLS client, want peerStateFailed (%d)",
+			ps.state, peerStateFailed)
+	}
+}
+
+// TestEAPTLSPeerAcknowledgesOnlyAfterTheHandshakeFinishes is the boundary of the
+// stall report: the empty answer is still the right one once the handshake has
+// completed.
+//
+// RFC 5216 Section 2.1.3: "If the EAP server authenticates successfully, the
+// peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data." The
+// peer's TLS 1.2 closing round reaches readAndSendTLS with the engine finished
+// and its output buffer drained. That round owes this packet.
+// TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess pins it end-to-end.
+// This test pins the branch that produces it.
+//
+// VALIDATES: an empty settle with the handshake finished yields the bare flags
+// octet and no error.
+// PREVENTS: the stall report above swallowing the no-data response, which would
+// leave the authenticator waiting for the reply it needs before EAP-Success.
+func TestEAPTLSPeerAcknowledgesOnlyAfterTheHandshakeFinishes(t *testing.T) {
+	ps := &PeerSession{tlsTransport: newEAPTLSTransport()}
+
+	// The engine goroutine publishes the outcome before the wakeup, and
+	// startTLSClient documents that order. Mirror it here.
+	ps.tlsDone.Store(true)
+	ps.tlsTransport.handshakeFinished()
+
+	res := ps.readAndSendTLS(7)
+
+	if res.Err != nil {
+		t.Fatalf("the peer reported %v for a finished handshake with nothing left to send; RFC 5216 "+
+			"Section 2.1.3 owes an EAP-Response with no data here", res.Err)
+	}
+	if !bareEAPTLSResponse(res.Response) {
+		t.Fatalf("the peer answered the closing flight with %+v, want an EAP-Response of "+
+			"EAP-Type=EAP-TLS and no data", res.Response)
+	}
+	if res.Response.Identifier != 7 {
+		t.Errorf("the no-data response carries identifier %d, want the request's 7",
+			res.Response.Identifier)
+	}
+}
+
+// The authenticator half keeps its bare ACK on an empty settle, deliberately.
+// tlsMethod.Process (eap_tls.go) records why beside that branch.

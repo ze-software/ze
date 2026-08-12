@@ -27,7 +27,7 @@ ends the exchange.
 in any other case, and the document carries no MUST NOT that reaches this path. The spec is
 filed here for that reason. `plan/future/README.md` refuses defects, and this is not one.
 
-The find came out of `plan/spec-fixit-eap-tls-clienthello-race.md`, whose fix removed the
+The find came out of `spec-fixit-eap-tls-clienthello-race`, whose fix removed the
 same wrong answer from the PEER half. That half now reports `errTLSClientStalled` instead
 of an acknowledgement. The authenticator half kept its acknowledgement deliberately, and
 this spec is the question that decision left open.
@@ -60,7 +60,7 @@ this spec is the question that decision left open.
 - The fragment acknowledgement Ze sends when the peer sets the M flag.
 - The EAP-Failure Ze sends after its own TLS alert, and the EAP-Success it sends after the
   peer's no-data answer to the closing flight.
-- `eapTLSMaxPeerBuffered` stays reachable. `plan/spec-fixit-eap-tls-clienthello-race.md`
+- `eapTLSMaxPeerBuffered` stays reachable. `spec-fixit-eap-tls-clienthello-race`
   records the measurement. An unconditional guard in `Process` ends the exchange on the
   first message. No second message then crosses the backlog ceiling, and
   `TestEAPTLSProcessRefusesUnboundedPeerBuffer` goes red.
@@ -117,7 +117,7 @@ the operator through the existing IKE path.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | Every legitimate no-data round is answered by a branch above the last one | The branch comment in `eap_tls.go` calls the last branch defensive, and names the branches that absorb each real case | A conforming peer is refused mid-exchange | Run the eap package tests and `test/ipsec-interop/scenarios/04-eap-tls` with the refusal in place | unvalidated |
-| A-2 | `eapTLSMaxPeerBuffered` needs at least one more round after the first empty message | The measurement in `plan/spec-fixit-eap-tls-clienthello-race.md` | The backlog ceiling becomes unreachable again | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` | unvalidated |
+| A-2 | `eapTLSMaxPeerBuffered` needs at least one more round after the first empty message | The measurement in `spec-fixit-eap-tls-clienthello-race` | The backlog ceiling becomes unreachable again | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` | unvalidated |
 
 ### Risks
 
@@ -132,7 +132,7 @@ the operator through the existing IKE path.
 |----------|--------|
 | What breaks if this is wrong? | An EAP-TLS peer that used to authenticate is refused, so its IKE_AUTH fails and no SA comes up |
 | How is it reverted? | Single commit revert. No config, no wire state survives it |
-| Who else touches this path? | `plan/spec-fixit-eap-tls-clienthello-race.md` changed the peer half of the same package |
+| Who else touches this path? | `spec-fixit-eap-tls-clienthello-race` changed the peer half of the same package |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -288,7 +288,7 @@ metadata and no daemon comparison claim.
 
 The peer half and the authenticator half of the same package made the same wrong answer for
 different reasons. The peer half was a race, fixed in
-`plan/spec-fixit-eap-tls-clienthello-race.md`. The authenticator half is a leniency, and it
+`spec-fixit-eap-tls-clienthello-race`. The authenticator half is a leniency, and it
 is what makes a ze-to-ze functional test blind to the peer-half defect.
 
 ## Key Design Decisions

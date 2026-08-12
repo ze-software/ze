@@ -28,6 +28,13 @@ var (
 	// a MUST, and the configured CA is the peer's only trust anchor: EAP carries
 	// no server hostname, so there is nothing else to check the chain against.
 	errNoPeerTrustAnchor = errors.New("eap-tls: no CA certificate configured: RFC 5216 Section 5.3 requires the peer to path-validate the authenticator chain, which needs a trust anchor")
+
+	// errTLSClientStalled reports a TLS client that settled and wrote nothing
+	// while its handshake was still running. The other answer is the bare flags
+	// octet. RFC 5216 Section 2.1.5 permits that empty EAP-TLS message only in
+	// answer to a message with the M flag. An authenticator refuses it and fails
+	// the method. The stall then reaches the operator as the peer's silence.
+	errTLSClientStalled = errors.New("eap-tls: the TLS client produced no handshake data and its handshake is not complete")
 )
 
 // PeerResult is the outcome of processing one EAP-Request from the authenticator.
@@ -508,15 +515,35 @@ func (ps *PeerSession) startTLSClient() error {
 
 // readAndSendTLS reads TLS engine output and sends it (possibly fragmented).
 //
-// It WAITS for the engine to settle. A snapshot taken before the engine has
-// written its flight yields an empty slice, which the branch below sends as a
-// bare fragment ACK: RFC 5216 Section 2.1.5 permits that only in answer to a
-// message carrying the M flag, so an authenticator refuses it and the method
-// fails before the ClientHello ever crosses.
+// It WAITS for the engine to settle. A snapshot taken before the engine writes
+// its flight yields an empty slice. That empty slice reads as the bare fragment
+// ACK below. RFC 5216 Section 2.1.5 permits that ACK only in answer to a message
+// with the M flag. An authenticator refuses it, and the method fails before the
+// ClientHello crosses.
+//
+// The wait is BOUNDED by eapTLSSettleBackstop, so it also returns empty for an
+// engine that never answered. That case is reported, never sent.
 func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 	clientData := ps.tlsTransport.waitServerData()
 
 	if len(clientData) == 0 {
+		// An empty answer is owed in exactly one state. RFC 5216 Section 2.1.3:
+		// "If the EAP server authenticates successfully, the peer MUST send an
+		// EAP-Response packet of EAP-Type=EAP-TLS, and no data." The TLS 1.2
+		// closing round reaches here with the engine finished and its output
+		// drained. The authenticator waits for that packet before EAP-Success.
+		//
+		// A handshake that is still running means the engine settled and wrote
+		// nothing. The bounded wait's backstop fired on a wedged client, or the
+		// transport closed under it. The flags octet would then answer a Start, or
+		// a data message, with a fragment ACK. That is the form that fails the
+		// method, so the stall is reported by name. An empty buffer alone cannot
+		// tell "finished with nothing left" from "never produced anything"
+		// (ai/rules/evidence.md).
+		if !ps.tlsDone.Load() {
+			ps.state = peerStateFailed
+			return PeerResult{Err: errTLSClientStalled}
+		}
 		return PeerResult{
 			Response: &Packet{
 				Code:       CodeResponse,

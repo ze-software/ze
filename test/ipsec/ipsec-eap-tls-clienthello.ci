@@ -1,0 +1,223 @@
+# Functional test: the EAP-TLS peer answers the EAP/REQ/TLS Start with the TLS
+# client's handshake output, so the whole EAP-TLS exchange completes through the
+# daemon. Spec: spec-fixit-eap-tls-clienthello-race, AC-1 and AC-3.
+#
+# Two unprivileged ze instances negotiate IKEv2 over loopback, exactly as
+# ipsec-sa-installed.ci does. The responder is the EAP-TLS authenticator and the
+# initiator is the EAP-TLS peer, so both halves of internal/component/ike/eap run
+# in real daemons. That is what this test adds over the unit tests: they drive
+# the handshake through an in-memory transport, where the ClientHello is already
+# buffered when the drain runs, and the defect needs a real goroutine scheduling
+# boundary to appear.
+#
+# The subject is readAndSendTLS (eap/peer.go). It answers the Start by WAITING
+# for the TLS client to settle (waitServerData, eap/eap_tls.go) instead of taking
+# a snapshot of the outbound buffer, and it reports errTLSClientStalled rather
+# than sending a bare flags octet when that wait yields nothing.
+#
+# The gate is the negotiated ESP encryption algorithm on the SA, which appears
+# only once IKE_AUTH has finished. IKE_AUTH cannot finish without the EAP MSK,
+# and no MSK exists unless the TLS handshake completed.
+#
+# WHAT REVERTING PROVES, measured on 2026-08-10, both directions:
+#
+#   waitServerData -> a snapshot drain: RED in 35.9s. The initiator logs
+#   "ike: EAP failed ... eap-tls: the TLS client produced no handshake data and
+#   its handshake is not complete", the responder times out, and no SA is
+#   established. This is the coupled pair AC-1 and AC-3 name, and it is what
+#   this test guards.
+#
+#   The errTLSClientStalled guard alone, with the wait left in place: GREEN. The
+#   wait never returns empty in a healthy exchange, so that branch is not
+#   reached and nothing observable changes.
+#
+# WHAT THIS TEST CANNOT SEE, stated so no reader credits it with more. Revert
+# BOTH -- snapshot drain AND bare flags octet, which is the original defect on
+# the wire -- and this test is GREEN in 3.5s. Ze's own authenticator answers a
+# bare fragment ACK with a bare fragment ACK (tlsMethod.Process, eap_tls.go),
+# and the peer then sends the ClientHello on the next round, so the exchange
+# recovers and the SA comes up. strongSwan refuses that reply and fails the
+# method, which is why test/ipsec-interop/scenarios/04-eap-tls is the only test
+# that sees the 67-octet answer to a 67-octet Start. Two ze daemons cannot
+# discriminate it, and no assertion added here would change that.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=60s
+
+# ── Responder daemon (background): the EAP-TLS authenticator on 127.0.0.2 ──
+stdin=responder:terminator=EOF_RESPONDER
+pki {
+	ca eap-test-ca {
+		certificate MIIBljCCAT2gAwIBAgIUKnupE9vc3PDkIlewog5/vLbWUSgwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAZMRcwFQYDVQQDDA56ZS1lYXAtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFGjZtjQ6ZOLFEN1q9LpSZJzb+lw1Eli3+g+f46YDBOaRsVKhmEkLSUrBzn4FRTlk0VDDPHkmGyY+hfcDt78tfyjYzBhMB0GA1UdDgQWBBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjOPQQDAgNHADBEAiBANDiRgrWYy1NTNe27qBx9nDnu1q4u/rw7XcyKrh3rvgIgIHwLNpk9xZ8sVGaD89O5M5bSz/e0mvHnTdBP0i1yJ7U=
+	}
+	certificate eap-server {
+		certificate MIIBwTCCAWegAwIBAgIUH5hTTx7S3bFSBefmYhlJ9dqnTNkwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAYMRYwFAYDVQQDDA16ZS1lYXAtc2VydmVyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEz4irhidUXvMf2M8F4mlc8aa4dyztBmHreoYRrUdrDtgK7c6aw6+N0DVGY1KV6SEKzlzUo60tn1XkYTVHqUxBqqOBjTCBijAJBgNVHRMEAjAAMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATAYBgNVHREEETAPgg16ZS1lYXAtc2VydmVyMB0GA1UdDgQWBBSjzE5OGwU2a4fHTu4UQ9qT3N+6fjAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAKBggqhkjOPQQDAgNIADBFAiBf+KoYeLLFPcJCdEzL/6xkNOyJO3oDXN9M1gnve60d2gIhAJgayu8M6UWUX15ibA1/3JSvX2A7ZxeqRTnHf2HQM7AO
+		private {
+			key MHcCAQEEIAtyVG/P13ZcsFIvu3Y6j1tIwu4NTatJnm4dvDsHj72voAoGCCqGSM49AwEHoUQDQgAEz4irhidUXvMf2M8F4mlc8aa4dyztBmHreoYRrUdrDtgK7c6aw6+N0DVGY1KV6SEKzlzUo60tn1XkYTVHqUxBqg==
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-server"
+					remote-id "ze-eap-client"
+					certificate eap-server
+					ca-certificate eap-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground): the EAP-TLS peer on 127.0.0.1 ──
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+pki {
+	ca eap-test-ca {
+		certificate MIIBljCCAT2gAwIBAgIUKnupE9vc3PDkIlewog5/vLbWUSgwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAZMRcwFQYDVQQDDA56ZS1lYXAtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFGjZtjQ6ZOLFEN1q9LpSZJzb+lw1Eli3+g+f46YDBOaRsVKhmEkLSUrBzn4FRTlk0VDDPHkmGyY+hfcDt78tfyjYzBhMB0GA1UdDgQWBBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjOPQQDAgNHADBEAiBANDiRgrWYy1NTNe27qBx9nDnu1q4u/rw7XcyKrh3rvgIgIHwLNpk9xZ8sVGaD89O5M5bSz/e0mvHnTdBP0i1yJ7U=
+	}
+	certificate eap-client {
+		certificate MIIBwDCCAWegAwIBAgIUH5hTTx7S3bFSBefmYhlJ9dqnTNowCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAYMRYwFAYDVQQDDA16ZS1lYXAtY2xpZW50MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErylToGd9Bj1/JVoz57qU0usT3ZTDIMYqjQkC4JThKC+/76/lx6pvBcxdUCbnrO7ms+G+nGUiDiqA0i5RFWS83aOBjTCBijAJBgNVHRMEAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAjAYBgNVHREEETAPgg16ZS1lYXAtY2xpZW50MB0GA1UdDgQWBBTph73b7t4WIshUldktYUMA/VhCJjAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAKBggqhkjOPQQDAgNHADBEAiAj3bO3Piq2uU07D2A/dqhjKVCLi6DjL+n/sJ3Tp8XvkAIgdPtn0mjrjTMVCO2m5sVGgj7IkGi4XlqphwUFccFSkrI=
+		private {
+			key MHcCAQEEINuZlDX/7b+1y/anmTXCJKeS/LY3SV/IzyAAsa0HiX9ZoAoGCCqGSM49AwEHoUQDQgAErylToGd9Bj1/JVoz57qU0usT3ZTDIMYqjQkC4JThKC+/76/lx6pvBcxdUCbnrO7ms+G+nGUiDiqA0i5RFWS83Q==
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-client"
+					# remote-id is set on purpose. Without it ze warns that every
+					# certificate this authority issued authenticates as this peer,
+					# and a functional test must not model that configuration.
+					remote-id "ze-eap-server"
+					certificate eap-client
+					ca-certificate eap-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=50s
+
+command=show vpn ipsec sa
+expect=output:contains=peer-1:timeout=30
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=30
+expect=output:contains=sha256:timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
