@@ -27,13 +27,42 @@
 # processes in order on one goroutine. The observer waiting for the fence therefore proves
 # the mixed UPDATE was already decided.
 
-# Source peer -- external, AS 65001, on 127.0.0.1.
-stdin=source:terminator=EOF_SOURCE
-option=tcp_connections:value=1
+# rfc-test-change-approved: 2026-08-12 Thomas approved a SYNCHRONIZATION change only.
+#   The RFC 1997 Well-1 assertions are UNCHANGED, byte for byte:
+#     expect=bgp:seq=1:contains=18C63364   (the withdrawal reaches the refused peer)
+#     expect=bgp:seq=2:contains=18C00002   (the fence reaches it too)
+#     reject=bgp:pattern=180A0000          (the announcement never does)
+#     expect=bgp:seq=1:contains=18C63364   (the internal peer, both halves)
+#     expect=bgp:seq=2:contains=180A0000
+#   What DID change: the three ze-peer processes became ONE holding three
+#   connections, so option=conn_map:value=remote-ip now numbers them and
+#   option=await_eor:value=true is the barrier. Every expect= and the reject=
+#   moved from conn=1 of its own process to conn=2 / conn=3 of the one process.
+#   No expect, reject, hex or config line was touched otherwise.
+#   Why: a destination that comes up late loses the WITHDRAWAL for good. An
+#   announcement is replayed from the Adj-RIB-In when the session comes up, and a
+#   withdrawal has nothing to replay from -- so the race lands exactly on the
+#   assertion this file exists to make. Measured 5/6 serially before the barrier.
+
+# ONE peer process holds all three sessions, and the conn number is the peer's address
+# rather than the order ze happened to connect in (option=conn_map, peer_connmap.go).
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
 option=timeout:value=30s
-# The source must outlive the assertions: a source that closes makes ze withdraw its
+option=bind:value=0.0.0.0
+# conn=1 is 127.0.0.1 (the source), conn=2 is 127.0.0.2 (internal), conn=3 is 127.0.0.3
+# (external): remote-ip sorts the accepted batch by TCP source address, which is each
+# peer's `local ip` below.
+option=conn_map:value=remote-ip
+# THE BARRIER. ze emits its End-of-RIB to a peer only after that peer's initial sync, so
+# the EoR is the first frame proving the peer is a live forward target. Same reasoning,
+# and the same option, as rfc7606-relay-one-field.ci.
+option=await_eor:value=true
+# The peers must outlive the assertions: a source that closes makes ze withdraw its
 # routes, which would deliver the destinations messages they never asked for.
 option=linger:value=true
+
+# conn=1, the SOURCE -- external, AS 65001, on 127.0.0.1.
 # seq=1 -- the MIXED UPDATE. Withdrawn Routes = 198.51.100.0/24 (18C63364). NLRI =
 # 10.0.0.0/24 (180A0000) with ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1,
 # COMMUNITY=NO_EXPORT (0xFFFFFF01). The community rides in the attribute section, which
@@ -42,32 +71,28 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000418C633640
 # seq=2 -- the FENCE, 192.0.2.0/24, an ordinary community 64985:100 (0xFDE90064). RFC 1997
 # says nothing about it, so it must be advertised to both destinations.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9006418C00002
-EOF_SOURCE
 
-# Internal destination -- AS 65000, the same AS ze runs, on 127.0.0.2.
-stdin=internal:terminator=EOF_INTERNAL
-option=tcp_connections:value=1
-option=timeout:value=30s
+# rfc-test-change-approved: 2026-08-12 -- see the block above. Only the conn number
+# changed on each line below, from conn=1 of its own process to conn=2 / conn=3 of the
+# one process. The RFC 1997 Well-1 assertions themselves are unchanged.
+#
+# conn=2, the INTERNAL destination -- AS 65000, the same AS ze runs, on 127.0.0.2.
 # CONTROL 3: an internal peer is inside the confederation boundary, so it receives BOTH
 # halves. ze splits the mixed shape before sending it (RFC 7606 Section 5.1), withdrawal
 # first, so the withdrawal and the announcement arrive as two messages in that order.
-expect=bgp:conn=1:seq=1:contains=18C63364
-expect=bgp:conn=1:seq=2:contains=180A0000
-EOF_INTERNAL
+expect=bgp:conn=2:seq=1:contains=18C63364
+expect=bgp:conn=2:seq=2:contains=180A0000
 
-# External destination -- AS 65002, on 127.0.0.3. Every assertion about the prohibition and
-# its limit lives here.
-stdin=external:terminator=EOF_EXTERNAL
-option=tcp_connections:value=1
-option=timeout:value=30s
+# conn=3, the EXTERNAL destination -- AS 65002, on 127.0.0.3. Every assertion about the
+# prohibition and its limit lives here.
 # CONTROL 1, and the point of this test: the withdrawal half REACHES the refused peer.
-expect=bgp:conn=1:seq=1:contains=18C63364
+expect=bgp:conn=3:seq=1:contains=18C63364
 # CONTROL 2: the fence route reaches this session too, so control 1 cannot pass by way of
 # some unrelated message.
-expect=bgp:conn=1:seq=2:contains=18C00002
+expect=bgp:conn=3:seq=2:contains=18C00002
 # THE ASSERTION: 10.0.0.0/24 never reaches this external session, in any framing.
-reject=bgp:conn=1:pattern=180A0000
-EOF_EXTERNAL
+reject=bgp:conn=3:pattern=180A0000
+EOF_PEER
 
 # Observer: hold the daemon up until the fence has been written to the external
 # destination, which proves the mixed UPDATE ahead of it was already decided.
@@ -203,10 +228,15 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=internal
-cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=external
-cmd=foreground:seq=4:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+# rfc-test-change-approved: 2026-08-12 -- see the block above. Three background ze-peer
+# processes become ONE holding three connections, and the barrier is per accepted BATCH
+# (peer_connmap.go), so it cannot span processes: one process is the only shape in which
+# these RFC 1997 assertions are not a race.
+# test-relax: the cmd= count falls from four to two for that reason alone. NO assertion is
+# removed and none is weakened: every expect= and the reject= survive on conn=2 / conn=3 of
+# the one peer, byte for byte, and the file gains a barrier it was asserting without.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

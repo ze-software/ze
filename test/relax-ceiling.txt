@@ -65,4 +65,20 @@
 # count fell from four to two per file, and every expect= and reject= survived on
 # conn=2 / conn=3. Both files then measured 6/6 and 12/12, and the general-rail one
 # still goes red under its discrimination probe.
-754
+
+# raised-for: wellknown-no-export-withdraw-egress.ci, 2026-08-12, 754 -> 755.
+# The THIRD file of the same set and the same one-line reason: three ze-peer
+# processes became one so the await_eor barrier can span the three sessions, and
+# the `.ci` arm counts cmd= lines. Thomas approved this file's change directly
+# (it is RFC-tagged; see its rfc-test-change-approved block). NO assertion moved:
+# only the conn= number on each expect= and reject= line, verified by diffing for
+# expect=/reject=/hex= lines. 8/8 serially after the barrier, 5/6 before, and it
+# still goes 2/2 red when the RFC 1997 arm is reverted to a whole-message skip.
+#
+# THREE RAISES IN ONE DAY FOR ONE FALSE POSITIVE. A ceiling that only ever rises
+# stops being a ratchet, and none of these three tokens records lost coverage.
+# The cause is named in the prose above: the `.ci` arm counts LINES, so every
+# mechanical improvement that consolidates processes reads as a weakening. The
+# remedy is to fix that arm, not to keep buying passes. Until then a raise here
+# costs one reviewed line, which is the design.
+755
