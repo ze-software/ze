@@ -261,10 +261,61 @@ func (p *Peer) Ready() <-chan struct{} {
 	return p.ready
 }
 
+// dialTarget dials Config.Dial, retrying until the target binds or the budget
+// runs out. A dialing peer has no bind barrier of its own and the runner gives it
+// none (runner_exec.go), so the daemon it dials is usually still starting: a
+// single attempt would race the listener rather than test anything.
+func (p *Peer) dialTarget(ctx context.Context) (net.Conn, error) {
+	p.printf("dialing %s...\n", p.config.Dial)
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		conn, err := dialer.DialContext(ctx, "tcp", p.config.Dial)
+		if err == nil {
+			return conn, nil
+		}
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("dial canceled: %w", ctx.Err())
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("dial %s: %w", p.config.Dial, err)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// runDialCheck is the scripted peer in the ACTIVE role: it dials the daemon and
+// then runs the same expect/action script a listening peer runs.
+//
+// It exists for the one topology a listening peer cannot express: ze accepting a
+// connection it never dials, which is what a dynamic peer group is
+// (reactor_dynamic.go). handleConnection reads the remote's OPEN first, and that
+// is role-agnostic here -- a BGP speaker that accepts a connection sends its OPEN
+// on TcpConnectionConfirmed (RFC 4271 Section 8.2.2), so the daemon speaks first
+// either way.
+func (p *Peer) runDialCheck(ctx context.Context) Result {
+	conn, err := p.dialTarget(ctx)
+	if err != nil {
+		return Result{Success: false, Error: err}
+	}
+	defer func() { _ = conn.Close() }()
+
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		_ = tcpConn.SetNoDelay(true)
+	}
+	// There is no listener to bind, so nothing can wait for one.
+	p.readyOnce.Do(func() { close(p.ready) })
+
+	return p.handleConnection(ctx, conn)
+}
+
 // Run starts the test peer and blocks until completion or context cancellation.
 func (p *Peer) Run(ctx context.Context) Result {
 	if p.config.Dial != "" {
-		return p.runActive(ctx)
+		if p.config.Mode == ModeInject {
+			return p.runActive(ctx)
+		}
+		return p.runDialCheck(ctx)
 	}
 	switch p.config.ConnMap {
 	case "":

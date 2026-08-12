@@ -910,11 +910,21 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// plan/spec-fixit-redistribute-establishment-stall.md (D1) and
 				// ai/rules/evidence.md.
 				//
-				// --dial peers take the active role and never listen, so they have
-				// no bind barrier to wait on (no .ci uses --dial today).
+				// The process handle is recorded for EVERY peer, dialing or
+				// listening: the end-of-test loop waits on po.proc, so a peer with
+				// none is a peer the run never waits for and never reads a verdict
+				// from. A --dial peer left unrecorded made its test finish in 3ms
+				// with an empty capture, reported as "check peer produced no
+				// output": the run had started both processes and then waited for
+				// neither.
+				po := &peerOutputs[len(peerOutputs)-1]
+				po.proc = proc
+
+				// Only the BIND barrier is skipped for a dialing peer: it takes the
+				// active role and never listens, so it prints no readiness token.
+				// It waits for the daemon itself instead, by retrying the dial
+				// (dialTarget, internal/test/peer/peer.go).
 				if !strings.Contains(execStr, "--dial") {
-					po := &peerOutputs[len(peerOutputs)-1]
-					po.proc = proc
 					// 5s to bind is generous unloaded, but a parallel run oversubscribes
 					// every core: a ze-peer process can take longer than 5s just to start
 					// and listen, which reads as a spurious "peer never bound". Scale the

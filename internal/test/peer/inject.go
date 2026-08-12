@@ -336,14 +336,12 @@ func writeU128(dst []byte, v u128, n int) {
 	copy(dst, tmp[:n])
 }
 
-// runActive is the entry point when Config.Dial is set. It dials the target,
-// completes an active-role BGP OPEN handshake (send OPEN -> read peer OPEN ->
-// send KEEPALIVE -> read peer KEEPALIVE), then hands off to doInject.
-// Only supported with Mode == ModeInject.
+// runActive is the entry point when Config.Dial is set with Mode == ModeInject.
+// It dials the target, completes an active-role BGP OPEN handshake (send OPEN ->
+// read peer OPEN -> send KEEPALIVE -> read peer KEEPALIVE), then hands off to
+// doInject. The scripted check peer dials through runDialCheck (peer.go) instead,
+// which drives the ordinary expect/action script over the same connection.
 func (p *Peer) runActive(ctx context.Context) Result {
-	if p.config.Mode != ModeInject {
-		return Result{Error: errors.New("--dial is only supported with --mode inject")}
-	}
 	if p.config.Inject == nil {
 		return Result{Error: errors.New("--dial requires an inject spec")}
 	}
@@ -351,23 +349,9 @@ func (p *Peer) runActive(ctx context.Context) Result {
 	// listener to bind when dialing.
 	p.readyOnce.Do(func() { close(p.ready) })
 
-	p.printf("dialing %s...\n", p.config.Dial)
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	deadline := time.Now().Add(30 * time.Second)
-	var conn net.Conn
-	var err error
-	for {
-		conn, err = dialer.DialContext(ctx, "tcp", p.config.Dial)
-		if err == nil {
-			break
-		}
-		if ctx.Err() != nil {
-			return Result{Error: fmt.Errorf("dial canceled: %w", ctx.Err())}
-		}
-		if time.Now().After(deadline) {
-			return Result{Error: fmt.Errorf("dial %s: %w", p.config.Dial, err)}
-		}
-		time.Sleep(500 * time.Millisecond)
+	conn, err := p.dialTarget(ctx)
+	if err != nil {
+		return Result{Error: err}
 	}
 	defer func() {
 		if cerr := conn.Close(); cerr != nil {

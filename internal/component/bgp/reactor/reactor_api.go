@@ -531,6 +531,38 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 
 	for key := range currentPeers {
 		newSettings, exists := newPeerSettings[key]
+
+		// A dynamic peer is not in newPeerSettings and never can be: its key is the
+		// AddrPort it CONNECTED FROM, while the configuration names a template and a
+		// prefix range (createDynamicPeer, reactor_dynamic.go). Reading that absence
+		// as "no longer configured" tore down every established dynamic session on
+		// every reload, including a reload that changed nothing about it.
+		//
+		// The dynamic population is reconciled by SetDynamicGroups instead
+		// (reactor_dynamic.go), which runs EARLIER in the same reload, from the
+		// ReloadFunc itself (createReloadFunc, bgp/config/loader_create.go). It
+		// removes the peers whose group is gone, whose address left every range, or
+		// whose group template changed. What reaches this loop is the population it
+		// decided to keep, so the answer here is to keep it.
+		if currentPeers[key].IsDynamic {
+			if !exists {
+				continue
+			}
+			// The new configuration names this address as a peer of its own, so the
+			// operator's entry replaces the template-built one. Restart rather than
+			// swap: the running settings were resolved at establishment (PeerAS from
+			// the OPEN, $remote_as and $remote_ip in the filter chains,
+			// resolveDynamicPeerSettings), so they are not the template a config
+			// entry can be diffed against, and applyHotSwappableSettings must not run
+			// on a dynamic peer -- resolveDynamicPeerSettings writes two of the same
+			// fields from the establishment goroutine
+			// (plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md).
+			toRemove = append(toRemove, key)
+			toAdd = append(toAdd, newSettings)
+			reactorLogger().Info("dynamic peer replaced by configured peer", "phase", label, "peer", key)
+			continue
+		}
+
 		if !exists {
 			toRemove = append(toRemove, key)
 			continue
@@ -684,6 +716,13 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 	for key := range currentPeers {
 		newSettings, exists := newPeerSettings[key]
 		switch {
+		case currentPeers[key].IsDynamic:
+			// Mirrors reconcilePeersJournaled: a dynamic peer the configuration does
+			// not name is left alone (SetDynamicGroups owns it), and one the
+			// configuration DOES name is removed and re-added from the entry.
+			if exists {
+				count += 2
+			}
 		case !exists:
 			count++ // remove
 		case peerSettingsEqual(currentPeers[key], newSettings):

@@ -221,6 +221,38 @@ func (r *Reactor) removeDynamicPeer(peer *Peer) {
 	}
 }
 
+// dynamicTemplateChanged reports whether a dynamic peer at addr would be built with
+// different settings from next than it was built with from old.
+//
+// It compares what buildDynamicPeerSettings PRODUCES for that one address rather
+// than the two group configs, because that is what a running dynamic peer was built
+// from: a wider range or a raised max-peers changes the group and changes nothing
+// the peer holds, and tearing a session down for either would be the reload bounce
+// this comparison exists to avoid.
+//
+// The running peer's own settings are NOT the comparison. resolveDynamicPeerSettings
+// rewrites PeerAS from the OPEN and resolves $remote_as / $remote_ip in the filter
+// chains at establishment, so a running dynamic peer differs from every template,
+// including the one it was built from.
+//
+// Fail closed: an absent old group or a template that no longer builds counts as
+// changed, so the peer restarts and the next connection is accepted under settings
+// that were actually derived from the new configuration.
+func (r *Reactor) dynamicTemplateChanged(old, next *DynamicGroupConfig, addr netip.Addr) bool {
+	if old == nil || next == nil {
+		return true
+	}
+	oldSettings, oldErr := r.buildDynamicPeerSettings(old, addr)
+	if oldErr != nil {
+		return true
+	}
+	nextSettings, nextErr := r.buildDynamicPeerSettings(next, addr)
+	if nextErr != nil {
+		return true
+	}
+	return !peerSettingsEqual(oldSettings, nextSettings)
+}
+
 // tryCreateDynamicPeer checks dynamic groups for the given address and creates a
 // peer if a matching group is found. Returns nil if no group matches or max-peers
 // is exceeded. Thread-safe: acquires r.mu internally.
@@ -262,8 +294,17 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 }
 
 // SetDynamicGroups replaces the reactor's dynamic group configs.
-// Called during config load and reload. On reload, tears down dynamic peers
-// whose group was removed or whose address is no longer in any range.
+//
+// Called during config load and reload. It is the ONE place that reconciles the
+// dynamic peer population against configuration, because a dynamic peer's key is
+// the AddrPort it connected from and no configuration ever names it: the peer diff
+// in reconcilePeersJournaled (reactor_api.go) skips every dynamic peer and relies
+// on this function instead.
+//
+// On reload it tears down a dynamic peer whose group was removed, whose address is
+// no longer in any of that group's ranges, or whose group template no longer builds
+// the settings the running session was accepted under. Every other dynamic peer is
+// left running, session included.
 func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -274,29 +315,33 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 	// removeDynamicPeer decrements ActivePeers on the current dynamicGroups;
 	// we must do this while the old groups are still installed.
 	if len(old) > 0 {
-		newGroupNames := make(map[string]bool, len(groups))
+		newByName := make(map[string]*DynamicGroupConfig, len(groups))
 		for _, g := range groups {
-			newGroupNames[g.GroupName] = true
+			newByName[g.GroupName] = g
+		}
+		oldByName := make(map[string]*DynamicGroupConfig, len(old))
+		for _, g := range old {
+			oldByName[g.GroupName] = g
 		}
 
 		var toRemove []*Peer
 		for _, peer := range r.peers {
-			if !peer.Settings().IsDynamic {
+			settings := peer.Settings()
+			if !settings.IsDynamic {
 				continue
 			}
-			groupName := peer.Settings().GroupName
-			if !newGroupNames[groupName] {
+			next, kept := newByName[settings.GroupName]
+			if !kept {
 				toRemove = append(toRemove, peer)
 				continue
 			}
-			inRange := false
-			for _, g := range groups {
-				if g.GroupName == groupName && g.containsAddr(peer.Settings().Address) {
-					inRange = true
-					break
-				}
+			if !next.containsAddr(settings.Address) {
+				toRemove = append(toRemove, peer)
+				continue
 			}
-			if !inRange {
+			if r.dynamicTemplateChanged(oldByName[settings.GroupName], next, settings.Address) {
+				reactorLogger().Info("dynamic peer restart required",
+					"peer", settings.Address, "group", settings.GroupName, "changed", "group template")
 				toRemove = append(toRemove, peer)
 			}
 		}
