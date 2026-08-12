@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3268 files
+Total: 262 design docs, 3278 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -90,6 +90,7 @@ Total: 261 design docs, 3268 files
 | `cmd/ze/dispatch_ospf.go` | ze_ospf dispatch-root CLI gating |
 | `cmd/ze/dispatch_tacacs.go` | ze_tacacs dispatch-root CLI gating |
 | `cmd/ze/hub/api_infra.go` | compile-out-able services (feature-gate) |
+| `cmd/ze/hub/api_infra_test.go` | ze_rest / ze_grpc compile-out seam |
 | `cmd/ze/hub/bgp_decode_link_test.go` | ze_bgp decoder seam link for hub tests |
 | `cmd/ze/hub/bgp_decode_nolink_test.go` | ze_bgp-absent decoder seam state for hub tests |
 | `cmd/ze/hub/bng_infra.go` | ze_l2tp BNG construction seam |
@@ -145,6 +146,7 @@ Total: 261 design docs, 3268 files
 | `cmd/ze/hub/build_tag_web_present_test.go` | ze_web present build validation |
 | `cmd/ze/hub/command_meta.go` | always-on command metadata |
 | `cmd/ze/hub/gnmi_infra.go` | ze_gnmi compile-out seam |
+| `cmd/ze/hub/gnmi_infra_test.go` | ze_gnmi compile-out seam |
 | `cmd/ze/hub/register_gnmi.go` | ze_gnmi compile-out seam |
 | `cmd/ze/hub/register_grpc.go` | compile-out-able services (feature-gate) |
 | `cmd/ze/hub/register_ike.go` | ze_ike hub registration gating |
@@ -1094,8 +1096,10 @@ Total: 261 design docs, 3268 files
 | `internal/component/config/related.go` | Ze YANG extensions and metadata storage |
 | `internal/component/config/schema/cli/claims.go` | hub handler claim surface |
 | `internal/component/config/schema/cli/main.go` | schema CLI |
+| `internal/component/config/validate_sections.go` | ze:validate custom validators |
 | `internal/component/config/validators.go` | custom validators |
 | `internal/component/config/validators_register.go` | custom validator registration |
+| `internal/component/config/validators_register_test.go` | custom validator registration |
 | `internal/component/config/yang/cli/doc.go` | command documentation |
 | `internal/component/config/yang/cli/format.go` | YANG analysis output formatting |
 | `internal/component/config/yang/cli/main.go` | ze yang CLI entry point |
@@ -1180,6 +1184,7 @@ Total: 261 design docs, 3268 files
 | `internal/component/bgp/plugins/filter_remove_private_as/config.go` | remove-private-as filter config parsing |
 | `internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go` | remove-private-as policy action filter |
 | `internal/component/bgp/plugins/filter_remove_private_as/private_as.go` | remove-private-as policy action |
+| `internal/component/bgp/plugins/gr/doctor.go` | LLGR egress filter |
 | `internal/component/bgp/plugins/gr/gr.go` | graceful restart plugin |
 | `internal/component/bgp/plugins/gr/gr_egress.go` | LLGR egress filter |
 | `internal/component/bgp/plugins/gr/gr_llgr.go` | LLGR capability decode and format |
@@ -1231,6 +1236,7 @@ Total: 261 design docs, 3268 files
 | `internal/component/bgp/reactor/filter_delta_test.go` | policy filter wire-level dirty tracking tests |
 | `internal/component/bgp/reactor/filter_format.go` | policy filter chain |
 | `internal/component/bgp/reactor/forward_build.go` | exactly-sized one-pass rebuild for egress attribute modification |
+| `internal/component/bgp/reactor/forward_initial_sync_order_test.go` | BGP reactor event loop |
 | `internal/component/bgp/reactor/forward_local_pref.go` | egress attribute modification on the forward rails |
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
@@ -1849,6 +1855,7 @@ Total: 261 design docs, 3268 files
 |------|-------|
 | `internal/component/bgp/reactor/bufmux.go` | block-backed buffer multiplexer |
 | `internal/component/bgp/reactor/forward_bucket.go` | outbound attribute bucket grouping |
+| `internal/component/bgp/reactor/forward_overflow_own_bytes_test.go` | overflow items own their bytes |
 | `internal/component/bgp/reactor/forward_pool_congestion.go` | two-threshold enforcement |
 | `internal/component/bgp/reactor/forward_pool_weight.go` | two-tier pool sizing |
 | `internal/component/bgp/reactor/forward_pool_weight_tracker.go` | two-tier pool sizing |
@@ -2066,6 +2073,7 @@ Total: 261 design docs, 3268 files
 | `internal/component/ike/dataplane/rfc7296_ecn_linux_test.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/rfc7296_ecn_test.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/vpp.go` | VPP dataplane backend |
+| `internal/component/ike/dataplane/vpp_policy.go` | VPP dataplane backend |
 | `internal/component/ike/dataplane/xfrm_linux.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
 | `internal/component/ike/engine/bypass.go` | IKE control-plane bypass policies |
@@ -2266,6 +2274,7 @@ Total: 261 design docs, 3268 files
 | `internal/plugins/isis/lsdb/aging_test.go` | LSP aging / purge / grace tests. |
 | `internal/plugins/isis/lsdb/boundary_test.go` | boundary tests for the numeric LSDB inputs. |
 | `internal/plugins/isis/lsdb/encode.go` | TLV value builders + fragment packer for origination. |
+| `internal/plugins/isis/lsdb/encode_test.go` | own-LSP TLV encoding tests. |
 | `internal/plugins/isis/lsdb/entry.go` | per-LSP database entry (raw bytes + metadata). |
 | `internal/plugins/isis/lsdb/lsdb.go` | the Link-State Database store. |
 | `internal/plugins/isis/lsdb/lsdb_test.go` | LSDB store/freshness/flags/snapshot tests. |
@@ -4146,6 +4155,10 @@ Total: 261 design docs, 3268 files
 | `internal/component/iface/cmd/show_neighbor.go` | `show neighbor` / `show arp`. |
 | `internal/component/iface/cmd/show_route.go` | `show route` operational command. |
 | `internal/component/iface/counters.go` | Counter baseline for `clear interface counters` |
+
+## `docs/guide/configuration.md`
+
+- `internal/component/iface/route_metric_test.go` -- Route Priority
 
 ## `docs/guide/l2tp.md`
 
