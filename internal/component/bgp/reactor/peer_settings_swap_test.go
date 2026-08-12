@@ -444,3 +444,112 @@ func TestPeerDiffCountCountsSwapAsOneChange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count, "a hot-swappable edit is one change, not zero and not a bounce")
 }
+
+// TestPeerDiffCountIsZeroForAnIdenticalReload verifies the other direction of the
+// budget estimate: a reload that changes nothing costs nothing.
+//
+// VALIDATES: AC-3 / R-2. The guard became reflect.DeepEqual over the whole struct,
+// which is strictly broader than the predicate it replaced.
+// PREVENTS: over-triggering. A whole-struct comparison that reported a difference
+// on identical settings would bounce or swap every peer on every reload, which on a
+// large fleet is a self-inflicted outage -- the opposite failure to the one this
+// spec fixes, and just as operator-visible.
+//
+// DISCRIMINATION: the fixture is two SEPARATELY built PeerSettings, not one pointer
+// used twice, so the maps and slices inside them are distinct allocations. A guard
+// that compared identity rather than value would report a change here.
+func TestPeerDiffCountIsZeroForAnIdenticalReload(t *testing.T) {
+	initial := swapTestPeerSettings()
+	next := swapTestPeerSettings()
+	require.False(t, initial == next, "the fixture must be two distinct structs")
+
+	r, _ := newSwapTestReactor(t, initial, next)
+	adapter := &reactorAPIAdapter{r: r}
+
+	count, err := adapter.peerDiffCount(map[string]any{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "a reload that changes nothing must report no peer changes")
+}
+
+// TestReloadRouteReflectorClientReachesForwarding verifies that an edit to a field
+// the running session cannot take reaches the forwarding datapath through the
+// restart, rather than being dropped.
+//
+// VALIDATES: AC-4. route-reflector-client governs whether ze re-advertises an IBGP
+// route and what ORIGINATOR_ID/CLUSTER_LIST it carries (RFC 4456), and the egress
+// path reads it from the peerForwardFacts snapshot (peer_forward_facts.go).
+// PREVENTS: the restart branch inheriting the original defect. The whole point of
+// the swap-or-restart split is that the restart branch delivers what the swap
+// cannot, so a restart that re-adds the peer from STALE settings would leave the
+// operator with a flapped session AND the old behavior.
+//
+// DISCRIMINATION: the assertion is the value read off the peer that is running
+// AFTER the reload, through the same snapshot the egress path reads. Neutralizing
+// RouteReflectorClient inside peerSettingsEqual (reactor_api.go) reproduces the
+// original hand-maintained-list omission for this field, and the test then reads
+// false off a peer that was never reconciled. "The peer restarted" alone would pass
+// against that mutation, because the peer does not restart at all.
+func TestReloadRouteReflectorClientReachesForwarding(t *testing.T) {
+	initial := swapTestPeerSettings()
+	require.False(t, initial.RouteReflectorClient, "the fixture must start with the field off")
+	next := swapTestPeerSettings()
+	next.RouteReflectorClient = true
+
+	r, peer := newSwapTestReactor(t, initial, next)
+	peer.state.Store(int32(PeerStateEstablished))
+	generationBefore := r.peerGeneration.Load()
+
+	adapter := &reactorAPIAdapter{r: r}
+	require.NoError(t, adapter.Reload())
+
+	r.mu.RLock()
+	after := r.peers[initial.PeerKey()]
+	r.mu.RUnlock()
+	require.NotNil(t, after, "the peer must still be configured after reload")
+
+	assert.Greater(t, r.peerGeneration.Load(), generationBefore,
+		"a session-scoped field must restart the peer: the running session cannot take it")
+
+	// Stand in for the establishment-time build (peer.setEncodingContexts).
+	after.refreshForwardFacts()
+	facts := after.forwardFacts()
+	require.NotNil(t, facts, "the re-added peer must build its forwarding facts")
+	assert.True(t, facts.rrClient,
+		"the egress datapath must see the new route-reflector-client value after reload")
+}
+
+// TestReloadImportPolicyDisplayMatchesDatapath verifies that after a policy reload
+// the operator-facing display and the enforcing datapath report the SAME chain.
+//
+// VALIDATES: AC-5. The two paths are independently derived: `bgp peer <ip>` renders
+// PeerInfo.ImportFilters (plugins/cmd/peer/peer.go) built by Peers()
+// (reactor_api.go), while the ingress datapath reads Peer.ImportFilters()
+// (runIngressPolicyChain, filter_ordered.go).
+// PREVENTS: the facet that made the original defect invisible. The display already
+// showed the operator's new policy while the datapath enforced the old one, so the
+// reload looked successful from every surface an operator can see.
+//
+// DISCRIMINATION: both values are asserted equal to the NEW chain, not merely
+// equal to each other. Agreement alone passes against the original defect, where
+// both sides read the old chain; agreement ON THE NEW CHAIN passes against neither
+// the old defect nor a display re-derived from the re-parsed config.
+func TestReloadImportPolicyDisplayMatchesDatapath(t *testing.T) {
+	initial := swapTestPeerSettings()
+	next := swapTestPeerSettings()
+	next.ImportFilters = []filterapi.FilterRef{{Name: "policy:new-import"}}
+
+	r, peer := newSwapTestReactor(t, initial, next)
+	peer.state.Store(int32(PeerStateEstablished))
+
+	adapter := &reactorAPIAdapter{r: r}
+	require.NoError(t, adapter.Reload())
+
+	infos := adapter.Peers()
+	require.Len(t, infos, 1, "the reload must leave exactly the one configured peer")
+
+	want := filterapi.FilterRefStrings(next.ImportFilters)
+	assert.Equal(t, want, infos[0].ImportFilters,
+		"the displayed import-policy must be the chain the operator just configured")
+	assert.Equal(t, want, filterapi.FilterRefStrings(peer.ImportFilters()),
+		"the enforcing datapath must read that same chain")
+}

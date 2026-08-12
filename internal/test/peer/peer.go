@@ -763,7 +763,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			p.signalFired.Store(true)
 			p.pauseForSignal()
 			if p.checker.Completed() {
-				return Result{Success: true}
+				return p.completed(ctx, conn)
 			}
 		}
 
@@ -785,7 +785,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			p.signalFired.Store(true)
 			p.pauseForSignal()
 			if p.checker.Completed() {
-				return Result{Success: true}
+				return p.completed(ctx, conn)
 			}
 		}
 	}

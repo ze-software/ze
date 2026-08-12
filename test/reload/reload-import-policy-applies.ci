@@ -1,0 +1,379 @@
+# Test: an import-policy edit is ENFORCED after reload, not merely displayed
+# Initial config: peer1 imports bgp-filter-prefix:ALLOW (10.0.0.0/8 ge 16 le 24 -> accept)
+# After SIGHUP:   peer1 imports bgp-filter-prefix:DENY  (same entry -> reject)
+# Expected: the SAME route evaluates to accept before the reload and reject after it.
+#
+# VALIDATES: AC-1 -- "the new chain is enforced on subsequently evaluated routes;
+#            a prefix newly rejected by the new policy is no longer accepted".
+#            AC-5 is asserted alongside it: the displayed import-policy is the chain
+#            the dry-run evaluates, so display and enforcement cannot disagree.
+# PREVENTS: the defect this spec exists to remove. peerSettingsEqual (reactor_api.go)
+#           compared a hand-maintained field list that omitted ImportFilters, so a
+#           policy-only edit was judged "no change", the freshly parsed PeerSettings
+#           was dropped, and the running peer kept enforcing the old chain while
+#           `bgp peer <ip>` displayed the new one.
+#
+# DISCRIMINATION: the assertion is the ACTION of a policy evaluation run against the
+# running peer's live chain (PolicyDryRun, policy_dryrun.go, reads Peer.ImportFilters
+# -- the same accessor runIngressPolicyChain reads per received UPDATE). Asserting
+# only the displayed policy would pass against a fix that updated the display alone.
+#
+# NON-VACUITY, without a timing dependency: control-peer carries the ALLOW chain in
+# BOTH configs, and the SAME route is evaluated against both peers AFTER the reload.
+# control-peer must answer accept and peer1 must answer reject. A route that could
+# not be accepted at all, a broken prefix-list plugin, or a malformed UPDATE all
+# make the control answer something other than accept, so "reject" cannot pass for
+# the wrong reason. Evaluating peer1 BEFORE the reload would be the obvious control
+# and is not available: a plugin cannot dispatch a command before api.ready(), and
+# ze lifts its peer-up barrier on that same signal, so a pre-reload evaluation would
+# race the SIGHUP rather than being ordered ahead of it.
+
+# The in-place swap is logged at debug (BIRD prints nothing for a successful soft
+# reconfigure and ze mirrors that), so raise the reactor subsystem to see it.
+option=env:var=ze.log.bgp.reactor:value=debug
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+# Hold the session open after the script completes: the observer asserts the peer
+# is still established after the reload, and a peer that closed its connection
+# would make that assertion fail for a reason the test is not about.
+option=linger:value=true
+
+# Connection 1: static route (192.168.1.0/24) + EOR. Waiting for both is what
+# places the SIGHUP after establishment.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After the initial messages: rewrite the config with the DENY chain and SIGHUP.
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Observer plugin: evaluates one route against peer1's live import chain before
+# and after the reload.
+tmpfs=reload-policy-applies.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify a reloaded import policy is enforced, not just displayed."""
+import json
+import sys
+from ze_api import API, runtime_fail
+
+# ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24.
+# Length 24 inside 10.0.0.0/8 with ge 16 le 24, so both prefix-lists match it and
+# they differ only in the action they take.
+UPDATE_HEX = ('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9'
+              '40030401010101180A0000')
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'error': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def json_data(result):
+    data = result.get('data', {})
+    if isinstance(data, str):
+        data = json.loads(data)
+    return data
+
+
+def evaluate(api, peer):
+    """Run the route through that peer's CURRENT import chain and return the action."""
+    result = dispatch(api, f'show policy test peer {peer} import update {UPDATE_HEX}')
+    if result.get('status', '') != 'done':
+        return f'error:{result.get("error", "")}'
+    return json_data(result).get('action', '')
+
+
+def import_policy(api):
+    result = dispatch(api, 'show bgp peer peer1 detail')
+    peers = json_data(result).get('peers', {})
+    return json.dumps(peers.get('127.0.0.1', {}).get('import-policy', []))
+
+
+def peer_state(api):
+    result = dispatch(api, 'show bgp peer peer1 detail')
+    peers = json_data(result).get('peers', {})
+    return peers.get('127.0.0.1', {}).get('state', '')
+
+
+def fail(api, message):
+    runtime_fail(message)
+    print(f'FAIL: {message}', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+    sys.exit(1)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # The reload delivers the new chain to the RUNNING peer. Poll the peer's own
+    # view of it, which is bounded: a reload that discarded the edit never arrives
+    # here and the loop reports what it kept seeing.
+    # Bounded well inside the .ci timeout so a reload that discarded the edit
+    # reports THIS message rather than expiring as an unexplained timeout.
+    for _ in range(50):
+        if 'DENY' in import_policy(api):
+            break
+        api.wait_for_event(timeout=0.2)
+    else:
+        fail(api, f'the reloaded import chain never reached the running peer: {import_policy(api)}')
+
+    state = peer_state(api)
+    if state != 'established':
+        fail(api, f'the session must survive an import-policy edit, state={state}')
+
+    # The control: same route, same prefix-list plugin, a chain no edit touched.
+    control = evaluate(api, 'control-peer')
+    if control != 'accept':
+        fail(api, f'the unedited ALLOW chain must still accept the route, got {control}')
+
+    after = evaluate(api, 'peer1')
+    if after != 'reject':
+        fail(api, f'the DENY chain must reject the route after the reload, got {after}')
+
+    print('OK: the edited chain rejects the route the unedited chain accepts', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+main()
+EOF_RUN
+
+# Initial ze bgp configuration: import chain references prefix-list ALLOW
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external reload-policy-applies {
+		run ./reload-policy-applies.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		prefix-list ALLOW {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		prefix-list DENY {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action reject
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import [ bgp-filter-prefix:ALLOW ]
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+
+	# The control. Its import chain is IDENTICAL in both configs, so the reload
+	# leaves it alone and it answers for the route rather than for the edit. It
+	# never establishes: nothing listens on 127.0.0.3, and a policy evaluation
+	# reads the configured chain off the peer (PolicyDryRun, policy_dryrun.go)
+	# rather than off a session.
+	peer control-peer {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import [ bgp-filter-prefix:ALLOW ]
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config: the import chain is the ONLY difference (ALLOW -> DENY).
+# The plugin block is byte-identical, so the observer survives the reload.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external reload-policy-applies {
+		run ./reload-policy-applies.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		prefix-list ALLOW {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		prefix-list DENY {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action reject
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import [ bgp-filter-prefix:DENY ]
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+
+	# The control. Its import chain is IDENTICAL in both configs, so the reload
+	# leaves it alone and it answers for the route rather than for the edit. It
+	# never establishes: nothing listens on 127.0.0.3, and a policy evaluation
+	# reads the configured chain off the peer (PolicyDryRun, policy_dryrun.go)
+	# rather than off a session.
+	peer control-peer {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import [ bgp-filter-prefix:ALLOW ]
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+# The edit is delivered by a swap, never by a bounce: the sibling test
+# reload-import-policy-no-bounce.ci owns that property, and asserting it here too
+# keeps this test honest about WHICH mechanism enforced the new chain.
+reject=stderr:pattern=peer restart required
+reject=stderr:pattern=panic
