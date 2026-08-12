@@ -1330,11 +1330,11 @@ a.hl:hover {
 }
 
 .proof:nth-child(2) {
-    --acc: var(--tangerine-base);
-    --acc-deep: var(--tangerine-deep);
-    --acc-chip: var(--tangerine-chip);
-    --acc-tint: var(--tangerine-tint);
-    --acc-glow: var(--tangerine-glow);
+    --acc: var(--pink-base);
+    --acc-deep: var(--pink-deep);
+    --acc-chip: var(--pink-chip);
+    --acc-tint: var(--pink-tint);
+    --acc-glow: var(--pink-glow);
 }
 
 .proof:nth-child(3) {
@@ -1346,11 +1346,11 @@ a.hl:hover {
 }
 
 .proof:nth-child(4) {
-    --acc: var(--pink-base);
-    --acc-deep: var(--pink-deep);
-    --acc-chip: var(--pink-chip);
-    --acc-tint: var(--pink-tint);
-    --acc-glow: var(--pink-glow);
+    --acc: var(--gold-base);
+    --acc-deep: var(--gold-deep);
+    --acc-chip: var(--gold-chip);
+    --acc-tint: var(--gold-tint);
+    --acc-glow: var(--gold-glow);
 }
 
 .proof::before {

@@ -4,16 +4,16 @@
 Usage:
     tools/render-index.py
 
-The hero, proof strip, and status panel are bespoke marketing copy and stay
-as a literal template here (there's nothing repeated to model as data). The
-"Two ways to run Ze" and "Who should look now" card grids are data
+The hero, outcome strip, proof block, and status panel are bespoke homepage
+copy and stay as a literal template here (there's nothing repeated to model as
+data). The "Run paths" and "Use cases worth trying now" card grids are data
 (data/audience.json) -- add or edit an audience card there instead of
 hand-editing HTML.
 
-The "What's new in Ze" band above the proof strip is two generated slots (the
-newest blog article and the newest weekly update) plus one freeform note from
-data/whats-new.json. It is deliberately one shallow row: the proof strip's
-KPI cards under it have to stay on screen on a laptop-height viewport.
+The "Latest news" band is two generated slots (the newest blog article and
+the newest weekly update) plus one freeform note from data/whats-new.json. It
+is deliberately one shallow row: the proof cards under it have to stay compact
+on a laptop-height viewport.
 """
 
 import html
@@ -106,9 +106,8 @@ def render_audience_card(card):
 
 BLOG_TEASER_CATEGORIES = [
     "cat-operate",
-    "cat-routing",
-    "cat-automate",
     "cat-secure",
+    "cat-automate",
 ]
 
 
@@ -216,7 +215,7 @@ def render_whats_new(data):
         article = articles[0]
         items.append(
             render_whats_new_item(
-                "Article",
+                "Engineering note",
                 "automate",
                 "blog/%s/" % article["slug"],
                 article["title"],
@@ -229,7 +228,7 @@ def render_whats_new(data):
         week = weeks[0]
         items.append(
             render_whats_new_item(
-                "Weekly update",
+                "Recently shipped",
                 "operate",
                 "changes/%s/" % week["slug"],
                 "Week of %s" % week["slug"],
@@ -292,22 +291,26 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                     <span class="nowrap">white-label</span>
                                     hardware
                                 </h1>
+                                <p class="hero-release-badge">
+                                    Expected release: Q4 2026
+                                </p>
                             </div>
                             <div class="hero-start-lead-wrap">
                                 <p class="hero-start-lead">
-                                    Ze creates minimal gokrazy appliances you install by ISO or PXE,
-                                    or makes Linux speak <strong class="hl blue">BGP</strong>, <strong class="hl blue">IS-IS</strong>,
-                                    and <strong class="hl blue">OSPF</strong> with one <strong class="hl blue">YANG</strong> configuration model,
-                                    operator surfaces, <strong class="hl blue">telemetry</strong>, and <strong class="hl blue">plugins</strong>.
+                                    Open routing today is split across daemons,
+                                    config syntaxes, tools, and operational
+                                    surfaces.
                                 </p>
                                 <p class="hero-start-lead">
-                                    One model feeds every operator surface:
-                                    <strong class="hl blue">CLI</strong>,
-                                    <strong class="hl blue">SSH</strong>,
-                                    web, <strong class="hl blue">REST/gRPC</strong>,
-                                    <strong class="hl blue">MCP</strong>,
-                                    completion, generated docs, audit, and
-                                    diagnostics.
+                                    Ze makes Linux routing operable as one
+                                    system: native <strong class="hl blue">BGP</strong>,
+                                    <strong class="hl blue">OSPF</strong>, and
+                                    <strong class="hl blue">IS-IS</strong>, one
+                                    <strong class="hl blue">YANG</strong> model,
+                                    one daemon, and the same commands exposed
+                                    through <strong class="hl blue">CLI</strong>,
+                                    <strong class="hl blue">SSH</strong>, web,
+                                    API, and <strong class="hl blue">MCP</strong>.
                                 </p>
                             </div>
                         </div>
@@ -316,13 +319,12 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             aria-label="Start with Ze shortcuts"
                         >
                             <a
-                                class="hero-start-action hero-start-action-primary search-trigger"
-                                href="search/"
-                                aria-expanded="false"
-                                ><strong>Search the site</strong
+                                class="hero-start-action"
+                                href="labs/bgp-interop/"
+                                ><strong>Run a BGP lab</strong
                                 ><small
-                                    >Find commands, labs, guides, and generated
-                                    references. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
+                                    >Exercise Ze against FRR, BIRD, and GoBGP in
+                                    Docker.</small
                                 ></a
                             >
                             <a
@@ -335,11 +337,43 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 ></a
                             >
                             <a
+                                class="hero-start-action search-trigger"
+                                href="search/"
+                                aria-expanded="false"
+                                ><strong>Search the site</strong
+                                ><small
+                                    >Find commands, labs, guides, and generated
+                                    references. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="https://github.com/ze-software/ze"
+                                target="_blank"
+                                rel="noopener"
+                                ><strong>GitHub</strong
+                                ><small
+                                    >Read the source, issues, tests, and release
+                                    work.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action hero-start-action-primary"
+                                href="https://discord.gg/T8s7CjPDne"
+                                target="_blank"
+                                rel="noopener"
+                                ><strong>Join Discord</strong
+                                ><small
+                                    >Ask before spending a weekend on a
+                                    build.</small
+                                ></a
+                            >
+                            <a
                                 class="hero-start-action"
                                 href="docs/guide/ze-install/"
                                 ><strong>Install Ze</strong
                                 ><small
-                                    >Run Ze on Linux or as a bootable
+                                    >Run it on Linux or as a bootable
                                     appliance.</small
                                 ></a
                             >
@@ -348,132 +382,157 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 </div>
             </section>
 
-{whats_new}
-            <div class="proof-strip reveal" aria-label="Project evidence">
-                <div class="proof">
-                    <strong
-                        >{unit_tests} <span class="label">unit tests</span></strong
-                    >
-                    <ul>
-                        <li>Wire encoding, parsing</li>
-                        <li>Config, FSM, plugins</li>
-                        <li>gomu mutates code to check assertions</li>
-                    </ul>
-                </div>
-                <div class="proof">
-                    <strong
-                        >{e2e_tests}
-                        <span class="label">end to end tests</span></strong
-                    >
-                    <ul>
-                        <li>Peering, sessions, updates</li>
-                        <li>Editor, commits, reloads</li>
-                    </ul>
-                </div>
-                <div class="proof">
-                    <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
-                    <ul>
-                        <li>Parsers, external inputs</li>
-                        <li>Wire formats, config files</li>
-                    </ul>
-                </div>
-                <div class="proof">
-                    <strong
-                        >{interop_targets} <span class="label">interop targets</span></strong
-                    >
-                    <ul>
-                        <li>FRR, BIRD, GoBGP</li>
-                        <li>OpenBGPd, FreeRtr</li>
-                        <li>RustyBGP, rustbgpd</li>
-                    </ul>
-                </div>
-            </div>
+            <section class="outcome-strip reveal" aria-label="Ze product map">
+                <a href="config-reference/">One YANG model</a>
+                <a href="features/#routing">Native BGP, OSPF, IS-IS</a>
+                <a href="docs/features/ai-first/">CLI, SSH, web, API, MCP</a>
+                <a href="docs/guide/ze-install/">Daemon or appliance</a>
+                <a href="labs/">Reproducible labs</a>
+                <a href="license/">AGPLv3 source</a>
+            </section>
 
-            <section id="status" aria-labelledby="status-title">
-                <div class="status-panel reveal">
-                    <div class="status-copy">
-                        <span class="tag">Current status</span>
-                        <h2 id="status-title">Jump in early.</h2>
+{whats_new}
+
+            <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
+                <div class="home-proof-head">
+                    <div>
+                        <span class="tag">Lab confidence</span>
+                        <h2 id="proof-title">Tests, fuzzing, and interop before claims.</h2>
                         <p>
-                            Ze has a modern routing core, BGP, OSPF, IS-IS,
-                            and MPLS, wrapped in a friendly network OS. The
-                            code is heavily tested, and the project is
-                            moving fast.
-                        </p>
-                        <p>
-                            It is still young. Operational mileage is limited
-                            and configuration may change. Upgrade paths will be
-                            provided after the first release. Use it in labs,
-                            break it, read the code, and tell us what is wrong.
-                        </p>
-                        <p class="status-links">
-                            Ze is free software under the
-                            <a href="license/">AGPLv3</a>. See the
-                            <a href="roadmap/">roadmap</a> for the path to a
-                            release, and the
-                            <a href="security/">security policy</a> to report an
-                            issue.
+                            These counts show what Ze proves before asking you
+                            to spend time on a lab. The interop strip names the
+                            peer stacks behind the protocol checks.
                         </p>
                     </div>
-                    <div class="status-table" aria-label="Feature status">
-                        <div class="status-row">
-                            <strong>Full-featured BGP</strong>
-                            <span
-                                >Sessions, capabilities, UPDATE handling,
-                                IPv4/IPv6 unicast, and growing FlowSpec family
-                                coverage.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>Powerful tooling</strong>
-                            <span
-                                >SSH CLI with diff and commit, web workbench,
-                                looking glass, telemetry, all from one config
-                                model.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>Extensible by design</strong>
-                            <span
-                                >RIB, route-server, graceful restart, RPKI,
-                                policy, persistence, and external process
-                                plugins.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>Easy to explore</strong>
-                            <span
-                                >Built-in doctor checks, readable state, MCP
-                                server for AI-assisted debugging, clear errors
-                                throughout.</span
-                            >
-                        </div>
+                    <div class="home-proof-actions">
+                        <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
+                        <a class="button" href="quality/">Read the proof map</a>
                     </div>
+                </div>
+                <div class="proof-strip" aria-label="Project evidence">
+                    <a class="proof" href="quality/unit-fuzz-mutation/">
+                        <strong
+                            >{unit_tests} <span class="label">unit tests</span></strong
+                        >
+                        <ul>
+                            <li>Wire encoding, parsing</li>
+                            <li>Config, FSM, plugins</li>
+                            <li>gomu mutates code to check assertions</li>
+                        </ul>
+                    </a>
+                    <a class="proof" href="quality/functional-ci/">
+                        <strong
+                            >{e2e_tests}
+                            <span class="label">end to end tests</span></strong
+                        >
+                        <ul>
+                            <li>Peering, sessions, updates</li>
+                            <li>Editor, commits, reloads</li>
+                            <li>Commands checked as operators run them</li>
+                        </ul>
+                    </a>
+                    <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
+                        <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
+                        <ul>
+                            <li>Parsers, external inputs</li>
+                            <li>Wire formats, config files</li>
+                            <li>Saved crashes become regression cases</li>
+                        </ul>
+                    </a>
+                    <a class="proof" href="quality/qemu-interop-release/#docker-interop">
+                        <strong
+                            >{interop_targets} <span class="label">interop targets</span></strong
+                        >
+                        <ul>
+                            <li>Real third-party daemons</li>
+                            <li>BGP sessions in Docker</li>
+                            <li>Routes checked by peer CLIs</li>
+                        </ul>
+                    </a>
+                </div>
+                <div class="interop-strip" aria-label="Tested BGP peer implementations">
+                    <span class="interop-strip-label">Tested against real routing stacks</span>
+                    <a href="quality/qemu-interop-release/#docker-interop">FRR</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">BIRD</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">GoBGP</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a>
+                    <a href="docs/features/exabgp-compatibility/">ExaBGP migration path</a>
                 </div>
             </section>
 
-            <section aria-labelledby="run-title">
+            <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
                 <div class="section-head reveal cat-platform">
-                    <h2 id="run-title">Two ways to run Ze.</h2>
+                    <h2 id="run-title">Run it as a lab, daemon, or appliance.</h2>
                     <p>
-                        Same binary, same config, either way. Pick whichever
-                        fits how you already operate.
+                        Same binary and config. Pick the path that matches how
+                        much risk you want to take today.
                     </p>
                 </div>
-                <div class="audience audience-2col reveal">
+                <div class="audience run-path-grid reveal">
 {run_cards}
                 </div>
             </section>
 
-            <section id="features-summary" aria-labelledby="core-title">
+            <section id="why-ze" class="home-section-panel home-section-panel-why" aria-labelledby="why-title">
+                <div class="section-head reveal cat-operate">
+                    <h2 id="why-title">Why Ze.</h2>
+                    <p>
+                        Ze is built around one management plane. The routing
+                        engines, operator tools, generated references, and
+                        diagnostics are developed together.
+                    </p>
+                </div>
+                <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
+                    <article class="card usp-card cat-observe">
+                        <span class="cat">Model</span>
+                        <h3><a href="config-reference/">One model feeds the surfaces</a></h3>
+                        <p>
+                            The YANG model feeds CLI, SSH, web, REST/gRPC, MCP,
+                            docs, audit, diagnostics, and generated references.
+                        </p>
+                    </article>
+                    <article class="card usp-card cat-platform">
+                        <span class="cat">Runtime</span>
+                        <h3><a href="docs/guide/ze-install/">Same binary, two run modes</a></h3>
+                        <p>
+                            Daemon mode and appliance mode use the same binary
+                            and configuration, so a lab install exercises the
+                            behaviour you would later put on spare hardware.
+                        </p>
+                    </article>
+                    <article class="card usp-card cat-routing">
+                        <span class="cat">Routing</span>
+                        <h3><a href="docs/architecture/">Engines and tools move together</a></h3>
+                        <p>
+                            Native BGP, OSPF, and IS-IS engines are developed
+                            with the commands, APIs, references, and operator
+                            checks that expose them.
+                        </p>
+                    </article>
+                    <article class="card usp-card cat-secure">
+                        <span class="cat">Honest</span>
+                        <h3><a href="quality/">Source and proof are inspectable</a></h3>
+                        <p>
+                            The source, generated docs, RFC report, and test
+                            evidence are public. Ze is young, so labs and
+                            feedback are the right first use.
+                        </p>
+                    </article>
+                </div>
+            </section>
+
+            <section id="features-summary" class="home-section-panel home-section-panel-map" aria-labelledby="core-title">
                 <div class="section-head reveal">
-                    <h2 id="core-title">Built for demanding operators.</h2>
-                    <p>Shipped and tested, or experimental and growing.</p>
+                    <h2 id="core-title">The generated map is part of the product.</h2>
+                    <p>Browse the source-backed references before you run it.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
                         Ze owns its BGP engine, configuration model, plugin
-                        system, and operator surfaces, all designed together --
+                        system, and operator surfaces, all designed together
                         from the native BGP, OSPF, and IS-IS engines and SSH
                         CLI to RPKI, looking glass, telemetry, firewall, VPN,
                         MPLS, and appliance packaging.
@@ -484,56 +543,10 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 </div>
             </section>
 
-
-            <section id="try" aria-labelledby="try-title">
-                <div class="section-head reveal cat-operate">
-                    <h2 id="try-title">Discover what makes Ze unique.</h2>
-                    <p>
-                        Ze is built around one management plane. Features,
-                        plugins, access control, APIs, docs, UI, and
-                        diagnostics are generated from the same system model.
-                    </p>
-                </div>
-                <div class="cards usp-grid reveal" aria-label="Ze unique product traits">
-                    <article class="card usp-card cat-observe">
-                        <span class="cat">Debug</span>
-                        <h3><a href="docs/guide/production-diagnostics/">Doctor health checks</a></h3>
-                        <p>
-                            <code>ze doctor</code>, health checks,
-                            warnings, errors, support bundles, crash capture,
-                            and built-in runtime probes give operators a first
-                            path from symptom to evidence.
-                        </p>
-                    </article>
-                    <article class="card usp-card cat-automate">
-                        <span class="cat">AI friendly</span>
-                        <h3><a href="docs/features/ai-first/">AI via MCP</a></h3>
-                        <p>
-                            Ze publishes its command catalog through MCP. AI
-                            tools can discover commands, run the same CLI/API
-                            actions, inspect structured output, and debug
-                            routes, config, and health without wrappers.
-                        </p>
-                    </article>
-                    <article class="card usp-card cat-secure">
-                        <span class="cat">Access</span>
-                        <h3><a href="docs/guide/operator-access-rbac/">SSH into Ze</a></h3>
-                        <p>
-                            Ze terminates SSH inside the daemon. Operators
-                            authenticate as Ze users and reach the Ze CLI or
-                            config editor without a Unix shell account.
-                        </p>
-                    </article>
-                    <article class="card usp-card cat-platform">
-                        <span class="cat">Appliance</span>
-                        <h3><a href="docs/guide/appliance/">As a secure appliance</a></h3>
-                        <p>
-                            Appliance runtime is only kernel,
-                            <a href="https://gokrazy.org/" target="_blank" rel="noopener">gokrazy</a>
-                            init, and Ze. No package manager, no general shell,
-                            and no spare services to expose; install it by ISO or PXE.
-                        </p>
-                    </article>
+            <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
+                <div class="section-head reveal cat-automate">
+                    <h2 id="try-title">First paths that produce useful feedback.</h2>
+                    <p>Run the BGP lab, try an ExaBGP migration, or install the appliance on spare hardware.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -562,33 +575,29 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         <span class="tag">Good first paths</span>
                         <p>
                             Start with a lab peer, a migrated ExaBGP config, or
-                            a looking-glass instance. The project needs feedback
-                            from people who know what real routing operations
-                            look like.
+                            a looking-glass instance. The project needs reports
+                            from people who know routing operations.
                         </p>
                         <div class="link-list">
-                            <a
-                                href="docs/features/ai-first/"
-                                >Unified Surfaces
-                                <span>one registration path for CLI, web, API, MCP</span></a
+                            <a href="labs/bgp-interop/"
+                                >BGP interop lab
+                                <span>FRR, BIRD, and GoBGP in Docker</span></a
                             >
-                            <a
-                                href="docs/guide/operator-access-rbac/"
-                                >SSH and RBAC
-                                <span>manage Ze without host shell accounts</span></a
+                            <a href="usage/exabgp-migration/"
+                                >ExaBGP migration
+                                <span>try an existing config and process script</span></a
                             >
-                            <a
-                                href="docs/guide/production-diagnostics/"
-                                >Diagnostics
-                                <span>doctor, health, warnings, support bundles</span></a
-                            >
-                            <a href="docs/guide/ze-install/"
+                            <a href="docs/guide/appliance/"
                                 >Appliance install
-                                <span>ISO media, PXE provisioning, systemd install</span></a
+                                <span>ISO media, PXE provisioning, spare hardware</span></a
                             >
-                            <a href="labs/"
-                                >Labs
-                                <span>real interop proof you can run yourself</span></a
+                            <a href="docs/guide/looking-glass-howto/"
+                                >Looking glass
+                                <span>publish read-only BGP visibility</span></a
+                            >
+                            <a href="docs/features/ai-first/"
+                                >AI-assisted operations
+                                <span>MCP exposes the same commands to tools</span></a
                             >
                         </div>
                         <div class="link-list home-secondary-routes">
@@ -609,38 +618,26 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 </div>
             </section>
 
-            <section aria-labelledby="audience-title">
+            <section class="home-section-panel home-section-panel-usecases" aria-labelledby="audience-title">
                 <div class="section-head reveal">
-                    <h2 id="audience-title">Who should look now?</h2>
+                    <h2 id="audience-title">Use cases worth trying now.</h2>
                     <p>
                         Ze is early enough that strong feedback can still
-                        shape the system. If you care about open routing
-                        software, now is the time to look.
+                        change the system. These cards name the safe first
+                        path for each visitor.
                     </p>
                 </div>
-                <div class="audience reveal">
+                <div class="audience home-usecase-grid reveal">
 {who_cards}
                 </div>
             </section>
 
-            <section aria-label="Closing statement">
-                <div class="closing reveal">
-                    <h2>Open routing needs boring miles.</h2>
-                    <p>
-                        Ze has the shape of the system we want: open, modern,
-                        and programmable. It still needs users, hardware,
-                        failures, odd networks, and the slow confidence that
-                        comes from deployments.
-                    </p>
-                </div>
-            </section>
-
-            <section aria-labelledby="blog-teaser-title">
+            <section class="home-section-panel home-section-panel-momentum" aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
-                    <h2 id="blog-teaser-title">Latest updates.</h2>
+                    <h2 id="blog-teaser-title">Engineering momentum.</h2>
                     <p>
-                        What shipped recently, week by week, mined from git
-                        history and posted to Discord's <code>ze-news</code>.
+                        Weekly update notes from git history and Discord's
+                        <code>ze-news</code>, kept specific and technical.
                     </p>
                 </div>
                 <div class="cards reveal">
@@ -648,6 +645,59 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 </div>
                 <div class="link-list reveal">
                     <a href="changes/">See all updates</a>
+                </div>
+            </section>
+
+            <section id="try-safely" class="home-section-panel home-section-panel-safe" aria-labelledby="try-safely-title">
+                <div class="status-panel try-safely-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Try safely</span>
+                        <h2 id="try-safely-title">Try safely before the first release.</h2>
+                        <p>
+                            Start with a path that cannot affect a live network.
+                        </p>
+                        <div class="actions">
+                            <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
+                            <a class="button" href="docs/guide/quickstart/">Read the quickstart</a>
+                        </div>
+                    </div>
+                    <div class="status-table" aria-label="Safe first paths">
+                        <div class="status-row">
+                            <strong>Release</strong>
+                            <span
+                                >Expected Q4 2026. No stable release has shipped
+                                yet, and configuration may change.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>BGP lab</strong>
+                            <span
+                                >Exercise Ze against FRR, BIRD, and GoBGP
+                                without touching a production router.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>Migration</strong>
+                            <span
+                                >Try the ExaBGP migration path against an
+                                existing config before changing automation.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>Appliance</strong>
+                            <span
+                                >Boot Ze on spare hardware with the same binary
+                                and configuration model as daemon mode.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                >Read the code, generated docs, RFC gate, and
+                                test evidence before trusting the project.</span
+                            >
+                        </div>
+                    </div>
                 </div>
             </section>
 """
@@ -680,7 +730,7 @@ def render(data):
     change_topics = change_topics_by_slug()
     blog_teaser_cards = "\n".join(
         render_blog_teaser_card(p, i, change_topics.get(p["slug"], []))
-        for i, p in enumerate(sitelib.latest_blog_posts(4))
+        for i, p in enumerate(sitelib.latest_blog_posts(3))
     )
     whats_new = render_whats_new(
         models.validate_whats_new(json.loads(WHATS_NEW_DATA.read_text()))

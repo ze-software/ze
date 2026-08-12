@@ -1,12 +1,12 @@
 {
   "_comment": "The homepage 'What's new in Ze' band, rendered by tools/render-index.py directly above the proof strip. The article and weekly-update slots are generated (newest blog/posts/*.md and newest changes/posts/*.md), so only the freeform note below is edited by hand. Keep title and body short: the band sits above the fold and the KPI cards under it must stay visible on a laptop screen. `category` picks the accent color from the eight site categories. Drop the whole `note` object to render the band with two slots.",
-  "title": "What's new in Ze",
+  "title": "Latest news",
   "link": {
     "href": "changes/",
     "label": "All updates"
   },
   "note": {
-    "label": "Standards",
+    "label": "RFC compliance progress",
     "category": "meta",
     "title": "Every MUST, bound to a test",
     "body": "2,950 MUST-level requirements are checked across 168 RFCs, and each one counts only when a test fails without it.",

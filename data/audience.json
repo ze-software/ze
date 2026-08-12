@@ -1,12 +1,20 @@
 {
     "run": [
         {
+            "title": "Run a BGP lab",
+            "label": "Lab",
+            "category": "routing",
+            "chips": ["Docker", "FRR", "BIRD", "GoBGP"],
+            "body": "A reproducible interop lab starts Ze beside real BGP daemons, establishes sessions, and checks routes through each peer's own CLI.",
+            "link": {"href": "labs/bgp-interop/", "label": "Run lab", "sublabel": "BGP interop"}
+        },
+        {
             "title": "Run as a daemon",
             "label": "Daemon",
             "category": "operate",
             "chips": ["Existing Linux", "systemd-ready"],
             "body": "Runs on any existing Linux distro, managed by systemd or your process manager of choice. The easier on-ramp if you're fitting Ze into infrastructure you already run.",
-            "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "daemon install"}
+            "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "two BGP peers"}
         },
         {
             "title": "Run as an appliance",
@@ -19,25 +27,60 @@
     ],
     "who": [
         {
-            "title": "BGP operators",
-            "label": "Routing",
+            "title": "Route server",
+            "label": "IXP",
             "category": "routing",
-            "chips": ["Peering", "Policy", "RPKI"],
-            "body": "People who understand peering, route servers, policy, RPKI, and the pain of debugging control-plane state."
+            "chips": ["Peering", "Policy", "Replay"],
+            "body": "IXP operators can run the route-server lab first and compare policy behaviour before touching members.",
+            "link": {"href": "usage/route-server/", "label": "Route server", "sublabel": "policy and replay"}
         },
         {
-            "title": "Network builders",
-            "label": "Builder",
-            "category": "platform",
-            "chips": ["Appliances", "Labs", "Automation"],
-            "body": "People building Linux appliances, labs, automation systems, test harnesses, or routing experiments."
+            "title": "Lab router",
+            "label": "Lab",
+            "category": "operate",
+            "chips": ["Quickstart", "BGP peers"],
+            "body": "Network builders can bring up two BGP peers, inspect routes, and check whether the operator surfaces fit their workflow.",
+            "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "two peer lab"}
         },
         {
-            "title": "ExaBGP users",
+            "title": "ExaBGP replacement",
             "label": "Migration",
             "category": "automate",
-            "chips": ["Programmable", "Migration"],
-            "body": "People with existing ExaBGP workflows who want a path toward a fuller programmable network stack."
+            "chips": ["Migration", "Plugins"],
+            "body": "ExaBGP users can try the migrator against an existing config and see which process scripts still map cleanly.",
+            "link": {"href": "usage/exabgp-migration/", "label": "Migration path", "sublabel": "config and process scripts"}
+        },
+        {
+            "title": "Whitebox appliance",
+            "label": "Appliance",
+            "category": "platform",
+            "chips": ["ISO", "PXE", "gokrazy"],
+            "body": "People with spare x86 hardware can boot the appliance path and test the same configuration model without a general-purpose shell.",
+            "link": {"href": "docs/guide/appliance/", "label": "Appliance guide", "sublabel": "spare hardware"}
+        },
+        {
+            "title": "Looking glass",
+            "label": "Observe",
+            "category": "observe",
+            "chips": ["Read-only", "BGP visibility"],
+            "body": "Operators who need read-only BGP visibility can publish a looking glass and inspect routes without giving shell access.",
+            "link": {"href": "docs/guide/looking-glass-howto/", "label": "Looking glass", "sublabel": "read-only BGP"}
+        },
+        {
+            "title": "Protocol testbed",
+            "label": "Interop",
+            "category": "services",
+            "chips": ["Interop", "Docker"],
+            "body": "Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then add a failing case.",
+            "link": {"href": "labs/bgp-interop/", "label": "Interop lab", "sublabel": "real peer daemons"}
+        },
+        {
+            "title": "AI-assisted network operations",
+            "label": "MCP",
+            "category": "automate",
+            "chips": ["MCP", "CLI catalog"],
+            "body": "People testing AI-assisted operations can use MCP to expose Ze commands and structured output to their tool.",
+            "link": {"href": "docs/features/ai-first/", "label": "AI via MCP", "sublabel": "same command catalog"}
         }
     ]
 }
