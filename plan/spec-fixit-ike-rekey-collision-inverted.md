@@ -91,7 +91,7 @@ Source files read on 2026-07-30:
 `bytes.Compare(localNonce, remoteNonce) < 0`, so it is true when OUR nonce is the lower.
 Both callers treat true as "we win": the child branch at `inbound.go` and the IKE
 branch at `inbound.go`, the second added the same day by
-`plan/spec-fixit-ike-negotiation-conformance.md`.
+`spec-fixit-ike-negotiation-conformance` (closed 2026-08-12).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

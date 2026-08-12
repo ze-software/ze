@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Deferral shard | `-` |
-| Updated | 2026-07-30 |
+| Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -391,6 +391,10 @@ Every mutation was reverted, and the suite is green again.
 
 ## CLOSURE REFUSED 2026-08-03 -- three findings, one of them a live defect
 
+**Superseded on 2026-08-12. All three findings are settled at HEAD; see the closure
+sections at the end of this file. This section is kept as the record of the round that
+found them.**
+
 `/ze-close` ran the deliverables review, re-verified every AC against its producing
 function, and put the changeset to three independent reviewer subagents. **This spec is NOT
 closed.** Every finding below was reproduced against source before it was graded.
@@ -576,3 +580,237 @@ of `plan/`, `rfc/` and `docs/` on 2026-08-03 returns this spec and nothing else.
 1.4.1 is enrolled as `RFC7296-1.4.1-1` and `-4` through `-7`. So there is no requirement row
 to home either, and `docs/features/rfc-status.md` already discloses the Section 1.4.1 Delete
 behaviour as implemented.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The CREATE_CHILD_SA responder compares the request's KE group against the group it
+  chose. `respondIKERekey` (`internal/component/ike/engine/rekey.go`) answers
+  `wire.NotifyInvalidKEPayload` naming its preferred group, returns a nil new SA, and
+  derives no keys.
+- `SharedSecret` (`internal/component/ike/crypto/dh.go`) refuses a peer value whose
+  length is not the group's modulus length, with the named `ErrPublicKeyLength`, on the
+  MODP branch and the ECP branch.
+- The IKE rekey branch of `handleCreateChildSAOwned`
+  (`internal/component/ike/engine/inbound.go`) resolves a simultaneous IKE rekey through
+  `localNonceIsLower`, so one new IKE SA survives and inherits the session's Child SAs.
+- One helper holds RFC 7296 Section 3.3.6: `verifyAcceptedOffer`
+  (`internal/component/ike/engine/initiator.go`). All four initiator response paths call
+  it, and each stops the exchange when it refuses.
+- `acceptedOffer.ESPConfig` and `espConfigForAccepted` (`initiator.go`) carry the
+  CONFIGURED proposal the accepted offer agrees with, so the Child SA is keyed from what
+  the peer accepted rather than from `Proposals[0]`.
+- Rows `RFC7296-1.3-2`, `RFC7296-2.8.2-1` and `RFC7296-3.3.6-3` each carry a positive and
+  a negative tagged test.
+
+### Bugs Found/Fixed
+- **The accepted offer was verified and then discarded.** Two of the four call sites keyed
+  from `Proposals[0]`, so a peer that accepted the second proposal got a tunnel that
+  black-holes ESP. Covered by `TestNegInitiatorInstallsAcceptedESPSuite`.
+- **The MODP small-value guard lost its only fixture.** The length refusal added by AC-3
+  answered the one-octet input first, and `ErrPublicKeyLength` wraps `ErrInvalidPublicKey`,
+  so the test stayed green while the guard stopped being exercised. `TestDHInvalidPublicKey`
+  (`internal/component/ike/crypto/dh_test.go`) now pads each case to `modp2048Len` and
+  asserts `ErrInvalidPublicKey` AND not `ErrPublicKeyLength`.
+- **A tag credited `RFC7296-1.3-2` with evidence for another rule.** At HEAD
+  `TestNegSharedSecretRefusesWrongLength` carries no `RFC requirement:` tag at all, and the
+  comment above it states why.
+
+### Documentation Updates
+- None. `grep -rn "spec-fixit-ike-negotiation-conformance" docs/` returns nothing, and no
+  `docs/` claim is anchored to `initiator.go`, `fsm.go`, `rekey.go` or `crypto/dh.go`.
+- `rfc/short/rfc7296.md` carries the three rows. They were generated centrally, as the RFC
+  Documentation section says.
+
+### Deviations from Plan
+- `verifyAcceptedOffer` gained a return value the plan did not name. Verifying the offer
+  and then keying from a different proposal was the defect the 2026-08-03 review found, so
+  the helper now returns the local proposal it agreed with and the callers bind it.
+- `createFirstChildSA` moved behind `initiatorFirstChildSA` (`child.go`), which reads
+  `sa.ESPGroup` rather than taking a group argument. Without that move the narrowing at
+  `handleAuthResponse` would not have reached the session's first Child SA.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The accepted-offer check was treated as a validation, so its result was discarded | A check whose result is thrown away only detects the disagreement it was written for. Ze still keyed from `Proposals[0]` | The 2026-08-03 independent review, BLOCKER 1 | `acceptedOffer.ESPConfig` binds the result, and the two initiator sites narrow to it |
+| assumption | A new receive-side length refusal was assumed not to affect existing guards | It short-circuited the MODP small-value guard, and the wrapped error kept the test green | The same review, BLOCKER 2 | Each fixture pads to the modulus length and asserts the absence of `ErrPublicKeyLength` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `RFC7296-1.3-2` a mismatched DH group is rejected with INVALID_KE_PAYLOAD | Done | `respondIKERekey` (`engine/rekey.go`) | Tagged positive and negative in `rfc7296_negotiation_test.go` |
+| `RFC7296-2.8.2-1` one new IKE SA survives a collision and inherits the Child SAs | Done | `handleCreateChildSAOwned` IKE branch (`engine/inbound.go`) | The nonce ARITHMETIC under it is a separate open defect; see "What this closure does not claim" |
+| `RFC7296-3.3.6-3` the initiator checks the accepted offer and terminates when it disagrees | Done | `verifyAcceptedOffer` (`engine/initiator.go`), four call sites | This is the row round 1 of the D-bucket triage did not check. It is checked here |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `respondIKERekey` (`engine/rekey.go`) | Compares the request's KE group against the chosen group |
+| AC-2 | Done | same, `wire.NotifyInvalidKEPayload` | Returns a nil new SA, so no keys are derived. `handleCreateChildSAOwned` logs the refusal and answers nothing further |
+| AC-3 | Done | `ErrPublicKeyLength` (`crypto/dh.go`), returned on the MODP and the ECP branch | R-1 settled in writing in this spec |
+| AC-4 | Done | `handleCreateChildSAOwned` IKE branch calls `localNonceIsLower` when `p.kind == rekeyIKE` | |
+| AC-5 | Done | the same call site abandons our exchange when our nonce is the lower one | Corrected by `spec-fixit-ike-rekey-collision-inverted` |
+| AC-6 | Done | `TestNegSurvivingSAInheritsChildren` | Inheritance asserted, not incidental |
+| AC-7 | Done | `verifyAcceptedOffer` (`engine/initiator.go`), called at `fsm.go` twice and `rekey.go` twice | Four initiator response paths, one helper |
+| AC-8 | Done | `handleSAInitResponse` sets `StateDead`; `handleAuthResponse` sends NO_PROPOSAL_CHOSEN then `StateDead`; `applyChildRekeyResponse` and `applyIKERekeyResponse` return the wrapped error | Each of the four stops the exchange |
+| AC-9 | Done | `RFC7296-1.3-2` positive and negative in `rfc7296_negotiation_test.go` | |
+| AC-10 | Done | `RFC7296-2.8.2-1` positive and negative, twice over, in `rfc7296_negotiation_test.go` | |
+| AC-11 | Done | `RFC7296-3.3.6-3` positive and negative in `rfc7296_negotiation_test.go`, `rfc7296_keylength_test.go` and `crypto/rfc7296_verify_test.go` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestNegRekeyRejectsMismatchedKEGroup` | Done | `engine/rfc7296_negotiation_test.go` | |
+| `TestNegSharedSecretRefusesWrongLength` | Done | same | Untagged at HEAD, deliberately |
+| `TestNegIKERekeyCollisionResolves` | Done | same | |
+| `TestNegSurvivingSAInheritsChildren` | Done | same | |
+| `TestNegInitiatorRejectsUnproposedOffer` | Done | same | |
+| `TestNegInitiatorInstallsAcceptedESPSuite` | Done, beyond plan | same | The BLOCKER 1 regression test |
+| `TestDHInvalidPublicKey` | Done, beyond plan | `crypto/dh_test.go` | The BLOCKER 2 fixture repair |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/ike/engine/rekey.go` | Done | |
+| `internal/component/ike/engine/inbound.go` | Done | |
+| `internal/component/ike/engine/fsm.go` | Done | |
+| `internal/component/ike/crypto/dh.go` | Done | |
+| `internal/component/ike/engine/rfc7296_negotiation_test.go` | Done, created | |
+| `internal/component/ike/engine/initiator.go` | Done, beyond plan | `acceptedOffer.ESPConfig`, `espConfigForAccepted` |
+| `internal/component/ike/engine/child.go` | Done, beyond plan | `initiatorFirstChildSA` |
+
+### Audit Summary
+- **Total items:** 28 (3 requirements, 11 ACs, 7 tests, 7 files)
+- **Done:** 28
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+The Task's one theme: the initiator and the responder can disagree about what was
+negotiated, and nothing detects it.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A disagreement about the Diffie-Hellman group is detected and answered | functional (Go, over the wire encoder) | `TestNegRekeyRejectsMismatchedKEGroup` asserts `NotifyInvalidKEPayload` and the two octets naming the preferred group |
+| A disagreement about the accepted suite is detected at every initiator response path | functional (Go) | `TestNegInitiatorRejectsUnproposedOffer` drives `verifyAcceptedOffer` over an unproposed IKE offer and an unproposed ESP offer, and over nil and empty payloads |
+| A detected disagreement is not merely detected: the Child SA is keyed from what the peer accepted | functional (Go), mutation-verified | `TestNegInitiatorInstallsAcceptedESPSuite` drives a peer that accepts the SECOND of two ESP proposals at both sites and asserts the algorithms of the ESP states ze programs. Restoring `prop := old.ESPGroup.Proposals[0]` reddens it with "installed aes256/sha256, want aes128/sha512" |
+| A simultaneous IKE rekey leaves one SA, and it inherits the Child SAs | functional (Go) | `TestNegIKERekeyCollisionResolves` and `TestNegSurvivingSAInheritsChildren` |
+| A wrong-length peer Diffie-Hellman value is refused with a named error, and the small-value guard is still reached | functional (Go), mutation-verified | `TestDHInvalidPublicKey`, four padded cases. Disabling the `(1, p-1)` comparison reddens all four; the one-octet fixture it replaced stayed green under the same mutation |
+| The daemon still establishes and rekeys with all three checks in place | functional (`.ci`) | The `ipsec` suite, 8/8, recorded under Evidence above. NOT re-run by this closure |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| (no shard) | n/a | The metadata row reads `-`. This spec deferred nothing, and no shard file exists for it |
+
+No shard is removed by this closure. No foreign shard was emptied by it.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-ike-negotiation-conformance-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | `review_gate: OK (clean, hashes match)`, 2026-08-12 |
+| Rounds | 2. Round 1 was the three-lens round of 2026-08-03 recorded above. Round 2 is the closure re-verification of 2026-08-12, over code already at HEAD |
+| Verdict | 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | Round 1: three independent subagents through `/ze-review` (deliverables plus AC re-verification; logic and wiring; RFC 7296 conformance). Round 2: AC-1 to AC-11 and all three round-1 findings re-read at their producing functions |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The accepted offer is verified, then thrown away, and the Child SA is keyed from `Proposals[0]` | `applyChildRekeyResponse` (`engine/rekey.go`), `handleAuthResponse` (`engine/fsm.go`) | Fixed 2026-08-04. `acceptedOffer.ESPConfig` and `espConfigForAccepted` (`engine/initiator.go`). `rekey.go` keys from `offer.ESPConfig`; `fsm.go` narrows `sa.ESPGroup.Proposals` to it. Verified at HEAD |
+| 2 | BLOCKER | AC-3's length refusal silenced the only test of the MODP small-value guard | `TestDHInvalidPublicKey` (`crypto/dh_test.go`) | Fixed 2026-08-04. Each case pads to `modp2048Len` and asserts `ErrInvalidPublicKey` AND not `ErrPublicKeyLength`. Verified at HEAD |
+| 3 | ISSUE | A tag credited `RFC7296-1.3-2` with evidence for a different rule | `TestNegSharedSecretRefusesWrongLength` (`engine/rfc7296_negotiation_test.go`) | Fixed. The test carries no `RFC requirement:` tag at HEAD, and the comment above it states why. `RFC7296-1.3-2` is proven by `TestNegRekeyRejectsMismatchedKEGroup` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/rfc7296_negotiation_test.go` | Yes | `git grep -n "^func TestNeg"` returns six tests in it |
+| `internal/component/ike/engine/initiator.go` | Yes | `espConfigForAccepted` and `verifyAcceptedOffer` both defined in it |
+| `internal/component/ike/crypto/dh.go` | Yes | `ErrPublicKeyLength` defined in it |
+| `internal/component/ike/crypto/dh_test.go` | Yes | `padBigInt(c.value, modp2048Len)` in `TestDHInvalidPublicKey` |
+| `internal/component/ike/crypto/rfc7296_verify_test.go` | Yes | carries two `RFC7296-3.3.6-3` polarities |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | The responder answers a KE mismatch with INVALID_KE_PAYLOAD and derives no keys | `git grep -n "NotifyInvalidKEPayload" internal/component/ike/engine/rekey.go` -> one hit inside `respondIKERekey`. Its caller in `inbound.go` returns on a nil new SA |
+| AC-3 | A wrong-length peer value is refused with a named error | `git grep -n "ErrPublicKeyLength" internal/component/ike/crypto/dh.go` -> the definition plus two return sites, one per branch |
+| AC-4, AC-5 | The IKE rekey branch resolves the collision, and the lower nonce abandons | `git grep -n "localNonceIsLower" internal/component/ike/engine/inbound.go` -> two call sites; the IKE one sits under `p.kind == rekeyIKE` |
+| AC-6 | The survivor inherits every Child SA | `TestNegSurvivingSAInheritsChildren`, tagged `RFC7296-2.8.2-1` on both polarities |
+| AC-7 | One helper, four initiator response paths | `git grep -n "verifyAcceptedOffer" internal/component/ike/engine/` -> the definition at `initiator.go` plus exactly four non-test call sites: `fsm.go` twice, `rekey.go` twice |
+| AC-8 | Each of the four stops the exchange | Read all four: `handleSAInitResponse` sets `StateDead` and returns; `handleAuthResponse` calls `sendIKESATeardown` with NO_PROPOSAL_CHOSEN, sets `StateDead` and returns; both apply paths return `fmt.Errorf("...: %w", err)` |
+| AC-9, AC-10, AC-11 | Each row carries both polarities | `git grep -n "RFC7296-1.3-2 \|RFC7296-2.8.2-1 \|RFC7296-3.3.6-3"` -> positive and negative for each; `RFC7296-3.3.6-3` in three files |
+| (beyond plan) | The Child SA is keyed from the accepted offer | `git grep -n "ESPConfig"` -> `rekey.go` reads it into `prop`, `fsm.go` narrows `sa.ESPGroup.Proposals` to it |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| CREATE_CHILD_SA request whose KEi group differs from the chosen group | none | Proven in Go by `TestNegRekeyRejectsMismatchedKEGroup`. No user-facing surface exposes a refused rekey negotiation, and the spec's Functional Tests section says so |
+| Inbound IKE rekey while ours is in flight | none | Proven in Go by `TestNegIKERekeyCollisionResolves`. A simultaneous collision needs both ends to start inside one round trip, which no `.ci` can force |
+| IKE rekey response naming a suite we never proposed | none | Proven in Go by `TestNegInitiatorRejectsUnproposedOffer`. The `.ci` suite is the regression net that the daemon still establishes and rekeys |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `wire.PayloadKE` carries `DHGroup`, and `respondIKERekey` reads it to make the comparison AC-1 names |
+| A-2 | confirmed | `padBigInt` pads to the group's modulus length. `TestDHInvalidPublicKey` derives `modp2048Len` rather than hardcoding 256 |
+| R-1 | confirmed and settled in writing | The "R-1 Settled" section above chooses refusal over left-padding, and states the cost. The 2026-08-03 RFC lens graded the choice OVER-STRICT and added no new fact, so it was recorded rather than reopened |
+| R-2 | confirmed | `TestNegIKERekeyCollisionResolves` drives both orderings and asserts the survivor from each side |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC compliance disclosure | `rfc/short/rfc7296.md` carries rows `RFC7296-1.3-2`, `RFC7296-2.8.2-1` and `RFC7296-3.3.6-3`, each `[MUST]` | Yes |
+| No anchored `docs/` claim points at a changed producer | `grep -rn "spec-fixit-ike-negotiation-conformance" docs/` returns nothing, and no `<!-- source: -->` anchor names `initiator.go`, `fsm.go`, `rekey.go` or `crypto/dh.go` | Yes |
+| Config, CLI, API, plugin SDK, wire format, comparison table, test infrastructure, architecture | No change. These are negotiation-failure paths with no operator-visible surface | Yes |
+
+## Closure 2026-08-12
+
+The code this spec owns was committed by earlier sessions. This closure reviewed the tree
+at HEAD, not a working-tree diff.
+
+### Gates
+
+| Gate | Run? |
+|------|------|
+| `make ze-verify` | NOT run. The closure session was instructed to run no test suite |
+| `make ze-verify-changed`, `ze-plugin-test`, QEMU, Docker, `bin/ze-test` | NOT run, same instruction |
+| `make ze-rfc-check` | NOT run |
+| `make ze-tracked-build-check` | Not applicable. This closure carries no Go |
+| `review_gate.py check` | Run, clean |
+| `python3 scripts/dev/spec-citation-check.py` | Run, OK |
+
+The commit script is prepared with `--unverified`, because this is a shared checkout whose
+working tree carries several other sessions' half-finished edits, and this closure changes
+no code.
+
+### What this closure does not claim
+
+RFC 7296 Section 2.8.1 resolves a collision from the lowest of the FOUR nonces, after both
+responses have arrived. `handleCreateChildSAOwned` compares TWO at request-receipt time, and
+the arm that keeps our own exchange answers the peer nothing, against Section 2.21.3.
+Neither defect is this spec's, and neither is closed here. Both are recorded in
+`spec-fixit-ike-rekey-collision-inverted`, which stays OPEN and which needs an owner ruling
+before it can be fixed. This spec's AC-4, AC-5 and AC-6 are met as they are worded: the
+branch routes, the lower nonce abandons, and the survivor inherits.
+
+## Core Insight
+
+A check whose result is discarded detects a disagreement and then commits the same
+disagreement one line later. `verifyAcceptedOffer` matched the accepted offer against every
+proposal ze sent, passed, and the caller then keyed from `Proposals[0]`. The tunnel came up
+and black-holed ESP, which is worse than a refused negotiation because it looks like
+success. A verifier that returns nothing but an error is the shape to distrust: what it
+learned has nowhere to go.
