@@ -16,6 +16,7 @@ For BGP terminology used in this document, see [docs/features.md](../../features
 | FRR | 10.3.1 | `quay.io/frrouting/frr:10.3.1` | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
 | BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 3.31.0 | Go builder | gobgp CLI | eBGP, route injection and verification |
+| StayRTR | 0.6.4 | Go builder | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | ExaBGP | main (API 6.0.0) | Python harness | Wire byte comparison | Byte-for-byte encoding across all address families |
 <!-- source: test/interop/interop.py -- FRR, BIRD, GoBGP, Ze helpers -->
 <!-- source: test/interop/run.py -- scenario orchestrator -->
@@ -64,6 +65,7 @@ GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it 
 | Raw injector | 172.30.0.9 | `ze-iop-inject-<pid>` |
 | Python speaker | 172.30.0.10 | `ze-iop-speaker-<pid>` |
 | Python speaker (2nd) | 172.30.0.11 | `ze-iop-speaker2-<pid>` |
+| StayRTR | 172.30.0.12 | `ze-iop-stayrtr-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
 <!-- source: test/interop/interop.py -- container naming, IP addresses -->
@@ -92,11 +94,14 @@ alongside `rpki-server` and `bmp-collector.py`:
 |------|---------|---------|
 | `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit -- e.g. an UPDATE mixing Withdrawn Routes with NLRI (RFC 7606 Section 5.1), which every receiver must accept but no sender may produce. Ze dials it (`accept false` in `ze.conf`), so the injector runs `ze-test peer` in check mode against the `inject.msg` expect/action script. An optional `inject-args` file adds flags (`--asn` is important, or the peer adopts Ze's ASN). Because the injector and Ze start before the peer daemons, a route the injector announces is stored in Ze before FRR connects, so it is delivered by Ze's replay-on-peer-up path -- useful for testing the re-encode/replay rail specifically. |
 | `speaker-args` (and optional `speaker2-args`) | Minimal Python speaker (172.30.0.10; second at 172.30.0.11) | Dial Ze with an INDEPENDENT strict peer that applies one per-test check. The fixed engine (`test/interop/speaker/engine.py`) establishes, loads a plugin named in `speaker-args` (`--test /speaker/plugins/<name>.py`), inspects every UPDATE, and prints a verdict `check.py` reads via `docker logs`. Unlike `ze-test peer`, which asserts only the bytes it was told to expect, a speaker plugin runs its own validator -- e.g. RFC 7606 Section 3(g) duplicate attributes -- so it catches wire output Ze's own lenient validator waves through. Started after Ze (like the daemons), so it exercises the replay rail; keep it connected with `--stop-after-updates 0` when the check bytes arrive on Ze's delta-replay rather than the first initial-sync UPDATE. A `speaker2-args` file starts a second instance at a distinct IP/router-id (scenario 49 proves two engines establish without colliding). See `plan/spec-bgp-plugin-speaker.md`. |
+| `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. `rpki-server` above runs `ze-test rpki`, which is Ze's encoder answering Ze's decoder, and that pair agrees with itself whatever it does. The file is the rpki-client / Routinator JSON export format: `roas` of prefix, `maxLength` and `asn`. StayRTR serves the same set back on `http://172.30.0.12:9847/rpki.json`. A `check.py` reads that export to learn what the CACHE meant, rather than what the scenario intended. A cache-side decode fault fails OPEN, because every prefix then reads NotFound and `not-found accept` accepts it. So assert the per-prefix validation ANSWER, never the session. Worked example: `58-rtr-stayrtr`. |
 
 <!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
 <!-- source: test/interop/interop.py -- speaker-args sidecar startup, SPEAKER_CONTAINER -->
+<!-- source: test/interop/interop.py -- vrps.json sidecar startup, STAYRTR_CONTAINER -->
 <!-- source: test/interop/scenarios/47-rfc7606-relay-shape-frr/ -- injector worked example -->
 <!-- source: test/interop/scenarios/48-rfc7606-speaker-dup-attr/ -- speaker worked example -->
+<!-- source: test/interop/scenarios/58-rtr-stayrtr/ -- StayRTR worked example -->
 
 ### Prove a scenario discriminates
 

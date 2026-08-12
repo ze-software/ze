@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "counts": 4
+  },
+  "roas": [
+    {"prefix": "9.58.0.0/16", "maxLength": 24, "asn": "AS4200000001", "ta": "ze-interop"},
+    {"prefix": "10.58.0.0/16", "maxLength": 16, "asn": "AS65001", "ta": "ze-interop"},
+    {"prefix": "2001:db8:58::/48", "maxLength": 56, "asn": "AS4200000001", "ta": "ze-interop"},
+    {"prefix": "2001:db8:59::/48", "maxLength": 48, "asn": "AS65001", "ta": "ze-interop"}
+  ]
+}

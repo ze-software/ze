@@ -1,0 +1,36 @@
+# StayRTR: Cloudflare's RTR server (RFC 8210), the cache side of RPKI origin
+# validation, for interoperability testing.
+#
+# WHY A THIRD-PARTY CACHE. Ze is the RTR CLIENT in production and was the RTR
+# SERVER in every test that exercised the protocol: scenario 43-rpki-frr runs
+# `ze-test rpki` and 25 functional tests run `ze-test rtr-mock`, both of them
+# Ze's own Go. A disagreement between Ze's encoder and Ze's decoder is invisible
+# to a codec that round-trips against itself, and the disagreement fails OPEN:
+# a prefix whose VRP was mis-decoded reads NotFound, NotFound is accepted, and
+# the operator sees a working router that validates nothing.
+#
+# StayRTR is the reference RTR server most operators run, it is fed by a static
+# VRP file rather than by a live RPKI trust anchor fetch, and that file is what
+# a scenario writes. Routinator would need the trust anchors and an rsync/RRDP
+# fetch to produce any VRP at all, which makes the cache content depend on the
+# public repository rather than on the scenario.
+#
+# Pinned by version, not by `latest`: an image whose payload changes under the
+# test turns an interop verdict into a moving target.
+
+FROM golang:1.26-alpine AS builder
+
+RUN go install github.com/bgp/stayrtr/cmd/stayrtr@v0.6.4
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini
+
+COPY --from=builder /go/bin/stayrtr /usr/local/bin/stayrtr
+
+# The scenario mounts its VRP file at /vrps.json. `-checktime=false` because
+# that file carries no signed validity window: with the default the cache
+# refuses its own input and serves an empty set, which would make every prefix
+# read NotFound for a reason that has nothing to do with Ze.
+ENTRYPOINT ["tini", "--", "stayrtr"]
+CMD ["-bind", ":8282", "-cache", "/vrps.json", "-checktime=false", "-refresh", "10"]

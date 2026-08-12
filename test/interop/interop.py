@@ -23,6 +23,7 @@ GOBGP_CONTAINER = "ze-iop-gobgp-%s" % _SUFFIX
 BMP_CONTAINER = "ze-iop-bmp-%s" % _SUFFIX
 RPKI_CONTAINER = "ze-iop-rpki-%s" % _SUFFIX
 KEEPALIVED_CONTAINER = "ze-iop-keepalived-%s" % _SUFFIX
+STAYRTR_CONTAINER = "ze-iop-stayrtr-%s" % _SUFFIX
 INJECT_CONTAINER = "ze-iop-inject-%s" % _SUFFIX
 SPEAKER_CONTAINER = "ze-iop-speaker-%s" % _SUFFIX
 SPEAKER2_CONTAINER = "ze-iop-speaker2-%s" % _SUFFIX
@@ -42,6 +43,14 @@ KEEPALIVED_IP = "172.30.0.8"
 INJECT_IP = "172.30.0.9"
 SPEAKER_IP = "172.30.0.10"
 SPEAKER2_IP = "172.30.0.11"
+STAYRTR_IP = "172.30.0.12"
+
+# StayRTR's metrics port, which also serves the cache's own VRP set at
+# /rpki.json -- the reading a scenario takes to learn what the cache MEANT,
+# independently of what Ze decoded from the RTR wire. Its RTR port (8282) is
+# named where it is used, in Dockerfile.stayrtr and in each scenario's ze.conf,
+# and nothing in this module dials it.
+STAYRTR_HTTP_PORT = 9847
 
 # The VRRP virtual IP the ze and keepalived scenarios contend for. It is
 # deliberately NOT any container's own address: it is owned by whichever router
@@ -187,8 +196,19 @@ def poll(probe, ready, timeout, interval=3, what="query"):
 
 
 def _set_subnet_prefix(prefix):
-    """Update global peer IPs for the allocated /24, both families."""
+    """Update global peer IPs for the allocated /24, both families.
+
+    EVERY address the harness pins with `--ip` is rebased here. One that is not
+    keeps its 172.30.0.x spelling while the network is created on the fallback
+    /24, and `docker run --ip` then names an address outside the network's own
+    subnet and fails the container outright. Five did until 2026-08-12
+    (keepalived, inject, both speakers, and the VRRP virtual address), so the
+    fallback path -- taken whenever 172.30.0.0/24 is already in use, which is
+    exactly the concurrent-run case the fallback exists for -- could not start
+    those scenarios at all.
+    """
     global SUBNET_PREFIX, SUBNET_CIDR, ZE_IP, FRR_IP, BIRD_IP, GOBGP_IP, BMP_IP, RPKI_IP
+    global KEEPALIVED_IP, STAYRTR_IP, INJECT_IP, SPEAKER_IP, SPEAKER2_IP, VRRP_VIP
     global V6_SUBNET_CIDR, V6_SUBNET_PREFIX, ZE_IP6, FRR_IP6
     if not prefix.endswith("."):
         prefix += "."
@@ -200,6 +220,12 @@ def _set_subnet_prefix(prefix):
     GOBGP_IP = "%s5" % prefix
     BMP_IP = "%s6" % prefix
     RPKI_IP = "%s7" % prefix
+    KEEPALIVED_IP = "%s8" % prefix
+    INJECT_IP = "%s9" % prefix
+    SPEAKER_IP = "%s10" % prefix
+    SPEAKER2_IP = "%s11" % prefix
+    STAYRTR_IP = "%s12" % prefix
+    VRRP_VIP = "%s100" % prefix
     V6_SUBNET_CIDR = _v6_subnet_for(prefix)
     V6_SUBNET_PREFIX = V6_SUBNET_CIDR.split("/")[0]
     ZE_IP6 = _v6_for(ZE_IP)
@@ -1697,6 +1723,24 @@ def wait_containers_healthy(timeout=30):
             if not _check_container_responsive(KEEPALIVED_CONTAINER, ["ip", "link"]):
                 all_ready = False
 
+        # StayRTR is ready when it SERVES the VRP set, not when its process is
+        # up: it binds the RTR port before the cache file is loaded, so a TCP
+        # probe would pass against an empty set and every prefix would then read
+        # NotFound for a harness reason. Its own /rpki.json export is the set it
+        # will hand out over RTR, so a 200 there is the readiness that matters.
+        if _check_container_running(STAYRTR_CONTAINER):
+            if not _check_container_responsive(
+                STAYRTR_CONTAINER,
+                [
+                    "wget",
+                    "-q",
+                    "-O",
+                    "-",
+                    "http://127.0.0.1:%d/rpki.json" % STAYRTR_HTTP_PORT,
+                ],
+            ):
+                all_ready = False
+
         if all_ready:
             log_debug("all containers healthy")
             return
@@ -1828,6 +1872,23 @@ class Scenario:
                 cmd=["peer", "--port", "179", "--decode"]
                 + inject_args
                 + ["/inject.msg"],
+            )
+
+        # Start StayRTR if the scenario supplies a VRP file. StayRTR is a real
+        # third-party RTR server (Cloudflare, RFC 8210), so Ze is the client on
+        # both sides of nothing: `rpki-server` below runs `ze-test rpki`, which
+        # is Ze's own encoder answering Ze's own decoder.
+        #
+        # It starts BEFORE Ze so the first RESET QUERY finds a cache that
+        # already holds the set, rather than an empty one it would have to
+        # re-poll for after `-refresh`.
+        stayrtr_vrps = os.path.join(self.scenario_dir, "vrps.json")
+        if os.path.isfile(stayrtr_vrps):
+            docker_run(
+                STAYRTR_CONTAINER,
+                "stayrtr-interop",
+                STAYRTR_IP,
+                volumes=["%s:/vrps.json:ro" % os.path.abspath(stayrtr_vrps)],
             )
 
         rpki_server = os.path.join(self.scenario_dir, "rpki-server")
@@ -1992,6 +2053,7 @@ class Scenario:
         docker_rm(SPEAKER_CONTAINER, strict)
         docker_rm(SPEAKER2_CONTAINER, strict)
         docker_rm(KEEPALIVED_CONTAINER, strict)
+        docker_rm(STAYRTR_CONTAINER, strict)
         # The rendered copy is host-side and unrelated to docker, so it is
         # cleared whatever the network removal does.
         #
@@ -2101,6 +2163,7 @@ def global_cleanup():
         BMP_CONTAINER,
         RPKI_CONTAINER,
         KEEPALIVED_CONTAINER,
+        STAYRTR_CONTAINER,
         INJECT_CONTAINER,
         SPEAKER_CONTAINER,
         SPEAKER2_CONTAINER,

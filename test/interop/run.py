@@ -106,6 +106,32 @@ def build_images(frr_image, no_build=False):
         timeout=600,
     )
 
+    # Tolerant like GoBGP's, not fatal like keepalived's, and for the blast
+    # radius rather than for the importance: this build fetches a module from
+    # the network, and `check=True` would let one unreachable proxy take down
+    # the 100+ scenarios that need no cache at all. Nothing is waved through by
+    # tolerating it. The one scenario that wants the image fails at
+    # `docker run` with the image name in the message, so the absence is
+    # reported on the scenario it belongs to.
+    print("Building StayRTR image...")
+    result = subprocess.run(
+        [
+            "docker",
+            "build",
+            "-t",
+            "stayrtr-interop",
+            "-f",
+            os.path.join(SCRIPT_DIR, "Dockerfile.stayrtr"),
+            SCRIPT_DIR,
+            "-q",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        print("  warning: StayRTR image build failed (RTR scenarios will fail)")
+
     print("Pulling FRR image...")
     subprocess.run(
         ["docker", "pull", "-q", frr_image],
