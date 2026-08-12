@@ -1,0 +1,255 @@
+# rs-control-community-withdraw-egress -- the RFC 7947 sibling of
+# wellknown-no-export-withdraw-egress.ci, on the route-server fast-path rail.
+#
+# WHAT IT GUARDS. A ze route-server control community names a whitelist or a blacklist of
+# CLIENT ASNs, and wireu.ParseCommunityPolicy reads it off the ANNOUNCED route's COMMUNITY
+# attribute. CommunityPolicy.ShouldForwardTo is therefore a decision about ONE ROUTE, while
+# reactorForwardRS applies it to a whole MESSAGE. One UPDATE can carry both halves -- RFC
+# 7606 Section 5.1 tells a sender not to emit that shape and ze must still handle it on
+# receipt (wireu.MixesNLRIFields) -- and the Withdrawn Routes field carries no attributes,
+# so it was tagged by nobody. Refusing the whole message leaves the excluded client holding
+# a prefix an earlier UPDATE did advertise to it and ze can no longer take back until the
+# session resets.
+#
+# RFC 7947 requires per-client import and export policy and places no normative requirement
+# on these communities: the control convention is ze's own (wireu.StripControlCommunities).
+# The obligation this file asserts is therefore ze's, not the RFC's, and it carries no
+# `RFC requirement:` tag.
+#
+# WHY A .ci AND NOT ONLY THE UNIT TESTS. The unit tests
+# (TestForwardRSWithdrawsFromClientRefusedByControlCommunity) prove the rail splits the
+# message. Only a running daemon proves the withdrawal reaches a socket while the
+# announcement does not, and the egress rail is where a stranded route actually happens.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). Three controls, and the reject rule
+# covers the leak in the other direction:
+#   1. the FENCE route 192.0.2.0/24 IS delivered to the excluded client, so a build
+#      forwarding nothing to it is red;
+#   2. the client the community does NOT name receives BOTH halves plus the fence, so a
+#      build suppressing on the wrong side is red;
+#   3. the observer counts the excluded client's UPDATEs and refuses a third one, so the
+#      announcement leaking is red on the counter as well as on the wire.
+#
+# ORDERING. The source sends the mixed UPDATE BEFORE the fence, on one TCP stream ze
+# processes in order on one goroutine. The observer waiting for the fence therefore proves
+# the mixed UPDATE was already decided.
+
+# Source peer -- external, AS 65001, on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The source must outlive the assertions: a source that closes makes ze withdraw its
+# routes, which would deliver the clients messages they never asked for.
+option=linger:value=true
+# seq=1 -- the MIXED UPDATE. Withdrawn Routes = 198.51.100.0/24 (18C63364). NLRI =
+# 10.0.0.0/24 (180A0000) with ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1,
+# LOCAL_PREF=100, COMMUNITY=0:65002 (0000FDEA). The 0:X form is the ze route-server
+# BLACKLIST convention (wireu.parseCommunityAttr), so ShouldForwardTo answers false for the
+# client in AS 65002 and true for the one in AS 65003. The community rides in the attribute
+# section, which governs the NLRI only: the Withdrawn Routes field carries no attributes.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004102000418C6336400224001010040020602010000FDE94003040101010140050400000064C008040000FDEA180A0000
+# seq=2 -- the FENCE, 192.0.2.0/24, tagged 65001:100 (FDE90064). Its high half is neither 0
+# nor the route server's 65000, so it is an ordinary community that names nobody and the
+# route reaches both clients.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010140050400000064C00804FDE9006418C00002
+EOF_SOURCE
+
+# Excluded client -- AS 65002, on 127.0.0.2. Every assertion about the exclusion and its
+# limit lives here.
+stdin=excluded:terminator=EOF_EXCLUDED
+option=tcp_connections:value=1
+option=timeout:value=30s
+# THE POINT OF THIS TEST: the withdrawal half REACHES the excluded client.
+expect=bgp:conn=1:seq=1:contains=18C63364
+# CONTROL 1: the fence reaches this session too, so the assertion above cannot pass by way
+# of some unrelated message.
+expect=bgp:conn=1:seq=2:contains=18C00002
+# THE ASSERTION: 10.0.0.0/24 never reaches this client, in any framing.
+reject=bgp:conn=1:pattern=180A0000
+EOF_EXCLUDED
+
+# Included client -- AS 65003, on 127.0.0.3. CONTROL 2.
+stdin=included:terminator=EOF_INCLUDED
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The control community names 65002 only, so this client receives BOTH halves. ze splits
+# the mixed shape before sending it (RFC 7606 Section 5.1), withdrawal first, so the two
+# halves arrive as two messages in that order, and the fence follows.
+expect=bgp:conn=1:seq=1:contains=18C63364
+expect=bgp:conn=1:seq=2:contains=180A0000
+expect=bgp:conn=1:seq=3:contains=18C00002
+EOF_INCLUDED
+
+# Observer: hold the daemon up until the fence has reached the excluded client, which proves
+# the mixed UPDATE ahead of it was already decided, then count what each client was sent.
+tmpfs=rs-community-withdraw.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Sequence shutdown behind the fence route reaching the excluded client."""
+import sys
+from ze_api import API, runtime_fail
+
+EXCLUDED = '127.0.0.2'
+INCLUDED = '127.0.0.3'
+
+
+def real_updates(api, peer):
+    """UPDATEs written to peer, End-of-RIB markers excluded.
+
+    updates-sent counts every UPDATE written, the initial-sync EoR included
+    (IncrUpdatesSent, reactor/reactor_notify.go sees only the message type).
+    eor-sent is the separate marker counter, so the difference is route traffic.
+    """
+    return api.peer_counter('updates-sent', peer=peer) - api.peer_counter('eor-sent', peer=peer)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce FIRST so the polls behind it are a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC.
+    api.quiesce()
+
+    # The included client gets three: the withdrawal, the announcement, the fence.
+    if not api.wait_until(lambda: real_updates(api, INCLUDED) >= 3, attempts=40):
+        runtime_fail('included client was not sent both halves and the fence')
+    print('OK: included client received both halves and the fence', file=sys.stderr)
+
+    # The excluded client gets two: the withdrawal and the fence. Two, not three: three
+    # would mean the announcement leaked, which the reject rule also catches on the wire.
+    if not api.wait_until(lambda: real_updates(api, EXCLUDED) >= 2, attempts=40):
+        runtime_fail('excluded client was not sent the withdrawal and the fence')
+    if real_updates(api, EXCLUDED) != 2:
+        runtime_fail('excluded client was sent more than the withdrawal and the fence')
+    print('OK: excluded client received the withdrawal and the fence, nothing else', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external rs-community-withdraw {
+		run ./rs-community-withdraw.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		# The source-side flag that selects the fast-path rail (reactorForwardRS)
+		# instead of the bgp-rs ForwardCached chain; see
+		# bgp-rs-community-strip-multi-fastpath.ci for why the gate is source-side.
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+		process rs-community-withdraw {
+			receive [ update state ]
+		}
+	}
+
+	peer excluded-client {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			# LOAD-BEARING: the RFC 7947 policy branch in reactorForwardRS is gated on
+			# facts.rsClient, which is this leaf. Without it the control community
+			# decides nothing and every assertion below passes against a broken build.
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+
+	peer included-client {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=excluded
+cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=included
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -250,10 +250,20 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// would leak on whichever path the deployment happens to select.
 	srcWellKnown := r.scanWellKnownEgress(update.WireUpdate.Payload(), sourcePeerAddr)
 
-	// The withdrawal half, for the clients RFC 1997 refuses; same derivation and
-	// same nil meaning as the general rail.
+	// The withdrawal half, for the clients an egress gate refuses. Same derivation
+	// and same nil meaning as the general rail. Nil means the UPDATE withdraws
+	// nothing, and then a refused client receives nothing at all
+	// (wireu.WithdrawalsOnly).
+	//
+	// TWO gates share it, so a flag guards the derivation rather than either gate's
+	// own condition. RFC 1997 asks its question of every client, so the part is
+	// derived up front for an UPDATE carrying a well-known community. RFC 7947
+	// below derives it on its first refusal, because a control community refuses a
+	// subset of the clients rather than all of them.
 	var srcWithdrawOnly *wireu.WireUpdate
+	withdrawOnlyDerived := false
 	if srcWellKnown != 0 {
+		withdrawOnlyDerived = true
 		srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
 	}
 
@@ -286,8 +296,24 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				communityPolicy = &cp
 				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
 			}
+			// THE CONTROL COMMUNITIES DECIDE ABOUT A ROUTE, NOT ABOUT A MESSAGE.
+			// ShouldForwardTo reads RSBlackhole, WhitelistASNs and BlacklistASNs off
+			// the policy parsed from the ANNOUNCED route's communities
+			// (wireu.CommunityPolicy). The withdrawn routes traveling in the same
+			// UPDATE carry no attribute and were tagged by nobody. Refusing the whole
+			// message would leave an excluded client holding a prefix an earlier
+			// UPDATE did advertise to it, and ze can no longer take that prefix back
+			// until the session resets. Same reasoning, and the same repair, as
+			// RFC 1997 above and on the general rail.
 			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
-				continue
+				if !withdrawOnlyDerived {
+					withdrawOnlyDerived = true
+					srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+				}
+				if srcWithdrawOnly == nil {
+					continue
+				}
+				destBaseWire = srcWithdrawOnly
 			}
 		}
 
