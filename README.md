@@ -2,13 +2,15 @@
 
 **[ze-software.net](https://ze-software.net)**
 
-> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (20,000+ unit tests, 1,600+ functional tests, 70+ fuzz targets, chaos testing, and 100+ Docker-based interop scenarios against FRR, BIRD, and GoBGP, with OpenBGPd, FreeRtr, RustyBGP, and rustbgpd images used for comparison), but some advanced features are still incomplete. APIs and config syntax may change.
+> **Pre-release.** Ze is under active development and has not been released yet. The core BGP engine works, and it is covered by 20,000+ unit tests, 1,600+ functional tests, 70+ fuzz targets, chaos replay and 100+ Docker interop scenarios which run it against FRR, BIRD and GoBGP. I keep OpenBGPd, FreeRtr, RustyBGP and rustbgpd images alongside those, for comparison. Some of the more advanced features are still incomplete, and the API and the config syntax may change before a release.
 
-Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
+Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB and serves its own configuration over SSH and a web UI.
 
-The engine is a supervisor that composes a message bus, a config provider, and a plugin manager. It has no knowledge of BGP or any specific protocol. BGP, interface management, and everything else register as subsystems and plugins.
+None of that is in the core. The core is a supervisor which holds a message bus, a config provider and a plugin manager, and it knows nothing about BGP or about any other protocol. BGP, interface management and the rest of it register themselves as subsystems and plugins, and a plugin can be a Go module compiled into the binary or a separate process written in whatever language suits you.
 
-It was designed to let [ExaBGP](https://github.com/Exa-Networks/exabgp) users migrate to a more performant, fully programmable network stack for device configuration and network automation.
+There is also an MCP server, which exposes every feature the running daemon has, plugins included, so an AI assistant can ask what this particular instance can do and then operate it.
+
+I wrote [ExaBGP](https://github.com/Exa-Networks/exabgp), and its users are the people I had in mind while building this. They get the same programmability, on a stack which also configures the device and which was written from the start for update rates ExaBGP was never meant to carry.
 
 ### Components
 
@@ -39,13 +41,13 @@ IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventor
 
 ### Build Only What You Run
 
-Thirty-six subsystems compile out behind `ze_<feature>` build tags, including the BGP engine itself. Leaving a tag off drops that code from the binary, for a smaller image and less attack surface, and a config selecting a compiled-out subsystem is rejected as unknown rather than silently ignored. `make ze` builds everything; `make ze-stripped` keeps only the SSH management plane. The gate list is declared once in `feature-gates.txt` and every consumer derives from it.
+Thirty-six subsystems compile out behind `ze_<feature>` build tags, the BGP engine among them. If you leave a tag off, that code is not in the binary at all, which keeps the image small and the attack surface with it, and a config which selects a subsystem you compiled out is rejected as unknown rather than silently ignored. `make ze` builds everything and `make ze-stripped` keeps only the SSH management plane. The list of gates is declared once, in `feature-gates.txt`, and every consumer derives from it.
 
 ```bash
 go build -tags 'ze_core ze_ssh ze_ospf' ./cmd/ze   # an OSPF-only router, no BGP
 ```
 
-That build is 39 MB against 83 MB for the full binary, and carries none of the 1,201 BGP reactor symbols the full build links.
+That build is 39 MB where the full binary is 83 MB, and none of the 1,201 BGP reactor symbols are linked into it.
 
 ### Wire Performance
 
@@ -58,9 +60,9 @@ That build is 39 MB against 83 MB for the full binary, and carries none of the 1
 
 ### ExaBGP
 
-Existing ExaBGP plugins work unchanged via a bridge. `ze config migrate` converts ExaBGP configs.
+Existing ExaBGP plugins run unchanged through a bridge, and `ze config migrate` converts ExaBGP configs.
 
-If you are an ExaBGP user, we would love your feedback on the migration experience. Please try `ze config migrate` with your configs and let us know what works and what does not -- even at this early stage, that feedback shapes the project. File issues or reach out on [Discord](https://discord.gg/T8s7CjPDne).
+If you run ExaBGP, I would appreciate it if you could put your own config through `ze config migrate` and tell me what it gets wrong. At this stage that is the feedback which decides what I work on next. You can open an issue, or find me on [Discord](https://discord.gg/T8s7CjPDne).
 
 ### Testing
 
@@ -75,14 +77,14 @@ If you are an ExaBGP user, we would love your feedback on the migration experien
 
 ### Deployment
 
-Ze runs as a daemon under systemd (or any process manager) on any Linux, or as a dedicated appliance image built with [gokrazy](https://gokrazy.org) for purpose-built hardware. Same binary, same config format, same CLI.
+Ze runs as a daemon on any Linux, under systemd or under whatever else you use to supervise processes, and it also builds into a dedicated appliance image with [gokrazy](https://gokrazy.org) for hardware you never intend to log into. Both are the same binary reading the same config.
 
 | Mode | Description |
 |------|-------------|
 | Any Linux | Standard daemon, integrates with systemd, journald, and your existing tooling. See [Operations](docs/guide/operations.md) |
 | Appliance | Immutable boot image for N100 mini PCs or VMs: read-only root, no shell, automatic supervision. See [VM Appliance](docs/guide/appliance.md) |
 
-You own the config, the plugins, and the hardware. No per-instance licensing, no vendor portal, no cloud dependency.
+The config, the plugins and the hardware are yours. There is no per-instance license to buy, no vendor portal, and nothing in the binary which phones home.
 
 ## Quick Start
 
@@ -128,9 +130,11 @@ Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a sup
 
 ## An AI-Assisted Project
 
-Ze exists because AI coding assistants (Claude Code) made a ground-up BGP rewrite feasible for a solo developer. The author focused on architecture and design decisions informed by a decade of ExaBGP; AI handled the volume of protocol encoding, boilerplate, and test generation.
+Ze is written with Claude Code, which is what made a ground-up BGP rewrite possible for one person. I decide the architecture, the tradeoffs and what the code is never allowed to break, and Claude turns that into implementation. My time is limited, and I would rather spend it on the judgement than on typing out the hundredth attribute codec.
 
-Contributors using Claude Code have access to 28 project-specific slash commands for specs, implementation, review, and testing. See the [Claude Code cheat sheet](docs/contributing/claude-code-cheatsheet.md).
+That is also why the test counts above are what they are. Code does not become correct by having been generated, so it has to pass the narrow check and then the wider gate before it belongs here, and building those gates is most of what I do. The longer version of this argument is in [AI slop is the wrong test](https://ze-software.net/blog/ai-slop-is-the-wrong-test/).
+
+Contributors using Claude Code have 28 project-specific slash commands for specs, implementation, review and testing. See the [Claude Code cheat sheet](docs/contributing/claude-code-cheatsheet.md).
 
 ## License and Contributions
 
