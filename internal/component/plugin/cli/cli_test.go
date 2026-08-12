@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
@@ -14,16 +18,63 @@ import (
 
 // TestResolveHexInput_DirectValue verifies direct hex string passes through.
 func TestResolveHexInput_DirectValue(t *testing.T) {
-	hex, ok := resolveHexInput("DEADBEEF")
-	assert.True(t, ok)
+	hex, err := resolveHexInput(strings.NewReader(""), "DEADBEEF")
+	require.NoError(t, err)
 	assert.Equal(t, "DEADBEEF", hex)
 }
 
 // TestResolveHexInput_EmptyString verifies empty input is returned as-is.
 func TestResolveHexInput_EmptyString(t *testing.T) {
-	hex, ok := resolveHexInput("")
-	assert.True(t, ok)
+	hex, err := resolveHexInput(strings.NewReader(""), "")
+	require.NoError(t, err)
 	assert.Equal(t, "", hex)
+}
+
+// TestResolveHexInput_StdinReadFailure verifies a reader that fails part way
+// through the hex line is reported as a read failure, not as a whole hex blob.
+// Scan returns TRUE here: the buffered prefix comes back as a final token, so
+// the truncated value would otherwise be decoded as the operator's input.
+func TestResolveHexInput_StdinReadFailure(t *testing.T) {
+	want := errors.New("pipe broke")
+	hex, err := resolveHexInput(&failingReader{prefix: []byte("DEAD"), err: want}, "-")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, want)
+	assert.NotErrorIs(t, err, errNoHexInput)
+	assert.Empty(t, hex)
+}
+
+// TestResolveHexInput_StdinOverLongLine verifies a hex line above
+// bufio.MaxScanTokenSize is reported as a read failure. This is the failure
+// mode with no underlying I/O error: a large NLRI hex blob on one line.
+func TestResolveHexInput_StdinOverLongLine(t *testing.T) {
+	long := strings.Repeat("AB", bufio.MaxScanTokenSize)
+	_, err := resolveHexInput(strings.NewReader(long), "-")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, bufio.ErrTooLong)
+	assert.NotErrorIs(t, err, errNoHexInput)
+}
+
+// TestResolveHexInput_StdinEmpty verifies a genuinely empty stdin still reads
+// as empty, so the read-failure branch above is not reporting every EOF.
+func TestResolveHexInput_StdinEmpty(t *testing.T) {
+	_, err := resolveHexInput(strings.NewReader(""), "-")
+	assert.ErrorIs(t, err, errNoHexInput)
+}
+
+// failingReader yields prefix, then fails. It models a pipe that breaks part
+// way through a line.
+type failingReader struct {
+	prefix []byte
+	err    error
+}
+
+func (f *failingReader) Read(p []byte) (int, error) {
+	if len(f.prefix) == 0 {
+		return 0, f.err
+	}
+	n := copy(p, f.prefix)
+	f.prefix = f.prefix[n:]
+	return n, nil
 }
 
 // TestAvailableFeatures_NLRIOnly verifies feature string when only NLRI is supported.

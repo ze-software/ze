@@ -752,7 +752,9 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	// Get configured relay level
 	relayLevel, enabled := slogutil.RelayLevel()
 	if !enabled {
-		// Discard all stderr when relay disabled
+		// Discard all stderr when relay disabled. A scan that ends early loses
+		// nothing here: discarding is the contract, so there is no error to
+		// read back.
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			// Read but discard
@@ -780,6 +782,16 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 			args = append(args, slog.Group("original", attrs...))
 		}
 		stderrLogger().Log(context.Background(), level, msg, args...)
+	}
+
+	// Scan returns false on EOF, on a read error, and on a line above
+	// bufio.MaxScanTokenSize alike. Only EOF means the plugin's stderr ended:
+	// the other two end the RELAY while the plugin keeps running, so the panic
+	// block the paragraph above exists to carry never reaches the engine log.
+	// A relay that stopped says so.
+	if err := scanner.Err(); err != nil {
+		stderrLogger().Error("plugin stderr relay stopped, later plugin output is not relayed",
+			"plugin", p.config.Name, "err", err)
 	}
 }
 

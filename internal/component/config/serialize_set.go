@@ -8,7 +8,6 @@
 package config
 
 import (
-	"bufio"
 	"sort"
 	"strings"
 	"time"
@@ -40,11 +39,18 @@ const (
 // (e.g., only some leaves have user/time metadata). Early return on "set" would
 // misidentify mixed content as FormatSet, causing metadata lines to be skipped
 // as comments and losing data.
+//
+// The content is already a string, so it is split directly rather than scanned.
+// bufio.Scanner would add a failure this function cannot report: Scan stops on
+// a line above bufio.MaxScanTokenSize (64 KiB), and stopping before the
+// metadata marker returns FormatSet for a file that carries metadata, which is
+// the misdetection the paragraph above describes as losing data. Splitting has
+// no such limit. TrimSpace below removes the trailing carriage return that
+// bufio.ScanLines used to strip.
 func DetectFormat(content string) ConfigFormat {
-	scanner := bufio.NewScanner(strings.NewReader(content))
 	hasSet := false
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for raw := range strings.SplitSeq(content, "\n") {
+		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
 		}

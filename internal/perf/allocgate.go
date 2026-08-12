@@ -75,6 +75,9 @@ type allocViolation struct {
 // `go test -benchmem` output. Lines without an allocs/op column (PASS, ok,
 // build errors, ns/op-only lines) are skipped.
 func parseAllocsPerOp(text string) []allocResult {
+	// A scan that stops early drops benchmarks from this list, and a ceiling
+	// with no result becomes a Missing violation in CheckAllocCeilings below. A
+	// partial read therefore FAILS the gate; it cannot pass one.
 	var out []allocResult
 	sc := bufio.NewScanner(strings.NewReader(text))
 	for sc.Scan() {

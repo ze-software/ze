@@ -98,6 +98,9 @@ func confirmUninstall(binPath, configDir string, purge bool) bool {
 	}
 	fmt.Fprintf(os.Stderr, "continue? [y/N]: ")
 
+	// A failed read is not consent. Scan returns false on EOF, on a read
+	// error, and on an over-long line alike, and all three mean no uninstall.
+	// A truncated answer is not "y" either.
 	scanner := bufio.NewScanner(os.Stdin)
 	if !scanner.Scan() {
 		return false

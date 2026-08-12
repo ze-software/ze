@@ -159,6 +159,15 @@ func Run(r io.Reader, w io.Writer) int {
 		}
 	}
 
+	// A log that stops early is not a log that ended. Scan returns false on
+	// EOF, on a read error, and on a line above bufio.MaxScanTokenSize alike,
+	// so validating here would judge a run by the events that happened to
+	// arrive: the announcements after the cut read as routes never sent.
+	if err := scanner.Err(); err != nil {
+		writeErr(w, "error: reading event log: %v\n", err)
+		return 2
+	}
+
 	// Final validation.
 	result := validation.Check(model, tracker)
 	convStats := convergence.Stats()

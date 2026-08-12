@@ -2,10 +2,13 @@ package process
 
 import (
 	"bufio"
+	"errors"
 	"log/slog"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // TestStderrRelayKeepsTheLineWrittenJustBeforeExit drives the same three
@@ -321,5 +324,94 @@ func TestClassifyStderrLineDecodesObserverSentinelEscapes(t *testing.T) {
 	if subsystem != "test.observer" {
 		t.Fatalf("subsystem attr = %q, want %q -- the reason's escapes must not "+
 			"swallow the attributes that follow it", subsystem, "test.observer")
+	}
+}
+
+// failingStderr yields prefix, then fails. It models the plugin's stderr pipe
+// breaking part way through a line.
+type failingStderr struct {
+	prefix []byte
+	err    error
+}
+
+func (f *failingStderr) Read(p []byte) (int, error) {
+	if len(f.prefix) == 0 {
+		return 0, f.err
+	}
+	n := copy(p, f.prefix)
+	f.prefix = f.prefix[n:]
+	return n, nil
+}
+
+// captureRelay swaps the package's relay logger for one writing into buf, and
+// restores it when the test ends. stderrLogger is a package var of func type,
+// which is what makes the relay's own output assertable.
+func captureRelay(t *testing.T, buf *strings.Builder) {
+	t.Helper()
+	orig := stderrLogger
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	stderrLogger = func() *slog.Logger { return logger }
+	t.Cleanup(func() { stderrLogger = orig })
+}
+
+// TestRelayStderrReportsAReadFailure drives a stderr pipe that breaks part way
+// through a line.
+//
+// VALIDATES: the relay says it stopped.
+// PREVENTS: the relay ending for the life of the plugin with nothing logged, so
+// that a panic printed later never reaches the engine log. That silent loss is
+// the exact failure the panic-forcing rule in relayStderrFrom exists to stop,
+// and an unchecked scanner reopened it one layer down.
+func TestRelayStderrReportsAReadFailure(t *testing.T) {
+	var out strings.Builder
+	captureRelay(t, &out)
+
+	p := &Process{config: plugin.PluginConfig{Name: "test-plugin"}}
+	p.relayStderrFrom(&failingStderr{
+		prefix: []byte("time=2026-01-01 level=ERROR msg=\"first line\"\npartial"),
+		err:    errors.New("pipe broke"),
+	})
+
+	got := out.String()
+	if !strings.Contains(got, "relay stopped") {
+		t.Fatalf("the relay did not report that it stopped:\n%s", got)
+	}
+	if !strings.Contains(got, "pipe broke") {
+		t.Fatalf("the relay did not name the read failure:\n%s", got)
+	}
+	if !strings.Contains(got, "test-plugin") {
+		t.Fatalf("the relay did not name the plugin:\n%s", got)
+	}
+}
+
+// TestRelayStderrReportsAnOverLongLine covers the failure mode with no
+// underlying I/O error: one plugin log line above bufio.MaxScanTokenSize.
+func TestRelayStderrReportsAnOverLongLine(t *testing.T) {
+	var out strings.Builder
+	captureRelay(t, &out)
+
+	p := &Process{config: plugin.PluginConfig{Name: "test-plugin"}}
+	p.relayStderrFrom(strings.NewReader(strings.Repeat("x", bufio.MaxScanTokenSize+1)))
+
+	if !strings.Contains(out.String(), "relay stopped") {
+		t.Fatalf("an over-long line ended the relay with nothing logged:\n%s", out.String())
+	}
+}
+
+// TestRelayStderrIsQuietOnAWholeStream pins the other side: a stream that ends
+// at EOF reports no stoppage.
+func TestRelayStderrIsQuietOnAWholeStream(t *testing.T) {
+	var out strings.Builder
+	captureRelay(t, &out)
+
+	p := &Process{config: plugin.PluginConfig{Name: "test-plugin"}}
+	p.relayStderrFrom(strings.NewReader("time=2026-01-01 level=ERROR msg=\"a whole line\"\n"))
+
+	got := out.String()
+	if strings.Contains(got, "relay stopped") {
+		t.Fatalf("a clean EOF was reported as a stopped relay:\n%s", got)
+	}
+	if !strings.Contains(got, "a whole line") {
+		t.Fatalf("the relayed line is missing:\n%s", got)
 	}
 }

@@ -4,6 +4,7 @@ package crashlog
 
 import (
 	"bufio"
+	"io"
 	"log/syslog"
 	"os"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var panicPattern = regexp.MustCompile(`^goroutine \d+ \[running\]:`)
@@ -81,7 +83,26 @@ func Flush() {
 func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
 	defer close(readerDone)
 
-	scanner := bufio.NewScanner(pr)
+	panicBuf, inPanic, err := relayStderr(pr, syslogW)
+	if err != nil && origStderr != nil {
+		var tb textbuf.Buffer
+		writeMsg(origStderr, tb.Str("crashlog: stderr relay stopped: ").Err(err).Byte('\n').String())
+	}
+	if inPanic && crashDirPath != "" {
+		writeCrashFile(crashDirPath, crashKeep, string(panicBuf))
+	}
+}
+
+// relayStderr copies every line of r to the original stderr and to syslog, and
+// collects a panic trace once it sees the start of one. It returns the trace,
+// whether a panic was seen, and the scan error.
+//
+// Scan returns false on EOF, on a read error, and on a line above the buffer
+// set below, alike. A crash file that ends because the relay broke holds a
+// TRUNCATED trace, and a reader takes the last frame in it for the last frame
+// there was, so the truncation is written into the trace itself.
+func relayStderr(r io.Reader, syslogW *syslog.Writer) ([]byte, bool, error) {
+	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
 	var panicBuf []byte
 	inPanic := false
@@ -114,9 +135,15 @@ func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
 		}
 	}
 
-	if inPanic && crashDirPath != "" {
-		writeCrashFile(crashDirPath, crashKeep, string(panicBuf))
+	err := scanner.Err()
+	if err != nil && inPanic {
+		// The trace stops here because the read stopped, not because the panic
+		// finished printing. Say so inside the trace: the crash file is the
+		// only thing its reader will have.
+		var tb textbuf.Buffer
+		panicBuf = append(panicBuf, tb.Str("\n=== TRUNCATED: stderr relay stopped: ").Err(err).Str(" ===\n").String()...)
 	}
+	return panicBuf, inPanic, err
 }
 
 func appendRingHeader(b []byte, entries []slogutil.LogEntry) []byte {

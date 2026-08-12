@@ -1016,3 +1016,53 @@ func TestDetectFormatEmptyFile(t *testing.T) {
 		})
 	}
 }
+
+// TestDetectFormatLongLine verifies a config line above 64 KiB does not hide
+// the metadata that follows it.
+//
+// VALIDATES: DetectFormat reads every line, whatever its length.
+// PREVENTS: a set-with-metadata file read as plain set format, which drops the
+// metadata lines as comments and loses the data DetectFormat's own contract
+// says it must keep. DetectFormat used to scan through bufio.Scanner, whose
+// Scan stops on a line above bufio.MaxScanTokenSize and reports that stop as
+// the end of the file.
+func TestDetectFormatLongLine(t *testing.T) {
+	long := strings.Repeat("x", 70*1024)
+
+	tests := []struct {
+		name  string
+		input string
+		want  ConfigFormat
+	}{
+		{
+			name:  "metadata after a long set line",
+			input: "set banner " + long + "\n#alice @2026-03-12T14:30:00 set router-id 1.2.3.4\n",
+			want:  FormatSetMeta,
+		},
+		{
+			name:  "hierarchical after a long comment",
+			input: "# " + long + "\nrouter-id 1.2.3.4\n",
+			want:  FormatHierarchical,
+		},
+		{
+			name:  "a long set line alone is still set format",
+			input: "set banner " + long + "\n",
+			want:  FormatSet,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, DetectFormat(tt.input), "DetectFormat with a %d byte line", len(long))
+		})
+	}
+}
+
+// TestDetectFormatCarriageReturn pins the line ending behavior across the move
+// off bufio.Scanner: ScanLines stripped a trailing \r, and TrimSpace must keep
+// doing so.
+func TestDetectFormatCarriageReturn(t *testing.T) {
+	assert.Equal(t, FormatSetMeta, DetectFormat("set router-id 1.2.3.4\r\n#alice @2026-03-12T14:30:00 set passive\r\n"))
+	assert.Equal(t, FormatSet, DetectFormat("set router-id 1.2.3.4\r\n"))
+	assert.Equal(t, FormatHierarchical, DetectFormat("router-id 1.2.3.4\r\n"))
+}

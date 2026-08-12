@@ -11,6 +11,21 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// diffReadFailed reports whether either log failed to read, and the exit code
+// to return when it did. A truncated read is an error (2), never a verdict
+// about how the two logs compare.
+func diffReadFailed(s1, s2 *bufio.Scanner, w io.Writer) (int, bool) {
+	if err := s1.Err(); err != nil {
+		writeErr(w, "error: reading log1: %v\n", err)
+		return 2, true
+	}
+	if err := s2.Err(); err != nil {
+		writeErr(w, "error: reading log2: %v\n", err)
+		return 2, true
+	}
+	return 0, false
+}
+
 // diffEvent holds the fields compared during diff.
 type diffEvent struct {
 	Seq       uint64 `json:"seq"`
@@ -29,7 +44,12 @@ func Diff(r1, r2 io.Reader, w io.Writer) int {
 	s2 := bufio.NewScanner(r2)
 
 	// Skip header lines.
-	if !s1.Scan() || !s2.Scan() {
+	headers := s1.Scan()
+	headers = s2.Scan() && headers
+	if code, failed := diffReadFailed(s1, s2, w); failed {
+		return code
+	}
+	if !headers {
 		writeErr(w, "error: one or both logs are empty\n")
 		return 2
 	}
@@ -42,6 +62,15 @@ func Diff(r1, r2 io.Reader, w io.Writer) int {
 	for {
 		has1 := s1.Scan()
 		has2 := s2.Scan()
+
+		// A log that stops early is not a log that ended. Scan returns false on
+		// EOF, on a read error, and on a line above bufio.MaxScanTokenSize
+		// alike, so both verdicts below would be wrong: two logs truncated at
+		// the same point read as identical, and one truncated log reads as a
+		// length divergence in the other.
+		if code, failed := diffReadFailed(s1, s2, w); failed {
+			return code
+		}
 
 		if !has1 && !has2 {
 			// Both exhausted — identical.

@@ -122,6 +122,9 @@ func captureAndReturnNames(handler http.Handler) *plugin.Response {
 // extractMetricNames parses Prometheus text format and returns sorted unique metric names.
 // Skips HELP and TYPE comment lines, extracts the metric name from each sample line.
 func extractMetricNames(text string) []string {
+	// The reader is a strings.Reader over this process's own Prometheus text,
+	// so Read returns only io.EOF and every sample line is short. There is no
+	// scan error to read back.
 	seen := make(map[string]bool)
 	scanner := bufio.NewScanner(strings.NewReader(text))
 

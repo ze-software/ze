@@ -110,7 +110,13 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 		slog.Debug("plugin stdin close failed", "plugin", pluginName, "err", err)
 	}
 
-	// Read response
+	// Read response.
+	//
+	// A scan that stops early leaves result nil, and every caller of these
+	// three decode helpers renders nil as {"parsed": false, "raw": hex} or as
+	// name "unknown" (decode_mp.go, decode_open.go). A truncated plugin
+	// response is never presented as a decode, so there is no wrong answer to
+	// report. A truncated JSON body fails json.Unmarshal for the same reason.
 	scanner := bufio.NewScanner(stdout)
 	var result map[string]any
 	if scanner.Scan() {

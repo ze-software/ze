@@ -64,6 +64,10 @@ func readBootTime(path string) (int64, bool) {
 		return 0, false
 	}
 	defer func() { _ = f.Close() }()
+	// A /proc read that stops early leaves the key unseen, and this function
+	// already answers "absent" for a key that is not there. The caller renders
+	// absent rather than a number, so no wrong value reaches it. The same holds
+	// for readMicrocodeRevision and readCPUFlags below.
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()

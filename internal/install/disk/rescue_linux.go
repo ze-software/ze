@@ -153,6 +153,9 @@ func gateWithRescueToken(r io.Reader, w io.Writer, rescueAuth string) bool {
 		defer echoOn(f)
 	}
 
+	// Scan returns false on EOF, on a read error, and on an over-long line
+	// alike, and each one leaves the caller with false: no token, no rescue
+	// console. A truncated token fails rescueauth.Check for the same reason.
 	scanner := bufio.NewScanner(r)
 	for attempt := range rescueMaxAttempts {
 		fmt.Fprint(w, "[ze-install] rescue token: ") //nolint:errcheck // console output to recovery terminal
@@ -198,6 +201,8 @@ func rescueMenu(r io.Reader, w io.Writer, _ installConfig) {
 	fmt.Fprintln(w, "  3) Reboot")                     //nolint:errcheck // console output to recovery terminal
 	fmt.Fprintln(w, "  4) Power off")                  //nolint:errcheck // console output to recovery terminal
 
+	// A read failure ends the menu, same as EOF. A truncated line matches no
+	// case in the switch, so no reboot or reinstall runs on half a command.
 	scanner := bufio.NewScanner(r)
 	for {
 		fmt.Fprint(w, "\nze> ") //nolint:errcheck // console output to recovery terminal

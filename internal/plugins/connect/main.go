@@ -83,10 +83,12 @@ func runAdd(args []string) int {
 
 	if user == "" {
 		fmt.Fprintf(os.Stderr, "username: ")
-		scanner := bufio.NewScanner(os.Stdin)
-		if scanner.Scan() {
-			user = strings.TrimSpace(scanner.Text())
+		name, err := readLine(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
 		}
+		user = name
 		if user == "" {
 			fmt.Fprintf(os.Stderr, "error: username is required\n")
 			return 1
@@ -347,12 +349,32 @@ func SetDefault(dbPath, host, port string) int {
 	return 0
 }
 
+// readLine reads one line from r.
+//
+// Scan returns false on EOF, on a read error, and on a line above
+// bufio.MaxScanTokenSize alike, and a read that fails part way through the line
+// still returns the buffered prefix as a successful token. So the error is read
+// back even when Scan succeeded: a half-read password stored under the
+// operator's host is a credential that fails to authenticate later, with
+// nothing in the output pointing at the read.
+func readLine(r io.Reader) (string, error) {
+	scanner := bufio.NewScanner(r)
+	ok := scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("reading stdin: %w", err)
+	}
+	if !ok {
+		return "", nil
+	}
+	return strings.TrimSpace(scanner.Text()), nil
+}
+
 // AddCredentialsFromReader reads password from r for testing.
 func AddCredentialsFromReader(r io.Reader, dbPath, host, port, user string) int {
-	scanner := bufio.NewScanner(r)
-	password := ""
-	if scanner.Scan() {
-		password = strings.TrimSpace(scanner.Text())
+	password, err := readLine(r)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
 	}
 	if password == "" {
 		fmt.Fprintf(os.Stderr, "error: password is required\n")
@@ -371,11 +393,12 @@ func readPassword() string {
 		}
 		return strings.TrimSpace(string(pw))
 	}
-	scanner := bufio.NewScanner(os.Stdin)
-	if scanner.Scan() {
-		return strings.TrimSpace(scanner.Text())
+	pw, err := readLine(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return ""
 	}
-	return ""
+	return pw
 }
 
 func usage() {

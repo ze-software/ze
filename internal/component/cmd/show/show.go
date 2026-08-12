@@ -214,6 +214,9 @@ func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plu
 }
 
 func filterMetricLines(text, name string, labelFilters map[string]string) []map[string]any {
+	// The reader is a strings.Reader over this process's own Prometheus text,
+	// so Read returns only io.EOF and every sample line is short. There is no
+	// scan error to read back.
 	var results []map[string]any
 	scanner := bufio.NewScanner(strings.NewReader(text))
 	for scanner.Scan() {

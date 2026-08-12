@@ -139,9 +139,9 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	}
 
 	if hexValue != "" {
-		hex, ok := resolveHexInput(hexValue)
-		if !ok {
-			writeError(os.Stderr, "error: no input on stdin")
+		hex, err := resolveHexInput(os.Stdin, hexValue)
+		if err != nil {
+			writeError(os.Stderr, "error: %v", err)
 			return 1
 		}
 		if cfg.RunCLIWithCtx != nil {
@@ -164,21 +164,37 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	return cfg.RunEngine(conn)
 }
 
-// readHexFromStdin reads a single line of hex from stdin.
-func readHexFromStdin() (string, bool) {
-	scanner := bufio.NewScanner(os.Stdin)
-	if scanner.Scan() {
-		return strings.TrimSpace(scanner.Text()), true
+// errNoHexInput reports an empty stdin, as distinct from a failed read.
+var errNoHexInput = errors.New("no input on stdin")
+
+// readHexFrom reads a single line of hex from r.
+//
+// Scan returns false on EOF, on a read error, and on a line longer than
+// bufio.MaxScanTokenSize alike, so the error is read back. A hex NLRI above
+// 64 KiB is a failed read, not an empty stdin, and reporting it as empty sends
+// the operator to look at the wrong end of the pipe.
+//
+// Err is read back even when Scan SUCCEEDED. A read that fails part way through
+// the line still returns the buffered prefix as a final token, so a truncated
+// hex blob otherwise decodes as a whole one.
+func readHexFrom(r io.Reader) (string, error) {
+	scanner := bufio.NewScanner(r)
+	ok := scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("reading hex from stdin: %w", err)
 	}
-	return "", false
+	if !ok {
+		return "", errNoHexInput
+	}
+	return strings.TrimSpace(scanner.Text()), nil
 }
 
-// resolveHexInput returns the hex string, reading from stdin if hexValue is "-".
-func resolveHexInput(hexValue string) (string, bool) {
+// resolveHexInput returns the hex string, reading from r if hexValue is "-".
+func resolveHexInput(r io.Reader, hexValue string) (string, error) {
 	if hexValue == "-" {
-		return readHexFromStdin()
+		return readHexFrom(r)
 	}
-	return hexValue, true
+	return hexValue, nil
 }
 
 // writeError writes an error message to the given writer.

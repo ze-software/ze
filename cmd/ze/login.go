@@ -80,6 +80,9 @@ func loginMain() int {
 
 	scanner := bufio.NewScanner(os.Stdin)
 
+	// Scan returns false on EOF, on a read error, and on a line above
+	// bufio.MaxScanTokenSize alike. Every one of them denies the login, so the
+	// error needs no separate branch: this reads the console shut, not open.
 	for attempt := range maxLoginRetries {
 		fmt.Fprint(os.Stdout, "login: ") //nolint:errcheck // serial console output
 		if !scanner.Scan() {

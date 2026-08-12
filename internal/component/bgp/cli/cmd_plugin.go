@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin debug shell
 // Related: main.go — bgp subcommand dispatch
-// Related: ../internal/ssh/client/client.go — SSH credentials and protocol sessions
+// Related: ../../../core/ssh/client/client.go — SSH credentials and protocol sessions
 
 package cli
 
@@ -112,13 +112,27 @@ func cmdPluginCLI(args []string) int {
 	// Q&A phase: ask about handshake parameters on local terminal.
 	pluginName := *name
 	if pluginName == "" {
-		pluginName = promptWithDefault(scanner, "Plugin name", "cli-debug")
+		answer, perr := promptWithDefault(scanner, "Plugin name", "cli-debug")
+		if perr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", perr)
+			return 1
+		}
+		pluginName = answer
 	}
-	useDefaults := promptYesNo(scanner, "Use default registration?", true)
+	useDefaults, err := promptYesNo(scanner, "Use default registration?", true)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
 	var families string
 	if !useDefaults {
-		families = promptWithDefault(scanner, "Families (comma-separated, e.g., ipv4/unicast)", "")
+		answer, perr := promptWithDefault(scanner, "Families (comma-separated, e.g., ipv4/unicast)", "")
+		if perr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", perr)
+			return 1
+		}
+		families = answer
 	}
 
 	fmt.Fprintf(os.Stderr, "\nConnecting to daemon as %q...\n", pluginName)
@@ -216,42 +230,73 @@ func runInteractive(ctx context.Context, p *sdk.Plugin, scanner *bufio.Scanner) 
 		}
 		fmt.Fprint(os.Stderr, "> ")
 	}
+
+	// The loop also ends on a broken pipe and on a command line above
+	// bufio.MaxScanTokenSize. Neither is the operator typing bye.
+	if err := scanErr(scanner); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	}
 }
 
 // promptWithDefault asks a question with a default value.
-// Returns the default on empty input. Uses the shared scanner to avoid
-// losing buffered input when piped.
-func promptWithDefault(scanner *bufio.Scanner, prompt, defaultVal string) string {
+// Returns the default on empty input and on EOF. Uses the shared scanner to
+// avoid losing buffered input when piped.
+//
+// A read failure is an error, never the default: substituting the default for
+// an answer the operator did give registers the plugin under settings nobody
+// chose. See scanErr for why Err is read back after a successful Scan.
+func promptWithDefault(scanner *bufio.Scanner, prompt, defaultVal string) (string, error) {
 	if defaultVal != "" {
 		fmt.Fprintf(os.Stderr, "%s (default: %s): ", prompt, defaultVal)
 	} else {
 		fmt.Fprintf(os.Stderr, "%s: ", prompt)
 	}
 
-	if scanner.Scan() {
+	ok := scanner.Scan()
+	if err := scanErr(scanner); err != nil {
+		return "", err
+	}
+	if ok {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			return line
+			return line, nil
 		}
 	}
-	return defaultVal
+	return defaultVal, nil
+}
+
+// scanErr returns the scanner's error, wrapped for an operator.
+//
+// It is read back even when Scan SUCCEEDED. Scan returns false on EOF, on a
+// read error, and on a line above bufio.MaxScanTokenSize alike, and a read that
+// fails part way through a line still returns the buffered prefix as a final
+// token. So a truncated answer otherwise reads as a whole one.
+func scanErr(scanner *bufio.Scanner) error {
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("reading from stdin: %w", err)
+	}
+	return nil
 }
 
 // promptYesNo asks a yes/no question with a default.
 // Uses the shared scanner to avoid losing buffered input when piped.
-func promptYesNo(scanner *bufio.Scanner, prompt string, defaultYes bool) bool {
+func promptYesNo(scanner *bufio.Scanner, prompt string, defaultYes bool) (bool, error) {
 	if defaultYes {
 		fmt.Fprintf(os.Stderr, "%s (Y/n): ", prompt)
 	} else {
 		fmt.Fprintf(os.Stderr, "%s (y/N): ", prompt)
 	}
 
-	if scanner.Scan() {
+	ok := scanner.Scan()
+	if err := scanErr(scanner); err != nil {
+		return false, err
+	}
+	if ok {
 		line := strings.ToLower(strings.TrimSpace(scanner.Text()))
 		if line == "" {
-			return defaultYes
+			return defaultYes, nil
 		}
-		return line == "y" || line == "yes"
+		return line == "y" || line == "yes", nil
 	}
-	return defaultYes
+	return defaultYes, nil
 }

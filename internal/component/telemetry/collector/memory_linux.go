@@ -169,6 +169,9 @@ func readZswapFromMeminfo() (zswapKB, zswappedKB uint64) {
 	}
 	defer func() { _ = f.Close() }()
 
+	// A /proc/meminfo read that stops early leaves both keys unseen, which is
+	// the zero this function already returns when the kernel has no zswap. The
+	// caller omits the gauges rather than publishing a low number.
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
