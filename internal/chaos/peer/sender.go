@@ -206,12 +206,3 @@ func BuildEOR(name string) []byte {
 	eor := message.BuildEOR(fam)
 	return serializeMessage(eor)
 }
-
-// buildEORIPv4Unicast constructs a serialized End-of-RIB marker for ipv4/unicast.
-// RFC 4724: IPv4 unicast EOR is an empty UPDATE (no attributes, no NLRI).
-//
-// Deprecated: Use BuildEOR("ipv4/unicast") instead.
-func buildEORIPv4Unicast() []byte {
-	eor := message.BuildEOR(family.IPv4Unicast)
-	return serializeMessage(eor)
-}

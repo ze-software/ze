@@ -219,16 +219,10 @@ func writeAVPEmpty(buf []byte, off int, mandatory bool, vendorID uint16, attrTyp
 	return WriteAVPHeader(buf, off, flags, vendorID, attrType, AVPHeaderLen)
 }
 
-// writeAVPUint8 writes an AVP with a 1-byte value. Returns AVPHeaderLen + 1.
-func writeAVPUint8(buf []byte, off int, mandatory bool, attrType AVPType, value uint8) int {
-	buf[off+AVPHeaderLen] = value
-	flags := AVPFlags(0)
-	if mandatory {
-		flags |= FlagMandatory
-	}
-	WriteAVPHeader(buf, off, flags, 0, attrType, AVPHeaderLen+1)
-	return AVPHeaderLen + 1
-}
+// No writeAVPUint8 exists: RFC 2661 defines no AVP whose Attribute Value is a
+// single octet. The 1-octet fields the protocol does have (Q.931 Cause Msg,
+// Proxy Authen ID) are members of a larger compound value and are written by
+// their own encoders in avp_compound.go.
 
 // WriteAVPUint16 writes an AVP with a uint16 value. Returns AVPHeaderLen + 2.
 func WriteAVPUint16(buf []byte, off int, mandatory bool, attrType AVPType, value uint16) int {
@@ -283,14 +277,6 @@ func WriteAVPString(buf []byte, off int, mandatory bool, attrType AVPType, s str
 	total := AVPHeaderLen + n
 	WriteAVPHeader(buf, off, flags, 0, attrType, total)
 	return total
-}
-
-// readAVPUint8 extracts the 1-byte value. Returns ErrInvalidAVPLen on wrong size.
-func readAVPUint8(value []byte) (uint8, error) {
-	if len(value) != 1 {
-		return 0, ErrInvalidAVPLen
-	}
-	return value[0], nil
 }
 
 // readAVPUint16 extracts the uint16 value. Returns ErrInvalidAVPLen on wrong size.

@@ -187,10 +187,6 @@ func (c *Circuit) Name() string { return c.name }
 // IfIndex returns the kernel interface index (the RX dispatch key).
 func (c *Circuit) IfIndex() int { return c.ifIndex }
 
-// advertisedHoldTime returns the precomputed advertised holding time
-// (hello-interval * hold-multiplier, clamped). Exposed for tests and metrics.
-func (c *Circuit) advertisedHoldTime() uint16 { return c.holdTime }
-
 // Table returns the per-circuit neighbor table (for the snapshot API).
 func (c *Circuit) Table() *adjacency.Table { return c.table }
 
