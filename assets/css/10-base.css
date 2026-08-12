@@ -1443,8 +1443,10 @@ section {
 
 :is(
     section[aria-labelledby="run-title"],
+    #why-ze,
     #features-summary,
     #try,
+    #try-safely,
     section[aria-labelledby="audience-title"],
     section[aria-label="Closing statement"]
 ) {
