@@ -1,0 +1,221 @@
+# Test: an SCCRQ carrying Assigned Tunnel ID 0 is answered with StopCCN.
+#
+# VALIDATES: the daemon answers a protocol error RFC 2661 names, on the SCCRQ
+#            half of the exchange, and keeps accepting a well-formed SCCRQ on
+#            the same path. Every byte is read off a real UDP datagram by a
+#            Python decoder that shares no code with ze.
+# PREVENTS:  the silent drop this test was written for. Until 2026-08-10
+#            parseSCCRQ rejected a zero Assigned Tunnel ID and the reactor
+#            logged at Debug and returned, so the peer waited for a reply that
+#            never came while the published claim said ze sent StopCCN.
+#
+# Why unit evidence cannot reach this obligation: the unit tests in
+# internal/component/l2tp/reactor_sccrq_zero_tid_test.go read the reply with
+# ze's own parseStopCCN, so an encoder and a decoder that share a misreading
+# agree with each other. Here the Result Code, the Error Code and the message
+# type are unpacked with struct.unpack against values written out of the RFC.
+#
+# Both polarities run against one daemon, so neither can pass because the
+# listener was down.
+#
+# RFC requirement: RFC2661-24.10-1 negative -- an SCCRQ whose Assigned Tunnel ID
+# AVP carries 0 is answered with StopCCN, Result Code 2 and Error Code 3, read
+# off the wire by a decoder that is not ze.
+# RFC requirement: RFC2661-24.10-1 positive -- an SCCRQ carrying a non-zero
+# Assigned Tunnel ID gets SCCRP on the same path and the tunnel comes up.
+
+tmpfs=zero-tid.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Send an SCCRQ with Assigned Tunnel ID 0 at ze and decode what comes back.
+
+Nothing here imports ze. Every constant is transcribed from RFC 2661:
+Section 4.4.2 for the Result Code and Error Code values, Section 4.4.3 for the
+Assigned Tunnel ID rule and the Tunnel ID 0 header rule.
+
+rfc-test-change-approved: Thomas, 2026-08-10. Docstring only, no assertion or
+directive touched. The line used to cite Section 5.1 for the Tunnel ID 0 header
+rule. That rule is in Section 4.4.3; Section 5.1 is Control Connection
+Establishment and states no such rule. The correction REMOVES a citation rather
+than adding one, because Section 4.4.3 already carries both rules the sentence
+names. This is the third of three misattributions found in this spec.
+"""
+import socket
+import struct
+import sys
+
+if len(sys.argv) < 2:
+	print("usage: zero-tid.py <port>", file=sys.stderr)
+	sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+
+MSG_SCCRQ, MSG_SCCRP, MSG_STOPCCN = 1, 2, 4
+AVP_MESSAGE_TYPE, AVP_RESULT_CODE = 0, 1
+AVP_ASSIGNED_TUNNEL_ID = 9
+
+# RFC 2661 Section 4.4.2 StopCCN Result Code 2: "General error--Error Code
+# indicates the problem". General Error Code 3: "One of the field values was
+# out of range or reserved field was non-zero".
+WANT_RESULT_CODE = 2
+WANT_ERROR_CODE = 3
+
+AVP_M = 0x8000
+AVP_LENGTH_MASK = 0x03FF
+
+failures = []
+
+
+def check(ok, msg):
+	if ok:
+		print("PASS:", msg)
+	else:
+		failures.append(msg)
+		print("FAIL:", msg, file=sys.stderr)
+
+
+def avp(mandatory, attr_type, value):
+	flags = AVP_M if mandatory else 0
+	return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def control(dest_tid, ns, nr, body):
+	return struct.pack("!HHHHHH", 0xC802, 12 + len(body), dest_tid, 0, ns, nr) + body
+
+
+def build_sccrq(assigned_tid, host):
+	body = avp(True, AVP_MESSAGE_TYPE, struct.pack("!H", MSG_SCCRQ))
+	body += avp(True, 2, b"\x01\x00")
+	body += avp(True, 3, struct.pack("!I", 0x3))
+	body += avp(True, 4, struct.pack("!I", 0x0))
+	body += avp(True, 7, host)
+	body += avp(True, AVP_ASSIGNED_TUNNEL_ID, struct.pack("!H", assigned_tid))
+	body += avp(True, 10, struct.pack("!H", 8))
+	return control(0, 0, 0, body)
+
+
+def split_avps(body):
+	"""Ordered (type, value). An external decoder, not ze's AVP iterator."""
+	out, off = [], 0
+	while off + 6 <= len(body):
+		word, _vendor, atype = struct.unpack("!HHH", body[off:off + 6])
+		length = word & AVP_LENGTH_MASK
+		if length < 6 or off + length > len(body):
+			break
+		out.append((atype, body[off + 6:off + length]))
+		off += length
+	return out
+
+
+def exchange(sock, datagram, tries):
+	"""Send until a reply lands, or report that nothing came back."""
+	for _ in range(tries):
+		try:
+			sock.sendto(datagram, TARGET)
+			return sock.recvfrom(1500)[0]
+		except (socket.timeout, ConnectionRefusedError, OSError):
+			continue
+	return None
+
+
+def main():
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.bind(("127.0.0.1", 0))
+	sock.settimeout(0.25)
+
+	# Negative polarity: Assigned Tunnel ID 0 is a protocol error.
+	reply = exchange(sock, build_sccrq(0, b"py-zero-tid"), 40)
+	if reply is None:
+		print("ERROR: no reply to the zero Assigned Tunnel ID SCCRQ; ze dropped it "
+		      "in silence", file=sys.stderr)
+		return 1
+
+	word0, length, tid, sid, ns, nr = struct.unpack("!HHHHHH", reply[:12])
+	check(length == len(reply), f"StopCCN Length field matches the datagram ({length})")
+	# RFC 2661 Section 4.4.3: "Before the Assigned Tunnel ID AVP is received
+	# from a peer, messages MUST be sent to that peer with a Tunnel ID value of
+	# 0 in the header of all control messages."
+	check(tid == 0, f"StopCCN header Tunnel ID is 0 (got {tid})")
+	check(sid == 0, f"StopCCN header Session ID is 0 (got {sid})")
+	check(ns == 0, f"StopCCN Ns is 0, the first message on this connection (got {ns})")
+	check(nr == 1, f"StopCCN Nr acknowledges the SCCRQ's Ns=0 (got {nr})")
+
+	avps = split_avps(reply[12:length])
+	check(bool(avps), "StopCCN body parses into at least one AVP")
+	if not avps:
+		return 1
+	check(avps[0][0] == AVP_MESSAGE_TYPE, f"Message Type AVP is first (got {avps[0][0]})")
+	mtype = struct.unpack("!H", avps[0][1][:2])[0]
+	check(mtype == MSG_STOPCCN, f"the reply is StopCCN, message type 4 (got {mtype})")
+
+	by_type = {t: v for (t, v) in avps}
+	tid_avp = by_type.get(AVP_ASSIGNED_TUNNEL_ID)
+	check(tid_avp is not None, "StopCCN carries an Assigned Tunnel ID AVP")
+	if tid_avp is not None:
+		# RFC 2661 Section 4.4.3: "The Assigned Tunnel ID is a 2 octet non-zero
+		# unsigned integer." Ze must not answer a zero with a zero.
+		ours = struct.unpack("!H", tid_avp)[0]
+		check(ours != 0, f"the StopCCN Assigned Tunnel ID is non-zero (got {ours})")
+
+	rc_avp = by_type.get(AVP_RESULT_CODE)
+	check(rc_avp is not None, "StopCCN carries a Result Code AVP")
+	if rc_avp is None:
+		return 1
+	check(len(rc_avp) >= 4,
+	      f"Result Code 2 carries the Error Code that names the problem (len={len(rc_avp)})")
+	if len(rc_avp) >= 4:
+		result, error = struct.unpack("!HH", rc_avp[:4])
+		check(result == WANT_RESULT_CODE, f"Result Code is 2 (got {result})")
+		check(error == WANT_ERROR_CODE, f"Error Code is 3, value out of range (got {error})")
+
+	# Positive polarity: the same path accepts a non-zero Assigned Tunnel ID.
+	good = exchange(sock, build_sccrq(0x0303, b"py-good-tid"), 40)
+	if good is None:
+		print("ERROR: no reply to the well-formed SCCRQ", file=sys.stderr)
+		return 1
+	_w, glen, gtid, _gsid, _gns, _gnr = struct.unpack("!HHHHHH", good[:12])
+	check(gtid == 0x0303, f"SCCRP is addressed with the peer's Assigned Tunnel ID (got {gtid})")
+	gavps = split_avps(good[12:glen])
+	check(bool(gavps), "SCCRP body parses into at least one AVP")
+	if gavps:
+		gmtype = struct.unpack("!H", gavps[0][1][:2])[0]
+		check(gmtype == MSG_SCCRP,
+		      f"a non-zero Assigned Tunnel ID gets SCCRP, not StopCCN (got {gmtype})")
+
+	if failures:
+		print(f"ERROR: {len(failures)} check(s) failed", file=sys.stderr)
+		return 1
+	print("OK: all RFC 2661 zero Assigned Tunnel ID checks passed")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 zero-tid.py $PORT:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=OK: all RFC 2661 zero Assigned Tunnel ID checks passed
+# The daemon's own record that it chose to answer rather than drop. A positive
+# signal, so the reply cannot have come from some other path.
+expect=stderr:contains=zero Assigned Tunnel ID SCCRQ answered with StopCCN
+# And the positive polarity reached the tunnel machinery rather than stopping
+# at the parser.
+expect=stderr:contains=new tunnel created from SCCRQ

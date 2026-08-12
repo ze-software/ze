@@ -270,7 +270,7 @@ type ocrpInfo struct {
 }
 
 // parseICRP extracts the Assigned Session ID from an ICRP body (RFC 2661
-// Section 7.7). Message Type MUST be first (S4.1); Assigned Session ID is
+// Section 7.7). Message Type MUST be first (S4.4.1); Assigned Session ID is
 // required and non-zero because it becomes the header Session ID of the
 // ICCN we send next.
 func parseICRP(payload []byte) (icrpInfo, error) {
@@ -328,7 +328,7 @@ func parseAssignedSessionIDReply(payload []byte, expectedMsg MessageType, msgNam
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return 0, fmt.Errorf("l2tp: first %s AVP must be Message Type (RFC 2661 S4.1)", msgName)
+				return 0, fmt.Errorf("l2tp: first %s AVP must be Message Type (RFC 2661 S4.4.1)", msgName)
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {

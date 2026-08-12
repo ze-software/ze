@@ -2,7 +2,7 @@ package l2tp
 
 import (
 	"bytes"
-	"crypto/md5" //nolint:gosec // test mirrors RFC 2661 Section 4.2 MD5 computation.
+	"crypto/md5" //nolint:gosec // test mirrors the RFC 2661 Section 4.4.3 CHAP-MD5 computation.
 	"testing"
 )
 
@@ -26,7 +26,7 @@ func TestChallengeResponseKnown(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			input := append([]byte{tc.chapID}, secret...)
 			input = append(input, challenge...)
-			want := md5.Sum(input) //nolint:gosec // RFC 2661 Section 4.2 fixed algorithm.
+			want := md5.Sum(input) //nolint:gosec // RFC 2661 Section 4.4.3 fixed algorithm.
 			got := ChallengeResponse(tc.chapID, secret, challenge)
 			if !bytes.Equal(got[:], want[:]) {
 				t.Fatalf("response mismatch\n got  %x\n want %x", got, want)
@@ -40,7 +40,7 @@ func TestChallengeResponseKnown(t *testing.T) {
 
 // TestChallengeResponseCrossDirection validates that the same (secret,challenge)
 // yields a different response for different chapID — the replay-protection
-// guarantee RFC 2661 Section 4.2 relies on.
+// guarantee RFC 2661 Section 4.4.3 relies on.
 func TestChallengeResponseCrossDirection(t *testing.T) {
 	secret := []byte("s")
 	challenge := []byte{0x42}
@@ -72,7 +72,7 @@ func TestChallengeResponseLongInput(t *testing.T) {
 	got := ChallengeResponse(2, secret, challenge)
 	input := append([]byte{2}, secret...)
 	input = append(input, challenge...)
-	want := md5.Sum(input) //nolint:gosec // RFC 2661 Section 4.2 fixed algorithm.
+	want := md5.Sum(input) //nolint:gosec // RFC 2661 Section 4.4.3 fixed algorithm.
 	if got != want {
 		t.Fatalf("long-input mismatch")
 	}

@@ -262,7 +262,8 @@ func TestOnReceiveAckAdvance(t *testing.T) {
 }
 
 // VALIDATES: AC-9 data messages (T=0) are classified ClassDataMessage
-// and do NOT update engine state. RFC 2661 trap 24.4.
+// and do NOT update engine state. RFC 2661 S3.1: Ns and Nr are optional on
+// data messages and required only on control messages.
 func TestOnReceiveDataMessage(t *testing.T) {
 	e := newTestEngine()
 	now := time.Unix(0, 0)
@@ -341,8 +342,10 @@ func TestOnReceiveAckedCountSurfaced(t *testing.T) {
 // RFC requirement: RFC2661-5.8-4 negative -- on retransmit the Ns field stays the
 // same as the original transmission; retransmission MUST NOT consume a new Ns.
 // VALIDATES: AC-11 Tick retransmits outstanding messages with Nr
-// rewritten. PREVENTS: the stale-Nr trap (RFC 2661 S5.8 line 2589-2590
-// and S24.9).
+// rewritten. PREVENTS: the stale-Nr trap. RFC 2661 S5.8 line 2589-2590:
+// "The retransmitted message contains the same Ns value, but the Nr value
+// MUST be updated with the sequence number of the next expected message".
+// The trap numbering is the implementation guide's, not the RFC's.
 func TestTickRetransmit(t *testing.T) {
 	e := newTestEngine()
 	t0 := time.Unix(0, 0)

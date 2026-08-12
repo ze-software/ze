@@ -176,7 +176,7 @@ func TestReactor_MalformedDropped(t *testing.T) {
 
 // TestReactor_EmptyControlBodyDropped — a valid Ver=2 header with no
 // AVP body is dropped as "unparseable" because the Message Type AVP is
-// required (RFC 2661 S4.1).
+// required (RFC 2661 S4.4.1).
 //
 // VALIDATES: the phase-2-era minimum-header packet no longer advances
 // the reactor past AVP parsing; it drops with a debug log instead of
@@ -395,7 +395,8 @@ func buildHello(t *testing.T, destTID, ns, nr uint16) []byte {
 // TestReactor_RememberPeerAddrPort — AC-16. When a peer reaches us from
 // a different UDP source port than the SCCRQ, the reactor updates the
 // tunnel's recorded peer addr:port so subsequent outbound messages go
-// to the new port. RFC 2661 S24.19.
+// to the new port. This is a tolerance, not an RFC 2661 requirement:
+// S8.1 says the ports "MUST remain static for the life of the tunnel".
 func TestReactor_RememberPeerAddrPort(t *testing.T) {
 	ln, r, logs, stop := buildLogReactor(t)
 	defer stop()
@@ -611,7 +612,7 @@ func TestReactor_ChallengeResponseEmitted(t *testing.T) {
 
 	sccrp := readDatagram(t, client)
 
-	// Expected Challenge Response per RFC 2661 S4.2:
+	// Expected Challenge Response per RFC 2661 S4.4.3:
 	// MD5(CHAP_ID=SCCRP || secret || peer_challenge).
 	want := ChallengeResponse(ChapIDSCCRP, []byte(secret), peerChallenge)
 
@@ -775,7 +776,7 @@ func TestTunnelFSM_AuthRequiredWhenSecretConfigured(t *testing.T) {
 //
 // VALIDATES: AC-10 -- when two SCCRQs arrive from the same peer with
 // Tie Breaker AVPs, the tunnel whose tie-breaker is HIGHER is discarded.
-// The one with the LOWER tie-breaker survives (RFC 2661 S9.5 lower wins).
+// The one with the LOWER tie-breaker survives (RFC 2661 S4.4.3 lower wins).
 // Here, the FIRST SCCRQ has the higher value and is torn down.
 func TestTunnelFSM_TieBreakerLocalLoses(t *testing.T) {
 	ln, r, _, stop := buildLogReactor(t)
@@ -839,7 +840,8 @@ func TestReactor_ZeroLengthChallengeRejected(t *testing.T) {
 
 	// Build an SCCRQ whose Challenge AVP carries a zero-byte value. The
 	// AVP header reports totalLen=6 (AVPHeaderLen only). Wire-legal;
-	// semantically illegal per RFC 2661 S5.12 ("at least one octet").
+	// semantically illegal per RFC 2661 S4.4.3 ("one or more octets of
+	// random data").
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
 	buf := *bodyBuf
@@ -864,7 +866,7 @@ func TestReactor_ZeroLengthChallengeRejected(t *testing.T) {
 }
 
 // TestReactor_ShortTieBreakerRejected -- regression that a Tie Breaker
-// AVP with the wrong length (RFC 2661 S4.4.2 fixes it at 8 bytes) is
+// AVP with the wrong length (RFC 2661 S4.4.3 fixes it at 8 bytes) is
 // rejected at parse time.
 //
 // VALIDATES: parseSCCRQ treats non-8-byte Tie Breaker as malformed so a
@@ -1145,7 +1147,7 @@ func driveToEstablished(t *testing.T, ln *UDPListener, secret string) (*testClie
 
 // buildStopCCN returns a StopCCN datagram for the given destination TID
 // with a Result Code AVP. The peerAssignedTID is the peer's own TID
-// (included in the body per RFC 2661 S4.4.2).
+// (a StopCCN MUST carry it per RFC 2661 S6.4).
 //
 //nolint:unparam // Ns/Nr/resultCode are explicit for protocol clarity; future tests will vary them.
 func buildStopCCN(t *testing.T, destTID, ns, nr, peerAssignedTID, resultCode uint16) []byte {

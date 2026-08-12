@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/l2tp.md — L2TP reliable delivery engine
-// RFC: rfc/short/rfc2661.md — RFC 2661 Section 5.8 (reliable delivery) + Appendix A (congestion)
+// RFC: rfc/short/rfc2661.md — RFC 2661 Section 3.1 (Ns/Nr optional on data messages), Section 4.4.1 (Message Type AVP first), Section 5.8 (reliable delivery) + Appendix A (congestion)
 // Related: reliable_seq.go — seqBefore, constants, retentionDuration
 // Related: reliable_window.go — CWND/SSTHRESH state and advancement
 // Related: reliable_reorder.go — out-of-order ring buffer
@@ -43,9 +43,13 @@ const (
 	ClassDuplicate
 
 	// ClassReorderQueued means the message is out of order within the
-	// advertised receive window; the engine buffered it for later
-	// in-order delivery. No ACK is emitted yet because Nr has not
-	// advanced (RFC 2661 S5.8 B.2 example).
+	// advertised receive window. RFC 2661 S5.8 line 2569-2571 permits
+	// the engine to buffer it: "Messages arriving out of order may be
+	// queued for in-order delivery when the missing messages are
+	// received, or they may be discarded requiring a retransmission by
+	// the peer." No ACK is emitted yet, because Nr carries "the
+	// sequence number of the message the peer expects to receive next"
+	// (S5.8 line 2560-2561) and a queued message does not advance it.
 	ClassReorderQueued
 
 	// ClassDiscarded means the message is out of order beyond the
@@ -60,8 +64,9 @@ const (
 
 	// ClassDataMessage means the header carries T=0 (data plane).
 	// Phase 3 should pass it to the kernel data path, not to the
-	// reliable engine. The engine refuses to update state (RFC 2661
-	// trap 24.4: Nr in data messages is reserved).
+	// reliable engine. The engine refuses to update state: RFC 2661
+	// S3.1 makes Ns and Nr optional on data messages and required only
+	// on control messages.
 	ClassDataMessage
 )
 
@@ -87,7 +92,7 @@ var (
 	// emit a Zero-Length Body ACK MUST use BuildZLB instead; it does
 	// not consume a sequence number. The minimum legal body is a
 	// Message Type AVP (8 octets: 6-byte header + 2-byte value), per
-	// RFC 2661 S4.1 which requires every control message to carry a
+	// RFC 2661 S4.4.1 which requires every control message to carry a
 	// Message Type AVP as its first attribute.
 	ErrBodyEmpty = errors.New("l2tp: body missing Message Type AVP (use BuildZLB for ZLB)")
 )
@@ -140,7 +145,7 @@ type ReliableConfig struct {
 // RecvEntry is one message delivered to the upper layer by OnReceive.
 // The payload is the AVP bytes after the 12-byte header; the engine has
 // already processed Ns/Nr. The MessageType is extracted from the first
-// AVP (Message Type AVP MUST be first per RFC 2661 S4.1) as a
+// AVP (Message Type AVP MUST be first per RFC 2661 S4.4.1) as a
 // convenience for phase 3.
 //
 // Payload ownership is asymmetric and callers MUST handle it correctly:
@@ -445,8 +450,11 @@ func (e *ReliableEngine) drainSendQueue(now time.Time) [][]byte {
 // returned ReceiveResult.NewSends is populated when this receive
 // advanced peerNr enough to open the send window.
 func (e *ReliableEngine) OnReceive(hdr MessageHeader, payload []byte, now time.Time) ReceiveResult {
-	// RFC 2661 trap 24.4: Nr in data messages is reserved. The engine
-	// cannot trust it. Phase 3 should not even route data messages
+	// RFC 2661 Section 3.1: "In data messages, Nr is reserved and, if
+	// present (as indicated by the S-bit), MUST be ignored upon
+	// receipt." The early return leaves nextRecvSeq, the rtms queue and
+	// the send window untouched, so the data message's Nr changes no
+	// reliable-delivery state. Phase 3 should not route data messages
 	// here, but defend in depth.
 	if !hdr.IsControl {
 		return ReceiveResult{Class: ClassDataMessage}
@@ -542,9 +550,10 @@ func (e *ReliableEngine) processNr(nr uint16) int {
 }
 
 // makeRecvEntry extracts the Message Type from the first AVP (RFC 2661
-// S4.1: "Message Type AVP MUST be first") and returns a RecvEntry. The
-// payload reference is NOT copied -- the caller (phase 3) must process
-// it before calling another engine method that might reuse the buffer.
+// S4.4.1: "The Message Type AVP MUST be the first AVP in a message")
+// and returns a RecvEntry. The payload reference is NOT copied -- the
+// caller (phase 3) must process it before calling another engine method
+// that might reuse the buffer.
 func (e *ReliableEngine) makeRecvEntry(ns, sessionID uint16, payload []byte) RecvEntry {
 	entry := RecvEntry{Ns: ns, SessionID: sessionID, Payload: payload}
 	// Message Type AVP: first AVP, value is a uint16 after the 6-byte

@@ -526,7 +526,7 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return icrqInfo{}, errors.New("l2tp: first ICRQ AVP must be Message Type (RFC 2661 S4.1)")
+				return icrqInfo{}, errors.New("l2tp: first ICRQ AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -632,7 +632,7 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return iccnInfo{}, errors.New("l2tp: first ICCN AVP must be Message Type (RFC 2661 S4.1)")
+				return iccnInfo{}, errors.New("l2tp: first ICCN AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -749,7 +749,7 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return ocrqInfo{}, errors.New("l2tp: first OCRQ AVP must be Message Type (RFC 2661 S4.1)")
+				return ocrqInfo{}, errors.New("l2tp: first OCRQ AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -851,7 +851,7 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return occnInfo{}, errors.New("l2tp: first OCCN AVP must be Message Type (RFC 2661 S4.1)")
+				return occnInfo{}, errors.New("l2tp: first OCCN AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -940,7 +940,7 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return cdnInfo{}, errors.New("l2tp: first CDN AVP must be Message Type (RFC 2661 S4.1)")
+				return cdnInfo{}, errors.New("l2tp: first CDN AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -1017,7 +1017,7 @@ func parseSingleAVPMessage(payload []byte, expectedMsg MessageType, targetAVP AV
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return nil, fmt.Errorf("l2tp: first %s AVP must be Message Type (RFC 2661 S4.1)", msgName)
+				return nil, fmt.Errorf("l2tp: first %s AVP must be Message Type (RFC 2661 S4.4.1)", msgName)
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {

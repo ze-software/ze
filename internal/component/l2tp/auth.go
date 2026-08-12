@@ -1,16 +1,18 @@
 // Design: docs/architecture/wire/l2tp.md — L2TP tunnel authentication (CHAP-MD5)
-// RFC: rfc/short/rfc2661.md — RFC 2661 Section 4.2 (Challenge/Response)
+// RFC: rfc/short/rfc2661.md — RFC 2661 Section 4.4.3 (Challenge/Response AVPs), Section 5.1.1 (tunnel authentication)
 // Related: avp.go — MsgSCCRP/MsgSCCCN constants drive ChapID{SCCRP,SCCCN}
 
 package l2tp
 
 import (
-	"crypto/md5" //nolint:gosec // RFC 2661 Section 4.2 prescribes MD5 for tunnel authentication; no wire-compatible alternative exists.
+	"crypto/md5" //nolint:gosec // RFC 2661 Section 4.4.3 prescribes a CHAP-style [RFC 1994] response, which is MD5; no wire-compatible alternative exists.
 	"crypto/subtle"
 )
 
 // ChapIDSCCRP is the Message Type byte prepended to the CHAP-MD5 input when
-// computing or verifying the response carried in SCCRP (RFC 2661 Section 4.2).
+// computing or verifying the response carried in SCCRP. RFC 2661 Section
+// 4.4.3: "For purposes of the ID value in the CHAP response calculation,
+// the value of the Message Type AVP for this message is used".
 const ChapIDSCCRP byte = byte(MsgSCCRP)
 
 // ChapIDSCCCN is the Message Type byte prepended to the CHAP-MD5 input when
@@ -30,8 +32,10 @@ const ChapIDSCCCN byte = byte(MsgSCCCN)
 // setup, not hot-path).
 //
 // Precondition: len(secret) > 0 and len(challenge) > 0. RFC 2661 Section
-// 5.12 requires a Challenge AVP of at least one byte, and a zero-length
-// secret reduces the response to MD5(chapID) which is trivially forgeable.
+// 4.4.3 states "The Challenge is one or more octets of random data". Section
+// 5.1.1 requires a shared secret between the LAC and the LNS to participate
+// in tunnel authentication. A zero-length secret reduces the response to
+// MD5(chapID), which is trivially forgeable.
 // The subsystem state machine enforces both conditions before calling this;
 // the wire helper panics on violation as a programmer-error guard.
 func ChallengeResponse(chapID byte, secret, challenge []byte) [16]byte {
@@ -49,7 +53,7 @@ func ChallengeResponse(chapID byte, secret, challenge []byte) [16]byte {
 	in[0] = chapID
 	copy(in[1:], secret)
 	copy(in[1+len(secret):], challenge)
-	return md5.Sum(in) //nolint:gosec // RFC 2661 Section 4.2 prescribes MD5 for tunnel authentication.
+	return md5.Sum(in) //nolint:gosec // RFC 2661 Section 4.4.3 prescribes a CHAP-style [RFC 1994] response, which is MD5.
 }
 
 // VerifyChallengeResponse returns true iff got equals the expected response

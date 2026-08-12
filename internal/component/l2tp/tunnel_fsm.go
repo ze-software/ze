@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- S9 tunnel FSM + S4 AVP handling
+// RFC: rfc/short/rfc2661.md -- RFC 2661 Sections 4.4.1, 4.4.2, 4.4.3, 5.1.1, 5.5, 5.7, 6.1, 6.4, 6.5
 // Related: tunnel.go -- L2TPTunnel value and state enum
 // Detail: session_fsm.go -- session-scoped message handlers dispatched from handleMessage
 
@@ -19,12 +20,15 @@ import (
 // control messages. Phase 3 hardcodes most of them; phase 7 will route
 // these through YANG.
 type TunnelDefaults struct {
-	HostName            string
-	FramingCapabilities uint32 // RFC 2661 S4.4.3: bit 0 = async, bit 1 = sync
+	HostName string
+	// FramingCapabilities is the 32-bit mask of RFC 2661 S4.4.3. The RFC
+	// draws the low two bits as |A|S|, so S (synchronous framing) is bit 0
+	// and A (asynchronous framing) is bit 1.
+	FramingCapabilities uint32
 	BearerCapabilities  uint32
 	RecvWindow          uint16
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
-	// S4.2). Empty disables our end of authentication; when a peer sends a
+	// S5.1.1). Empty disables our end of authentication; when a peer sends a
 	// Challenge AVP while SharedSecret is empty, we reject the tunnel with
 	// StopCCN Result Code 4. Non-empty enables Challenge verification on
 	// SCCCN (we compute Challenge Response for SCCRP with CHAP_ID=2 and
@@ -135,7 +139,8 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 // pre-parsed info, so this function cannot fail on malformed AVPs.
 // Engine dedup guarantees this runs at most once per tunnel.
 //
-// Challenge flow (RFC 2661 S4.2 / S5.1.2):
+// Challenge flow (RFC 2661 S5.1.1; the Challenge and Challenge Response
+// AVPs are defined in S4.4.3):
 //   - shared secret configured: we ALWAYS generate our own 16-byte
 //     random Challenge and store it on the tunnel; SCCCN MUST carry a
 //     valid Challenge Response or we tear down with RC=4. If the peer
@@ -262,10 +267,11 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 // pooled buffer, pushes it through the engine, transitions the tunnel to
 // closed, and returns the resulting outbound datagram. Called from FSM
 // handlers that decide to tear the tunnel down (bad Challenge Response,
-// malformed SCCCN, etc.). RFC 2661 S4.4.2.
+// malformed SCCCN, etc.). The Result Code AVP is RFC 2661 S4.4.2; the
+// StopCCN message itself is S6.4.
 func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendRequest {
 	// Clear all sessions before closing the tunnel. Same as handleStopCCN
-	// (peer-initiated) per RFC 2661 S4.4.2. Phase 5: this also queues
+	// (peer-initiated) per RFC 2661 S6.4. Phase 5: this also queues
 	// kernel teardown events via clearSessions -> pendingKernelTeardowns.
 	cleared := t.clearSessions()
 	if len(cleared) > 0 {
@@ -274,7 +280,7 @@ func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendReq
 
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
-	n := writeStopCCNBody(*bodyBuf, t.localTID, resultCode)
+	n := writeStopCCNBody(*bodyBuf, t.localTID, ResultCodeValue{Result: resultCode})
 
 	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, true)
 	if err != nil {
@@ -315,7 +321,7 @@ type sccrqInfo struct {
 
 // parseSCCRQ walks the AVP stream of an SCCRQ body and collects the
 // fields the FSM needs. Message Type AVP MUST be first per RFC 2661
-// S4.1; Host Name and Assigned Tunnel ID AVPs MUST be present per S6.1.
+// S4.4.1; Host Name and Assigned Tunnel ID AVPs MUST be present per S6.1.
 // Vendor-ID != 0 with M=1 aborts the parse (RFC: unrecognized mandatory
 // AVP => tear down).
 func parseSCCRQ(payload []byte) (sccrqInfo, error) {
@@ -349,7 +355,7 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return sccrqInfo{}, errors.New("l2tp: first AVP must be Message Type (RFC 2661 S4.1)")
+				return sccrqInfo{}, errors.New("l2tp: first AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -393,7 +399,7 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 				return sccrqInfo{}, fmt.Errorf("l2tp: read assigned tunnel id: %w", rerr)
 			}
 			if v == 0 {
-				return sccrqInfo{}, errors.New("l2tp: Assigned Tunnel ID AVP must be non-zero")
+				return sccrqInfo{}, errZeroAssignedTunnelID
 			}
 			info.AssignedTunnelID = v
 			continue
@@ -406,25 +412,26 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			continue
 		}
 		if attrType == AVPChallenge {
-			// RFC 2661 S5.12: Challenge is "at least one octet". An empty
-			// Challenge AVP would make the peer's Response trivially
+			// RFC 2661 S4.4.3: "The Challenge is one or more octets of
+			// random data", so a zero-length Challenge is illegal. An
+			// empty Challenge AVP would make the peer's Response trivially
 			// forgeable (MD5(chapID||secret)) and would fire the
 			// ChallengeResponse panic guard in auth.go. Reject at the
 			// edge so no tunnel state is allocated for the offender.
 			if len(value) == 0 {
-				return sccrqInfo{}, errors.New("l2tp: Challenge AVP must carry at least one octet (RFC 2661 S5.12)")
+				return sccrqInfo{}, errors.New("l2tp: Challenge AVP must carry at least one octet (RFC 2661 S4.4.3)")
 			}
 			info.ChallengePresent = true
 			info.ChallengeValue = append([]byte(nil), value...)
 			continue
 		}
 		if attrType == AVPTieBreaker {
-			// RFC 2661 S4.4.2: Tie Breaker is a fixed 8-byte value. Wrong
+			// RFC 2661 S4.4.3: Tie Breaker is a fixed 8-byte value. Wrong
 			// lengths would distort byte-wise comparison (a 1-byte value
 			// always compares lower than any 8-byte value) and let a
 			// misbehaving peer win every collision by underrunning.
 			if len(value) != 8 {
-				return sccrqInfo{}, fmt.Errorf("l2tp: Tie Breaker AVP must be 8 bytes (RFC 2661 S4.4.2), got %d", len(value))
+				return sccrqInfo{}, fmt.Errorf("l2tp: Tie Breaker AVP must be 8 bytes (RFC 2661 S4.4.3), got %d", len(value))
 			}
 			info.TieBreakerPresent = true
 			info.TieBreakerValue = append([]byte(nil), value...)
@@ -476,18 +483,19 @@ func writeSCCRPBody(buf []byte, localTID uint16, d TunnelDefaults, ourChallenge,
 }
 
 // writeStopCCNBody writes the AVP body of a StopCCN into buf starting at
-// offset 0 and returns the byte length written. Body layout per RFC 2661
-// S4.4.2:
+// offset 0 and returns the byte length written. RFC 2661 S6.4 lists the
+// AVPs a StopCCN MUST carry; the Result Code AVP itself is S4.4.2:
 //   - Message Type AVP (value = StopCCN = 4)
 //   - Assigned Tunnel ID AVP (our local TID, so the peer can correlate
 //     the teardown with the tunnel in its own map)
-//   - Result Code AVP (compound; Result = resultCode, no Error sub-field,
-//     no advisory message -- phase 4 only emits the minimum structure).
-func writeStopCCNBody(buf []byte, localTID, resultCode uint16) int {
+//   - Result Code AVP (compound; rc as given. A caller that sends Result
+//     Code 2 MUST set ErrorPresent, because that Result Code says the
+//     Error Code carries the detail.)
+func writeStopCCNBody(buf []byte, localTID uint16, rc ResultCodeValue) int {
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, localTID)
-	off += writeAVPResultCode(buf, off, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf, off, rc)
 	return off
 }
 
@@ -499,7 +507,7 @@ type scccnInfo struct {
 }
 
 // parseSCCCN walks the AVP stream of an SCCCN body and collects the
-// fields the FSM needs. Message Type AVP MUST be first (RFC 2661 S4.1);
+// fields the FSM needs. Message Type AVP MUST be first (RFC 2661 S4.4.1);
 // Challenge Response is optional on the wire but required when the
 // caller established a Challenge during SCCRP emission -- that check is
 // the caller's concern.
@@ -534,7 +542,7 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return scccnInfo{}, errors.New("l2tp: first SCCCN AVP must be Message Type (RFC 2661 S4.1)")
+				return scccnInfo{}, errors.New("l2tp: first SCCCN AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -562,23 +570,31 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 }
 
 // protocolVersionValue is the 2-byte Protocol Version AVP value (v1 rev0)
-// per RFC 2661 S4.4.2. Shared across all outbound control messages.
+// per RFC 2661 S4.4.3. Shared across all outbound control messages.
 var protocolVersionValue = [2]byte{0x01, 0x00}
 
-// StopCCN Result Codes (RFC 2661 S4.4.2).
+// StopCCN Result Codes (RFC 2661 S4.4.2). The name of each constant is
+// NOT the RFC's wording; the comment is. Read the value, not the name.
 const (
 	resultGeneralError   uint16 = 1 // "General request to clear control connection"
+	resultProtocolError  uint16 = 2 // "General error--Error Code indicates the problem"
 	resultNotAuthorized  uint16 = 4 // "Requester is not authorized to establish a control connection"
 	resultAdministrative uint16 = 6 // "Administrative shutdown"
 )
+
+// General Error Codes carried in the Result Code AVP's optional second
+// field (RFC 2661 S4.4.2). Meaningful only beside resultProtocolError,
+// which is the Result Code that delegates the detail to this field.
+const errorValueOutOfRange uint16 = 3 // "One of the field values was out of range or reserved field was non-zero"
 
 // handleStopCCN processes a peer-sent StopCCN on any tunnel state.
 // The tunnel transitions to closed and the engine begins its retention
 // window. During retention, the engine continues to ACK retransmitted
 // StopCCNs via the NeedsZLB path. AC-14.
 //
-// RFC 2661 S4.4.2: upon receipt of a StopCCN, the tunnel and all
-// sessions within it must be cleared.
+// RFC 2661 S6.4: on a StopCCN "all active sessions are implicitly
+// cleared" and the control connection closes. S5.7 states the teardown
+// procedure.
 func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest {
 	if t.state == L2TPTunnelClosed {
 		t.logger.Debug("l2tp: StopCCN on already-closed tunnel ignored")
@@ -590,8 +606,8 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 		return nil
 	}
 	// AC-9: cascade CDN to all active sessions before closing tunnel.
-	// RFC 2661 S4.4.2: upon receipt of a StopCCN, the tunnel and all
-	// sessions within it must be cleared.
+	// RFC 2661 S6.4: on a StopCCN "all active sessions are implicitly
+	// cleared".
 	cleared := t.clearSessions()
 	if len(cleared) > 0 {
 		t.logger.Info("l2tp: StopCCN clearing sessions", "count", len(cleared))
@@ -614,8 +630,8 @@ type stopCCNInfo struct {
 }
 
 // parseStopCCN walks the AVP stream of a StopCCN body and collects the
-// required fields. Message Type AVP MUST be first (RFC 2661 S4.1);
-// Assigned Tunnel ID and Result Code are required per S6.1.
+// required fields. Message Type AVP MUST be first (RFC 2661 S4.4.1);
+// Assigned Tunnel ID and Result Code are required per S6.4.
 func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 	var info stopCCNInfo
 	iter := NewAVPIterator(payload)
@@ -647,7 +663,7 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return stopCCNInfo{}, errors.New("l2tp: first StopCCN AVP must be Message Type (RFC 2661 S4.1)")
+				return stopCCNInfo{}, errors.New("l2tp: first StopCCN AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -693,7 +709,7 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 // flow through the engine's NeedsZLB path; no FSM response is needed.
 // AC-12.
 //
-// RFC 2661 S15: a Hello message is sent after a dead interval during
+// RFC 2661 S5.5: a Hello message (S6.5) is sent after a dead interval during
 // which a control message has not been received.
 func (t *L2TPTunnel) handleHelloTimer(now time.Time) []sendRequest {
 	if t.state != L2TPTunnelEstablished {

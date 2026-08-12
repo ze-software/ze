@@ -1,6 +1,6 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- subsystem config extraction
 // Related: subsystem.go -- consumes Parameters returned by ExtractParameters
-// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 6.1 (SCCRQ dial target), Section 4.2 (shared secret)
+// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 5.1.1 (shared secret)
 
 package l2tp
 
@@ -117,7 +117,7 @@ type Parameters struct {
 	// disables dead-peer detection. See spec-l2tp-dead-peer-detection.
 	HelloRetries uint8
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
-	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
+	// S5.1.1). Empty means peers that include a Challenge AVP in SCCRQ will
 	// be rejected with StopCCN Result Code 4 (Not Authorized).
 	SharedSecret string
 

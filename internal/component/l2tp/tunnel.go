@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// L2TPTunnelState enumerates the four tunnel FSM states from RFC 2661 S9.
+// L2TPTunnelState enumerates the four tunnel FSM states from RFC 2661 S7.2.
 // Idle is the initial and terminal state; Closed is a transient state
 // during which the reliable engine still serves ZLB ACKs for retransmitted
 // StopCCNs (retention window).
@@ -46,11 +46,14 @@ func (s L2TPTunnelState) String() string {
 // concurrent use; only the reactor goroutine accesses its fields.
 type L2TPTunnel struct {
 	localTID  uint16
-	remoteTID uint16         // peer's Assigned Tunnel ID
-	peerAddr  netip.AddrPort // last known peer addr:port (updated per RFC S24.19)
-	state     L2TPTunnelState
-	engine    *ReliableEngine
-	logger    *slog.Logger
+	remoteTID uint16 // peer's Assigned Tunnel ID
+	// peerAddr is the last seen peer addr:port. RFC 2661 S8.1 requires it
+	// to stay static for the life of the tunnel; ze re-reads it from every
+	// inbound datagram to tolerate a peer that moves (a NAT rebind).
+	peerAddr netip.AddrPort
+	state    L2TPTunnelState
+	engine   *ReliableEngine
+	logger   *slog.Logger
 
 	// Captured from the peer's SCCRQ. Used for logging and for future
 	// phases that may enforce bearer/framing policy.
@@ -62,9 +65,9 @@ type L2TPTunnel struct {
 	// ourChallenge is the 16-byte random Challenge value we emitted in
 	// SCCRP when peer authentication was requested (sccrq.ChallengePresent
 	// + non-empty SharedSecret). Used to verify the peer's Challenge
-	// Response AVP in SCCCN (RFC 2661 S4.2 / S5.1.2.3). Nil when we did
-	// not challenge the peer, or has been cleared after successful SCCCN
-	// verification.
+	// Response AVP in SCCCN (RFC 2661 S5.1.1; the AVPs are defined in
+	// S4.4.3). Nil when we did not challenge the peer, or has been
+	// cleared after successful SCCCN verification.
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu. Mutated by the FSM
 	// during handleSCCRQ/handleSCCCN.
@@ -81,7 +84,7 @@ type L2TPTunnel struct {
 	initiatorSecret string
 
 	// tieBreaker is the 8-byte Tie Breaker AVP value captured from the
-	// peer's SCCRQ when present (RFC 2661 S9.5). Used by the reactor when
+	// peer's SCCRQ when present (RFC 2661 S4.4.3). Used by the reactor when
 	// a second SCCRQ arrives from the same peer address to decide which
 	// tunnel keeps and which is torn down. Nil when the SCCRQ carried no
 	// Tie Breaker AVP.
@@ -197,8 +200,9 @@ func (t *L2TPTunnel) RemoteTID() uint16 { return t.remoteTID }
 // PeerAddr returns the last known peer address:port.
 //
 // Caller MUST hold the owning reactor's tunnelsMu (or be inside the
-// reactor goroutine). The field is updated on every inbound datagram
-// to track RFC 2661 S24.19 source-port variation.
+// reactor goroutine). The field is updated on every inbound datagram, a
+// tolerance of peers that move: RFC 2661 S8.1 requires the address and
+// port to stay static for the life of the tunnel.
 func (t *L2TPTunnel) PeerAddr() netip.AddrPort { return t.peerAddr }
 
 // Reaper gap (phase 3 known limitation):

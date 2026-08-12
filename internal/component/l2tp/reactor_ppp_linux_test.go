@@ -305,7 +305,7 @@ func TestL2TPReactorPPPEventSessionDownSendsCDN(t *testing.T) {
 	require.True(t, ok, "payload must contain at least one AVP")
 	require.NoError(t, it.Err())
 	require.Equal(t, uint16(0), vendorID, "Message-Type AVP is vendor 0")
-	require.Equal(t, AVPMessageType, attrType, "first AVP must be Message-Type (RFC 2661 S4.1)")
+	require.Equal(t, AVPMessageType, attrType, "first AVP must be Message-Type (RFC 2661 S4.4.1)")
 	mt, rerr := readAVPUint16(value)
 	require.NoError(t, rerr)
 	require.Equal(t, MsgCDN, MessageType(mt), "peer should receive a CDN message")

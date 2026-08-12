@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- L2TP reactor dial path
-// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 6.1 (LAC/initiator SCCRQ)
+// RFC: rfc/short/rfc2661.md -- RFC 2661 Sections 4.4.3 (Tie Breaker AVP), 5.1.1 (tunnel authentication secret), 5.3 (concurrent tunnels to one peer)
 // Related: tunnel_initiator.go -- L2TPTunnel.initiate builds the SCCRQ
 // Related: reactor.go -- the single reactor goroutine that owns the tunnel map
 
@@ -51,7 +51,7 @@ type callOutcome struct {
 // DialTarget describes a remote to initiate a tunnel toward. Remote is the
 // peer's control address:port (typically UDP 1701). SharedSecret is the
 // per-remote CHAP-MD5 tunnel-authentication secret; empty disables our end
-// of authentication for this dial (RFC 2661 Section 4.2).
+// of authentication for this dial (RFC 2661 Section 5.1.1).
 type DialTarget struct {
 	Remote       netip.AddrPort
 	SharedSecret string
@@ -206,9 +206,9 @@ func (r *L2TPReactor) handleDial(req dialRequest) {
 
 	// A random 8-byte Tie Breaker lets a simultaneous open (the peer sends
 	// its own SCCRQ before our SCCRP) resolve deterministically (RFC 2661
-	// S9.5). rand.Read on crypto/rand does not fail in practice; on the
+	// S4.4.3). rand.Read on crypto/rand does not fail in practice; on the
 	// impossible error we dial without a tie breaker (both tunnels survive,
-	// which is legal per S24.17).
+	// which is legal per S5.3).
 	tb := make([]byte, 8)
 	if _, rerr := rand.Read(tb); rerr != nil {
 		tb = nil

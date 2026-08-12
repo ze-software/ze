@@ -112,7 +112,7 @@ func TestReactor_DialLoopbackHandshake(t *testing.T) {
 //
 // VALIDATES: after ze dials (creating an initiator tunnel with a tie
 // breaker), a crossed SCCRQ from the same peer carrying its own tie breaker
-// resolves to exactly one tunnel per RFC 2661 S9.5 -- the lower value wins.
+// resolves to exactly one tunnel per RFC 2661 S4.4.3 -- the lower value wins.
 func TestReactor_InitiatorTieBreaker(t *testing.T) {
 	ln, r, logs, stop := buildLogReactor(t)
 	defer stop()

@@ -77,7 +77,8 @@ module ze-l2tp-conf {
             ze:sensitive;
             description
                 "Shared secret used to compute CHAP-MD5 Challenge
-                 Responses (RFC 2661 Section 4.2). When unset and a
+                 Responses (RFC 2661 Section 5.1.1; the AVPs are
+                 defined in Section 4.4.3). When unset and a
                  peer sends a Challenge AVP, the subsystem rejects the
                  tunnel with StopCCN Result Code 4 (Not Authorized).
                  Value is masked in CLI output and cleared from the
@@ -250,7 +251,7 @@ module ze-l2tp-conf {
                 ze:sensitive;
                 description
                     "Per-remote CHAP-MD5 tunnel-authentication secret
-                     (RFC 2661 Section 4.2). Overrides the subsystem-level
+                     (RFC 2661 Section 5.1.1). Overrides the subsystem-level
                      shared-secret for tunnels dialed to this remote. When
                      empty, this dial carries no Challenge AVP. Masked in CLI
                      output.";

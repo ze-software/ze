@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- S9 tunnel FSM, initiator half
-// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 6.1 (SCCRQ), 6.2 (SCCCN), 6.4 (SCCRP)
+// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 4.4.1 (Message Type AVP first), 4.4.3 (Challenge/Response AVPs), 6.1 (SCCRQ), 6.2 (SCCRP), 6.3 (SCCCN)
 // Related: tunnel_fsm.go -- the answering half (handleSCCRQ / handleSCCCN)
 // Related: reactor.go -- the reactor dial event that drives initiate
 
@@ -20,7 +20,7 @@ import (
 // generates a random Challenge when a shared secret is configured (forcing
 // mutual authentication, mirroring the answering side), includes the caller-
 // supplied 8-byte Tie Breaker so simultaneous-open collisions resolve
-// (RFC 2661 Section 9.5), enqueues the SCCRQ through the reliable engine
+// (RFC 2661 Section 4.4.3), enqueues the SCCRQ through the reliable engine
 // (Ns=0, PeerTunnelID=0 because the peer has not assigned one yet), and
 // transitions to wait-ctl-reply.
 //
@@ -64,7 +64,7 @@ func (t *L2TPTunnel) initiate(now time.Time, defaults TunnelDefaults, tieBreaker
 }
 
 // handleSCCRP is the wait-ctl-reply -> established transition on the
-// initiator side (RFC 2661 Section 6.4). The peer's SCCRP carries the
+// initiator side (RFC 2661 Section 6.2). The peer's SCCRP carries the
 // tunnel ID it assigned for us (Assigned Tunnel ID AVP), which becomes the
 // TunnelID field of every message we send from now on. Authentication is
 // symmetric with the answering side:
@@ -155,8 +155,8 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 // Message Type, Protocol Version, Host Name, Framing Capabilities, Assigned
 // Tunnel ID, Receive Window Size; Bearer Capabilities is required for a LAC
 // that may place calls. A non-empty challenge appends a mandatory Challenge
-// AVP (RFC 2661 Section 4.2); a non-empty 8-byte tieBreaker appends an
-// optional Tie Breaker AVP (Section 9.5). Caller supplies a pooled buffer;
+// AVP; a non-empty 8-byte tieBreaker appends an optional Tie Breaker AVP.
+// RFC 2661 Section 4.4.3 defines both. Caller supplies a pooled buffer;
 // no `append` or `make`.
 //
 // Uses `off += Write*` because ze's L2TP wire helpers return bytes written,
@@ -180,7 +180,7 @@ func writeSCCRQBody(buf []byte, localTID uint16, d TunnelDefaults, challenge, ti
 }
 
 // writeSCCCNBody writes the AVP body of an SCCCN into buf starting at offset
-// 0 and returns the byte length written. RFC 2661 Section 6.2: Message Type,
+// 0 and returns the byte length written. RFC 2661 Section 6.3: Message Type,
 // plus a Challenge Response AVP when the peer challenged us in its SCCRP.
 func writeSCCCNBody(buf, challengeResponse []byte) int {
 	off := 0
@@ -208,8 +208,8 @@ type sccrpInfo struct {
 
 // parseSCCRP walks the AVP stream of an SCCRP body and collects the fields
 // the initiator FSM needs. Message Type AVP MUST be first per RFC 2661
-// Section 4.1; Assigned Tunnel ID MUST be present and non-zero (RFC 2661
-// Section 6.4) because it becomes the TunnelID of every message we send.
+// Section 4.4.1; Assigned Tunnel ID MUST be present and non-zero (RFC 2661
+// Section 6.2) because it becomes the TunnelID of every message we send.
 // Mirrors parseSCCRQ's structure and mandatory-AVP handling.
 func parseSCCRP(payload []byte) (sccrpInfo, error) {
 	var info sccrpInfo
@@ -242,7 +242,7 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 		}
 		if first {
 			if attrType != AVPMessageType {
-				return sccrpInfo{}, errors.New("l2tp: first SCCRP AVP must be Message Type (RFC 2661 S4.1)")
+				return sccrpInfo{}, errors.New("l2tp: first SCCRP AVP must be Message Type (RFC 2661 S4.4.1)")
 			}
 			mt, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -284,11 +284,11 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 				info.RecvWindow = v
 			}
 		case AVPChallenge:
-			// RFC 2661 S5.12: Challenge is at least one octet; an empty one
-			// would make the response trivially forgeable and trip the
-			// ChallengeResponse panic guard.
+			// RFC 2661 S4.4.3: "The Challenge is one or more octets of
+			// random data". An empty one would make the response trivially
+			// forgeable and trip the ChallengeResponse panic guard.
 			if len(value) == 0 {
-				return sccrpInfo{}, errors.New("l2tp: SCCRP Challenge AVP must carry at least one octet (RFC 2661 S5.12)")
+				return sccrpInfo{}, errors.New("l2tp: SCCRP Challenge AVP must carry at least one octet (RFC 2661 S4.4.3)")
 			}
 			info.ChallengePresent = true
 			info.ChallengeValue = append([]byte(nil), value...)
@@ -301,7 +301,7 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 		return sccrpInfo{}, errors.New("l2tp: empty SCCRP body")
 	}
 	if info.AssignedTunnelID == 0 {
-		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Assigned Tunnel ID AVP (RFC 2661 S6.4)")
+		return sccrpInfo{}, errors.New("l2tp: SCCRP missing Assigned Tunnel ID AVP (RFC 2661 S6.2)")
 	}
 	return info, nil
 }

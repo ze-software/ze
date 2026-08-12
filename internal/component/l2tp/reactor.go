@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- L2TP reactor pattern
+// RFC: rfc/short/rfc2661.md -- RFC 2661 Sections 4.4.2, 4.4.3, 5.3, 5.5, 5.8, 7.2, 8.1
 // Related: listener.go -- source of incoming packets and outbound sender
 // Related: tunnel.go -- dispatch target and FSM state holder
 // Related: tunnel_fsm.go -- message handling inside a tunnel
@@ -47,7 +48,7 @@ var _ = [6]ppp.Event{
 }
 
 // peerKey uniquely identifies a tunnel during SCCRQ retransmit dedup.
-// RFC 2661 S24.17 allows multiple tunnels between the same IP pair, so
+// RFC 2661 S5.3 allows multiple tunnels between the same IP pair, so
 // peer address alone is insufficient; the peer's Assigned Tunnel ID AVP
 // disambiguates.
 type peerKey struct {
@@ -100,6 +101,13 @@ type L2TPReactor struct {
 	tunnelsByLocalID map[uint16]*L2TPTunnel
 	tunnelsByPeer    map[peerKey]*L2TPTunnel
 	nextLocalTID     uint16
+
+	// stopCCNLastSent bounds every StopCCN the reactor sends outside a
+	// tunnel (answerZeroTunnelIDSCCRQ). One slot per hash of the source
+	// IP, so a spoofed flood allocates nothing and the table never grows.
+	// Read and written only on the reactor goroutine, which is the sole
+	// caller of handle, so it needs no lock.
+	stopCCNLastSent [stopCCNLimitSlots]time.Time
 
 	// Timer channels. Created by the reactor; the tunnelTimer goroutine
 	// is owned by the subsystem, not the reactor, but the reactor creates
@@ -301,7 +309,11 @@ func (r *L2TPReactor) drainOnStop(rx <-chan rxPacket) {
 //     by (peer addr:port, peer's Assigned Tunnel ID). A malformed body
 //     is dropped BEFORE any state is allocated, so a peer cannot fill
 //     our tunnel map with half-formed SCCRQs.
-//   - TunnelID != 0: look up by local TID; update peerAddr per S24.19.
+//   - TunnelID != 0: look up by local TID; update peerAddr to the
+//     datagram source. RFC 2661 S8.1 requires the peer to keep its
+//     address and port static for the life of the tunnel, so this is a
+//     TOLERANCE of a peer that does not (a NAT rebind, most often), not
+//     a rule S8.1 states.
 //   - Hand the packet to the tunnel's Process method which runs the
 //     reliable engine and FSM, then send every resulting outbound
 //     datagram AFTER releasing tunnelsMu so a slow UDP write does not
@@ -352,6 +364,14 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	if hdr.TunnelID == 0 {
 		info, perr := parseSCCRQ(payload)
 		if perr != nil {
+			// RFC 2661 Section 4.4.3: the Assigned Tunnel ID is "a 2 octet
+			// non-zero unsigned integer". A zero one is the single parse
+			// failure ze answers; every other one keeps its silent drop.
+			// The answer is emitted here, still before tunnelsMu, so it
+			// allocates no tunnel entry and consumes no local TID.
+			if errors.Is(perr, errZeroAssignedTunnelID) {
+				r.answerZeroTunnelIDSCCRQ(pkt.from, hdr.Ns)
+			}
 			r.logger.Debug("l2tp: TunnelID=0 packet with malformed body dropped",
 				"from", pkt.from.String(), "error", perr.Error())
 			return
@@ -469,6 +489,126 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	}
 }
 
+// stopCCNLimitSlots is the width of the table that bounds every StopCCN
+// ze sends outside a tunnel, and stopCCNLimitInterval is the minimum gap
+// between two emissions charged to one slot. A source is
+// mapped to a slot by hashing its IP address, so two addresses can share
+// one budget: the sharing is deliberate, because it fails towards sending
+// LESS. Fixed width is what keeps a spoofed flood from allocating.
+const (
+	stopCCNLimitSlots    = 256
+	stopCCNLimitInterval = time.Second
+)
+
+// tidNoTunnel is the Assigned Tunnel ID ze puts in a StopCCN it sends
+// before any tunnel exists. RFC 2661 Section 4.4.3 requires the AVP to
+// carry a non-zero value and requires a StopCCN to repeat "the Assigned
+// Tunnel ID AVP first sent to the receiving peer" -- ze has sent none
+// here, so it needs a value it will never hand to a real tunnel.
+// allocateLocalTID skips this one, so a peer that keeps talking to it
+// reaches no tunnel of ours.
+const tidNoTunnel uint16 = 0xFFFF
+
+// stopCCNSlot maps a source IP address to a slot in stopCCNLastSent
+// (FNV-1a over the 16-byte form, so v4 and v6 hash alike).
+func stopCCNSlot(a netip.Addr) int {
+	const (
+		offset64 uint64 = 14695981039346656037
+		prime64  uint64 = 1099511628211
+	)
+	b := a.As16()
+	h := offset64
+	for _, c := range b {
+		h ^= uint64(c)
+		h *= prime64
+	}
+	return int(h % stopCCNLimitSlots)
+}
+
+// answerZeroTunnelIDSCCRQ replies to an SCCRQ whose Assigned Tunnel ID
+// AVP carried 0, which RFC 2661 Section 4.4.3 makes a protocol error, and
+// bounds how often it does so.
+//
+// The datagram that reaches here is unauthenticated and its source
+// address is spoofable, so an unconditional reply would make ze a
+// reflector. One rule bounds it and it carries no exception: a slot is
+// answered at most once per stopCCNLimitInterval, and every datagram
+// above that is dropped in silence. A source address maps to exactly one
+// slot, so no victim receives more than one StopCCN per interval, and the
+// whole reactor emits at most stopCCNLimitSlots of them per interval.
+//
+// A source that owns a live tunnel gets no exemption. Nothing here proves
+// return-routability: an attacker who knows the address of any current
+// peer spoofs it, and an exemption keyed on that address would answer him
+// at his own packet rate, aimed at that peer. What a real peer loses when
+// it shares a busy slot is one diagnostic StopCCN. It retransmits, and a
+// zero Assigned Tunnel ID could not have opened a tunnel anyway.
+//
+// Runs on the reactor goroutine, before tunnelsMu is taken for dispatch,
+// and allocates no tunnel entry. A suppressed datagram takes no lock and
+// walks no table. An emitted one takes the two capture-ring locks inside
+// sendUnassociatedStopCCN, and no other.
+//
+// The refused datagram is not logged here. handle logs every dropped
+// TunnelID=0 body, this sentinel included, immediately after this call
+// returns, so a second line would only add one netip.AddrPort.String and
+// one slog call to each datagram of a flood.
+func (r *L2TPReactor) answerZeroTunnelIDSCCRQ(from netip.AddrPort, peerNs uint16) {
+	now := r.params.Clock()
+	slot := stopCCNSlot(from.Addr())
+	if last := r.stopCCNLastSent[slot]; !last.IsZero() && now.Sub(last) < stopCCNLimitInterval {
+		return
+	}
+	r.stopCCNLastSent[slot] = now
+	r.sendUnassociatedStopCCN(from, peerNs)
+}
+
+// sendUnassociatedStopCCN transmits one StopCCN to a peer for which no
+// tunnel exists and none is created. Every other StopCCN in ze leaves
+// through teardownStopCCN, which needs a tunnel to hold the reliable
+// engine; this one carries its own sequence numbers instead.
+//
+// RFC 2661 Section 4.4.3: "Before the Assigned Tunnel ID AVP is received
+// from a peer, messages MUST be sent to that peer with a Tunnel ID value
+// of 0 in the header of all control messages." The peer's Assigned Tunnel
+// ID was 0, so ze has none and the header carries 0.
+//
+// Ns is 0 because this is the first control message ze sends on a control
+// connection that never opened. Nr is the peer's Ns plus one, which is the
+// sequence number ze would expect next (RFC 2661 Section 5.8).
+func (r *L2TPReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16) {
+	buf := GetBuf()
+	defer PutBuf(buf)
+	b := *buf
+	// Result Code 2 says the Error Code names the problem; Error Code 3 is
+	// "One of the field values was out of range or reserved field was
+	// non-zero" (RFC 2661 Section 4.4.2).
+	n := writeStopCCNBody(b[ControlHeaderLen:], tidNoTunnel, ResultCodeValue{
+		Result:       resultProtocolError,
+		ErrorPresent: true,
+		Error:        errorValueOutOfRange,
+	})
+	total := ControlHeaderLen + n
+	WriteControlHeader(b, 0, uint16(total), 0, 0, 0, peerNs+1)
+
+	// Both capture rings, as every other outbound send does, so `ze diag
+	// l2tp` shows this reply beside the SCCRQ that drew it. The header
+	// carries Tunnel ID 0 and Session ID 0 because no tunnel exists.
+	if r.capture != nil {
+		r.capture.appendOutbound(0, 0, MsgStopCCN, to, total)
+	}
+	if rc := r.rawCapture.Load(); rc != nil {
+		rc.Append(1, b[:total])
+	}
+	if err := r.listener.Send(to, b[:total]); err != nil {
+		r.logger.Warn("l2tp: StopCCN for zero Assigned Tunnel ID SCCRQ not sent",
+			"to", to.String(), "error", err.Error())
+		return
+	}
+	r.logger.Info("l2tp: zero Assigned Tunnel ID SCCRQ answered with StopCCN",
+		"to", to.String(), "result-code", resultProtocolError, "error-code", errorValueOutOfRange)
+}
+
 // handleTick processes a tick request from the timer goroutine. It runs
 // the engine's Tick for the specified tunnel, sends any retransmits,
 // checks the HELLO keepalive interval for established tunnels, handles
@@ -516,7 +656,7 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 	// sending StopCCN. It is deliberately kept separate from the retransmit
 	// backoff and gated on Established, so setup (pre-Established) and
 	// teardown (Closed) retain the full retransmit budget.
-	// RFC 2661 Section 15: HELLO is used as a keepalive for the control
+	// RFC 2661 Section 5.5: HELLO is used as a keepalive for the control
 	// channel.
 	deadPeer := false
 	if !result.TeardownRequired && tunnel.state == L2TPTunnelEstablished &&
@@ -682,16 +822,17 @@ func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 			"from", from.String(), "peer-tid", sccrq.AssignedTunnelID, "local-tid", existing.localTID)
 		return existing, nil
 	}
-	// Tie breaker resolution (RFC 2661 S9.5). When a second SCCRQ arrives
+	// Tie breaker resolution (RFC 2661 S4.4.3; S7.2 names the collision).
+	// When a second SCCRQ arrives
 	// from the same peer address with a Tie Breaker AVP, compare it
 	// byte-wise against tie breakers stored on any existing tunnel from
 	// the same peer address. Lower value wins and keeps its tunnel;
-	// higher value's SCCRQ is dropped. Equal means both discard (RFC:
-	// "both peers' tunnels MUST be silently torn down").
+	// higher value's SCCRQ is dropped. Equal means both discard (RFC 2661
+	// S4.4.3: "both sides MUST discard their tunnels").
 	//
 	// This runs only when BOTH the new SCCRQ and an existing tunnel carry
 	// tie breakers; a peer that omits the AVP on either SCCRQ keeps both
-	// tunnels per RFC 2661 S24.17 (multiple concurrent tunnels between
+	// tunnels per RFC 2661 S5.3 (multiple concurrent tunnels between
 	// the same addr pair are legitimate).
 	var teardowns []kernelTeardownEvent
 	if sccrq.TieBreakerPresent {
@@ -756,7 +897,7 @@ func (r *L2TPReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 			newLoses = true
 			continue
 		}
-		// Equal -> both sides discard (RFC 2661 S9.5).
+		// Equal -> both sides discard (RFC 2661 S4.4.3).
 		losers = append(losers, existing)
 		newLoses = true
 	}
@@ -797,14 +938,17 @@ func (r *L2TPReactor) discardTunnelLocked(t *L2TPTunnel, reason string) []kernel
 
 // allocateLocalTID picks a non-zero uint16 not already present in
 // tunnelsByLocalID. It uses a monotonic counter with wrap-around that
-// skips zero; on collision it scans forward up to 8 slots. Returns an
-// error only if the 65535 address space is fully occupied (which
-// coincides with max-tunnels at its ceiling).
+// skips zero and tidNoTunnel; on collision it scans forward up to 8
+// slots. Returns an error only if the 65534 address space is fully
+// occupied (which coincides with max-tunnels at its ceiling).
 func (r *L2TPReactor) allocateLocalTID() (uint16, error) {
 	const maxProbe = 8
 	for range maxProbe {
 		r.nextLocalTID++
-		if r.nextLocalTID == 0 {
+		// tidNoTunnel is the Assigned Tunnel ID a tunnel-free StopCCN
+		// carries, so no real tunnel may hold it: a peer that answers one
+		// must not reach a stranger's tunnel.
+		if r.nextLocalTID == 0 || r.nextLocalTID == tidNoTunnel {
 			r.nextLocalTID = 1
 		}
 		if _, taken := r.tunnelsByLocalID[r.nextLocalTID]; !taken {
