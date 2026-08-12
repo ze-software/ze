@@ -639,8 +639,6 @@ plan/spec-fixit-dns-rfc1035-conformance.md	test/ui/doctor-dns-transfer.ci
 plan/spec-fixit-draft-carve-out-fails-open.md	test/drafts/
 plan/spec-fixit-draft-carve-out-fails-open.md	test/plugin/draft-x.ci
 plan/spec-fixit-dynamic-group-peer-config.md	internal/component/config/configjson/traverse.go
-plan/spec-fixit-eap-tls-clienthello-race.md	plan/deferrals/fixit-eap-tls-clienthello-race.md
-plan/spec-fixit-eap-tls-clienthello-race.md	test/ipsec/ipsec-eap-tls-clienthello.ci
 plan/spec-fixit-firewall-concurrency-deadlock.md	cmd/yang/ze-ddos-local-cmd.yang
 plan/spec-fixit-firewall-concurrency-deadlock.md	internal/plugins/firewall/engine.go
 plan/spec-fixit-firewall-concurrency-deadlock.md	plan/deferrals.md
