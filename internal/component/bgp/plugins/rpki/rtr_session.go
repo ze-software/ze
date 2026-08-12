@@ -41,6 +41,11 @@ type RTRSession struct {
 	serial    uint32
 	version   uint8 // negotiated RTR protocol version (starts at rtrVersionMax)
 
+	// synced is true once an End of Data PDU has completed a sync on this session.
+	// state cannot answer that question: it returns to "idle" between polls, and
+	// "establish" only says a Cache Response arrived.
+	synced bool
+
 	// Timing parameters from End of Data.
 	refreshInterval time.Duration
 	retryInterval   time.Duration
@@ -295,6 +300,7 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		}
 		s.mu.Lock()
 		s.serial = params.SerialNumber
+		s.synced = true
 		if params.RefreshInterval > 0 {
 			s.refreshInterval = time.Duration(params.RefreshInterval) * time.Second
 		}
@@ -402,10 +408,13 @@ func (s *RTRSession) State() string {
 
 // SessionSnapshot holds a point-in-time copy of session diagnostic fields.
 type SessionSnapshot struct {
-	Address         string
-	Port            uint16
-	Preference      uint8
-	State           string
+	Address    string
+	Port       uint16
+	Preference uint8
+	State      string
+	// Synced reports whether this cache server has ever completed a sync (End of Data).
+	// A configured server that never delivers data keeps Synced false for its whole life.
+	Synced          bool
 	Version         uint8
 	SessionID       uint16
 	Serial          uint32
@@ -423,6 +432,7 @@ func (s *RTRSession) Snapshot() SessionSnapshot {
 		Port:            s.port,
 		Preference:      s.preference,
 		State:           s.state,
+		Synced:          s.synced,
 		Version:         s.version,
 		SessionID:       s.sessionID,
 		Serial:          s.serial,

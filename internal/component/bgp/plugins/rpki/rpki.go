@@ -141,8 +141,13 @@ type rPKIPlugin struct {
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
 
-	// active is true when at least one cache server is configured.
-	// When false, handleEvent/handleStructuredUpdate skip all per-prefix work.
+	// active is true when at least one cache server is CONFIGURED. It says that RPKI is in
+	// play, which is what the per-prefix work in handleEvent/handleStructuredUpdate and the
+	// adj-rib-in validation gate need to know before any data can have arrived.
+	//
+	// It does NOT say that validation has usable data: no VRP need have arrived, and a cache
+	// whose PDUs ze mis-decodes keeps it true forever. Whether a cache server has ever
+	// completed a sync is per-session state (RTRSession.synced), reported by syncedSessions.
 	active atomic.Bool
 }
 
@@ -268,7 +273,8 @@ func runRPKIPlugin(conn net.Conn) int {
 // startSessions creates and starts RTR sessions from parsed config.
 // Each cache server gets a long-lived goroutine running RTRSession.Run().
 // Sets active=true only when servers exist, so handleEvent/handleStructuredUpdate
-// skip per-prefix work when unconfigured.
+// skip per-prefix work when unconfigured. active stays a statement about the CONFIG:
+// whether any of those servers ever delivers data is RTRSession.synced (syncedSessions).
 func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	rp.active.Store(false)
 	if cfg == nil || len(cfg.CacheServers) == 0 {
@@ -972,34 +978,63 @@ func (rp *rPKIPlugin) handleCommand(command string, args []string) (string, any,
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-func (rp *rPKIPlugin) statusCommand() (string, any, error) {
+// snapshots returns a point-in-time copy of every configured cache server's diagnostic fields.
+func (rp *rPKIPlugin) snapshots() []SessionSnapshot {
 	rp.mu.RLock()
-	sessions := make([]*RTRSession, len(rp.sessions))
-	copy(sessions, rp.sessions)
-	rp.mu.RUnlock()
+	defer rp.mu.RUnlock()
+
+	snaps := make([]SessionSnapshot, len(rp.sessions))
+	for i, sess := range rp.sessions {
+		snaps[i] = sess.Snapshot()
+	}
+	return snaps
+}
+
+// syncedSessions counts how many configured cache servers have completed at least one sync.
+// This is the question rp.active does not answer: active says a cache server is configured,
+// and stays true for a server whose data never arrives or arrives unreadable. Without this
+// count an operator cannot tell "the VRP set covers nothing" from "ze has no VRP set".
+func syncedSessions(snaps []SessionSnapshot) int {
+	synced := 0
+	for _, snap := range snaps {
+		if snap.Synced {
+			synced++
+		}
+	}
+	return synced
+}
+
+func (rp *rPKIPlugin) statusCommand() (string, any, error) {
+	snaps := rp.snapshots()
 
 	v4, v6 := rp.cache.Count()
 	aspaCount := rp.aspaCache.count()
 	aspaEnabled := rp.aspaEnabled.Load()
+	synced := syncedSessions(snaps)
 
 	b := textbuf.Get()
 	defer b.Release()
 	b.Str(`{"running":true,"vrp-count-ipv4":`).Int(int64(v4))
 	b.Str(`,"vrp-count-ipv6":`).Int(int64(v6))
-	b.Str(`,"sessions":`).Int(int64(len(sessions)))
+	b.Str(`,"sessions":`).Int(int64(len(snaps)))
+	b.Str(`,"sessions-synced":`).Int(int64(synced))
+	// "synced" false with "running" true is the state an operator cannot otherwise see:
+	// RPKI is configured and validating, and no cache server has ever delivered data, so
+	// every prefix reads not-found for want of a VRP set rather than for want of a ROA.
+	b.Str(`,"synced":`).Bool(synced > 0)
 	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
 	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
 
-	if len(sessions) > 0 {
+	if len(snaps) > 0 {
 		b.Str(`,"cache-servers":[`)
-		for i, sess := range sessions {
+		for i, snap := range snaps {
 			if i > 0 {
 				b.Byte(',')
 			}
-			snap := sess.Snapshot()
 			b.Str(`{"address":"`).Str(snap.Address).Byte('"')
 			b.Str(`,"port":`).Uint16(snap.Port)
 			b.Str(`,"state":"`).Str(snap.State).Byte('"')
+			b.Str(`,"synced":`).Bool(snap.Synced)
 			b.Str(`,"version":`).Uint8(snap.Version)
 			b.Byte('}')
 		}
@@ -1019,23 +1054,20 @@ func (rp *rPKIPlugin) statusCommand() (string, any, error) {
 }
 
 func (rp *rPKIPlugin) cacheCommand() (string, any, error) {
-	rp.mu.RLock()
-	sessions := make([]*RTRSession, len(rp.sessions))
-	copy(sessions, rp.sessions)
-	rp.mu.RUnlock()
+	snaps := rp.snapshots()
 
 	b := textbuf.Get()
 	defer b.Release()
 	b.Str(`{"cache-servers":[`)
-	for i, sess := range sessions {
+	for i, snap := range snaps {
 		if i > 0 {
 			b.Byte(',')
 		}
-		snap := sess.Snapshot()
 		b.Str(`{"address":"`).Str(snap.Address).Byte('"')
 		b.Str(`,"port":`).Uint16(snap.Port)
 		b.Str(`,"preference":`).Uint8(snap.Preference)
 		b.Str(`,"state":"`).Str(snap.State).Byte('"')
+		b.Str(`,"synced":`).Bool(snap.Synced)
 		b.Str(`,"version":`).Uint8(snap.Version)
 		b.Str(`,"session-id":`).Uint(uint64(snap.SessionID))
 		b.Str(`,"serial":`).Uint32(snap.Serial)
@@ -1096,6 +1128,8 @@ func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 	b := textbuf.Get()
 	defer b.Release()
 	b.Str(`{"prefix":"`).Str(canonical).Byte('"')
+	// A zero "covering-vrps" from a cache that never synced says nothing about the ROA.
+	b.Str(`,"synced":`).Bool(syncedSessions(rp.snapshots()) > 0)
 	b.Str(`,"covering-vrps":`).Int(int64(len(entries)))
 	b.Str(`,"entries":[`)
 	for i, e := range entries {
@@ -1120,22 +1154,21 @@ func (rp *rPKIPlugin) summaryCommand() (string, any, error) {
 	aspaCount := rp.aspaCache.count()
 	aspaEnabled := rp.aspaEnabled.Load()
 
-	rp.mu.RLock()
-	sessionCount := len(rp.sessions)
+	snaps := rp.snapshots()
 	established := 0
-	for _, sess := range rp.sessions {
-		if sess.State() == sessionEstablish {
+	for _, snap := range snaps {
+		if snap.State == sessionEstablish {
 			established++
 		}
 	}
-	rp.mu.RUnlock()
 
 	b := textbuf.Get()
 	defer b.Release()
 	b.Str(`{"vrp-count":`).Int(int64(v4 + v6))
 	b.Str(`,"validation-enabled":true`)
-	b.Str(`,"sessions-total":`).Int(int64(sessionCount))
+	b.Str(`,"sessions-total":`).Int(int64(len(snaps)))
 	b.Str(`,"sessions-established":`).Int(int64(established))
+	b.Str(`,"sessions-synced":`).Int(int64(syncedSessions(snaps)))
 	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
 	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
 	b.Byte('}')
@@ -1166,6 +1199,8 @@ func (rp *rPKIPlugin) validateCommand(args []string) (string, any, error) {
 	b.Str(`{"prefix":"`).Str(prefix).Byte('"')
 	b.Str(`,"origin-asn":`).Uint(originAS)
 	b.Str(`,"state":"`).Str(validationStateString(state)).Byte('"')
+	// "not-found" from a cache that never synced is not a verdict about the prefix.
+	b.Str(`,"synced":`).Bool(syncedSessions(rp.snapshots()) > 0)
 	b.Str(`,"covering-vrps":[`)
 	for i, e := range covering {
 		if i > 0 {

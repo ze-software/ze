@@ -1,9 +1,12 @@
 package rpki
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -78,6 +81,60 @@ func TestStatusCommand_PerPeerActions(t *testing.T) {
 			`"aspa-invalid":{"action":"log-only","source":"global"},`+
 			`"aspa-unknown":{"action":"accept","source":"global"}}]`,
 		out)
+}
+
+// TestStatusReportsSyncSeparatelyFromConfiguration verifies an operator can tell a configured
+// cache server that has never delivered data from one that has.
+//
+// VALIDATES: statusCommand reports "synced":false and "sessions-synced":0 while the configured
+// session has completed no sync, and flips both once an End of Data PDU lands. rp.active stays
+// true across both, so the two facts are reported separately rather than as one.
+// PREVENTS: A router that reports RPKI as running while it holds no VRP set, which makes every
+// prefix read not-found and be accepted by the default not-found action.
+func TestStatusReportsSyncSeparatelyFromConfiguration(t *testing.T) {
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	rp := &rPKIPlugin{cache: newROACache(), aspaCache: newASPACache()}
+	sess := newRTRSession("192.0.2.1", 3323, 100, "", rp.cache, rp.aspaCache, stopCh)
+	rp.sessions = append(rp.sessions, sess)
+	rp.active.Store(true) // a cache server is configured
+
+	status := func() string {
+		t.Helper()
+		_, payload, err := rp.statusCommand()
+		require.NoError(t, err)
+		raw, ok := payload.(json.RawMessage)
+		require.True(t, ok, "statusCommand answers with a JSON payload")
+		return string(raw)
+	}
+
+	// The top-level fields are asserted as one anchored run. A bare `"synced":false` also
+	// matches the per-server field inside "cache-servers", so it would pass even if the
+	// top-level flag reported the configuration instead of the sync.
+	out := status()
+	assert.Contains(t, out, `"vrp-count-ipv4":0,"vrp-count-ipv6":0`, "no VRP has arrived")
+	assert.Contains(t, out, `"sessions":1,"sessions-synced":0,"synced":false,"aspa-enabled"`)
+	assert.Contains(t, out, `"state":"idle","synced":false`, "the configured server has delivered nothing")
+	assert.True(t, rp.active.Load(), "configured stays true while nothing has synced")
+
+	// One End of Data completes a sync on that session.
+	buf := make([]byte, pduEndOfDataLen)
+	buf[1] = pduEndOfData
+	binary.BigEndian.PutUint32(buf[4:8], pduEndOfDataLen)
+	done, err := sess.handlePDU(rTRHeader{Type: pduEndOfData, Length: pduEndOfDataLen}, buf)
+	require.NoError(t, err)
+	require.True(t, done)
+
+	_, payload, err := rp.statusCommand()
+	require.NoError(t, err)
+	raw, ok := payload.(json.RawMessage)
+	require.True(t, ok, "statusCommand answers with a JSON payload")
+	out = string(raw)
+	assert.Contains(t, out, `"sessions":1,"sessions-synced":1,"synced":true,"aspa-enabled"`)
+	assert.Contains(t, out, `"state":"idle","synced":true`, "a synced server reports the sync, not the RTR state")
+	assert.NotContains(t, out, `"synced":false`, "nothing still reads as unsynced")
+	assert.True(t, rp.active.Load(), "configured is unchanged by the sync")
 }
 
 // TestStatusCommand_PerPeerActions_Empty verifies an empty array when no overrides exist.

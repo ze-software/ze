@@ -141,7 +141,7 @@ Query RPKI status through the ze CLI:
 
 | Command | Description |
 |---------|-------------|
-| `show bgp rpki status` | Show RTR session count and VRP counts |
+| `show bgp rpki status` | Show RTR session count, sync state, and VRP counts |
 | `show bgp rpki cache` | Show cache server connection details |
 | `show bgp rpki roa` | Show ROA table summary |
 | `show bgp rpki summary` | Show validation statistics |
@@ -150,8 +150,16 @@ Example:
 
 ```
 $ ze cli -c "show bgp rpki status"
-{"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1}
+{"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1,"sessions-synced":1,"synced":true,"aspa-enabled":false,"aspa-records":0,"cache-servers":[{"address":"192.0.2.1","port":3323,"state":"idle","synced":true,"version":2}],"actions":{"invalid":"reject","not-found":"accept","aspa-invalid":"log-only","aspa-unknown":"accept"},"peer-actions":[]}
 ```
+
+`running` says that a cache server is configured. `synced` says that a cache
+server completed a sync and gave ze a VRP set. The two are different states:
+while `synced` is false, ze holds no VRP set, so every prefix reads `not-found`
+and the default `not-found accept` action accepts it. `sessions-synced` counts
+the cache servers that delivered data, and each entry in `cache-servers` carries
+its own `synced`. `state` is the RTR connection state, which returns to `idle`
+between polls even after a successful sync.
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
 
 ## RPKI Validation Events
