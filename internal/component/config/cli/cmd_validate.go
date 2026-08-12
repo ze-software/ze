@@ -46,14 +46,6 @@ func ValidateContent(input, path string) error {
 	return errors.New(b.String())
 }
 
-// yangSectionsToValidate lists config sections that get YANG tree validation.
-// BGP is excluded because it has its own deeper validation path.
-var yangSectionsToValidate = []string{
-	"interface", "sysctl", "fib", "plugin", "web", "ssh", "dns",
-	"telemetry", "looking-glass", "mcp", "managed", "vpp",
-	"vpn", "pki", "l2tp", "isis", "ospf",
-}
-
 // validationResult holds validation results with structured diagnostics.
 type validationResult struct {
 	Valid       bool
@@ -283,57 +275,49 @@ func runValidation(input, path string) *validationResult {
 	// reflects only active config (inactive peers are not started).
 	config.PruneInactive(tree, schema)
 
-	// YANG tree validation: check cardinality, patterns, ranges, and mandatory
-	// fields for all non-BGP config sections. BGP has its own deeper path below.
-	sensitiveKeys := config.SensitiveKeys(schema)
-	if yangValidator, yangErr := config.YANGValidatorWithPlugins(nil); yangErr == nil {
-		for _, section := range yangSectionsToValidate {
-			container := tree.GetContainer(section)
-			if container == nil {
-				continue
-			}
-			for _, ve := range yangValidator.ValidateTreeAllModules(section, container.ToMap()) {
-				sensitive := isSensitiveLeaf(ve.Path, sensitiveKeys)
-
-				var tb textbuf.Buffer
-				msg := ve.Message
-				if sensitive {
-					msg = tb.Str(ve.Type.String()).Str(" validation failed (sensitive value redacted)").String()
-				}
-				if ve.Path != "" {
-					msg = tb.Reset().Str(ve.Path).Str(": ").Str(msg).String()
-				}
-				fullMsg := tb.Reset().Str(section).Str(": ").Str(msg).String()
-
-				d := diagnostic.Diagnostic{
-					Code:    yangErrorCode(ve.Type),
-					Message: fullMsg,
-					Line:    ve.LineNumber,
-				}
-				if ve.Path != "" {
-					d.Path = tb.Reset().Str(section).Byte('.').Str(ve.Path).String()
-				}
-				if ve.Expected != "" {
-					d.Expected = ve.Expected
-				}
-				if ve.Got != "" && !sensitive {
-					d.Actual = ve.Got
-				}
-
-				if r, s := yangRepair(ve.Type); r != nil {
-					d.Repair = r
-					d.FixSafety = s
-				}
-
-				if ve.Type == configyang.ErrTypeMissing {
-					d.Severity = diagnostic.SeverityWarning
-				} else {
-					d.Severity = diagnostic.SeverityError
-					result.Valid = false
-				}
-				result.Diagnostics = append(result.Diagnostics, d)
-			}
+	// YANG tree validation: cardinality, patterns, ranges, mandatory fields and
+	// the ze:validate custom validators, over the section list it owns. BGP has
+	// its own deeper path below.
+	//
+	// The walk itself lives in the config package because LoadConfig runs it
+	// too. One walk means `ze config validate` and the daemon cannot reach
+	// different verdicts on the same bytes, which is what the upgrade note in
+	// docs/guide/configuration.md promises an operator.
+	failures, walkErr := config.ValidateCustomSections(tree)
+	if walkErr != nil {
+		// The old code skipped the whole walk when the validator would not
+		// build, and reported the config valid. A guard that cannot run must
+		// say so, not wave the config through.
+		result.addError("config-validator-unavailable", walkErr.Error())
+	}
+	for _, f := range failures {
+		ve := f.Err
+		var tb textbuf.Buffer
+		d := diagnostic.Diagnostic{
+			Code:    yangErrorCode(ve.Type),
+			Message: f.Message(),
+			Line:    ve.LineNumber,
 		}
+		if ve.Path != "" {
+			d.Path = tb.Reset().Str(f.Section).Byte('.').Str(ve.Path).String()
+		}
+		if ve.Expected != "" {
+			d.Expected = ve.Expected
+		}
+		if ve.Got != "" && !f.Sensitive {
+			d.Actual = ve.Got
+		}
+		if r, s := yangRepair(ve.Type); r != nil {
+			d.Repair = r
+			d.FixSafety = s
+		}
+		if f.Blocking() {
+			d.Severity = diagnostic.SeverityError
+			result.Valid = false
+		} else {
+			d.Severity = diagnostic.SeverityWarning
+		}
+		result.Diagnostics = append(result.Diagnostics, d)
 	}
 
 	// MCP semantic validation. The else branch is not optional bookkeeping:
@@ -531,13 +515,6 @@ func asnFromSession(tree map[string]any, leaf string) uint32 {
 		return 0
 	}
 	return treeUint32(asnMap[leaf])
-}
-
-func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
-	if idx := strings.LastIndex(path, "."); idx >= 0 {
-		return sensitiveKeys[path[idx+1:]]
-	}
-	return sensitiveKeys[path]
 }
 
 func listenerConflictRelated(c *config.ListenerConflict) []diagnostic.Related {

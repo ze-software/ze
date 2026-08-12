@@ -1,0 +1,37 @@
+# Test: the daemon refuses to start on an IS-IS hostname outside 7-bit ASCII.
+#
+# VALIDATES: spec-fixit-config-validators-bypassed-at-startup AC-3 -- a
+#            hand-edited hostname carrying an octet outside 0x20..0x7e is
+#            refused at `ze` start, not only by `ze config validate`.
+# PREVENTS:  the hole spec-fixit-isis-hostname-ascii depended on. That spec
+#            makes the config boundary the ONLY enforcement point for RFC 5301
+#            section 3: hostnameTLV is unchanged so the operator's octets reach
+#            the wire byte for byte. With startup unvalidated, a hand-edited
+#            hostname plus a restart still put 8-bit octets into TLV 137.
+#
+# test/isis/isis-hostname-ascii.ci proves `ze config validate` refuses the same
+# value. This test proves the DAEMON refuses it, which is the claim that was
+# false until LoadConfig gained its ValidateCustomSections call.
+#
+# RFC requirement: RFC5301-3-7 positive -- "The Value field is encoded in 7-bit ASCII" (RFC 5301 Section 3). The daemon refuses a UTF-8 name at load, so it can never be framed into TLV 137.
+#
+# The enforcing producer is ISISHostnameValidator
+# (internal/component/config/validators.go), reached through the ze:validate
+# extension on the hostname leaf in
+# internal/plugins/isis/yang/ze-isis-conf.yang, walked by ValidateCustomSections
+# (internal/component/config/validate_sections.go) from LoadConfig.
+
+stdin=isis-utf8:terminator=EOF_UTF8
+isis {
+	net 49.0001.0000.0000.0001.00
+	hostname café.example
+}
+EOF_UTF8
+
+cmd=foreground:seq=1:exec=ze -:stdin=isis-utf8:exit=1:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=config validation failed
+expect=stderr:contains=isis
+expect=stderr:contains=is not a valid IS-IS hostname
+expect=stderr:contains=0xc3
+expect=stderr:contains=7-bit ASCII

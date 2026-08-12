@@ -306,6 +306,26 @@ func bootPowerUsers(log *slog.Logger) []authz.UserConfig {
 	return users
 }
 
+// recoverableLoadError reports whether a LoadConfig failure is the kind
+// RecoverConfig answers. RecoverConfig exists for ONE failure: this binary is
+// older than the release that stamped the config on disk, so it cannot read
+// what the newer schema wrote. Its answer is to walk rollback history and
+// REWRITE the config file with the newest version it can load.
+//
+// A ze:validate custom validator refusal is not that failure. It says the
+// operator wrote a value the rules refuse, and it names the leaf, the value and
+// the rule. Rewriting their file and starting on an older config answers a
+// typo by discarding the edit, and it makes the daemon start on a config the
+// operator never wrote -- the opposite of AC-1 in
+// spec-fixit-config-validators-bypassed-at-startup, which is that the daemon
+// refuses and says why.
+//
+// The route only became reachable when LoadConfig gained its validation call:
+// before that, a validator refusal was never a LoadConfig error at all.
+func recoverableLoadError(err error) bool {
+	return !errors.Is(err, zeconfig.ErrCustomValidation)
+}
+
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
 	// Close the AAA bundle on every exit path so TACACS+ accounting and other
 	// backend workers drain before the process terminates. swapAAABundle is
@@ -315,7 +335,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
-		if recovered, ok := zeconfig.RecoverConfig(store, configPath, data, plugins); ok {
+		var recovered *zeconfig.LoadConfigResult
+		ok := false
+		if recoverableLoadError(err) {
+			recovered, ok = zeconfig.RecoverConfig(store, configPath, data, plugins)
+		}
+		if ok {
 			loadResult = recovered
 		} else {
 			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)

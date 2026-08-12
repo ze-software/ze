@@ -1,0 +1,44 @@
+# Test: the daemon refuses to start on a config a registered validator rejects.
+#
+# VALIDATES: spec-fixit-config-validators-bypassed-at-startup AC-1 -- a value a
+#            ze:validate custom validator refuses stops `ze` at load. The daemon
+#            exits 1, names the section, the leaf and the rule, and binds
+#            nothing, so the value reaches no protocol encoder.
+# PREVENTS:  the regression this spec closes. Until 2026-08-11 LoadConfig parsed
+#            and returned, and ValidateTreeAllModules had exactly one non-test
+#            caller (`ze config validate`), so every custom validator was
+#            bypassed at daemon start and at SIGHUP. A hand-edited config
+#            reached the wire unvalidated.
+#
+# The value below passes the YANG schema on its own: the `use` leaf is
+# `type string { length "1..64" }`, so nothing but the custom validator can
+# refuse it. That is what makes this test discriminate -- revert the
+# ValidateCustomSections call in LoadConfig and the refusal disappears.
+#
+# The enforcing producer is InternalPluginNameValidator
+# (internal/component/config/validators.go), reached through the ze:validate
+# extension on plugin/internal/use in
+# internal/component/plugin/yang/ze-plugin-conf.yang, walked by
+# ValidateCustomSections (internal/component/config/validate_sections.go).
+
+stdin=config:terminator=EOF_CONF
+plugin {
+	internal p1 {
+		use no-such-plugin-exists
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:exit=1:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=config validation failed
+expect=stderr:contains=plugin
+expect=stderr:contains=no-such-plugin-exists
+expect=stderr:contains=is not a registered internal plugin
+
+# The same config through `ze config validate` refuses identically. Both
+# callers run one walk over one section list, so an operator who checks a
+# config before an upgrade learns exactly what the daemon will do with it.
+cmd=foreground:seq=2:exec=ze config validate -:stdin=config:exit=1
+expect=exit:code=1
+expect=stdout:contains=is not a registered internal plugin

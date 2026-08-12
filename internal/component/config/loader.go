@@ -38,6 +38,21 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 		return nil, err
 	}
 
+	// Apply the registered ze:validate custom validators. Until this call
+	// existed, ValidateTreeAllModules had exactly one non-test caller
+	// (`ze config validate`), so every custom validator was bypassed at daemon
+	// start and at SIGHUP reload and a hand-edited value reached the wire
+	// unvalidated (spec-fixit-config-validators-bypassed-at-startup).
+	//
+	// Refusing here is also what makes the reload refuse, with no machinery of
+	// its own: runReload (cmd/ze/hub/main_reload.go) turns this error into
+	// "reload: parse config", clears the staged candidate and returns before
+	// ReloadConfig, the provider refresh and engine.Reload run, so the daemon
+	// keeps serving the config it already has (Thomas, 2026-08-11).
+	if err := refuseInvalidCustomSections(tree); err != nil {
+		return nil, err
+	}
+
 	plugins, err := ExtractPluginsFromTree(tree)
 	if err != nil {
 		return nil, err

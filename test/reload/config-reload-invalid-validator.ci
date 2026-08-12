@@ -1,0 +1,158 @@
+# Test: a SIGHUP reload whose config a registered validator rejects is refused,
+#       and the daemon keeps running the config it already has.
+#
+# VALIDATES: spec-fixit-config-validators-bypassed-at-startup AC-2 -- Thomas
+#            ruled on 2026-08-11 (Q-1) that the reload REFUSES. There is no
+#            override and no force flag. The invalid value reaches no protocol
+#            encoder, and the running daemon is not dropped for it.
+# PREVENTS:  a reload that walks past the startup guard. A guard that only the
+#            boot path enforces fails open on the next SIGHUP, which is the
+#            shape spec-fixit-mgmt-listener-auth-guard AC-7 already had to close
+#            for listeners.
+#
+# The replacement config is syntactically valid and its BGP half is
+# byte-identical to the running one, so nothing about the peer session changes
+# whether the reload is applied or refused. The only difference is a plugin
+# block whose `use` leaf names a plugin this build does not register. That leaf
+# is `type string { length "1..64" }` in
+# internal/component/plugin/yang/ze-plugin-conf.yang, so nothing but the custom
+# validator can refuse it: revert LoadConfig's ValidateCustomSections call and
+# the stderr line below disappears.
+#
+# Thomas's ruling has two halves and each has its own fence:
+#
+#   the reload FAILS -- the stderr expectations below, which name the refusal
+#   and the validator that produced it.
+#
+#   the daemon KEEPS RUNNING -- the SIGTERM after the SIGHUP, and exit code 0.
+#   A daemon that died on the SIGHUP cannot take the SIGTERM (syscall.Kill
+#   returns ESRCH and the peer fails the run) and cannot exit 0, because a
+#   process killed by a signal or a panic reports neither. Reaching the end of
+#   the checker proves NEITHER half on its own: the peer owes nothing past the
+#   SIGHUP, so it exits clean whether the daemon lives or dies, and an EOF after
+#   a sighup action is accepted by design (Checker.expectingClose,
+#   internal/test/peer/checker.go). Shape taken from
+#   test/reload/signal-quit.ci, which pairs action=sigterm with exit code 0.
+#
+# The refusal route carries no new machinery. LoadConfig returns an error,
+# runReload (cmd/ze/hub/main_reload.go) turns it into "reload: parse config",
+# clears the staged candidate, and returns before ReloadConfig, the provider
+# refresh, or engine.Reload run. handleSIGHUPReload prints it and loops.
+
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: the peer's route plus EOR, proving the session is established
+# before the reload is attempted.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Swap in the config carrying the refused value, then SIGHUP. The SIGTERM that
+# follows is the liveness fence: it is delivered to the same pid, in the same
+# peer loop iteration, after the reload has been refused.
+action=rewrite:conn=1:seq=2:source=invalid-validator.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=invalid-validator.conf:terminator=EOF_INVALID
+plugin {
+	internal p1 {
+		use no-such-plugin-exists
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_INVALID
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+
+# The daemon refused the reload ...
+expect=stderr:contains=reload: parse config: config validation failed
+expect=stderr:contains=is not a registered internal plugin
+# ... and was still there afterwards to take the SIGTERM and shut down cleanly.
+# runYANGConfig returns 0 only from the signal loop's shutdown path
+# (cmd/ze/hub/main.go), which a daemon that died on the SIGHUP never reaches.
+expect=exit:code=0

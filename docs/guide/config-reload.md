@@ -36,6 +36,17 @@ If the new configuration fails to parse:
 - An error is logged with details about the parse failure
 - No peers are affected
 
+The same applies when the configuration parses but a registered value validator
+refuses one of its values (an IS-IS hostname outside 7-bit ASCII, an invalid
+NET, an unregistered internal plugin name). The reload fails on the same branch,
+the staged candidate is cleared, and the daemon keeps the configuration it is
+already running. There is no override and no force flag. The message is
+`reload error: reload: parse config: config validation failed: ...` and it names
+the section, the leaf and the rule. See "Upgrading from a release that validated
+only on demand" in `docs/guide/configuration.md`.
+<!-- source: internal/component/config/loader.go -- LoadConfig refuses through ValidateCustomSections -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReload loadErr branch, before ReloadConfig -->
+
 If a plugin reload fails:
 - The daemon logs the error
 - In-process BGP continues with the old plugin state
@@ -53,7 +64,9 @@ If a plugin reload fails:
 ## Reload Workflow
 
 1. Ze reads the config file from disk
-2. Parses and validates against YANG schemas
+2. Parses and validates against YANG schemas, then applies the registered
+   `ze:validate` value validators. A refusal stops the reload here, before any
+   diff is computed
 3. Computes the diff between old and new config
 4. For each removed peer: sends NOTIFICATION Cease, closes session
 5. For each new peer: creates session, initiates connection
