@@ -1,10 +1,63 @@
+// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
+// must be RFC compliant" on the two DNS response codes he was shown, naming
+// zones.go as one of the two producers: a name inside a served zone that does
+// not exist must answer NXDOMAIN rather than NODATA, and a name under no served
+// zone must answer REFUSED with AA clear rather than NXDOMAIN with AA set. RFC
+// 7534 does not conflict. Its Section 3.5 zone files (db.dd-empty, db.dr-empty,
+// db.hostname.as112.net, db.hostname.as112.arpa) put every record at @ and
+// nothing below it, and Section 3.5 asks for a "standards-compliant"
+// authoritative server, which answers RCODE 3 for a name below the apex of such
+// a zone. The assertions below therefore move to the apex, which is
+// where the records they are about live.
+
 package as112
 
 import (
+	"net"
 	"testing"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
+
+// captureWriter is a dns.ResponseWriter that keeps the single reply the
+// dnsserver harness writes, so a test can assert on the header bits the harness
+// owns (AA) as well as on the answer content answerQuestions builds.
+type captureWriter struct {
+	dns.ResponseWriter
+	written *dns.Msg
+}
+
+func (c *captureWriter) WriteMsg(m *dns.Msg) error { c.written = m; return nil }
+func (c *captureWriter) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.ParseIP("203.0.113.1"), Port: 53000}
+}
+
+// as112Handler publishes an enabled as112 state and returns the full harness
+// handler (dnsserver.Authoritative over answerQuery), the composition
+// newServerManager binds to the listeners. Driving a query through it is the
+// only way to see the AA bit: shapeAuthoritative owns that bit and
+// answerQuestions never touches it.
+func as112Handler(t *testing.T) dns.HandlerFunc {
+	t.Helper()
+	resetAS112State(t)
+	storeState(buildState(as112Config{Enabled: true}, 1))
+	return dnsserver.Authoritative(answerQuery, nil)
+}
+
+// askAS112 drives one question through the harness and returns the reply.
+func askAS112(t *testing.T, h dns.HandlerFunc, qname string, qtype uint16) *dns.Msg {
+	t.Helper()
+	r := new(dns.Msg)
+	r.SetQuestion(qname, qtype)
+	w := &captureWriter{}
+	h(w, r)
+	if w.written == nil {
+		t.Fatalf("no reply written for %s %s", qname, dns.TypeToString[qtype])
+	}
+	return w.written
+}
 
 // VALIDATES: the 19 RFC 7534 reverse zones plus EMPTY.AS112.ARPA plus the two
 // hostname zones are all present, exactly once.
@@ -37,19 +90,27 @@ func TestServedZones_CompleteList(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-2 -- a query for a name within a Direct-Delegation reverse
-// zone gets NOERROR, empty Answer, zone SOA in Authority (RFC 1035 NODATA).
+// VALIDATES: AC-2 -- a query at the apex of a Direct-Delegation reverse zone,
+// for a type the zone holds no record of, gets NOERROR, empty Answer, zone SOA
+// in Authority (RFC 1035 NODATA).
 //
+// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
+// must be RFC compliant" on the two response codes he was shown, one of them
+// being an in-zone name that does not exist answering NODATA where NXDOMAIN is
+// owed. 1.0.10.in-addr.arpa. is such a name, so this test moves its query to
+// the apex, where the SOA and NS of RFC 7534 Section 3.5's zone file
+// actually live. RFC7534-3.5-3 positive moves to
+// TestZoneAnswer_ResponseCodeByNamePosition, which asks for the same RFC 1918
+// reverse name and asserts the nameserver hosts no record for it.
 // RFC requirement: RFC7534-3.5-1 positive -- the AS112 nameserver answers authoritatively for a
-// zone delegated to it: a query within 10.in-addr.arpa. is answered from that zone (NOERROR, the
-// zone's own SOA in Authority).
+// zone delegated to it: a query at the apex of 10.in-addr.arpa. is answered from that zone
+// (NOERROR, the zone's own SOA in Authority).
 // RFC requirement: RFC7534-3.5-2 positive -- a Direct-Delegation zone contains no records beyond
-// SOA and NS: a PTR query returns NODATA (empty Answer, SOA in Authority), never a PTR record.
-// RFC requirement: RFC7534-3.5-3 positive -- records for RFC 1918 resources are not hosted on the
-// nameserver: the RFC 1918 reverse name 1.0.10.in-addr.arpa. yields NODATA, not a hosted PTR.
+// SOA and NS: a PTR query at the apex, where the zone's records live, returns NODATA (empty
+// Answer, SOA in Authority), never a PTR record.
 func TestZoneAnswer_ReverseZoneNoData(t *testing.T) {
 	r := new(dns.Msg)
-	r.SetQuestion("1.0.10.in-addr.arpa.", dns.TypePTR)
+	r.SetQuestion("10.in-addr.arpa.", dns.TypePTR)
 	msg := new(dns.Msg)
 	msg.SetReply(r)
 
@@ -70,8 +131,13 @@ func TestZoneAnswer_ReverseZoneNoData(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-3 -- a query within empty.as112.arpa gets NOERROR, empty
-// Answer, zone SOA in Authority.
+// VALIDATES: AC-3 -- a name inside empty.as112.arpa gets NXDOMAIN with the zone
+// SOA in Authority. The zone holds its SOA and NS at the apex and nothing below
+// it (RFC 7534 Section 3.5's db.dr-empty), so a redirected name landing on the
+// node does not exist.
+//
+// rfc-test-change-approved: 2026-08-12 the same ruling. foo.empty.as112.arpa.
+// is a name inside a served zone that does not exist, so it answers NXDOMAIN.
 func TestZoneAnswer_EmptyAS112Arpa(t *testing.T) {
 	r := new(dns.Msg)
 	r.SetQuestion("foo.empty.as112.arpa.", dns.TypeA)
@@ -80,8 +146,8 @@ func TestZoneAnswer_EmptyAS112Arpa(t *testing.T) {
 
 	answerQuestions(msg, r, 1, "", "", "")
 
-	if msg.Rcode != dns.RcodeSuccess {
-		t.Fatalf("Rcode = %v, want NOERROR", dns.RcodeToString[msg.Rcode])
+	if msg.Rcode != dns.RcodeNameError {
+		t.Fatalf("Rcode = %v, want NXDOMAIN", dns.RcodeToString[msg.Rcode])
 	}
 	if len(msg.Answer) != 0 || len(msg.Ns) != 1 {
 		t.Fatalf("Answer=%v Ns=%v, want empty Answer + SOA in Ns", msg.Answer, msg.Ns)
@@ -120,29 +186,42 @@ func TestZoneAnswer_HostnameTXTIncludesHostname(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5 -- a name outside every served zone is NXDOMAIN.
+// VALIDATES: AC-5 -- a name outside every served zone is REFUSED, with AA
+// clear.
+//
+// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
+// must be RFC compliant" on the response code for a name in a zone Ze does not
+// serve: REFUSED with AA clear, not NXDOMAIN with AA set. The negative polarity
+// of RFC7534-3.5-1 gets stronger for it -- the reply now asserts no authority
+// over the name instead of asserting authority and denying the name exists.
 //
 // RFC requirement: RFC7534-3.5-1 negative -- authoritative answering is confined to the delegated
-// zones: a name outside every served zone (example.com.) is not answered with authoritative data
-// (NXDOMAIN), so the nameserver answers only for the zones delegated to it.
-func TestZoneAnswer_OutOfZoneNXDOMAIN(t *testing.T) {
-	r := new(dns.Msg)
-	r.SetQuestion("example.com.", dns.TypeA)
-	msg := new(dns.Msg)
-	msg.SetReply(r)
+// zones: for a name outside every served zone (example.com.) the nameserver answers no zone data
+// and makes no authority claim (REFUSED, AA clear), so it answers only for the zones delegated to
+// it.
+func TestZoneAnswer_OutOfZoneRefused(t *testing.T) {
+	reply := askAS112(t, as112Handler(t), "example.com.", dns.TypeA)
 
-	answerQuestions(msg, r, 1, "", "", "")
-
-	if msg.Rcode != dns.RcodeNameError {
-		t.Fatalf("Rcode = %v, want NXDOMAIN", dns.RcodeToString[msg.Rcode])
+	if reply.Rcode != dns.RcodeRefused {
+		t.Fatalf("Rcode = %v, want REFUSED", dns.RcodeToString[reply.Rcode])
+	}
+	if reply.Authoritative {
+		t.Fatal("AA set on a name under no served zone; the node claims authority it does not have")
+	}
+	if len(reply.Answer) != 0 || len(reply.Ns) != 0 {
+		t.Fatalf("Answer=%v Ns=%v, want both empty for a refused name", reply.Answer, reply.Ns)
 	}
 }
 
 // VALIDATES: zone-boundary matching is label-aware, not a raw string suffix
 // match. A sibling name that merely ENDS WITH a served zone's characters
 // (e.g. "evil10.in-addr.arpa." ends with "10.in-addr.arpa.") is NOT inside
-// that zone and must get NXDOMAIN, never treated as in-bailiwick NODATA.
-func TestZoneAnswer_SiblingNameNotInZone_NXDOMAIN(t *testing.T) {
+// that zone and must get REFUSED with AA clear, never treated as in-bailiwick.
+//
+// rfc-test-change-approved: 2026-08-12 the same ruling. A sibling name is a name
+// under no served zone, so it takes the out-of-zone answer.
+func TestZoneAnswer_SiblingNameNotInZone_Refused(t *testing.T) {
+	handler := as112Handler(t)
 	cases := []string{
 		"evil10.in-addr.arpa.",
 		"not168.192.in-addr.arpa.",
@@ -150,18 +229,97 @@ func TestZoneAnswer_SiblingNameNotInZone_NXDOMAIN(t *testing.T) {
 	}
 	for _, name := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := new(dns.Msg)
-			r.SetQuestion(name, dns.TypeA)
-			msg := new(dns.Msg)
-			msg.SetReply(r)
-
-			answerQuestions(msg, r, 1, "", "", "")
-
-			if msg.Rcode != dns.RcodeNameError {
-				t.Fatalf("Rcode = %v, want NXDOMAIN for out-of-zone sibling name %q", dns.RcodeToString[msg.Rcode], name)
+			reply := askAS112(t, handler, name, dns.TypeA)
+			if reply.Rcode != dns.RcodeRefused {
+				t.Fatalf("Rcode = %v, want REFUSED for out-of-zone sibling name %q", dns.RcodeToString[reply.Rcode], name)
+			}
+			if reply.Authoritative {
+				t.Fatalf("AA set for out-of-zone sibling name %q", name)
 			}
 		})
 	}
+}
+
+// VALIDATES: the RCODE, the AA bit and the Authority section a query draws,
+// against where its name sits relative to the served zones -- at a zone apex,
+// below one, or outside every one.
+// PREVENTS: the three answers collapsing into one. A test reading the RCODE
+// alone passes against a REFUSED reply that still claims authority, and a test
+// reading AA alone passes against an NXDOMAIN that denies a name Ze does serve.
+//
+// rfc-test-change-approved: 2026-08-12 a new test, written under the same
+// ruling. It carries RFC7534-3.5-3 positive, which moves here from
+// TestZoneAnswer_ReverseZoneNoData with the same RFC 1918 reverse name.
+func TestZoneAnswer_ResponseCodeByNamePosition(t *testing.T) {
+	handler := as112Handler(t)
+
+	for _, tc := range []struct {
+		what      string
+		qname     string
+		qtype     uint16
+		rcode     int
+		aa        bool
+		answers   bool // records expected in the Answer section
+		soaInAuth bool // the zone SOA expected in the Authority section
+	}{
+		{"apex, a type the zone holds", "10.in-addr.arpa.", dns.TypeSOA, dns.RcodeSuccess, true, true, false},
+		{"apex, a type the zone does not hold", "10.in-addr.arpa.", dns.TypePTR, dns.RcodeSuccess, true, false, true},
+		{"below the apex, a name the zone does not own", "1.0.10.in-addr.arpa.", dns.TypePTR, dns.RcodeNameError, true, false, true},
+		{"under no served zone", "example.com.", dns.TypeA, dns.RcodeRefused, false, false, false},
+	} {
+		t.Run(tc.what, func(t *testing.T) {
+			reply := askAS112(t, handler, tc.qname, tc.qtype)
+
+			// RFC requirement: RFC1035-4.1.1-3 positive -- "3               Name Error - Meaningful
+			// only for responses from an authoritative name server, this code signifies that the
+			// domain name referenced in the query does not exist." 1.0.10.in-addr.arpa. is inside a
+			// zone this node is authoritative for, and that zone owns no node below its apex, so the
+			// name does not exist and the reply carries RCODE 3.
+			// RFC requirement: RFC1035-4.1.1-3 negative -- the same code is withheld from the other
+			// three rows. The apex EXISTS, so a type it holds no record of is NOERROR with no data,
+			// never a name error; and example.com. draws RCODE 5 rather than RCODE 3, because RCODE
+			// 3 is "meaningful only for responses from an authoritative name server" and this node
+			// is not an authority for it.
+			// RFC requirement: RFC7534-3.5-3 positive -- records for RFC 1918 resources are not
+			// hosted on the AS112 nameserver itself: an RFC 1918 reverse name such as
+			// 1.0.10.in-addr.arpa. draws a name error with no PTR anywhere in the reply.
+			if reply.Rcode != tc.rcode {
+				t.Errorf("Rcode = %s, want %s", dns.RcodeToString[reply.Rcode], dns.RcodeToString[tc.rcode])
+			}
+			// RFC requirement: RFC1035-4.1.1-2 negative -- "AA              Authoritative Answer -
+			// this bit is valid in responses, and specifies that the responding name server is an
+			// authority for the domain name in question section." The bit is withheld from the one
+			// name in the table this node is not an authority for.
+			if reply.Authoritative != tc.aa {
+				t.Errorf("AA = %v, want %v", reply.Authoritative, tc.aa)
+			}
+			if got := len(reply.Answer) > 0; got != tc.answers {
+				t.Errorf("Answer section non-empty = %v, want %v (%v)", got, tc.answers, reply.Answer)
+			}
+			// RFC 2308 Section 3: "Name servers authoritative for a zone MUST
+			// include the SOA record of the zone in the authority section of the
+			// response when reporting an NXDOMAIN or indicating that no data of the
+			// requested type exists."
+			if got := hasSOAIn(reply.Ns); got != tc.soaInAuth {
+				t.Errorf("SOA in Authority = %v, want %v (%v)", got, tc.soaInAuth, reply.Ns)
+			}
+			for _, rr := range append(append([]dns.RR{}, reply.Answer...), reply.Extra...) {
+				if rr.Header().Rrtype == dns.TypePTR {
+					t.Errorf("reply carries a PTR record (%v); this node hosts no RFC 1918 reverse data", rr)
+				}
+			}
+		})
+	}
+}
+
+// hasSOAIn reports whether rrs holds an SOA record.
+func hasSOAIn(rrs []dns.RR) bool {
+	for _, rr := range rrs {
+		if _, ok := rr.(*dns.SOA); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // VALIDATES: AC-13 / finding M1 -- SOA timers match the RFC 7534 db.dd-empty

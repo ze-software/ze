@@ -236,48 +236,79 @@ func isHostnameZone(zone string) bool {
 }
 
 // answerQuestions fills msg for each question in r, using the zone table and
-// the given serial/hostname-TXT identity. A name outside every served zone
-// leaves found=false (caller sets NXDOMAIN); an in-zone name with no
-// matching record type is NOERROR with the zone SOA in Authority (RFC 1035
-// NODATA), never NXDOMAIN.
+// the given serial/hostname-TXT identity, and picks the reply's RCODE from what
+// the served zones say about the names asked for.
+//
+// Every zone this node serves holds its records at the apex and nowhere else:
+// RFC 7534 Section 3.5's zone files put an SOA and an NS set at @ in
+// db.dd-empty and db.dr-empty, and an SOA, an NS set and the TXT strings at @
+// in db.hostname.as112.net and db.hostname.as112.arpa. Nothing below the apex
+// is a node of the tree, so the three answers below follow from where the query
+// name sits.
+//
+//   - A name under no served zone draws RCODE 5. RFC 1035 Section 4.1.1:
+//     "Refused - The name server refuses to perform the specified operation for
+//     policy reasons." This node is delegated 22 zones and holds no data about
+//     anything else, so it makes no claim about the name and the harness clears
+//     AA for the reply (dnsserver's shapeAuthoritative).
+//   - A name inside a served zone but below its apex draws RCODE 3. RFC 1035
+//     Section 4.1.1: "Name Error - Meaningful only for responses from an
+//     authoritative name server, this code signifies that the domain name
+//     referenced in the query does not exist." Sinking the reverse-DNS query
+//     for a private address is exactly the statement that the name does not
+//     exist, which is what RFC 7534 Section 3.5 has these empty zones make.
+//   - The apex itself exists, so a query type it holds no record for draws
+//     NOERROR with an empty Answer.
+//
+// The last two carry the zone SOA in the Authority section, which RFC 2308
+// Section 3 requires of an authoritative server "when reporting an NXDOMAIN or
+// indicating that no data of the requested type exists", so that a resolver can
+// cache the negative answer for the 1W the SOA's MINIMUM field gives it. That
+// caching is the point of an AS112 node: RFC 7535 Section 6 counts on it, "The
+// negative caching [RFC2308] of the CNAME target follows the parameters defined
+// in the target zone, EMPTY.AS112.ARPA."
+//
+// The RCODE is assigned directly rather than through Msg.SetRcode, which calls
+// SetReply and would drop every question after the first from a multi-question
+// reply.
 func answerQuestions(msg, r *dns.Msg, serial uint32, hostname, facility, location string) {
-	found := false
+	served, missing := false, false
 	for _, q := range r.Question {
 		zone, ok := matchZone(q.Name)
 		if !ok {
 			continue
 		}
-		found = true
+		served = true
 		kind := zoneKindFor(zone)
+		if !strEqualFold(q.Name, zone) {
+			missing = true
+			msg.Ns = append(msg.Ns, buildSOA(zone, kind, serial))
+			continue
+		}
 
 		switch q.Qtype {
 		case dns.TypeSOA:
-			if strEqualFold(q.Name, zone) {
-				msg.Answer = append(msg.Answer, buildSOA(zone, kind, serial))
-				appendNS(msg, zone, kind, true)
-			} else {
-				msg.Ns = append(msg.Ns, buildSOA(zone, kind, serial))
-			}
+			msg.Answer = append(msg.Answer, buildSOA(zone, kind, serial))
+			appendNS(msg, zone, kind, true)
 		case dns.TypeNS:
-			if strEqualFold(q.Name, zone) {
-				appendNS(msg, zone, kind, false)
-			} else {
-				msg.Ns = append(msg.Ns, buildSOA(zone, kind, serial))
-			}
+			appendNS(msg, zone, kind, false)
 		case dns.TypeTXT:
-			if isHostnameZone(zone) && strEqualFold(q.Name, zone) {
+			if isHostnameZone(zone) {
 				msg.Answer = append(msg.Answer, buildHostnameTXT(zone, hostname, facility, location))
 			} else {
 				msg.Ns = append(msg.Ns, buildSOA(zone, kind, serial))
 			}
 		default:
 			// RFC 7534 Section 3.5: "There should be no other resource records
-			// included in this zone." Any other query type in a served zone is
-			// NODATA, never a synthesized answer.
+			// included in this zone." Any other query type at the apex of a
+			// served zone is NODATA, never a synthesized answer.
 			msg.Ns = append(msg.Ns, buildSOA(zone, kind, serial))
 		}
 	}
-	if !found {
-		msg.SetRcode(r, dns.RcodeNameError)
+	switch {
+	case !served:
+		msg.Rcode = dns.RcodeRefused
+	case missing:
+		msg.Rcode = dns.RcodeNameError
 	}
 }

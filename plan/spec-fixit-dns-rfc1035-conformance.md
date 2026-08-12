@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 landed; WP-4 and two escalations open |
+| Phase | WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 landed; WP-4 and one escalation open |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard is created only if something is deferred. Create `plan/deferrals/fixit-dns-rfc1035-conformance.md` on the first deferral) |
 | Updated | 2026-08-12 |
 
@@ -93,7 +93,7 @@ puts the RFC TEXT first, and the governing text is the later one.
 → Constraint: no annotation kind can express this, so none was applied. The
 reason is a gap in the ledger itself, recorded in its own section below.
 
-### Position on 2026-08-12: 24 of 27 rows proven, 3 open
+### Position on 2026-08-12: 25 of 27 rows proven, 2 open
 
 `rfc/requirements/rfc1035.md` is the measurement. WP-1, WP-3 and the
 `RFC1035-2.3.4-1` half of WP-2 landed earlier that day; WP-5, WP-6, WP-7 and
@@ -109,43 +109,52 @@ to the two size limits of section 3.1, including the `ns<N>.<zone>` glue name it
 synthesizes and no config leaf holds; `parseSOA` and the YANG `minimum` leaf
 bound the one SOA field that reaches the wire as a TTL.
 
-Three rows remain, and each is a different kind of open.
+Two rows remain, and each is a different kind of open.
 
 | Row | Kind | State |
 |-----|------|-------|
 | `RFC1035-3.3.13-1` | settled, unrecordable | RFC 2308 section 4 withdrew it. Held by `TestRFC2308_NoZoneWideTTLFloor` and by the section above. The ledger has no word for "superseded" |
-| `RFC1035-4.1.1-3` | a real gap, escalated | Neither responder emits RCODE 3 for a name in a zone it serves, and its only RCODE 3 carries AA=1 for a name it serves no zone for. See the section below |
 | `RFC1035-4.2-1` | not implemented | Zone transfer. WP-4, untouched, and the partition above splits cleanly at WP-4a |
 
-### `RFC1035-4.1.1-3` has no honest test, and the reason is a defect
+### `RFC1035-4.1.1-3` is answered and proven (2026-08-12)
 
-RFC 1035 section 4.1.1 defines RCODE 3 as "Name Error - Meaningful only for
-responses from an authoritative name server, this code signifies that the domain
-name referenced in the query does not exist."
+The row was escalated because neither responder emitted RCODE 3 for a name in a
+zone it serves, and its only RCODE 3 carried AA=1 for a name it serves no zone
+for. Thomas was shown both halves and ruled "fix any issues - the code must be
+RFC compliant", so both were implemented.
 
-`answerQuestions` (`internal/plugins/geodns/server.go`) answers a name inside a
-served zone that has no record with NOERROR plus the zone SOA. RFC 2308 section
-2 reserves that shape for a name which EXISTS and holds no data of the requested
-type, so a name that is simply absent from the zone draws the wrong code.
-`internal/plugins/as112/zones.go` has the same shape. The only path to RCODE 3 in
-either responder is `matchZone` finding no zone at all, and `shapeAuthoritative`
-then stamps AA=1 on that reply.
+| Query | Answer now |
+|-------|-----------|
+| A name a served zone owns, with no record of the type asked for | NOERROR, empty Answer, the zone SOA in the Authority section |
+| A name inside a served zone that the zone does not own | RCODE 3, the zone SOA in the Authority section |
+| A name under no served zone | RCODE 5, AA clear, nothing in any section |
 
-So Ze's one Name Error says two things it cannot support at once: that Ze is the
-authority for a name it serves no zone for, and that the name exists nowhere.
-Writing a positive tagged test against either half would pin the defect with a
-green bar on it, so no tag was written.
+The existence test is a property of the ZONE, not of the client. Host sets are
+chosen by source prefix, so a name configured in one host set and not another has
+data for one client and none for another; both clients get NOERROR, because the
+name exists either way. `resolverState.names` (`internal/plugins/geodns/state.go`)
+holds that set, built once per config generation from each configured host plus
+every interior node above one, and `nameExists`
+(`internal/plugins/geodns/server.go`) reads it. as112 needs no such set: every
+zone it serves holds its records at the apex and nothing below it, so the apex
+comparison IS the existence test.
 
-→ Decision required from Thomas. The NXDOMAIN/NODATA split is client-dependent
-in geodns, because a host-set is chosen by source prefix and "the name does not
-exist" is therefore not a property of the zone alone. The out-of-zone half
-reaches as112, whose RFC 7534 behaviour is separately enrolled. Both halves
-change what every operator and every existing test sees. The question is which
-way he wants each fixed, never whether to leave them.
+RFC 7534 does not conflict, which is what made the as112 half safe. Its section
+3.5 zone files put every record at `@`, and it asks for a "standards-compliant"
+authoritative server, which answers RCODE 3 below the apex of such a zone. All
+three RFC 7534 rows keep the polarities they had.
 
-→ Constraint: the row stays unproven and unannotated until he answers.
-`ai/rules/rfc-compliance.md` reserves the classification to him, and rfc1035 is
-not enrolled, so nothing false is published meanwhile.
+The AA decision moved to the RCODE, in `shapeAuthoritative`
+(`internal/core/dnsserver/handler.go`), so neither responder special-cases it.
+
+→ Decision: RFC 2308 section 3 is cited in prose rather than tagged. It is not
+enrolled and has no summary, so it carries no requirement id.
+
+→ Constraint: `matchZone` in geodns compared characters, so `evilexample.com.`
+matched the zone `example.com.` and would have drawn an authoritative answer
+where REFUSED is owed. It now uses `dns.IsSubDomain`, as as112 already did, and
+`hasZoneSuffix` in the config parser uses the same test so a host the parser
+accepts is a host the answer path can place.
 
 ### Structural gap: the ledger cannot say "a later RFC withdrew this"
 
@@ -303,7 +312,7 @@ the repo.
 - `RecursionAvailable = false` on every reply. Ze must never advertise recursion.
 - The panic guard that drops a reply rather than crashing the listener (`handler.go`).
 - `TestDoHIgnoresEDNSUDPSize` stays green. DoH must not truncate on an advertised UDP size.
-- NXDOMAIN for a name outside every served zone. NODATA plus the zone SOA for an in-zone name with no matching record.
+- ~~NXDOMAIN for a name outside every served zone. NODATA plus the zone SOA for an in-zone name with no matching record.~~ VOID 2026-08-12: both were the defect. See "`RFC1035-4.1.1-3` is answered and proven".
 - AS112 SOA and NS parameters. `TestSOA_RFCMandatedParameters` pins them for RFC 7534.
 - The answer func never receives the `ResponseWriter`. It cannot bypass the shaping.
 

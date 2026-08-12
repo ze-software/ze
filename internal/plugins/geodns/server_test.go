@@ -159,9 +159,12 @@ func queryA(t *testing.T, proto, addr, qname, subnet string) *dns.Msg {
 }
 
 // VALIDATES: end-to-end resolution over real UDP+TCP sockets — most-specific
-// source wins, SOA query is synthesized, an unknown name is a NOERROR negative
-// answer with SOA in authority, and reload swaps answers without rebinding.
-// PREVENTS: the whole feature silently not working off-wire.
+// source wins, SOA query is synthesized, a name the zone does not own is
+// NXDOMAIN with SOA in authority while a name it does own with no record of the
+// type asked for is NOERROR with SOA in authority, and reload swaps answers
+// without rebinding.
+// PREVENTS: the whole feature silently not working off-wire, and the two
+// negative answers collapsing into one over a real socket.
 func TestServerResolvesPerSource(t *testing.T) {
 	port := freePort(t)
 	cfg := resolveTestConfig(t, port)
@@ -184,13 +187,26 @@ func TestServerResolvesPerSource(t *testing.T) {
 		if got := firstA(resp); got != "10.0.0.2" {
 			t.Errorf("%s external A = %q, want 10.0.0.2", proto, got)
 		}
-		// unknown name -> NOERROR + SOA authority
+		// a name the zone does not own -> NXDOMAIN + SOA authority
 		resp = queryA(t, proto, addr, "nope.test.example.", "1.1.1.1")
-		if resp.Rcode != dns.RcodeSuccess {
-			t.Errorf("%s unknown rcode = %s, want NOERROR", proto, dns.RcodeToString[resp.Rcode])
+		if resp.Rcode != dns.RcodeNameError {
+			t.Errorf("%s unknown-name rcode = %s, want NXDOMAIN", proto, dns.RcodeToString[resp.Rcode])
 		}
 		if len(resp.Answer) != 0 || !hasSOA(resp.Ns) {
-			t.Errorf("%s unknown: want empty answer + SOA authority, got answer=%v ns=%v", proto, resp.Answer, resp.Ns)
+			t.Errorf("%s unknown name: want empty answer + SOA authority, got answer=%v ns=%v", proto, resp.Answer, resp.Ns)
+		}
+		// a name the zone DOES own, asked for a type it holds no record of ->
+		// NOERROR + SOA authority. The wire distinguishes the two negatives.
+		c0 := &dns.Client{Net: proto, Timeout: 2 * time.Second}
+		mxResp, _, mxErr := c0.Exchange(subnetMsg("proxy.test.example.", dns.TypeMX, "1.1.1.1"), addr)
+		if mxErr != nil {
+			t.Fatalf("%s mx exchange: %v", proto, mxErr)
+		}
+		if mxResp.Rcode != dns.RcodeSuccess {
+			t.Errorf("%s no-data rcode = %s, want NOERROR", proto, dns.RcodeToString[mxResp.Rcode])
+		}
+		if len(mxResp.Answer) != 0 || !hasSOA(mxResp.Ns) {
+			t.Errorf("%s no data: want empty answer + SOA authority, got answer=%v ns=%v", proto, mxResp.Answer, mxResp.Ns)
 		}
 		// SOA query for zone
 		c := &dns.Client{Net: proto, Timeout: 2 * time.Second}

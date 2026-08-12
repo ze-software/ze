@@ -55,9 +55,43 @@ over each ip:port.
 <!-- source: internal/plugins/geodns/server.go -- geodnsServer, apply, stopAll -->
 <!-- source: internal/core/dnsserver/manager.go -- endpointSig -->
 
-Answers follow the NOERROR-centric shape: an in-zone name with no record gives
-NOERROR with the SOA in the authority section, a name outside every zone gives
-NXDOMAIN, and `ns1..nsN.<zone>` glue is synthesized from the nameserver list.
+The response code says where the query name sits, and `ns1..nsN.<zone>` glue is
+synthesized from the nameserver list.
+
+| Query name | Answer |
+|------------|--------|
+| A name a served zone owns, with no record of the type asked for | NOERROR, empty answer, the zone SOA in the authority section |
+| A name inside a served zone that the zone does not own | NXDOMAIN, the zone SOA in the authority section |
+| A name under no served zone | REFUSED, AA clear, nothing in any section |
+
+A name the zone owns keeps NOERROR whatever the client can see of it. Host sets
+are chosen by source prefix, so a name configured in one host set and not
+another has data for one client and none for another. Existence is a property
+of the zone, so the second client gets no data of this type, never a name
+error. The set of existing names is `resolverState.names`, built once per
+config generation: each configured host, plus every interior node between that
+host and its zone apex.
+
+A client that resolves to nothing takes the same table. `client-ip-source
+edns0` answers a query carrying no client-subnet option with no client at all,
+and the zero address matches no source prefix, so no host set is selected. Which
+zone owns a name does not depend on the client, so the three response codes are
+unchanged.
+
+RFC 2308 Section 3 requires the SOA in the authority section on both negative
+answers, so a resolver can cache them.
+
+<!-- source: internal/plugins/geodns/server.go -- answerQuestions, nameExists, inZone -->
+<!-- source: internal/plugins/geodns/state.go -- buildNames -->
+
+## Zone boundary matching
+
+Zone membership uses `dns.IsSubDomain(zone, name)`, never a string-suffix
+comparison, at the query path (`inZone`, reached through `matchZone`) and at
+config parse (`hasZoneSuffix`) alike. A suffix comparison places
+`evilexample.com.` inside the zone `example.com.`, because the characters match
+where the label sequence does not nest. Ze would then answer for a namespace it
+serves no zone for.
 
 ### The SOA serial is a uint32, which bounds the format
 

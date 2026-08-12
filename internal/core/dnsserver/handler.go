@@ -22,7 +22,8 @@ type Peer interface {
 
 // AnswerFunc builds the reply for one query by mutating msg, which
 // Authoritative has already shaped (SetReply plus shapeAuthoritative:
-// Authoritative=true, Compress=false, RecursionAvailable=false). p is a
+// Compress=false, RecursionAvailable=false, and AA set unless the func chooses
+// RCODE 5). p is a
 // read-only view of the transport peer; resolve the packet source lazily with
 // RemoteAddr(p) only on the paths whose answer depends on it (combine it with
 // ClientIP for source-based selection) so a path that refuses or drops pays
@@ -40,7 +41,8 @@ type AnswerFunc func(msg, r *dns.Msg, p Peer) (send bool)
 // authoritative-answer shape, the opcode check, the transport size bound, the
 // single wire write, and the panic-recovery guard. It shapes msg before fn (so
 // fn builds on a correct base) and re-asserts the same shape after fn (so no
-// answer func can advertise recursion or clear the authoritative bit), then
+// answer func can advertise recursion, and none can set or clear the
+// authoritative bit against the RCODE it chose), then
 // bounds and writes msg exactly once when fn returns send=true. If fn panics,
 // onPanic (if non-nil) receives the recovered value and no reply is written --
 // one bad query can never crash the listener, nor receive a malformed or
@@ -145,11 +147,25 @@ func udpReplyLimit(r *dns.Msg) int {
 }
 
 // shapeAuthoritative applies the authoritative-only answer shape -- the
-// authoritative bit set, recursion never available, the reserved Z field zero,
-// and no name compression. Authoritative calls it both before fn (so fn builds
-// on a correct base) and after fn (so no answer func can leave the message
+// authoritative bit set on every reply that answers for a zone Ze serves,
+// recursion never available, the reserved Z field zero, and no name
+// compression. Authoritative calls it both before fn (so fn builds on a correct
+// base) and after fn (so no answer func can leave the message
 // non-authoritative, recursion-advertising, reserved-bit-dirty, or compressed),
 // keeping the whole shape a single invariant defined in exactly one place.
+//
+// AA is the one bit of the shape that is not a constant, and the RCODE decides
+// it. RFC 1035 Section 4.1.1 gives AA one meaning: "AA              Authoritative
+// Answer - this bit is valid in responses, and specifies that the responding
+// name server is an authority for the domain name in question section." The
+// same section gives RCODE 5 the opposite one: "Refused - The name server
+// refuses to perform the specified operation for policy reasons."
+//
+// An answer func returns Refused for a name under no zone it serves, and for a
+// service the operator turned off. Neither reply is authoritative data about
+// the name in the question, so AA is cleared for it here rather than at each
+// call site. A responder that keeps AA set on a Refused reply asserts authority
+// over a namespace it holds no zone for.
 //
 // RFC 1035 Section 4.1.1 states that Z must be zero in every query and every
 // response. SetReply does not copy Z from the query, so the assignment here is
@@ -168,7 +184,7 @@ func udpReplyLimit(r *dns.Msg) int {
 // harness's own decision on a reply it must shorten, so what this function
 // guarantees is unchanged -- no answer func can put compression on the wire.
 func shapeAuthoritative(msg *dns.Msg) {
-	msg.Authoritative = true
+	msg.Authoritative = msg.Rcode != dns.RcodeRefused
 	msg.RecursionAvailable = false
 	msg.Zero = false
 	msg.AuthenticatedData = false

@@ -465,9 +465,14 @@ func fqdn(s string) string {
 	return s
 }
 
+// hasZoneSuffix reports whether host falls inside one of the configured zones.
+// It runs the same label-aware test the answer path runs (inZone), so a host
+// the parser accepts is a host matchZone can later place: a character-suffix
+// test here would accept "evilexample.com." under the zone "example.com." and
+// leave it permanently unanswerable.
 func hasZoneSuffix(host string, zones []string) bool {
 	for _, z := range zones {
-		if z != "" && strings.HasSuffix(host, z) {
+		if z != "" && inZone(host, z) {
 			return true
 		}
 	}

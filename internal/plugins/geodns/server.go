@@ -61,12 +61,23 @@ func nsID(queried, zone string, ns []netip.Addr) int {
 	return n
 }
 
-// matchZone returns the longest configured zone that is a suffix of name.
-func matchZone(name string, zones []string) string {
+// inZone reports whether name is zone itself or a name inside it.
+//
+// The comparison runs over DNS labels, never over characters: the name
+// "evilexample.com." ends with every character of the zone "example.com."
+// while its label sequence does not nest inside it. A character suffix match
+// therefore places a name Ze serves no zone for inside one it does, and the
+// answer that follows claims authority over somebody else's namespace.
+func inZone(name, zone string) bool {
 	n := fqdn(name)
+	return n == zone || dns.IsSubDomain(zone, n)
+}
+
+// matchZone returns the longest configured zone that contains name.
+func matchZone(name string, zones []string) string {
 	best := ""
 	for _, z := range zones {
-		if z != "" && strings.HasSuffix(n, z) && len(z) > len(best) {
+		if z != "" && inZone(name, z) && len(z) > len(best) {
 			best = z
 		}
 	}
@@ -74,6 +85,28 @@ func matchZone(name string, zones []string) string {
 }
 
 func equalName(a, zone string) bool { return strings.EqualFold(fqdn(a), zone) }
+
+// nameExists reports whether zone owns the name, whatever record types the
+// query asks for and whichever host set this client draws from. It answers the
+// question RFC 1035 Section 4.1.1 puts behind RCODE 3, "the domain name
+// referenced in the query does not exist", and it is deliberately independent
+// of the client: existence is a property of the zone, so a name configured for
+// one source prefix and not another still EXISTS for every client. That case is
+// no data of this type, not a name error.
+//
+// Three things give a name existence: the zone apex (which owns the SOA and the
+// NS set), a synthesized ns<n>.<zone> glue name, and any name st.names carries
+// (each configured host, plus every interior node above one).
+func nameExists(st *resolverState, zone, name string) bool {
+	if equalName(name, zone) {
+		return true
+	}
+	if nsID(fqdn(name), zone, st.cfg.Nameservers) > 0 {
+		return true
+	}
+	_, ok := st.names[fqdn(name)]
+	return ok
+}
 
 func resolveHost(st *resolverState, client netip.Addr, name string) []dnsRecord {
 	setName, ok := st.matcher.Lookup(client)
@@ -172,17 +205,46 @@ func appendNS(msg *dns.Msg, st *resolverState, zone string, authority bool) {
 	}
 }
 
-// answerQuestions fills msg for each question. A/AAAA/SRV/ANY resolve per the
-// client source; a miss is a NOERROR negative answer with the SOA in Authority.
-// A name outside every configured zone leaves found=false, yielding NXDOMAIN.
+// answerQuestions fills msg for each question, and picks the reply's RCODE from
+// what the served zones say about the names asked for. Three answers are
+// possible, and the split between them is the whole policy:
+//
+//   - A name under no configured zone draws Refused. RFC 1035 Section 4.1.1
+//     defines RCODE 5 as "Refused - The name server refuses to perform the
+//     specified operation for policy reasons", and Ze serving no zone for the
+//     name is exactly that. The harness clears AA for it (dnsserver's
+//     shapeAuthoritative), so the reply makes no authority claim either.
+//   - A name inside a configured zone that the zone does not own draws RCODE 3.
+//     RFC 1035 Section 4.1.1: "Name Error - Meaningful only for responses from
+//     an authoritative name server, this code signifies that the domain name
+//     referenced in the query does not exist."
+//   - A name the zone owns, with no record of the type asked for, draws NOERROR
+//     with an empty Answer. This covers the case that makes geodns geodns: a
+//     host configured in one host set and not another EXISTS for every client,
+//     so a client whose host set has no record for it gets no data of this
+//     type, never a name error.
+//
+// The last two both carry the zone SOA in the Authority section, which RFC 2308
+// Section 3 requires of an authoritative server "when reporting an NXDOMAIN or
+// indicating that no data of the requested type exists", so that a resolver can
+// cache the negative answer.
+//
+// A/AAAA/SRV/ANY resolve per the client source. The RCODE is assigned directly
+// rather than through Msg.SetRcode, which calls SetReply and would drop every
+// question after the first from a multi-question reply.
 func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
-	found := false
+	served, missing := false, false
 	for _, q := range r.Question {
 		zone := matchZone(q.Name, st.cfg.Zones)
 		if zone == "" {
 			continue
 		}
-		found = true
+		served = true
+		if !nameExists(st, zone, q.Name) {
+			missing = true
+			msg.Ns = append(msg.Ns, buildSOA(st, zone))
+			continue
+		}
 		switch q.Qtype {
 		case dns.TypeA, dns.TypeAAAA, dns.TypeSRV, dns.TypeANY:
 			if idx := nsID(q.Name, zone, st.cfg.Nameservers); idx > 0 {
@@ -216,8 +278,11 @@ func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
 			msg.Ns = append(msg.Ns, buildSOA(st, zone))
 		}
 	}
-	if !found {
-		msg.SetRcode(r, dns.RcodeNameError)
+	switch {
+	case !served:
+		msg.Rcode = dns.RcodeRefused
+	case missing:
+		msg.Rcode = dns.RcodeNameError
 	}
 }
 
@@ -256,11 +321,15 @@ func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
 	}
 	m.requestTotal.With(zoneLabel, qLabel).Inc()
 
-	client, ok := dnsserver.ClientIP(r, dnsserver.RemoteAddr(p), st.cfg.ClientIPSource)
-	if !ok {
-		// edns0-only mode with no client-subnet: answer nothing (NOERROR, empty).
-		return true
-	}
+	// In edns0-only mode a query carrying no client-subnet resolves to no client
+	// at all, and the zero Addr is passed on rather than short-circuited. Which
+	// zone owns a name is not a property of the client, so the answer policy owes
+	// the same three response codes here as anywhere: a name under no served zone
+	// is refused, a name a served zone does not own is a name error, and a name it
+	// owns is a no-data answer, because no source prefix matches the zero Addr and
+	// so no host set is selected. Returning early instead answered every name,
+	// in-zone or not, with an empty NOERROR the harness then stamped AA on.
+	client, _ := dnsserver.ClientIP(r, dnsserver.RemoteAddr(p), st.cfg.ClientIPSource)
 
 	answerQuestions(msg, r, st, client)
 	return true

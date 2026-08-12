@@ -82,7 +82,7 @@ module ze-geodns-conf {
                 type string {
                     length "1..255";
                 }
-                description "Zones served (FQDN). A query name must end in one of these.";
+                description "Zones served (FQDN). A query name must be one of these or a name inside one, compared label by label. A name outside every zone draws REFUSED.";
             }
 
             leaf-list nameserver {

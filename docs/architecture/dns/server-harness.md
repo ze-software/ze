@@ -33,6 +33,14 @@ wire.
 
 <!-- source: internal/core/dnsserver/handler.go -- Authoritative, shapeAuthoritative -->
 
+The wrapper also owns the AA bit, and the RCODE decides it. Every reply carries
+AA set except one with RCODE 5 (Refused), which an answer function returns for a
+name under no zone it serves and for a service the operator turned off. RFC 1035
+Section 4.1.1 gives AA one meaning, that the responder is an authority for the
+name in the question section, so a Refused reply that kept AA set would assert
+authority over a namespace Ze holds no zone for. The decision sits in
+`shapeAuthoritative`, not at either plugin's call site.
+
 The wrapper also owns the RFC 4035 header bits: it copies CD from the query,
 ignores AD on the query, and never asserts AD on the reply.
 

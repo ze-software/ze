@@ -2309,7 +2309,7 @@ Files: 7 | Docs: `docs/architecture/diagnostics/crash-capture.md`, `docs/feature
 
 ## `internal/core/dnsserver/`
 
-Files: 10 | Docs: `docs/architecture/dns/geodns.md`, `docs/architecture/dns/secure-transports.md`, `docs/architecture/dns/server-harness.md`, `docs/architecture/pki/tls-listeners.md`, `docs/features/rfc-status.md`, `docs/guide/configuration.md`
+Files: 10 | Docs: `docs/architecture/dns/as112.md`, `docs/architecture/dns/geodns.md`, `docs/architecture/dns/secure-transports.md`, `docs/architecture/dns/server-harness.md`, `docs/architecture/pki/tls-listeners.md`, `docs/features/rfc-status.md`, `docs/guide/configuration.md`
 
 | File | Docs |
 |------|------|
@@ -2317,7 +2317,7 @@ Files: 10 | Docs: `docs/architecture/dns/geodns.md`, `docs/architecture/dns/secu
 | `client.go` | `docs/architecture/dns/server-harness.md`, `docs/features/rfc-status.md` |
 | `freebind_linux.go` | `docs/architecture/dns/server-harness.md` |
 | `freebind_other.go` | `docs/architecture/dns/server-harness.md` |
-| `handler.go` | `docs/architecture/dns/server-harness.md`, `docs/features/rfc-status.md` |
+| `handler.go` | `docs/architecture/dns/as112.md`, `docs/architecture/dns/server-harness.md`, `docs/features/rfc-status.md` |
 | `manager.go` | `docs/architecture/dns/geodns.md`, `docs/architecture/dns/secure-transports.md`, `docs/architecture/dns/server-harness.md`, `docs/architecture/pki/tls-listeners.md` |
 | `matcher.go` | `docs/architecture/dns/server-harness.md` |
 | `rfc4035_test.go` | `docs/architecture/dns/server-harness.md` |
