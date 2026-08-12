@@ -59,6 +59,8 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 - **Trailing participial clauses.** ", making it easier to X", ", ensuring that Y", ", allowing the reader to Z". Start a new sentence, or name who does the making.
 - **Overly structured argumentation.** Symmetric pros and cons, neat parallels, example then counterexample then conclusion. Real reasoning is lopsided: the strong point gets three paragraphs and the weak one gets a clause.
 - **Uniformly balanced or hedged tone.** Stacked hedges ("can sometimes potentially") and "it is worth noting". Take the position or cut the sentence.
+- **Overstated certainty.** The ban on hedging is not permission to promote a possibility into a fact. "The API and the config syntax will change before a release" was corrected to "may change", because he does not know that they will. Where the truth is a possibility, "may" and "can" are the accurate words and they are not hedges. The test is whether an event outside his control could prove the sentence wrong.
+- **Grading his own work.** "The BGP engine works and is tested hard" became "The core BGP engine works, and it is covered by 20,000+ unit tests". He gives the number and lets the reader judge the size. An adjective that rates his own output is the one thing the number makes unnecessary.
 - **Decorative metaphor.** A metaphor is allowed when it does work the literal statement cannot. If the sentence survives its removal, remove it.
 - **Uniform sentence rhythm.** The single most reliable structural signal readers report. AI prose settles into sentences of similar length and the same subject-verb-object shape, paragraph after paragraph. Thomas does not: a long sentence that follows a chain of reasoning is followed by a short flat judgement. Read the draft aloud in your head and break up any run of three sentences of similar length.
 - **Smooth manufactured transitions.** "That said", "Here's the thing", "The truth is", "Let's be clear", "Furthermore", "Moreover", "Additionally". Paragraphs can simply follow each other.
@@ -69,6 +71,24 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 - **Sentence fragments and telegraphic style.** "Step here. Turn the hips. Extend the arms." Prefer full sentences that explain rather than list actions, unless the impact is genuinely worth it.
 - **A closing paragraph that summarises what was just said.** End on the last real point, or on a concrete gesture. "In conclusion" and "Ultimately" never appear.
 - **Quoting Thomas's own words verbatim** when he has explained something to you. Rephrase and integrate it into the flow.
+
+### Over-correcting the list
+
+The list above only takes things away, so a draft edited against it drifts into a clipped register: short declarative sentences, a colon used for effect, a flat judgement closing every paragraph. That register is itself an AI signature, it reads as cold, and Thomas rejects drafts for it in the same breath as the tells it was meant to remove. What the list removes has to be replaced with the flowing sentence described under "What the voice does", never with a shorter one.
+
+The failure has a reliable shape, and both halves of it showed up in one README rewrite in August 2026.
+
+Punch replacing explanation. "The BGP engine works. The tests behind it: 20,000+ unit tests" for "The core BGP engine works, and it is covered by 20,000+ unit tests". Fragments and a colon carrying the weight of a verb are the tell. His short sentences arrive after the explanation, as a judgement on it, and they are ordinary sentences with a subject and a verb.
+
+Anything but "I" as the subject. Keeping Thomas out of his own sentence produced a dangling modifier first ("I decide the architecture, the tradeoffs and what the code is never allowed to break, informed by a decade of ExaBGP", where nothing does the informing), then an abstraction doing human work ("A decade of ExaBGP tells me what the architecture should be"). Both were fixed by the plain sentence available from the start: "I decide the architecture, the tradeoffs and what the code is never allowed to break, and Claude turns that into implementation." When a sentence keeps resisting a rewrite, check whether it is resisting because the first person has been engineered out of it.
+
+### Politeness, and no imperative towards the reader
+
+Thomas does not give the reader orders. The imperative is the default voice of technical writing and it is the wrong voice for him, so a draft that tells the reader to do things has to be turned back into offers and suggestions.
+
+An ask is a favour and he phrases it as one. "I would appreciate it if you could put your own config through `ze config migrate` and tell me what it gets wrong" replaced "I would like you to put your own config through it and tell me what it gets wrong", which reads as an instruction issued to a stranger. The courtesy is conditional ("if you could"), and it does not soften what he wants back, which stays specific and stays in the same sentence.
+
+Sentences that only point somewhere take the same treatment: "you can open an issue, or find me on Discord" rather than "open an issue". Established documentation conventions are the exception, so "See the Quick Start guide" and the commands inside a code block stay as they are, because they address the task rather than the person doing it.
 
 ### Vocabulary that gives it away
 
@@ -122,5 +142,7 @@ Re-read the draft against this list and fix what it catches. Mechanical checks f
 - No `, making` / `, ensuring` / `, allowing` clause.
 
 Then read it once as a reader, paragraph by paragraph. For each one, name its point in a few words. A paragraph you cannot summarise that way holds two ideas or none, and it needs splitting or cutting. Check that the points, read in order, form the argument on their own.
+
+Then check the draft has not been over-corrected, which is the failure that survives every check above. Count the sentences under fifteen words: a run of them, or a paragraph closing on a flat judgement three times over, means the subtraction went too far and the prose needs its explanations back. Read every sentence where Thomas is the one acting and confirm he is the grammatical subject, since a dangling modifier or an abstraction doing human work is what appears when he has been engineered out.
 
 Finally look for: a paragraph that exists only to bridge two others, a run of sentences all the same length, a list that wants to be prose, an ending that trails off into a summary, and any opinion Thomas would not recognise as his own. Cut what fails.
