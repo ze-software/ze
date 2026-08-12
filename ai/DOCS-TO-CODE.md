@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3288 files
+Total: 261 design docs, 3289 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3850,6 +3850,7 @@ Total: 261 design docs, 3288 files
 | `internal/component/bgp/wireu/prefix.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/split.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/wire_update.go` | wire UPDATE lazy parsing |
+| `internal/component/bgp/wireu/withdrawals.go` | wire UPDATE lazy parsing |
 | `internal/core/bgp/msgtype/msgtype.go` | BGP message types |
 
 ## `docs/architecture/wire/nlri-bgpls.md`

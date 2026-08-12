@@ -39,7 +39,7 @@ func wkPayload(values ...attribute.Community) []byte {
 // itself: the boundary is the AS boundary and an EXTERNAL peer is outside it.
 func TestWellKnownNoExportRefusesExternalPeer(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(attribute.CommunityNoExport))
+	w, _ := ScanWellKnown(wkPayload(attribute.CommunityNoExport))
 	require.Equal(t, WKNoExport, w)
 	assert.False(t, w.AllowsEgressTo(false), "NO_EXPORT route must not reach an external peer")
 	assert.Equal(t, "no-export", w.BlockingName(false))
@@ -51,7 +51,7 @@ func TestWellKnownNoExportRefusesExternalPeer(t *testing.T) {
 // positive would also pass for an implementation that advertises the route to nobody.
 func TestWellKnownNoExportAllowsInternalPeer(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(attribute.CommunityNoExport))
+	w, _ := ScanWellKnown(wkPayload(attribute.CommunityNoExport))
 	assert.True(t, w.AllowsEgressTo(true), "NO_EXPORT route must still reach an internal peer")
 	assert.Empty(t, w.BlockingName(true))
 }
@@ -62,7 +62,7 @@ func TestWellKnownNoExportAllowsInternalPeer(t *testing.T) {
 // the strictest of the three: internal peers are refused as well as external ones.
 func TestWellKnownNoAdvertiseRefusesEveryPeer(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(attribute.CommunityNoAdvertise))
+	w, _ := ScanWellKnown(wkPayload(attribute.CommunityNoAdvertise))
 	require.Equal(t, WKNoAdvertise, w)
 	assert.False(t, w.AllowsEgressTo(false), "NO_ADVERTISE route must not reach an external peer")
 	assert.False(t, w.AllowsEgressTo(true), "NO_ADVERTISE route must not reach an internal peer either")
@@ -74,7 +74,7 @@ func TestWellKnownNoAdvertiseRefusesEveryPeer(t *testing.T) {
 // community instead: the prohibition does not fire and the route is advertised to both.
 func TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(attribute.Community(0xFDE90064)))
+	w, _ := ScanWellKnown(wkPayload(attribute.Community(0xFDE90064)))
 	require.Equal(t, WellKnown(0), w)
 	assert.True(t, w.AllowsEgressTo(false))
 	assert.True(t, w.AllowsEgressTo(true))
@@ -86,7 +86,7 @@ func TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer(t *testing.T) {
 // BGP confederation)" (RFC 1997, Well-known Communities).
 func TestWellKnownNoExportSubconfedRefusesExternalPeer(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(attribute.CommunityNoExportSubconfed))
+	w, _ := ScanWellKnown(wkPayload(attribute.CommunityNoExportSubconfed))
 	require.Equal(t, WKNoExportSubconfed, w)
 	assert.False(t, w.AllowsEgressTo(false), "NO_EXPORT_SUBCONFED route must not reach an external peer")
 	assert.Equal(t, "no-export-subconfed", w.BlockingName(false))
@@ -97,7 +97,7 @@ func TestWellKnownNoExportSubconfedRefusesExternalPeer(t *testing.T) {
 // internal peer is therefore outside the condition and the same route is advertised to it.
 func TestWellKnownNoExportSubconfedAllowsInternalPeer(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(attribute.CommunityNoExportSubconfed))
+	w, _ := ScanWellKnown(wkPayload(attribute.CommunityNoExportSubconfed))
 	assert.True(t, w.AllowsEgressTo(true), "NO_EXPORT_SUBCONFED route must still reach an internal peer")
 }
 
@@ -107,7 +107,7 @@ func TestWellKnownNoExportSubconfedAllowsInternalPeer(t *testing.T) {
 // the wire values alone, with no operator policy configured anywhere in this test.
 func TestWellKnownAllThreeOperationsImplemented(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(
+	w, _ := ScanWellKnown(wkPayload(
 		attribute.CommunityNoExport,
 		attribute.CommunityNoAdvertise,
 		attribute.CommunityNoExportSubconfed,
@@ -126,7 +126,7 @@ func TestWellKnownAllThreeOperationsImplemented(t *testing.T) {
 // their own semantics and none of them is an egress prohibition this speaker applies here.
 func TestWellKnownIgnoresOtherReservedCommunities(t *testing.T) {
 	t.Parallel()
-	w := ScanWellKnown(wkPayload(
+	w, _ := ScanWellKnown(wkPayload(
 		attribute.CommunityNoPeer,
 		attribute.CommunityLLGRStale,
 		attribute.CommunityBlackhole,
@@ -148,25 +148,59 @@ func TestScanWellKnownIgnoresNonAttributeBytes(t *testing.T) {
 	body = binary.BigEndian.AppendUint16(body, uint16(len(attrs)))
 	body = append(body, attrs...)
 	body = append(body, 0x20, 0xFF, 0xFF, 0xFF, 0x01)
-	assert.Equal(t, WellKnown(0), ScanWellKnown(body))
+	w, ok := ScanWellKnown(body)
+	assert.True(t, ok)
+	assert.Equal(t, WellKnown(0), w)
 }
 
-// VALIDATES: a payload with no COMMUNITIES attribute, an empty COMMUNITIES attribute, a
-// withdraw-only UPDATE and a truncated payload all answer the empty set.
-// PREVENTS: a parse failure being read as a prohibition, which would withhold every route
-// whose payload this function cannot walk.
+// VALIDATES: a readable payload with no COMMUNITIES attribute, one with an empty
+// COMMUNITIES attribute, and a withdraw-only UPDATE all answer the empty set and report
+// that they were read.
+// PREVENTS: an absent value being read as a prohibition, which would withhold every route
+// that carries no community at all.
 func TestScanWellKnownEmptyAnswers(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, WellKnown(0), ScanWellKnown(wkPayload()))
-	assert.Equal(t, WellKnown(0), ScanWellKnown(nil))
-	assert.Equal(t, WellKnown(0), ScanWellKnown([]byte{0x00}))
+	read := func(payload []byte) WellKnown {
+		t.Helper()
+		w, ok := ScanWellKnown(payload)
+		assert.True(t, ok, "the payload is well formed, so the scan must report it was read")
+		return w
+	}
+	assert.Equal(t, WellKnown(0), read(wkPayload()))
 	// Withdraw-only UPDATE: 2 octets of withdrawn routes, no attributes, no NLRI.
-	assert.Equal(t, WellKnown(0), ScanWellKnown([]byte{0x00, 0x02, 0x08, 0x0A, 0x00, 0x00}))
-	// COMMUNITIES present but zero-length: valid per RFC 1997 (length 0 is a multiple of 4).
+	assert.Equal(t, WellKnown(0), read([]byte{0x00, 0x02, 0x08, 0x0A, 0x00, 0x00}))
+	// COMMUNITIES present but zero-length. RFC 7606 Section 7.8 calls that malformed and
+	// validateCommunityAttr (message/rfc7606.go) treats the route as withdrawn, so no such
+	// payload reaches the forward rails. What this case pins is the value loop's tolerance
+	// of a section it cannot step through, not the shape being valid.
 	attrs := []byte{0x40, 0x01, 0x01, 0x00, 0xC0, 0x08, 0x00}
 	body := []byte{0x00, 0x00, 0x00, byte(len(attrs))}
 	body = append(body, attrs...)
-	assert.Equal(t, WellKnown(0), ScanWellKnown(append(body, 0x08, 0x0A)))
+	assert.Equal(t, WellKnown(0), read(append(body, 0x08, 0x0A)))
+}
+
+// VALIDATES: a payload whose sections do not parse answers the empty set AND reports that
+// it could not be read.
+// PREVENTS: a SILENT fail-open. The empty set advertises the route to every peer, which is
+// the right answer for a parse hiccup and the wrong one to reach without saying so: an
+// upstream change that puts unparsed bytes on the egress path would otherwise turn this
+// branch into a leak nobody can see (ai/rules/evidence.md).
+func TestScanWellKnownUnreadablePayloadSaysSo(t *testing.T) {
+	t.Parallel()
+	for name, payload := range map[string][]byte{
+		"nil":                 nil,
+		"one octet":           {0x00},
+		"withdrawn overruns":  {0x00, 0x08, 0x0A},
+		"attribute truncated": {0x00, 0x00, 0x00, 0x10, 0x40},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			w, ok := ScanWellKnown(payload)
+			assert.False(t, ok, "an unreadable payload must report that it was not read")
+			assert.Equal(t, WellKnown(0), w, "the gate fails OPEN: no prohibition is invented")
+			assert.True(t, w.AllowsEgressTo(false))
+		})
+	}
 }
 
 // VALIDATES: ScanWellKnown allocates nothing.
@@ -175,7 +209,7 @@ func TestScanWellKnownEmptyAnswers(t *testing.T) {
 func TestScanWellKnownZeroAlloc(t *testing.T) {
 	payload := wkPayload(attribute.Community(0xFDE90064), attribute.CommunityNoExport)
 	allocs := testing.AllocsPerRun(200, func() {
-		if ScanWellKnown(payload) == 0 {
+		if w, _ := ScanWellKnown(payload); w == 0 {
 			t.Fatal("expected NO_EXPORT to be seen")
 		}
 	})

@@ -248,7 +248,14 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay
 	// behaviorally identical: honoring the well-known communities on one only
 	// would leak on whichever path the deployment happens to select.
-	srcWellKnown := wireu.ScanWellKnown(update.WireUpdate.Payload())
+	srcWellKnown := r.scanWellKnownEgress(update.WireUpdate.Payload(), sourcePeerAddr)
+
+	// The withdrawal half, for the clients RFC 1997 refuses; same derivation and
+	// same nil meaning as the general rail.
+	var srcWithdrawOnly *wireu.WireUpdate
+	if srcWellKnown != 0 {
+		srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+	}
 
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
@@ -259,8 +266,16 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		// RFC 1997: an unconditional prohibition, asked before every operator
 		// policy. A route-server client is an external peer, so a route received
 		// carrying NO_EXPORT reaches none of them.
+		//
+		// The prohibition covers the ANNOUNCEMENT only, so a refused client still
+		// receives the withdrawal half of a mixed UPDATE; see the general rail for
+		// why that is not optional.
+		destBaseWire := update.WireUpdate
 		if !r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
-			continue
+			if srcWithdrawOnly == nil {
+				continue
+			}
+			destBaseWire = srcWithdrawOnly
 		}
 
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
@@ -295,7 +310,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 		if len(r.egressFilters) > 0 {
 			destFilter := facts.filterInfo
-			payload := update.WireUpdate.Payload()
+			payload := destBaseWire.Payload()
 			suppressed := false
 			filterFailed := false
 			for _, filter := range r.egressFilters {
@@ -342,9 +357,14 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress filter pass above so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail
-		// has no wire override, so the source payload is the base the rebuild
-		// runs over.
-		applyFactsLocalPref(facts, srcHasLocalPref, &mods)
+		// has no wire override, so the source payload is the base the rebuild runs
+		// over -- except for a destination RFC 1997 refuses, whose base is the
+		// withdrawal part and carries no attribute at all.
+		baseHasLocalPref := srcHasLocalPref
+		if destBaseWire != update.WireUpdate {
+			baseHasLocalPref = payloadHasLocalPref(destBaseWire.Payload())
+		}
+		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer
@@ -367,7 +387,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
 			// Prepend stays empty and Record transcodes only.
-			changed, aspErr := aspathEdit.Record(&mods, update.WireUpdate.Payload(), intent)
+			changed, aspErr := aspathEdit.Record(&mods, destBaseWire.Payload(), intent)
 			if aspErr != nil {
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
 					"peer", facts.addr, "localAS", facts.localAS,
@@ -378,12 +398,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		if facts.asOverride && facts.isEBGP {
-			applyASOverride(facts.peerAS, facts.localAS, update.WireUpdate, facts.sendASN4, &mods)
+			applyASOverride(facts.peerAS, facts.localAS, destBaseWire, facts.sendASN4, &mods)
 		}
 
 		// No intermediate rewritten payload, so no read buffer is borrowed here and
 		// nothing is adopted onto the entry.
-		peerWire := update.WireUpdate
+		peerWire := destBaseWire
 
 		var modBufIdx int
 		var modPoolRef *peerPool

@@ -1,7 +1,9 @@
 package reactor
 
 import (
+	"bytes"
 	"encoding/binary"
+	"log/slog"
 	"net/netip"
 	"testing"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -33,6 +36,25 @@ func wkTestPayload(values ...attribute.Community) []byte {
 	}
 	return buildUpdatePayload(attrs, []byte{24, 10, 0, 0})
 }
+
+// wkMixedPayload builds the shape RFC 7606 Section 5.1 tells a sender not to
+// emit and a receiver still has to handle: withdrawn routes AND an announcement,
+// in one UPDATE. The announcement is the payload above, so it carries the
+// well-known communities; the withdrawal is 198.51.100.0/24 and carries none,
+// because the Withdrawn Routes field has no attributes.
+func wkMixedPayload(values ...attribute.Community) []byte {
+	announce := wkTestPayload(values...)
+	attrLen := int(binary.BigEndian.Uint16(announce[2:4]))
+	body := []byte{0x00, byte(len(wkWithdrawnPrefix))}
+	body = append(body, wkWithdrawnPrefix...)
+	return append(body, announce[2:4+attrLen+4]...)
+}
+
+// wkWithdrawnPrefix is 198.51.100.0/24 in wire form: the route being taken back.
+var wkWithdrawnPrefix = []byte{24, 198, 51, 100}
+
+// wkAnnouncedPrefix is 10.0.0.0/24, the route wkTestPayload announces.
+var wkAnnouncedPrefix = []byte{24, 10, 0, 0}
 
 // wkPeer builds an established destination peer in peerAS. LocalAS is always
 // 65000, so peerAS == 65000 makes an internal session and anything else makes an
@@ -59,15 +81,58 @@ func wkPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContex
 	return peer
 }
 
+// wkParts is what one destination was asked to write, taken apart into the two
+// fields RFC 1997 treats differently: the routes being ANNOUNCED and the routes
+// being WITHDRAWN.
+type wkParts struct {
+	nlri      []byte
+	withdrawn []byte
+}
+
+// wkItemParts reads those two fields off a dispatched item, whichever form it
+// carries. A destination in the source's own encoding context gets raw wire
+// bodies; one in a different context gets re-encoded message.Update values
+// (buildFwdBody).
+func wkItemParts(t testing.TB, items []fwdItem) wkParts {
+	t.Helper()
+	var p wkParts
+	for i := range items {
+		for _, body := range items[i].rawBodies {
+			u, err := message.UnpackUpdate(body)
+			require.NoError(t, err)
+			p.withdrawn = append(p.withdrawn, u.WithdrawnRoutes...)
+			p.nlri = append(p.nlri, u.NLRI...)
+		}
+		for _, u := range items[i].updates {
+			p.withdrawn = append(p.withdrawn, u.WithdrawnRoutes...)
+			p.nlri = append(p.nlri, u.NLRI...)
+		}
+	}
+	return p
+}
+
 // wkForward runs one UPDATE through the general forward rail toward every peer
 // and returns the destination addresses the forward pool was asked to write to.
 // An empty result means the route reached nobody.
+func wkForward(t testing.TB, payload []byte, peers ...*Peer) []netip.Addr {
+	t.Helper()
+	var got []netip.Addr
+	for addr := range wkForwardParts(t, payload, peers...) {
+		got = append(got, addr)
+	}
+	return got
+}
+
+// wkForwardParts runs one UPDATE through the general forward rail and returns
+// what each destination was asked to write. A destination absent from the map
+// was written nothing at all.
+//
 // The source is EXTERNAL in every case here. That is the shape RFC 1997 governs
 // -- a route received from a neighbor and re-advertised -- and it also keeps the
 // RFC 4456 reflection rule out of the way: an internal source plus an internal
 // destination, neither a route-reflector client, is suppressed by Section 7
 // before RFC 1997 is ever asked, which would make the internal control vacuous.
-func wkForward(t testing.TB, payload []byte, peers ...*Peer) []netip.Addr {
+func wkForwardParts(t testing.TB, payload []byte, peers ...*Peer) map[netip.Addr]wkParts {
 	t.Helper()
 
 	srcCtx := bgpctx.EncodingContextForASN4(true)
@@ -77,9 +142,13 @@ func wkForward(t testing.TB, payload []byte, peers ...*Peer) []netip.Addr {
 	cache := newRecentUpdateCache(100)
 	update, id := newLeakTestUpdate(t, cache, payload, srcCtxID)
 
-	delivered := make(chan netip.Addr, 8)
-	pool := newFwdPool(func(k fwdKey, _ []fwdItem) {
-		delivered <- k.peerAddr.Addr()
+	type delivery struct {
+		addr  netip.Addr
+		parts wkParts
+	}
+	delivered := make(chan delivery, 8)
+	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
+		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, items)}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -105,12 +174,12 @@ func wkForward(t testing.TB, payload []byte, peers ...*Peer) []netip.Addr {
 		isIBGP:   false,
 	})
 
-	var got []netip.Addr
+	got := make(map[netip.Addr]wkParts, len(peers))
 	deadline := time.After(2 * time.Second)
 	for range peers {
 		select {
-		case addr := <-delivered:
-			got = append(got, addr)
+		case d := <-delivered:
+			got[d.addr] = d.parts
 		case <-deadline:
 			return got
 		case <-time.After(300 * time.Millisecond):
@@ -290,6 +359,171 @@ func TestForwardRSHonorsWellKnownCommunities(t *testing.T) {
 	t.Run("an ordinary community reaches the client", func(t *testing.T) {
 		assert.Equal(t, 1, run(t, wkTestPayload(attribute.Community(0xFDE90064))))
 	})
+}
+
+// RFC requirement: RFC1997-Well-1 negative -- "MUST NOT be ADVERTISED outside a BGP confederation
+// boundary" (RFC 1997, Well-known Communities; emphasis on the verb). Taking a route back
+// is not advertising it, so the clause refuses the announcement half of a mixed UPDATE and
+// says nothing about the withdrawal half traveling in the same message.
+//
+// VALIDATES: a destination RFC 1997 refuses still receives that UPDATE's withdrawals.
+// PREVENTS: the peer keeping a prefix ze can no longer withdraw until the session resets.
+// Refusing the whole message trades a leak the RFC forbids for a stale route it does not,
+// which is not a trade the clause asks for.
+func TestForwardNoExportStillWithdrawsFromExternalPeer(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, err := bgpctx.Registry.Register(ctx)
+	require.NoError(t, err)
+
+	ibgp := wkPeer(t, wkIBGPAddr, 65000, ctx, ctxID)
+	ebgp := wkPeer(t, wkEBGPAddr, 65002, ctx, ctxID)
+
+	got := wkForwardParts(t, wkMixedPayload(attribute.CommunityNoExport), ibgp, ebgp)
+
+	external, reached := got[netip.MustParseAddr(wkEBGPAddr)]
+	require.True(t, reached, "the withdrawal must reach the external peer")
+	assert.Equal(t, wkWithdrawnPrefix, external.withdrawn,
+		"the route being taken back is not an advertisement, so it must still be sent")
+	assert.NotContains(t, string(external.nlri), string(wkAnnouncedPrefix),
+		"the announcement carrying NO_EXPORT must not reach an external peer")
+
+	// The control. The same UPDATE reaches the internal peer whole, so "the external peer
+	// got only the withdrawal" cannot pass by the announcement being lost for some other
+	// reason.
+	internal, reached := got[netip.MustParseAddr(wkIBGPAddr)]
+	require.True(t, reached)
+	assert.Equal(t, wkWithdrawnPrefix, internal.withdrawn)
+	assert.Equal(t, wkAnnouncedPrefix, internal.nlri,
+		"NO_EXPORT permits an internal peer, so it receives both halves")
+}
+
+// VALIDATES: an UPDATE that only announces still reaches nobody it is refused to, so the
+// withdrawal path adds no route rather than replacing the prohibition.
+// PREVENTS: reading the test above as "RFC 1997 now forwards something to every refused
+// destination". A pure announcement has no withdrawal half, and the destination is written
+// nothing at all.
+func TestForwardNoExportSendsNothingWhenThereIsNoWithdrawal(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, err := bgpctx.Registry.Register(ctx)
+	require.NoError(t, err)
+
+	ebgp := wkPeer(t, wkEBGPAddr, 65002, ctx, ctxID)
+
+	got := wkForwardParts(t, wkTestPayload(attribute.CommunityNoExport), ebgp)
+	assert.NotContains(t, got, netip.MustParseAddr(wkEBGPAddr),
+		"an announcement-only UPDATE leaves a refused destination nothing to write")
+}
+
+// VALIDATES: the route-server rail withdraws from a refused client too.
+// PREVENTS: the two rails disagreeing about the half of a mixed UPDATE that is not an
+// advertisement, which would strand a route on whichever path the deployment selects.
+func TestForwardRSWithdrawsFromRefusedClient(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, err := bgpctx.Registry.Register(ctx)
+	require.NoError(t, err)
+
+	run := func(t *testing.T, payload []byte) (int, wkParts) {
+		t.Helper()
+		cache := newRecentUpdateCache(100)
+		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
+
+		written := make(chan wkParts, 4)
+		pool := newFwdPool(func(_ fwdKey, items []fwdItem) { written <- wkItemParts(t, items) },
+			fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+		t.Cleanup(pool.Stop)
+
+		srcAddr := netip.MustParseAddr("10.0.0.1")
+		src := makeRSPeer(t, srcAddr.String(), 65001, ctx, ctxID)
+		dst := makeRSPeer(t, wkEBGPAddr, 65002, ctx, ctxID)
+		pool.registerOutgoingPool(fwdKey{peerAddr: dst.Settings().PeerKey()}, 4096)
+
+		r := &Reactor{
+			attrModHandlers: attrModHandlersWithDefaults(),
+			recentUpdates:   cache,
+			peers: map[netip.AddrPort]*Peer{
+				src.Settings().PeerKey(): src,
+				dst.Settings().PeerKey(): dst,
+			},
+			fwdPool: pool,
+		}
+		_, delivered := reactorForwardRS(r, update, id, srcAddr, src)
+		var parts wkParts
+		select {
+		case parts = <-written:
+		case <-time.After(2 * time.Second):
+		}
+		return delivered, parts
+	}
+
+	delivered, parts := run(t, wkMixedPayload(attribute.CommunityNoExport))
+	assert.Equal(t, 1, delivered, "the client must still be written the withdrawal")
+	assert.Equal(t, wkWithdrawnPrefix, parts.withdrawn)
+	assert.NotContains(t, string(parts.nlri), string(wkAnnouncedPrefix),
+		"the announcement carrying NO_EXPORT must not reach a route-server client")
+}
+
+// VALIDATES: an unreadable payload advertises the route AND puts a line in the log naming
+// the source peer.
+// PREVENTS: a SILENT fail-open. ScanWellKnown answers the empty set for a payload it cannot
+// walk, which is the right answer for a parse hiccup and the wrong one to reach in silence:
+// the gate has stopped deciding, and without this line no counter, log or command would
+// show it (ai/rules/evidence.md).
+func TestScanWellKnownEgressSaysWhenItCannotRead(t *testing.T) {
+	var sink bytes.Buffer
+	prev := fwdLogger
+	fwdLogger = func() *slog.Logger {
+		return slog.New(slog.NewTextHandler(&sink, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	}
+	t.Cleanup(func() { fwdLogger = prev })
+
+	src := netip.MustParseAddr("10.0.0.1")
+	w := (&Reactor{}).scanWellKnownEgress([]byte{0x00}, src)
+	assert.Equal(t, wireu.WellKnown(0), w, "the gate fails open: no prohibition is invented")
+	assert.True(t, w.AllowsEgressTo(false))
+	assert.Contains(t, sink.String(), wellKnownScanFailPhrase)
+	assert.Contains(t, sink.String(), src.String(), "the line must name the peer whose payload it was")
+
+	// The control: a readable payload says nothing at all, so the line above is a signal
+	// rather than noise every UPDATE carries.
+	sink.Reset()
+	got := (&Reactor{}).scanWellKnownEgress(wkTestPayload(attribute.CommunityNoExport), src)
+	assert.Equal(t, wireu.WKNoExport, got)
+	assert.Empty(t, sink.String())
+}
+
+// VALIDATES: the scan-failure line is bounded to one per interval and reports how many it
+// swallowed.
+// PREVENTS: the log amplification the modify-failure warning already had to fix. The
+// payload comes from a peer, so an unbounded line fires at that peer's send rate and
+// becomes a logging denial of service against the operator.
+//
+// Time is passed in rather than slept on: a test that waits out a real second asserts on
+// elapsed time, which is the load-sensitive shape ai/rules/completion.md bans.
+func TestWellKnownScanLogRateLimits(t *testing.T) {
+	var l wellKnownScanLog
+	const t0 = int64(1_000_000_000)
+	const window = int64(wellKnownScanLogInterval)
+
+	emit, suppressed := l.allow(t0)
+	require.True(t, emit, "the first failure must always be logged")
+	assert.Zero(t, suppressed)
+
+	for i := range 500 {
+		emit, _ := l.allow(t0 + int64(i))
+		require.False(t, emit, "a burst inside the window must be swallowed, not logged")
+	}
+
+	emit, suppressed = l.allow(t0 + window + 1)
+	require.True(t, emit, "the window must reopen")
+	assert.Equal(t, uint64(500), suppressed,
+		"the emitted line must carry the count it replaced, or the rate is invisible")
+
+	// The count resets, so the next line does not re-report the same burst.
+	for range 3 {
+		l.allow(t0 + window + 2)
+	}
+	_, suppressed = l.allow(t0 + 2*window + 3)
+	assert.Equal(t, uint64(3), suppressed, "each line reports only its own window")
 }
 
 // VALIDATES: wellKnownAllowsEgress counts one suppression per refused destination and

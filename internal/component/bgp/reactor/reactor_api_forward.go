@@ -498,7 +498,17 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// payload, never over a policy chain's wire override -- an export policy that
 	// strips NO_EXPORT does not license the leak, because the route arrived
 	// carrying it (wireu.WellKnown).
-	srcWellKnown := wireu.ScanWellKnown(update.WireUpdate.Payload())
+	srcWellKnown := a.r.scanWellKnownEgress(update.WireUpdate.Payload(), update.SourcePeerIP)
+
+	// The withdrawal half of that same UPDATE, for the destinations RFC 1997
+	// refuses. Derived once per UPDATE and only when there is a prohibition to
+	// apply, so an UPDATE carrying no well-known community pays one comparison.
+	// Nil means the UPDATE withdraws nothing, and then a refused destination
+	// receives nothing at all (wireu.WithdrawalsOnly).
+	var srcWithdrawOnly *wireu.WireUpdate
+	if srcWellKnown != 0 {
+		srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+	}
 
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
@@ -509,9 +519,20 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// RFC 1997: a well-known community is an unconditional prohibition, so it
 		// is asked BEFORE the egress step pass -- ahead of every operator policy,
 		// which cannot grant what the RFC refuses.
+		//
+		// THE PROHIBITION COVERS THE ANNOUNCEMENT, NOT THE WITHDRAWAL. All three
+		// clauses read "MUST NOT be advertised", and taking a route back is not
+		// advertising it. One UPDATE can carry both halves, so this destination
+		// gets the withdrawal half alone: refusing the whole message would leave
+		// the peer holding a prefix ze can no longer withdraw until the session
+		// resets, which is a worse outcome than the leak the clause prevents.
+		destBaseWire := update.WireUpdate
 		if !a.r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
-			suppressedCount++
-			continue
+			if srcWithdrawOnly == nil {
+				suppressedCount++
+				continue
+			}
+			destBaseWire = srcWithdrawOnly
 		}
 
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
@@ -558,14 +579,14 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		var exportWireOverride *wireu.WireUpdate
 		if len(a.r.orderedEgressSteps) > 0 {
 			destFilter := facts.filterInfo
-			payload := update.WireUpdate.Payload()
+			payload := destBaseWire.Payload()
 			suppressed := false
 			stepFailed := false
 			for i := range a.r.orderedEgressSteps {
 				step := &a.r.orderedEgressSteps[i]
 				var res egressStepResult
 				if step.policyChain {
-					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, update.WireUpdate)
+					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, destBaseWire)
 				} else {
 					accept, panicked := safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)
 					res = egressStepResult{accept: accept, failed: panicked}
@@ -602,18 +623,22 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
 
-		peerBaseWire := update.WireUpdate
+		peerBaseWire := destBaseWire
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
 
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
-		// Recorded AFTER the egress step pass so the Suppress is the last
-		// operation on code 5 and wins (filterapi.LastSetOrSuppress), and over
-		// peerBaseWire rather than the source, because a policy chain's wire
-		// override replaces the payload the rebuild reads.
+		// Recorded AFTER the egress step pass, so the Suppress is the last
+		// operation on code 5 and wins (filterapi.LastSetOrSuppress).
+		//
+		// Asked over peerBaseWire rather than over the source, because the payload
+		// the rebuild reads is not always the source. A policy chain's wire
+		// override replaces it. So does the RFC 1997 withdrawal part, which
+		// carries no attribute at all. Re-asking whenever the two differ keeps the
+		// answer about the bytes this destination is sent.
 		baseHasLocalPref := srcHasLocalPref
-		if exportWireOverride != nil {
+		if peerBaseWire != update.WireUpdate {
 			baseHasLocalPref = payloadHasLocalPref(peerBaseWire.Payload())
 		}
 		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
@@ -626,7 +651,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
 		// Set wins, and the override winning is the order these two have always had.
 		peerBaseSrcASN4 := srcASN4
-		if peerBaseWire != update.WireUpdate {
+		// Against destBaseWire, not against the source: an RFC 1997 withdrawal part
+		// carries the source's own context id, so only a policy chain's wire
+		// override can change the width the rebuild must read.
+		if peerBaseWire != destBaseWire {
 			if c := bgpctx.Registry.Get(peerBaseWire.SourceCtxID()); c != nil {
 				peerBaseSrcASN4 = c.ASN4()
 			}

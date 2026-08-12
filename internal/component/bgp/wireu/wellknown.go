@@ -35,13 +35,22 @@ const (
 )
 
 // ScanWellKnown reports which RFC 1997 well-known communities an UPDATE payload
-// carries in its COMMUNITIES attribute (type 8).
+// carries in its COMMUNITIES attribute (type 8). The second return says whether
+// the payload was read.
 //
-// A payload with no COMMUNITIES attribute, an unparseable payload, and a payload
-// carrying only ordinary communities all answer the empty set, which
-// AllowsEgressTo passes to every peer. The answer is the same for all three
-// because RFC 1997 constrains a route by the values it CARRIES and says nothing
-// about a route that carries none.
+// A payload with no COMMUNITIES attribute and a payload carrying only ordinary
+// communities both answer (0, true). RFC 1997 constrains a route by the values it
+// CARRIES and says nothing about a route that carries none.
+//
+// A payload whose sections do not parse answers (0, false), and an empty set
+// advertises to everyone. This gate FAILS OPEN by design. Refusing a route Ze
+// could not read would drop legitimate routes on a parse hiccup, and no received
+// UPDATE reaches the branch: everything on the forward rails parsed once already,
+// on the receive goroutine (reactor/session_read.go, enforceRFC7606).
+//
+// The second return is what keeps that fail-open from being SILENT. Ze cannot
+// honor an obligation it cannot see, so the caller MUST say so rather than read
+// an empty set as "no prohibition" (ai/rules/evidence.md).
 //
 // It reads the attribute SECTION rather than the payload bytes, so an NLRI octet
 // run that spells a well-known value is not mistaken for the attribute.
@@ -53,18 +62,21 @@ const (
 // requires the attribute length to be a multiple of 4 (RFC1997-Encoding-1) and
 // ParseCommunities enforces that on the decode path, so a payload arriving here
 // with a remainder was already refused where the refusal belongs.
-func ScanWellKnown(payload []byte) WellKnown {
+func ScanWellKnown(payload []byte) (WellKnown, bool) {
 	sections, err := wire.ParseUpdateSections(payload)
 	if err != nil {
-		return 0
+		return 0, false
 	}
+	// Neither of the next two is a read failure. A payload with no attribute
+	// section is a withdrawal-only UPDATE, and one with no COMMUNITIES attribute
+	// carries no RFC 1997 value: both are routes the RFC says nothing about.
 	attrs := sections.Attrs(payload)
 	if attrs == nil {
-		return 0
+		return 0, true
 	}
 	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrCommunity)
 	if !found {
-		return 0
+		return 0, true
 	}
 	var w WellKnown
 	// Any value this chain does not name carries no RFC 1997 egress operation and
@@ -83,7 +95,7 @@ func ScanWellKnown(payload []byte) WellKnown {
 			w |= WKNoExportSubconfed
 		}
 	}
-	return w
+	return w, true
 }
 
 // AllowsEgressTo answers RFC 1997 for one destination peer: may a route carrying

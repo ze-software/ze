@@ -280,6 +280,12 @@ type Reactor struct {
 	// forward_modify_failure.go.
 	modifyFailLog modifyFailureLog
 
+	// wellKnownScanLog bounds the RFC 1997 scan-failure warning to one line per
+	// second, for the same reason modifyFailLog is bounded: the payload comes
+	// from a peer, so the line fires at the peer's send rate. Zero value is
+	// ready; see forward_wellknown.go.
+	wellKnownScanLog wellKnownScanLog
+
 	// policyFilterSeam replaces the plugin-IPC body of policyFilterFunc. It is
 	// nil in production and set only by a test, exactly as pluginServerMaker
 	// below. Without it the policy chain's post-chain branches (a filter that
