@@ -12,7 +12,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -376,6 +375,13 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 	recvDone := make(chan struct{})
 
+	// recvErr carries why the receive loop stopped. A context cancellation is
+	// how the convergence deadline stops it and is expected; anything else is a
+	// failure of the measurement rather than a measurement of the DUT, and
+	// without it a broken receiver is indistinguishable from a DUT that
+	// forwarded nothing (ai/rules/evidence.md).
+	var recvErr error
+
 	var recvWg sync.WaitGroup
 
 	senderKaCtx, senderKaCancel := context.WithCancel(ctx)
@@ -454,7 +460,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 		recvWg.Go(func() {
 			defer close(recvDone)
-			rawMsgs, _ = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
+			rawMsgs, recvErr = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
 		})
 	} else {
 		// Receiver-first (default): warmup, start receiver, send routes, measure.
@@ -474,7 +480,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 		recvWg.Go(func() {
 			defer close(recvDone)
-			rawMsgs, _ = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
+			rawMsgs, recvErr = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
 		})
 
 		sendStart = time.Now()
@@ -507,6 +513,14 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	// Stop receiver.
 	recvCancel()
 	recvWg.Wait()
+
+	// A receive loop that stopped on anything but its own cancellation read no
+	// further route, so what it collected is not what the DUT forwarded. A DUT
+	// that forwards nothing is a valid measurement and reports RoutesLost; a
+	// receiver that stopped reading is not, and MUST NOT be reported as one.
+	if recvErr != nil && !errors.Is(recvErr, context.Canceled) {
+		return IterationResult{}, fmt.Errorf("receiving updates: %w", recvErr)
+	}
 
 	// Decode prefixes from buffered raw messages (post-idle, no timing impact).
 	recvTimes := make(map[netip.Prefix]time.Time, len(prefixes))
@@ -655,15 +669,12 @@ func drainMessages(ctx context.Context, r io.Reader, conn net.Conn) int {
 		if err := ctx.Err(); err != nil {
 			return updates
 		}
-		if err := conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond)); err != nil {
-			return updates
-		}
-		if _, err := io.ReadFull(r, hdr); err != nil {
+		if err := readHeaderPolled(conn, r, hdr, 500*time.Millisecond); err != nil {
 			return updates
 		}
 		msgType := msgtype.MessageType(hdr[18])
-		msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
-		if msgLen < message.HeaderLen {
+		msgLen, err := messageLen(hdr)
+		if err != nil {
 			return updates
 		}
 		bodyLen := msgLen - message.HeaderLen
@@ -831,20 +842,18 @@ func receiveRaw(
 			return msgs, err
 		}
 
-		// Short deadline once all expected prefixes arrived (drain stragglers).
-		// Normal deadline otherwise (cancellation checking).
+		// Short poll once all expected prefixes arrived (drain stragglers).
+		// Normal poll otherwise (cancellation checking).
 		timeout := 200 * time.Millisecond
 		if prefixCount >= expectedPrefixes {
 			timeout = 100 * time.Millisecond
 		}
 
-		_ = conn.SetReadDeadline(time.Now().Add(timeout))
-
 		var msgType msgtype.MessageType
 		var msg []byte
 		var err error
 
-		msgType, msg, slabOff, err = readMessageSlab(r, hdr, slab, slabOff)
+		msgType, msg, slabOff, err = readMessageSlab(conn, r, hdr, slab, slabOff, timeout)
 		if err != nil {
 			if isNetTimeout(err) {
 				if prefixCount >= expectedPrefixes {
@@ -866,23 +875,20 @@ func receiveRaw(
 	}
 }
 
-// readMessageSlab reads a BGP message into the slab at the given offset.
+// readMessageSlab reads a BGP message into the slab at the given offset,
+// waiting at most poll for the message to start arriving (readHeaderPolled).
 // If the slab has insufficient space, falls back to heap allocation.
 // Returns the message type, message bytes, new slab offset, and any error.
 func readMessageSlab(
-	r io.Reader, hdr []byte, slab []byte, slabOff int,
+	conn net.Conn, r io.Reader, hdr []byte, slab []byte, slabOff int, poll time.Duration,
 ) (msgtype.MessageType, []byte, int, error) {
-	if _, err := io.ReadFull(r, hdr); err != nil {
-		return 0, nil, slabOff, fmt.Errorf("reading header: %w", err)
+	if err := readHeaderPolled(conn, r, hdr, poll); err != nil {
+		return 0, nil, slabOff, err
 	}
 
-	msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
-	if msgLen < message.HeaderLen {
-		return 0, nil, slabOff, fmt.Errorf("invalid message length: %d", msgLen)
-	}
-
-	if msgLen > message.MaxMsgLen {
-		return 0, nil, slabOff, fmt.Errorf("message length %d exceeds RFC 4271 limit %d", msgLen, message.MaxMsgLen)
+	msgLen, err := messageLen(hdr)
+	if err != nil {
+		return 0, nil, slabOff, err
 	}
 
 	// Try slab; fall back to heap if exhausted.

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
@@ -245,6 +246,8 @@ func (f *testForwarder) keepaliveLoop(ctx context.Context, conn net.Conn) {
 // forwardUpdates reads BGP messages from src and copies UPDATE messages to dst.
 // KEEPALIVE messages are silently consumed. Stops on context cancellation or error.
 func (f *testForwarder) forwardUpdates(ctx context.Context, src, dst net.Conn) {
+	hdr := make([]byte, message.HeaderLen)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -252,10 +255,10 @@ func (f *testForwarder) forwardUpdates(ctx context.Context, src, dst net.Conn) {
 		default:
 		}
 
-		// Short read deadline to allow context check.
-		_ = src.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-
-		msgType, msg, err := ReadMessage(src)
+		// Short poll to allow the context check above. readMessagePolled reads
+		// the message whole once it starts, so a poll that expires never leaves
+		// src framed inside a message.
+		msgType, msg, err := readMessagePolled(src, src, hdr, 100*time.Millisecond)
 		if err != nil {
 			if isTimeout(err) {
 				continue
@@ -424,6 +427,7 @@ func (f *testSinkForwarder) sinkLoop(ctx context.Context, conn net.Conn) {
 	defer ticker.Stop()
 
 	ka := buildKeepalive()
+	hdr := make([]byte, message.HeaderLen)
 
 	for {
 		select {
@@ -436,9 +440,7 @@ func (f *testSinkForwarder) sinkLoop(ctx context.Context, conn net.Conn) {
 		default:
 		}
 
-		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-
-		_, _, err := ReadMessage(conn)
+		_, _, err := readMessagePolled(conn, conn, hdr, 100*time.Millisecond)
 		if err != nil {
 			if isTimeout(err) {
 				continue
@@ -449,6 +451,82 @@ func (f *testSinkForwarder) sinkLoop(ctx context.Context, conn net.Conn) {
 
 		// All messages silently consumed -- never forwarded.
 	}
+}
+
+// testGarbageForwarder is a minimal BGP DUT that accepts two connections,
+// completes the handshake on each, and then writes a byte stream that is not a
+// BGP message to the first one, which is the connection ze-perf receives on.
+//
+// It stands for every way a receiver stops reading the wire it is measuring: a
+// desynchronised stream, a peer that speaks a different framing, a truncated
+// message. The benchmark must report that, not report the routes it managed to
+// count before the stream broke.
+type testGarbageForwarder struct {
+	t        testing.TB
+	listener net.Listener
+}
+
+func newTestGarbageForwarder(t testing.TB) *testGarbageForwarder {
+	t.Helper()
+
+	var lc net.ListenConfig
+
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	return &testGarbageForwarder{t: t, listener: ln}
+}
+
+// Addr returns the listener address (host:port) for dialing.
+func (f *testGarbageForwarder) Addr() string {
+	return f.listener.Addr().String()
+}
+
+// Run accepts one pair, handshakes both, writes garbage to the first, and holds
+// the pair open until ctx is canceled. Closes the listener on return.
+func (f *testGarbageForwarder) Run(ctx context.Context) {
+	defer func() { _ = f.listener.Close() }()
+
+	sink := &testSinkForwarder{t: f.t, listener: f.listener}
+
+	conn0, err := sink.acceptOne(ctx, 0)
+	if err != nil {
+		if ctx.Err() == nil {
+			f.t.Logf("garbage forwarder: %v", err)
+		}
+
+		return
+	}
+	defer func() { _ = conn0.Close() }()
+
+	conn1, err := sink.acceptOne(ctx, 1)
+	if err != nil {
+		if ctx.Err() == nil {
+			f.t.Logf("garbage forwarder: %v", err)
+		}
+
+		return
+	}
+	defer func() { _ = conn1.Close() }()
+
+	// A well-formed marker, then a Length no BGP message may carry (RFC 4271
+	// Section 4.1 caps it at 4096). The receiver cannot resynchronise from it.
+	garbage := make([]byte, message.HeaderLen)
+	for i := range 16 {
+		garbage[i] = 0xFF
+	}
+
+	garbage[16] = 0xFF
+	garbage[17] = 0xFF
+	garbage[18] = byte(msgtype.TypeUPDATE)
+
+	if err := WriteMessage(conn0, garbage); err != nil {
+		f.t.Logf("garbage forwarder: %v", err)
+	}
+
+	<-ctx.Done()
 }
 
 // isTimeout reports whether err is a network timeout error.

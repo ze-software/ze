@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -399,4 +400,64 @@ func TestBenchmarkTimeout(t *testing.T) {
 	}
 
 	cancel()
+}
+
+// VALIDATES: "RunBenchmark reports a receiver that stopped reading the wire,
+// rather than returning the routes it counted before the stream broke."
+// PREVENTS: A benchmark whose measurement failed reading as a completed run.
+//
+// TestBenchmarkTimeout above pins the other half of this: a DUT that forwards
+// nothing IS a measurement, and it reports every route lost with a nil error.
+// The two outcomes were one value before this test existed, because runIteration
+// discarded what receiveRaw returned. A caller then read "no data" and "the DUT
+// forwarded nothing" off the same zero (ai/rules/evidence.md).
+func TestBenchmarkReportsABrokenReceiveStream(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dut := newTestGarbageForwarder(t)
+
+	go func() {
+		dut.Run(ctx)
+	}()
+
+	host, portStr, err := net.SplitHostPort(dut.Addr())
+	if err != nil {
+		t.Fatalf("splitting DUT address %q: %v", dut.Addr(), err)
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("parsing port %q: %v", portStr, err)
+	}
+
+	cfg := BenchmarkConfig{
+		DUTAddr:        host,
+		DUTPort:        port,
+		DUTASN:         65000,
+		DUTName:        "garbage-forwarder",
+		SenderAddr:     "127.0.0.1",
+		SenderASN:      65001,
+		ReceiverAddr:   "127.0.0.1",
+		ReceiverASN:    65002,
+		Routes:         10,
+		Family:         "ipv4/unicast",
+		Seed:           7,
+		Warmup:         0,
+		ConnectTimeout: 5 * time.Second,
+		Duration:       2 * time.Second,
+		Repeat:         1,
+		WarmupRuns:     0,
+		IterDelay:      0,
+	}
+
+	result, err := RunBenchmark(ctx, cfg, io.Discard)
+	if err == nil {
+		t.Fatalf("RunBenchmark returned no error; RoutesReceived = %d, RoutesLost = %d",
+			result.RoutesReceived, result.RoutesLost)
+	}
+
+	if !strings.Contains(err.Error(), "receiving updates") {
+		t.Errorf("err = %v, want it to name the receive failure", err)
+	}
 }

@@ -162,13 +162,15 @@ func readMessageWithHdr(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, e
 		return 0, nil, fmt.Errorf("reading header: %w", err)
 	}
 
-	msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
-	if msgLen < message.HeaderLen {
-		return 0, nil, fmt.Errorf("invalid message length: %d", msgLen)
-	}
+	return readBody(r, hdr)
+}
 
-	if msgLen > message.MaxMsgLen {
-		return 0, nil, fmt.Errorf("message length %d exceeds RFC 4271 limit %d", msgLen, message.MaxMsgLen)
+// readBody reads the body of the message whose header is already in hdr, and
+// returns the message type with the whole message, header included.
+func readBody(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, error) {
+	msgLen, err := messageLen(hdr)
+	if err != nil {
+		return 0, nil, err
 	}
 
 	msg := make([]byte, msgLen)
@@ -181,6 +183,79 @@ func readMessageWithHdr(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, e
 	}
 
 	return msgtype.MessageType(hdr[18]), msg, nil
+}
+
+// messageLen reads and validates the Length field of a BGP header.
+func messageLen(hdr []byte) (int, error) {
+	msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
+	if msgLen < message.HeaderLen {
+		return 0, fmt.Errorf("invalid message length: %d", msgLen)
+	}
+
+	if msgLen > message.MaxMsgLen {
+		return 0, fmt.Errorf("message length %d exceeds RFC 4271 limit %d", msgLen, message.MaxMsgLen)
+	}
+
+	return msgLen, nil
+}
+
+// msgBodyTimeout bounds the read of a BGP message once its first byte is off
+// the stream. A message read is not restartable: the bytes already taken are
+// gone, so a reader that abandons a half-read message frames the next read on
+// whatever byte follows and reads a body field as a Length field. That is
+// silent corruption of every later message, not one lost message.
+const msgBodyTimeout = 5 * time.Second
+
+// readHeaderPolled reads the 19-byte BGP header from r, waiting at most poll
+// for the message to start arriving, and leaves conn armed with msgBodyTimeout
+// for the body the caller reads next.
+//
+// A timeout it returns means NO byte was consumed and the stream is still on a
+// message boundary, so the caller MAY retry to check for cancellation. Once any
+// byte is read, the rest of the header is read under msgBodyTimeout whatever
+// poll was: finishing the message is the only way back to a boundary.
+//
+// conn owns the deadlines and r owns the buffering, so r is conn itself or a
+// buffered reader over it.
+func readHeaderPolled(conn net.Conn, r io.Reader, hdr []byte, poll time.Duration) error {
+	if len(hdr) < message.HeaderLen {
+		return fmt.Errorf("header buffer too small: %d < %d", len(hdr), message.HeaderLen)
+	}
+
+	if err := conn.SetReadDeadline(time.Now().Add(poll)); err != nil {
+		return fmt.Errorf("arming poll deadline: %w", err)
+	}
+
+	n, readErr := io.ReadFull(r, hdr[:message.HeaderLen])
+	if readErr != nil && n == 0 {
+		return fmt.Errorf("reading header: %w", readErr)
+	}
+
+	if err := conn.SetReadDeadline(time.Now().Add(msgBodyTimeout)); err != nil {
+		return fmt.Errorf("arming body deadline: %w", err)
+	}
+
+	if readErr != nil {
+		if _, err := io.ReadFull(r, hdr[n:message.HeaderLen]); err != nil {
+			return fmt.Errorf("reading header: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// readMessagePolled reads one complete BGP message from r, waiting at most poll
+// for it to start arriving. It returns the message type and the full message
+// bytes, header included.
+//
+// It is the reader for a loop that polls between messages to check for
+// cancellation. A timeout it returns is safe to retry; see readHeaderPolled.
+func readMessagePolled(conn net.Conn, r io.Reader, hdr []byte, poll time.Duration) (msgtype.MessageType, []byte, error) {
+	if err := readHeaderPolled(conn, r, hdr, poll); err != nil {
+		return 0, nil, err
+	}
+
+	return readBody(r, hdr)
 }
 
 // WriteMessage writes a complete BGP message to a connection.

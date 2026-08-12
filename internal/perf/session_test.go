@@ -2,8 +2,13 @@ package perf
 
 import (
 	"io"
+	"net"
 	"net/netip"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 func TestBuildOpen(t *testing.T) {
@@ -147,7 +152,7 @@ func TestReadMessageSlab(t *testing.T) {
 				slab = make([]byte, tt.slabSize)
 			}
 
-			msgType, msg, newOff, err := readMessageSlab(r, hdr, slab, 0)
+			msgType, msg, newOff, err := readMessageSlab(newScriptedConn(r), r, hdr, slab, 0, time.Second)
 			if err != nil {
 				t.Fatalf("readMessageSlab: %v", err)
 			}
@@ -194,7 +199,7 @@ func TestReadMessageSlabInvalidLength(t *testing.T) {
 	hdr := make([]byte, 19)
 	slab := make([]byte, 100)
 
-	_, _, _, err := readMessageSlab(r, hdr, slab, 0)
+	_, _, _, err := readMessageSlab(newScriptedConn(r), r, hdr, slab, 0, time.Second)
 	if err == nil {
 		t.Fatal("expected error for invalid message length")
 	}
@@ -233,6 +238,111 @@ func (r *bytesReader) Read(p []byte) (int, error) {
 	r.pos += n
 
 	return n, nil
+}
+
+// scriptedConn is a net.Conn whose reads come from src and whose read deadline
+// buys exactly one read. A second read under the same deadline fails with a
+// timeout, which is what a socket does once its deadline has passed: the poll
+// wait for the header consumes the deadline, and the body read that follows
+// finds it expired even when the bytes are already in the socket buffer.
+//
+// Only SetReadDeadline and Read are implemented. Any other net.Conn method
+// panics on the nil embedded interface, which is the intent: a caller of these
+// readers uses no other method.
+type scriptedConn struct {
+	net.Conn
+
+	src   io.Reader
+	armed bool
+}
+
+func newScriptedConn(src io.Reader) *scriptedConn {
+	return &scriptedConn{src: src}
+}
+
+func (c *scriptedConn) SetReadDeadline(time.Time) error {
+	c.armed = true
+
+	return nil
+}
+
+func (c *scriptedConn) Read(p []byte) (int, error) {
+	if !c.armed {
+		return 0, expiredDeadline{}
+	}
+
+	c.armed = false
+
+	return c.src.Read(p)
+}
+
+// idleReader never delivers a byte. It stands for a connection that is quiet
+// for the whole poll, which is how a receive loop checks for cancellation.
+type idleReader struct{}
+
+func (idleReader) Read([]byte) (int, error) { return 0, expiredDeadline{} }
+
+// expiredDeadline is the timeout a socket reports once its read deadline has
+// passed.
+type expiredDeadline struct{}
+
+func (expiredDeadline) Error() string { return "i/o timeout" }
+func (expiredDeadline) Timeout() bool { return true }
+func (expiredDeadline) Temporary() bool {
+	return true
+}
+
+// VALIDATES: "A poll deadline that expires after the header is read still reads
+// the message whole, so the next read is on a message boundary."
+// PREVENTS: The reader framing its next read on a message body, where a body
+// byte pair reads as a Length field and every later message is garbage.
+//
+// The 100ms poll in a receive loop and the 100ms warmup before the first UPDATE
+// have the same period, so a message arriving just as the poll expires is not a
+// rare accident. It cost internal/perf one iteration in ten, and each such
+// iteration counted no route at all for a DUT that had forwarded every one.
+func TestReadMessagePolledReadsTheBodyAfterThePollExpires(t *testing.T) {
+	t.Parallel()
+
+	// Two NOTIFICATIONs: 19 header bytes and a 2-byte body each. The body read
+	// is a second read, and it lands after the poll deadline is spent.
+	wire := append(BuildCeaseNotification(), BuildCeaseNotification()...)
+	conn := newScriptedConn(newBytesReader(wire))
+	hdr := make([]byte, message.HeaderLen)
+
+	for i := range 2 {
+		msgType, msg, err := readMessagePolled(conn, conn, hdr, time.Second)
+		if err != nil {
+			t.Fatalf("message %d: readMessagePolled: %v", i, err)
+		}
+
+		if msgType != msgtype.TypeNOTIFICATION {
+			t.Errorf("message %d: type = %d, want %d", i, msgType, msgtype.TypeNOTIFICATION)
+		}
+
+		if len(msg) != len(wire)/2 {
+			t.Errorf("message %d: length = %d, want %d", i, len(msg), len(wire)/2)
+		}
+	}
+}
+
+// VALIDATES: "A poll that expires with no byte consumed is reported as a
+// timeout, which a receive loop MAY retry."
+// PREVENTS: A receive loop reading a quiet DUT as a stream failure.
+func TestReadMessagePolledReportsAnIdlePollAsATimeout(t *testing.T) {
+	t.Parallel()
+
+	conn := newScriptedConn(idleReader{})
+	hdr := make([]byte, message.HeaderLen)
+
+	_, _, err := readMessagePolled(conn, conn, hdr, time.Second)
+	if err == nil {
+		t.Fatal("expected a timeout error")
+	}
+
+	if !isTimeout(err) {
+		t.Errorf("err = %v, want a timeout", err)
+	}
 }
 
 func TestBuildCeaseNotification(t *testing.T) {
