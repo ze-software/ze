@@ -422,13 +422,6 @@ func (s *RTRSession) close() {
 	s.state = sessionIdle
 }
 
-// State returns the current session state.
-func (s *RTRSession) State() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.state
-}
-
 // SessionSnapshot holds a point-in-time copy of session diagnostic fields.
 type SessionSnapshot struct {
 	Address    string
