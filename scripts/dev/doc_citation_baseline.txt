@@ -655,11 +655,6 @@ plan/spec-fixit-ike-responder-natt-port-float.md	test/ipsec/ipsec-responder-natt
 plan/spec-fixit-ike-responder-natt-port-float.md	test/ipsec/ipsec-responder-retransmit.ci
 plan/spec-fixit-ipsec-interop-cli-credentials.md	internal/component/ssh/client/client.go
 plan/spec-fixit-ipsec-interop-cli-credentials.md	plan/deferrals/fixit-ipsec-interop-cli-credentials.md
-plan/spec-fixit-isis-hostname-ascii.md	internal/plugins/isis/lsdb/encode_test.go
-plan/spec-fixit-isis-hostname-ascii.md	plan/deferrals/fixit-isis-hostname-ascii.md
-plan/spec-fixit-isis-hostname-ascii.md	plan/spec-rfcgate-4-ledger.md
-plan/spec-fixit-isis-hostname-ascii.md	rfc/full/rfc3490.txt
-plan/spec-fixit-isis-hostname-ascii.md	test/isis/isis-hostname-ascii.ci
 plan/spec-fixit-learned-dead-paths.md	plan/.learned-staleness-baseline
 plan/spec-fixit-learned-dead-paths.md	plan/deferrals/fixit-learned-dead-paths.md
 plan/spec-fixit-learned-dead-paths.md	scripts/dev/learned_repath.py
