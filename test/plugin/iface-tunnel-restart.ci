@@ -24,18 +24,31 @@
 # Why the assertion discriminates:
 #  - Revert the kept-netdev branch and the second apply fails on `file exists`,
 #    the startup cascade stops the daemon, the pass 2 observer never runs, and
-#    the seq=3 daemon does not exit 0.
+#    the seq=4 daemon does not exit 0.
 #  - Replace "keep" with "delete and re-create" and the netdev is a NEW device:
 #    the ifindex differs and pass 2 fails on the comparison, not on absence.
 #  - Break the FIRST run instead and pass 1 fails on its own reading of
 #    /sys/class/net, so a second run that merely creates the tunnel itself
-#    cannot carry the test.
+#    cannot carry the test. Pass 1 recording nothing is a failure too, at the
+#    seq=2 barrier: pass 2 comparing against a file pass 1 never wrote is the
+#    one outcome this test must never call green.
 #
 # The two ze runs are sequential, not concurrent: cmd=stop with signal=term
 # reaps the first daemon before the second starts (internal/test/runner/
 # runner_exec_util.go, stopBackgroundProcess). The first run is a background
 # command so the runner waits for daemon.ready, which cmd/ze/hub/main.go writes
 # only after WaitForStartupComplete -- that is, after the interface apply.
+#
+# daemon.ready is NOT a barrier for the observer, which is why seq=2 exists.
+# WaitForStartupComplete returns as soon as startupDone is closed, and the
+# goroutine that closes it has only just SPAWNED the post-startup delivery:
+# sendPostStartupToAll (internal/component/plugin/server/startup.go) hands each
+# plugin its callback to a goroutine and deliberately does not wait, so nothing
+# orders "the ready file exists" against "the observer has been told". The stop
+# step could therefore reach the daemon while the pass 1 observer was still
+# blocked in wait_for_post_startup, and pass 1 then recorded nothing at all.
+# The seq=2 barrier holds the stop until the recorded ifindex is on disk, so
+# pass 1 cannot reach the stop step without having written the file.
 #
 # The endpoint pair 192.0.2.211 -> 198.51.100.211 is this test's own. The kernel
 # refuses a second tunnel of one driver on a pair it already holds whatever the
@@ -83,7 +96,13 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    api.wait_for_post_startup(timeout=5.0)
+    # Checked, not discarded: this returns False both on timeout and when the
+    # daemon is already shutting down, and either one means this run records no
+    # ifindex. Saying so here names the cause while ze is still alive to relay
+    # the sentinel; the seq=2 barrier is what catches the case where it is not.
+    if not api.wait_for_post_startup(timeout=5.0):
+        runtime_fail('first run: post-startup never arrived, so the tunnel was '
+                     'never read and pass 2 has no ifindex to compare against')
 
     index = kernel_ifindex()
     with open(IFINDEX_FILE, 'w') as handle:
@@ -134,6 +153,26 @@ def kernel_ifindex():
         return ''
 
 
+def recorded_ifindex():
+    """Read the ifindex pass 1 wrote, naming what is missing when it is not there.
+
+    Without the except, a missing file raises FileNotFoundError, which unwinds
+    through main's finally and is reported as a traceback carrying a bare
+    filename -- the reader then has to know which run writes that file and why
+    it might not have. The seq=2 barrier makes "pass 1 was merely late"
+    unreachable here; what is left is a pass 1 that failed for a reason of its
+    own, and this message says which run owes the file.
+    """
+    try:
+        with open(IFINDEX_FILE) as handle:
+            return handle.read().strip()
+    except OSError as exc:
+        runtime_fail(f'second run: {IFINDEX_FILE}: {exc}: the first run never '
+                     f'recorded {NAME}, so this run has nothing to compare '
+                     f'against')
+        return ''
+
+
 def main():
     api = API()
     api.declare_done()
@@ -144,11 +183,10 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        with open(IFINDEX_FILE) as handle:
-            before = handle.read().strip()
+        before = recorded_ifindex()
         if not before:
-            runtime_fail('the first run recorded no ifindex, so this run has '
-                         'nothing to compare against')
+            runtime_fail('the first run recorded an empty ifindex, so this run '
+                         'has nothing to compare against')
 
         after = kernel_ifindex()
         if after != before:
@@ -176,6 +214,37 @@ def main():
 if __name__ == '__main__':
     main()
 EOF_CHECK
+
+# Barrier: hold the stop step until pass 1 has recorded the ifindex.
+tmpfs=iface-tunnel-restart-wait.sh:terminator=EOF_WAIT
+#!/bin/sh
+# Poll, do not spin. `[` is a builtin, so a busy loop would fork nothing, and it
+# would still starve the daemon it waits for on the two-vCPU QEMU VM this test
+# runs in. `sleep 0.1` under /bin/sh is what the other needs-linux barrier in
+# that VM uses (test/reload/test-tx-iface-tunnel-create.ci).
+#
+# The test is `-s`, non-empty: the observer creates the file and then writes the
+# index into it, so an empty file means the write has not landed yet.
+#
+# 0.1s x 121 bounds the wait at ~12 seconds. The bound comes from the engine,
+# not from taste: postStartupTimeout (internal/component/plugin/server/
+# startup.go) abandons the post-startup delivery after 10 seconds, so a file
+# that has not appeared by then can never appear. Waiting a little past that
+# makes this barrier outlive the delivery it waits on, and it fails HERE, with
+# the message below, rather than as an opaque outer timeout.
+i=0
+while [ "$i" -le 120 ]; do
+	if [ -s restart-ifindex ]; then
+		echo "OK: tunnel restart pass 1 recorded ifindex $(cat restart-ifindex)"
+		exit 0
+	fi
+	i=$((i + 1))
+	sleep 0.1
+done
+echo "pass 1 recorded no ifindex in restart-ifindex: its observer never reached the sysfs read, so pass 2 has nothing to compare against" >&2
+ls -la . >&2
+exit 1
+EOF_WAIT
 
 # First run's config. The interface stanza is byte-identical to the second
 # run's: only the observer differs, so the restart applies one tunnel config
@@ -226,10 +295,18 @@ interface {
 EOF_RESTART_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=boot:name=ze1
-cmd=stop:seq=2:name=ze1:signal=term
-cmd=foreground:seq=3:exec=ze -:stdin=restart:timeout=20s
+cmd=foreground:seq=2:exec=sh iface-tunnel-restart-wait.sh
+cmd=stop:seq=3:name=ze1:signal=term
+# 30s, not the 20s this carried before the seq=2 barrier: the barrier is allowed
+# ~12s of its own, and the budget it sits inside has to leave room for that plus
+# both daemon startups, or a barrier failure is reported as a bare timeout with
+# the message it printed nowhere in the report.
+cmd=foreground:seq=4:exec=ze -:stdin=restart:timeout=30s
 expect=exit:code=0
 expect=stderr:contains=OK: tunnel restart pass 1 created trs0 ifindex
+# The barrier's own line: proof the stop step ran AFTER the ifindex was on disk,
+# rather than the barrier having been skipped.
+expect=stdout:contains=OK: tunnel restart pass 1 recorded ifindex
 expect=stderr:contains=OK: tunnel restart pass 2 kept trs0 same ifindex
 # The symptom the kept-netdev branch removes. A second start that fails the
 # interface apply logs it and takes the daemon down with it.

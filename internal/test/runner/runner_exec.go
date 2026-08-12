@@ -964,6 +964,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Only applies when followed by more commands; if it's the last
 			// command, fall through to normal exit code handling.
 			if err := proc.Wait(); err != nil {
+				// Collect the output first. This early return skips the
+				// collection at the bottom of the function. A barrier script
+				// that exits non-zero was therefore reported as a bare
+				// "setup script sh: exit status 1". The message it printed to
+				// say WHY was nowhere in the report.
+				//
+				// That message is the whole reason a barrier is a script
+				// rather than a sleep. The await=stderr arm below carries the
+				// same repair.
+				// ai/rules/evidence.md: the guard must speak.
+				rec.ClientOutput = clientStdout.String() + clientStderr.String()
+				rec.PeerOutput = collectPeerOutput(peerOutputs)
+				rec.Duration = time.Since(rec.StartTime)
 				rec.Error = fmt.Errorf("setup script %s: %w", binName, err)
 				return false
 			}
