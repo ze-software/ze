@@ -1092,7 +1092,6 @@ func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 	_, ipnet, _ := net.ParseCIDR(prefix) // already validated by caller
 	canonical := ipnet.String()
 	entries := rp.cache.Lookup(canonical)
-	state := rp.cache.Validate(canonical, OriginNone)
 
 	b := textbuf.Get()
 	defer b.Release()
@@ -1108,12 +1107,10 @@ func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 		b.Str(`,"asn":`).Uint32(e.ASN)
 		b.Byte('}')
 	}
-	b.Str(`],"covered":`)
-	if state == ValidationNotFound {
-		b.Str("false")
-	} else {
-		b.Str("true")
-	}
+	// "covered" states whether the VRP set holds anything for this prefix, which is what
+	// Lookup just answered. Deriving it from Validate would read a state that also carries
+	// "ze could not parse this prefix" (validate.go), a different question.
+	b.Str(`],"covered":`).Bool(len(entries) > 0)
 	b.Byte('}')
 	return statusDone, json.RawMessage(b.String()), nil
 }

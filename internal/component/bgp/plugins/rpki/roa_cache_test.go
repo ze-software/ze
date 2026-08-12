@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mustNet parses a CIDR string for a findCovering query. findCovering takes the parsed
+// prefix because the parse itself is the answerable/unanswerable decision (validate.go).
+func mustNet(t *testing.T, prefix string) *net.IPNet {
+	t.Helper()
+	_, ipnet, err := net.ParseCIDR(prefix)
+	require.NoError(t, err)
+	return ipnet
+}
+
 func makeVRP(prefix string, maxLen uint8, asn uint32) VRP {
 	_, ipnet, _ := net.ParseCIDR(prefix)
 	return VRP{Prefix: *ipnet, MaxLength: maxLen, ASN: asn}
@@ -69,7 +78,7 @@ func TestROACacheFindCoveringExact(t *testing.T) {
 	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-	entries := c.findCovering("10.0.0.0/8")
+	entries := c.findCovering(mustNet(t, "10.0.0.0/8"))
 	require.Len(t, entries, 1)
 	assert.Equal(t, uint32(65001), entries[0].ASN)
 }
@@ -82,7 +91,7 @@ func TestROACacheFindCoveringLonger(t *testing.T) {
 	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-	entries := c.findCovering("10.1.2.0/24")
+	entries := c.findCovering(mustNet(t, "10.1.2.0/24"))
 	require.Len(t, entries, 1)
 	assert.Equal(t, uint32(65001), entries[0].ASN)
 }
@@ -95,7 +104,7 @@ func TestROACacheFindCoveringNoMatch(t *testing.T) {
 	c := newROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-	entries := c.findCovering("192.168.0.0/24")
+	entries := c.findCovering(mustNet(t, "192.168.0.0/24"))
 	assert.Empty(t, entries)
 }
 
@@ -108,7 +117,7 @@ func TestROACacheFindCoveringMultiple(t *testing.T) {
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 	c.Add(makeVRP("10.0.0.0/16", 24, 65002))
 
-	entries := c.findCovering("10.0.1.0/24")
+	entries := c.findCovering(mustNet(t, "10.0.1.0/24"))
 	assert.Len(t, entries, 2, "both /8 and /16 VRPs should cover /24")
 }
 
@@ -120,7 +129,7 @@ func TestROACacheFindCoveringIPv6(t *testing.T) {
 	c := newROACache()
 	c.Add(makeVRP("2001:db8::/32", 48, 65003))
 
-	entries := c.findCovering("2001:db8:1::/48")
+	entries := c.findCovering(mustNet(t, "2001:db8:1::/48"))
 	require.Len(t, entries, 1)
 	assert.Equal(t, uint32(65003), entries[0].ASN)
 }

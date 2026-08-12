@@ -117,17 +117,20 @@ func removeEntry(entries []vrpEntry, target vrpEntry) []vrpEntry {
 	return entries
 }
 
-// findCovering returns all VRP entries that cover the given prefix.
+// findCovering returns all VRP entries that cover the given parsed prefix.
 // A VRP covers a prefix if the VRP's prefix is equal to or shorter than
 // the query prefix, and the query prefix falls within the VRP's address space.
-func (c *ROACache) findCovering(prefix string) []vrpEntry {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	_, ipnet, err := net.ParseCIDR(prefix)
-	if err != nil {
+//
+// The caller parses the prefix, and that is load-bearing: a string this walk
+// cannot read is not a query with an empty answer, it is a query ze cannot
+// answer. Validate (validate.go) makes that distinction before it calls here.
+func (c *ROACache) findCovering(ipnet *net.IPNet) []vrpEntry {
+	if ipnet == nil {
 		return nil
 	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	prefixLen, bits := ipnet.Mask.Size()
 	isV4 := bits == 32

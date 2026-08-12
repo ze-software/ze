@@ -115,6 +115,54 @@ func TestValidateMultipleVRPsOneMatch(t *testing.T) {
 	assert.Equal(t, ValidationValid, state)
 }
 
+// TestValidateRefusesUnparseablePrefix verifies a prefix ze cannot parse never reads as
+// "the VRP set covers nothing".
+//
+// VALIDATES: Validate answers a malformed prefix with ValidationInvalid, while the same cache
+// still answers well-formed queries with Valid and NotFound as before. The pairing matters: a
+// function that refused everything would satisfy the first assertion alone.
+// PREVENTS: An unreadable prefix reading as NotFound, which the default not-found action accepts,
+// so a route ze never validated enters the Adj-RIB-In as though the cache had cleared it.
+func TestValidateRefusesUnparseablePrefix(t *testing.T) {
+	c := newROACache()
+	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
+
+	for _, prefix := range []string{"not-a-prefix", "10.0.0.0/33", "10.0.0.0", ""} {
+		assert.Equal(t, ValidationInvalid, c.Validate(prefix, 65001),
+			"unparseable prefix %q is refused, not reported as uncovered", prefix)
+	}
+
+	assert.Equal(t, ValidationValid, c.Validate("10.0.1.0/24", 65001),
+		"a well-formed authorized prefix still validates")
+	assert.Equal(t, ValidationNotFound, c.Validate("192.168.0.0/24", 65001),
+		"a well-formed prefix no VRP covers still reads not-found")
+}
+
+// TestUnparseablePrefixIsNotAcceptedByDefaultPolicy verifies the refusal survives the policy
+// step that turns a validation state into an accept/reject decision.
+//
+// VALIDATES: With the YANG defaults (invalid: reject, not-found: accept), buildDecisions drops
+// the route carrying the state Validate returned for a malformed prefix, and keeps the route
+// whose prefix parsed and genuinely has no covering VRP.
+// PREVENTS: The state changing while the decision does not, which is the whole defect: a state
+// nobody rejects is a state that accepts.
+func TestUnparseablePrefixIsNotAcceptedByDefaultPolicy(t *testing.T) {
+	c := newROACache()
+	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
+
+	rp := &rPKIPlugin{}
+	rp.originInvalidAction.Store(uint32(ASPAPolicyReject)) // YANG default
+	rp.originNotFoundAction.Store(uint32(ASPAPolicyAccept))
+
+	decisions := rp.buildDecisions([]validationRequest{
+		{prefix: "10.0.0.0/33", state: c.Validate("10.0.0.0/33", 65001)},
+		{prefix: "192.168.0.0/24", state: c.Validate("192.168.0.0/24", 65001)},
+	})
+
+	assert.False(t, decisions[0].Accept, "a prefix ze could not parse is not accepted")
+	assert.True(t, decisions[1].Accept, "a parsed, uncovered prefix is still accepted under the default")
+}
+
 // TestExtractOriginAS verifies origin AS extraction from AS_PATH attribute.
 //
 // VALIDATES: Rightmost AS in final AS_SEQUENCE segment is extracted.

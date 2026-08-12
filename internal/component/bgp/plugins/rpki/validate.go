@@ -1,4 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RFC 6811 origin validation
+// RFC: rfc/short/rfc6811.md -- Section 2: the validation state of a route comes from the lookup
+// of its prefix and origin AS in the VRP set
 // Overview: rpki.go — plugin using validation for route decisions
 // Related: roa_cache.go — ROA cache providing VRP lookups
 package rpki
@@ -22,17 +24,25 @@ const OriginNone uint32 = 0xFFFFFFFF
 
 // Validate performs RFC 6811 origin validation for a prefix and origin AS.
 // Returns ValidationValid, ValidationInvalid, or ValidationNotFound.
+//
+// A prefix ze cannot parse gets ValidationInvalid and a warning, never
+// ValidationNotFound: NotFound states that the VRP set was consulted and covers
+// nothing, and the default not-found action accepts the route on that reading.
+// An unreadable prefix was never validated, so it fails closed instead.
 func (c *ROACache) Validate(prefix string, originAS uint32) uint8 {
-	covering := c.findCovering(prefix)
+	// Parse first. The parse decides whether the query is answerable at all, so
+	// it must run before the cache lookup rather than after it.
+	_, ipnet, err := net.ParseCIDR(prefix)
+	if err != nil {
+		logger().Warn("roa: prefix is not a CIDR, refusing to validate", "prefix", prefix)
+		return ValidationInvalid
+	}
+
+	covering := c.findCovering(ipnet)
 	if len(covering) == 0 {
 		return ValidationNotFound
 	}
 
-	// Parse prefix to get the prefix length.
-	_, ipnet, err := net.ParseCIDR(prefix)
-	if err != nil {
-		return ValidationNotFound
-	}
 	prefixLen, _ := ipnet.Mask.Size()
 
 	// If origin is NONE (AS_SET), it can never match any VRP.
