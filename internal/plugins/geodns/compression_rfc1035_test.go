@@ -200,6 +200,11 @@ func TestRFC1035_CompressionPointersInATruncatedDatagram(t *testing.T) {
 		break
 	}
 
+	// "occurances" below is RFC 1035's own spelling, at line 1665 of
+	// rfc/full/rfc1035.txt. Quoted external text is never edited
+	// (ai/rules/rfc-compliance.md), so the linter is silenced rather than the
+	// quote corrected.
+	//nolint:misspell // verbatim RFC 1035 Section 4.1.4 text
 	// RFC requirement: RFC1035-4.1.4-3 positive -- "Pointers can only be used for
 	// occurances of a domain name where the format is not class specific.  If
 	// this were not the case, a name server or resolver would be required to know
