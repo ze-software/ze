@@ -169,6 +169,24 @@ EOF_CONF2
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=20s
 
+# Wait for the reload to finish before the runner stops the daemon.
+#
+# This test is the one reload test that can assert NOTHING on the wire after
+# SIGHUP: proving the absence of a bounce means the peer has no next connection
+# to wait for. Its sibling tests are fenced by construction -- the peer blocks
+# on the reconnect the restart branch makes -- and this one had only the fixed
+# 500ms ze-peer sleeps after it signals (pauseForSignal, internal/test/peer/
+# peer.go). A reload of this config takes longer than that, so the runner
+# stopped the daemon mid-transaction: Server.Stop closed every plugin
+# connection, the in-flight transaction read them as crashed plugins and rolled
+# back ("plugin broken during rollback, restarting"), and the swap line the
+# test asserts was never reached. The swap itself was never in question.
+#
+# "sighup reload complete" is the stable phrase the reload prints on success
+# (cmd/ze/hub/main_reload.go), and it is printed after the peer reconcile, so
+# the swap line is already on stderr when the fence lifts.
+await=stderr:contains=sighup reload complete
+
 # The reload took the swap branch and named the peer it swapped.
 expect=stderr:pattern=peer settings swapped in place
 # ... and never took the restart branch, which is the branch that bounces.
