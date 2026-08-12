@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 2/2 |
 | Deferral shard | - |
-| Updated | 2026-08-04 |
+| Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -481,3 +481,196 @@ preserved unchanged."` above the OTC refusal branch.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `filterapi.LastSetOrSuppress` (`internal/component/bgp/filterapi/filterapi.go`,400): one
+  definition of last-Set-or-Suppress-wins, in the leaf package both `reactor` and the
+  plugins already import.
+- `genericCommunityHandler` (`plugins/filter_community/handler.go`,65) drops the attribute
+  when the last Set-or-Suppress op is a Suppress. The ACTION decides, never the buffer length.
+- `otcAttrModHandler` (`plugins/role/otc.go`,761) REFUSES a Suppress over a present OTC and
+  warns; with no source OTC a Suppress drops the slot.
+- `originatorIDHandler` and `clusterListHandler` (`reactor/filter_delta_handlers.go`,98 and 151)
+  gained the same branch. ORIGINATOR_ID refuses and warns (RFC4456-8-4); CLUSTER_LIST drops.
+- `forward_local_pref.go`: `localPrefAllowedTo`, `payloadHasLocalPref`, `modsTouchLocalPref`,
+  `applyFactsLocalPref`. Both forward rails call it after the egress filter pass
+  (`reactor_api_forward.go`,604 and `forward_rs.go`,334).
+- The three rails that already stripped LOCAL_PREF now ask `localPrefAllowedTo` instead of
+  re-deriving `isIBGP`: `reactor_api_batch.go`,661, `peer_rib_routes.go`,156, `reactor_wire.go`,513.
+
+### Bugs Found/Fixed
+- The `session { community { send ... } }` fail-open itself: the operation was recorded,
+  consumed by a handler that read `AttrModSet` only, and the attribute re-emitted in silence.
+- A-5 broke: `clusterListHandler` and `originatorIDHandler` carried the identical blind spot.
+- LOCAL_PREF crossed to external peers on the forward rails only (RFC 4271 Section 5.1.5).
+- `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` and `remove-private-as-replace-peer.ci` named the
+  discard marker `ATTR_DISCARD` / `C0FD...`; the producer writes `attribute.AttrTombstone` (0xFC).
+  Comments only.
+
+### Documentation Updates
+- None. The fix makes the wire match config and docs that were already correct; no
+  `<!-- source: -->` anchor names any of the modified files.
+
+### Deviations from Plan
+- The shared fold landed in `filterapi.go` rather than `editset.go` (the spec allowed either).
+- Two handlers beyond the planned three were fixed, because A-5 broke.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 assumed only the community handlers and OTC read `AttrModSet` alone | `clusterListHandler` (code 10) and `originatorIDHandler` (code 9) had the same blind spot | audit of `attrModHandlersWithDefaults`, the INSTALLER, not of `RegisterAttrModHandler` | both fixed in this spec; AC-10..AC-12 added |
+| approach | The first mutation probe passed with the Suppress branch disabled | A Suppress op carries a nil `Buf` and fell into the separate empty-Set drop, so the coincidence masked the probe | mutation probe | AC-9 added: a Suppress carrying bytes is the input only the action check answers |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Configured community suppression reaches the wire on both forward rails | Done | `filter_community/handler.go`,65 with `reactor_api_forward.go`,588 and `forward_rs.go`,328 | |
+| The identical blind spot in the OTC handler is closed | Done | `plugins/role/otc.go`,761 | Refuse-and-warn, not honor |
+| LOCAL_PREF does not cross to an external peer on the forward rails | Done | `reactor/forward_local_pref.go`,87 | RFC 4271 Section 5.1.5 |
+| One predicate owns the confederation exception | Done | `localPrefAllowedTo` (`forward_local_pref.go`,26), 4 non-test call sites | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSendCommunitySuppressEmittedBytes` | emitted bytes via `buildModifiedPayload` |
+| AC-2 | Done | same, subset case | |
+| AC-3 | Done | `TestSendCommunityAllKeepsZeroCopy` | `scMask == 0` records no op |
+| AC-4 | Done | `TestCommunitySetSuppressLastWins` | |
+| AC-5 | Done | same | |
+| AC-6 | Done | `TestOTCSuppressRefusedAndPreserved` | `otc.go`,781-788: `KeepAll` plus a warn |
+| AC-7 | Done | same | `otc.go`,794: `Drop` with no source |
+| AC-8 | Done | `TestGoldenBytesUnchangedTier1` | reactor package green |
+| AC-9 | Done | `TestCommunitySetSuppressLastWins` | the action decides, not `len(Buf)` |
+| AC-10 | Done | `TestClusterListAndOriginatorIDSuppress` | `filter_delta_handlers.go`,175 |
+| AC-11 | Done | same | Suppress beats Prepend |
+| AC-12 | Done | same | `filter_delta_handlers.go`,116-130 |
+| AC-13 | Done | `TestForwardLocalPrefStrippedToExternalPeer` | both rails call `applyFactsLocalPref` |
+| AC-14 | Done | same | `localPrefAllowedTo` returns early for iBGP, no op recorded |
+| AC-15 | Done | same | `!baseHasLocalPref && !modsTouchLocalPref` returns early |
+| AC-16 | Done | `TestForwardLocalPrefStripBeatsAFilterSet` | the Suppress is recorded after the filter pass |
+| AC-17 | Done | `TestLocalPrefAllowedToIsTheOnlyAnswer` | grep: 4 non-test call sites, no other `isIBGP` derivation strips code 5 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSendCommunitySuppressEmittedBytes` | Done | `reactor/forward_send_community_test.go`,103 | |
+| `TestSendCommunityAllKeepsZeroCopy` | Done | same,154 | |
+| `TestCommunitySetSuppressLastWins` | Done | same,179 | |
+| `TestClusterListAndOriginatorIDSuppress` | Done | same,243 | |
+| `TestOTCSuppressRefusedAndPreserved` | Done | `plugins/role/otc_test.go`,2256 | |
+| `TestForwardLocalPrefStrippedToExternalPeer` | Done | `reactor/forward_local_pref_test.go`,57 | |
+| `TestForwardLocalPrefStripBeatsAFilterSet` | Done | same,122 | |
+| `TestLocalPrefAllowedToIsTheOnlyAnswer` | Done | same,150 | |
+| `TestPayloadHasLocalPref` | Done | same,161 | |
+| `send-community-suppress.ci` | Done | `test/plugin/` | not re-run at closure |
+| `local-pref-strip-ebgp.ci` | Done | `test/plugin/` | not re-run at closure |
+| `52-send-community-suppress-frr`, `54-local-pref-strip-gobgp` | Done | `test/interop/scenarios/` | not re-run at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `filterapi/filterapi.go` | Done | `LastSetOrSuppress` at 400 |
+| `reactor/filter_delta_handlers.go` | Done | delegates at 22, 102, 175 |
+| `plugins/filter_community/handler.go` | Done | |
+| `plugins/role/otc.go` | Done | |
+| `reactor/reactor_api_forward.go`, `forward_rs.go` | Done | both rails |
+| `reactor/reactor_api_batch.go`, `peer_rib_routes.go`, `reactor_wire.go` | Done | ask `localPrefAllowedTo` |
+| `reactor/forward_local_pref.go` + `_test.go` | Done | created |
+| `reactor/forward_send_community_test.go` | Done | created |
+| `test/plugin/local-pref-strip-ebgp.ci`, `send-community-suppress.ci` | Done | created |
+| `test/interop/scenarios/52-...`, `54-...` | Done | created |
+
+### Audit Summary
+- **Total items:** 17 AC + 4 requirements + 12 tests + 10 file groups
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Configured community suppression reaches the wire | functional + interop | `test/plugin/send-community-suppress.ci` (one source, two destinations, two different wires) and `test/interop/scenarios/52-send-community-suppress-frr` against FRR + BIRD, both recorded mutation-verified by the implementation session |
+| The same blind spot is closed before a producer rediscovers it | unit | `TestOTCSuppressRefusedAndPreserved` and `TestClusterListAndOriginatorIDSuppress` drive the REGISTERED handlers, not handlers built in the test body |
+| LOCAL_PREF does not cross the AS boundary on the forward rails | interop | `test/interop/scenarios/54-local-pref-strip-gobgp`: GoBGP is the witness because FRR drops the attribute at parse (RFC4271-5.1.5-3), so a leak is invisible in FRR. Recorded mutation evidence without the fix: `[{Origin: i} {LocalPref: 200}]` at GoBGP |
+| One site owns the confederation exception | grep | `localPrefAllowedTo` has 4 non-test call sites and is the only predicate any rail asks about code 5 |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The spec metadata records no deferral shard, and `plan/deferrals/fixit-send-community-suppress-ignored.md` does not exist |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-send-community-suppress-ignored-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean (hashes match) |
+| Rounds | 1. The code under review was already committed at HEAD and unmodified in the working tree, so this closure round reviewed committed code rather than a working-tree diff |
+| Reviewer lenses used | handler dispatch (does the registered handler, not a test-built one, honour Suppress) and egress rail wiring (does every rail ask one predicate) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none: 0 BLOCKER, 0 ISSUE | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/forward_local_pref.go` | Yes | `ls`: 4532 bytes |
+| `internal/component/bgp/reactor/forward_local_pref_test.go` | Yes | `ls`: 8151 bytes |
+| `internal/component/bgp/reactor/forward_send_community_test.go` | Yes | `ls`: 13172 bytes |
+| `test/plugin/send-community-suppress.ci` | Yes | `ls`: 7648 bytes |
+| `test/plugin/local-pref-strip-ebgp.ci` | Yes | `ls`: 7097 bytes |
+| `test/interop/scenarios/52-send-community-suppress-frr` | Yes | `ls -d` |
+| `test/interop/scenarios/54-local-pref-strip-gobgp` | Yes | `ls -d` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-9 | community Suppress drops the attribute, last op wins | `make ze-test-pkg PKG=./internal/component/bgp/reactor` -> `ok ... 20.068s`; `handler.go`,65-74 holds the branch |
+| AC-6, AC-7 | OTC refuses and warns, drops when absent | `otc.go`,781-797 read at closure |
+| AC-8 | goldens unmoved | same reactor package run, `TestGoldenBytesUnchangedTier1` included |
+| AC-10..AC-12 | CLUSTER_LIST drops, ORIGINATOR_ID refuses and warns | `filter_delta_handlers.go`,102 and 175 read at closure |
+| AC-13..AC-16 | LOCAL_PREF stripped to external peers on both rails | `grep applyFactsLocalPref`: `reactor_api_forward.go`,604 and `forward_rs.go`,334 |
+| AC-17 | one predicate | `grep localPrefAllowedTo`: 4 non-test call sites, no other site derives the answer |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `PeerSettings.SendCommunity` -> `applyFactsSendCommunity` -> `buildModifiedPayload` -> `genericCommunityHandler` | `test/plugin/send-community-suppress.ci` | Yes: the file exists and drives two destinations off one received UPDATE. Not re-run at closure (no suite run in this phase) |
+| internal source -> `forwardUpdateCore` / `reactorForwardRS` -> `applyFactsLocalPref` -> external wire | `test/plugin/local-pref-strip-ebgp.ci` | Yes: the file exists and asserts the external destination's wire. Not re-run at closure |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | no production producer emits Suppress for code 35; `otc.go` branch is latent by design |
+| A-2 | confirmed | reactor package green, goldens 12/12 unmoved |
+| A-3 | confirmed | 4 production `RegisterAttrModHandler` calls (codes 8, 16, 32, 35) |
+| A-4 | confirmed | the new test file carries its own blank import of the plugin |
+| A-5 | **broken** | `clusterListHandler` and `originatorIDHandler` had the same blind spot; both fixed. Mistake Log row added |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No doc claims the old behavior | Anchors on the changed files were re-read: `docs/architecture/core-design.md`,744 describes the Remove-buffer arity rule (`wholeValues`), and `docs/guide/bgp-policy.md`,102 describes route-server control-community stripping. Neither states anything about `session { community { send } }` suppression or about LOCAL_PREF on the forward rails, so neither went stale | Yes, no update owed |
+| No doc anchor names the created files | `grep -rn "source: .*forward_local_pref" docs/` returns nothing: the file is new and no claim rests on it | Yes |
+| RFC status rows | The change makes the wire match claims already published for RFC 4271 Section 5.1.5 and RFC 9234 Section 5; no Status cell changes level | Yes |
+
+## Core Insight
+
+Five handlers implemented "last op wins" independently and four forgot `AttrModSuppress`. The
+rule belonged in the shared leaf package once. The audit that found the last two read the
+INSTALLER (`attrModHandlersWithDefaults`), not the registrations: a handler filled into a nil
+slot is invisible to a grep for `RegisterAttrModHandler`.
