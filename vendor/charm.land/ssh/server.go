@@ -415,7 +415,7 @@ func (srv *Server) handleConn(newConn net.Conn) {
 		conn.maxDeadline = time.Now().Add(srv.MaxTimeout)
 	}
 	if srv.HandshakeTimeout > 0 {
-		conn.handshakeDeadline = time.Now().Add(srv.HandshakeTimeout)
+		conn.setHandshakeDeadline(time.Now().Add(srv.HandshakeTimeout))
 	}
 	conn.updateDeadline()
 	defer func() { _ = conn.Close() }()
@@ -431,8 +431,7 @@ func (srv *Server) handleConn(newConn net.Conn) {
 		}
 		return
 	}
-	conn.handshakeDeadline = time.Time{}
-	conn.updateDeadline()
+	conn.clearHandshakeDeadline()
 
 	if err := extractPublicKeyFromPermissions(ctx, sshConn); err != nil {
 		if srv.ConnectionFailedCallback != nil {

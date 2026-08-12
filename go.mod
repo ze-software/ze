@@ -33,7 +33,7 @@ require (
 )
 
 require (
-	charm.land/ssh v0.4.2
+	charm.land/ssh v0.4.3
 	github.com/cilium/ebpf v0.22.0
 	github.com/gokrazy/tools v0.0.0-20260703063348-3fe400c13246
 	github.com/gokrazy/updater v0.0.0-20260620140544-0a84d8ab3878
