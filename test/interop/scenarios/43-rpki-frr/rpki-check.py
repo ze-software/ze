@@ -19,8 +19,24 @@ def write_status(status, detail):
         json.dump({"status": status, "detail": detail}, fh)
 
 
-def route_states(data):
-    parsed = json.loads(data or "{}")
+def payload(result):
+    """The `data` field of a dispatch result, as a dict, whichever shape it has.
+
+    `dispatch` (test/scripts/ze_api.py) hands back the RPC result unchanged, and
+    a command that answers `json.RawMessage` arrives already decoded: `data` is
+    an object, not a string holding one. `json.loads` on it raises TypeError,
+    which is not a JSONDecodeError, so the retry loop below never saw it and the
+    plugin died with "the JSON object must be str, bytes or bytearray, not
+    dict". Both shapes are accepted here rather than at three call sites.
+    """
+    data = result.get("data")
+    if isinstance(data, dict):
+        return data
+    return json.loads(data or "{}")
+
+
+def route_states(result):
+    parsed = payload(result)
     routes = {}
     for peer_routes in parsed.get("adj-rib-in", {}).values():
         for route in peer_routes:
@@ -47,9 +63,9 @@ def main():
         last = {"rpki": status, "adj-rib-in": routes}
 
         try:
-            rpki_data = json.loads(status.get("data", "{}"))
-            states = route_states(routes.get("data", "{}"))
-        except json.JSONDecodeError:
+            rpki_data = payload(status)
+            states = route_states(routes)
+        except (json.JSONDecodeError, TypeError):
             time.sleep(1)
             continue
 

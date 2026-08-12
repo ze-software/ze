@@ -23,6 +23,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lab import (  # noqa: E402
     _PKI_PLACEHOLDER,
+    Scenario,
     parse_xfrm_sa_bytes_by_spi,
     pem_to_base64_der,
     resolve_pki_placeholders,
@@ -304,7 +305,13 @@ class TestScenarioPKIFixtures(unittest.TestCase):
             )
 
     def test_every_pki_scenario_resolves_to_decodable_der(self):
-        pki_dir = os.path.join(LAB_DIR, "pki")
+        # The directory comes from the PRODUCER, `Scenario._find_pki_dir`, not
+        # from a second copy of its rule here. It prefers the scenario's own
+        # `pki/` and falls back to the shared one, and a test that named the
+        # shared directory for every scenario asserted against material the lab
+        # would never read: 25-responder-eap-tls13 carries `ze.pem` in its own
+        # directory, the shared one holds `client.pem`, and the case died with
+        # FileNotFoundError rather than failing on anything about the config.
         seen = set()
         checked = 0
         for path in self.scenario_configs():
@@ -313,6 +320,8 @@ class TestScenarioPKIFixtures(unittest.TestCase):
                 continue
             seen.add(os.path.basename(os.path.dirname(path)))
             wanted = len(_PKI_PLACEHOLDER.findall(text))
+            pki_dir = Scenario(os.path.dirname(path))._find_pki_dir()
+            self.assertIsNotNone(pki_dir, "%s: no PKI directory resolves" % path)
             out = resolve_pki_placeholders(text, pki_dir)
             self.assertNotIn("%%PKI_B64:", out)
             values = re.findall(r'"([A-Za-z0-9+/=]{64,})"', out)
@@ -344,11 +353,12 @@ class TestScenarioPKIFixtures(unittest.TestCase):
                 "04-eap-tls",
                 "06-eap-tls13",
                 "08-responder-eap-mschapv2",
+                "25-responder-eap-tls13",
             },
             seen,
             "exactly these scenarios carry PKI material",
         )
-        self.assertEqual(12, checked, "each of the four scenarios holds 3 pki leaves")
+        self.assertEqual(15, checked, "each of the five scenarios holds 3 pki leaves")
 
 
 if __name__ == "__main__":
