@@ -25,7 +25,7 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 
 ## Coverage by RFC
 
-78 MUST-level requirement(s) still owe work across 172 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+76 MUST-level requirement(s) still owe work across 172 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (0 requirement(s)) counts what is proven ONLY by evidence no `ze-verify` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -202,7 +202,7 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | 0 | **enrolled** |
 | `rfc7999` | 4 | 0 | 0 | 0 | 4 | 4 | 0 | backlog |
 | `rfc1035` | 27 | 4 | 0 | 0 | 23 | 23 | 0 | backlog |
-| `rfc9190` | 51 | 0 | 0 | 0 | 51 | 51 | 0 | backlog |
+| `rfc9190` | 51 | 2 | 0 | 0 | 49 | 49 | 0 | backlog |
 
 ## Audit coverage
 
@@ -604,7 +604,7 @@ Of those exclusions, 12 carry `relocated-to-spec` (`rfc7296` 12): the obligation
 | `rfc8195` | backlog | **DEBT** | Use of BGP Large Communities. Source text is present, but the summary captures only advisory rows, so it gates nothing. It was invisible to the re-author table until the captured set was narrowed to GATED requirements (D5); the extraction is owed. |
 | `rfc8326` | blocked | **DEBT** | Graceful BGP Session Shutdown. No source text at rfc/full/rfc8326.txt or rfc/drafts/rfc8326.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc8326.txt, then extract. |
 | `rfc9129` | blocked | **DEBT** | YANG Data Model for the OSPF Protocol. No source text at rfc/full/rfc9129.txt or rfc/drafts/rfc9129.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc9129.txt, then extract. |
-| `rfc9190` | backlog | **DEBT** | EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01 and it declares 51 MUST-level obligations over 19 sections. It is NOT enrolled because none of them is yet proven by a tagged test, and the two routes to enrolment are both closed to an implementer: proving all 51 in both polarities is spec-sized work, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. What Ze does implement today is the Section 2.3 key derivation: exportEAPTLSMSK (internal/component/ike/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material, the Type-Code context and the 128-octet length whenever the negotiated version is TLS 1.3, and test/ipsec-interop/scenarios/06-eap-tls13 exercises that path against strongSwan. What it does NOT implement is the Section 2.5 protected success result indication: neither tlsMethod.Process nor PeerSession.handleTLSRequest (internal/component/ike/eap/) sends or consumes the encrypted TLS record carrying application data 0x00, so the EAP-TLS server concludes with a bare EAP-Success. Escalated for a scoping ruling rather than decided, per the same route rfc1035 and rfc5301 took. |
+| `rfc9190` | backlog | **DEBT** | EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01 and it declares 51 MUST-level obligations over 19 sections. It is NOT enrolled because 49 of them are not yet proven by a tagged test, and the two routes to enrolment are both closed to an implementer: proving all 51 in both polarities is spec-sized work, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. What Ze does implement today is the Section 2.3 key derivation and the Section 2.5 protected success result indication. exportEAPTLSMSK (internal/component/ike/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material, the Type-Code context and the 128-octet length whenever the negotiated version is TLS 1.3, and test/ipsec-interop/scenarios/06-eap-tls13 exercises that path against strongSwan. tlsMethod.indicateSuccess (same file, added 2026-08-12) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, so RFC9190-2.5-1 and RFC9190-2.5-2 now carry both polarities; test/ipsec-interop/scenarios/25-responder-eap-tls13 proves it with Ze in the EAP-TLS SERVER role, and with the write reverted strongSwan logs missing protected success indication for EAP-TLS with TLS 1.3 and the SA never establishes. PeerSession.handleTLSRequest still does not CONSUME the indication: it answers the record with the no-data EAP-Response Section 2.5 step 4 asks for, but never decrypts it, so a Ze peer cannot tell a server that sent one from a server that did not. The published RFC states no peer-side obligation and errata 7577, which proposes one, is Reported rather than Verified. Escalated for a scoping ruling rather than decided, per the same route rfc1035 and rfc5301 took. |
 
 ## Summaries declaring no MUST-level requirement
 

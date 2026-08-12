@@ -264,12 +264,24 @@ type tlsMethod struct {
 	// like state and the fragmenter fields beside it, so it needs no atomic.
 	alertSent error
 
+	// successIndicated records that the RFC 9190 Section 2.5 protected success
+	// result indication has already gone out. Step 3 of that procedure forbids
+	// any further EAP-Request once it has been sent, so the write happens on
+	// exactly one round. Written and read on the dispatch goroutine alone, like
+	// state, alertSent and the fragmenter fields beside it.
+	successIndicated bool
+
 	// started publishes the transport to Close, which runs on the session's
 	// owner goroutine while Start and Process run on the dispatch goroutine.
 	// Start assigns transport BEFORE it stores this, so a Close that reads true
 	// is guaranteed to see the assignment.
 	started atomic.Bool
 }
+
+// eapTLSSuccessIndication is the payload RFC 9190 Section 2.5 defines as the
+// protected success result indication: one octet of application data, 0x00,
+// carried in an encrypted TLS record.
+var eapTLSSuccessIndication = []byte{0x00}
 
 func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 	cert, err := tls.X509KeyPair(config.ServerCertPEM, config.ServerKeyPEM)
@@ -289,6 +301,25 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    pool,
 		MinVersion:   tls.VersionTLS12,
+
+		// ISSUE NO SESSION TICKET, BECAUSE NOTHING COULD EVER REDEEM ONE.
+		//
+		// This function builds a fresh tls.Config for every EAP session, and Go
+		// keys ticket encryption on the Config instance: Config.ticketKeys
+		// (crypto/tls/common.go) reads c.sessionTicketKeys, then falls back to
+		// c.autoSessionTicketKeys, which it fills with 32 random octets the first
+		// time a ticket is issued. Neither SessionTicketKey nor
+		// SetSessionTicketKeys is set here, so each session gets its own random
+		// key and a ticket minted under one is undecryptable under every other.
+		//
+		// Left on, ze would emit a NewSessionTicket the peer stores, offers on its
+		// next EAP-TLS exchange, and is always refused for. Turning it off makes
+		// that dead end EXPLICIT: six RFC 9190 MUSTs are conditional on resumption
+		// (5.6-2, 5.7-1, 5.7-2, 5.7-3, 5.7-4, 5.7-6) and are unreachable while
+		// this line stands. Should a shared ticket key ever be introduced, this
+		// line must be removed deliberately, and removing it arms those six
+		// obligations in the same commit rather than silently.
+		SessionTicketsDisabled: true,
 	}
 
 	return &tlsMethod{
@@ -445,6 +476,15 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 		// not: the two IKEv2 AUTH payloads (RFC 7296 Section 2.16) were then
 		// computed over keys the ends did not share. The peer side documents the
 		// same ordering in handleTLSRequest; this is its mirror.
+		//
+		// On TLS 1.3 the protected success result indication rides in that same
+		// flight, so the exchange keeps the round count it had before.
+		indication, err := m.indicateSuccess()
+		if err != nil {
+			return MethodResult{Err: err}
+		}
+		serverData = append(serverData, indication...)
+
 		if len(serverData) > 0 {
 			m.startSending(serverData)
 			return MethodResult{
@@ -477,6 +517,54 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 	return MethodResult{
 		Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
 	}
+}
+
+// indicateSuccess writes the RFC 9190 Section 2.5 protected success result
+// indication and returns the ciphertext the TLS record layer produced for it.
+// It answers nil on every round but one.
+//
+// RFC 9190 Section 2.5: "When an EAP-TLS server has successfully processed the
+// TLS client Finished and sent its last handshake message (Finished or a
+// post-handshake message), it sends an encrypted TLS record with application
+// data 0x00. The encrypted TLS record with application data 0x00 is a protected
+// success result indication."
+//
+// THE VERSION TEST READS THE NEGOTIATED VERSION, NOT THE CONFIGURED ONE. The
+// section is new against RFC 5216 and "only applies to TLS 1.3", so a TLS 1.2
+// exchange must conclude with the bare EAP-Success it concluded with before
+// (scenario 04-eap-tls is that proof). tlsConfig.MinVersion is TLS 1.2 and says
+// nothing about what this session settled on.
+//
+// THE CALLER MUST HAVE OBSERVED m.handshaked, which is what satisfies
+// RFC9190-2.5-2, the MUST NOT against sending the indication early. runTLSServer
+// stores that flag only after HandshakeContext returns, and Go's TLS 1.3 server
+// writes its whole post-handshake flight inside that call: sendSessionTickets is
+// invoked from readClientCertificate (crypto/tls/handshake_server_tls13.go),
+// which runs before readClientFinished. So a round that sees handshaked has both
+// processed the client Finished and sent the last handshake message.
+//
+// It is written ONCE. Step 3 of the procedure says the server "must not send any
+// more EAP-Requests and may only send an EAP-Success" after the request carrying
+// the indication, so a second write would be a violation rather than a retry.
+func (m *tlsMethod) indicateSuccess() ([]byte, error) {
+	if m.successIndicated || m.conn == nil {
+		return nil, nil
+	}
+	if m.conn.ConnectionState().Version < tls.VersionTLS13 {
+		return nil, nil
+	}
+
+	// tls.Conn.Write applies the record layer, so what reaches the transport is
+	// the ENCRYPTED record the section asks for. Writing the octet to the
+	// transport directly would put a bare 0x00 on the wire and protect nothing.
+	if _, err := m.conn.Write(eapTLSSuccessIndication); err != nil {
+		return nil, fmt.Errorf("eap-tls: write the RFC 9190 Section 2.5 protected success indication: %w", err)
+	}
+	m.successIndicated = true
+
+	// The engine goroutine has already returned, so the transport is settled and
+	// this collects the record Write just produced without waiting for one.
+	return m.transport.waitServerData(), nil
 }
 
 // Close releases the TLS engine goroutine Start launched.

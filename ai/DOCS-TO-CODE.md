@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3281 files
+Total: 262 design docs, 3282 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2109,6 +2109,7 @@ Total: 262 design docs, 3281 files
 | `internal/component/ike/eap/rfc5216_success_flight_test.go` | EAP-TLS successful termination |
 | `internal/component/ike/eap/rfc5216_termination_test.go` | EAP-TLS termination, server side |
 | `internal/component/ike/eap/rfc7296_eap_result_test.go` | EAP framework tests |
+| `internal/component/ike/eap/rfc9190_test.go` | EAP-TLS over TLS 1.3 |
 | `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
 | `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
 | `internal/component/ike/engine/udpencap.go` | UDP encapsulation readiness |

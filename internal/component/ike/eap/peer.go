@@ -527,11 +527,30 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 	clientData := ps.tlsTransport.waitServerData()
 
 	if len(clientData) == 0 {
-		// An empty answer is owed in exactly one state. RFC 5216 Section 2.1.3:
-		// "If the EAP server authenticates successfully, the peer MUST send an
-		// EAP-Response packet of EAP-Type=EAP-TLS, and no data." The TLS 1.2
-		// closing round reaches here with the engine finished and its output
-		// drained. The authenticator waits for that packet before EAP-Success.
+		// An empty answer is owed in two states, and they are the same shape from
+		// here: the engine is finished and has nothing left to send.
+		//
+		// RFC 5216 Section 2.1.3, on TLS 1.2: "If the EAP server authenticates
+		// successfully, the peer MUST send an EAP-Response packet of
+		// EAP-Type=EAP-TLS, and no data." The closing round reaches here with the
+		// engine finished and its output drained, and the authenticator waits for
+		// that packet before EAP-Success.
+		//
+		// RFC 9190 Section 2.5 step 4, on TLS 1.3: the authenticator's last
+		// EAP-Request carries the protected success result indication, an
+		// encrypted TLS record holding application data 0x00, and the peer
+		// answers it with "an EAP-Response of EAP-Type=EAP-TLS and no data".
+		// THAT IS THE SAME PACKET THIS BRANCH ALREADY BUILDS, and it is right by
+		// arithmetic rather than by design: handleTLSRequest feeds the record to
+		// the transport, no goroutine is left reading the tls.Conn once
+		// HandshakeContext has returned, so the engine produces nothing and
+		// tlsDone is already set. This peer therefore ANSWERS the indication
+		// correctly without ever DECRYPTING it, and so cannot tell an
+		// authenticator that sent one from an authenticator that did not.
+		// Requiring it (spec-ipsec-rfc9190 AC-2) is a separate change and needs a
+		// reader on the connection; the published RFC states no peer-side
+		// obligation, and errata 7577, which proposes one, is still Reported
+		// rather than Verified (rfc/short/rfc9190.md).
 		//
 		// A handshake that is still running means the engine settled and wrote
 		// nothing. The bounded wait's backstop fired on a wedged client, or the

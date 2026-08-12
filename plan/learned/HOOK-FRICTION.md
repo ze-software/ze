@@ -31,7 +31,7 @@ it is the historical record of a false positive that is gone.
 | `block-silent-ignore.sh` | 30+ | Retired 2026-04-19 | [Retired](#retired) |
 | `check-existing-patterns.sh` | 15+ | Retired 2026-04-19 | [Retired](#retired) |
 | `c_require_related_refs` | 7 | Active | [c_require_related_refs](#c_require_related_refs) |
-| `c_test_weakening` | 7 | Active | [c_test_weakening](#c_test_weakening) |
+| `c_test_weakening` | 8 | Active | [c_test_weakening](#c_test_weakening) |
 | `block-legacy-log.sh` | 4 | Retired 2026-04-19 | [Retired](#retired) |
 | `c_ignored_errors` | 4 | Active | [c_ignored_errors](#c_ignored_errors) |
 | `c_temp_debug` | 3 | Active | [c_temp_debug](#c_temp_debug) |
@@ -1716,6 +1716,18 @@ scratch and rewrote the file complete in one `Write`.
 2. Or narrow the scope fallback: when the tag precedes every `func` in the file,
    treat the hunk's own enclosing scope as the unit rather than widening to the
    file, so a file-header edit is not read as touching every tagged test in it.
+
+**Recurrence, 2026-08-12, `spec-ipsec-rfc9190` phase 1.** Identical shape, on a new
+`internal/component/ike/eap/rfc9190_test.go` whose header comment carries the tags.
+It cost two move-and-rewrite cycles rather than two edits. A third block, same
+guard, refused removing a dead `maxRounds` parameter from `driveEAPTLSFlight`
+(`rfc5216_success_flight_test.go`) that `unparam` had started reporting: the
+helper's own scope carries no tag, but its three call sites sit inside tagged
+tests, so the fix `make ze-lint-changed` asked for needs owner approval the agent
+cannot give itself. It passed a second, MEASURED round cap from the new tests
+instead, which makes the parameter genuinely non-constant. Suggested fix 1 above
+(exempt a path untracked in git) would have removed the first two blocks and not
+the third.
 
 **Second friction, same session, smaller.** `validate-spec.sh` takes its payload
 on stdin and NOTHING on argv, and says so loudly when given argv. That is good

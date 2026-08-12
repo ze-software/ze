@@ -80,7 +80,7 @@ must be run manually:
 | OSPFv2 wire | `bin/ze-test ospf-wire --all` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
 | IS-IS wire | `bin/ze-test isis-wire --all` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
 | BGP interop | `make ze-interop-test` or `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds. **Fails closed**: with Docker unreachable the runner exits non-zero naming Docker, it does not report success over a lab it never started. Runs nightly and advisory in `.github/workflows/evidence-nightly.yml`, which is what lets an interop scenario carry an `RFC requirement:` tag at all -- a tag in a suite nothing executes is refused by `make ze-rfc-check` |
-| IPsec interop | `make ze-ipsec-interop-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze as initiator (`01`-`05`) and responder (`07-responder-psk`, `08-responder-eap-mschapv2`, `09-responder-ike-rekey`). Dataplane checks gate on XFRM availability; control plane verified from strongSwan logs. |
+| IPsec interop | `make ze-ipsec-interop-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze as initiator (`01`-`05`) and responder (`07-responder-psk`, `08-responder-eap-mschapv2`, `09-responder-ike-rekey`, `25-responder-eap-tls13`). Dataplane checks gate on XFRM availability; control plane verified from strongSwan logs. |
 | Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
 
 These suites also have `make` targets: `make ze-static-test`,

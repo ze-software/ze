@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Deferral shard | `-` |
-| Updated | 2026-08-01 |
+| Updated | 2026-08-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -38,7 +38,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 
 | Group | Sections | State |
 |-------|----------|-------|
-| Protected success indication | 2.5 | NOT implemented. strongSwan's `eap_tls.c` `get_msk` checks for it |
+| Protected success indication | 2.5 | SERVER side implemented 2026-08-12 (phase 1). The peer side ANSWERS it but does not consume it, which the published RFC does not require |
 | Session resumption and NewSessionTicket | 2.1.2, 2.1.3, 5.7 | absent |
 | OCSP stapling and revocation | 5.4 (five MUSTs) | absent |
 | Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | absent |
@@ -122,8 +122,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | strongSwan 5.9.14 implements the Section 2.5 protected success indication, so it can validate ours | its `eap_tls.c` `get_msk` checks for it | the interop proof needs a different peer, or a raw-socket harness | read `eap_tls.c`, then run scenario 06 with 2.5 on | unvalidated |
-| A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | scenario 04 reddens | scenario 04 stays green at every step | unvalidated |
+| A-1 | strongSwan 5.9.14 implements the Section 2.5 protected success indication, so it can validate ours | its `eap_tls.c` `get_msk` checks for it | the interop proof needs a different peer, or a raw-socket harness | read `eap_tls.c`, then run scenario 06 with 2.5 on | confirmed 2026-08-12. `get_msk` returns FAILED and logs `missing protected success indication for EAP-TLS with TLS 1.3` when `get_version_max() >= TLS_1_3 && !indication_sent_received`; `client_process` requires exactly one octet equal to 0. MEASURED both ways in scenario 25 |
+| A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | scenario 04 reddens | scenario 04 stays green at every step | confirmed 2026-08-12. Scenarios 04 and 06 both green after the change, and `TestEAPTLS12SendsNoProtectedSuccessIndication` pins it in unit form |
 | A-3 | Resumption, OCSP and privacy NAIs are each independently landable | they touch different sections | the spec cannot be phased and must land at once | map each to its files during design | unvalidated |
 
 ### Risks
@@ -174,9 +174,11 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEAPTLS13SendsProtectedSuccessIndication` | `internal/component/ike/eap/rfc9190_test.go` | AC-1 | |
-| `TestEAPTLS13RequiresProtectedSuccessIndication` | same | AC-2 | |
-| `TestEAPTLS12SendsNoIndication` | same | AC-3 | |
+| `TestEAPTLS13SendsProtectedSuccessIndication` | `internal/component/ike/eap/rfc9190_test.go` | AC-1 | done, phase 1 |
+| `TestEAPTLS13RefusedClientGetsNoSuccessIndication` | same | AC-1 negative (RFC9190-2.5-2) | done, phase 1 |
+| `TestEAPTLS13RequiresProtectedSuccessIndication` | same | AC-2 | not started. The peer answers the indication without decrypting it. The published RFC puts no obligation on the peer; errata 7577 proposes one and is Reported, not Verified |
+| `TestEAPTLS12SendsNoProtectedSuccessIndication` | same | AC-3 | done, phase 1 |
+| `TestEAPTLSIssuesNoUnredeemableSessionTicket` | same | pins `SessionTicketsDisabled`, which keeps AC-4's six §5.6/§5.7 MUSTs provably dead until resumption is built | done, phase 1 |
 | `TestEAPTLS13ResumptionUsesATicket` | same | AC-4 | |
 
 ### Boundary Tests (numeric inputs)
@@ -192,7 +194,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `06-eap-tls13` | `test/ipsec-interop/scenarios/` | strongSwan | the indication is accepted by a real peer | exists, must stay green |
+| `06-eap-tls13` | `test/ipsec-interop/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
+| `25-responder-eap-tls13` | same | strongSwan | Ze as EAP-TLS SERVER sends the indication and a real client accepts it. Reverting the write makes charon log `missing protected success indication` and the SA never establishes | done, phase 1 |
 | a resumption scenario | same | strongSwan | AC-4 against a real peer | |
 
 ## Files to Modify
@@ -203,7 +206,11 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 
 ## Files to Create
 - `rfc/extraction/rfc9190.json` - the hand-classified sign-off enrolment requires.
-- `internal/component/ike/eap/rfc9190_test.go`
+- `internal/component/ike/eap/rfc9190_test.go` - created, phase 1.
+- `test/ipsec-interop/scenarios/25-responder-eap-tls13/` - created, phase 1. The
+  first scenario in the lab with Ze in the EAP-TLS SERVER role. 04 and 06 both
+  put strongSwan there, which is why a wire-visible violation on Ze's
+  authenticator survived until 2026-08-12.
 - `test/ipsec/ipsec-eap-tls13-resumption.ci`
 
 ### Integration Checklist
@@ -226,13 +233,32 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ## Implementation Steps
 
 1. Land Section 2.5 ALONE, both roles, with scenarios 04 and 06 run before and after.
+   DONE 2026-08-12 for the SERVER role, plus scenario 25 which reads that role
+   against strongSwan for the first time. The PEER role is not done and is not a
+   published obligation: see the AC-2 row in the TDD Test Plan.
 2. Validate A-1 by reading strongSwan's `eap_tls.c` before assuming it can check ours.
+   DONE 2026-08-12, and the reading is quoted in the A-1 row.
 3. Resumption and NewSessionTicket.
 4. OCSP stapling and revocation.
 5. Anonymous and privacy-friendly NAIs.
 6. Write `rfc/extraction/rfc9190.json` by hand and run `make ze-rfc-check`.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.
 8. Raise 5.10-1 with Thomas if it still cannot be classified honestly.
+
+## Critical Review Checklist
+
+Added 2026-08-12, when phase 1 started: the spec was written as a skeleton and
+carried no such table, which `/ze-implement` needs before it may run.
+
+| Check | What to verify |
+|-------|----------------|
+| The indication is sent only after the client Finished is processed | The write happens on a round where `tlsMethod.handshaked` is already set. RFC9190-2.5-2 is a MUST NOT, so a write on any earlier round is a violation, not an optimisation |
+| The indication is sent exactly once | A second EAP-Request carrying application data 0x00 breaks step 3 of the procedure ("send no more EAP-Requests"). A one-shot flag, checked before the write |
+| TLS 1.2 sends nothing | The write is gated on the NEGOTIATED version read from the completed connection, never on `MinVersion` or on config. Scenario 04 is the proof |
+| The record is encrypted application data, not a handshake message | It goes through `tls.Conn.Write`, so the record layer applies the traffic keys. A raw transport write would emit plaintext |
+| Ze in the SERVER role is exercised by an interop test | Scenarios 04 and 06 both put strongSwan in the server role, which is why this defect survived. A scenario with Ze as the EAP-TLS server is the only thing that reads this code against another implementation |
+| The interop scenario discriminates | Revert the indication, run the scenario, and record what strongSwan did. A scenario that passes either way proves nothing (`ai/rules/interop-and-goal-validation.md`) |
+| Session tickets are not issued unredeemably | `newTLSMethod` builds a fresh `tls.Config` per EAP session and Go mints ticket keys per Config instance, so a ticket issued in one session cannot be read in any other. Six §5.6/§5.7 MUSTs are conditional on resumption and are dead while that holds |
 
 ## Goal Gates
 
