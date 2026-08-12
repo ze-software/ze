@@ -40,7 +40,7 @@ child 2's completion signal.
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. Child specs: `plan/spec-perf-next-1-ebgp-wire-lockfree.md`, `plan/spec-perf-next-2-filter-delta-alloc.md`, `plan/spec-perf-next-3-rib-show-alloc.md`
+3. Child specs: `plan/spec-perf-next-1-ebgp-wire-lockfree.md`, `plan/spec-perf-next-2-filter-delta-alloc.md`, `spec-perf-next-3-rib-show-alloc` (closed)
 
 ## Task
 
@@ -252,7 +252,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 ## Files to Create
 - `plan/spec-perf-next-1-ebgp-wire-lockfree.md` - child 1 (created with this umbrella)
 - `plan/spec-perf-next-2-filter-delta-alloc.md` - child 2 (created with this umbrella)
-- `plan/spec-perf-next-3-rib-show-alloc.md` - child 3 (created with this umbrella)
+- `spec-perf-next-3-rib-show-alloc` - child 3 (created with this umbrella, closed 2026-08-12)
 
 ## Implementation Steps
 
