@@ -566,7 +566,7 @@ def write_baseline(root: str, mis: dict) -> None:
         "# Each row is a misplaced engine scheduled to move; the gate FAILS on a NEW",
         "# misplacement and on a STALE entry (one no longer misplaced). An empty file",
         "# means full engine-placement enforcement with zero exceptions.",
-        "# See ai/rules/architecture.md and plan/spec-tiers-0-umbrella.md.",
+        "# See ai/rules/architecture.md and spec-tiers-0-umbrella (closed).",
         "# columns: <current-dir>\\t<expected-area>\\t<resolving-child-spec>",
     ]
     for eng in sorted(mis):

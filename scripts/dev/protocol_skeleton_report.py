@@ -8,7 +8,7 @@ one-line summary by default; --verbose shows the per-protocol table.
 
 ADVISORY: report mode ALWAYS exits 0 -- this is a lens, not a gate (an
 enforced skeleton would need a large allowlist; see the tiers Path B lesson,
-plan/spec-tiers-0-umbrella.md). Only --selftest may exit non-zero.
+spec-tiers-0-umbrella, closed). Only --selftest may exit non-zero.
 
 Usage:
     scripts/dev/protocol_skeleton_report.py [--verbose]
