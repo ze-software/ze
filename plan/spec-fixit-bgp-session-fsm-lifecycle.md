@@ -4,8 +4,9 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4 of 6 defects closed (see Implementation Status) |
-| Updated | 2026-07-27 |
+| Phase | 6 of 6 defects closed (see Implementation Status) |
+| Deferral shard | `plan/deferrals/fixit-bgp-session-fsm-lifecycle.md` |
+| Updated | 2026-08-12 |
 
 ## Post-Compaction Recovery
 
@@ -100,19 +101,21 @@ proposed AC-7 pending approval; it is NOT silently folded into defect 2.
 against source: `session_handlers.go`, `:98-115`, `:121-124`; cancel-goroutine
 `<-s.done` exit at `session.go`).
 
-## Implementation Status (audited 2026-07-27) -- THIS SPEC CANNOT BE CLOSED
+## Implementation Status -- CLOSED 2026-08-12
 
-**Verdict (2026-07-27, updated): still NOT closeable, but for a smaller reason.** AC-6 and
-AC-7 now have code and mutation-verified tests, and AC-3's missing test landed with them;
-what remains is the "Also owed, beyond the ACs" table below (`deadpeer-holddown.ci`, the
-dead-peer interop scenario, the two Q-5 counters) plus a Review Gate over the whole diff.
-The closure
-sections (`## Implementation Audit`, `## Goal Validation`, `## Pre-Commit Verification`)
-are deliberately ABSENT from this spec rather than filled with "Partial" rows. Filling
-them would satisfy `commit_helper.py`'s `pre_commit_verification_gaps` gate over work that
-is not done, which is the false completion `ai/rules/completion.md` forbids:
-"deferred is not done", and "you may not claim work is done while any in-scope acceptance
-criterion remains unimplemented". They are owed to the session that closes AC-6 and AC-7.
+**Everything the 2026-07-27 audit listed as owed has landed, and the closure sections
+below are filled from what shipped.** The three tables that follow are kept as the record
+of what the audit found; read them as history, not as current state. What closed them:
+
+| Audit finding (2026-07-27) | State on 2026-08-12 |
+|----------------------------|---------------------|
+| `test/parse/deadpeer-holddown.ci` missing | Present at `test/plugin/deadpeer-holddown.ci` (location corrected, see Deviations) |
+| dead-peer interop scenario missing | Present at `test/interop/scenarios/50-holdtime-deadpeer-frr/` (number corrected) |
+| both Q-5 counters missing | `ze_bgp_open_in_established_total` at `reactor_metrics.go`,143. `ze_bgp_hold_expiry_graced_total` was added and then REMOVED with the grace branch that was its only producer, on Thomas's 2026-08-03 ruling (D-2) |
+| Review Gate over the whole diff | Recorded 2026-08-12, see the Review Gate section |
+
+**The 2026-07-27 verdict "THIS SPEC CANNOT BE CLOSED" is retired.** It was correct on the
+day it was written and stopped being correct once the four items above landed.
 
 ### Why the learned summary already exists
 
@@ -630,9 +633,9 @@ The four items the 2026-07-27 audit left owed, plus one RFC defect they walked i
 
 | Bug | Fix | Test that now covers it |
 |-----|-----|-------------------------|
-| **RFC 4271 Section 8.2.2 Event 10 violation.** The receive hold timer tore the connection down and sent NOTHING. Event 10 lists "sends a NOTIFICATION message with the error code Hold Timer Expired" BEFORE "drops the TCP connection", in OpenSent, OpenConfirm and Established alike. `message.NotifyHoldTimerExpired` was declared (`message/notification.go`) with no producer anywhere; only the RFC 9687 Send Hold Timer sibling sent its own | `sendNotificationWithin` in the `OnHoldTimerExpires` callback, before the `errChan` signal, so it precedes the cancel goroutine's `closeConn` | `RFC4271-8.2.2-1`, both polarities: `TestRFC4271HoldTimerExpirySendsNotification` / `TestRFC4271GracedHoldExpirySendsNoNotification` (`reactor/rfc4271_test.go`), plus `test/plugin/deadpeer-holddown.ci` (functional/verify) and scenario 50 |
+| **RFC 4271 Section 8.2.2 Event 10 violation.** The receive hold timer tore the connection down and sent NOTHING. Event 10 lists "sends a NOTIFICATION message with the error code Hold Timer Expired" BEFORE "drops the TCP connection", in OpenSent, OpenConfirm and Established alike. `message.NotifyHoldTimerExpired` was declared (`message/notification.go`) with no producer anywhere; only the RFC 9687 Send Hold Timer sibling sent its own | `sendNotificationWithin` in the `OnHoldTimerExpires` callback, before the `errChan` signal, so it precedes the cancel goroutine's `closeConn` | `RFC4271-8.2.2-1`: `TestRFC4271HoldTimerExpirySendsNotification` (`reactor/rfc4271_test.go`,827), plus `test/plugin/deadpeer-holddown.ci` (functional/verify) and scenario 50. Its negative twin `TestRFC4271GracedHoldExpirySendsNoNotification` pinned the grace and went with it on 2026-08-03; `TestRFC4271HoldExpiryRunsTheEvent10ActionList` (,973) carries the action list now |
 | **Teardown could stall 10 s behind that new write.** `controlWriteDeadline` gives a control message 10 s, so a peer whose receive window is shut would hold the teardown open for 10 s ON TOP of the hold time -- delaying the one thing the hold timer exists to do. Caught by `TestSessionHoldTimerStillWorks` going red | `writeMessageWithin` / `sendNotificationWithin` take a caller-chosen deadline; the hold path uses `holdExpiryNotifyDeadline` (1 s) | `TestSessionHoldTimerStillWorks` (pre-existing, green again) |
-| **The graced counter over-reported.** It counted an expiry whose `GraceRearmHoldTimer` was refused by the generation check (a racing `StopAll`, spec R-3) -- a grace that did not happen | increment gated on `IsHoldTimerRunning()` after the re-arm | `TestGracedHoldExpiryIncrementsCounter` asserts the teardown expiry does NOT advance it |
+| **The graced counter over-reported.** It counted an expiry whose `GraceRearmHoldTimer` was refused by the generation check (a racing `StopAll`, spec R-3) -- a grace that did not happen | increment gated on `IsHoldTimerRunning()` after the re-arm | was `TestGracedHoldExpiryIncrementsCounter`. Both the counter and the test were REMOVED on 2026-08-03 with the grace branch that produced them (D-2), so this bug no longer has a surface |
 | **The interop scenario was VACUOUS in its first form.** `tc netem loss 100%` on FRR's egress starves ACKs, so ze's TCP stops putting data on the wire too, FRR stops reading and its OWN hold timer fires first. FRR then reported `BGP Notification send` with reason "Hold Timer Expired" -- its own -- and the scenario passed with ze's NOTIFICATION deleted from source | `docker pause` (cgroup freezer: app stops, kernel keeps ACKing), and the assertion now requires the RECEIVED direction | the mutation run: with the NOTIFICATION removed the scenario now fails |
 
 ### Documentation Updates
@@ -708,7 +711,7 @@ and an operator reads it two ways.
 |-------|--------|-----------------|-------|
 | AC-1 | Done, REWRITTEN 2026-08-03 | `TestHoldExpiryTearsDownOnTheFirstFireAfterTraffic` (`reactor/session_hold_expiry_test.go`); `test/plugin/deadpeer-holddown.ci`; scenario 50 | the AC now states the conformant behavior: teardown on the FIRST expiry, inside one hold time. The old wording ("graced expiry re-arms") pinned the deviation |
 | AC-2 | Done, REWRITTEN 2026-08-03 | `TestHoldExpiryGrantsNoSecondWindow` (`reactor/session_hold_expiry_test.go`), `TestHoldTimerNeverRearmsAfterExpiry` and `TestHoldExpiryIsFinalAtOneHoldTime` (`fsm/timer_test.go`) | `IsHoldTimerRunning` must be FALSE after an expiry, not true. Ten hold times are advanced past the expiry to prove no reprieve of any size |
-| AC-3 | Done (code + test); heap-reachability assertion still unwritten | `TestSessionRunStopsTimersOnValidationTeardown` | unchanged by this session |
+| AC-3 | Done | `TestSessionRunStopsTimersOnValidationTeardown` | The heap-reachability assertion is deliberately NOT written. `stopKeepaliveTimerLocked` (`fsm/timer.go`,360) clears `keepaliveRunning` before nil'ing the timer, and the self-rescheduling closure re-arms only while that flag is set, so the retention is removed at the producer rather than observed after the fact. See the closure round in Pre-Commit Verification |
 | AC-4a | Done | `TestSecondOpenOnEstablishedSessionIsRefused`, `test/plugin/open-in-established.ci` | plus the new counter test |
 | AC-5 | Done | `TestFSMEventReturnsErrorOnIllegalTransition` | unchanged |
 | AC-6 | Done | `TestPolicyTeardownExitsRun` | unchanged |
@@ -719,9 +722,10 @@ and an operator reads it two ways.
 |------|--------|----------|-------|
 | `deadpeer-holddown` | Done | `test/plugin/deadpeer-holddown.ci` | PASS 8.5 s |
 | `47-holdtime-deadpeer-frr` | Done as scenario 50 | `test/interop/scenarios/50-holdtime-deadpeer-frr/` | PASS |
-| `TestGracedHoldExpiryIncrementsCounter` | Added | `reactor/reactor_metrics_behavioral_test.go` | not in the plan; the counters needed proof |
-| `TestRefusedOpenIncrementsCounter` | Added | same file | |
-| `TestRFC4271HoldTimerExpirySendsNotification` / `...GracedHoldExpirySendsNoNotification` | Added | `reactor/rfc4271_test.go` | RFC4271-8.2.2-1, both polarities |
+| ~~`TestGracedHoldExpiryIncrementsCounter`~~ | Removed 2026-08-03 | (was `reactor/reactor_metrics_behavioral_test.go`) | It proved `ze_bgp_hold_expiry_graced_total`, whose only producer was the grace branch D-2 deleted. Nothing to count, so nothing to assert |
+| `TestRefusedOpenIncrementsCounter` | Added | `reactor/reactor_metrics_behavioral_test.go`,226 | |
+| `TestRFC4271HoldTimerExpirySendsNotification` | Added | `reactor/rfc4271_test.go`,827 | RFC4271-8.2.2-1 positive. Its negative twin `...GracedHoldExpirySendsNoNotification` went with the grace; `TestRFC4271HoldExpiryRunsTheEvent10ActionList` (`rfc4271_test.go`,973) carries the full action list instead |
+| `TestHoldExpiryTearsDownOnTheFirstFireAfterTraffic`, `TestHoldExpiryGrantsNoSecondWindow` | Added 2026-08-03 | `reactor/session_hold_expiry_test.go`,135 and 169 | AC-1 and AC-2 as rewritten |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -751,15 +755,35 @@ and an operator reads it two ways.
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
 | 2026-07-17 ROUTE-REFRESH does not restart the hold timer | cancelled (unchanged) | ruled by Thomas 2026-07-16; ze is already the RFC-shaped side |
-| 2026-07-19 functional-proof: session wiring + counters + functional/interop tests | done | both counters wired and asserted; `deadpeer-holddown.ci` and scenario 50 written and mutation-verified |
+| 2026-07-19 functional-proof: session wiring + counters + functional/interop tests | done | `ze_bgp_open_in_established_total` wired at `reactor_metrics.go`,143 and asserted by `TestRefusedOpenIncrementsCounter`; `ze_bgp_hold_expiry_graced_total` removed with the grace (D-2); `deadpeer-holddown.ci` and scenario 50 written and mutation-verified |
+
+Both rows in `plan/deferrals/fixit-bgp-session-fsm-lifecycle.md` are terminal, so the
+shard is removed by commit A.
+
+One FOREIGN shard held a live row homed at this spec, and closure resolves it rather than
+leaving it pointing at a file that is gone:
+
+| Row | Final Status | Destination or evidence |
+|-----|--------------|-------------------------|
+| `plan/deferrals/ad-hoc-2026-07-27-423eaa77.md`, 2026-07-27: "AC-6 and AC-7 have no code and no test", plus the missing `.ci`, interop scenario and both counters | done 2026-08-12 | Every item verified at its producer in this closure. The row is marked done in commit A. That shard keeps four other live rows homed elsewhere, so it is NOT removed |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | NOT RECORDED -- `review_gate.py record` not run (this session was told not to commit) |
-| `review_gate.py check` | not run |
-| Reviewer lenses used | logic+wiring+RFC conformance (subagent); RFC-gate+documentation+discoverability (subagent) |
+| Artifact | `tmp/review/fixit-bgp-session-fsm-lifecycle-640fa955-f03a-45e8-a58f-4b367f5859e6.md`, recorded 2026-08-12 |
+| `review_gate.py check` | clean (hashes match) |
+| Rounds | 1 at closure. The code under review was already committed at HEAD and unmodified in the working tree, so the closure round reviewed committed code rather than a working-tree diff. Two earlier rounds ran during implementation and their findings are in the table below |
+| Reviewer lenses used | logic+wiring+RFC conformance (subagent); RFC-gate+documentation+discoverability (subagent); at closure, AC-by-AC verification at the producing function |
+
+**Closure round (2026-08-12), 0 BLOCKER, 0 ISSUE.** Every AC re-verified at its producer:
+`defer s.timers.StopAll()` and `defer s.closeConn()` at `reactor/session.go`,951 and 964;
+the Event 10 callback at `session.go`,482-550 with no reprieve branch; `ErrPolicyTeardown`
+at `session.go`,874 and `session_read.go`,311-313; `fsm.ErrFSMError` at `fsm/fsm.go`,60
+returned from five default arms; the second-OPEN Cease gate at `session_handlers.go`,61-78.
+The grace is gone from source: `GraceRearmHoldTimer`, `holdGraceExtension`, `holdFireGen`,
+`Session.recentRead` and `ze_bgp_hold_expiry_graced_total` have no producer anywhere, and
+the only surviving mentions are comments recording the removal.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -819,8 +843,20 @@ record an authorised deviation.
 |-------|-------|----------------|
 | AC-1 | **2026-08-03:** the FIRST expiry tears down, inside one hold time | `deadpeer-holddown` PASS 5.6 s (was 8.5 s with the grace); the observer now bounds the teardown at 5 s against a 3 s hold time, under the ~6 s a reprieve needs |
 | AC-4a | second OPEN refused with Cease | `open-in-established` PASS in the full plugin suite (runs ci1/ci2/mutbuild) |
-| Q-5 counters | both incremented on their real paths | `make ze-test-pkg PKG=./internal/component/bgp/reactor RUN='TestGracedHoldExpiryIncrementsCounter\|TestRefusedOpenIncrementsCounter\|TestMetricNames_MatchRegistration\|TestRFC4271'` -> `ok ... 122.127s` |
+| Q-5 counters | `ze_bgp_open_in_established_total` incremented on its real path | `reactor_metrics.go`,143 registers it; `TestRefusedOpenIncrementsCounter` (`reactor_metrics_behavioral_test.go`,226) asserts it. The graced counter is gone with its producer |
 | RFC4271-8.2.2-1 | gated with both polarities | `make ze-rfc-check` -> `rfc-requirements OK: 2933 gated MUST-level requirement(s)`; ledger row shows unit+functional positive, unit negative |
+
+**Closure round, 2026-08-12.** Fresh evidence for the ACs the table above did not re-check.
+`make ze-test-pkg PKG=./internal/component/bgp/fsm` and `PKG=./internal/component/bgp/reactor`
+are both green at this HEAD, and the working tree holds no edit to either package.
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2 | the hold timer is left disarmed and no later expiry can fire | `stopHoldTimerLocked` (`fsm/timer.go`,266) nils `holdTimer` and bumps `holdGen`, so a fired closure declines; `TestHoldTimerNeverRearmsAfterExpiry` (`timer_test.go`,480) and `TestHoldExpiryIsFinalAtOneHoldTime` (,641) |
+| AC-3 | `IsKeepaliveTimerRunning` false after teardown, Session not retained by a timer closure | `defer s.timers.StopAll()` (`session.go`,951) runs on EVERY `Run` exit. `stopKeepaliveTimerLocked` (`timer.go`,360) clears `keepaliveRunning` BEFORE nil'ing the timer, and the self-rescheduling `timerFunc` (,343) re-arms only while that flag is set, so the closure chain terminates and the runtime heap holds no reference. `TestSessionRunStopsTimersOnValidationTeardown` (`session_run_exit_test.go`,324) observes both timers stopped. The heap-reachability assertion is NOT written and is not owed: the retention is removed structurally at the producer above, and a heap test would assert what the nil assignment already guarantees |
+| AC-5 | `FSM.Event` returns a sentinel from a default arm | `fsm.ErrFSMError` (`fsm/fsm.go`,60) returned at ,436 ,525 ,649 ,775 ,941; `TestFSMEventReturnsErrorOnIllegalTransition` (`fsm_test.go`,601) covers both polarities |
+| AC-6 | policy teardown exits `Run` promptly with the backoff reconnect class | `ErrPolicyTeardown` (`session.go`,874), set and returned at `session_read.go`,311-313; `TestPolicyTeardownExitsRun` (`session_run_exit_test.go`,136) |
+| AC-7 | the TCP connection is closed by the time `Run` returns | `defer s.closeConn()` (`session.go`,964); `TestRunClosesConnectionOnEveryExit` (`session_run_exit_test.go`,230), one subtest per Q-2 leak site |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
