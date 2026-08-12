@@ -69,6 +69,7 @@ what-actually-runs-these-suites ## What actually RUNS these suites
   the-cron-lives-in-the-workflow-and-expires-when-idle
   why-the-integration-suite-runs-on-github-and-not-codeberg
   never-assume-ci-runs-the-qemu-integration-suite
+  every-qemu-and-interop-target-needs-a-caller
   what-pins-the-workflow-set
 common-mistakes ## Common Mistakes
   common-mistakes-and-their-fixes

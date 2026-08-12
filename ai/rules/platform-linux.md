@@ -327,8 +327,12 @@ Woodpecker instance could not.
 | `make ze-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
 | `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
 | `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
-| `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, scheduled | advisory |
-| `ze-qemu-integration-test` (Go `integration && linux` packages) | NOTHING automated | -- |
+| `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, job `needs-linux`, scheduled | advisory |
+| `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test`, `ze-qemu-vrrp-keepalived-test` (stock-kernel protocol labs) | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
+| `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test`, `ze-qemu-traffic-usage-test` (runtime-kernel labs) | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
+| `ze-interop-test`, `ze-ipsec-interop-test` (Docker interop trees) | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
+| `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-release-evidence` only, by hand | -- |
+| `ze-qemu-all-test` (full suite in the VM) | nothing; `manualQemuTargets` records why | -- |
 
 Two notes on the nightly row:
 
@@ -347,7 +351,9 @@ the job simply runs under `sudo` as root, which has those capabilities natively.
 It is advisory-first (`continue-on-error: true`): a red suite reports without
 marking the run failed, until a green baseline lets it flip to blocking.
 
-**`ze-qemu-integration-test` is still NOT automated:** it additionally needs nested virt / KVM, which GitHub-hosted runners do not reliably provide. It remains enforced by review and by this rule ALONE. You MUST NOT assume CI catches a broken QEMU test for you; wiring it up needs a self-hosted or KVM-capable runner.
+**`ze-qemu-integration-test` is still NOT automated:** its only caller is `make ze-release-evidence` (`mk/test-release.mk`), which a person runs before a release. The QEMU labs in the rows above ARE automated since 2026-08-12, so the old reason for this one -- that hosted runners do not reliably provide nested virt / KVM -- no longer holds: `.github/workflows/qemu-nightly.yml` measured a usable `/dev/kvm` on `ubuntu-latest` (run 30249183064, 2026-07-27) and falls back to TCG when it is absent. What keeps this target out is its own cost. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
+
+**Every `ze-qemu-*-test` and `ze-*-interop-test` target MUST have a caller that runs on its own** -- a workflow job, a script, or another make target. A `.PHONY` line, a `make help` entry and a paragraph in `docs/` are mentions, not callers. Seven of the ten QEMU targets sat with no caller at all until 2026-08-12: `ze-qemu-ldp-frr-test` drove a real FRR ldpd peer and ran nowhere, and `internal/plugins/ldp` was EXCLUDED from `ZE_QEMU_INTEGRATION_PKGS` in its favor, so the package stopped compiling under the `integration` tag and no gate could see it. `TestQemuAndInteropTargetsHaveACaller` (`scripts/dev/github_workflows_test.go`) derives the targets from `mk/*.mk` and the callers from actual invocation. **A target that is deliberately manual MUST be listed in that test's `manualQemuTargets` with the reason no pipeline runs it**; "expensive" describes every target in the class and is not a reason.
 
 `scripts/dev/github_workflows_test.go` pins the workflow set: that the nightly is
 scheduled-only, runs fuzz AND integration by make-target name, is advisory, does

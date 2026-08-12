@@ -31,6 +31,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -868,5 +869,276 @@ func TestWorkflowTargetExtractorsAgree(t *testing.T) {
 	}
 	if seen != len(got) {
 		t.Errorf("workflow file count disagrees: Go saw %d, Python reported %d", seen, len(got))
+	}
+}
+
+// ─── Orphaned QEMU / interop targets ────────────────────────────────────────
+
+// quotedSpan matches a double- or single-quoted shell string.
+//
+// A recipe that PRINTS a command is not a recipe that RUNS one. mk/test-release.mk
+// ends with a `printf "  make ze-interop-test\n"` hint per failed category, and a
+// scan that reads those as calls would report every target named in a help or
+// remediation line as wired. Dropping quoted spans before looking for `make`
+// removes the whole class, `@echo "  ze-qemu-all-test  FULL suite"` included.
+var quotedSpan = regexp.MustCompile(`"[^"]*"|'[^']*'`)
+
+// makeInvocations returns the make targets a Makefile recipe body actually runs.
+//
+// parseMakeTargets models a workflow's command lines and documents that `$(MAKE)`
+// is out of scope. Inside a make fragment `$(MAKE)` is the NORMAL spelling, and
+// the aggregate that runs the heavy suites (ze-release-evidence) reaches them
+// through a shell function: `run_if_qemu qemu $(MAKE) --no-print-directory
+// ze-qemu-integration-test`. So three things happen before the shared parser is
+// handed the fragment: quoted spans go (see quotedSpan), `$(MAKE)` becomes `make`,
+// and each fragment is re-anchored at its `make` token so a wrapper word in front
+// of it does not hide the call.
+//
+// Comment lines are dropped. makefileRecipes already keeps only tab-indented
+// lines, so this covers a `\t# ...` line inside a recipe.
+func makeInvocations(recipe string) []string {
+	var out []string
+	for ln := range strings.SplitSeq(recipe, "\n") {
+		ln = strings.TrimSpace(ln)
+		ln = strings.TrimPrefix(ln, "@")
+		ln = strings.TrimPrefix(ln, "-")
+		if strings.HasPrefix(ln, "#") {
+			continue
+		}
+		ln = quotedSpan.ReplaceAllString(ln, " ")
+		ln = strings.ReplaceAll(ln, "$(MAKE)", "make")
+		ln = strings.ReplaceAll(ln, "${MAKE}", "make")
+		for _, sep := range []string{"&&", ";", "||", "|", "`"} {
+			ln = strings.ReplaceAll(ln, sep, "\x00")
+		}
+		for frag := range strings.SplitSeq(ln, "\x00") {
+			fields := strings.Fields(frag)
+			for i, f := range fields {
+				if f != "make" {
+					continue
+				}
+				out = append(out, parseMakeTargets(strings.Join(fields[i:], " "))...)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// isQemuOrInteropTarget reports whether a make target belongs to the class this
+// guard covers: the QEMU VM labs and the containerised interop runners. Both are
+// expensive, both live outside `make ze-verify`, and both are therefore invisible
+// to every gate a developer runs -- which is exactly the population where a
+// working target can sit for months with nothing calling it.
+func isQemuOrInteropTarget(name string) bool {
+	if !strings.HasSuffix(name, "-test") {
+		return false
+	}
+	if strings.HasPrefix(name, "ze-qemu-") {
+		return true
+	}
+	return strings.HasPrefix(name, "ze-") && strings.Contains(name, "-interop-")
+}
+
+// manualQemuTargets names the targets of that class that deliberately have no
+// automated caller, each with the reason. A row here is a DECISION and must say
+// why no pipeline runs it -- "expensive" alone describes every target in the
+// class. An entry whose target no longer exists fails the test, so the list
+// cannot rot into an unread allowlist.
+var manualQemuTargets = map[string]string{
+	"ze-qemu-all-test": "runs the same driver as ze-qemu-needs-linux-test " +
+		"(scripts/evidence/qemu-all-tests.sh) without ZE_QEMU_LINUX_ONLY, so nightly " +
+		"coverage is a strict superset of what this adds; scheduling both would pay a " +
+		"second ~90-minute VM run for no test that the first does not already execute. " +
+		"It is the developer's full-suite pass before a release.",
+}
+
+// TestQemuAndInteropTargetsHaveACaller
+//
+// VALIDATES: every `ze-qemu-*-test` and `ze-*-interop-test` target in the make
+// fragments is invoked by something that runs on its own -- a workflow job, a
+// script, or another make target -- or is listed in manualQemuTargets with a
+// reason.
+// PREVENTS: the defect class this repository has now met four times: a target
+// that exists, works, and is called by nothing. `make ze-qemu-ldp-frr-test` drove
+// a real FRR ldpd peer in a VM and was named only by its own `.PHONY` line, the
+// `make help` text, and a comment explaining that internal/plugins/ldp was
+// EXCLUDED from ze-qemu-integration-test in its favor. The coverage existed, was
+// correct, and executed nowhere. Nothing in `make ze-verify` can see this: these
+// targets are outside it by design, so their rot is silent by construction.
+//
+// Callers are derived from INVOCATION, never from mention. The three escapes that
+// would otherwise make the guard vacuous:
+//   - a `.PHONY:` line naming every target in the file (makefileRecipes attributes
+//     no recipe and no prerequisite to a `.`-prefixed rule, so it declares nothing
+//     this reads);
+//   - a target's own recipe naming itself (self-calls are skipped below);
+//   - a printed hint or help line (`printf "  make ze-x-test\n"`), which
+//     makeInvocations drops with the quoted span it sits in.
+//
+// Documentation is deliberately NOT a caller. docs/functional-tests.md names all
+// ten QEMU targets; eight of them ran nowhere while it said so.
+func TestQemuAndInteropTargetsHaveACaller(t *testing.T) {
+	root := repoRoot(t)
+
+	frags, err := filepath.Glob(filepath.Join(root, "mk", "*.mk"))
+	if err != nil || len(frags) == 0 {
+		t.Fatalf("glob mk/*.mk: %v (%d found); layout changed. This test must not pass vacuously.", err, len(frags))
+	}
+	var sb strings.Builder
+	sb.WriteString(readFileOrFail(t, filepath.Join(root, "Makefile")))
+	for _, f := range frags {
+		sb.WriteString("\n")
+		sb.WriteString(readFileOrFail(t, f))
+	}
+	recipes := makefileRecipes(sb.String())
+
+	var targets []string
+	for name := range recipes {
+		if isQemuOrInteropTarget(name) {
+			targets = append(targets, name)
+		}
+	}
+	slices.Sort(targets)
+	if len(targets) == 0 {
+		t.Fatal("no ze-qemu-*-test or ze-*-interop-test target found in Makefile or mk/*.mk; " +
+			"the naming convention or the layout moved, and this test must not pass vacuously")
+	}
+
+	// callers[target] = the places that invoke it, for the failure message.
+	callers := map[string][]string{}
+	note := func(target, where string) {
+		if isQemuOrInteropTarget(target) {
+			callers[target] = append(callers[target], where)
+		}
+	}
+
+	// (1) Another make target: a recipe that runs it, or a prerequisite list that
+	// declares it. A target never counts as its own caller.
+	for name, target := range recipes {
+		for _, called := range append(makeInvocations(target.recipe), target.prereqs...) {
+			if called != name {
+				note(called, "make target "+name)
+			}
+		}
+	}
+
+	// (2) A workflow job.
+	workflows, err := filepath.Glob(filepath.Join(root, workflowsDir, "*.y*ml"))
+	if err != nil || len(workflows) == 0 {
+		t.Fatalf("glob %s/*.y*ml: %v (%d found)", workflowsDir, err, len(workflows))
+	}
+	for _, wf := range workflows {
+		for _, called := range parseMakeTargets(stripComments(readFileOrFail(t, wf))) {
+			note(called, "workflow "+filepath.Base(wf))
+		}
+	}
+
+	// (3) A script. Comments are stripped first: scripts/evidence/qemu-all-tests.sh
+	// opens with "# Invoked by `make ze-qemu-all-test`", which is a description of
+	// its caller, not a call.
+	scriptCount := 0
+	err = filepath.Walk(filepath.Join(root, "scripts"), func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err //nolint:wrapcheck // walk callback: propagate as-is
+		}
+		if ext := filepath.Ext(path); ext != ".sh" && ext != ".py" {
+			return nil
+		}
+		scriptCount++
+		rel, _ := filepath.Rel(root, path)
+		for _, called := range parseMakeTargets(stripComments(readFileOrFail(t, path))) {
+			note(called, "script "+rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk scripts/: %v", err)
+	}
+	if scriptCount == 0 {
+		t.Fatal("walked scripts/ and found no .sh or .py file; this test must not pass vacuously")
+	}
+
+	// The caller scan must find SOMETHING in this class, or it is broken rather
+	// than reporting a repository with no wiring at all.
+	if len(callers) == 0 {
+		t.Fatalf("no caller found for ANY of %v; the invocation scan is broken. This test must not pass vacuously.", targets)
+	}
+
+	for _, target := range targets {
+		reason, manual := manualQemuTargets[target]
+		if len(callers[target]) > 0 {
+			if manual {
+				t.Errorf("%s is listed in manualQemuTargets (%q) but IS invoked by %v; "+
+					"delete the entry -- a stale row makes the list unreadable as a set of decisions",
+					target, reason, callers[target])
+			}
+			continue
+		}
+		if manual {
+			continue
+		}
+		t.Errorf("%s is invoked by no workflow, no script and no other make target: it exists, it works, "+
+			"and it runs nowhere. Give it a caller (a job in .github/workflows/, or an aggregate target), "+
+			"or add it to manualQemuTargets with the reason no pipeline runs it. A mention in docs/ is not a caller.",
+			target)
+	}
+
+	for target, reason := range manualQemuTargets {
+		if _, ok := recipes[target]; !ok {
+			t.Errorf("manualQemuTargets names %q (%q), which is no longer a target in Makefile or mk/*.mk: "+
+				"the row is stale and the list must stay a set of live decisions", target, reason)
+		}
+	}
+}
+
+// TestMakeInvocationRefusesMentionsThatAreNotCalls
+//
+// VALIDATES: makeInvocations reads a call and refuses the three shapes that
+// merely NAME a target -- a `.PHONY` declaration, a printed help or remediation
+// line, and a comment -- while still seeing a call made through a shell wrapper
+// with `$(MAKE)`.
+// PREVENTS: TestQemuAndInteropTargetsHaveACaller degrading into a rubber stamp.
+// Every orphaned target it exists to catch is already named by a `.PHONY` line
+// and by `make help`; an extractor that counted either would report the whole
+// class as wired and never fail for any reason.
+func TestMakeInvocationRefusesMentionsThatAreNotCalls(t *testing.T) {
+	const fragment = `.PHONY: ze-qemu-phony-test ze-qemu-wrapped-test
+
+ze-qemu-phony-test:
+	@echo "Running the phony lab..."
+	python3 scripts/evidence/qemu-run.py --run 'go test ./...'
+
+ze-qemu-wrapped-test:
+	python3 scripts/evidence/qemu-run.py --run 'go test ./...'
+
+ze-help-target:
+	@echo "    ze-qemu-phony-test        a lab nothing runs"
+	@printf "  make ze-qemu-phony-test\n"
+	# make ze-qemu-phony-test
+
+ze-aggregate-target:
+	run_if_qemu qemu $(MAKE) --no-print-directory ze-qemu-wrapped-test; \
+	true
+`
+	recipes := makefileRecipes(fragment)
+	for _, want := range []string{"ze-qemu-phony-test", "ze-qemu-wrapped-test", "ze-help-target", "ze-aggregate-target"} {
+		if _, ok := recipes[want]; !ok {
+			t.Fatalf("the fixture no longer parses: %q missing from %v", want, slices.Sorted(maps.Keys(recipes)))
+		}
+	}
+	if got := recipes["ze-help-target"]; len(makeInvocations(got.recipe)) != 0 {
+		t.Errorf("a help echo, a printf hint and a comment must not read as calls; got %v",
+			makeInvocations(got.recipe))
+	}
+	if got := makeInvocations(recipes["ze-aggregate-target"].recipe); !slices.Contains(got, "ze-qemu-wrapped-test") {
+		t.Errorf("a $(MAKE) call behind a shell-function wrapper must read as a call; got %v", got)
+	}
+	// The .PHONY line names both targets and must contribute neither a recipe nor
+	// a prerequisite: makefileRecipes skips `.`-prefixed rule heads entirely.
+	for _, target := range recipes {
+		if slices.Contains(target.prereqs, "ze-qemu-phony-test") {
+			t.Error(".PHONY must not make a target read as a prerequisite of anything")
+		}
 	}
 }

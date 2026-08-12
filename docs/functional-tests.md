@@ -154,6 +154,28 @@ darwin (the `interface` plugin cannot manage devices there, which cascades into
 the vrrp plugin failing at stage Init) and run as root under
 `make ze-qemu-needs-linux-test`, where `test/vrrp` is in the QEMU suite list.
 
+### Which pipeline runs each QEMU lab
+
+`.github/workflows/qemu-nightly.yml` runs every QEMU lab on a schedule, in three
+advisory jobs. `needs-linux` runs the `option=needs-linux` `.ci` suites.
+`protocol-labs` runs the three labs that boot the stock Alpine kernel:
+`ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test` and
+`ze-qemu-vrrp-keepalived-test`. `runtime-kernel-labs` stages
+`tmp/kernel/vmlinuz` and then runs the four labs that need ze's own kernel:
+`ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test` and
+`ze-qemu-traffic-usage-test`.
+
+Before 2026-08-12 the last seven of those had no caller at all. Each target
+worked; nothing ran it. `TestQemuAndInteropTargetsHaveACaller`
+(`scripts/dev/github_workflows_test.go`) now refuses that state: it derives every
+`ze-qemu-*-test` and `ze-*-interop-test` target from the make fragments and fails
+when one is invoked by no workflow, no script and no other target. A target that
+is deliberately manual goes in that test's `manualQemuTargets` with the reason.
+A mention in this document is not a caller.
+
+<!-- source: .github/workflows/qemu-nightly.yml -- protocol-labs, runtime-kernel-labs -->
+<!-- source: scripts/dev/github_workflows_test.go -- TestQemuAndInteropTargetsHaveACaller -->
+
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
