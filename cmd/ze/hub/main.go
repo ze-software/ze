@@ -1289,7 +1289,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// refreshes the shared ConfigProvider, then notifies every registered
 	// subsystem so it can hot-apply diff-able knobs.
 	reloadCh := make(chan os.Signal, 1)
-	go handleSIGHUPReload(reloadCh, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
+	// reloadDone lets the shutdown below wait for a reload still running when the
+	// daemon is asked to stop, so its verdict is not lost with the process
+	// (awaitReloadWorker, main_reload.go).
+	reloadDone := make(chan struct{})
+	go handleSIGHUPReload(reloadCh, reloadDone, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
 
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
@@ -1355,6 +1359,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		waitLoop(sigCh, reloadCh, nil)
 	}
 	close(reloadCh)
+	awaitReloadWorker(reloadDone, reloadShutdownGrace)
 	fmt.Println("\nShutting down...")
 
 	// MCP shuts down through the construction registry's builtServices defer

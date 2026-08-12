@@ -27,7 +27,13 @@ import (
 // If a transaction is in progress (lock held), the SIGHUP is queued and replayed
 // after the current reload completes.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
-func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator, recorder audit.Recorder) {
+//
+// It closes done when reloadCh is closed and the reload it was running has
+// reported. Shutdown waits on that (awaitReloadWorker), so a SIGTERM racing a
+// SIGHUP does not take the verdict with it.
+func handleSIGHUPReload(reloadCh <-chan os.Signal, done chan<- struct{}, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator, recorder audit.Recorder) {
+	defer close(done)
+
 	for range reloadCh {
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
 		if err := stageSIGHUPCandidate(store, configPath); err != nil {
@@ -59,6 +65,38 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 				reloadComplete()
 			}
 		}
+	}
+}
+
+// reloadShutdownGrace bounds how long shutdown waits for the SIGHUP reload
+// worker to finish the reload it is running and report the verdict.
+//
+// It matches the txShutdownGrace the plugin server already spends waiting for
+// an in-flight config transaction to unwind (plugin/server/reload.go). That
+// wait covers a reload that reached a transaction. It covers nothing before
+// one: a reload refused by the config parser, the value validators, the PKI
+// load or the provider snapshot decides its verdict in runReload and never
+// reaches ReloadConfig at all.
+//
+// So an operator who sends SIGHUP and then SIGTERM saw "received SIGHUP,
+// reloading config..." as the daemon's last word and never learned whether the
+// config was applied or refused. test/reload/config-reload-invalid-validator.ci
+// is where that surfaced: ze-peer signals SIGTERM a fixed 500ms after SIGHUP
+// (pauseForSignal, internal/test/peer/peer.go), and under load the daemon exited
+// with the refusal still unprinted. The test asserts the refusal, so it went red
+// for the one reason a test must never go red: the daemon dropped the answer.
+const reloadShutdownGrace = 3 * time.Second
+
+// awaitReloadWorker waits for the SIGHUP reload worker to drain its channel and
+// return, so a reload already running when SIGTERM arrives still reports what it
+// decided. A worker that outlasts the grace is left behind rather than holding
+// shutdown open, and it says so: a missing verdict with no explanation is the
+// thing this whole path exists to remove.
+func awaitReloadWorker(done <-chan struct{}, grace time.Duration) {
+	select {
+	case <-done:
+	case <-time.After(grace):
+		fmt.Fprintf(os.Stderr, "shutdown: config reload still running after %s, stopping without its result\n", grace)
 	}
 }
 

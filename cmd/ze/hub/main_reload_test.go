@@ -324,6 +324,48 @@ func TestEnsureActivePointerProtectsFailedFirstSIGHUP(t *testing.T) {
 	assert.False(t, ok)
 }
 
+// VALIDATES: "shutdown waits for the SIGHUP reload worker to report, and gives
+// up after the grace rather than holding the daemon open."
+// PREVENTS: a SIGTERM that arrives during a reload taking the reload's verdict
+// with it, which is how test/reload/config-reload-invalid-validator.ci lost the
+// refusal it asserts. And its opposite: a wedged reload that never ends,
+// blocking shutdown for as long as it runs.
+func TestAwaitReloadWorker(t *testing.T) {
+	t.Parallel()
+
+	t.Run("waits for the worker", func(t *testing.T) {
+		t.Parallel()
+
+		done := make(chan struct{})
+		reported := make(chan struct{})
+
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			close(reported)
+			close(done)
+		}()
+
+		awaitReloadWorker(done, 10*time.Second)
+
+		select {
+		case <-reported:
+		default:
+			t.Error("returned before the worker reported")
+		}
+	})
+
+	t.Run("gives up after the grace", func(t *testing.T) {
+		t.Parallel()
+
+		start := time.Now()
+		awaitReloadWorker(make(chan struct{}), 50*time.Millisecond)
+
+		if elapsed := time.Since(start); elapsed > 5*time.Second {
+			t.Errorf("waited %v for a worker that never returns, want the grace", elapsed)
+		}
+	})
+}
+
 func mustParseReloadStamp(t *testing.T, stamp string) time.Time {
 	t.Helper()
 	parsed, err := storage.ParseVersionStamp(stamp)

@@ -59,6 +59,13 @@ If a plugin reload fails:
 | `SIGTERM` / `SIGINT` | Graceful shutdown (NOTIFICATION Cease to all peers) |
 | `SIGUSR1` | Dump status to stderr |
 <!-- source: cmd/ze/hub/main.go -- signal.Notify for SIGINT/SIGTERM/SIGHUP -->
+
+A SIGTERM that arrives while a reload is running does not cut it short. Shutdown
+waits up to 3 seconds for the reload to report `sighup reload complete` or
+`reload error: ...`, so the answer to a SIGHUP is never lost with the process. A
+reload still running after those 3 seconds is left behind, and the daemon prints
+`shutdown: config reload still running after 3s, stopping without its result`.
+<!-- source: cmd/ze/hub/main_reload.go -- awaitReloadWorker, reloadShutdownGrace -->
 <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGUSR1 status dump -->
 
 ## Reload Workflow
