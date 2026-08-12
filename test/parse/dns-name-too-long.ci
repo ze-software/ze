@@ -1,0 +1,70 @@
+# A geodns name whose WIRE form breaks an RFC 1035 section 3.1 bound is refused
+# at config validate time, and the error names the offending value.
+#
+# Neither case is reachable by the YANG `length "1..255"` on the zone leaf. That
+# bound counts presentation characters; both names below are under 255 of those.
+# Case 1 is a 64-octet label, which the packer refuses and the DNS write path
+# then discards, so an unchecked config serves that zone by dropping every query
+# for it in silence. Case 2 is a legal 252-octet zone whose synthesized
+# `ns1.<zone>` glue name is 256 octets -- a name that appears in no config leaf
+# at all, so no leaf-level constraint can ever see it.
+#
+# spec-fixit-dns-rfc1035-conformance AC-16, AC-17.
+
+stdin=label64:terminator=EOF_LABEL
+service {
+    geodns {
+        enabled true
+        zone aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.test.
+        nameserver 192.0.2.1
+    }
+}
+EOF_LABEL
+
+# RFC requirement: RFC1035-3.1-3 positive -- "The high order two bits of every
+# length octet must be zero, and the remaining six bits of the length field
+# limit the label to 63 octets or less." RFC 1035 carries no capitalised RFC 2119
+# keyword anywhere, so this quoted sentence is the whole anchor.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=label64
+expect=exit:code=1
+expect=stdout:contains=64-octet label
+expect=stdout:contains=max 63
+
+stdin=glue256:terminator=EOF_GLUE
+service {
+    geodns {
+        enabled true
+        zone aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.dddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.
+        nameserver 192.0.2.1
+    }
+}
+EOF_GLUE
+
+# RFC requirement: RFC1035-3.1-4 positive -- "To simplify implementations, the
+# total length of a domain name (i.e., label octets and label length octets) is
+# restricted to 255 octets or less." The name held to it here is the one geodns
+# synthesizes, which the operator never typed and no leaf constraint can reach.
+cmd=foreground:seq=2:exec=ze config validate -:stdin=glue256
+expect=exit:code=1
+expect=stdout:contains=synthesized nameserver glue name
+expect=stdout:contains=256 wire octets
+expect=stdout:contains=max 255
+
+# The same zone one octet shorter is served, so the two refusals above are the
+# bound rather than a blanket refusal of long names.
+stdin=glue255:terminator=EOF_OK
+service {
+    geodns {
+        enabled true
+        zone aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.
+        nameserver 192.0.2.1
+    }
+}
+EOF_OK
+
+# RFC requirement: RFC1035-3.1-4 negative -- "255 octets or less" admits a name
+# AT 255 octets, so the zone whose glue name lands exactly on the limit commits.
+# RFC requirement: RFC1035-3.1-3 negative -- every label in that zone is at or
+# under 63 octets, so the label bound does not fire on it either.
+cmd=foreground:seq=3:exec=ze config validate -:stdin=glue255
+expect=exit:code=0

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxTTL is the largest TTL permitted by RFC 2181 section 8 (2^31 - 1): the
@@ -24,6 +25,80 @@ const (
 	defaultTTLSeconds = 300
 	maxNameservers    = 9
 )
+
+// maxLabelOctets and maxNameOctets are the two bounds RFC 1035 section 3.1 puts
+// on a domain name's wire form.
+//
+// A label is written as one length octet followed by that many octets, and the
+// high two bits of the length octet are the compression-pointer marker, so six
+// bits are left and a label cannot exceed 63 octets. A whole name, counting
+// every label octet AND every length octet AND the zero octet of the root
+// label, cannot exceed 255.
+//
+// Both are counted in WIRE octets, which is why the YANG `length "1..255"` on
+// each name leaf does not cover them: that bound counts presentation
+// characters, and the wire form of "a.b." is two octets longer than its text.
+const (
+	maxLabelOctets = 63
+	maxNameOctets  = 255
+)
+
+// nameWireOctets returns the length of the fully-qualified name in the wire
+// form of RFC 1035 section 3.1: one length octet plus its own octets per label,
+// then the zero octet that terminates every name at the root.
+func nameWireOctets(name string) int {
+	n := 1 // the root label's zero length octet
+	for label := range strings.SplitSeq(strings.TrimSuffix(name, "."), ".") {
+		n += 1 + len(label)
+	}
+	return n
+}
+
+// checkName rejects a configured name whose wire form breaks either RFC 1035
+// section 3.1 bound, naming what the value is for and what it was.
+//
+// Rejecting at config time is what keeps the failure visible. The packer
+// refuses such a name at send time, and the harness discards that error, so an
+// unchecked name reaching the answer path is a silent drop with no log, no
+// metric and no SERVFAIL -- one query in the zone answers nothing, forever.
+func checkName(what, name string) error {
+	if name == "" {
+		return nil
+	}
+	for label := range strings.SplitSeq(strings.TrimSuffix(name, "."), ".") {
+		if len(label) > maxLabelOctets {
+			return fmt.Errorf("geodns: %s %q has a %d-octet label %q, max %d (RFC 1035 section 3.1)",
+				what, name, len(label), label, maxLabelOctets)
+		}
+	}
+	if n := nameWireOctets(name); n > maxNameOctets {
+		return fmt.Errorf("geodns: %s %q is %d wire octets, max %d (RFC 1035 section 3.1)",
+			what, name, n, maxNameOctets)
+	}
+	return nil
+}
+
+// checkGlueNames rejects a zone whose synthesized nameserver glue name breaks
+// an RFC 1035 section 3.1 bound. appendNS builds one `ns<N>.<zone>` per zone per
+// configured nameserver, so the longest is the last index, and it is four wire
+// octets longer than the zone itself.
+//
+// The check has to run over the SYNTHESIZED name rather than the configured
+// one. A 252-octet zone is a legal name, and every glue record Ze would answer
+// with for it is not.
+func checkGlueNames(zones []string, nameservers int) error {
+	if nameservers < 1 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	for _, z := range zones {
+		glue := tb.Reset().Str("ns").Int(int64(nameservers)).Byte('.').Str(z).String()
+		if err := checkName("synthesized nameserver glue name", glue); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // configValueTrue is the canonical boolean-true spelling in config leaf values.
 const configValueTrue = "true"
@@ -148,7 +223,11 @@ func parseConfig(data string) (geodnsConfig, error) {
 	}
 
 	for _, z := range asStringList(g, "zone") {
-		cfg.Zones = append(cfg.Zones, fqdn(z))
+		z := fqdn(z)
+		if err := checkName("zone", z); err != nil {
+			return cfg, err
+		}
+		cfg.Zones = append(cfg.Zones, z)
 	}
 
 	ns, err := parseAddrList(g, "nameserver", true)
@@ -159,6 +238,13 @@ func parseConfig(data string) (geodnsConfig, error) {
 		return cfg, fmt.Errorf("geodns: %d nameserver entries, max %d", len(ns), maxNameservers)
 	}
 	cfg.Nameservers = ns
+
+	// The glue names are synthesized, never configured, so a zone that fits the
+	// bound on its own can still produce an `nsN.<zone>` that does not. appendNS
+	// builds these at answer time from exactly these two lists.
+	if err := checkGlueNames(cfg.Zones, len(ns)); err != nil {
+		return cfg, err
+	}
 
 	if soaMap, ok := asMap(g, "soa"); ok {
 		if err := parseSOA(soaMap, &cfg.SOA); err != nil {
@@ -215,6 +301,9 @@ func parseConfig(data string) (geodnsConfig, error) {
 func parseSOA(m map[string]any, soa *soaConfig) error {
 	if v, ok := asString(m, "mname"); ok {
 		soa.MName = fqdn(v)
+		if err := checkName("soa mname", soa.MName); err != nil {
+			return err
+		}
 	}
 	if v, ok := asString(m, "contact"); ok {
 		soa.Contact = v
@@ -240,6 +329,14 @@ func parseSOA(m map[string]any, soa *soaConfig) error {
 			*f.dst = uint32(n)
 		}
 	}
+	// MINIMUM is a TTL and the other four fields are not: buildSOA stamps it as
+	// the SOA record's own TTL and as its MINTTL, so RFC 1035 section 2.3.4's
+	// TTL size limit binds it. SERIAL is 32-bit serial arithmetic (RFC 1982) and
+	// REFRESH, RETRY and EXPIRE are 32-bit time intervals, none of which that
+	// limit reaches.
+	if soa.Minimum > maxTTL {
+		return fmt.Errorf("geodns: soa minimum %d out of range, must be 0..%d", soa.Minimum, maxTTL)
+	}
 	return nil
 }
 
@@ -255,6 +352,9 @@ func parseHostSet(name string, m map[string]any, zones []string, defaultTTL uint
 			continue
 		}
 		host := fqdn(hn)
+		if err := checkName("host", host); err != nil {
+			return nil, err
+		}
 		if !hasZoneSuffix(host, zones) {
 			return nil, fmt.Errorf("geodns: host %q (set %q) is not in any configured zone", host, name)
 		}
@@ -337,7 +437,11 @@ func parseSRV(host string, m map[string]any, ttl uint32) (dnsRecord, error) {
 	if !ok || target == "" {
 		return dnsRecord{}, fmt.Errorf("host %q srv missing target (need priority weight port target)", host)
 	}
-	return srvRecord(ttl, fields[0], fields[1], fields[2], fqdn(target)), nil
+	name := fqdn(target)
+	if err := checkName("srv target", name); err != nil {
+		return dnsRecord{}, err
+	}
+	return srvRecord(ttl, fields[0], fields[1], fields[2], name), nil
 }
 
 // parseTTL parses a decimal TTL and bounds it to RFC 2181 section 8 (0..maxTTL).

@@ -145,11 +145,22 @@ func udpReplyLimit(r *dns.Msg) int {
 }
 
 // shapeAuthoritative applies the authoritative-only answer shape -- the
-// authoritative bit set, recursion never available, and no name compression.
-// Authoritative calls it both before fn (so fn builds on a correct base) and
-// after fn (so no answer func can leave the message non-authoritative,
-// recursion-advertising, or compressed), keeping the whole shape a single
-// invariant defined in exactly one place.
+// authoritative bit set, recursion never available, the reserved Z field zero,
+// and no name compression. Authoritative calls it both before fn (so fn builds
+// on a correct base) and after fn (so no answer func can leave the message
+// non-authoritative, recursion-advertising, reserved-bit-dirty, or compressed),
+// keeping the whole shape a single invariant defined in exactly one place.
+//
+// RFC 1035 Section 4.1.1 states that Z must be zero in every query and every
+// response. SetReply does not copy Z from the query, so the assignment here is
+// what holds the field down against an answer func that sets it. A responder
+// that leaks a reserved bit corrupts the one signal a later extension has.
+//
+// AD is the second of Z's three bits, reassigned by RFC 4035 Section 3.1.6,
+// which permits it only on data the server has verified. Ze verifies nothing,
+// so the whole field goes out zero apart from CD, which SetReply copies from
+// the query for the resolver that asked. Both bits are held here rather than
+// trusted to each answer func, which is the same reason AA and RA are.
 //
 // One step runs after the last call: send truncates an oversized datagram
 // reply, and Msg.Truncate turns compression back on for exactly those replies
@@ -159,5 +170,7 @@ func udpReplyLimit(r *dns.Msg) int {
 func shapeAuthoritative(msg *dns.Msg) {
 	msg.Authoritative = true
 	msg.RecursionAvailable = false
+	msg.Zero = false
+	msg.AuthenticatedData = false
 	msg.Compress = false
 }

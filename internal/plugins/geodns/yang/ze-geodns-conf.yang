@@ -142,9 +142,11 @@ module ze-geodns-conf {
                     description "SOA expire seconds";
                 }
                 leaf minimum {
-                    type uint32;
+                    type uint32 {
+                        range "0..2147483647";
+                    }
                     default 300;
-                    description "SOA minimum / negative-cache TTL seconds";
+                    description "SOA minimum / negative-cache TTL seconds. 0..2147483647: the field is stamped as the SOA record's own TTL, so the RFC 2181 section 8 TTL range bounds it.";
                 }
             }
 

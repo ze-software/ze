@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3282 files
+Total: 261 design docs, 3284 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1669,6 +1669,7 @@ Total: 261 design docs, 3282 files
 | `internal/plugins/geodns/config.go` | geodns config parse + validation |
 | `internal/plugins/geodns/doctor.go` | geodns listen-port bind-capability doctor check |
 | `internal/plugins/geodns/metrics.go` | geodns Prometheus metrics |
+| `internal/plugins/geodns/name_limits_rfc1035_test.go` | geodns validates every configured |
 | `internal/plugins/geodns/record.go` | geodns record model (A/AAAA/SRV) |
 | `internal/plugins/geodns/server.go` | geodns DNS server (listener, EDNS0, answer synthesis) |
 | `internal/plugins/geodns/server_rfc1035_test.go` | geodns owns answer policy, and the |
@@ -1693,6 +1694,7 @@ Total: 261 design docs, 3282 files
 | `internal/core/dnsserver/freebind_other.go` | non-Linux Freebind fallback |
 | `internal/core/dnsserver/handler.go` | authoritative-answer |
 | `internal/core/dnsserver/handler_rfc1035_test.go` | the harness owns the single |
+| `internal/core/dnsserver/header_rfc1035_test.go` | shapeAuthoritative owns the |
 | `internal/core/dnsserver/manager.go` | generic DNS listener lifecycle |
 | `internal/core/dnsserver/matcher.go` | CIDR longest-prefix matcher |
 | `internal/core/dnsserver/rfc4035_test.go` | the authoritative wrapper |
