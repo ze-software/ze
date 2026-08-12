@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3282 files
+Total: 261 design docs, 3282 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3621,6 +3621,7 @@ Total: 262 design docs, 3282 files
 | File | Topic |
 |------|-------|
 | `cmd/ze/hub/listener_migrate.go` | Graceful listener migration on config reload |
+| `internal/component/lg/auth.go` | optional looking-glass bearer gate |
 | `internal/component/lg/embed.go` | LG embedded assets and templates |
 | `internal/component/lg/graph.go` | AS path topology graph data model |
 | `internal/component/lg/graph_nexthop.go` | Next-hop forwarding topology graph |
@@ -4327,10 +4328,6 @@ Total: 262 design docs, 3282 files
 | `internal/component/sysrib/nhresolver.go` | recursive next-hop resolution |
 | `internal/plugins/fib/kernel/nexthop_linux.go` | Linux netlink rich route programming |
 | `internal/plugins/fib/kernel/richroute.go` | rich route programming |
-
-## `plan/spec-fixit-mgmt-listener-auth-guard.md`
-
-- `internal/component/lg/auth.go` -- optional looking-glass auth gate
 
 ## `plan/spec-improve-3-event-replay.md`
 

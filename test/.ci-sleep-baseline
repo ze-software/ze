@@ -71,3 +71,31 @@
 # ran against a peer that was already gone (measured: state='connecting',
 # connections-dropped=1). option=linger keeps the session up.
 -1
+
+# test/plugin/llgr-readvertise-multipeer.ci: 3 -> 0, and NO delta line, because
+# this removal PAYS FOR a rise it did not cause. 6ec2a10bc added
+# test/plugin/llgr-egress-state-unloaded.ci, a copy of this observer carrying the
+# same three sleeps, and took the count from 79 to 82 with no baseline line. That
+# file is RFC-tagged (RFC9494-4.3-3), so .claude/hooks/pretool-writeedit.py
+# refuses an unapproved edit to it; its three sleeps stay until Thomas approves
+# the same conversion there. Count and ceiling are both 79 again.
+#   The 0.25s best-route poll became dispatch_until on the same predicate, whose
+#     interval lives in ze_api and is not counted.
+#   The 1.5s "let the reflection land" became wait_peer_eor_sent(2) plus a poll
+#     on obsn's own updates-sent minus eor-sent -- the two writes obsn's expect
+#     rules read, counted by IncrUpdatesSent after the bytes reach the socket.
+#   The 2.0s "let the readvertise land" became the same counter, baselined
+#     before mark-stale and waited past it.
+#
+# The conversion exposed what the sleeps were hiding, and the fix is in the test
+# fixture, not in the waits: the source ze-peer is check-mode, so it closed the
+# instant its End-of-RIB expect matched, and that close reached ze as a peer-down
+# that WITHDREW 10.0.0.0/24 from obsn. obsn read the withdrawal as its seq=2 and
+# the depreference never came. The blind 1.5s+2.0s was beating that withdrawal by
+# under a second on this host. option=linger:value=true on the source holds the
+# session open, which is what the header always claimed the test did: the stale
+# transition is driven by mark-stale + clear-rib-out, never by a disconnect.
+#
+# Verified on Linux: 5x 5/5 (avg 5.5s, down from 11.3s). One source mutation
+# proves the waits are not vacuous -- dropping the two mods.Op calls in the iBGP
+# branch of LLGREgressFilter (gr/gr_egress.go) fails it 3x 0/3.

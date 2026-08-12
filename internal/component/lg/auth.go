@@ -1,4 +1,4 @@
-// Design: plan/spec-fixit-mgmt-listener-auth-guard.md -- optional looking-glass auth gate
+// Design: docs/architecture/web-interface.md -- optional looking-glass bearer gate
 // Related: server.go -- NewLGServer wraps the mux with bearerAuth before securityHeaders
 
 package lg

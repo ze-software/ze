@@ -207,12 +207,27 @@ All source files in `internal/component/lg/` reference this document via `// Des
 | `layout.go` | Layered layout algorithm, SVG rendering |
 | `render.go` | Go html/template rendering, page vs fragment detection |
 | `embed.go` | Embedded assets (CSS, HTMX, SSE) and templates via go:embed |
+| `auth.go` | Optional bearer-token gate over the whole mux |
 
 <!-- source: internal/component/lg/server.go -- LGServer, NewLGServer -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers, birdwatcher transform -->
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers, SSE -->
 <!-- source: internal/component/lg/graph.go -- buildGraph, extractASPath -->
 <!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
+
+### LG Bearer Token
+
+The looking glass is open by default, because it is a public read-only surface.
+When `token` is set, `bearerAuth` wraps the mux before the security headers, so
+a route added later is gated by construction. A request with no
+`Authorization` header, a different scheme, or a wrong token gets `401` with
+`WWW-Authenticate: Bearer realm="looking glass"`. The compare is
+`subtle.ConstantTimeCompare` over SHA-256 digests, so neither the token length
+nor its content leaks through timing. RFC 7235 Section 2.1 makes the scheme
+case-insensitive, so `bearer <token>` is accepted. The token itself stays
+case-sensitive.
+
+<!-- source: internal/component/lg/auth.go -- bearerAuth, bearerTokenMatches -->
 
 ### LG URL Scheme
 
