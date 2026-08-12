@@ -41,6 +41,10 @@ simplified-technical-english-asd-ste100-issue-9 ## Simplified Technical English 
   mechanical-check-ste
   check-each-sentence-before-you-publish
   the-questions-to-ask-of-each-sentence
+owner-report ## Reporting to the Owner
+  owner-report
+  lead-with-what-blocks-and-what-you-need
+  the-owner-is-not-an-agent
 detail-budget ## Detail Budget
   write-what-changes-the-next-action-and-nothing-else
   write-only-what-changes-the-next-action

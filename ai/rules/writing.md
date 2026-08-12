@@ -191,6 +191,23 @@ You MUST answer these questions of each sentence:
 5. Is the sentence shorter than 20 words in a procedure, or 25 words in a description? (habit 5)
 6. Is each verb a single word? (habit 6)
 
+## Reporting to the Owner
+
+### Reporting to the Owner
+
+- **A report to the owner MUST open with three things and nothing before them: what is blocked, why it matters, and what you need from him.** Everything else is detail he can ask for.
+- **You MUST assume he will read the first ten lines and stop.** Put the decision there or it does not exist.
+- **A decision you need MUST be a table, one row per decision**, with the choice, what it unblocks, and what it costs him to answer. He picks a row; he does not parse a paragraph to find the question.
+- **You MUST NOT lead with narrative.** What you did, in what order, and what each agent found is the story of your work, not his input to it. It goes last or it goes unsaid.
+- **You MUST NOT pre-empt questions he has not asked.** Caveats, alternatives considered, and evidence chains are answers waiting for a question. Hold them.
+- **Status that changes no decision MUST be one line or absent.** A count, a pass, a green gate: one line. A reader who wants the breakdown will ask.
+
+- **An agent's report is written for the agent that commissioned it. The owner's report is written for a person. You MUST NOT relay the first as the second.** A subagent report is a working artifact: exhaustive, hedged, full of file paths and gate names, because its reader has to verify it. Passing that register on to the owner is the failure this section exists to prevent, and it happens most often when a phase agent's findings are good and the temptation is to forward them intact.
+- **You MUST re-write, never forward.** Take the conclusion, drop the derivation, and say it in the words a colleague would use at a desk.
+- **Formatting carries the message and you MUST use it.** A table for choices, a short list for state, bold for the single thing that matters. A wall of paragraphs is unreadable to a person however correct each sentence is.
+- **You MUST NOT pad a report to show effort.** Length reads as thoroughness to a machine and as noise to a person. The owner measures the work by what changed, never by how much you wrote about it.
+- **The tell is a reader who has to hunt for the ask.** A question that is not findable in one glance means the report has failed, whatever else it got right.
+
 ## Detail Budget
 
 Write what changes the reader's next action. Write nothing else.

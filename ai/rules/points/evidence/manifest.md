@@ -1,6 +1,6 @@
 ---
 title: Evidence and Guards
-when: stating what code does, writing or reviewing a guard, or writing any string that enumerates data a registry already holds
+when: stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds
 severity: blocking
 related: writing, planning, protocol
 ---
@@ -38,6 +38,16 @@ no-fabrication ## No Fabrication
   banned-inference-patterns
   mechanical-backstop
   investigate-source-in-session-before-writing-a-spec
+claims-about-project-state ## Claims About the State of the Project
+  rule
+  five-claims-that-decay
+  a-stale-frame-costs-more-than-a-wrong-fact
+  verify-the-frame-before-you-work-inside-it
+  re-verify-before-escalating-to-the-owner
+  establish-reachability-before-stating-impact
+  foreign-system-semantics
+  never-label-an-assumption-measured
+  correct-the-document-where-the-stale-claim-lived
 fail-closed-guards ## Fail-Closed Guards
   rule
   what-counts-as-a-guard

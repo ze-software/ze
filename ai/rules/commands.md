@@ -20,6 +20,32 @@
 - **Run `make ze-lint-changed` before claiming any Go implementation work is done.**
 - **Fix every issue it reports. Do not claim done with lint failures outstanding.**
 
+## One Owner Runs The Suites
+
+**Suite runs have ONE owner: the main thread, or one agent it dedicates to
+running them. Every other agent MUST report the command it wants run, and stop.**
+A suite target, the runner binary, a race run, a QEMU target and a Docker
+deployment target all count.
+
+The reason is attribution, not speed and not memory. Suites share the build
+cache, the ports and the `bin/ze` processes. A concurrent run therefore makes a
+red that belongs to nobody. A killed process and a real defect read the same in
+a log.
+
+The repo-wide verify lock says this for one target. This says it for every
+suite, and it names who holds the right to run one.
+
+**You MUST NOT attribute a suite result taken while another suite ran.** Saying
+"that red is another session's" from such a run is a guess wearing evidence's
+clothes, and it can dismiss a real defect as somebody else's noise.
+
+This costs an agent almost nothing. The evidence a fix owes is a single-test
+mutation: revert the change, watch one named test go red, restore. That is one
+`-run` on one package.
+
+A suite count proves the tree, never the fix. It is also the part that does not
+survive contention.
+
 ## Bare `go test` Lies -- Always Pass The Feature Tags
 
 `go test ./...` is **NOT** equivalent to `make ze-unit-test`. Ze compiles features

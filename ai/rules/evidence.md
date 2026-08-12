@@ -1,6 +1,6 @@
 # Evidence and Guards
 
-**When:** stating what code does, writing or reviewing a guard, or writing any string that enumerates data a registry already holds
+**When:** stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds
 **Severity:** blocking
 **Related:** writing, planning, protocol
 
@@ -187,6 +187,61 @@ description column of a table, because only the first cell of a row is a path.
 It is a backstop, not a guarantee: it cannot verify that the code you read was
 the code your claim depends on, and a `Bash` investigation with `grep` or `sed`
 is invisible to it. See `ai/rules/repo-maintenance.md`.
+
+## Claims About the State of the Project
+
+**A document's claim about the STATE of the project is evidence of what its
+author believed on the day they wrote it. It is never evidence of what is true
+now. You MUST verify it against the tree before you act on it.**
+
+This governs claims about the PROJECT, not claims about code. Five shapes decay,
+and a stale one redirects a session:
+
+- "this is not implemented"
+- "this is an open question"
+- "this needs a decision"
+- "this cannot be tested here"
+- "this is out of scope"
+
+A spec, a design note, a journal row and an agent report all carry them.
+
+A wrong fact is cheap: the next read contradicts it. A stale frame is expensive
+because nothing contradicts it. You inherit the author's picture of the problem
+and then do competent, well-tested work inside it. The work is not wrong in
+itself. It answers a question the tree stopped asking.
+
+**Confirming a frame costs one read. Working inside a wrong one costs the
+session. You MUST read the producer the claim rests on FIRST, before design, before
+delegation, and before any plan built on top of it.**
+
+**A recorded open question MUST be re-verified BEFORE it reaches the owner.**
+
+The owner's attention is the scarcest resource in this repository. An escalation
+built on a question the code already answers spends it for nothing. The answer
+then lands on a problem that no longer exists.
+
+**You MUST state a severity only after you have read the path that produces it.** "This
+becomes a risk if we change X" and "this happens today" are different claims,
+and only the second one earns priority. Reachability is established by reading
+the producer, never by inference from the shape of the code.
+
+**When the producer is a foreign system you cannot read, running it is the only
+evidence. Until you run it, you MUST say so at the site.**
+
+A sibling backend is not evidence either. The same value carries different
+meanings across systems. A constant that means "any" to one kernel can select
+one obscure case in another, and protect nothing.
+
+**You MUST NOT write "measured" over a claim a reader here cannot re-derive.**
+
+A citation to source outside this checkout reads as proof. It stops the next
+reviewer asking. That is worse than an open question, because an open question
+still recruits a reader.
+
+**When you find such a claim stale, you MUST correct it where it lives, in the same
+session.** A stale frame you refuted and left in place will redirect the next
+reader exactly as it redirected you. Leaving it costs more than the correction,
+because you have already paid for the reading and they have not.
 
 ## Fail-Closed Guards
 

@@ -18,7 +18,7 @@ Rules: 28 (28 blocking, 0 advisory). Always-on: 7.
 | `ai/rules/completion.md` | blocking | before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim |
 | `ai/rules/config.md` | blocking | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values |
 | `ai/rules/context-economy.md` | blocking | spawning an agent, batching tool calls, looking up a symbol, reading a source file, or running a shell command in a long session |
-| `ai/rules/evidence.md` | blocking | stating what code does, writing or reviewing a guard, or writing any string that enumerates data a registry already holds |
+| `ai/rules/evidence.md` | blocking | stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds |
 | `ai/rules/git-safety.md` | blocking, always-on | before any git operation, and when writing or running a commit script |
 | `ai/rules/go-standards.md` | blocking | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references... |
 | `ai/rules/goroutine-lifecycle.md` | blocking | before writing `go func()` anywhere |
