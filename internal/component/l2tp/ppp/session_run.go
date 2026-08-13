@@ -27,8 +27,6 @@ const (
 	defaultEchoFailures  = 3
 	defaultNegoTimeout   = 30 * time.Second
 	defaultAuthTimeout   = 30 * time.Second
-	pppFrameReadBufSize  = MaxFrameLen
-	pppFrameWriteBufSize = MaxFrameLen
 	magicDrawMaxAttempts = 8
 
 	// minIPMTU is the IPv4 minimum MTU per RFC 1122 §3.3.2. PPP's
