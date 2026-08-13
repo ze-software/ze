@@ -10,7 +10,9 @@
 package sysrib
 
 import (
+	"encoding/json"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -164,5 +166,53 @@ func TestIncomingChangeRouteTypeIsRibeventsField(t *testing.T) {
 	})
 	if len(out) != 1 || out[0].RouteType != routetype.Blackhole {
 		t.Errorf("producer-typed entry did not carry RouteType through processEvent: %+v", out)
+	}
+}
+
+// `show rib` is the operator's view of what sysrib installed. Without the
+// forwarding action on it, a prefix programmed as a discard is indistinguishable
+// from one that forwards, and the operator has no way to confirm a blackhole
+// took effect.
+func TestShowRIBRendersRouteType(t *testing.T) {
+	s := newSysRIB()
+	if _, out := s.processEvent(&incomingBatch{
+		Protocol: "bgp",
+		Family:   routeTypeFamily,
+		Changes: []incomingChange{
+			{
+				Action:    routeaction.Add,
+				Prefix:    netip.MustParsePrefix("192.0.2.1/32"),
+				NextHop:   netip.MustParseAddr("198.51.100.1"),
+				Priority:  20,
+				RouteType: routetype.Blackhole,
+			},
+			{
+				Action:   routeaction.Add,
+				Prefix:   netip.MustParsePrefix("192.0.2.0/24"),
+				NextHop:  netip.MustParseAddr("198.51.100.1"),
+				Priority: 20,
+			},
+		},
+	}); len(out) != 2 {
+		t.Fatalf("announce produced %d changes, want 2", len(out))
+	}
+
+	data, err := s.showRIB()
+	if err != nil {
+		t.Fatalf("showRIB: %v", err)
+	}
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	rendered := string(encoded)
+
+	if !strings.Contains(rendered, `"route-type":"blackhole"`) {
+		t.Errorf("the discard route renders no forwarding action: %s", rendered)
+	}
+	// The forwarding route MUST NOT carry the key. An operator scanning the
+	// output for discards would otherwise have to read every value.
+	if strings.Count(rendered, "route-type") != 1 {
+		t.Errorf("route-type rendered for a forwarding route too: %s", rendered)
 	}
 }

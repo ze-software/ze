@@ -1024,24 +1024,34 @@ func (s *sysRIB) showRIB() (any, error) {
 	defer s.mu.RUnlock()
 
 	type entry struct {
-		Prefix    netip.Prefix            `json:"prefix"`
-		Family    family.Family           `json:"family"`
-		NextHop   netip.Addr              `json:"next-hop,omitzero"`
-		Protocol  string                  `json:"protocol"`
-		Priority  int                     `json:"priority"`
+		Prefix   netip.Prefix  `json:"prefix"`
+		Family   family.Family `json:"family"`
+		NextHop  netip.Addr    `json:"next-hop,omitzero"`
+		Protocol string        `json:"protocol"`
+		Priority int           `json:"priority"`
+		// RouteType names the forwarding action for a route that does not
+		// forward: "blackhole", "unreachable", "prohibit". Rendered as the name
+		// rather than the Linux number, and OMITTED for an ordinary route, so an
+		// operator confirming that a blackhole took effect reads the key's
+		// presence rather than every value.
+		RouteType string                  `json:"route-type,omitempty"`
 		ECMPPaths []sysribevents.ECMPPath `json:"ecmp-paths,omitempty"`
 	}
 
 	entries := make([]entry, 0, len(s.best))
 	for key, route := range s.best {
-		entries = append(entries, entry{
+		e := entry{
 			Prefix:    key.prefix,
 			Family:    key.family,
 			NextHop:   route.nextHop,
 			Protocol:  route.protocol,
 			Priority:  route.priority,
 			ECMPPaths: s.lastECMP[key],
-		})
+		}
+		if route.routeType != 0 {
+			e.RouteType = route.routeType.String()
+		}
+		entries = append(entries, e)
 	}
 
 	return entries, nil
