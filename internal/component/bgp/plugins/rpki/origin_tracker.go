@@ -15,6 +15,11 @@ type originRoute struct {
 	originAS  uint32
 	state     uint8
 	aspaState uint8
+	// blackhole records that the received UPDATE carried the RFC 7999 BLACKHOLE
+	// community. It is a property of the announcement, so it does not change
+	// when the VRP set does, and re-validation carries it through unchanged. It
+	// is stored because re-validation has no UPDATE in hand to re-read it from.
+	blackhole bool
 }
 
 // originRevalidation is a route whose origin-validation state changed on a VRP update.
@@ -22,24 +27,27 @@ type originRevalidation struct {
 	key       routeKey
 	state     uint8
 	aspaState uint8
+	originAS  uint32
+	blackhole bool
 }
 
-// OriginTracker records active routes and their last origin-validation state so they can be
+// originTracker records active routes and their last origin-validation state so they can be
 // re-validated when the ROA cache (VRP set) changes (RFC 6811 Section 4). Unlike ASPATracker it
 // keeps no reverse index: a VRP change can affect any covering prefix, so re-validation re-runs
 // Validate over every tracked route (a correct superset of "affected prefixes").
-type OriginTracker struct {
+type originTracker struct {
 	routes map[routeKey]*originRoute
 	mu     sync.Mutex
 }
 
 // newOriginTracker creates an empty origin route tracker.
-func newOriginTracker() *OriginTracker {
-	return &OriginTracker{routes: make(map[routeKey]*originRoute)}
+func newOriginTracker() *originTracker {
+	return &originTracker{routes: make(map[routeKey]*originRoute)}
 }
 
-// Track records (or updates) a route's origin AS, current validation state, and ASPA snapshot.
-func (t *OriginTracker) Track(key routeKey, originAS uint32, state, aspaState uint8) {
+// Track records (or updates) a route's origin AS, current validation state, ASPA
+// snapshot, and whether the announcement carried the RFC 7999 BLACKHOLE community.
+func (t *originTracker) Track(key routeKey, originAS uint32, state, aspaState uint8, blackhole bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if _, ok := t.routes[key]; !ok && len(t.routes) >= maxTrackedRoutes {
@@ -47,11 +55,11 @@ func (t *OriginTracker) Track(key routeKey, originAS uint32, state, aspaState ui
 			"peer", key.peerAddr, "family", key.family, "prefix", key.prefix)
 		return
 	}
-	t.routes[key] = &originRoute{originAS: originAS, state: state, aspaState: aspaState}
+	t.routes[key] = &originRoute{originAS: originAS, state: state, aspaState: aspaState, blackhole: blackhole}
 }
 
 // Remove deletes a tracked route.
-func (t *OriginTracker) Remove(key routeKey) {
+func (t *originTracker) Remove(key routeKey) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	delete(t.routes, key)
@@ -60,7 +68,7 @@ func (t *OriginTracker) Remove(key routeKey) {
 // revalidate re-runs origin validation over every tracked route against the current ROA cache and
 // returns the routes whose validation state changed (with their updated state and ASPA snapshot),
 // updating the stored state in place.
-func (t *OriginTracker) revalidate(cache *ROACache) []originRevalidation {
+func (t *originTracker) revalidate(cache *ROACache) []originRevalidation {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	var changed []originRevalidation
@@ -68,14 +76,17 @@ func (t *OriginTracker) revalidate(cache *ROACache) []originRevalidation {
 		newState := cache.Validate(key.prefix, rt.originAS)
 		if newState != rt.state {
 			rt.state = newState
-			changed = append(changed, originRevalidation{key: key, state: newState, aspaState: rt.aspaState})
+			changed = append(changed, originRevalidation{
+				key: key, state: newState, aspaState: rt.aspaState,
+				originAS: rt.originAS, blackhole: rt.blackhole,
+			})
 		}
 	}
 	return changed
 }
 
 // count returns the number of tracked routes.
-func (t *OriginTracker) count() int {
+func (t *originTracker) count() int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return len(t.routes)

@@ -14,7 +14,7 @@ func TestOriginTrackerRevalidate(t *testing.T) {
 	tr := newOriginTracker()
 
 	key := routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0}
-	tr.Track(key, 65001, ValidationNotFound, aspaStateNone)
+	tr.Track(key, 65001, ValidationNotFound, aspaStateNone, false)
 	assert.Equal(t, 1, tr.count())
 
 	// Empty cache: the route is still NotFound, so re-validation reports no change.
@@ -53,7 +53,7 @@ func TestHandleROAChangeReValidates(t *testing.T) {
 		stopCh:        make(chan struct{}),
 	}
 	key := routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0}
-	rp.originTracker.Track(key, 65001, ValidationNotFound, aspaStateNone)
+	rp.originTracker.Track(key, 65001, ValidationNotFound, aspaStateNone, false)
 
 	// A VRP authorizing the route arrives: handleROAChange re-validates and enqueues a decision.
 	rp.cache.Add(makeVRP("10.0.0.0/8", 24, 65001))

@@ -87,6 +87,8 @@ type validationRequest struct {
 	pathID    uint32
 	state     uint8 // origin validation state
 	aspaState uint8 // ASPA path verification state
+	originAS  uint32
+	blackhole bool // the announcement carried the RFC 7999 BLACKHOLE community
 }
 
 // aspaOverridesAccept returns true if ASPA policy demands rejecting a route
@@ -111,7 +113,7 @@ type rPKIPlugin struct {
 	aspaTracker *aSPATracker
 	// originTracker records active routes for RFC 6811 Section 4 re-validation when the ROA
 	// cache (VRP set) changes. Populated whenever origin validation runs (independent of ASPA).
-	originTracker     *OriginTracker
+	originTracker     *originTracker
 	aspaEnabled       atomic.Bool
 	aspaInvalidAction atomic.Uint32
 	aspaUnknownAction atomic.Uint32
@@ -340,6 +342,11 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	v4, v6 := rp.cache.Count()
 	cacheEmpty := v4+v6 == 0
 
+	// RFC 7999 Section 3.3, the operator obligation. Read once per UPDATE, from
+	// the same attribute bytes the AS_PATH came out of, and carried per prefix
+	// so buildDecisions can apply the exemption without re-reading the wire.
+	carriesBlackhole := rpkiCarriesBlackhole(msg.AttrsWire)
+
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
 	var normalizedPath []uint32
@@ -365,7 +372,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
 		rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
-			nlriData, addPath, false, originAS, cacheEmpty, aspaState)
+			nlriData, addPath, false, originAS, cacheEmpty, aspaState, carriesBlackhole)
 		// Track announced routes for ASPA re-validation (AC-5).
 		if aspaState != aspaStateNone {
 			rp.trackNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
@@ -381,7 +388,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
-				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, aspaState)
+				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, aspaState, carriesBlackhole)
 			if aspaState != aspaStateNone {
 				rp.trackNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
 					nlriBytes, addPath, fam.AFI == 2, normalizedPath, aspaState)
@@ -393,7 +400,8 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
 func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
-	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8) {
+	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8,
+	blackhole bool) {
 
 	addrLen := 4
 	if isIPv6 {
@@ -443,6 +451,8 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 			pathID:    pathID,
 			state:     state,
 			aspaState: aspaState,
+			originAS:  originAS,
+			blackhole: blackhole,
 		}:
 		case <-rp.stopCh:
 			return
@@ -451,7 +461,7 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 		// Track the route for RFC 6811 Section 4 origin re-validation when the ROA cache (VRP set)
 		// changes. Independent of ASPA: origin validation runs whenever RPKI is active.
 		rp.originTracker.Track(routeKey{peerAddr: peerAddr, family: family, prefix: prefix, pathID: pathID},
-			originAS, state, aspaState)
+			originAS, state, aspaState, blackhole)
 	}
 
 	if len(familyResults) > 0 || cacheEmpty {
@@ -493,6 +503,19 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	v4, v6 := rp.cache.Count()
 	cacheEmpty := v4+v6 == 0
 
+	// RFC 7999 Section 3.3, the operator obligation. Read once per UPDATE.
+	//
+	// This is the JSON fallback path, which carries the attributes as raw bytes
+	// rather than an indexed AttributesWire, so one is built here. When the event
+	// carries no raw attributes at all the answer is false, and the exemption
+	// stays closed: a route whose communities were never delivered must not be
+	// treated as if it asked for a blackhole.
+	blackhole := false
+	if len(event.RawAttributeBytes) > 0 {
+		blackhole = rpkiCarriesBlackhole(
+			attribute.NewAttributesWire(event.RawAttributeBytes, bgpctx.APIContextID))
+	}
+
 	// ASPA verification on JSON fallback path.
 	// event.ASPath is a flat []uint32 without segment types, so AS_SET
 	// detection is unavailable. Consecutive-dup removal is applied.
@@ -531,6 +554,8 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 					pathID:    pathID,
 					state:     state,
 					aspaState: aspaState,
+					originAS:  originAS,
+					blackhole: blackhole,
 				}:
 				case <-rp.stopCh:
 					return
@@ -693,12 +718,14 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 		// (already merged peer > group > global at config time) wins, else the global values.
 		originInvalidAction, originNotFoundAction := gOriginInvalid, gOriginNotFound
 		invalidAction, unknownAction := gInvalidAction, gUnknownAction
+		var blackholeExempt bool
 		if perPeer != nil {
 			if set, ok := perPeer[req.peerAddr]; ok {
 				originInvalidAction = set.OriginInvalid.Action
 				originNotFoundAction = set.OriginNotFound.Action
 				invalidAction = set.ASPAInvalid.Action
 				unknownAction = set.ASPAUnknown.Action
+				blackholeExempt = set.BlackholeExempt
 			}
 		}
 
@@ -706,6 +733,24 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 		switch req.state {
 		case ValidationInvalid:
 			reject = originInvalidAction == ASPAPolicyReject
+			// RFC 7999 Section 3.3 (RFC7999-3.3-4): "An operator MUST ensure
+			// that origin validation techniques (such as the one described in
+			// [RFC6811]) do not inadvertently block legitimate announcements
+			// carrying the BLACKHOLE community."
+			//
+			// Three conditions, and all three hold or the route is rejected as
+			// any Invalid route is. The operator asked for the exemption on
+			// this session, the announcement carries BLACKHOLE, and the only
+			// origin-validation fault is that the prefix is longer than a
+			// covering VRP whose ASN it matches. A wrong origin AS is not a
+			// length problem and never reaches this branch's exemption.
+			if reject && blackholeExempt && req.blackhole &&
+				rp.cache.invalidByLengthOnly(req.prefix, req.originAS) {
+				reject = false
+				logger().Info("rpki: BLACKHOLE announcement kept despite an Invalid origin state",
+					"prefix", req.prefix, "peer", req.peerAddr, "origin-as", req.originAS,
+					"reason", "invalid by prefix length only, RFC 7999 Section 3.3")
+			}
 			if originInvalidAction == ASPAPolicyLogOnly {
 				logger().Warn("rpki: Invalid origin retained under log-only policy",
 					"prefix", req.prefix, "peer", req.peerAddr)
@@ -886,6 +931,8 @@ func (rp *rPKIPlugin) handleROAChange() {
 			pathID:    c.key.pathID,
 			state:     c.state,
 			aspaState: c.aspaState,
+			originAS:  c.originAS,
+			blackhole: c.blackhole,
 		}:
 		case <-rp.stopCh:
 			return

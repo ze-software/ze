@@ -43,6 +43,33 @@ module ze-rpki {
         }
       }
 
+      leaf blackhole-exempt {
+        type boolean;
+        default "false";
+        description
+          "Keep a route that carries the RFC 7999 BLACKHOLE community when its
+           only origin-validation fault is that the prefix is longer than a
+           covering VRP allows.
+
+           RFC 7999 Section 3.3 states that an operator MUST ensure origin
+           validation does not inadvertently block legitimate announcements
+           carrying BLACKHOLE. A blackhole prefix is as long as possible,
+           typically a /32 or a /128, while a ROA for the covering block carries
+           its maxLength at the aggregate. RFC 6811 then makes the announcement
+           Invalid, and a session running action invalid reject drops it before
+           anything can honor it.
+
+           The exemption is narrow. It applies only when a covering VRP names
+           the route's own origin AS and disagrees on nothing but length. A
+           wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to
+           catch. A prefix with no covering VRP is NotFound rather than Invalid,
+           so this never reaches it.
+
+           The default is false. Turn it on together with the peer's blackhole
+           honor leaf, on the same session: on its own it accepts a route it
+           would have rejected and discards nothing.";
+      }
+
       container aspa {
         description "ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)";
         container action {

@@ -74,6 +74,13 @@ type peerActionSet struct {
 	OriginNotFound resolvedAction
 	ASPAInvalid    resolvedAction
 	ASPAUnknown    resolvedAction
+	// BlackholeExempt keeps a BLACKHOLE-tagged route whose ONLY origin-validation
+	// fault is that its prefix is longer than a covering VRP allows. RFC 7999
+	// Section 3.3 puts that obligation on the operator and names no mechanism;
+	// this is it. Peer then group, with no global level: Section 3.3 binds the
+	// blackhole agreement to one BGP session, and a daemon-wide exemption would
+	// reach sessions that agreed to nothing.
+	BlackholeExempt bool
 }
 
 // rpkiConfig holds the parsed RPKI plugin configuration.
@@ -212,10 +219,11 @@ func parseActionLeaf(m map[string]any, key string) (uint8, bool) {
 // actionOverride holds the optionally-set action leaves from one rpki container
 // (peer- or group-level). A nil pointer means the leaf was not set at that level.
 type actionOverride struct {
-	originInvalid  *uint8
-	originNotFound *uint8
-	aspaInvalid    *uint8
-	aspaUnknown    *uint8
+	originInvalid   *uint8
+	originNotFound  *uint8
+	aspaInvalid     *uint8
+	aspaUnknown     *uint8
+	blackholeExempt *bool
 }
 
 // parseActionOverride extracts the four action leaves from a peer/group `rpki` container map.
@@ -233,6 +241,7 @@ func parseActionOverride(rpkiMap map[string]any) actionOverride {
 			o.originNotFound = &action
 		}
 	}
+	o.blackholeExempt = parseBoolLeaf(rpkiMap["blackhole-exempt"])
 	if aspaMap, ok := rpkiMap["aspa"].(map[string]any); ok {
 		if actionMap, ok := aspaMap["action"].(map[string]any); ok {
 			if action, set := parseActionLeaf(actionMap, "invalid"); set {
@@ -265,15 +274,19 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) map[string]pee
 		groupOv := parseActionOverride(groupRPKI)
 
 		set := peerActionSet{
-			OriginInvalid:  resolveLeaf(global.OriginInvalidAction, groupOv.originInvalid, peerOv.originInvalid),
-			OriginNotFound: resolveLeaf(global.OriginNotFoundAction, groupOv.originNotFound, peerOv.originNotFound),
-			ASPAInvalid:    resolveLeaf(global.ASPAInvalidAction, groupOv.aspaInvalid, peerOv.aspaInvalid),
-			ASPAUnknown:    resolveLeaf(global.ASPAUnknownAction, groupOv.aspaUnknown, peerOv.aspaUnknown),
+			OriginInvalid:   resolveLeaf(global.OriginInvalidAction, groupOv.originInvalid, peerOv.originInvalid),
+			OriginNotFound:  resolveLeaf(global.OriginNotFoundAction, groupOv.originNotFound, peerOv.originNotFound),
+			ASPAInvalid:     resolveLeaf(global.ASPAInvalidAction, groupOv.aspaInvalid, peerOv.aspaInvalid),
+			ASPAUnknown:     resolveLeaf(global.ASPAUnknownAction, groupOv.aspaUnknown, peerOv.aspaUnknown),
+			BlackholeExempt: resolveBoolLeaf(groupOv.blackholeExempt, peerOv.blackholeExempt),
 		}
 
 		// All-global: no override, so the global path already covers this peer.
+		// BlackholeExempt has no global level, so a peer that sets only that leaf
+		// must still be recorded.
 		if set.OriginInvalid.Source == sourceGlobal && set.OriginNotFound.Source == sourceGlobal &&
-			set.ASPAInvalid.Source == sourceGlobal && set.ASPAUnknown.Source == sourceGlobal {
+			set.ASPAInvalid.Source == sourceGlobal && set.ASPAUnknown.Source == sourceGlobal &&
+			!set.BlackholeExempt {
 			return
 		}
 
@@ -292,6 +305,39 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) map[string]pee
 		return nil
 	}
 	return result
+}
+
+// parseBoolLeaf reads a YANG boolean that may be absent. The config framework
+// delivers leaf values as strings and a JSON round-trip delivers real booleans,
+// so both forms are read. An unparseable value reads as ABSENT, which leaves
+// the group value standing rather than silently canceling it.
+func parseBoolLeaf(v any) *bool {
+	switch b := v.(type) {
+	case bool:
+		return &b
+	case string:
+		switch b {
+		case "true":
+			t := true
+			return &t
+		case "false":
+			f := false
+			return &f
+		}
+	}
+	return nil
+}
+
+// resolveBoolLeaf merges one boolean leaf with peer > group precedence. There is
+// no global level for it, so an unset leaf at both levels is false.
+func resolveBoolLeaf(group, peer *bool) bool {
+	if peer != nil {
+		return *peer
+	}
+	if group != nil {
+		return *group
+	}
+	return false
 }
 
 // resolveLeaf merges one action leaf with peer > group > global precedence,
