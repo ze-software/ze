@@ -90,6 +90,18 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 
 	route.Type = routeTypeToLinux(r.RouteType)
 
+	// A discarding route answers a packet itself, so it names no next-hop. Linux
+	// refuses one that does: fib_create_info rejects RTN_BLACKHOLE,
+	// RTN_UNREACHABLE and RTN_PROHIBIT carrying RTA_GATEWAY, RTA_OIF or
+	// RTA_MULTIPATH with EINVAL ("Gateway, device and multipath can not be
+	// specified for this route type"). A BGP path always resolves a next-hop, so
+	// without this the whole discard route is rejected and nothing is programmed.
+	// Encap is dropped for the same reason: it describes how to reach a next-hop
+	// this route does not have.
+	if r.RouteType.Discards() {
+		return route, nil
+	}
+
 	if len(r.ECMPPaths) > 0 {
 		route.MultiPath = buildMultiPath(r.NextHop, r.ECMPPaths)
 	} else if r.NextHop.IsValid() {
