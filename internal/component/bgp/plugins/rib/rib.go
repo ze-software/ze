@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
@@ -322,6 +323,14 @@ type RIBManager struct {
 	// adminDistanceIBGP is the admin distance stamped on best-path mirrors
 	// for iBGP peers. Default 200; see adminDistanceEBGP.
 	adminDistanceIBGP atomic.Uint32
+
+	// blackholeCfg holds the RFC 7999 honoring configuration, keyed by peer
+	// remote IP and resolved across the bgp, group and peer levels in the Stage
+	// 2 configure callback. A nil pointer or a missing key means the peer never
+	// agreed to honor BLACKHOLE, which is the RFC 7999 Section 4 default, so an
+	// unconfigured deployment pays one map miss per best-path change and no wire
+	// scan. Stored whole so the read side needs no lock.
+	blackholeCfg atomic.Pointer[map[netip.Addr]blackholeConfig]
 
 	// peerMu protects the peer-keyed maps ONLY: ribInPool (and bgpPeers), ribOut, peerUp,
 	// peerMeta, retainedPeers, grState. bestPrev is sharded (see
@@ -616,12 +625,28 @@ func runRIBPlugin(conn net.Conn) int {
 			if ibgpAD > 0 {
 				r.adminDistanceIBGP.Store(uint32(ibgpAD))
 			}
+
+			// RFC 7999 honoring. A parse failure REFUSES the configuration
+			// rather than leaving the previous map in place: this decides
+			// whether a peer can make Ze discard traffic, and a rejected edit
+			// that silently keeps running with the old answer is the worst of
+			// the three outcomes.
+			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
+			if !ok {
+				return errRibInvalidBgpConfigJson
+			}
+			blackholeCfg, err := parseBlackholeConfig(bgpCfg)
+			if err != nil {
+				return err
+			}
+			r.blackholeCfg.Store(&blackholeCfg)
 		}
 		logger().Debug("rib configured",
 			"maximum-paths", r.maximumPaths.Load(),
 			"relax-as-path", r.relaxASPath.Load(),
 			"admin-distance-ebgp", r.adminDistanceEBGP.Load(),
 			"admin-distance-ibgp", r.adminDistanceIBGP.Load(),
+			"blackhole-honor-peers", r.blackholeHonorPeerCount(),
 		)
 		return nil
 	})

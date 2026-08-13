@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3290 files
+Total: 261 design docs, 3292 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2994,6 +2994,8 @@ Total: 261 design docs, 3290 files
 | `internal/component/bgp/plugins/rib/rib_admin_distance_config.go` | admin-distance config extraction |
 | `internal/component/bgp/plugins/rib/rib_attr_format.go` | attribute formatting for show commands |
 | `internal/component/bgp/plugins/rib/rib_bestchange.go` | best-path change tracking |
+| `internal/component/bgp/plugins/rib/rib_blackhole.go` | best-path to FIB candidate |
+| `internal/component/bgp/plugins/rib/rib_blackhole_config.go` | RIB plugin config extraction |
 | `internal/component/bgp/plugins/rib/rib_commands.go` | RIB command handlers |
 | `internal/component/bgp/plugins/rib/rib_commands_community.go` | Community attach/delete operations |
 | `internal/component/bgp/plugins/rib/rib_inject.go` | BMP wire route injection |

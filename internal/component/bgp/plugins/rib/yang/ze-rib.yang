@@ -3,14 +3,92 @@ module ze-rib {
     prefix rib;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
 
     description
         "RIB (Routing Information Base) plugin for Ze.
          Tracks Adj-RIB-In (routes from peers) and Adj-RIB-Out (routes to peers).
          Supports ADD-PATH (RFC 7911) with per-path-id storage.";
 
+    revision 2026-08-13 {
+        description
+          "RFC 7999 blackhole honoring, per BGP session. Section 3.3 binds the
+           agreement to 'that particular BGP session', so the leaves sit in a
+           grouping augmented at the bgp, group and peer levels rather than in
+           one daemon-wide switch.";
+    }
+
     revision 2025-01-31 {
         description "Initial revision.";
+    }
+
+    // RFC 7999 blackhole honoring, augmented at bgp, group and peer levels so a
+    // group default can be set once and a peer can override it.
+    grouping blackhole-honor-fields {
+        container blackhole {
+            description
+              "What this speaker does with a received route that carries the
+               BLACKHOLE community, 65535:666. RFC 7999. Section 4 uses the
+               suggested shorthand keyword for the community value.";
+
+            leaf honor {
+                type boolean;
+                default "false";
+                description
+                  "Discard traffic sent toward a prefix this peer announces with
+                   the BLACKHOLE community. RFC 7999 Section 3.3 requires the
+                   receiving party to have agreed to honor BLACKHOLE on that
+                   particular BGP session, and this leaf is that agreement.
+
+                   The default is false, which RFC 7999 Section 4 states: without
+                   an explicit configuration directive a network element does not
+                   discard traffic toward a tagged prefix. A speaker that ignores
+                   the community is conformant, per Section 3.1.
+
+                   Turning it on is not enough on its own. RFC 7999 Section 3.3
+                   states two conditions, and authorized-covering-prefix is the
+                   other one. A peer with honor true and no covering prefix
+                   listed can blackhole nothing.";
+            }
+
+            leaf-list authorized-covering-prefix {
+                type string;
+                ze:cumulative;
+                description
+                  "Prefixes this neighbor is authorized to advertise. A received
+                   BLACKHOLE announcement is honored only when one of these
+                   covers it and is equal or shorter, which is RFC 7999 Section
+                   3.3, first condition.
+
+                   Coverage is not prefix-list membership. A list entry
+                   192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,
+                   because the /24 is a shorter covering prefix the neighbor may
+                   advertise. That is the RFC test, and it does not depend on any
+                   ge or le bound.
+
+                   An empty list authorizes nothing, so honoring never happens.
+                   That is the closed state on purpose: RFC 7999 Section 6 names
+                   unauthorized addition of BLACKHOLE as a denial-of-reachability
+                   vector, and an open default would let any peer discard traffic
+                   for any prefix it names.";
+            }
+        }
+    }
+
+    augment "/bgp:bgp/bgp:peer" {
+        uses blackhole-honor-fields;
+    }
+
+    augment "/bgp:bgp/bgp:group/bgp:peer" {
+        uses blackhole-honor-fields;
+    }
+
+    augment "/bgp:bgp/bgp:group" {
+        uses blackhole-honor-fields;
+    }
+
+    augment "/bgp:bgp" {
+        uses blackhole-honor-fields;
     }
 
     augment "/bgp:bgp" {

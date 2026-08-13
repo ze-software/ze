@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/rib/store"
 )
 
@@ -53,6 +54,14 @@ const (
 	shiftNextHopIdx = 16
 	flagEBGP        = 0x0001
 	flagHadSRv6SID  = 0x0002
+	// flagBlackhole records that the previous best was stamped as an RFC 7999
+	// discard route. It is in the packed record for the same reason
+	// flagHadSRv6SID is: the same-best short circuit below compares the packed
+	// state, and a prefix that turns into a discard with its peer, next-hop and
+	// MED unchanged would otherwise be suppressed before the event-bus entry is
+	// built. The Loc-RIB rail is safe without it (Path.Equal reads the route
+	// type), and the event-bus rail is not.
+	flagBlackhole = 0x0004
 	// internerCap is the exclusive upper bound for any single interner
 	// reverse table. uint16 cardinality is architecturally unreachable
 	// (~2k peers at the largest Internet IXP); the cap exists only so
@@ -88,11 +97,17 @@ func (r bestPathRecord) peerIdx() uint16 { return uint16(r >> shiftPeerIdx) }
 // nextHopIdx returns the interner index for this record's next-hop.
 func (r bestPathRecord) nextHopIdx() uint16 { return uint16(r >> shiftNextHopIdx) }
 
-// Flags returns the 16-bit flag field; bit 0 = isEBGP, bits 1-15 reserved.
+// Flags returns the 16-bit flag field. Bit 0 = isEBGP, bit 1 = had an SRv6 SID,
+// bit 2 = was stamped as an RFC 7999 discard. Bits 3-15 are reserved.
 func (r bestPathRecord) Flags() uint16 { return uint16(r) }
 
 // IsEBGP reports whether the recorded best-path was learned from an eBGP peer.
 func (r bestPathRecord) IsEBGP() bool { return r&flagEBGP != 0 }
+
+// isBlackhole reports whether the recorded best-path was stamped as an RFC 7999
+// discard route. Unexported: the only reader is the same-best short circuit in
+// this file.
+func (r bestPathRecord) isBlackhole() bool { return r&flagBlackhole != 0 }
 
 // bestPrevInterner maps per-attribute values (peer address, next-hop, MED)
 // to dense uint16 indices shared across all families on a RIBManager. The
@@ -750,6 +765,15 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		return bestChangeEntry{}, false
 	}
 
+	// RFC 7999 Section 3.3: does this winner become a discard route? Resolved
+	// here, before the shard lock, for the same reason the next-hop is: the
+	// lookup takes r.peerMu.RLock, and the lock order is r.peerMu -> shard.mu.
+	// Zero for every peer that stated no rule, which is every peer by default.
+	var blackholeType routetype.Type
+	if newBest != nil {
+		blackholeType = r.blackholeRouteTypeForBest(fam, nlriBytes, pfx, newBest.PeerIP)
+	}
+
 	// Skip family creation if there is nothing to record AND no previous
 	// state could exist for this family.
 	fs := r.bestPrev.familyShards(fam, false)
@@ -829,6 +853,12 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			// emits Change.ECMP for a BGP multipath best (rib-arch-4); sysrib
 			// expands it into an ECMP FIB entry. Nil when multipath is off.
 			ECMP: ecmpNextHops,
+			// Carry the RFC 7999 forwarding action. sysrib prefers the Loc-RIB
+			// path, so without this a honored blackhole reaches the kernel as an
+			// ordinary route on the default deployment. Zero unless the winning
+			// peer agreed to honor BLACKHOLE and is authorized for a covering
+			// prefix.
+			RouteType: blackholeType,
 		}, forward)
 	}
 
@@ -838,6 +868,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			ir.nextHopAt(prev.nextHopIdx()) == nextHop &&
 			ir.metricAt(prev.metricIdx()) == newBest.MED &&
 			prev.IsEBGP() == isEBGP &&
+			prev.isBlackhole() == (blackholeType == routetype.Blackhole) &&
 			!srv6SID.IsValid() && prev.Flags()&flagHadSRv6SID == 0 {
 			// The best is unchanged, but the equal-cost multipath membership may
 			// have changed (a sibling appeared or went away with the best next-hop
@@ -868,6 +899,9 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if srv6SID.IsValid() {
 		flags |= flagHadSRv6SID
 	}
+	if blackholeType == routetype.Blackhole {
+		flags |= flagBlackhole
+	}
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
 	sh.store.insert(fam, nlriBytes, addPath, newRec)
@@ -881,6 +915,9 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	entry := newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath)
 	entry.Labels = bestLabels
 	entry.SRv6SID = srv6SID
+	// RFC 7999 Section 3.3. Zero for every route that is not a honored
+	// blackhole, which leaves the FIB installing an ordinary route.
+	entry.RouteType = blackholeType
 	// Attach the winner's AS_PATH and origin AS for downstream consumers
 	// (e.g. flow-export BGP enrichment). Cold path: once per best-path change,
 	// not per packet. The AS_PATH bytes are already interned in the pool;
