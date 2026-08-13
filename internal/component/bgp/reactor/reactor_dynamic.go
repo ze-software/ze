@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — dynamic peer groups for IXP route servers
+// RFC: rfc/short/rfc4271.md — Section 4.2, the peer's AS arrives in its OPEN
 // Related: reactor_connection.go — TCP accept integration point
 // Related: reactor_peers.go — peer add/remove/lookup
 
@@ -22,14 +23,12 @@ type DynamicGroupConfig struct {
 	MaxPeers  uint32
 	Template  map[string]any
 
-	// LocalAS and RouterID for building PeerSettings without parsePeerFromTree.
-	LocalAS  uint32
-	RouterID uint32
-
-	// RSClient is true when the group has session/rs-client true.
-	RSClient bool
-
-	// Resolved peer settings fields from the group template.
+	// Settings is the PeerSettings every member of this group is built from.
+	//
+	// It is the ONLY statement of what a member's session looks like. LocalAS,
+	// RouterID and RSClient were fields here as well until 2026-08-13, each one
+	// a second copy of a value Settings already held, and a second copy is a
+	// value that can disagree with the first.
 	Settings *PeerSettings
 
 	// Runtime state.
@@ -103,77 +102,54 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 	return peer, nil
 }
 
-// buildDynamicPeerSettings constructs PeerSettings for a dynamic peer from
-// the group template. PeerAS is left as 0 (filled from OPEN message later).
+// buildDynamicPeerSettings constructs PeerSettings for a dynamic peer from the
+// group template.
+//
+// INHERITANCE IS THE DEFAULT AND DIVERGENCE IS THE EXCEPTION. The whole template
+// is copied, then only the fields below are written. A field-by-field copy stood
+// here until 2026-08-13 and it dropped every setting nobody remembered to add to
+// it: the group's address families, its ADD-PATH require/refuse sets, its filter
+// chains, its MD5 password. Each of those is a silent loss on an established
+// session, and none of them fails a build.
+//
+// TestDynamicPeerInheritsEveryPeerSettingsField (reactor_dynamic_inherit_test.go)
+// walks PeerSettings by reflection and refuses a field that is neither inherited
+// nor named in its divergence table, so the next field added is inherited or the
+// test says why it is not.
 func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr netip.Addr) (*PeerSettings, error) {
 	tmpl := dg.Settings
-	ps := &PeerSettings{
-		Name:            "dyn-" + remoteAddr.String(),
-		GroupName:       dg.GroupName,
-		Address:         remoteAddr,
-		LocalAddress:    tmpl.LocalAddress,
-		Port:            DefaultBGPPort,
-		LocalAS:         tmpl.LocalAS,
-		GlobalLocalAS:   tmpl.GlobalLocalAS,
-		PeerAS:          0, // Learned from OPEN
-		RouterID:        tmpl.RouterID,
-		ReceiveHoldTime: tmpl.ReceiveHoldTime,
-		SendHoldTime:    tmpl.SendHoldTime,
-		KeepaliveTime:   tmpl.KeepaliveTime,
-		ConnectRetry:    tmpl.ConnectRetry,
-		Connection:      ConnectionPassive, // Dynamic peers are always passive
-		MD5Key:          tmpl.MD5Key,
-		MD5IP:           tmpl.MD5IP,
-		// OutTTL/MinTTL are not carried on dg.Settings (the resolved
-		// template PeerSettings never parses ttl); they are derived
-		// below from the raw dg.Template connection > ttl block.
-		BFD:              tmpl.BFD,
-		GroupUpdates:     tmpl.GroupUpdates,
-		RSFastPath:       tmpl.RSFastPath,
-		RSClient:         dg.RSClient,
-		IsDynamic:        true,
-		DisableASN4:      tmpl.DisableASN4,
-		Capabilities:     tmpl.Capabilities,
-		RequiredFamilies: tmpl.RequiredFamilies,
-		IgnoreFamilies:   tmpl.IgnoreFamilies,
-		StaticRoutes:     tmpl.StaticRoutes,
-		// Every prefix map is CLONED, never aliased. Dynamic peers are built
-		// one per accepted connection from one template, so a shared map would
-		// let a later write on one peer change enforcement for its siblings.
-		PrefixMaximum:     maps.Clone(tmpl.PrefixMaximum),
-		PrefixWarning:     maps.Clone(tmpl.PrefixWarning),
-		PrefixTeardown:    maps.Clone(tmpl.PrefixTeardown),
-		PrefixIdleTimeout: maps.Clone(tmpl.PrefixIdleTimeout),
-		PrefixReconnect:   maps.Clone(tmpl.PrefixReconnect),
-		PrefixCount:       maps.Clone(tmpl.PrefixCount),
-		PrefixUpdated:     maps.Clone(tmpl.PrefixUpdated),
-		ProcessBindings:   tmpl.ProcessBindings,
-		ImportFilters:     tmpl.ImportFilters,
-		ExportFilters:     tmpl.ExportFilters,
-		LoopAllowOwnAS:    tmpl.LoopAllowOwnAS,
-		NextHopMode:       tmpl.NextHopMode,
-		NextHopAddress:    tmpl.NextHopAddress,
-		SendCommunity:     tmpl.SendCommunity,
+	settings := *tmpl
+	ps := &settings
 
-		IgnoreFamilyMismatch: tmpl.IgnoreFamilyMismatch,
-		RequiredCapabilities: tmpl.RequiredCapabilities,
-		RefusedCapabilities:  tmpl.RefusedCapabilities,
-		// RFC 7911 require/refuse enforcement. Carried beside the ADD-PATH
-		// capability itself, which travels in Capabilities above: advertising the
-		// capability while dropping these two leaves a `require` that refuses
-		// nothing, which is a guard that fails open.
-		RequiredAddPathFamilies: tmpl.RequiredAddPathFamilies,
-		RefusedAddPathFamilies:  tmpl.RefusedAddPathFamilies,
-		RouteReflectorClient:    tmpl.RouteReflectorClient,
-		ClusterID:               tmpl.ClusterID,
-		ASOverride:              tmpl.ASOverride,
-		LocalASNoPrepend:        tmpl.LocalASNoPrepend,
-		LocalASReplaceAS:        tmpl.LocalASReplaceAS,
-		DefaultOriginate:        tmpl.DefaultOriginate,
-		DefaultOriginateFilter:  tmpl.DefaultOriginateFilter,
-		RawCapabilityConfig:     tmpl.RawCapabilityConfig,
-		CapabilityConfigJSON:    tmpl.CapabilityConfigJSON,
-	}
+	// The divergence set. Every other field arrived above, by inheritance.
+	var tb textbuf.Buffer
+	ps.Name = tb.Str("dyn-").Addr(remoteAddr).String()
+	ps.GroupName = dg.GroupName
+	ps.Address = remoteAddr
+	// The peer map is keyed on (address, port) and a dynamic peer's remote port
+	// is the ephemeral source port of the connection it arrived on, which names
+	// no configuration. The canonical port keys every dynamic peer; the
+	// template's own Port is what the group LISTENS on (peerListenPort,
+	// reactor_peers.go).
+	ps.Port = DefaultBGPPort
+	ps.PeerAS = 0                     // RFC 4271 Section 4.2: learned from the peer's OPEN
+	ps.Connection = ConnectionPassive // `ip dynamic` requires `connect false`
+	ps.IsDynamic = true
+
+	// Every prefix map is CLONED, never aliased. Dynamic peers are built one per
+	// accepted connection from one template, so a shared map would let a later
+	// write on one peer change enforcement for its siblings.
+	ps.PrefixMaximum = maps.Clone(tmpl.PrefixMaximum)
+	ps.PrefixWarning = maps.Clone(tmpl.PrefixWarning)
+	ps.PrefixTeardown = maps.Clone(tmpl.PrefixTeardown)
+	ps.PrefixIdleTimeout = maps.Clone(tmpl.PrefixIdleTimeout)
+	ps.PrefixReconnect = maps.Clone(tmpl.PrefixReconnect)
+	ps.PrefixCount = maps.Clone(tmpl.PrefixCount)
+	ps.PrefixUpdated = maps.Clone(tmpl.PrefixUpdated)
+
+	// The raw template tree still owns `connection > ttl`, because a group built
+	// by a caller that never went through the config parser (a test, the API)
+	// carries the block and not the parsed values.
 	if dg.Template != nil {
 		if connMap, ok := dg.Template["connection"].(map[string]any); ok {
 			if ttlMap, ok := connMap["ttl"].(map[string]any); ok {

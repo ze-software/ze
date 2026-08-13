@@ -442,19 +442,24 @@ func TestLoopDetectionInactiveDisables(t *testing.T) {
 // PREVENTS: Dynamic peers losing connection > ttl because only Settings was copied.
 func TestDynamicGroupsFromTreeCarriesTemplate(t *testing.T) {
 	ttl := map[string]any{"max": "2"}
-	groups := dynamicGroupsFromTree(map[string]any{
+	groups, err := dynamicGroupsFromTree(map[string]any{
+		"session": map[string]any{"asn": map[string]any{"local": "65000"}},
 		"dynamic-groups": []DynamicGroupTemplate{
 			{
 				GroupName: "ix",
 				Ranges:    []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
 				MaxPeers:  100,
 				Template: map[string]any{
-					"connection": map[string]any{"ttl": ttl},
+					"connection": map[string]any{
+						"local": map[string]any{"ip": "192.0.2.1"},
+						"ttl":   ttl,
+					},
 				},
 			},
 		},
 	})
 
+	require.NoError(t, err)
 	require.Len(t, groups, 1)
 	require.NotNil(t, groups[0].Template)
 	connection, ok := groups[0].Template["connection"].(map[string]any)
@@ -519,94 +524,90 @@ func TestClusterIDSync(t *testing.T) {
 	})
 }
 
-// TestDynamicGroupSettingsRefusesLinkLocalGlobalNextHop drives the RFC 2545
+// TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop drives the RFC 2545
 // Section 3 next-hop form guard from the dynamic-group entry point.
 //
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop." A dynamic group's
-// template feeds the same two leaves as a statically configured peer, so it
-// reaches the same field. This parser returns no error, so a refused value is
-// dropped rather than rejected, and the settings fail closed.
+// template feeds the same two leaves as a statically configured peer, and since
+// 2026-08-13 it feeds them to the same parser, so the config is REFUSED rather
+// than accepted with the value dropped.
 //
-// VALIDATES: a link-local `local ip` leaves LocalAddress unset, and a link-local
-// `next-hop` leaves NextHopMode off Explicit with no address.
+// VALIDATES: a link-local `local ip` and a link-local `next-hop` each fail the
+// build, naming the group.
 // PREVENTS: a dynamic peer emitting a link-local as the sole address of the Next
-// Hop field, which the guard on the static path already refuses.
-func TestDynamicGroupSettingsRefusesLinkLocalGlobalNextHop(t *testing.T) {
-	tmpl := DynamicGroupTemplate{
-		GroupName: "ix",
-		Template: map[string]any{
+// Hop field.
+func TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop(t *testing.T) {
+	t.Run("local ip", func(t *testing.T) {
+		_, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
 			"connection": map[string]any{"local": map[string]any{"ip": "fe80::1"}},
+		}, 65000, 0x0a000001)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ix")
+	})
+
+	t.Run("next-hop", func(t *testing.T) {
+		_, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
+			"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
 			"session":    map[string]any{"next-hop": "fe80::cafe"},
-		},
-	}
-
-	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
-
-	require.NotNil(t, ps)
-	assert.False(t, ps.LocalAddress.IsValid(), "a link-local local ip must not reach LocalAddress")
-	assert.NotEqual(t, reactor.NextHopExplicit, ps.NextHopMode, "a link-local next-hop must not become an explicit rewrite")
-	assert.False(t, ps.NextHopAddress.IsValid(), "a refused next-hop must leave no address behind")
+		}, 65000, 0x0a000001)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ix")
+	})
 }
 
-// TestDynamicGroupSettingsAcceptsGlobalNextHop is the other side of the guard.
+// TestDynamicGroupTemplateAcceptsGlobalNextHop is the other side of the guard.
 //
 // VALIDATES: a global IPv6 address reaches both leaves. Without this row the guard
-// could drop everything and still pass the negative test.
-func TestDynamicGroupSettingsAcceptsGlobalNextHop(t *testing.T) {
-	tmpl := DynamicGroupTemplate{
-		GroupName: "ix",
-		Template: map[string]any{
-			"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
-			"session":    map[string]any{"next-hop": "2001:db8::ffff"},
-		},
-	}
+// could refuse everything and still pass the negative test.
+func TestDynamicGroupTemplateAcceptsGlobalNextHop(t *testing.T) {
+	ps, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
+		"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
+		"session":    map[string]any{"next-hop": "2001:db8::ffff"},
+	}, 65000, 0x0a000001)
 
-	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
-
-	require.NotNil(t, ps)
+	require.NoError(t, err)
 	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), ps.LocalAddress)
 	assert.Equal(t, reactor.NextHopExplicit, ps.NextHopMode)
 	assert.Equal(t, netip.MustParseAddr("2001:db8::ffff"), ps.NextHopAddress)
 }
 
-// TestDynamicGroupSettingsBuildsFamilyCapabilities pins the group's `session >
+// TestDynamicGroupTemplateBuildsFamilyCapabilities pins the group's `session >
 // family` block to the Multiprotocol capabilities RFC 4760 Section 8 requires in
 // the OPEN, and to the per-family enforcement that travels with them.
 //
 // VALIDATES: every enabled family becomes a capability.Multiprotocol, in AFI
 // order; `mode require` reaches RequiredFamilies; a per-family prefix maximum
 // reaches PrefixMaximum (RFC 4486).
-// PREVENTS: the defect this test was written for. buildDynamicGroupSettings read
-// timers, next-hop and behavior out of the template and never touched `family`,
+// PREVENTS: the defect this test was written for. The dynamic group had its own
+// parser, which read timers, next-hop and behavior and never touched `family`,
 // so a dynamic peer advertised no Multiprotocol capability at all. The session
 // established and then carried nothing: an empty negotiated family set leaves
 // sendInitialRoutes (reactor/peer_initial_sync.go) with no family to send an
 // End-of-RIB for, and every forwarded route is dropped as family-not-negotiated.
 // A route server, which is the reason `ip dynamic` exists, exchanged no routes.
-func TestDynamicGroupSettingsBuildsFamilyCapabilities(t *testing.T) {
-	tmpl := DynamicGroupTemplate{
-		GroupName: "ix",
-		Template: map[string]any{
-			"session": map[string]any{
-				"family": map[string]any{
-					// Written out of AFI order on purpose: the OPEN's capability
-					// order is sorted by the family key, not by map iteration.
-					"ipv6/unicast": map[string]any{"mode": "require"},
-					"ipv4/unicast": map[string]any{
-						"mode":   "enable",
-						"prefix": map[string]any{"maximum": "10000"},
-					},
-					"ipv4/flow": "disable",
+func TestDynamicGroupTemplateBuildsFamilyCapabilities(t *testing.T) {
+	ps, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
+		"connection": map[string]any{"local": map[string]any{"ip": "192.0.2.1"}},
+		"session": map[string]any{
+			"family": map[string]any{
+				// Written out of AFI order on purpose: the OPEN's capability
+				// order is sorted by the family key, not by map iteration.
+				"ipv6/unicast": map[string]any{
+					"mode":   "require",
+					"prefix": map[string]any{"maximum": "20000"},
 				},
+				"ipv4/unicast": map[string]any{
+					"mode":   "enable",
+					"prefix": map[string]any{"maximum": "10000"},
+				},
+				"ipv4/flow": "disable",
 			},
 		},
-	}
+	}, 65000, 0x0a000001)
 
-	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
-
-	require.NotNil(t, ps)
+	require.NoError(t, err)
 	require.Len(t, ps.Capabilities, 2, "one Multiprotocol capability per enabled family, and none for the disabled one")
 
 	first, ok := ps.Capabilities[0].(*capability.Multiprotocol)
@@ -626,7 +627,7 @@ func TestDynamicGroupSettingsBuildsFamilyCapabilities(t *testing.T) {
 		"the per-family prefix limit travels with the family that declared it")
 }
 
-// TestDynamicGroupSettingsBuildsSessionCapabilities is the capability half of the
+// TestDynamicGroupTemplateBuildsSessionCapabilities is the capability half of the
 // same block. Families and capabilities are parsed by one call
 // (reactor.ApplyNegotiationConfig), so a regression that drops the call would
 // take both; asserting only families would not say so.
@@ -634,19 +635,15 @@ func TestDynamicGroupSettingsBuildsFamilyCapabilities(t *testing.T) {
 // VALIDATES: `session > capability > route-refresh` reaches the advertised set.
 // PREVENTS: a dynamic peer that cannot be asked to re-send its routes, on the one
 // peer type whose whole population is learned rather than configured.
-func TestDynamicGroupSettingsBuildsSessionCapabilities(t *testing.T) {
-	tmpl := DynamicGroupTemplate{
-		GroupName: "ix",
-		Template: map[string]any{
-			"session": map[string]any{
-				"capability": map[string]any{"route-refresh": "enable"},
-			},
+func TestDynamicGroupTemplateBuildsSessionCapabilities(t *testing.T) {
+	ps, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
+		"connection": map[string]any{"local": map[string]any{"ip": "192.0.2.1"}},
+		"session": map[string]any{
+			"capability": map[string]any{"route-refresh": "enable"},
 		},
-	}
+	}, 65000, 0x0a000001)
 
-	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
-
-	require.NotNil(t, ps)
+	require.NoError(t, err)
 	codes := make([]capability.Code, 0, len(ps.Capabilities))
 	for _, c := range ps.Capabilities {
 		codes = append(codes, c.Code())

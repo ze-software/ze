@@ -96,10 +96,13 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
-	// Build peers from tree (resolves templates, extracts routes). Incomplete
-	// peers are skipped inside PeersFromConfigTree so the daemon can start for
-	// config editing with partial configs. Hard validation errors still fail.
-	peers, err := PeersFromConfigTree(tree)
+	// Build peers and dynamic groups from tree (resolves templates, extracts
+	// routes and filter chains). Incomplete peers are skipped inside the builder
+	// so the daemon can start for config editing with partial configs. Hard
+	// validation errors still fail. ONE walk answers both: a dynamic group's
+	// template is a peer settings like any other and takes every layer the
+	// statically configured peers take.
+	peers, dynGroups, err := peersAndDynamicGroups(tree)
 	if err != nil {
 		return nil, fmt.Errorf("build peers: %w", err)
 	}
@@ -269,11 +272,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
-	// Configure dynamic peer groups (ip dynamic + range).
-	// Re-resolve the BGP tree to extract dynamic group templates.
-	if bgpTree, resolveErr := ResolveBGPTree(tree); resolveErr != nil {
-		configLogger().Warn("dynamic group resolution failed", "error", resolveErr)
-	} else if dynGroups := dynamicGroupsFromTree(bgpTree); len(dynGroups) > 0 {
+	// Configure dynamic peer groups (ip dynamic + range), built by the same walk
+	// that built the peers above.
+	if len(dynGroups) > 0 {
 		r.SetDynamicGroups(dynGroups)
 	}
 
@@ -330,16 +331,17 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadF
 		// Update redistribute rules on reload.
 		initRedistribute(tree)
 
-		// PeersFromConfigTree prunes inactive nodes and resolves the tree.
-		peers, err := PeersFromConfigTree(tree)
+		// The builder prunes inactive nodes and resolves the tree, and it returns
+		// the dynamic groups from the same walk. SetDynamicGroups is the one
+		// place that reconciles the dynamic peer population against config
+		// (reactor_dynamic.go), so a reload MUST reach it even when the config
+		// declares no dynamic group at all: an emptied list is how a removed
+		// group's peers are torn down.
+		peers, dynGroups, err := peersAndDynamicGroups(tree)
 		if err != nil {
 			return nil, err
 		}
-
-		// Update dynamic peer groups on reload (after pruning).
-		if bgpTree, resolveErr := ResolveBGPTree(tree); resolveErr == nil {
-			r.SetDynamicGroups(dynamicGroupsFromTree(bgpTree))
-		}
+		r.SetDynamicGroups(dynGroups)
 
 		return peers, nil
 	}

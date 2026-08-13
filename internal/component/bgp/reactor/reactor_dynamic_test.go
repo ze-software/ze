@@ -20,8 +20,6 @@ func newTestDynamicGroup(name string, prefixes []string, maxPeers uint32) *Dynam
 		GroupName: name,
 		Ranges:    ranges,
 		MaxPeers:  maxPeers,
-		LocalAS:   localAS,
-		RouterID:  0x01020304,
 		Settings: NewPeerSettings(
 			netip.Addr{}, // Template has no address
 			localAS,

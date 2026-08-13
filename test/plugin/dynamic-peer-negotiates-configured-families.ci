@@ -88,8 +88,18 @@ bgp {
 			}
 			router-id 1.2.3.4
 			family {
+				# The prefix maximum is mandatory for every enabled family
+				# (RFC 4486, parsePrefixLimitFromFamily). A dynamic group had
+				# its own parser until 2026-08-13 and that parser dropped the
+				# error, so this block was accepted with no limit at all -- on
+				# the one peer type whose members are not known in advance. It
+				# takes the same limit as a static peer now. The value never
+				# reaches the wire, so the OPEN asserted above is unchanged.
 				ipv6/unicast {
 					mode enable
+					prefix {
+						maximum 10000
+					}
 				}
 				ipv4/unicast {
 					mode enable

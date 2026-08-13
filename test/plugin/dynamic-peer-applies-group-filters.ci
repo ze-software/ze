@@ -1,0 +1,132 @@
+# Test: a peer created from a dynamic group is subject to the group's import
+# filter chain, and the chain DECIDES: it accepts one route and rejects another.
+#
+# VALIDATES: the bgp-level and group-level `filter import` chains reach a dynamic
+#            member (peersAndDynamicGroups, internal/component/bgp/config/peers.go),
+#            and the decision runs for that member
+#            (handleFilterUpdate, internal/component/bgp/plugins/filter_prefix).
+# PREVENTS: an IXP route server that applies NO policy to its members. Until
+#           2026-08-13 the dynamic groups were built by a walk of their own, and
+#           no `ImportFilters` assignment was reachable from it: every member got
+#           an empty chain. No prefix filtering, no AS-path filtering, no
+#           community handling, no IRR validation, on the one peer population an
+#           operator has not vetted by hand. The config named a policy, `ze config
+#           validate` accepted it, and nothing enforced it.
+#
+# DISCRIMINATION: under the defect NEITHER decision line exists, because the chain
+# was empty and the filter plugin was never dispatched to. The route would have
+# been installed instead. The two lines also discriminate against each other: a
+# chain that rejected everything (a filter dispatched with the wrong name fails
+# closed) would lose the accept line, and a chain that accepted everything would
+# lose the reject line. Measured on 2026-08-13 by deleting the dynamic branch of
+# the filter-chain assignment in peers.go: both `prefix-list` lines disappear.
+#
+# The peer takes the ACTIVE role and dials ze (--dial): the group is `ip dynamic`
+# + `connect false`, so ze only ever ACCEPTS. No static peer is configured, so the
+# only socket is the one the group asks for and the only peer is the one the
+# inbound connection creates.
+
+# "dynamic peer created" is an Info line and the daemon's base level is warn
+# (ze.log, internal/core/slogutil/slogutil.go). The filter plugin's decision
+# lines are Info on their own subsystem.
+option=env:var=ze.log.bgp.reactor:value=info
+option=env:var=ze.log.bgp.filter.prefix:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65001
+option=tcp_connections:value=1
+
+# ONE UPDATE carrying TWO prefixes, so one filter decision covers both and the
+# assertion cannot be satisfied by a batching accident. ORIGIN=IGP,
+# AS_PATH=[65001], NEXT_HOP=1.1.1.1, then:
+#
+#   10.0.0.0/24  (18 0A0000)  matches entry 10.0.0.0/8 ge 16 le 24 -> accept
+#   192.0.2.0/24 (18 C00002)  matches no entry                     -> implicit deny
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE940030401010101180A000018C00002
+EOF_PEER
+
+# One dynamic group and nothing else: the route-server shape. The import chain is
+# stated at the group level, which is where an IXP states its member policy.
+# tmpfs rather than stdin because the runner writes daemon.pid and daemon.ready
+# beside the config, and trigger.sh waits on both.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	policy {
+		prefix-list CUSTOMERS {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+	}
+
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		filter {
+			import [ bgp-filter-prefix:CUSTOMERS ]
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Trigger: let the session establish and both UPDATEs drain, then stop the
+# daemon. The sleep only has to cover a dial the peer retries every 500ms against
+# a daemon that has already written daemon.ready; too short and the file fails on
+# a missing decision line rather than passing quietly.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 5
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in start ze-bgp.conf:timeout=30s
+
+# The session above really was a DYNAMIC peer's. Without this the decision lines
+# would hold for any peer ze accepted.
+expect=stderr:contains=dynamic peer created
+
+# ... and it reached Established, so the UPDATEs were carried by a live session.
+expect=stderr:contains=session established
+
+# The group's chain ran for that member, and it DISCRIMINATED: one prefix of the
+# UPDATE accepted, the other rejected, so the engine rewrites the NLRI to the
+# accepted subset (applyFilterDelta). The line names the list, so a dispatch to
+# another filter would not satisfy it, and it names both counts, so a chain that
+# accepted everything or rejected everything would not either.
+expect=stderr:pattern=prefix-list modify.*filter=CUSTOMERS.*accepted=1 rejected=1
+expect=stderr:pattern=nlri="ipv4/unicast add 10\.0\.0\.0/24 192\.0\.2\.0/24"

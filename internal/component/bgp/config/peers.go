@@ -11,7 +11,6 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
-	"time"
 
 	coreenv "github.com/ze-software/ze/internal/core/env"
 
@@ -40,6 +39,22 @@ import (
 // Routes stay in the config package because they depend on config-internal
 // types (StaticRouteConfig, ParseRouteAttributes, etc.) that reactor cannot import.
 func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
+	peers, _, err := peersAndDynamicGroups(tree)
+	return peers, err
+}
+
+// peersAndDynamicGroups builds both peer populations a BGP config declares: the
+// statically configured peers, and the template every member of a dynamic group
+// is built from (Reactor.SetDynamicGroups).
+//
+// ONE walk builds both, and that is the point. Every layer a statically
+// configured peer takes -- routes, filter chains, loop-detection defaults, the
+// cluster-id sync, the port override -- is applied to a dynamic group's template
+// by the same line of code. A second walk that read the layers somebody
+// remembered is what left an IXP route server's dynamic members with no policy
+// at all: until 2026-08-13 no `ImportFilters` assignment was reachable from the
+// dynamic path, so no prefix, AS-path, community or IRR filter ever ran for them.
+func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
 	// Register BGP redistribute sources (bgp, ibgp, ebgp) for config validation.
 	redistribute.RegisterBGPSources()
 
@@ -47,34 +62,49 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	// Inactive nodes are treated as if they were not in the config.
 	schema, err := config.YANGSchema()
 	if err != nil {
-		return nil, fmt.Errorf("load schema for inactive pruning: %w", err)
+		return nil, nil, fmt.Errorf("load schema for inactive pruning: %w", err)
 	}
 	config.PruneInactive(tree, schema)
 
 	// Step 1: Resolve templates at the map level.
 	bgpTree, err := ResolveBGPTree(tree)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Step 1a: Validate required fields after inheritance resolution.
 	if err := CheckRequiredFields(schema, bgpTree); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Step 1b: Apply YANG schema defaults to each peer map.
-	// This makes YANG the single source of truth for RFC defaults
+	// Step 1b: Apply YANG schema defaults to each peer map and to each dynamic
+	// group template. This makes YANG the single source of truth for RFC defaults
 	// (hold-time, connect-retry, port, etc.) instead of Go constants.
 	applyPeerSchemaDefaults(bgpTree)
 
-	// Step 2: Parse basic peer settings from the resolved map.
+	// Step 2: Parse basic peer settings from the resolved map. A dynamic group's
+	// template is parsed by the same parser (reactor.ParseDynamicGroupTemplate)
+	// and joins `settings` below, so every layer after this point reaches both
+	// populations.
 	peers, err := reactor.PeersFromTree(bgpTree)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	groups, err := dynamicGroupsFromTree(bgpTree)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if len(peers) == 0 {
-		return peers, nil
+	settings := make([]*reactor.PeerSettings, 0, len(peers)+len(groups))
+	settings = append(settings, peers...)
+	dynByGroup := make(map[string]*reactor.PeerSettings, len(groups))
+	for _, dg := range groups {
+		settings = append(settings, dg.Settings)
+		dynByGroup[dg.GroupName] = dg.Settings
+	}
+
+	if len(settings) == 0 {
+		return peers, groups, nil
 	}
 
 	// Step 3: Extract routes from group and peer layers.
@@ -83,7 +113,7 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	//   Layer 2: Peer's own routes
 	bgpContainer := tree.GetContainer("bgp")
 	if bgpContainer == nil {
-		return peers, nil
+		return peers, groups, nil
 	}
 
 	// Build name -> PeerSettings index for matching.
@@ -94,15 +124,23 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	}
 
 	// Layer 0: BGP-level routes (global defaults for all peers).
-	for _, ps := range peers {
+	for _, ps := range settings {
 		if err := patchRoutes(ps, ps.Name, bgpContainer); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	// Grouped peers: routes from group + peer layers.
+	// Grouped peers: routes from group + peer layers. A dynamic group has no
+	// peer layer -- its members are created from the group alone -- so it takes
+	// the group's routes and stops there.
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
 		groupTree := groupEntry.Value
+
+		if ds, ok := dynByGroup[groupEntry.Key]; ok {
+			if err := patchRoutes(ds, groupEntry.Key, groupTree); err != nil {
+				return nil, nil, err
+			}
+		}
 
 		for _, peerEntry := range groupTree.GetListOrdered("peer") {
 			addr := peerEntry.Key
@@ -115,12 +153,12 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 
 			// Layer 1: Routes from group defaults.
 			if err := patchRoutes(ps, addr, groupTree); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			// Layer 2: Routes from peer's own tree.
 			if err := patchRoutes(ps, addr, peerTree); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
@@ -136,7 +174,7 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		}
 
 		if err := patchRoutes(ps, addr, peerTree); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -147,6 +185,14 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
 		groupTree := groupEntry.Value
 		groupImport, groupExport := extractFilterChain(groupTree)
+
+		// The dynamic group's own chain is bgp + group, which is the whole
+		// import and export policy an IXP route server's members are subject to:
+		// they have no peer layer to add to it.
+		if ds, ok := dynByGroup[groupEntry.Key]; ok {
+			ds.ImportFilters = concatFilters(bgpImport, groupImport)
+			ds.ExportFilters = concatFilters(bgpExport, groupExport)
+		}
 
 		for _, peerEntry := range groupTree.GetListOrdered("peer") {
 			ps, ok := peerIndex[peerEntry.Key]
@@ -181,14 +227,17 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	}
 	filterReg, err := BuildFilterRegistry(policyTree, policySchema)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	for _, ps := range peers {
-		if err := filterReg.ValidateFilterNames(ps.ImportFilters, "peer "+ps.Name+" import"); err != nil {
-			return nil, err
+	var tb textbuf.Buffer
+	for _, ps := range settings {
+		tb.Reset()
+		if err := filterReg.ValidateFilterNames(ps.ImportFilters, tb.Str("peer ").Str(ps.Name).Str(" import").String()); err != nil {
+			return nil, nil, err
 		}
-		if err := filterReg.ValidateFilterNames(ps.ExportFilters, "peer "+ps.Name+" export"); err != nil {
-			return nil, err
+		tb.Reset()
+		if err := filterReg.ValidateFilterNames(ps.ExportFilters, tb.Str("peer ").Str(ps.Name).Str(" export").String()); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -199,24 +248,24 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	//   - `filter import [ CUSTOMERS ]`                    (plain name)
 	// All three resolve to the same dispatch target at runtime; this step
 	// rewrites them into the canonical form before peer settings are frozen.
-	for _, ps := range peers {
+	for _, ps := range settings {
 		ps.ImportFilters = canonicalizeFilterRefs(ps.ImportFilters, filterReg)
 		ps.ExportFilters = canonicalizeFilterRefs(ps.ExportFilters, filterReg)
 	}
 
 	// Step 3b3: Prepend default filter names to each peer's import chain.
 	// Default filters (loop-detection) auto-populate unless already referenced.
-	prependDefaultFilters(bgpContainer, peerIndex)
+	prependDefaultFilters(bgpContainer, settings)
 
 	// Step 3c: Extract loop-detection policy settings into PeerSettings.
 	// For each peer, check if any import filter references a loop-detection entry
 	// in the policy section. If so, apply allow-own-as and cluster-id to the peer.
-	applyLoopDetectionConfig(bgpContainer, peerIndex)
+	applyLoopDetectionConfig(bgpContainer, settings)
 
 	// Step 3d: Sync session/cluster-id with loop-detection/cluster-id.
 	// RFC 4456: the same cluster-id must be used for both egress (CLUSTER_LIST prepend)
 	// and ingress (CLUSTER_LIST loop check). If only one is configured, propagate it.
-	for _, ps := range peers {
+	for _, ps := range settings {
 		if ps.ClusterID != 0 && ps.LoopClusterID == 0 {
 			ps.LoopClusterID = ps.ClusterID
 		} else if ps.LoopClusterID != 0 && ps.ClusterID == 0 {
@@ -225,34 +274,38 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	}
 
 	// Step 4: Apply port override from ze.test.bgp.port env var (test infrastructure).
-	applyPortOverride(peers)
+	applyPortOverride(settings)
 
 	// Step 5: Validate connection mode.
-	for _, ps := range peers {
+	for _, ps := range settings {
 		if !ps.Connection.Connect && !ps.Connection.Accept {
-			return nil, fmt.Errorf("peer %s: connect and accept cannot both be false", ps.Name)
+			return nil, nil, fmt.Errorf("peer %s: connect and accept cannot both be false", ps.Name)
 		}
 	}
 
 	// Step 5: Validate capability-process constraints.
-	if err := validatePeerProcessCaps(peers); err != nil {
-		return nil, err
+	if err := validatePeerProcessCaps(settings); err != nil {
+		return nil, nil, err
 	}
 
-	return peers, nil
+	return peers, groups, nil
 }
 
 // dynamicGroupsFromTree extracts dynamic group configs from the resolved BGP tree.
-// Returns nil if no dynamic groups are configured. The returned configs are ready
-// to be passed to Reactor.SetDynamicGroups.
-func dynamicGroupsFromTree(bgpTree map[string]any) []*reactor.DynamicGroupConfig {
+// Returns nil if no dynamic groups are configured.
+//
+// The template's PeerSettings comes from reactor.ParseDynamicGroupTemplate, the
+// parser that reads a statically configured peer. The group's config tree has the
+// same shape as a peer's (resolveDynamicGroup, resolve.go), so the two share one
+// parser and a leaf added to it reaches both.
+func dynamicGroupsFromTree(bgpTree map[string]any) ([]*reactor.DynamicGroupConfig, error) {
 	raw, ok := bgpTree["dynamic-groups"]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	templates, ok := raw.([]DynamicGroupTemplate)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	var localAS uint32
@@ -275,170 +328,31 @@ func dynamicGroupsFromTree(bgpTree map[string]any) []*reactor.DynamicGroupConfig
 
 	groups := make([]*reactor.DynamicGroupConfig, 0, len(templates))
 	for _, tmpl := range templates {
-		ps := buildDynamicGroupSettings(tmpl, localAS, routerID)
+		ps, err := reactor.ParseDynamicGroupTemplate(tmpl.GroupName, tmpl.Template, localAS, routerID)
+		if err != nil {
+			return nil, fmt.Errorf("bgp/group %s: %w", tmpl.GroupName, err)
+		}
 
 		groups = append(groups, &reactor.DynamicGroupConfig{
 			GroupName: tmpl.GroupName,
 			Ranges:    tmpl.Ranges,
 			MaxPeers:  tmpl.MaxPeers,
-			LocalAS:   localAS,
-			RouterID:  routerID,
-			RSClient:  tmpl.RSClient,
 			Settings:  ps,
 			Template:  tmpl.Template,
 		})
 	}
-	return groups
+	return groups, nil
 }
 
-// buildDynamicGroupSettings creates a PeerSettings template from a dynamic group's
-// resolved config tree. Unlike parsePeerFromTree, this accepts PeerAS=0 and no remote IP.
-func buildDynamicGroupSettings(tmpl DynamicGroupTemplate, globalLocalAS, globalRouterID uint32) *reactor.PeerSettings {
-	tree := tmpl.Template
-
-	sessionMap, _ := tree["session"].(map[string]any)
-	connMap, _ := tree["connection"].(map[string]any)
-
-	peerLocalAS := globalLocalAS
-	if sessionMap != nil {
-		if asnMap, ok := sessionMap["asn"].(map[string]any); ok {
-			if tv, ok := asnMap["local"].(string); ok {
-				if n, err := strconv.ParseUint(tv, 10, 32); err == nil {
-					peerLocalAS = uint32(n)
-				}
-			}
-		}
-	}
-
-	routerID := globalRouterID
-	if sessionMap != nil {
-		if v, ok := sessionMap["router-id"].(string); ok {
-			if addr, err := netip.ParseAddr(v); err == nil {
-				routerID = ipToUint32(addr)
-			}
-		}
-	}
-
-	ps := reactor.NewPeerSettings(netip.Addr{}, peerLocalAS, 0, routerID)
-	ps.GlobalLocalAS = globalLocalAS
-	ps.Connection = reactor.ConnectionPassive
-	ps.RSClient = tmpl.RSClient
-	ps.IsDynamic = true
-
-	// Parse local address from connection > local > ip.
-	//
-	// RFC 2545 Section 3: this address is what `next-hop self` and the
-	// default-originate rail write into the global slot of the MP_REACH Next Hop
-	// field, which carries "the global IPv6 address of the next hop". A link-local
-	// one is refused there, exactly as reactor.parsePeerFromTree refuses it for a
-	// statically configured peer (reactor/config_nexthop_form.go). This parser
-	// returns no error, so a refused value is dropped and named in the log: the
-	// template then has no local address, and `next-hop self` produces no next-hop
-	// rewrite at all (precomputeNextHop, reactor/peer_forward_facts.go), which
-	// fails closed.
-	if connMap != nil {
-		if localMap, ok := connMap["local"].(map[string]any); ok {
-			if ipStr, ok := localMap["ip"].(string); ok && ipStr != "auto" {
-				if addr, err := netip.ParseAddr(ipStr); err == nil {
-					if formErr := reactor.ValidatePeerGlobalNextHop(tmpl.GroupName, "local ip", addr); formErr != nil {
-						configLogger().Warn("dynamic group: local ip refused", "error", formErr)
-					} else {
-						ps.LocalAddress = addr
-					}
-				}
-			}
-		}
-	}
-
-	// Parse timers from timer container.
-	if timerMap, ok := tree["timer"].(map[string]any); ok {
-		if v, ok := parseUintFromMap(timerMap, "receive-hold-time"); ok {
-			ps.ReceiveHoldTime = time.Duration(v) * time.Second
-		}
-		if v, ok := parseUintFromMap(timerMap, "send-hold-time"); ok {
-			ps.SendHoldTime = time.Duration(v) * time.Second
-		}
-		if v, ok := parseUintFromMap(timerMap, "keepalive"); ok {
-			ps.KeepaliveTime = time.Duration(v) * time.Second
-		}
-		if v, ok := parseUintFromMap(timerMap, "connect-retry"); ok {
-			ps.ConnectRetry = time.Duration(v) * time.Second
-		}
-	}
-
-	// Parse next-hop mode from session > next-hop.
-	//
-	// RFC 2545 Section 3: an explicit address goes straight into the global slot
-	// of the MP_REACH Next Hop field, so a link-local one is refused here for the
-	// same reason as the local address above. A refused value leaves NextHopMode
-	// on its default, so no rewrite is emitted.
-	if sessionMap != nil {
-		if nhStr, ok := sessionMap["next-hop"].(string); ok {
-			switch nhStr {
-			case "self":
-				ps.NextHopMode = reactor.NextHopSelf
-			case "unchanged":
-				ps.NextHopMode = reactor.NextHopUnchanged
-			default:
-				if addr, err := netip.ParseAddr(nhStr); err == nil {
-					if formErr := reactor.ValidatePeerGlobalNextHop(tmpl.GroupName, "next-hop", addr); formErr != nil {
-						configLogger().Warn("dynamic group: next-hop refused", "error", formErr)
-					} else {
-						ps.NextHopMode = reactor.NextHopExplicit
-						ps.NextHopAddress = addr
-					}
-				}
-			}
-		}
-	}
-
-	// The address families and capabilities a dynamic peer offers come from the
-	// same parser the statically configured peer uses. The group's `session >
-	// family` block is the operator's whole statement of what the session is
-	// for, and a template that never reads it advertises no Multiprotocol
-	// capability: the session establishes, negotiates an empty family set, and
-	// exchanges nothing (reactor.ApplyNegotiationConfig).
-	//
-	// The error is logged and dropped rather than returned, exactly as the two
-	// next-hop refusals above are: this builder has no error channel and neither
-	// has dynamicGroupsFromTree. Only a malformed family key reaches it, and YANG
-	// refuses one already (`ze:validate "registered-address-family"`), so the path
-	// is reachable only from a caller that bypassed the schema. What survives is
-	// the families read before the bad key, which negotiates LESS than the
-	// operator asked for and never more.
-	if err := reactor.ApplyNegotiationConfig(tmpl.GroupName, sessionMap, ps); err != nil {
-		configLogger().Warn("dynamic group: family or capability config refused", "error", err)
-	}
-
-	// Parse behavior flags.
-	if behaviorMap, ok := tree["behavior"].(map[string]any); ok {
-		if v, ok := behaviorMap["group-updates"].(string); ok && v == configFalse {
-			ps.GroupUpdates = false
-		}
-		if v, ok := behaviorMap["rs-fast-path"].(string); ok && v == configTrue {
-			ps.RSFastPath = true
-		}
-	}
-
-	return ps
-}
-
-// parseUintFromMap extracts a uint32 from a map value that may be a string.
-func parseUintFromMap(m map[string]any, key string) (uint32, bool) {
-	v, ok := m[key].(string)
-	if !ok {
-		return 0, false
-	}
-	n, err := strconv.ParseUint(v, 10, 32)
-	if err != nil {
-		return 0, false
-	}
-	return uint32(n), true
-}
-
-// applyPeerSchemaDefaults applies YANG defaults to each peer entry in the resolved BGP tree.
+// applyPeerSchemaDefaults applies YANG defaults to each peer entry in the resolved
+// BGP tree, and to each dynamic group's template.
 // This makes YANG the single source of truth for defaults (RFC hold-time, port, etc.)
 // instead of duplicating them as Go constants in NewPeerSettings.
+//
+// The dynamic group takes the PEER schema's defaults, because its template
+// becomes a peer: every member of the group is built from it. A group left out
+// of this walk takes whatever NewPeerSettings happens to state instead, so a
+// YANG default corrected in one place would reach the static peer alone.
 func applyPeerSchemaDefaults(bgpTree map[string]any) {
 	schema, err := config.YANGSchema()
 	if err != nil {
@@ -450,13 +364,17 @@ func applyPeerSchemaDefaults(bgpTree map[string]any) {
 		return
 	}
 
-	peerMap, ok := bgpTree["peer"].(map[string]any)
-	if !ok {
-		return
+	if peerMap, ok := bgpTree["peer"].(map[string]any); ok {
+		for _, v := range peerMap {
+			if entry, ok := v.(map[string]any); ok {
+				config.ApplyDefaults(entry, peerSchema)
+			}
+		}
 	}
-	for _, v := range peerMap {
-		if entry, ok := v.(map[string]any); ok {
-			config.ApplyDefaults(entry, peerSchema)
+
+	if templates, ok := bgpTree["dynamic-groups"].([]DynamicGroupTemplate); ok {
+		for _, tmpl := range templates {
+			config.ApplyDefaults(tmpl.Template, peerSchema)
 		}
 	}
 }
@@ -636,7 +554,7 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 // Each loop-detection entry in bgp > policy > loop-detection has allow-own-as and cluster-id
 // leaves. When a peer's import filter chain contains the entry's name, its PeerSettings
 // receives the corresponding values.
-func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*reactor.PeerSettings) {
+func applyLoopDetectionConfig(bgpContainer *config.Tree, peers []*reactor.PeerSettings) {
 	policyTree := bgpContainer.GetContainer("policy")
 	if policyTree == nil {
 		return
@@ -647,7 +565,7 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*r
 		return
 	}
 
-	for _, ps := range peerIndex {
+	for _, ps := range peers {
 		for _, ref := range ps.ImportFilters {
 			entry, ok := ldEntries[ref.Name]
 			if !ok {
@@ -687,7 +605,7 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*r
 // if not already present (explicitly or as inactive:). Default filters come from
 // loop-detection entries in the policy section. Each entry's name is prepended
 // to ImportFilters so loop detection runs first in the chain.
-func prependDefaultFilters(bgpContainer *config.Tree, peerIndex map[string]*reactor.PeerSettings) {
+func prependDefaultFilters(bgpContainer *config.Tree, peers []*reactor.PeerSettings) {
 	policyTree := bgpContainer.GetContainer("policy")
 	if policyTree == nil {
 		return
@@ -705,7 +623,7 @@ func prependDefaultFilters(bgpContainer *config.Tree, peerIndex map[string]*reac
 	}
 	sort.Strings(defaults)
 
-	for _, ps := range peerIndex {
+	for _, ps := range peers {
 		for _, dflt := range defaults {
 			if filterChainContains(ps.ImportFilters, dflt) {
 				continue

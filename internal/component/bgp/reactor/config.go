@@ -48,11 +48,14 @@ const (
 // already resolved with template inheritance.
 // name is the peer's name (the list key in the config).
 // localAS and routerID are global defaults from the bgp block.
+//
+// It owns the two leaves a STATIC peer must carry and a dynamic group cannot:
+// the remote address and the remote AS. Everything else a peer's config states
+// is read by parsePeerSettings, which ParseDynamicGroupTemplate calls with the
+// same tree shape.
 func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint32) (*PeerSettings, error) {
-	// Navigate nested containers.
-	connMap, _ := mapMap(tree, "connection")
 	sessionMap, _ := mapMap(tree, "session")
-	behaviorMap, _ := mapMap(tree, "behavior")
+	connMap, _ := mapMap(tree, "connection")
 
 	// Remote AS from session > asn > remote (required).
 	var peerAS uint32
@@ -69,10 +72,8 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 
 	// Remote IP from connection > remote > ip (required).
 	var remoteIPStr string
-	var connRemoteMap map[string]any
 	if connMap != nil {
-		connRemoteMap, _ = mapMap(connMap, "remote")
-		if connRemoteMap != nil {
+		if connRemoteMap, ok := mapMap(connMap, "remote"); ok {
 			remoteIPStr, _ = mapString(connRemoteMap, "ip")
 		}
 	}
@@ -85,6 +86,54 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	ip, err := netip.ParseAddr(remoteIPStr)
 	if err != nil {
 		return nil, fmt.Errorf("peer %s: invalid remote ip %q: %w", name, remoteIPStr, err)
+	}
+
+	return parsePeerSettings(name, tree, ip, peerAS, localAS, routerID)
+}
+
+// ParseDynamicGroupTemplate parses a dynamic peer group's resolved config tree
+// into the PeerSettings template every member of that group is built from
+// (buildDynamicPeerSettings, reactor_dynamic.go).
+//
+// A dynamic group's template tree has the SAME shape as a peer's: ResolveBGPTree
+// (../config/resolve.go) merges the bgp-level defaults under the group's own
+// fields, exactly as it does for a peer. So the template is parsed by the SAME
+// function as a statically configured peer, and a leaf added to that parser is
+// inherited by both. A second parser that reads the leaves somebody remembered
+// is what dropped the group's `family` block, its timers validation, its MD5
+// password, its BFD opt-in and its process bindings, each of them silently.
+//
+// Two leaves are the group's alone and are the whole divergence: it states no
+// remote address (the member's address arrives with the TCP connection) and no
+// remote AS (it arrives in the OPEN, RFC 4271 Section 4.2). PeerAS therefore
+// stays 0 here and is filled by resolveDynamicPeerSettings at establishment.
+func ParseDynamicGroupTemplate(groupName string, tree map[string]any, localAS, routerID uint32) (*PeerSettings, error) {
+	ps, err := parsePeerSettings(groupName, tree, netip.Addr{}, 0, localAS, routerID)
+	if err != nil {
+		return nil, err
+	}
+	ps.Name = groupName
+	ps.GroupName = groupName
+	ps.IsDynamic = true
+	// `ip dynamic` requires `connect false` (resolveDynamicGroup), so the group
+	// only ever accepts. Stating it here keeps a template that reached this
+	// point some other way from producing a peer that dials.
+	ps.Connection = ConnectionPassive
+	return ps, nil
+}
+
+// parsePeerSettings reads every leaf a BGP peer's config states, given the
+// remote address and remote AS its caller resolved. It is the one parser behind
+// parsePeerFromTree and ParseDynamicGroupTemplate.
+func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, localAS, routerID uint32) (*PeerSettings, error) {
+	// Navigate nested containers.
+	connMap, _ := mapMap(tree, "connection")
+	sessionMap, _ := mapMap(tree, "session")
+	behaviorMap, _ := mapMap(tree, "behavior")
+
+	var connRemoteMap map[string]any
+	if connMap != nil {
+		connRemoteMap, _ = mapMap(connMap, "remote")
 	}
 
 	// Local AS from session > asn > local (optional per-peer override).
