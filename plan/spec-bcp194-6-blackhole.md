@@ -37,12 +37,13 @@ for a blackhole change, with it exactly one RTN_BLACKHOLE and no gateway. No
 test looked, because `test/plugin/fib-blackhole.ci` is a blind hold and the only
 producer of a route type before phase 1 was the `fakefib` test plugin.
 
-`rfc/enrolled.txt` is untouched, which the owner directed: enrolling RFC 7999
-needs an extraction sign-off, and that is a separate step nobody has authorised.
-The scenario carries NO `RFC requirement:` tag: an interop-tier tag is a
-permanent `check_evidence_ratchet` commitment and is the owner's to make. It
-WOULD serve RFC7999-3.3-1 (positive and negative), RFC7999-3.3-2 (positive and
-negative) and RFC7999-4-1 (positive).
+Both items this paragraph left open were closed on 2026-08-13, in the enrolment
+step recorded below. `rfc/enrolled.txt` now carries `rfc7999`, on the extraction
+sign-off it was waiting for. The scenario now carries four `RFC requirement:`
+tags, serving RFC7999-3.3-1 and RFC7999-3.3-2 in both polarities at
+`interop/nightly`. RFC7999-4-1 was left untagged on purpose: the scenario would
+serve it positively, but it is SHOULD NOT and nothing gates it, so the tag would
+buy a permanent `check_evidence_ratchet` commitment that no gate reads.
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -98,11 +99,32 @@ Reach enrolment with the MUSTs already proven or already annotated. Six ratchets
 judge the stem from that commit on, and a stem that enrols and then loses a
 proof is what they refuse.
 
-### Enrolment prepared 2026-08-13, NOT taken (one owner ruling is owed)
+### Enrolment TAKEN 2026-08-13, on an owner ruling
 
-Four of the five enrolment steps are done. `rfc/enrolled.txt` is untouched,
-because taking the fifth step today would land a red gate that the ratchets then
-hold.
+All five steps are done and `rfc7999` is in `rfc/enrolled.txt`. The gate counts
+171 enrolled RFCs and 2967 gated MUSTs, up 4, which are this RFC's four.
+
+**Thomas ruled on RFC7999-3.1-2 on 2026-08-13, having seen both options and the
+fact that Ze does originate BLACKHOLE announcements.** He chose the annotation
+over making Section 3.1 testable. It is written on the checklist line in
+`rfc/short/rfc7999.md` and it does NOT rest on an absent code path: it rests on
+the obligation binding the two networks rather than the BGP speaker. That makes
+it the first `{not-applicable}` in the corpus on those grounds, and both the
+annotation and the `rfc/enrolled.txt` row say so, because a reader who assumes
+the usual grounds will misread it.
+
+Driving `evaluate()` in `scripts/dev/rfc_requirements.py` over the summary and
+the live tag set, with `rfc7999` enrolled, returned one violation before the
+annotation and zero after.
+
+**Two items noted here rather than fixed, by owner direction.** The stale
+`blackholePropagationGuard` comment was corrected in the same change and has its
+journal row. The commit-helper gate has a row of its own at
+`plan/journal/gate-fires-outside-its-population.md`: `spec_closure_stem` reads
+any new journal row naming a spec as a closure signal, so it will refuse
+ordinary mid-spec commits now that CLAUDE.md mandates a row per defect found.
+
+### What the enrolment rests on (recorded 2026-08-13)
 
 | Step | State |
 |------|-------|
@@ -110,7 +132,8 @@ hold.
 | Register | `prose`, not the `rfc2119` this spec predicted. The register is DERIVED and the derivation is right: `prose` is also derived when the source has FEWER MUST-level sites than the summary declares gated rows. RFC 7999 has 3 body sites for 4 gated rows, because Section 3.3's first sentence states one obligation with two bullets and the site scan sees the lead-in sentence alone. No `register-reason` is owed, and none is written |
 | Public row | UPDATED, not added. The phase 4 row stood but carried a false claim; see below |
 | Interop tags | DONE. `test/interop/scenarios/59-rfc7999-blackhole-frr/check.py` now tags RFC7999-3.3-1 and RFC7999-3.3-2 in both polarities, at `interop/nightly`. This is a permanent `check_evidence_ratchet` commitment: neither requirement may afterwards be proven by unit evidence alone. That is the right commitment, because the kernel-state assertion is the only thing that caught the phase 4 defect |
-| Disposition | NOT taken. `rfc7999` stays in `rfc/not-enrolled.txt`, with its reason corrected |
+| Disposition | DONE. `rfc7999` left `rfc/not-enrolled.txt` and arrived in `rfc/enrolled.txt` in one change, which is what `check_summary_disposition` requires: deleting the row alone returns the stem to the undeclared state it refuses |
+| The four MUSTs | Three proven in both polarities, two of them at `interop/nightly` as well as unit. The fourth annotated, on the ruling above |
 
 **The phase 4 ledgers carried a false claim, and it is withdrawn.** Both
 `docs/features/rfc-status.md` and `rfc/not-enrolled.txt` said RFC7999-3.1-2 has
@@ -119,27 +142,22 @@ no producer "because Ze originates no BLACKHOLE-tagged announcement". Ze does.
 (`internal/component/bgp/plugins/cmd/announce/announce.go`) builds a route
 carrying `attribute.CommunityBlackhole` and sends it to the peers the command
 selector names. It consults no record of any agreement, and no configuration
-holds one.
+holds one. **That correction is what the ruling was made on**, so the annotation
+states it rather than resting on the absent-code-path grounds every other
+`{not-applicable}` in `rfc/short/` uses.
 
-**What blocks enrolment is exactly one requirement, and this is measured rather
-than reasoned.** Driving `evaluate()` in `scripts/dev/rfc_requirements.py` over
-the summary and the live tag set, with `rfc7999` added to the enrolled set,
-returns one violation: `RFC7999-3.1-2 [MUST] has no test and no annotation`.
-
-**The ruling that is owed.** RFC 7999 Section 3.1 states "use of the BLACKHOLE
-community MUST be agreed upon by the two networks before advertising it". Its
-actor is "the two networks", where Section 3.3's first sentence says "BGP
-speakers", so the document draws the distinction deliberately. Two readings
-follow and the owner picks one:
-
-| Reading | What it costs |
-|---------|---------------|
-| The obligation binds an out-of-band agreement between operators, so no daemon can be held to it | An owner-authorised `{not-applicable}` annotation on RFC7999-3.1-2, and enrolment lands the same day |
-| The obligation is met the way Section 3.3's second condition already is, by a per-peer leaf that RECORDS the agreement and a speaker that refuses to advertise without it | A Tx agreement leaf defaulting off, a gate in `handleAnnounceBlackhole`, and a tagged pair. The second advertising path is already covered: a received BLACKHOLE-tagged route is withheld from egress once the Section 3.2 guard adds NO_EXPORT or NO_ADVERTISE, because `Reactor.wellKnownAllowsEgress` (`internal/component/bgp/reactor/forward_wellknown.go`) suppresses such a route and RFC1997-Well-1, Well-2 and Well-3 each carry both polarities. So the work is bounded by the `announce` path |
-
-The second reading is a spec, not a step. Neither is written here, because an
-annotation that lowers what Ze owes is the owner's to authorise
-(`ai/rules/rfc-compliance.md`).
+**The reading that was NOT chosen, kept because it is the shape of any future
+work here.** Section 3.1's obligation could instead be met the way Section 3.3's
+second condition already is: a per-peer leaf that RECORDS the agreement, and a
+speaker that refuses to advertise without it. That would be a Tx agreement leaf
+defaulting off, a gate in `handleAnnounceBlackhole`, and a tagged pair. The
+second advertising path needs nothing: a received BLACKHOLE-tagged route is
+withheld from egress once the Section 3.2 guard adds NO_EXPORT or NO_ADVERTISE,
+because `Reactor.wellKnownAllowsEgress`
+(`internal/component/bgp/reactor/forward_wellknown.go`) suppresses such a route,
+and RFC1997-Well-1, Well-2 and Well-3 each carry both polarities. Thomas chose
+the annotation over this on 2026-08-13. Reopening it needs a fresh ruling, not a
+citation of this paragraph.
 
 ## Design (settled 2026-08-13, re-read against HEAD)
 
