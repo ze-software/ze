@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Deferral shard | - |
-| Updated | 2026-08-09 |
+| Updated | 2026-08-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -66,6 +66,15 @@ Written from an assessment Thomas asked for on 2026-08-09.
   `RenderL2TPTemplate` return `template.HTML` and swallow every error.
 - [x] `internal/component/lg/render.go` - `parseLGTemplates`, `renderPage`,
   `renderFragment`, `renderToString`. Second, independent template set.
+  → Constraint: `renderPage` and `renderFragment` already handle errors
+    correctly. Each logs and returns HTTP 500. They are not the sloppy path.
+    They never FIRE, because `html/template` returns no error for a missing
+    key on a `map[string]any`: it renders an empty value and reports success.
+    Measured 2026-08-14 against the stdlib: a missing STRUCT field gives
+    `can't evaluate field Titel in type main.View`, a missing MAP key gives
+    `err=<nil>` and empty output. So `lg` is the worse surface, not the
+    better-handled one, and no error-handling fix can reach it. Only typing
+    the data can. This is what AC-8 exists to force.
 - [x] `internal/component/web/page_ip_routes.go` - `HandleRoutesPage`, the
   representative page: builds a struct, calls `RenderFragment`, emits no markup.
 - [x] `internal/component/web/page_interfaces.go` - `writeKV` escapes both key
@@ -127,7 +136,7 @@ route and no plugin emits HTML.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `cmd/ze/hub/service_web.go` ↔ web package | calls `RenderFragment("diff_modal")` and writes the bytes itself | Yes, a Renderer consumer outside the package |
+| `cmd/ze/hub/service_web.go` ↔ web package | FOUR entry points, not one: `NewRenderer`, `RenderLogin` (inside `loginRenderer`, which reaches `AuthMiddlewareWithAudit` and `LoginHandlerWithAudit`), `RenderFragment("diff_modal_open")`, `RenderFragment("diff_modal")`. It also passes the `Renderer` into `zeweb.RouteDeps` | Yes, read 2026-08-14. A phase-3 port that covers only `diff_modal` leaves the hub-served LOGIN page broken |
 | web ↔ lg | none; independent renderers, no shared code | Yes |
 | web ↔ `internal/chaos/web` | none; separate surface behind `ze_chaos` | Yes |
 
@@ -158,7 +167,7 @@ route and no plugin emits HTML.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Generated `*_templ.go` drifts from its `.templ` source | `ze-tracked-build-check` goes red, or worse stays green with stale output | `make ze-templ-generate-check`, modelled on `ze-plugin-imports-check` (`Makefile:214`); the generated file is committed with its consumer |
-| R-2 | Doc prose goes stale silently | none: `check_path_exists` validates the anchor PATH only, so the 9 anchors naming `render.go` / `fragment.go` / `lg/layout.go` symbols pass even when those symbols are gone | update the three web architecture docs by hand in each phase |
+| R-2 | Doc prose goes stale silently | RESOLVED 2026-08-14, and the mitigation inverts. `scripts/dev/code_to_docs.py` gained `check_anchor_symbols` on 2026-08-10 (commit `1307a1170`), so it now verifies the SYMBOL an anchor names, not just the path | the implementer meets a RED `make ze-doc-test`, not silent drift. Budget for it in each phase instead of hand-auditing. The anchors sit in `web-components.md` and `web-interface.md`; `web-workbench-pages.md` carries none |
 | R-3 | Mutation testing scans generated code | `gomu` runtime rises, noise in results | add a `_templ.go` pattern to `.gomuignore` (`mk/test-mutation.mk`) |
 | R-4 | Big-bang scope collides with no-layering | a phase cannot be committed without two engines live at once | phase per RENDERER, not per page: `lg` complete in one commit, `web` complete in another |
 | R-5 | Double-escaping ships unnoticed | an operator sees `&lt;` in a field value | delete every `template.HTMLEscapeString` at each ported call site; `TestDecorationHTMLEscaped` covers the decorated path |
@@ -175,9 +184,10 @@ route and no plugin emits HTML.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| HTTP GET a looking-glass graph page | → | ported templ component replacing `renderPage` / `renderToString` | `TestRenderSVG` and `TestRenderSVGWithNames` (existing test, must stay green) |
-| HTTP GET the looking-glass with a token | → | ported `lg` page component | `TestLGTokenMiddleware` (existing test) |
-| HTTP GET `/show/interface/` in the workbench | → | ported component replacing `RenderFragment("workbench_table")` | `TestInterfaceTableData_Build` (existing test) |
+| HTTP GET a looking-glass graph page | → | ported templ component replacing `renderPage` / `renderToString` | NEW test required. `TestRenderSVG` / `TestRenderSVGWithNames` do NOT cover this: they build a `Graph` and call `renderGraphSVG` (`internal/component/lg/layout.go`), a `strings.Builder` path that never reaches `renderPage` |
+| HTTP GET the looking-glass with a token | → | ported `lg` page component | NEW test required. `TestLGTokenMiddleware` asserts HTTP status only, so it stays green whether or not the page body renders |
+| HTTP GET `/show/interface/` in the workbench | → | ported component replacing `RenderFragment("workbench_table")` | NEW test required. `TestInterfaceTableData_Build` asserts struct fields (`data.Title`, `data.Rows[0].Key`) and renders nothing |
+| Every reachable page, before and after the port | → | the golden-output capture | `make ze-web-golden-check` (new, phase 1). This is the ONLY evidence for AC-2 |
 | HTTP GET the config editor layout | → | ported component replacing `RenderLayout` | `TestRenderLayout` (existing test) |
 | HTMX POST deleting a list entry | → | ported `HandleFragment` OOB path | `test/ui/web-delete-list-entry.ci` |
 | HTMX POST committing config | → | ported `WriteOOBError` and commit bar | `test/ui/web-commit-transactional.ci` |
@@ -188,12 +198,13 @@ route and no plugin emits HTML.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A view-model field is renamed without updating its markup | `go build` fails. Today the page renders blank. |
-| AC-2 | Every page and fragment reachable in the web UI is requested | Rendered bytes are unchanged from before the migration |
+| AC-2 | Every page and fragment reachable in the web UI is requested | Rendered bytes are unchanged from before the migration, proved by diffing against the golden capture taken in phase 1. The `strings.Contains` suite CANNOT prove this and is not evidence for it |
 | AC-3 | `make generate` runs on a clean tree | No file changes. Generated output is in sync with its `.templ` sources |
 | AC-4 | A package is declared migrated | No `html/template` parse call remains in it (no-layering) |
 | AC-5 | A value containing `<script>` reaches any rendered field | It appears escaped exactly once, never twice, never raw |
-| AC-6 | The ported template set is scanned for inline script and style | Still none, as today |
-| AC-7 | The web and lg packages are scanned for HTML tag literals in Go | None outside a `.templ` file. Today 18 files carry 143 such lines |
+| AC-6 | The ported template set is scanned for inline script and style | Still none, as today. The scan MUST walk `.templ` files: today's walk filters on a `.html` suffix, so a port that changes the extension makes the check pass over zero files |
+| AC-7 | The web and lg packages are scanned for HTML tag literals in Go | None outside a `.templ` file. The scan MUST match backtick raw strings, which carry 99 of the 107 sites; the double-quoted form the Deliverables grep looks for carries only 8, all in `page_snapshot.go` |
+| AC-8 | An `lg` page's view data is inspected after the port | It is a named struct. No `map[string]any` reaches a templ component. Renaming one of its fields fails the build, as AC-1 requires for `web`. Without this, porting `lg` to templ buys nothing: an unchecked map key stays unchecked inside a templ component |
 
 ## End-to-End User Stories
 
@@ -202,7 +213,7 @@ route and no plugin emits HTML.
 | 1 | Deletes a list entry in the config editor | HTTP → `HandleFragment` → templ component → HTMX OOB swap | `test/ui/web-delete-list-entry.ci` |
 | 2 | Commits a config change and sees the result | HTTP → commit handler → `WriteOOBError` or commit bar → OOB swap | `test/ui/web-commit-transactional.ci` |
 | 3 | Has a rejected commit reported back | HTTP → commit handler → error panel component | `test/ui/web-commit-reject.ci` |
-| 4 | Opens a looking-glass AS-path graph | HTTP → `lg` handler → ported SVG component | `TestRenderSVGWithNames` |
+| 4 | Opens a looking-glass AS-path graph | HTTP → `lg` handler → ported SVG component | NEW test required. `TestRenderSVGWithNames` calls `renderGraphSVG` directly and never exercises the handler or `renderPage`, so it cannot prove this story |
 | 5 | Signs in to the web UI | HTTP → `RenderLogin` replacement | `TestRenderLogin` and `test/plugin/web-auth.ci` |
 
 ## 🧪 TDD Test Plan
@@ -215,10 +226,12 @@ route and no plugin emits HTML.
 | `TestRenderLogin`, `TestRenderLoginOverlay` | `internal/component/web/render_test.go` | login page bytes unchanged; AC-2 | existing, must stay green |
 | `TestRenderFieldResolvesDecoration` | `internal/component/web/render_test.go` | the input-type dispatch survives; A-4 | existing, must stay green |
 | `TestDecorationHTMLEscaped` | `internal/component/web/render_test.go` | AC-5, escaped exactly once | existing, must stay green |
-| `TestTemplatesAvoidInlineScriptAndStyle` | `internal/component/web/render_test.go` | AC-6 over the ported set | existing, must stay green |
+| `TestTemplatesAvoidInlineScriptAndStyle` | `internal/component/web/render_test.go` | AC-6 over the ported set | existing, MUST BE EDITED. Its `fs.WalkDir` skips any path without a `.html` suffix, so after the port it walks zero files and passes vacuously. Change the suffix to `.templ` in the SAME commit that renames the templates, and confirm it still counts the files it visited |
 | `TestRenderSVG`, `TestRenderSVGWithNames` | `internal/component/lg/layout_test.go` | `lg` output unchanged; AC-2 | existing, must stay green |
 | `TestRouteTableData_Build`, `TestInterfaceTableData_Build` | `internal/component/web/page_*_test.go` | view models untouched by the port | existing, must stay green |
-| `TestTemplComponentTypeSafety` | `internal/component/web/render_test.go` | AC-1: a renamed field fails the build | new |
+| `TestTemplComponentTypeSafety` | NOT `render_test.go` -- see next column | AC-1: a renamed field fails the build | new, and the spec MUST name its mechanism before phase 4 starts. A test that observes a compile failure cannot live in the package under test: a non-compiling file takes its whole package down, so the suite would not run to report the result. The repo has no compile-failure harness today. Options: a `testdata/` fixture package compiled by `go/packages` from a normal test, or a `.ci` shell test asserting a non-zero build exit. Pick one in phase 1, not phase 4 |
+| `TestLGViewDataIsTyped` | `internal/component/lg/render_test.go` | AC-8: no `map[string]any` reaches a templ component | new |
+| golden-output capture and diff | `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go` | AC-2, the only evidence for it | new, phase 1, BEFORE any page is ported |
 
 ### Boundary Tests (numeric inputs)
 N-A. No numeric input is introduced or changed.
@@ -259,6 +272,10 @@ N-A. Scope is tooling; no wire-visible behavior changes.
 ## Files to Create
 - `internal/component/lg/templates/*.templ` and generated `*_templ.go`
 - `internal/component/web/templates/*.templ` and generated `*_templ.go`
+- a new `lg` file holding one named view-model struct per page (AC-8), replacing
+  the `map[string]any` that `renderPage` takes today
+- `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go`
+  and their captured fixtures, created in phase 1 against the UNPORTED tree
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -303,17 +320,39 @@ Phased per RENDERER, because `ai/rules/no-layering.md` forbids two engines
 coexisting as a steady state. Each phase is one commit that fully replaces one
 renderer.
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- toolchain only, no page ported
-   - Tests: `make ze-templ-generate-check` (new, from the Wiring Test table)
-   - Files: `tools.go`, `go.mod`, `go.sum`, `vendor/`, `Makefile`, `.gomuignore`
-   - Verify: the check target fails while nothing is generated, then passes.
-     `make ze-tracked-build-check` stays green. Measure the real vendor delta
-     and settle A-1 before going further. If A-1 breaks, STOP and report.
+1. **Phase: Wiring (MANDATORY FIRST)** -- toolchain and EVIDENCE, no page ported
+   - Tests: `make ze-templ-generate-check` (new), `make ze-web-golden-check` (new)
+   - Files: `tools.go`, `go.mod`, `go.sum`, `vendor/`, `Makefile`, `.gomuignore`,
+     `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go`
+   - **The golden capture happens HERE, against the UNPORTED tree.** It is the
+     only thing that can prove AC-2, and it is unobtainable once a page is
+     ported: the bytes it must compare against no longer exist. Capturing it
+     late is the one mistake in this spec that cannot be corrected later.
+   - Also settle in this phase, because each blocks a later phase and each is
+     cheap now: the compile-failure mechanism for AC-1, and the A-1 number.
+   - Verify: the check targets fail while nothing is generated, then pass.
+     `make ze-tracked-build-check` stays green.
+   - **A-1 stop condition, stated as a number so it is decidable:** `vendor/`
+     is 46M today. STOP and report if the delta exceeds 8M, which is a 17%
+     rise for one build-time generator. Below that, proceed and record the
+     measurement. The x/vuln precedent (`Makefile`) refuses on the SHAPE of
+     the churn rather than a size, so it supplies no threshold; this one is
+     set here to make the go/no-go answerable rather than a judgement call
+     made under implementation pressure.
 2. **Phase: `lg`** -- 8 templates, 356 lines, one renderer, `map[string]any` data
-   - Tests: `TestRenderSVG`, `TestRenderSVGWithNames`, `TestLGTokenMiddleware`
-   - Files: `internal/component/lg/render.go`, `lg/layout.go`, `lg/templates/`
-   - Verify: rendered bytes unchanged, no `html/template` parse call left in
-     the package. This phase settles A-3. If it grates, STOP and report.
+   - Tests: `TestLGViewDataIsTyped` (new, AC-8), the golden diff from phase 1,
+     and NEW page-level tests, because the three the spec used to name here
+     do not reach `renderPage` (see the Wiring Test table)
+   - Files: `internal/component/lg/render.go`, `lg/layout.go`, `lg/templates/`,
+     plus a new file holding the per-page view-model structs
+   - **Introduce a named struct per lg page and delete `map[string]any` from
+     the render path.** Porting the markup while still passing maps satisfies
+     every other criterion here and buys NOTHING, because an unchecked map key
+     stays unchecked inside a templ component. AC-8 exists to refuse that
+     outcome. This is the phase's primary deliverable; the markup port is
+     secondary to it.
+   - Verify: AC-8, golden bytes unchanged, no `html/template` parse call left
+     in the package. This phase settles A-3. If it grates, STOP and report.
 3. **Phase: `web`** -- 57 templates, the string-keyed dispatch maps, and
    `fieldFor`'s runtime `input_<type>` lookup
    - Tests: `TestNewRenderer`, `TestRenderLayout`, `TestRenderLogin`,
@@ -321,7 +360,11 @@ renderer.
      `TestTemplatesAvoidInlineScriptAndStyle`, then the seven `.ci` tests
    - Files: `web/render.go`, `web/fragment.go`, `web/sse.go`, `web/templates/`,
      `cmd/ze/hub/service_web.go`
-   - Verify: rendered bytes unchanged across every reachable page; A-4 settled
+   - `service_web.go` uses FOUR renderer entry points (Boundaries Crossed), not
+     the one the table used to name. `RenderLogin` reaches it through
+     `loginRenderer`, which both `AuthMiddlewareWithAudit` and
+     `LoginHandlerWithAudit` hold. Port all four or sign-in breaks.
+   - Verify: golden bytes unchanged across every reachable page; A-4 settled
 4. **Phase: Type-safety proof and docs**
    - Tests: `TestTemplComponentTypeSafety` (new), proving AC-1
    - Files: the three web architecture docs and their 9 source anchors
@@ -354,8 +397,10 @@ renderer.
 | No engine coexistence | `grep -rn 'html/template' internal/component/web internal/component/lg` returns nothing after phase 3 |
 | Generated output in sync | `make ze-templ-generate-check` |
 | Vendor delta measured | `du -sh vendor` before and after, recorded against A-1 |
-| Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed |
-| No HTML literals left in Go (AC-7) | `grep -rn 'Str("<' internal/component/web internal/component/lg` returns nothing outside generated files |
+| Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed, through the mechanism chosen in phase 1 |
+| `lg` view data typed (AC-8) | No `map[string]any` in the `lg` render path; `TestLGViewDataIsTyped` green |
+| Rendered bytes unchanged (AC-2) | `make ze-web-golden-check` against the phase-1 capture. Nothing else proves this |
+| No HTML literals left in Go (AC-7) | Match BOTH string forms. The double-quoted `Str("<` finds 8 sites, all in `page_snapshot.go`; the backtick raw-string form (`Str(` and `WriteString(` followed by a backtick and `<`) finds 99 more. A grep for the double-quoted form alone was already near-vacuous before any work started, so it MUST NOT be the deliverable's check |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -393,7 +438,7 @@ renderer.
 |----------|------------------------|-----------|
 | Phase per renderer | Phase per page (strangler fig) | `ai/rules/no-layering.md` forbids two engines as a steady state |
 | `lg` first | `web` first | 356 lines against 1631, self-contained, and its `map[string]any` data path has the most to gain. One session buys the decision. |
-| Keep the view-model structs | Move data assembly into components | The page layer's separation already works and 30 files depend on it. templ replaces the markup layer only. |
+| Keep the view-model structs in `web`. INTRODUCE them in `lg` | Move data assembly into components; or port `lg` markup while keeping its maps | `web` already separates view models from markup and 30 files depend on it, so templ replaces its markup layer only. `lg` has no structs to keep: its render path takes `map[string]any`, which is the reason its defects are invisible. "Keep the view-model structs" read as one rule for both packages would have made phase 2 a no-op purchase. AC-8 splits them. |
 
 ## Known Limitations
 - `internal/chaos/web` (5906 lines, its own `htmlWriter` and `escapeHTML`) is
@@ -409,7 +454,9 @@ N-A. Scope is tooling.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-7 all demonstrated
+- [ ] AC-1..AC-8 all demonstrated, each by a check that would FAIL if the
+      behavior broke (`ai/rules/interop-and-goal-validation.md`). Five ACs
+      carried non-discriminating proofs before 2026-08-14; do not reintroduce one
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
