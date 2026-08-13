@@ -175,7 +175,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 			listenPort := r.peerListenPort(settings)
 			lkey := net.JoinHostPort(settings.LocalAddress.String(), strconv.Itoa(listenPort))
 			if existing, hasListener := r.listeners[lkey]; !hasListener {
-				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort, settings.PeerKey()); err != nil {
+				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort); err != nil {
 					// Rollback peer addition
 					delete(r.peers, key)
 					return err
@@ -189,11 +189,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 				_ = existing.Wait(waitCtx)
 				cancel()
 				delete(r.listeners, lkey)
-				var peerKey netip.AddrPort
-				if settings.Port != 0 && settings.Port != DefaultBGPPort {
-					peerKey = settings.PeerKey()
-				}
-				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort, peerKey); err != nil {
+				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort); err != nil {
 					delete(r.peers, key)
 					return err
 				}
@@ -349,19 +345,15 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		r.fwdPool.unregisterOutgoingPool(fwdKey{peerAddr: key})
 	}
 
-	// Check if any other peer uses this listener (same LocalAddress + port)
+	// Check whether anything else still uses this listener. A dynamic group
+	// counts: it accepts on the same socket, and no peer entry represents it.
+	// Counting peers alone shuts the ear of a route server whose last static
+	// peer leaves.
 	if localAddr.IsValid() {
-		stillUsed := false
-		for _, p := range r.peers {
-			ps := p.Settings()
-			if ps.LocalAddress == localAddr && r.peerListenPort(ps) == listenPort {
-				stillUsed = true
-				break
-			}
-		}
+		claimants, _ := r.listenerClaimants(localAddr, listenPort)
 
 		// Stop listener if no longer needed
-		if !stillUsed {
+		if claimants == 0 {
 			lkey := net.JoinHostPort(localAddr.String(), strconv.Itoa(listenPort))
 			if listener, ok := r.listeners[lkey]; ok {
 				listener.Stop()

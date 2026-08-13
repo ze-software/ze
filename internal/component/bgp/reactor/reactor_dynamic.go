@@ -365,6 +365,29 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 			}
 		}
 	}
+
+	// Open a listener for a group that has none. On the startup path this does
+	// nothing: the reactor is not running yet, and startMultiListeners
+	// (reactor.go) opens every listener once it is. On a reload it is what makes
+	// a group added to a running daemon reachable. Nothing else opens a socket
+	// for a group.
+	//
+	// A listener no claimant needs is left alone here. Closing an accepting
+	// socket is the peer-removal path's decision (reactor_peers.go), and a group
+	// removal that shared the socket with a peer must not take it down.
+	if !r.running || r.stopping {
+		return
+	}
+	for _, dg := range groups {
+		s := dg.Settings
+		if s == nil || !s.LocalAddress.IsValid() || !s.Connection.IsPassive() {
+			continue
+		}
+		if err := r.startListenerForAddressPort(s.LocalAddress, r.peerListenPort(s)); err != nil {
+			reactorLogger().Error("dynamic group listener failed",
+				"group", dg.GroupName, "address", s.LocalAddress, "error", err)
+		}
+	}
 }
 
 // resolveDynamicPeerSettings sets PeerAS from the OPEN message and resolves

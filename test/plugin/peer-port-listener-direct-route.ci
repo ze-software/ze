@@ -1,0 +1,83 @@
+# Test: a listener that exactly one peer claims still routes by PORT, so an
+# inbound whose source address matches no configured peer reaches that one peer.
+#
+# VALIDATES: listenerPeerKey (internal/component/bgp/reactor/reactor_connection.go)
+#            returns a key when a single passive peer on a port of its own owns
+#            the socket, and handleDirectConnection then attributes without
+#            looking at the remote address at all.
+# PREVENTS: the loss of every custom-port topology in which the peer dials from an
+#           address the configuration does not name. This whole suite is one: the
+#           daemon runs on a private port and the scripted peer dials from
+#           127.0.0.1 whatever address the config gives the peer.
+#
+# DISCRIMINATION: the peer is configured as 127.0.0.2 and dials from 127.0.0.1, so
+# nothing but the listener's own identity can attribute this connection. Make the
+# socket attribute by remote address and there is no match and no dynamic group to
+# fall back on, so the connection is closed and the NOTIFICATION below never
+# arrives. The peer address in the established line is asserted for the same
+# reason: it is the only place the attribution is visible.
+
+option=env:var=ze.log.bgp.reactor:value=info
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65010
+option=tcp_connections:value=1
+
+# Cease (code 6) / Administrative Shutdown (subcode 2, RFC 4486) with the RFC 8203
+# shutdown communication: one length octet (0x17) and the 23-character default
+# text "Administrative Shutdown" (Session.Teardown).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+# One passive peer and no dynamic group: a single claimant on 127.0.0.1's listener.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	peer solo {
+		connection {
+			remote {
+				ip 127.0.0.2
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65010
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Trigger: let the session establish, then stop the daemon so the NOTIFICATION
+# above is sent.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 3
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
+
+# The connection was attributed to the configured peer, not to its source address.
+expect=stderr:pattern=session established.*peer=127.0.0.2
+reject=stderr:pattern=dynamic peer created

@@ -1249,41 +1249,41 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	return nil
 }
 
-// startMultiListeners starts per-address listeners based on peer LocalAddresses.
-// Each unique (LocalAddress, port) pair gets a listener. Peers with custom ports
-// get per-peer listeners (direct routing); peers with default port share a listener.
+// startMultiListeners starts one listener per unique (local address, port) pair
+// the configuration accepts connections on.
+//
+// A dynamic group contributes a pair of its own. No configuration names the
+// peers it will serve. Without this, a route-server config that declares only
+// groups binds no socket, and the kernel refuses every member it exists for.
 // Caller MUST hold r.mu.
 func (r *Reactor) startMultiListeners() error {
 	type listenerSpec struct {
-		addr    netip.Addr
-		port    int
-		peerKey netip.AddrPort
+		addr netip.Addr
+		port int
 	}
 	seen := make(map[string]struct{})
 	var specs []listenerSpec
-	for _, peer := range r.peers {
-		s := peer.Settings()
-		if !s.LocalAddress.IsValid() {
-			continue
-		}
-		if !s.Connection.IsPassive() {
-			continue
+	add := func(s *PeerSettings) {
+		if s == nil || !s.LocalAddress.IsValid() || !s.Connection.IsPassive() {
+			return
 		}
 		listenPort := r.peerListenPort(s)
 		lkey := net.JoinHostPort(s.LocalAddress.String(), strconv.Itoa(listenPort))
 		if _, ok := seen[lkey]; ok {
-			continue
+			return
 		}
 		seen[lkey] = struct{}{}
-		var peerKey netip.AddrPort
-		if s.Port != 0 && s.Port != DefaultBGPPort {
-			peerKey = s.PeerKey()
-		}
-		specs = append(specs, listenerSpec{addr: s.LocalAddress, port: listenPort, peerKey: peerKey})
+		specs = append(specs, listenerSpec{addr: s.LocalAddress, port: listenPort})
+	}
+	for _, peer := range r.peers {
+		add(peer.Settings())
+	}
+	for _, dg := range r.dynamicGroups {
+		add(dg.Settings)
 	}
 
 	for _, spec := range specs {
-		if err := r.startListenerForAddressPort(spec.addr, spec.port, spec.peerKey); err != nil {
+		if err := r.startListenerForAddressPort(spec.addr, spec.port); err != nil {
 			return err
 		}
 	}
@@ -1710,9 +1710,9 @@ func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
 }
 
 // startListenerForAddressPort creates and starts a listener on addr:port.
-// If peerKey is valid (non-zero), the listener is a per-peer-port listener that routes
-// directly to that peer (no remote IP matching). Otherwise, it's a shared listener
-// that matches incoming connections by remote IP.
+// handleListenerConnection (reactor_connection.go) attributes every connection
+// it accepts. That decision is taken per connection, not here, because a
+// listener outlives the configuration it was born under.
 // Must be called with r.mu held.
 //
 // This is the only place a listening socket is born after the reactor has
@@ -1721,14 +1721,15 @@ func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
 // notify budget: r.ctx stays live until the notify finishes, so a listener
 // started inside that window would accept, answer with an OPEN, and then be
 // closed by the cancel with nothing on the wire to say why (RFC 4271 Section
-// 8.2.2, ManualStop). All four call sites hold r.mu: startMultiListeners in this
+// 8.2.2, ManualStop). All five call sites hold r.mu: startMultiListeners in this
 // file, AddPeer twice (reactor_peers.go, once for a new listener and once to
-// restart one whose MD5 peer set changed) and handleAddrAddedPayload
+// restart one whose MD5 peer set changed), SetDynamicGroups (reactor_dynamic.go,
+// for a group a reload added) and handleAddrAddedPayload
 // (reactor_iface.go). The last one is a netlink address-added event, which
 // arrives on the EventBus delivery goroutine and is not unsubscribed until
 // cleanup, i.e. after the cancel. Gating the callers instead is what left this
 // rail open.
-func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey netip.AddrPort) error {
+func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int) error {
 	if r.stopping {
 		return fmt.Errorf("listen on %s: %w", net.JoinHostPort(addr.String(), strconv.Itoa(port)), errReactorStopping)
 	}
@@ -1744,19 +1745,11 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey
 	// Build listener factory with MD5 peers and GTSM listen-socket TTL for this port.
 	listener.SetListenerFactory(r.newListenerFactory(port))
 
-	if peerKey.IsValid() {
-		// Per-peer-port listener: route directly by peer key
-		capturedKey := peerKey
-		listener.SetHandler(func(conn net.Conn) {
-			r.handleDirectConnection(conn, capturedKey)
-		})
-	} else {
-		// Shared listener: match by remote IP
-		localAddr := addr
-		listener.SetHandler(func(conn net.Conn) {
-			r.handleConnectionWithContext(conn, localAddr)
-		})
-	}
+	localAddr := addr
+	listenPort := port
+	listener.SetHandler(func(conn net.Conn) {
+		r.handleListenerConnection(conn, localAddr, listenPort)
+	})
 
 	if err := listener.StartWithContext(r.ctx); err != nil {
 		return fmt.Errorf("listen on %s: %w", lkey, err)

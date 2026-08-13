@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc4271.md — Section 6.8, connection collision detection
 // Design: docs/architecture/core-design.md — TCP accept and collision detection (RFC 4271 §6.8)
 // Overview: reactor.go — BGP reactor event loop and peer management
 
@@ -97,9 +98,102 @@ func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.
 	r.acceptOrReject(conn, peer, cb)
 }
 
+// handleListenerConnection attributes an inbound connection that arrived on the
+// listener bound to addr:port.
+//
+// The attribution is decided HERE, per connection, and not when the socket was
+// created. A listener outlives the configuration it was born under. A reload can
+// add a peer or a dynamic group that claims the same address and port. A socket
+// carrying a peer key captured at birth would then serve every later connection
+// under the departed configuration's peer.
+//
+// listenerPeerKey returns a key only while exactly one claimant owns the socket.
+// The direct route below can therefore never take a connection from a claimant
+// it was not opened for. Every other case attributes by remote IP, which is what
+// the default-port listener has always done.
+func (r *Reactor) handleListenerConnection(conn net.Conn, listenerAddr netip.Addr, port int) {
+	r.mu.RLock()
+	peerKey := r.listenerPeerKey(listenerAddr, port)
+	r.mu.RUnlock()
+
+	if peerKey.IsValid() {
+		r.handleDirectConnection(conn, peerKey)
+		return
+	}
+	r.handleConnectionWithContext(conn, listenerAddr)
+}
+
+// listenerPeerKey returns the peer a listener on addr:port routes every inbound
+// connection to, or the zero AddrPort when the listener MUST attribute by remote
+// IP instead.
+//
+// A key is returned only when both hold:
+//   - exactly one object in the configuration claims that address and port, and
+//     it is a passive peer. listenerClaimants counts a dynamic group as a
+//     claimant too, because a group accepts on the same socket.
+//   - that peer speaks BGP on a port of its own, so its listener is not the
+//     shared one every default-port peer would land on.
+//
+// handleDirectConnection reads no remote address at all. A second claimant on
+// the same socket would therefore be served under the first one's policy.
+// Refusing the key is what stops that: the caller then attributes by remote IP
+// and closes what it cannot match.
+// Must be called with r.mu held.
+func (r *Reactor) listenerPeerKey(addr netip.Addr, port int) netip.AddrPort {
+	count, only := r.listenerClaimants(addr, port)
+	if count != 1 || only == nil {
+		return netip.AddrPort{}
+	}
+	if only.Port == 0 || only.Port == DefaultBGPPort {
+		return netip.AddrPort{}
+	}
+	return only.PeerKey()
+}
+
+// listenerClaimants reports how many configured objects need a listener on
+// addr:port, and the settings of the single passive peer among them when there
+// is exactly one claimant and no dynamic group.
+//
+// A claimant is a passive peer whose local address is addr and whose listen port
+// is port, or a dynamic group with the same pair. A dynamic group accepts
+// connections nothing in the configuration names. That is why it opens a
+// listener of its own (startMultiListeners), and why a listener it shares must
+// attribute by remote IP.
+// Must be called with r.mu held.
+func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettings) {
+	count := 0
+	var only *PeerSettings
+	for _, peer := range r.peers {
+		s := peer.Settings()
+		if !s.LocalAddress.IsValid() || !s.Connection.IsPassive() {
+			continue
+		}
+		if s.LocalAddress != addr || r.peerListenPort(s) != port {
+			continue
+		}
+		count++
+		only = s
+	}
+	for _, dg := range r.dynamicGroups {
+		if dg.Settings == nil || !dg.Settings.LocalAddress.IsValid() || !dg.Settings.Connection.IsPassive() {
+			continue
+		}
+		if dg.Settings.LocalAddress != addr || r.peerListenPort(dg.Settings) != port {
+			continue
+		}
+		count++
+		only = nil
+	}
+	if count != 1 {
+		return count, nil
+	}
+	return count, only
+}
+
 // handleDirectConnection handles a connection on a per-peer-port listener.
 // The peerKey directly identifies the target peer (no remote IP matching needed).
-// Used when peers have custom ports — the listener port uniquely identifies the peer.
+// Reached only through handleListenerConnection, which establishes that this
+// peer is the sole claimant of the socket the connection arrived on.
 func (r *Reactor) handleDirectConnection(conn net.Conn, peerKey netip.AddrPort) {
 	r.mu.RLock()
 	peer, exists := r.peers[peerKey]

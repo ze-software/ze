@@ -1,0 +1,126 @@
+# Test: on a listener a static peer and a dynamic group both claim, an inbound
+# connection goes to the peer whose configured address matches its source, and no
+# dynamic peer is built for it.
+#
+# VALIDATES: the attribution rule of a shared listener. findPeerByAddr runs before
+#            tryCreateDynamicPeer (handleConnectionWithContext,
+#            internal/component/bgp/reactor/reactor_connection.go), so a
+#            configured address always beats a group range that contains it.
+# PREVENTS: a route server swallowing its own bilateral peers. The group's range
+#           here is 127.0.0.0/8 and the static peer sits inside it, which is the
+#           normal IXP shape: the peering LAN prefix is the group range, and the
+#           members with negotiated bilateral policy are configured by hand.
+#           Building a dynamic peer for one of them would apply the group template
+#           instead of that member's policy, on a session the member sees as
+#           established and correct.
+#
+# DISCRIMINATION: the reject is what carries this file. Both peers reach
+# Established over the same socket and send the same bytes, so no wire assertion
+# can tell them apart; only the daemon saying it built a dynamic peer can.
+
+# "dynamic peer created" is an Info line and the daemon's base level is warn
+# (ze.log, internal/core/slogutil/slogutil.go), so the reject at the foot of this
+# file would hold against a daemon that logged nothing at all.
+option=env:var=ze.log.bgp.reactor:value=info
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65010
+option=tcp_connections:value=1
+
+# Cease (code 6) / Administrative Shutdown (subcode 2, RFC 4486) with the RFC 8203
+# shutdown communication: one length octet (0x17) and the 23-character default
+# text "Administrative Shutdown" (Session.Teardown). It says the connection was
+# still held by ze when the daemon was told to stop.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+# One static peer and one dynamic group, both accepting on 127.0.0.1, and the
+# peer's own address inside the group's range. The two share one listening socket,
+# because a listener is keyed on (local address, port).
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	peer member {
+		connection {
+			remote {
+				ip 127.0.0.1
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65010
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Trigger: let the session establish, then stop the daemon so the NOTIFICATION
+# above is sent. The sleep only has to cover a dial the peer retries every 500ms
+# against a daemon that has already written daemon.ready; too short and the file
+# fails on the missing NOTIFICATION rather than passing quietly.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 3
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
+
+# The session was the STATIC peer's.
+expect=stderr:contains=session established
+reject=stderr:pattern=dynamic peer created

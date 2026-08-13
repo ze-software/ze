@@ -173,7 +173,7 @@ func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
 	// idempotent (returns nil if already listening).
 	r.mu.Lock()
 	port := r.config.Port
-	startErr := r.startListenerForAddressPort(addr, port, netip.AddrPort{})
+	startErr := r.startListenerForAddressPort(addr, port)
 	r.mu.Unlock()
 
 	if startErr != nil {
