@@ -9,12 +9,31 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-bcp194-1-communities |
-| Phase | - |
+| Phase | 3/4 |
 | Deferral shard | - |
-| Updated | 2026-08-08 |
+| Updated | 2026-08-13 |
+
+## Package boundary reached 2026-08-13 (NOT closure)
+
+Landed and green in five commits: the route-type carry-through, the per-peer
+honoring decision with both Section 3.3 conditions, the RPKI length-only
+exemption, the tagged requirement pairs, and the `show rib` renderer.
+
+**Phase 4 is not started and is a package of its own.** Three items, and none of
+them is optional:
+
+| Owed | State |
+|------|-------|
+| Functional `.ci` | `test/plugin/bgp-blackhole-honor.ci` is written and UNCOMMITTED because it is RACY. Diagnosed, not guessed: `ze-peer` exits as soon as its `action=send` script completes, the session drops, and the announced routes are withdrawn from the system RIB. The engine-steps executor RE-RUNS the command while polling, so the second assertion re-reads a table the first one emptied. It passed in a full-suite run and failed run alone, which is the tell. The fix is route persistence, not a longer timeout: either hold the peer session open, or drive the routes through `request bgp rib inject` from the configured peer address so no session lifetime is involved |
+| Interop with FRR | not started. `test/interop/scenarios/ospf-gr-fib-retention/` is the precedent: it runs `fib-kernel` inside the ze container, and `docker_exec` lets `check.py` assert a literal `blackhole 192.0.2.1/32` from `ip route show` |
+| Docs | not started. The Documentation Update Checklist below is unanswered. `docs/guide/configuration.md` and the `docs/features/rfc-status.md` RFC 7999 row are the two that certainly apply |
+
+`rfc/enrolled.txt` is untouched, which the owner directed: enrolling RFC 7999
+needs an extraction sign-off and a public status row, and it is a separate step
+nobody has authorised.
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -70,61 +89,113 @@ Reach enrolment with the MUSTs already proven or already annotated. Six ratchets
 judge the stem from that commit on, and a stem that enrols and then loses a
 proof is what they refuse.
 
+## Design (settled 2026-08-13, re-read against HEAD)
+
+**Both ends exist. The work is the middle.**
+
+| Piece | State at HEAD | Work |
+|-------|---------------|------|
+| The community is read on ingress for a normal peer | **Exists.** `blackholePropagationGuard` (`internal/component/bgp/plugins/filter_community/blackhole.go`) is the production reader of `wireu.CommunityPolicy.RFC7999Blackhole` | consume it |
+| A discard route reaches the kernel and VPP | **Exists.** `sysribevents.RouteTypeBlackhole` is consumed by `internal/plugins/fib/kernel/nexthop_linux.go` (`RTN_BLACKHOLE`) and `internal/plugins/fib/vpp/backend.go` (drop) | none |
+| A route type travels from the BGP RIB to sysrib | **ABSENT, and this is the spec's real work** | see below |
+| The Section 3.3 coverage test | **Exists.** `evaluatePrefix` (`internal/component/bgp/plugins/filter_irr/match.go`) already computes "covered by an equal or shorter prefix the neighbor may advertise", and `prefixListFromIRR` sets `le: 32` / `le: 128`, so a /32 blackhole inside an authorized block already passes | wire it |
+| Per-peer honour leaf | absent | small |
+
+**The carry-through is the new plumbing.** Verified at HEAD by `documentSymbol`: `ribevents.BestChangeEntry` has 14 fields and no route type. Neither has `locrib.Path` nor sysrib's `protocolRoute`. The only non-test code that sets `RouteType:` is the two FIB backends, reading it off an incoming change. So the FIB consumes a route type nothing upstream produces, and the sole producer in the tree is the test plugin `fakefib`, injecting at the sysrib event boundary. That is why `test/plugin/fib-blackhole.ci` proves the FIB half and nothing above it.
+
+`BestChangeEntry` already carries `ProtocolType`, so a type field on that struct has precedent. A route type is a different axis and needs its own.
+
+**Owner ruling, 2026-08-12: honouring is a per-peer option, defaulting off.** RFC 7999 Section 4 states the same default. Section 3.3 requires agreement "on the particular BGP session", so a daemon-wide switch would be non-conformant.
+
+### The trap that decides whether this feature works at all
+
+`(*ROACache).Validate` (`internal/component/bgp/plugins/rpki/validate.go`) applies `prefixLen <= entry.MaxLength` per RFC 6811. **A /32 blackhole under a ROA with maxLength 24 is `Invalid`**, so an operator running invalid-reject drops it before any honour path sees it.
+
+That is Section 3.3's fourth requirement in live code: "An operator MUST ensure that origin validation techniques do not inadvertently block legitimate announcements carrying the BLACKHOLE community." **The design MUST answer it.** Ze's only lever today is the per-peer `originInvalidAction` override, which is all-or-nothing for the session. Shipping without addressing this gives the operators most likely to want the feature a switch that silently does nothing.
+
+### The route server
+
+`RSBlackhole` is Ze's own `RS:0` suppress convention and is **unrelated** to RFC 7999. `StripControlCommunities` strips only `0:X` and `RS:X`, so `65535:666` already passes a route server untouched, correct per RFC 7947. Section 3.3's multilateral paragraph needs the same per-client machinery as the bilateral case, once that exists.
+
 ## Required Reading
 
-<!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
-     Capture what you learned as -> Decision: / -> Constraint: annotations, which
-     survive compaction; track reading progress in the session state file. -->
-
 ### Architecture Docs
-- [ ] `docs/architecture/<doc>.md` - [why relevant]
-  → Decision: [specific architectural decision that constrains this spec]
-  → Constraint: [specific rule from the doc that applies here]
+- [ ] `docs/architecture/meta/README.md` - route metadata is ingress-to-egress only
+  → Constraint: the `meta map[string]any` seam never reaches the RIB store, so a
+    honour verdict computed in an ingress filter cannot travel to the FIB. The
+    verdict is therefore computed where the FIB candidate is built.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
-  → Constraint: [specific RFC rule that applies here]
+- [ ] `rfc/short/rfc7999.md` - the four MUSTs and the Section 4 default
+  → Constraint: RFC7999-3.3-1 asks for COVERAGE by an equal or shorter
+    authorized prefix, which is NOT the same test as prefix-list membership
+    under `ge`/`le`. A list saying `192.0.2.0/24 le 24` authorizes the /24, and
+    the /32 blackhole inside it is covered while failing the `le` bound.
+  → Constraint: RFC7999-4-1 makes OFF the default, so no configuration keeps
+    today's behavior.
 
-**Key insights:** (minimal context to resume after compaction)
-- [insight from docs]
+**Key insights:**
+- Both ends of the chain exist; the missing middle is a route type travelling
+  from the BGP RIB to sysrib. See the Design section above.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE you write this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+**Source files read:**
+- [ ] `internal/core/bgp/ribevents/ribevents.go` - `BestChangeEntry`, 14 fields, no route type
+- [ ] `internal/core/rib/locrib/candidate.go` - `Path`, carry-through fields excluded from `key()` and included in `Equal`
+- [ ] `internal/component/sysrib/sysrib.go` - `protocolRoute`, `recomputeBest`, `changeToBatch`, eight `outgoingChange` literals
+- [ ] `internal/component/sysrib/events/events.go` - `RouteType` and `RouteTypeBlackhole`, consumed by both FIB backends
+- [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go` - `checkBestPathChange` writes BOTH rails: `mirrorToLocRIB` and the `bestChangeEntry`
+- [ ] `internal/component/bgp/plugins/rpki/rpki.go` - `buildDecisions` rejects an Invalid route when the peer action is reject
+- [ ] `internal/component/bgp/plugins/rpki/validate.go` - `(*ROACache).Validate` returns Invalid on `prefixLen > MaxLength`
+- [ ] `internal/component/bgp/plugins/filter_prefix/match.go` - `evaluatePrefix` enforces `ge`/`le`; coverage needs its own predicate
+- [ ] `internal/component/bgp/configjson/traverse.go` - `ForEachPeer` and `PeerRemoteIP`, the correct peer-by-IP reader
 
-**Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+**Behavior to preserve:**
+- A peer with no blackhole configuration installs an ordinary unicast route, exactly as today.
+- `RSBlackhole` (`RS:0`) stays Ze's own route-server suppress convention, untouched.
+- `StripControlCommunities` keeps passing `65535:666` through a route server.
 
-**Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+**Behavior to change:**
+- A peer that opts in installs a discard route for a covered BLACKHOLE-tagged prefix.
+- A BLACKHOLE-tagged route from an opted-in peer is not dropped by origin
+  validation when the only reason it is Invalid is that the prefix is longer
+  than a covering VRP's maxLength.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Wire bytes: a received BGP UPDATE whose COMMUNITIES attribute (type 8) carries
+  0xFFFF029A, from a peer whose config sets `blackhole honor true`.
+- Config: `bgp { peer X { blackhole { honor; authorized-prefix-list NAME } } }`.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `rpki.buildDecisions` keeps the route when Invalid is length-only and the route is a candidate blackhole.
+2. `rib.checkBestPathChange` selects the best path and asks `blackholeRouteType` for a route type.
+3. That route type rides BOTH rails out of the RIB: `locrib.Path.RouteType` and `ribevents.BestChangeEntry.RouteType`.
+4. `sysrib.changeToBatch` (Loc-RIB rail) and `sysrib.processEvent` (event-bus rail) copy it into `protocolRoute.routeType`.
+5. `sysrib.recomputeBest` copies the winner's route type into `sysribevents.BestChangeEntry.RouteType`.
+6. `fib/kernel.routeTypeToLinux` maps it to `RTN_BLACKHOLE`; `fib/vpp.routeTypeToVPP` maps it to a drop path.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| BGP RIB plugin ↔ sysrib | `ribevents.BestChangeEntry.RouteType`, json `route-type` | Yes |
+| BGP RIB plugin ↔ sysrib (in-process) | `locrib.Path.RouteType` | Yes |
+| sysrib ↔ FIB plugin | `sysribevents.BestChangeEntry.RouteType`, json `route-type` | Yes |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `internal/core/rib/routetype` - the single definition of the type, aliased by `sysribevents` so every existing consumer keeps compiling.
+- `internal/component/bgp/plugins/rib` - reads the per-peer config from the `bgp` subtree it already receives.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | the route type travels the same two rails every other FIB field travels |
+| No unintended coupling (components stay isolated) | Yes | RPKI and the RIB each read the same peer leaf from the config subtree they already receive; neither calls the other |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `RouteType` is MOVED to core and aliased, never redefined |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | one `uint8` per best-path change, on the cold path |
+| Registration over hardcoding | Yes | the leaf is YANG in the owning plugin, read through `configjson.ForEachPeer` |
 
 ## Risks & Assumptions
 
@@ -138,12 +209,18 @@ proof is what they refuse.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | `ribevents.BestChangeEntry` carries no route type, so the FIB consumes a field nothing upstream produces | `internal/core/bgp/ribevents/ribevents.go` read at HEAD | the carry-through is already there and only the honour path is owed | read the struct | confirmed |
+| A-2 | The BGP RIB plugin receives the whole `bgp` subtree, peers included | `rib.go` `WantsConfig: []string{"bgp"}` | the honour config needs another host plugin | read the registration | confirmed |
+| A-3 | `PeerRemoteIP` is the correct peer-by-IP reader for a plugin config map | `configjson/traverse.go` doc comment, naming RPKI, watchdog and role as the precedent | peers key by name and the RIB cannot match on address | read the function | confirmed |
+| A-4 | Moving `RouteType` to core and aliasing it in `sysribevents` keeps every existing consumer compiling | Go type aliases; six non-test consumers found by grep | the move becomes a rename across the FIB backends | `make ze-test-pkg` on the FIB packages | confirmed |
+| A-5 | `locrib.Path.Equal` is what makes a carry-through change re-program the FIB, and `key()` is what must not see it | `candidate.go` comments on `Labels` and `BackupNextHop` | a route-type-only change is deduped away and never reaches the kernel | `TestPathEqualRouteType` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | Honouring installs a discard route for a prefix the peer was not authorized for | AC-3 fails | the coverage predicate runs before the stamp, and its absence is the OFF state |
+| R-2 | The RPKI carve-out weakens origin validation more widely than RFC 7999 Section 3.3 asks | AC-6 fails | the carve-out requires all three of: peer opted in, route carries BLACKHOLE, and a covering VRP naming the origin AS |
+| R-3 | A route-type-only change is suppressed by the same-best short circuit and never reaches the kernel | a blackhole applied to an already-installed prefix does not appear in `ip route` | `Path.Equal` includes the route type, and the RIB's own short circuit is measured against it |
 
 ## Blast Radius
 
@@ -162,7 +239,11 @@ proof is what they refuse.
      by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| `bgp { peer X { blackhole { honor; authorized-prefix-list L } } }` | → | `parseBlackholeConfig` in the RIB plugin | `TestParseBlackholeConfigPeerLevel` |
+| A received UPDATE carrying 65535:666 from an opted-in peer | → | `(*RIBManager).blackholeRouteType` | `TestBlackholeRouteTypeStampedOnBestPath` |
+| The stamped route type leaving the BGP RIB | → | `sysrib.changeToBatch` and `sysrib.processEvent` | `TestSysribCarriesRouteTypeFromLocRIB`, `TestSysribCarriesRouteTypeFromEventBus` |
+| The stamped route type reaching the kernel | → | `fib/kernel.routeTypeToLinux` | `test/plugin/bgp-blackhole-honor.ci` |
+| An Invalid-by-length blackhole under origin validation | → | `rpki.buildDecisions` | `TestBlackholeSurvivesLengthOnlyInvalid` |
 
 ## Acceptance Criteria
 
@@ -170,7 +251,14 @@ proof is what they refuse.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | A peer with no blackhole configuration sends 192.0.2.1/32 carrying 65535:666 | An ordinary unicast route is installed. Nothing is discarded (RFC7999-4-1) |
+| AC-2 | A peer with `blackhole honor true` and an authorized list holding 192.0.2.0/24 sends 192.0.2.1/32 carrying 65535:666 | A discard route for 192.0.2.1/32 reaches the FIB (RFC7999-3.3-2) |
+| AC-3 | The same peer sends 198.51.100.1/32 carrying 65535:666, outside every authorized entry | An ordinary unicast route is installed. No discard route (RFC7999-3.3-1) |
+| AC-4 | The same peer sends 192.0.2.1/32 with no BLACKHOLE community | An ordinary unicast route is installed |
+| AC-5 | An opted-in peer sends a covered /32 carrying BLACKHOLE, and a covering VRP names its origin AS with maxLength 24, under `origin-invalid-action reject` | The route is not rejected by origin validation and the discard route is installed (RFC7999-3.3-4) |
+| AC-6 | An opted-in peer sends a /32 carrying BLACKHOLE whose origin AS matches no covering VRP, under `origin-invalid-action reject` | The route is rejected, as any Invalid route is |
+| AC-7 | A route type set on a best path in the BGP RIB | It arrives at the FIB unchanged on both the Loc-RIB rail and the event-bus rail |
+| AC-8 | An opted-in peer withdraws the blackhole prefix | The discard route is removed from the FIB |
 
 ## End-to-End User Stories
 
