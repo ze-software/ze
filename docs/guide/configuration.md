@@ -1161,7 +1161,11 @@ bgp {
 
 Named modifier definitions live under `bgp { policy { modify NAME { set { ... } } } }`.
 Only present leaves are applied; undeclared attributes pass through unchanged.
-For conditional modification, compose with match filters earlier in the chain.
+A definition applies to every route that reaches it. A definition that states a
+`match` container applies its operations only to the routes that meet the
+condition, and every other route leaves the filter unchanged. Use a match filter
+earlier in the chain when you want the rest dropped, because a rejected route
+leaves the pipe.
 
 ```
 bgp {
@@ -1195,8 +1199,13 @@ bgp {
 | `next-hop` | IP address | IPv4 | Set NEXT_HOP |
 | `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times |
 
-<!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container -->
+The `match` container holds three leaf-lists, `community`, `large-community` and
+`extended-community`. Values across all three are alternatives: any one present
+in the route satisfies the condition.
+
+<!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container, match -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDefs -->
+<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 
 ## Static Routes
 

@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | protocol |
 | Depends | spec-bcp194-1-communities |
 | Phase | 4/4 |
@@ -104,14 +104,17 @@ proof is what they refuse.
 All five steps are done and `rfc7999` is in `rfc/enrolled.txt`. The gate counts
 171 enrolled RFCs and 2967 gated MUSTs, up 4, which are this RFC's four.
 
-**Thomas ruled on RFC7999-3.1-2 on 2026-08-13, having seen both options and the
-fact that Ze does originate BLACKHOLE announcements.** He chose the annotation
-over making Section 3.1 testable. It is written on the checklist line in
-`rfc/short/rfc7999.md` and it does NOT rest on an absent code path: it rests on
-the obligation binding the two networks rather than the BGP speaker. That makes
-it the first `{not-applicable}` in the corpus on those grounds, and both the
-annotation and the `rfc/enrolled.txt` row say so, because a reader who assumes
-the usual grounds will misread it.
+**Thomas ruled on RFC7999-3.1-2 twice on 2026-08-13, and the SECOND ruling
+governs.** He first chose a `{not-applicable}` annotation, on the reading that
+Section 3.1's obligation binds "the two networks" rather than the BGP speaker.
+He then replaced that reading the same day: configuring the community on a peer
+IS Ze's half of the agreement, so the obligation has a machine-checkable
+predicate after all. **The annotation is withdrawn**, `agreedSelector`
+(`internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go`) is the
+gate, and both polarities are proven at unit tier over the command handler
+(`1d2af98ab`). `rfc/short/rfc7999.md` now carries no annotation of any kind, and
+the `rfc/enrolled.txt` row records the withdrawal. The paragraphs below were
+written under the first ruling and are kept as the record of what was rejected.
 
 Driving `evaluate()` in `scripts/dev/rfc_requirements.py` over the summary and
 the live tag set, with `rfc7999` enrolled, returned one violation before the
@@ -133,7 +136,7 @@ ordinary mid-spec commits now that CLAUDE.md mandates a row per defect found.
 | Public row | UPDATED, not added. The phase 4 row stood but carried a false claim; see below |
 | Interop tags | DONE. `test/interop/scenarios/59-rfc7999-blackhole-frr/check.py` now tags RFC7999-3.3-1 and RFC7999-3.3-2 in both polarities, at `interop/nightly`. This is a permanent `check_evidence_ratchet` commitment: neither requirement may afterwards be proven by unit evidence alone. That is the right commitment, because the kernel-state assertion is the only thing that caught the phase 4 defect |
 | Disposition | DONE. `rfc7999` left `rfc/not-enrolled.txt` and arrived in `rfc/enrolled.txt` in one change, which is what `check_summary_disposition` requires: deleting the row alone returns the stem to the undeclared state it refuses |
-| The four MUSTs | Three proven in both polarities, two of them at `interop/nightly` as well as unit. The fourth annotated, on the ruling above |
+| The four MUSTs | ALL FOUR proven in both polarities, two of them at `interop/nightly` as well as unit. The fourth, RFC7999-3.1-2, was annotated for part of 2026-08-13 and is now tested: the annotation was withdrawn with `1d2af98ab`. `make ze-rfc-check` exits 0 and `rfc/short/rfc7999.md` carries no annotation |
 
 **The phase 4 ledgers carried a false claim, and it is withdrawn.** Both
 `docs/features/rfc-status.md` and `rfc/not-enrolled.txt` said RFC7999-3.1-2 has
@@ -297,9 +300,9 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | Traffic is discarded for a prefix nobody authorized, which is a denial of reachability RFC 7999 Section 6 names. The opposite error is inert and visible: the honoring path returns 0 and an ordinary unicast route is installed, which is what every deployment without a `blackhole` container gets |
+| How is it reverted? | Single commit revert of the config surface. Nothing persists: the route type is recomputed per best-path change, and removing the `blackhole` container returns the peer to an ordinary unicast install on the next change |
+| Who else touches this path? | `spec-bcp194-1-communities` owns the RFC 7999 Section 3.2 propagation guard in `filter_community`. `spec-bcp194-4-prefix` owns the prefix-limit surface the same `rib` plugin reads. The `rpki` plugin's decision path is shared with origin validation |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -338,19 +341,36 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | Receives a BLACKHOLE-tagged prefix from a peer that agreed the community and is authorized for a covering block | wire -> `parseCommunityAttr` -> `checkBestPathChange` -> `blackholeRouteTypeForBest` -> `locrib.Path.RouteType` and `ribevents.BestChangeEntry.RouteType` -> sysrib -> `routeTypeToLinux` -> `RTN_BLACKHOLE` | `test/interop/scenarios/59-rfc7999-blackhole-frr` (kernel `ip route show`), `test/plugin/bgp-blackhole-honor.ci` (`show rib`) |
+| 2 | Runs `announce blackhole 198.51.100.1/32` and reaches only the sessions that agreed the community | CLI -> `handleAnnounceBlackhole` -> `agreedSelector` -> per-peer fan-out | `TestAnnounceBlackholeReachesAnAgreedPeer`, with `TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree` and `TestAnnounceBlackholeRefusedWhenNoPeerAgreed` as the negatives |
+| 3 | Runs origin validation with `reject` and still receives a legitimate /32 blackhole under a maxLength-24 VRP | wire -> `rpki.buildDecisions` -> `invalidByLengthOnly` + `carriesAgreedBlackhole` -> route kept | `TestBlackholeSurvivesLengthOnlyInvalid`, with `TestBlackholeDoesNotSurviveAWrongOrigin` as the negative |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestParseBlackholeConfigPeerLevel` and 8 siblings | `internal/component/bgp/plugins/rib/rib_blackhole_config_test.go` | the leaves parse, accumulate down bgp/group/peer, and REFUSE a bad community, a bad prefix, a bare address and a peer with no remote IP | done |
+| `TestCoveredByAuthorizedPrefix`, `...EmptyListAuthorizesNothing`, `...IsFamilyScoped` | `internal/component/bgp/plugins/rib/rib_blackhole_test.go` | the RFC7999-3.3-1 coverage predicate, its closed state and its family scoping | done |
+| `TestBlackholeRouteTypeDecision` | same | the three-condition decision table | done |
+| `TestBlackholeRouteTypeStampedOnBestPath` and 6 siblings | `internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go` | AC-1..AC-4, AC-8: the stamp on the real best-path path, and its absence for each of the three conditions | done |
+| `TestBlackholeSurvivesLengthOnlyInvalid` and 6 siblings | `internal/component/bgp/plugins/rpki/blackhole_decision_test.go` | AC-5, AC-6: the origin-validation carve-out and its four refusals | done |
+| `TestInvalidByLengthOnly*` (5) | `internal/component/bgp/plugins/rpki/blackhole_test.go` | the predicate alone: wrong origin, non-Invalid states, `OriginNone`, unparseable prefix | done |
+| `TestCarriesAgreedBlackhole*` (6) | `internal/component/bgp/plugins/rpki/blackhole_agreement_test.go` | the RPKI side reads the session's OWN community set, and fails closed | done |
+| `TestAnnounceBlackhole*` / `TestAnnounceUnicast*` (12) | `internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go` | RFC7999-3.1-2: both origination verbs narrow the fan-out to the agreed sessions, and refuse when none agreed | done |
+| `TestPathEqualRouteType`, `TestPathKeyIgnoresRouteType`, `TestPathRouteTypeDefaultsUnset` | `internal/core/rib/locrib/candidate_routetype_test.go` | A-5: `Equal` sees the route type and `key()` does not, so a type-only change reprograms the FIB | done |
+| `TestSysribCarriesRouteTypeFrom{LocRIB,EventBus}` and 4 siblings | `internal/component/sysrib/sysrib_routetype_test.go` | AC-7: both rails, replay, the type-only emit, and the `show rib` rendering | done |
+| `TestBestChangeEntryRouteType{RoundTrip,OmittedWhenUnset}` | `internal/core/bgp/ribevents/ribevents_routetype_test.go` | the JSON boundary carries `route-type` and omits it when unset | done |
+| `TestValuesMatchLinuxRTN`, `TestZeroIsUnset`, `TestDiscards`, `TestString` | `internal/core/rib/routetype/routetype_test.go` | the moved core type, its zero value and its discard set | done |
+| `TestBuildRichRouteDiscardCarriesNoNextHop`, `TestBuildRichRouteUnicastKeepsNextHop` | `internal/plugins/fib/kernel/nexthop_discard_linux_test.go` | the phase-4 defect: a discard route names no gateway, device, multipath or encap, and a unicast route is unchanged | done |
+| `TestNetlinkIntegration_BlackholeRouteWithNextHop` | `internal/plugins/fib/kernel/richroute_discard_integration_linux_test.go` | the same, read back from a real kernel in an ephemeral netns | done |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+| Announced length against a /24 authorization (RFC7999-3.3-1's "equal or shorter") | the authorization must be no more specific than the announcement | `192.0.2.0/24` announced, equal to the authorization, is covered | `192.0.0.0/16` announced is NOT covered: it is shorter, so the /24 covers it rather than the reverse (`TestCoveredByAuthorizedPrefix`) | `192.0.2.128/25` and `192.0.2.1/32` are covered at any greater length; `192.0.3.1/32`, one bit outside the block, is not |
+| `routetype.Type` | 0..255, values mirroring Linux `RTN_*` | `RTN_PROHIBIT` | 0 is Unset and never a discard (`TestZeroIsUnset`) | an unmapped value renders as unset (`TestString`) |
+| COMMUNITIES value scan | 4-octet steps | a trailing partial community is ignored (`Carries`) | N/A | N/A |
 
 ### Functional Tests
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
@@ -372,29 +392,46 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
-- `internal/...` - [feature changes]
+- `internal/component/bgp/plugins/rib/rib.go`, `rib_bestchange.go` - read the per-peer config, ask for the route type on each best-path change
+- `internal/component/bgp/plugins/rib/yang/ze-rib.yang` - the `blackhole` container
+- `internal/component/bgp/plugins/rpki/rpki.go`, `rpki_config.go`, `origin_tracker.go`, `yang/ze-rpki.yang` - the `blackhole-exempt` leaf and the decision carve-out
+- `internal/component/bgp/plugins/cmd/announce/announce.go` - both origination verbs go through `agreedSelector`
+- `internal/component/bgp/plugins/filter_community/blackhole.go` - the Section 3.2 guard reads the same shared config
+- `internal/component/bgp/plugins/filter_modify/*`, `filter_community_match/match.go`, `internal/component/bgp/filtertext/community.go` - the generic `match` condition on a modify action, which this spec needed and which is not blackhole-specific
+- `internal/core/bgp/ribevents/ribevents.go`, `internal/core/rib/locrib/candidate.go` - `RouteType` on both rails
+- `internal/component/sysrib/sysrib.go`, `events/events.go` - carry and re-emit it; `RouteType` moved to core and aliased
+- `internal/plugins/fib/kernel/nexthop_linux.go` - a discard route names no next-hop
+- `internal/core/selector/selector.go`, `internal/component/plugin/server/command.go` - `selector.Addrs`, and the peer list the gate reads
+- `docs/guide/configuration.md`, `docs/features/rfc-status.md` - the operator surface and the public claim
+- `rfc/short/rfc7999.md`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` - enrolment
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `internal/core/rib/routetype/routetype.go` - the single definition of the type
+- `internal/component/bgp/blackholecfg/blackholecfg.go` - the one reader of the `blackhole` container, shared by the three deciders
+- `internal/component/bgp/plugins/rib/rib_blackhole.go`, `rib_blackhole_config.go` - the honoring decision
+- `internal/component/bgp/plugins/rpki/blackhole.go` - the origin-validation carve-out
+- `internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go` - the send-side gate
+- `rfc/extraction/rfc7999.json` - the hand-classified sign-off enrolment requires
+- `test/plugin/bgp-blackhole-honor.ci` - the functional test
+- `test/interop/scenarios/59-rfc7999-blackhole-frr/` - the FRR and BIRD scenario
 
 ### Integration Checklist
 <!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/rib/yang/ze-rib.yang` (`blackhole-honor-fields`), `plugins/rpki/yang/ze-rpki.yang` (`blackhole-exempt`), `plugins/filter_modify/yang/ze-filter-modify.yang` (`match`) |
+| YANG validation constraints | Yes | The leaf-lists are `string` because a community accepts two spellings and a prefix accepts both families. The value is validated at parse and REFUSED with the level, the peer and the offending value named (`blackholecfg.parseLevel`), rather than dropped |
+| YANG custom validators | No | Native types plus the parse-time refusal above cover it. No `ze:validate` was added |
+| CLI commands/flags | No | `announce blackhole` and `announce unicast` already existed. This spec added a gate inside them, not a verb |
+| CLI grammar (keyword before value) | N-A | No new command surface |
+| Editor autocomplete | N-A | Both leaves are free-form leaf-lists with no enumeration |
+| Functional test for new RPC/API | Yes | `test/plugin/bgp-blackhole-honor.ci` |
+| Pipe completeness | N-A | `show rib` already routes through the pipe layer; this spec added one field to its output |
+| Env var registration | N-A | No `environment/` leaf |
+| Doctor check for runtime dependencies | No | No new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink call, binary or certificate. The netlink route program already existed; this spec changed which attributes one message carries |
+| Prometheus counters/metrics | No | No metric added. The operator-visible surface is `show rib`'s `route-type` field and the configure log line `blackholeHonorPeerCount` produces |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No new AFI/SAFI, capability or attribute. RFC 7999 registers a COMMUNITIES value, which the codec already parsed |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
@@ -402,23 +439,23 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | `docs/features.md` |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | Grep `docs/` for `source: <changed-file>` and update each stale claim |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature? | Yes | `docs/guide/configuration.md` "Blackhole Honoring (RFC 7999)" carries the whole surface. `docs/features.md` already claims community filters generically and states nothing this change makes false |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`: the `blackhole { communities; prefixes; }` container, `blackhole-exempt`, and the `modify` `match` container |
+| 3 | CLI command added/changed? | No | No verb added. `announce blackhole` gained a refusal, documented under "Announcing a blackhole to a peer" in `docs/guide/configuration.md` |
+| 4 | API/RPC added/changed? | No | No new RPC. `show rib` gained one optional JSON field, `route-type`, omitted when unset |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` "Route Attribute Modifier": the unconditional claim was FALSE after the `match` container landed. Corrected, with a `match.go -- matchCond, matches` anchor |
+| 6 | Has a user guide page? | Yes | `docs/guide/configuration.md`, sections "Blackhole Honoring (RFC 7999)", "Announcing a blackhole to a peer", "A blackhole on a community Ze does not read" |
+| 7 | Wire format changed? | No | Nothing Ze emits changed shape. The COMMUNITIES codec is untouched; this spec reads a registered value |
+| 8 | Plugin SDK/protocol changed? | No | `route-type` travels the existing `BestChangeEntry` JSON on both rails, as an added optional field |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7999.md` (4 gated MUSTs, both polarities), `rfc/enrolled.txt`, `rfc/extraction/rfc7999.json`, and the RFC 7999 row of `docs/features/rfc-status.md` with producing-function anchors |
+| 10 | Test infrastructure changed? | No | The `.ci` and the interop scenario use the existing runners. No new option, runner or make target |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` names `bgp-filter-modify` for attribute modification and RTBH is not one of its rows. No claim there became false |
+| 12 | Internal architecture changed? | Yes | The route type is a new field on both RIB-to-sysrib rails. Recorded in this spec's Data Flow section; `docs/architecture/plugin/rib-storage-design.md` is named by the `// Design:` annotations of every new file |
+| 13 | Route metadata keys added/changed? | No | The `meta map[string]any` seam is untouched. `docs/architecture/meta/README.md` says it never reaches the RIB store, which is why the verdict travels as a struct field instead |
+| 14 | Prometheus counters added/changed? | No | None added |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No new plugin, event type, send type, command or capability. The inventory pages are unchanged |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/guide/plugins.md` anchors `filter_modify.go -- handleFilterUpdate` and `modify.go -- buildDelta, buildDynamicDelta`; `docs/guide/configuration.md` anchors `config.go -- parseModifyDefs`. Both pages claimed the modifier is unconditional and both are corrected above. The `rib`, `rpki`, `sysrib`, `locrib` and `fib/kernel` changes are additive and break no anchored claim |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | The `modify` example in `docs/guide/configuration.md` was verified against `ze-filter-modify.yang` and now names the three `match` leaf-lists it actually declares |
 
 ## Implementation Steps
 
@@ -428,14 +465,16 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      (write test -> fail -> implement -> pass) and ends with a self-critical
      review; fix what it finds before starting the next phase. -->
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+1. **Phase 1: the carry-through (landed, `6130c0aaf`)** -- `routetype` in core, `RouteType` on `locrib.Path` and `ribevents.BestChangeEntry`, carried by sysrib on both rails.
+   - Tests: `TestPathEqualRouteType`, `TestPathKeyIgnoresRouteType`, `TestSysribCarriesRouteTypeFrom{LocRIB,EventBus}`, `TestBestChangeEntryRouteTypeRoundTrip`
+   - Verify: AC-7. A type-only change reprograms the FIB rather than being deduped away
+2. **Phase 2: the honoring decision (landed, `9a2ec776b`, `393d4a421`, `822edda2f`)** -- the per-peer config, the coverage predicate, the stamp on the best path, the RPKI carve-out, and `show rib` rendering.
+   - Tests: the `rib` and `rpki` blackhole suites
+   - Verify: AC-1 to AC-6, AC-8
+3. **Phase 3: proof (landed, `3b67e13ce`, `4bc823a7b`, `2ad55236f`)** -- the `.ci`, the FRR and BIRD interop scenario, the requirement tags, and the Linux discard-route defect the scenario found.
+   - Verify: the kernel holds one `RTN_BLACKHOLE` and no gateway
+4. **Phase 4: enrolment (landed, `586570f95`, `4be9f0594`, `854d246ee`, `d9c724e38`, `1d2af98ab`)** -- the extraction sign-off, `rfc/enrolled.txt`, the operator's own community, the generic `match` condition, and the Section 3.1 send-side gate that replaced the withdrawn annotation.
+   - Verify: `make ze-rfc-check` exits 0 with 4 gated MUSTs for `rfc7999`, none annotated
 
 ### Critical Review Checklist
 
@@ -444,12 +483,13 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
+| Completeness | Every AC-N has an implementation and a named test |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Correctness | Coverage is containment plus "authorized no more specific than announced", never `ge`/`le` membership. All three RFC 7999 Section 3.3 conditions are tested in exactly one place each, so no second copy can drift |
+| Naming | JSON key `route-type` is kebab-case and omitted when unset. The YANG leaf-lists are plural (`communities`, `prefixes`), matching the leaf-list naming rule |
+| Data flow | The verdict is computed where the FIB candidate is built, because the `meta` seam never reaches the RIB store. It rides both rails as one `uint8` |
+| Rule: `ai/rules/evidence.md` (fail closed) | Every unreadable input answers "do not honor": an empty community set, an empty authorization set, an absent peer entry, an unparseable prefix, a missing attribute and a trailing partial community |
+| Rule: `ai/rules/simplicity.md` | One shared reader (`blackholecfg`) rather than three walks. The Linux next-hop suppression sits at the one place the netlink message is built, rather than clearing the next-hop upstream where VPP and `show rib` both want it |
 
 ### Deliverables Checklist
 
@@ -457,7 +497,12 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| The per-peer `blackhole` container reaches the honoring path | `make ze-test-pkg PKG=./internal/component/bgp/blackholecfg` and `PKG=./internal/component/bgp/plugins/rib` |
+| A honored route reaches the Linux FIB as a discard route | `test/interop/scenarios/59-rfc7999-blackhole-frr/check.py` asserts `blackhole 10.100.0.1` in `ip route show` inside the ze container |
+| The same route type is visible to an operator | `test/plugin/bgp-blackhole-honor.ci`, `show rib` renders `"route-type":"blackhole"` |
+| Origin validation does not block a legitimate blackhole | `make ze-test-pkg PKG=./internal/component/bgp/plugins/rpki` |
+| Ze advertises BLACKHOLE only to sessions that agreed it | `make ze-test-pkg PKG=./internal/component/bgp/plugins/cmd/announce` |
+| RFC 7999 is enrolled with every gated MUST proven | `make ze-rfc-check` exits 0 and `grep rfc7999 rfc/enrolled.txt` returns the row |
 
 ### Security Review Checklist
 
@@ -465,7 +510,12 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Input validation | Every configured value is parsed and REFUSED on error, naming the level, the peer and the offending value. A dropped entry would read as an in-force agreement that does nothing (`blackholecfg.parseLevel`, `blackholecfg.Parse`) |
+| Untrusted input from the wire | The COMMUNITIES scan steps 4 octets at a time, so a value straddling two adjacent communities never matches. A trailing partial community is ignored (`blackholecfg.Carries`) |
+| Authorization that could fail open | Three independent conditions gate a discard, and each answers false on absent or unreadable input. An empty authorization set authorizes nothing, which is the closed state RFC 7999 Section 6 requires |
+| Denial of service | The feature DISCARDS traffic, so a wrong honor is a denial of reachability. The coverage predicate is what bounds it, and it is per session: a prefix announced by two peers is honored only when the peer that WON best-path selection is authorized for it |
+| Weakening an existing guard | The RPKI carve-out is narrower than "skip validation": it needs a covering VRP naming the origin AS, an Invalid caused by length alone, the route carrying an agreed community, and the operator's `blackhole-exempt` on that session. A wrong origin stays Invalid |
+| Resource exhaustion | One atomic load and one map miss per best-path change on a deployment that does not use the feature. No wire scan runs for a peer that stated no rule |
 
 ### Failure Routing
 
@@ -483,15 +533,41 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
 <!-- LIVE: write immediately when you learn something. At closure these route to
      a subsystem arch doc, a rule, or the learned summary. -->
 
+- **A feature can be correct at every layer and inert at the boundary.** The
+  community was read, the decision was right, the route type rode both rails, and
+  the Linux kernel then held nothing, because `fib_create_info` refuses a discard
+  route carrying a gateway. Every unit test was green. Only an assertion on
+  KERNEL state saw it, which is why the interop scenario reads `ip route show`
+  rather than a Ze table.
+- **A test plugin that produces a value nothing else produces hides the missing
+  producer.** `fakefib` injected a route type at the sysrib boundary, so
+  `test/plugin/fib-blackhole.ci` proved the FIB half of a chain whose upper half
+  did not exist.
+
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| The agreed COMMUNITY LIST is the agreement, with no separate boolean | An `honor true` leaf beside the list | A peer that named no community agreed to nothing, so one list answers Section 3.3's receive condition and Section 3.1's send condition. A boolean beside it can disagree with it |
+| Coverage walks the authorized set directly | Reuse `filter_prefix.evaluatePrefix` with its `ge`/`le` bounds | RFC 7999 asks whether a shorter authorized prefix CONTAINS the announcement. A `192.0.2.0/24` entry with no `le` bound rejects the /32 inside it, which is the opposite answer |
+| Suppress the next-hop where the netlink message is built | Clear the next-hop upstream, in the RIB or sysrib | Upstream clearing destroys data VPP and `show rib` both want, and spreads a Linux constraint into two protocol-tier packages |
+| A shared `blackholecfg` package | A walk in each of the three deciders | Three answers about one session that can drift is the failure the `filtertext` package was extracted to prevent |
+| Section 3.1 is met by a send-side gate | The `{not-applicable}` annotation held until 2026-08-13 | Configuring the community on a peer IS Ze's half of the agreement, so the obligation has a machine-checkable predicate. The owner replaced the annotation with the gate the same day |
+| A generic `match` container on `modify` | A blackhole-specific modifier | A filter chain is a pipe where a reject DROPS the route, so an earlier match filter cannot express "modify these and pass the rest untouched". The condition belongs on the modifier, and nothing about it is blackhole-specific |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      needs a row in the deferral shard named in the metadata table. -->
-- [What was deliberately not done and why]
+- The authorization Section 3.3 turns on is operator-supplied. `blackhole
+  prefixes` is a configured leaf-list, not a view derived from IRR or RPKI.
+  Deriving it is `plan/future/spec-blackhole-authorization-from-irr.md`.
+- The honoring machinery is bilateral. A route server does not apply the two
+  Section 3.3 conditions to its clients. RFC7999-3.3-3 states that as a SHOULD,
+  is not gated, and is disclosed in the RFC 7999 row of
+  `docs/features/rfc-status.md`.
+- RFC7999-6-1's strict filtering, and RFC7999-3.1-3 and RFC7999-3.1-5 on the
+  sender, carry no test. None is gated, so none is ratcheted, and each is named
+  in the same public row.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -527,3 +603,268 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+
+- A route type travels from the BGP RIB to the FIB on both rails. `routetype.Type`
+  is defined once in `internal/core/rib/routetype` and aliased by `sysribevents`,
+  so every existing consumer kept compiling. It rides `locrib.Path.RouteType` and
+  `ribevents.BestChangeEntry.RouteType`, and `Path.Equal` sees it while `key()`
+  does not, so a type-only change reprograms the FIB instead of being deduped.
+- One shared reader of the per-peer `blackhole` container,
+  `internal/component/bgp/blackholecfg`. Three deciders consume it: the honoring
+  path, origin validation, and the origination path.
+- The honoring decision, `blackholeRouteType` and `coveredByAuthorized`
+  (`internal/component/bgp/plugins/rib/rib_blackhole.go`). All three RFC 7999
+  Section 3.3 conditions are tested in exactly one place each, and the expensive
+  one (the wire scan) runs last.
+- The origin-validation carve-out, `invalidByLengthOnly` and
+  `carriesAgreedBlackhole` (`internal/component/bgp/plugins/rpki/blackhole.go`),
+  reached through the `blackhole-exempt` leaf.
+- The send-side gate, `agreedSelector`
+  (`internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go`). Both
+  `announce blackhole` and `announce unicast community 65535:666` narrow the
+  fan-out to the sessions that named the community, and refuse when none did.
+- A generic `match` container on the `modify` filter
+  (`internal/component/bgp/plugins/filter_modify/match.go`). Nothing about it is
+  blackhole-specific; this spec needed it and it shipped as its own artifact.
+- RFC 7999 enrolled: `rfc/extraction/rfc7999.json` (14 sections, 4 sites, 1
+  excluded, register `prose`), `rfc/enrolled.txt`, and the public row.
+
+### Bugs Found/Fixed
+
+- **No honored route could reach the Linux kernel.** `buildRichRoute`
+  (`internal/plugins/fib/kernel/nexthop_linux.go`) set `route.Gw` from the
+  change's next-hop whatever the route type was, and `fib_create_info` rejects
+  `RTN_BLACKHOLE`, `RTN_UNREACHABLE` and `RTN_PROHIBIT` that carry a gateway, a
+  device or multipath. Every BGP path resolves a next-hop, so the whole netlink
+  message was refused and nothing was programmed. Fixed by returning early for
+  `routetype.Discards()` at the one place the message is built. Covered by
+  `TestBuildRichRouteDiscardCarriesNoNextHop` and, in a real kernel,
+  `TestNetlinkIntegration_BlackholeRouteWithNextHop`.
+- **The Section 3.1 annotation rested on a false premise.** Both
+  `docs/features/rfc-status.md` and `rfc/not-enrolled.txt` said RFC7999-3.1-2 had
+  no producer because Ze originates no BLACKHOLE-tagged announcement. Ze does,
+  through `handleAnnounceBlackhole`. The claim was withdrawn and the requirement
+  is now gated by `agreedSelector` with both polarities tested.
+- **`docs/guide/plugins.md` claimed `bgp-filter-modify` applies its operations
+  unconditionally**, which the `match` container made false. Corrected at closure,
+  together with the same claim in `docs/guide/configuration.md`.
+
+### Documentation Updates
+
+- `docs/guide/configuration.md`: "Blackhole Honoring (RFC 7999)", "Announcing a
+  blackhole to a peer", "A blackhole on a community Ze does not read", and the
+  Route Attribute Modifier `match` container. Anchors name
+  `ze-rib.yang -- blackhole-honor-fields`, `blackholecfg.go -- Rule, Parse,
+  Carries, Agreed`, `rib_blackhole.go -- coveredByAuthorized, blackholeRouteType`,
+  `blackhole_agreement.go -- agreedSelector`, `ze-rpki.yang -- blackhole-exempt`,
+  `blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole` and
+  `match.go -- matchCond, matches`.
+- `docs/guide/plugins.md`: the Route Attribute Modifier section, with a
+  `match.go -- matchCond, matches` anchor added.
+- `docs/features/rfc-status.md`: the RFC 7999 row, its coverage text and its
+  Remaining cell.
+- `make ze-doc-test` and `make ze-validate` both exit 0.
+
+### Deviations from Plan
+
+- The extraction register came out `prose`, not the `rfc2119` this spec
+  predicted. The register is DERIVED, and `prose` is also derived when the source
+  has fewer MUST-level SITES than the summary declares gated rows. Section 3.3
+  states one obligation with two bullets and the site scan sees the lead-in
+  sentence alone: 3 body sites for 4 gated rows. No `register-reason` is owed and
+  none is written.
+- RFC7999-3.1-2 was annotated `{not-applicable}` and then tested instead, on a
+  second owner ruling the same day. The spec's "Enrolment TAKEN" section records
+  both rulings and says which governs.
+- The `match` container on `modify` was not in the original design. It was needed
+  to express the honoring condition an operator states, and it shipped as a
+  generic artifact rather than a blackhole-specific one.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The Linux next-hop was to be cleared upstream, in the RIB or sysrib, so the FIB would receive a discard route with no gateway | That destroys data the VPP backend and `show rib` both want, and spreads a Linux netlink constraint into two protocol-tier packages | Reading the two consumers of `RichRoute` before editing | The suppression sits at the one place the netlink message is built, scoped by `routetype.Discards()` |
+| assumption | The published ledgers said Ze originates no BLACKHOLE-tagged announcement, which is what the Section 3.1 annotation rested on | `handleAnnounceBlackhole` builds a route carrying `attribute.CommunityBlackhole` and sends it to the peers the selector names | Reading the producer before writing the annotation's justification | The claim was withdrawn from both ledgers, the owner re-ruled, and the requirement is now tested rather than annotated |
+| escalation | A test plugin was the only producer of a route type in the tree, so `test/plugin/fib-blackhole.ci` proved the FIB half of a chain whose upper half did not exist | A fixture that produces a value no production code produces makes the consumer's test vacuous about the feature | The phase-4 kernel measurement | Recorded as a Design Insight. The interop scenario now asserts KERNEL state, which is the only level at which the defect was visible |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| S3.3: honor under both conditions | Done | `blackholeRouteType`, `coveredByAuthorized` (`rib_blackhole.go`) | RFC7999-3.3-1 and RFC7999-3.3-2, both polarities, unit and `interop/nightly` |
+| S3.3: a route server applies the same conditions | Changed | not implemented | RFC7999-3.3-3 is a SHOULD and is not gated. Disclosed in the RFC 7999 row of `docs/features/rfc-status.md` and in Known Limitations |
+| S3.3: origin validation does not block a legitimate blackhole | Done | `invalidByLengthOnly`, `carriesAgreedBlackhole` (`rpki/blackhole.go`) | RFC7999-3.3-4, both polarities |
+| S3.1: the owner decides whether Ze honors BLACKHOLE | Done | owner decision 2026-08-08, recorded in Task | Enrolled, and this child does it |
+| S3.1: agreement before advertising | Done | `agreedSelector` (`announce/blackhole_agreement.go`) | RFC7999-3.1-2, both polarities. The earlier annotation is withdrawn |
+| S4: the shorthand keyword `blackhole` | Done | `attribute.ParseCommunity`, reached from `blackholecfg.parseLevel` | Both spellings resolve to one value. RFC7999-4-1's default is proven by `TestBlackholeNotStampedWithoutAgreement` |
+| S6: strict filtering, and filter when verification fails | Changed | the coverage predicate is the verification | RFC7999-6-1 is not gated. The authorization it turns on is operator-supplied, which Known Limitations states |
+| Enrolment with every MUST proven or annotated | Done | `rfc/enrolled.txt`, `rfc/extraction/rfc7999.json` | 4 gated MUSTs, zero annotations. `make ze-rfc-check` exits 0 |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestBlackholeNotStampedWithoutAgreement` | A peer with no `blackhole` container never reaches the map; RFC7999-4-1 positive |
+| AC-2 | Done | `TestBlackholeRouteTypeStampedOnBestPath`; `test/plugin/bgp-blackhole-honor.ci`; scenario 59 asserts `blackhole 10.100.0.1` in the kernel | RFC7999-3.3-2 positive at both tiers |
+| AC-3 | Done | `TestBlackholeNotStampedOutsideAuthorization`; the same `.ci` asserts 192.0.2.1/32 carries no route type; scenario 59's uncovered outcome | RFC7999-3.3-1 negative at both tiers |
+| AC-4 | Done | `TestBlackholeNotStampedWithoutTheCommunity` | An untagged route from an opted-in peer installs ordinarily |
+| AC-5 | Done | `TestBlackholeSurvivesLengthOnlyInvalid` | RFC7999-3.3-4 positive |
+| AC-6 | Done | `TestBlackholeDoesNotSurviveAWrongOrigin`, `TestBlackholeExemptionPreservesTheInvalidState` | RFC7999-3.3-4 negative |
+| AC-7 | Done | `TestSysribCarriesRouteTypeFromLocRIB`, `TestSysribCarriesRouteTypeFromEventBus`, `TestSysribEmitsOnRouteTypeOnlyChange`, `TestSysribReplayCarriesRouteType` | Both rails plus replay |
+| AC-8 | Done | `TestBlackholeRemovedWhenPrefixWithdrawn`, `TestBlackholeClearedWhenCommunityRemoved` | Withdrawal and community removal both clear it |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseBlackholeConfigPeerLevel` and 8 siblings | Done | `rib/rib_blackhole_config_test.go` | Includes four refusal cases |
+| `TestCoveredByAuthorized` group and `TestBlackholeRouteTypeDecision` | Done | `rib/rib_blackhole_test.go` | |
+| `TestBlackholeRouteTypeStampedOnBestPath` and 6 siblings | Done | `rib/rib_blackhole_wiring_test.go` | Carries the RFC requirement tags |
+| `TestBlackholeSurvivesLengthOnlyInvalid` and 6 siblings | Done | `rpki/blackhole_decision_test.go` | |
+| `TestInvalidByLengthOnly` group (5) and `TestRPKICarriesBlackhole` group (2) | Done | `rpki/blackhole_test.go` | |
+| `TestCarriesAgreedBlackhole` group (6) and the two parse tests | Done | `rpki/blackhole_agreement_test.go` | |
+| `TestAnnounceBlackhole` and `TestAnnounceUnicast` groups (12) | Done | `announce/blackhole_agreement_test.go` | RFC7999-3.1-2 both polarities |
+| `TestPathEqualRouteType` and 2 siblings | Done | `locrib/candidate_routetype_test.go` | |
+| `TestSysribCarriesRouteType` group and 4 siblings | Done | `sysrib/sysrib_routetype_test.go` | |
+| `TestBestChangeEntryRouteType` group (2) | Done | `ribevents/ribevents_routetype_test.go` | |
+| `TestValuesMatchLinuxRTN` and 3 siblings | Done | `routetype/routetype_test.go` | |
+| `TestBuildRichRouteDiscardCarriesNoNextHop`, `TestBuildRichRouteUnicastKeepsNextHop`, `TestNetlinkIntegration_BlackholeRouteWithNextHop` | Done | `fib/kernel/` | The netns test is the only level the defect was visible at |
+| `bgp-blackhole-honor` | Done | `test/plugin/bgp-blackhole-honor.ci` | PASS under `make ze-plugin-test` on 2026-08-13 |
+| `59-rfc7999-blackhole-frr` | Done | `test/interop/scenarios/59-rfc7999-blackhole-frr/` | Three outcomes, each proven to discriminate by mutation |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/core/rib/routetype/routetype.go` | Done | Created; aliased by `sysribevents` |
+| `internal/component/bgp/blackholecfg/blackholecfg.go` | Done | Created; the one reader, shared by three deciders |
+| `internal/component/bgp/plugins/rib/rib_blackhole.go` and `rib_blackhole_config.go` | Done | Created |
+| `internal/component/bgp/plugins/rpki/blackhole.go` | Done | Created |
+| `internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go` | Done | Created |
+| `internal/component/bgp/plugins/filter_modify/match.go` | Changed | Not in the original file list; the generic `match` artifact this spec needed |
+| `internal/plugins/fib/kernel/nexthop_linux.go` | Changed | Not in the original file list; the phase-4 defect |
+| `rfc/extraction/rfc7999.json`, `rfc/enrolled.txt`, `rfc/short/rfc7999.md` | Done | Enrolment |
+| `test/plugin/bgp-blackhole-honor.ci` and `test/interop/scenarios/59-rfc7999-blackhole-frr/` | Done | Created |
+
+### Audit Summary
+
+- **Total items:** 8 requirements, 8 acceptance criteria, 14 test groups, 9 file groups
+- **Done:** 6 requirements, 8 ACs, 14 test groups, 7 file groups
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 requirements (RFC7999-3.3-3 and RFC7999-6-1, both ungated SHOULD-level, publicly disclosed rather than implemented) and 2 file groups (the `match` container and the kernel fix, both added), each recorded in Deviations or Known Limitations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze honors a received BLACKHOLE route under RFC 7999 Section 3.3's two conditions | interop | `test/interop/scenarios/59-rfc7999-blackhole-frr/check.py` asserts `blackhole 10.100.0.1` in `ip route show` inside the ze container, from a real FRR 10.3.1 announcement. Discrimination proven three ways: disabling the honor path reddens only the positive, bypassing the coverage test reddens only the uncovered negative, ignoring the `honor` leaf reddens only the un-agreed negative |
+| Honoring is off by default (Section 4) | functional | `test/plugin/bgp-blackhole-honor.ci`: 192.0.2.1/32 carries the same community from the same session and reaches the system RIB with NO route type. Unit: `TestBlackholeNotStampedWithoutAgreement` |
+| The verdict is per BGP session, not daemon-wide | interop | The same scenario runs BIRD on a session that named 65001:666 alone. It announces a COVERED prefix and the kernel forwards it, so the negative isolates the session agreement rather than an absent config block |
+| Origin validation does not block a legitimate blackhole | functional, at unit tier over the decision path | `make ze-test-pkg PKG=./internal/component/bgp/plugins/rpki` green. `TestBlackholeSurvivesLengthOnlyInvalid` positive, `TestBlackholeDoesNotSurviveAWrongOrigin` negative |
+| Ze advertises BLACKHOLE only where the two networks agreed (Section 3.1) | functional, at unit tier over the command handler | `TestAnnounceBlackholeReachesAnAgreedPeer`, `TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree`, `TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate` |
+| A discard route reaches the Linux kernel | integration | `TestNetlinkIntegration_BlackholeRouteWithNextHop` programs a real kernel in an ephemeral netns and reads back exactly one `RTN_BLACKHOLE` with no gateway. With the guard removed the netns holds zero ze routes |
+| RFC 7999 is enrolled with no gap and no annotation | gate output | `make ze-rfc-check` exits 0: 2967 gated MUSTs across 171 enrolled RFCs, `interop/nightly` evidence 26. A grep for `{gap}` and `{not-applicable}` over `rfc/short/rfc7999.md` returns nothing |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| No shard. The metadata `Deferral shard` cell is `-` and no file `plan/deferrals/bcp194-6-blackhole.md` was ever created | done | A grep for `bcp194-6-blackhole` over `plan/deferrals/` returns nothing, as both Source and Destination. No other shard names this spec as the home of any live row |
+| The IRR-derived authorization this spec did not build | deferred | `plan/future/spec-blackhole-authorization-from-irr.md`, created 2026-08-13 alongside `plan/future/spec-irr-filtering-both-directions.md`. It is a `plan/future/` spec, not a live deferral row, so it homes the work without holding this spec open |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | written by `review_gate.py record` under `tmp/review/`, hash-pinned over the 24 code and test files of this spec |
+| `review_gate.py check` | clean |
+| Rounds | 1. An independent closure session, not the implementing one, read the producing function behind every claim rather than a diff summary, and found no BLOCKER and no ISSUE in the product |
+| Reviewer lenses used | fail-closed guards and authorization (every input that could answer "honor" wrongly), RFC conformance against `rfc/short/rfc7999.md` and the enrolled row, wire-value handling (the 4-octet community scan), Linux netlink constraints, config parse refusal against silent drop, and doc-claim staleness against changed source anchors |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `bgp-filter-modify` was documented as applying its operations unconditionally, which the `match` container made false. The claim carries source anchors pointing at the changed files, so checklist item 16 owns it | `docs/guide/plugins.md` and `docs/guide/configuration.md`, both "Route Attribute Modifier" sections | Both rewritten to state the `match` container, its three leaf-lists and the pass-through-unchanged semantics, with a `match.go -- matchCond, matches` anchor added to each |
+| 2 | ISSUE | Three specs cited `plan/spec-bcp194-6-blackhole.md`, which commit B removes, and one unrelated spec already cited a spec closed earlier without clearing its citers. `make ze-spec-citation-check` exited 2 | `plan/spec-bcp194-0-umbrella.md`, `plan/spec-bcp194-1-communities.md` (2 sites), `plan/spec-hub-deferred-api-auth-independent-of-ssh-block.md` (3 sites) | Each citation restated with the bare stem and the durable document that replaced the spec. `make ze-spec-citation-check` now exits 0 |
+| 3 | NOTE | The spec's own "Enrolment TAKEN" section said Thomas chose the `{not-applicable}` annotation for RFC7999-3.1-2. He replaced that ruling the same day and the annotation is withdrawn | this spec, "Enrolment TAKEN 2026-08-13" | The section now records both rulings and says which governs. A record defect, fixed in one edit, and it earned no extra round |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/rib/routetype/routetype.go` | Yes | `ls internal/core/rib/routetype/` lists `routetype.go` and `routetype_test.go` |
+| `internal/component/bgp/blackholecfg/blackholecfg.go` | Yes | `ls` lists it beside `blackholecfg_test.go` |
+| `internal/component/bgp/plugins/rib/rib_blackhole.go`, `rib_blackhole_config.go` | Yes | a glob over `rib/*blackhole*` lists both plus three test files |
+| `internal/component/bgp/plugins/rpki/blackhole.go` | Yes | a glob over `rpki/*blackhole*` lists it plus three test files |
+| `internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go` | Yes | `ls` lists it beside `blackhole_agreement_test.go` |
+| `internal/component/bgp/plugins/filter_modify/match.go` | Yes | read in full at closure |
+| `test/plugin/bgp-blackhole-honor.ci` | Yes | `ls -la` reports 5517 bytes |
+| `test/interop/scenarios/59-rfc7999-blackhole-frr/` | Yes | `ls -la` lists `bird.conf`, `check.py`, `frr.conf`, `ze.conf` |
+| `rfc/extraction/rfc7999.json` | Yes | `make ze-rfc-check` reports it signed off at register `prose` |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | An unconfigured peer installs an ordinary route | `TestBlackholeNotStampedWithoutAgreement` found in `rib_blackhole_wiring_test.go`; `make ze-test-pkg PKG=./internal/component/bgp/plugins/rib` exits 0 |
+| AC-2 | A covered tagged prefix becomes a discard route | Same package green, plus `bgp-blackhole-honor` PASS in `make ze-plugin-test` on 2026-08-13 |
+| AC-3 | An uncovered tagged prefix installs ordinarily | The same `.ci` asserts the 192.0.2.1/32 object closes right after `priority`, so it carries no `route-type` |
+| AC-4 | An untagged prefix installs ordinarily | `TestBlackholeNotStampedWithoutTheCommunity` present and green |
+| AC-5 | An Invalid-by-length blackhole survives origin validation | `make ze-test-pkg PKG=./internal/component/bgp/plugins/rpki` exits 0 |
+| AC-6 | A wrong origin stays Invalid | Same run; `TestBlackholeDoesNotSurviveAWrongOrigin` present |
+| AC-7 | The route type reaches the FIB on both rails | `make ze-test-pkg PKG=./internal/component/sysrib` and `PKG=./internal/core/rib/locrib` both exit 0 |
+| AC-8 | A withdrawal removes the discard route | `TestBlackholeRemovedWhenPrefixWithdrawn` present and green in the `rib` package run |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `bgp { peer X { blackhole { communities; prefixes } } }` | `test/plugin/bgp-blackhole-honor.ci` | Yes. The config block states `communities [ blackhole 65001:666 ]` and `prefixes 10.0.0.0/24`, and the third UPDATE proves the operator's own value fires, which a hardcoded 65535:666 could not |
+| A received UPDATE carrying 65535:666 from an opted-in peer | `test/plugin/bgp-blackhole-honor.ci` | Yes. The hex of the first UPDATE carries the COMMUNITY attribute `C00804FFFF029A` and NLRI `200A000001` |
+| The stamped route type leaving the BGP RIB | `test/plugin/bgp-blackhole-honor.ci` | Yes. `show rib` is the system RIB view, reached only after sysrib arbitration and next-hop resolution, and the `.ci` injects a covering route so both prefixes resolve |
+| The stamped route type reaching the kernel | `test/interop/scenarios/59-rfc7999-blackhole-frr/check.py` | Yes. `check.py` runs `ip route show` inside the ze container and asserts `blackhole 10.100.0.1`, so the assertion is kernel state rather than a Ze table |
+| An Invalid-by-length blackhole under origin validation | none, proven at unit tier | Yes, over `rpki.buildDecisions`. No `.ci` exists for this row and none is claimed: the RFC requirement tags for RFC7999-3.3-4 name the unit tests |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `ribevents.BestChangeEntry` had no route type at HEAD; the field was added by this spec and `TestBestChangeEntryRouteTypeRoundTrip` pins its JSON |
+| A-2 | confirmed | The RIB plugin's `WantsConfig` names `bgp`, which delivers the whole subtree, and `parseBlackholeConfig` reads peers straight out of it |
+| A-3 | confirmed | `configjson.PeerRemoteIP` is the reader `blackholecfg.Parse` uses, and a peer with no usable remote IP is REFUSED rather than skipped |
+| A-4 | confirmed | `routetype.Type` moved to core and aliased; every FIB and sysrib package compiles and its tests pass |
+| A-5 | confirmed | `TestPathEqualRouteType` and `TestPathKeyIgnoresRouteType` both green, so a type-only change reprograms rather than dedupes |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| The `blackhole` container's two leaf-lists and their meaning | `ze-rib.yang` grouping `blackhole-honor-fields`, and `blackholecfg.Parse` accumulates both down bgp, group and peer | Yes |
+| `prefixes` alone resolves the community to the well-known value | `Rule.applyDefaultCommunity` returns unchanged when `Communities` is non-empty OR `Authorized` is empty, so only the prefixes-alone case is filled in | Yes |
+| A stated `communities` list is taken exactly, with the well-known value never unioned in | The same function; `test/plugin/bgp-blackhole-honor.ci` proves the operator's own value fires and the interop BIRD leg proves a stated list excludes the well-known value | Yes |
+| Coverage is not prefix-list membership | `coveredByAuthorized` walks the set and tests containment plus an authorized length no greater than the announced length, with no `ge` or `le` bound | Yes |
+| The `modify` filter applies conditionally when a `match` container is stated | `matchCond.matches` returns true for an empty condition and ORs the listed values otherwise; the YANG declares `community`, `large-community` and `extended-community` | Yes, and the previous unconditional claim was corrected on both pages |
+| The RFC 7999 public row's "no tracked gap" | A grep for `{gap}` and `{not-applicable}` over `rfc/short/rfc7999.md` returns nothing, and `make ze-rfc-check` exits 0 | Yes |
+| No documentation category was answered No without a check | Rows 3, 4, 7, 8, 10, 11, 13, 14 and 15 each name the surface that would have changed and why it did not | Yes |
+
+## Core Insight
+
+A feature can be correct at every layer and still do nothing, and the layer that
+proves it is the one outside the process. Ze read the community, took the right
+decision, carried the verdict on both rails, and the Linux kernel held no route,
+because a discard route may not name a next-hop and every BGP path resolves one.
+Every unit test was green throughout. What found it was an assertion on kernel
+state, and what had hidden it was a test plugin that produced a route type no
+production code produced, which made the FIB's own test vacuous about the chain
+above it.

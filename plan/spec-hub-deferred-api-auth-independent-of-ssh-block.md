@@ -149,7 +149,7 @@ decides only whether an SSH server runs, which is what it names.
 |----------|--------|
 | What breaks if this is wrong? | A management API bound to a non-loopback address serves with no per-user gate, or with a gate built from a list a failed read emptied. That is remote unauthenticated command dispatch through the same dispatcher the CLI uses, config commit paths included. The opposite error is milder and visible: a daemon that refuses to boot and prints the reason. A third error is a SIGHUP that strips per-user authentication off a listener that stays up, which is silent |
 | How is it reverted? | Single commit revert. No config migration, no persisted state, no wire compatibility. A reverted daemon refuses to boot again for the affected set, which is the behavior operators have today |
-| Who else touches this path? | `plan/spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild.md` is another session's in-progress spec over the reload-time AAA rebuild seam beside `ListenerMigrator.ReloadListeners`. It touches `cmd/ze/hub/mgmt_auth_reload.go`, the same file as AC-3. Coordinate on that file before editing |
+| Who else touches this path? | spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild owned the reload-time AAA rebuild seam beside `ListenerMigrator.ReloadListeners`. It CLOSED on 2026-08-12, so the coordination it needed is over and its result is in `cmd/ze/hub/mgmt_auth_reload.go`, the same file as AC-3. Read that file rather than the spec |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -277,7 +277,7 @@ change does not alter.
 3. **Phase: Reload parity** -- the same correction in `apiAuthReloader`
    - Tests: `TestAPIAuthReloaderResolvesUsersWithoutSSHBlock`, `TestAPIAuthReloaderFailsClosedWhenCredentialsBecomeUnreadable`
    - Files: `cmd/ze/hub/mgmt_auth_reload.go`
-   - Verify: AC-3 holds, and the two existing fail-closed reload answers are unchanged. Check for a concurrent edit from `plan/spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild.md` before starting
+   - Verify: AC-3 holds, and the two existing fail-closed reload answers are unchanged. spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild edited the same file and closed on 2026-08-12, so read `cmd/ze/hub/mgmt_auth_reload.go` at HEAD before starting
 4. **Phase: Fail closed** -- a resolution that cannot answer denies and says so
    - Tests: `TestAPIUserResolutionFailsClosedWhenTheSystemRootIsUnreadable`
    - Files: `cmd/ze/hub/main.go`, `cmd/ze/hub/mgmt_auth_reload.go`
@@ -361,8 +361,9 @@ change does not alter.
 - The gNMI surface resolves its own token separately in `resolveGNMIListeners`
   and is untouched. It has no per-user mode to couple.
 - The looking glass is deliberately outside the guard and stays outside it.
-- The reload-time AAA bundle rebuild for remote backends stays with
-  `plan/spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild.md`.
+- The reload-time AAA bundle rebuild for remote backends stayed with
+  spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild, which closed
+  on 2026-08-12. It is done, and `cmd/ze/hub/mgmt_auth_reload.go` holds it.
 
 ## Checklist
 

@@ -612,7 +612,7 @@ Files: 5 | Docs: `docs/comparison.md`, `docs/features.md`, `docs/guide/configura
 | `` | `docs/comparison.md` |
 | `config.go` | `docs/guide/configuration.md` |
 | `filter_modify.go` | `docs/features.md`, `docs/guide/plugins.md` |
-| `match.go` | `docs/guide/configuration.md` |
+| `match.go` | `docs/guide/configuration.md`, `docs/guide/plugins.md` |
 | `modify.go` | `docs/guide/plugins.md` |
 
 ## `internal/component/bgp/plugins/filter_modify/yang/`

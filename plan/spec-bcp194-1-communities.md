@@ -40,8 +40,9 @@ receives a route tagged with the BLACKHOLE community to add NO_ADVERTISE or
 NO_EXPORT, so the prefix does not propagate outside the local AS. That is an
 ingress community-add keyed on a received community, which is the engine this
 spec builds. It also bounds the new scrub: a well-known community must survive
-it. Honouring BLACKHOLE, which means discarding traffic, is child 6
-(`plan/spec-bcp194-6-blackhole.md`) and is not in this spec.
+it. Honouring BLACKHOLE, which means discarding traffic, was child 6
+(spec-bcp194-6-blackhole, closed 2026-08-13) and is not in this spec. Its
+result is `rfc/short/rfc7999.md` and the `rfc7999` row of `rfc/enrolled.txt`.
 
 A separate defect in the same area is in scope here: `rfc/short/rfc7999.md` was
 written with no source text in the repository. It captured 6 requirements and
@@ -603,9 +604,10 @@ cannot produce.
   separate design problem.
 - Honouring the BLACKHOLE community is not done here. This spec adds the RFC 7999
   §3.2 propagation guard only. RFC 7999 §3.3's two conditions for accepting and
-  honouring a blackhole announcement, and the traffic discard itself, are child 6
-  (`plan/spec-bcp194-6-blackhole.md`). §3.1 makes ignoring the community a
-  conformant choice, so the guard commits Ze to nothing further.
+  honouring a blackhole announcement, and the traffic discard itself, were child
+  6 (spec-bcp194-6-blackhole, closed 2026-08-13, and its result is the `rfc7999`
+  row of `rfc/enrolled.txt`). §3.1 makes ignoring the community a conformant
+  choice, so the guard commits Ze to nothing further.
 - TCP-AO, prefix-list defaults, role-derived policy and route flap dampening are
   the other children of the umbrella and are not touched here.
 

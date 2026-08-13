@@ -224,7 +224,7 @@ separate feature. It needs its own spec before it can be an obligation.
 | `plan/spec-bcp194-3-session.md` | RFC 7454 §4 and §5 | S1, S2 |
 | `plan/spec-bcp194-4-prefix.md` | RFC 7454 §6.1 and §8 | P1, P2, P3, P8 |
 | `plan/spec-bcp194-5-damping.md` | RFC 7454 §7 | P7 |
-| `plan/spec-bcp194-6-blackhole.md` | RFC 7999 §3.3 and §4 | B2 |
+| spec-bcp194-6-blackhole (CLOSED 2026-08-13) | RFC 7999 §3.3 and §4 | B2, delivered. RFC 7999 is enrolled and every MUST-level row carries both polarities: `rfc/short/rfc7999.md`, `rfc/enrolled.txt` |
 
 ## Execution Order
 

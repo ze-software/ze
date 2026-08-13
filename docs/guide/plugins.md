@@ -473,8 +473,9 @@ work as match values because the filter text format renders them as names.
 
 ### Route Attribute Modifier (`bgp-filter-modify`)
 
-`bgp-filter-modify` unconditionally applies declared operations on every route
-that reaches it in the filter chain. Three operation types are supported:
+`bgp-filter-modify` applies declared operations to every route that reaches it
+in the filter chain. A definition that states a `match` container applies them
+only to the routes that meet it. Three operation types are supported:
 
 **Set** (absolute value): `set { local-preference 200; med 50; origin igp;
 next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
@@ -489,11 +490,24 @@ Set and increment/decrement for the same attribute are mutually exclusive.
 individual community values (standard, large, extended) without replacing the
 entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.
 
-For conditional modification, compose with match filters earlier in the chain:
+**Match** (the condition the operations apply under): `match { community [
+65535:666 ]; large-community [ 65001:100:200 ]; extended-community [
+target:65001:1 ]; }`. The three leaf-lists hold alternatives, so any one value
+present in the route satisfies the condition. A route that matches none passes
+through UNCHANGED rather than rejected. An absent `match` container applies the
+operations to every route, which is what every definition written before this
+container did.
+
+A `match` container and an earlier match filter answer different questions. A
+filter chain is a pipe in which a reject DROPS the route. A match filter placed
+earlier therefore expresses "modify these and discard everything else", and the
+route that must keep flowing untouched has nowhere to go. Use an earlier filter
+when you want the rest dropped:
 `filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]`.
 
 Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 
+<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
