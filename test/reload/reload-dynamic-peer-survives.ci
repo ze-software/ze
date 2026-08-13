@@ -53,16 +53,18 @@ option=tcp_connections:value=1
 # shutdown communication -- one length octet (0x17) and the 23-character default
 # text "Administrative Shutdown" (Session.Teardown).
 #
-# End-of-RIB is NOT asserted, and MUST NOT be added back as an establishment
-# proxy. A dynamic peer negotiates no address family at all: buildDynamicGroupSettings
-# (internal/component/bgp/config/peers.go) never reads the group's `family` block,
-# so ze's OPEN to this peer carries no Multiprotocol capability and the negotiated
-# family set is empty. sendInitialRoutes covers negotiated families only, which
-# leaves a plugin's AnnounceEOR as the only producer -- and it is dropped whenever
-# it lands while the peer is still draining its initial sync (logEORSuppressed,
-# reactor_api_forward.go). Measured over 8 runs of this file: the marker arrived
-# in 7 and was dropped in 1. The daemon's own establishment line below is the
-# proxy, and it does not race.
+# End-of-RIB is not asserted here, and the reason is now scope rather than
+# racing. Until 2026-08-13 a dynamic peer negotiated no address family at all --
+# buildDynamicGroupSettings (internal/component/bgp/config/peers.go) never read
+# the group's `family` block -- so the only End-of-RIB producer was a plugin's
+# AnnounceEOR, dropped whenever it landed while the peer was still draining its
+# initial sync (logEORSuppressed, reactor_api_forward.go): measured over 8 runs
+# of this file, the marker arrived in 7 and was dropped in 1. The families are
+# built now, so sendInitialRoutes emits the marker for each negotiated family and
+# it no longer races. That negotiation is the subject of
+# test/plugin/dynamic-peer-negotiates-configured-families.ci, which asserts the
+# OPEN and both markers on the wire. This file is about a RELOAD, so it keeps the
+# daemon's own establishment line below as its proxy.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
 EOF_PEER
 

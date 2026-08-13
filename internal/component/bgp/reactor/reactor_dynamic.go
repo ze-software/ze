@@ -155,18 +155,24 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 		NextHopAddress:    tmpl.NextHopAddress,
 		SendCommunity:     tmpl.SendCommunity,
 
-		IgnoreFamilyMismatch:   tmpl.IgnoreFamilyMismatch,
-		RequiredCapabilities:   tmpl.RequiredCapabilities,
-		RefusedCapabilities:    tmpl.RefusedCapabilities,
-		RouteReflectorClient:   tmpl.RouteReflectorClient,
-		ClusterID:              tmpl.ClusterID,
-		ASOverride:             tmpl.ASOverride,
-		LocalASNoPrepend:       tmpl.LocalASNoPrepend,
-		LocalASReplaceAS:       tmpl.LocalASReplaceAS,
-		DefaultOriginate:       tmpl.DefaultOriginate,
-		DefaultOriginateFilter: tmpl.DefaultOriginateFilter,
-		RawCapabilityConfig:    tmpl.RawCapabilityConfig,
-		CapabilityConfigJSON:   tmpl.CapabilityConfigJSON,
+		IgnoreFamilyMismatch: tmpl.IgnoreFamilyMismatch,
+		RequiredCapabilities: tmpl.RequiredCapabilities,
+		RefusedCapabilities:  tmpl.RefusedCapabilities,
+		// RFC 7911 require/refuse enforcement. Carried beside the ADD-PATH
+		// capability itself, which travels in Capabilities above: advertising the
+		// capability while dropping these two leaves a `require` that refuses
+		// nothing, which is a guard that fails open.
+		RequiredAddPathFamilies: tmpl.RequiredAddPathFamilies,
+		RefusedAddPathFamilies:  tmpl.RefusedAddPathFamilies,
+		RouteReflectorClient:    tmpl.RouteReflectorClient,
+		ClusterID:               tmpl.ClusterID,
+		ASOverride:              tmpl.ASOverride,
+		LocalASNoPrepend:        tmpl.LocalASNoPrepend,
+		LocalASReplaceAS:        tmpl.LocalASReplaceAS,
+		DefaultOriginate:        tmpl.DefaultOriginate,
+		DefaultOriginateFilter:  tmpl.DefaultOriginateFilter,
+		RawCapabilityConfig:     tmpl.RawCapabilityConfig,
+		CapabilityConfigJSON:    tmpl.CapabilityConfigJSON,
 	}
 	if dg.Template != nil {
 		if connMap, ok := dg.Template["connection"].(map[string]any); ok {

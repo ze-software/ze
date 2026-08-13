@@ -9,6 +9,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // buildMinimalPeer creates a minimal peer tree with the new container structure.
@@ -567,4 +569,88 @@ func TestDynamicGroupSettingsAcceptsGlobalNextHop(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), ps.LocalAddress)
 	assert.Equal(t, reactor.NextHopExplicit, ps.NextHopMode)
 	assert.Equal(t, netip.MustParseAddr("2001:db8::ffff"), ps.NextHopAddress)
+}
+
+// TestDynamicGroupSettingsBuildsFamilyCapabilities pins the group's `session >
+// family` block to the Multiprotocol capabilities RFC 4760 Section 8 requires in
+// the OPEN, and to the per-family enforcement that travels with them.
+//
+// VALIDATES: every enabled family becomes a capability.Multiprotocol, in AFI
+// order; `mode require` reaches RequiredFamilies; a per-family prefix maximum
+// reaches PrefixMaximum (RFC 4486).
+// PREVENTS: the defect this test was written for. buildDynamicGroupSettings read
+// timers, next-hop and behavior out of the template and never touched `family`,
+// so a dynamic peer advertised no Multiprotocol capability at all. The session
+// established and then carried nothing: an empty negotiated family set leaves
+// sendInitialRoutes (reactor/peer_initial_sync.go) with no family to send an
+// End-of-RIB for, and every forwarded route is dropped as family-not-negotiated.
+// A route server, which is the reason `ip dynamic` exists, exchanged no routes.
+func TestDynamicGroupSettingsBuildsFamilyCapabilities(t *testing.T) {
+	tmpl := DynamicGroupTemplate{
+		GroupName: "ix",
+		Template: map[string]any{
+			"session": map[string]any{
+				"family": map[string]any{
+					// Written out of AFI order on purpose: the OPEN's capability
+					// order is sorted by the family key, not by map iteration.
+					"ipv6/unicast": map[string]any{"mode": "require"},
+					"ipv4/unicast": map[string]any{
+						"mode":   "enable",
+						"prefix": map[string]any{"maximum": "10000"},
+					},
+					"ipv4/flow": "disable",
+				},
+			},
+		},
+	}
+
+	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
+
+	require.NotNil(t, ps)
+	require.Len(t, ps.Capabilities, 2, "one Multiprotocol capability per enabled family, and none for the disabled one")
+
+	first, ok := ps.Capabilities[0].(*capability.Multiprotocol)
+	require.True(t, ok, "first capability is a Multiprotocol")
+	assert.Equal(t, family.AFI(1), first.AFI)
+	assert.Equal(t, family.SAFI(1), first.SAFI)
+
+	second, ok := ps.Capabilities[1].(*capability.Multiprotocol)
+	require.True(t, ok, "second capability is a Multiprotocol")
+	assert.Equal(t, family.AFI(2), second.AFI)
+	assert.Equal(t, family.SAFI(1), second.SAFI)
+
+	require.Len(t, ps.RequiredFamilies, 1, "only ipv6/unicast asked to be required")
+	assert.Equal(t, family.AFI(2), ps.RequiredFamilies[0].AFI)
+
+	assert.Equal(t, uint32(10000), ps.PrefixMaximum["ipv4/unicast"],
+		"the per-family prefix limit travels with the family that declared it")
+}
+
+// TestDynamicGroupSettingsBuildsSessionCapabilities is the capability half of the
+// same block. Families and capabilities are parsed by one call
+// (reactor.ApplyNegotiationConfig), so a regression that drops the call would
+// take both; asserting only families would not say so.
+//
+// VALIDATES: `session > capability > route-refresh` reaches the advertised set.
+// PREVENTS: a dynamic peer that cannot be asked to re-send its routes, on the one
+// peer type whose whole population is learned rather than configured.
+func TestDynamicGroupSettingsBuildsSessionCapabilities(t *testing.T) {
+	tmpl := DynamicGroupTemplate{
+		GroupName: "ix",
+		Template: map[string]any{
+			"session": map[string]any{
+				"capability": map[string]any{"route-refresh": "enable"},
+			},
+		},
+	}
+
+	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
+
+	require.NotNil(t, ps)
+	codes := make([]capability.Code, 0, len(ps.Capabilities))
+	for _, c := range ps.Capabilities {
+		codes = append(codes, c.Code())
+	}
+	assert.Contains(t, codes, capability.CodeRouteRefresh)
+	assert.Contains(t, codes, capability.CodeEnhancedRouteRefresh)
 }

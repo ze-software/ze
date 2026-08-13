@@ -392,6 +392,24 @@ func buildDynamicGroupSettings(tmpl DynamicGroupTemplate, globalLocalAS, globalR
 		}
 	}
 
+	// The address families and capabilities a dynamic peer offers come from the
+	// same parser the statically configured peer uses. The group's `session >
+	// family` block is the operator's whole statement of what the session is
+	// for, and a template that never reads it advertises no Multiprotocol
+	// capability: the session establishes, negotiates an empty family set, and
+	// exchanges nothing (reactor.ApplyNegotiationConfig).
+	//
+	// The error is logged and dropped rather than returned, exactly as the two
+	// next-hop refusals above are: this builder has no error channel and neither
+	// has dynamicGroupsFromTree. Only a malformed family key reaches it, and YANG
+	// refuses one already (`ze:validate "registered-address-family"`), so the path
+	// is reachable only from a caller that bypassed the schema. What survives is
+	// the families read before the bad key, which negotiates LESS than the
+	// operator asked for and never more.
+	if err := reactor.ApplyNegotiationConfig(tmpl.GroupName, sessionMap, ps); err != nil {
+		configLogger().Warn("dynamic group: family or capability config refused", "error", err)
+	}
+
 	// Parse behavior flags.
 	if behaviorMap, ok := tree["behavior"].(map[string]any); ok {
 		if v, ok := behaviorMap["group-updates"].(string); ok && v == configFalse {

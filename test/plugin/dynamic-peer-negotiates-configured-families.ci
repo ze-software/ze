@@ -1,0 +1,139 @@
+# Test: a dynamic peer negotiates the address families its group configures, and
+# the session then carries traffic.
+#
+# VALIDATES: the group's `session > family` block reaches ze's OPEN as one
+#            RFC 4760 Multiprotocol capability per family
+#            (buildDynamicGroupSettings, internal/component/bgp/config/peers.go,
+#            through reactor.ApplyNegotiationConfig), and the negotiated set that
+#            results is what sendInitialRoutes
+#            (internal/component/bgp/reactor/peer_initial_sync.go) sends an
+#            RFC 4724 End-of-RIB for.
+# PREVENTS: a dynamic peer that establishes and then exchanges nothing.
+#           buildDynamicGroupSettings read the template's timers, next-hop and
+#           behavior and never read `family`, so ze's OPEN to a dynamic peer
+#           carried no Multiprotocol capability at all. The negotiated family set
+#           was empty, sendInitialRoutes had no family to send an End-of-RIB for,
+#           and every forwarded route was dropped as family-not-negotiated. For a
+#           route server or an IXP fabric -- the reason `ip dynamic` exists -- the
+#           whole purpose of the session failed after a successful handshake.
+#
+# DISCRIMINATION: both assertions are wire bytes, and both go red when the family
+# construction is removed. Measured on 2026-08-13 by deleting the
+# ApplyNegotiationConfig call from buildDynamicGroupSettings: the OPEN arrives 12
+# octets shorter with an empty capability list, and no End-of-RIB arrives at all.
+# Asserting the settings struct instead would not have caught the original defect,
+# because the settings were never the thing that was wrong on the wire.
+#
+# The peer takes the ACTIVE role and dials ze (--dial): the group is `ip dynamic`
+# + `connect false`, so ze only ever ACCEPTS. The configuration names no static
+# peer, so the only socket in the run is the one the GROUP asks for and the only
+# peer is the one the inbound connection creates (tryCreateDynamicPeer,
+# internal/component/bgp/reactor/reactor_dynamic.go).
+
+# "dynamic peer created" is an Info line and the daemon's base level is warn
+# (ze.log, internal/core/slogutil/slogutil.go), so the assertion at the foot of
+# this file sees nothing without this.
+option=env:var=ze.log.bgp.reactor:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65010
+option=tcp_connections:value=1
+
+# Hand ze's OPEN to the checker as message 1 of the exchange.
+option=open:value=inspect-open-message
+
+# ze's OPEN, whole. Version 4, my AS 65533, hold time 30 (001E, from the group's
+# timer block), BGP identifier 1.2.3.4, then one RFC 5492 type-2 optional
+# parameter holding three capabilities:
+#
+#   01 04 0001 00 01   Multiprotocol ipv4/unicast (RFC 4760 Section 8)
+#   01 04 0002 00 01   Multiprotocol ipv6/unicast
+#   41 04 0000FFFD     4-octet AS (RFC 6793)
+#
+# The two Multiprotocol capabilities are the subject. They appear in AFI order
+# because parseFamiliesFromTree sorts the family keys, not because the config
+# lists them that way -- the config below writes ipv6 first.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310104FFFD001E0102030414021201040001000101040002000141040000FFFD
+
+# End-of-RIB for ipv4/unicast: the empty UPDATE of RFC 4724 Section 2.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# End-of-RIB for ipv6/unicast: RFC 4724 Section 2 gives a non-IPv4-unicast family
+# an UPDATE carrying only MP_UNREACH_NLRI with the AFI/SAFI and no NLRI (flags
+# 0x90 optional + extended-length, type 0x0F, length 0003, AFI 0002, SAFI 01).
+# Its arrival is what says the negotiated set holds BOTH families rather than one.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+EOF_PEER
+
+# One dynamic group and nothing else: the route-server shape. tmpfs rather than
+# stdin because the runner writes daemon.pid and daemon.ready beside the config,
+# and trigger.sh waits on both.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/unicast {
+					mode enable
+				}
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer {
+			receive-hold-time 30
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Trigger: let the session establish and drain, then stop the daemon. The sleep
+# only has to cover a dial the peer retries every 500ms against a daemon that has
+# already written daemon.ready; too short and the file fails on the missing
+# End-of-RIB rather than passing quietly.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 5
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
+
+# The session above really was a DYNAMIC peer's. Without this the wire assertions
+# would hold for any peer ze accepted, which is how a first attempt at a dynamic
+# test can pass against unfixed code: the inbound is attributed to a statically
+# configured peer and no dynamic peer is ever built.
+expect=stderr:contains=dynamic peer created
+
+# ... and it reached Established, so the End-of-RIB above was sent by the initial
+# sync of a live session rather than by any earlier state.
+expect=stderr:contains=session established

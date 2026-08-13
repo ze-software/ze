@@ -287,16 +287,10 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// Parse families from session > family (includes per-family prefix limits + default-originate).
-	if sessionMap != nil {
-		if err := parseFamiliesFromTree(sessionMap, ps); err != nil {
-			return nil, fmt.Errorf("peer %s: %w", name, err)
-		}
-	}
-
-	// Parse capabilities from session > capability and session > add-path.
-	if sessionMap != nil {
-		parseCapabilitiesFromTree(sessionMap, ps)
+	// Parse session > family and session > capability: what this speaker offers
+	// in its OPEN and what it demands of the peer's.
+	if err := ApplyNegotiationConfig(name, sessionMap, ps); err != nil {
+		return nil, err
 	}
 
 	// Parse process bindings.
@@ -546,6 +540,33 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	}
 
 	return peers, nil
+}
+
+// ApplyNegotiationConfig parses the two `session` blocks that decide what this
+// speaker offers in its OPEN and what it demands of the peer's: `family`
+// (RFC 4760 Multiprotocol capabilities, plus the per-family prefix limits of
+// RFC 4486 and default-originate) and `capability`. A nil sessionMap is a peer
+// that configured neither, and it is not an error.
+//
+// Two callers reach it, and they are the two ways a PeerSettings is built: the
+// statically configured peer (parsePeerFromTree, above) and the dynamic group
+// template (buildDynamicGroupSettings, ../config/peers.go). It is exported for
+// the second one, which lives in another package.
+//
+// A builder that skips it produces settings with no Multiprotocol capability at
+// all. The session still establishes, negotiates an EMPTY family set, and then
+// carries nothing: sendInitialRoutes (peer_initial_sync.go) sends one End-of-RIB
+// per NEGOTIATED family and every forwarded route is dropped as
+// family-not-negotiated. That is what the dynamic path did until 2026-08-13.
+func ApplyNegotiationConfig(peerName string, sessionMap map[string]any, ps *PeerSettings) error {
+	if sessionMap == nil {
+		return nil
+	}
+	if err := parseFamiliesFromTree(sessionMap, ps); err != nil {
+		return fmt.Errorf("peer %s: %w", peerName, err)
+	}
+	parseCapabilitiesFromTree(sessionMap, ps)
+	return nil
 }
 
 // parseFamiliesFromTree parses address family configuration from the tree.
