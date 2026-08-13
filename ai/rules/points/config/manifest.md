@@ -32,6 +32,7 @@ config-surface-yang-config-vs-env-var ## Config Surface: YANG Config vs Env Var
 config-naming-conventions ## Config Naming Conventions
   yang-leaves
   yang-leaf-naming-rules
+  fix-a-singular-list-name-before-release
   spell-yang-leaf-names-out-in-full
   abbreviations-allowed-in-yang-leaf-names
   env-vars

@@ -104,6 +104,15 @@ Before adding any tunable setting:
 | Dimensioned value: state the unit via a YANG `units` statement, keep the name unit-free (see Units) | `teardown-grace` + `units seconds;` | `teardown-grace-seconds` (unit in the name), `teardown-grace` with no `units` |
 | No `ze-` prefix (implicit in the tree) | `cache-ttl` | `ze-cache-ttl` |
 | Boolean: positive assertion | `update-groups` | `no-update-groups`, `disable-update-groups` |
+| **A `leaf-list` or a `list` is named in the PLURAL. A single `leaf` is named in the singular.** The name states how many values the operator may write, so a reader knows before reaching the type | `communities`, `prefixes`, `as-sets` | `community`, `prefix`, `as-set` on a leaf-list |
+
+**Ze has not shipped a release. So a singular `leaf-list` name MUST be corrected now, and the code that reads it fixed with it.**
+A change whose only purpose is grammar consistency is CORRECT work while nothing is released, and MUST NOT be refused as churn.
+The BGP YANG holds several singular leaf-lists today: `import`, `export`, `tag`, `strip`, `send`, `value` and `receive` among them. Each costs one commit now.
+**After the first release, a configuration name is an API, and a rename MUST NOT land without a configuration migration tool.**
+A rename breaks every deployed configuration that writes the old name. An operator whose configuration stops parsing after an upgrade has no way forward without that tool.
+Rationale: the `blackhole` container gained `community` and `authorized-covering-prefix` on 2026-08-13. Both moved to `communities` and `prefixes` the same day, for one commit, because nothing had been released. The same edit after a release is a migration project.
+**The free period ends when the migration tool is owed, not on the release date alone.** MUST say which of the two states applies before you argue that a rename is too expensive.
 
 **YANG leaf names MUST NOT use abbreviations.** Operators read YANG leaves in CLI completion and `show configuration`. `fwd` means nothing to someone who did not write the code. Leaf names MUST be spelled out in full: `forward`, `buffer`, `channel`, `maximum`.
 
