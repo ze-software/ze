@@ -1,16 +1,19 @@
 // VALIDATES: the per-peer RFC 7999 leaves resolve with the bgp, group and peer
 // inheritance every other BGP plugin leaf uses, and key on the peer's remote IP
 // rather than on its config name.
-// PREVENTS: a group-level agreement silently canceled by every peer under it,
-// and a honoring decision that cannot find its peer because the config keys by
-// name while the RIB knows an address.
+// PREVENTS: a group-level agreement silently dropped by a peer that states one
+// of its own, and a honoring decision that cannot find its peer because the
+// config keys by name while the RIB knows an address.
 
 package rib
 
 import (
 	"encoding/json"
 	"net/netip"
+	"slices"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 func parseBlackholeJSON(t *testing.T, jsonStr string) map[netip.Addr]blackholeConfig {
@@ -33,7 +36,7 @@ func parseBlackholeJSON(t *testing.T, jsonStr string) map[netip.Addr]blackholeCo
 func TestParseBlackholeConfigPeerLevel(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0/24","2001:db8::/32"]}
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24","2001:db8::/32"]}
 	}}}}`)
 
 	addr := netip.MustParseAddr("198.51.100.1")
@@ -41,8 +44,8 @@ func TestParseBlackholeConfigPeerLevel(t *testing.T) {
 	if !ok {
 		t.Fatalf("no config for %v; got keys %v", addr, cfgs)
 	}
-	if !cfg.honor {
-		t.Error("honor = false, want true")
+	if !slices.Contains(cfg.communities, attribute.CommunityBlackhole) {
+		t.Errorf("communities = %v, want the well-known BLACKHOLE value", cfg.communities)
 	}
 	if len(cfg.authorized) != 2 {
 		t.Fatalf("authorized = %v, want 2 prefixes", cfg.authorized)
@@ -54,29 +57,59 @@ func TestParseBlackholeConfigPeerLevel(t *testing.T) {
 // sessions has stated it for each of them.
 func TestParseBlackholeConfigInheritsFromGroup(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"group":{"customers":{
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0/24"]},
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]},
 		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}}}}
 	}}}}`)
 
 	cfg := cfgs[netip.MustParseAddr("198.51.100.1")]
-	if !cfg.honor {
-		t.Error("group-level honor did not reach the peer")
+	if !slices.Contains(cfg.communities, attribute.CommunityBlackhole) {
+		t.Error("the group's agreed community did not reach the peer")
 	}
 	if len(cfg.authorized) != 1 {
 		t.Errorf("group-level authorization did not reach the peer: %v", cfg.authorized)
 	}
 }
 
-// A peer MUST be able to turn the group's agreement off. An unset leaf leaves
-// the group value standing; an explicit false overrides it.
-func TestParseBlackholeConfigPeerOverridesGroupOff(t *testing.T) {
+// A peer adds its own community to the group's rather than replacing it, and a
+// peer that states a blackhole block for its own reasons does not lose the
+// group's agreement by doing so.
+//
+// The shape this pins also states what it CANNOT express: with the agreement
+// carried by a list, a peer cannot opt out of a community its group agreed. An
+// operator who needs one session excluded states the community on the peers
+// rather than on the group.
+func TestParseBlackholeConfigPeerAddsToGroupCommunity(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"group":{"customers":{
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0/24"]},
-		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}},"blackhole":{"honor":false}}}
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]},
+		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}},"blackhole":{"community":["65001:666"]}}}
 	}}}}`)
 
-	if cfgs[netip.MustParseAddr("198.51.100.1")].honor {
-		t.Error("peer-level honor false did not override the group")
+	cfg := cfgs[netip.MustParseAddr("198.51.100.1")]
+	if !slices.Contains(cfg.communities, attribute.CommunityBlackhole) {
+		t.Error("the peer's own community replaced the group's instead of adding to it")
+	}
+	if !slices.Contains(cfg.communities, attribute.Community(65001<<16|666)) {
+		t.Errorf("the peer's own community did not reach it: %v", cfg.communities)
+	}
+}
+
+// An unparseable community is a refused config, for the same reason an
+// unparseable prefix is: an agreement the operator reads as in force in the
+// running config, and which honors nothing.
+func TestParseBlackholeConfigRejectsBadCommunity(t *testing.T) {
+	var tree map[string]any
+	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
+		"connection":{"remote":{"ip":"198.51.100.1"}},
+		"blackhole":{"community":["not-a-community"],"authorized-covering-prefix":["192.0.2.0/24"]}
+	}}}}`), &tree); err != nil {
+		t.Fatalf("bad test config: %v", err)
+	}
+	bgpCfg, ok := tree["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("test config has no bgp subtree")
+	}
+	if _, err := parseBlackholeConfig(bgpCfg); err == nil {
+		t.Fatal("parseBlackholeConfig accepted an unparseable community")
 	}
 }
 
@@ -85,7 +118,7 @@ func TestParseBlackholeConfigPeerOverridesGroupOff(t *testing.T) {
 // make a peer that adds one prefix silently drop the group's.
 func TestParseBlackholeConfigAuthorizationAccumulates(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"group":{"customers":{
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0/24"]},
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]},
 		"peer":{"cust-a":{
 			"connection":{"remote":{"ip":"198.51.100.1"}},
 			"blackhole":{"authorized-covering-prefix":["203.0.113.0/24"]}
@@ -117,7 +150,7 @@ func TestParseBlackholeConfigRejectsBadPrefix(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0/24","not-a-prefix"]}
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24","not-a-prefix"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}
@@ -137,7 +170,7 @@ func TestParseBlackholeConfigRejectsBareAddress(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0"]}
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}
@@ -156,7 +189,7 @@ func TestParseBlackholeConfigRejectsBareAddress(t *testing.T) {
 func TestParseBlackholeConfigRefusesPeerWithNoRemoteIP(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
-		"blackhole":{"honor":true,"authorized-covering-prefix":["192.0.2.0/24"]}
+		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -22,32 +23,26 @@ import (
 // whether a peer can make Ze discard traffic.
 var errRibInvalidBgpConfigJson = errors.New("rib: invalid bgp config JSON")
 
-// blackholeCommunityWire is BLACKHOLE, 0xFFFF029A, in network byte order. RFC
-// 7999 Section 5 registered it, and RFC 1997 gives the COMMUNITIES attribute
-// its set semantics. The value is one 4-octet element at any position.
-var blackholeCommunityWire = func() [4]byte {
-	var b [4]byte
-	binary.BigEndian.PutUint32(b[:], uint32(attribute.CommunityBlackhole))
-	return b
-}()
-
 // carriesBlackholeCommunity reports whether a COMMUNITIES attribute value
-// carries BLACKHOLE.
+// carries any of the communities this session agreed to honor.
+//
+// The value is not fixed at 0xFFFF029A. Operators run destination-based RTBH on
+// their own community far more often than on the well-known one, so the set
+// comes from the peer's configuration and the well-known value is simply the
+// one an operator most often names.
 //
 // data is the attribute's value bytes, a sequence of 4-octet communities. The
-// scan steps 4 octets at a time rather than searching for the byte pattern,
+// scan steps 4 octets at a time rather than searching for a byte pattern,
 // because a match that straddles two adjacent communities is not the value.
-// 0x0000FFFF followed by 0x029A0000 contains the four bytes and carries no
-// BLACKHOLE.
+// 0x0000FFFF followed by 0x029A0000 contains the four bytes of BLACKHOLE and
+// carries no BLACKHOLE.
 //
 // A trailing partial community is ignored. RFC 7606 governs a malformed
 // attribute, and this function is not where that is decided.
-func carriesBlackholeCommunity(data []byte) bool {
+func carriesBlackholeCommunity(data []byte, want []attribute.Community) bool {
 	for i := 0; i+4 <= len(data); i += 4 {
-		if data[i] == blackholeCommunityWire[0] &&
-			data[i+1] == blackholeCommunityWire[1] &&
-			data[i+2] == blackholeCommunityWire[2] &&
-			data[i+3] == blackholeCommunityWire[3] {
+		v := attribute.Community(binary.BigEndian.Uint32(data[i : i+4]))
+		if slices.Contains(want, v) {
 			return true
 		}
 	}
@@ -102,12 +97,14 @@ func coveredByAuthorized(authorized []netip.Prefix, route netip.Prefix) bool {
 // is returned for every case except the one RFC 7999 Section 3.3 permits, and
 // the three inputs are the three the RFC names:
 //
-//  1. cfg.honor. RFC7999-3.3-2, the receiving party agreed to honor BLACKHOLE
-//     on that particular BGP session. Default false, which is RFC7999-4-1.
-//     Without an explicit configuration directive, do not discard.
+//  1. cfg.communities is non-empty. RFC7999-3.3-2, the receiving party agreed
+//     to honor BLACKHOLE on that particular BGP session. A peer that named no
+//     community agreed to nothing, which is RFC7999-4-1: without an explicit
+//     configuration directive, do not discard.
 //  2. A covering prefix in cfg.authorized. RFC7999-3.3-1.
-//  3. hasCommunity. The announcement is tagged. An untagged route is an
-//     ordinary announcement whatever the peer is authorized for.
+//  3. hasCommunity. The announcement carries one of the agreed communities. An
+//     untagged route is an ordinary announcement whatever the peer is
+//     authorized for.
 //
 // All three hold, or the route forwards. RFC 7999 Section 3.3 states its two
 // conditions as one sentence with two bullets, and both hold or the
@@ -119,7 +116,7 @@ func coveredByAuthorized(authorized []netip.Prefix, route netip.Prefix) bool {
 // each condition is tested in exactly one place. A second copy of the honor
 // test in the caller would be a guard no test can distinguish from this one.
 func blackholeRouteType(cfg blackholeConfig, route netip.Prefix, hasCommunity func() bool) routetype.Type {
-	if !cfg.honor {
+	if len(cfg.communities) == 0 {
 		return 0
 	}
 	if !coveredByAuthorized(cfg.authorized, route) {
@@ -164,7 +161,7 @@ func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []by
 		return 0
 	}
 	return blackholeRouteType(cfg, pfx, func() bool {
-		return r.bestCarriesBlackhole(fam, nlriBytes, peerAddr)
+		return r.bestCarriesBlackhole(fam, nlriBytes, peerAddr, cfg.communities)
 	})
 }
 
@@ -176,7 +173,7 @@ func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []by
 // wire payload. lookupSRv6SIDForBest reads the same bundle for the same reason.
 //
 // Caller must not hold r.peerMu.
-func (r *RIBManager) bestCarriesBlackhole(fam family.Family, nlriBytes []byte, peerAddr netip.Addr) bool {
+func (r *RIBManager) bestCarriesBlackhole(fam family.Family, nlriBytes []byte, peerAddr netip.Addr, want []attribute.Community) bool {
 	r.peerMu.RLock()
 	peerRIB := r.bgpPeers[peerAddr]
 	r.peerMu.RUnlock()
@@ -195,5 +192,5 @@ func (r *RIBManager) bestCarriesBlackhole(fam family.Family, nlriBytes []byte, p
 	if err != nil {
 		return false
 	}
-	return carriesBlackholeCommunity(data)
+	return carriesBlackholeCommunity(data, want)
 }

@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -85,6 +86,7 @@ func TestCoveredByAuthorizedIsFamilyScoped(t *testing.T) {
 // itself. Every row states what a real operator config produces.
 func TestBlackholeRouteTypeDecision(t *testing.T) {
 	authorized := mustPrefixes(t, "192.0.2.0/24")
+	agreed := []attribute.Community{attribute.CommunityBlackhole}
 	pfx := mustPrefixes(t, "192.0.2.1/32")[0]
 
 	cases := []struct {
@@ -102,36 +104,36 @@ func TestBlackholeRouteTypeDecision(t *testing.T) {
 			want:         0,
 		},
 		{
-			name:         "honor off with an authorization listed",
+			name:         "no community agreed, an authorization listed",
 			cfg:          blackholeConfig{authorized: authorized},
 			hasCommunity: true,
 			prefix:       pfx,
 			want:         0,
 		},
 		{
-			name:         "honor on with no authorization listed",
-			cfg:          blackholeConfig{honor: true},
+			name:         "a community agreed, no authorization listed",
+			cfg:          blackholeConfig{communities: agreed},
 			hasCommunity: true,
 			prefix:       pfx,
 			want:         0,
 		},
 		{
 			name:         "both conditions met",
-			cfg:          blackholeConfig{honor: true, authorized: authorized},
+			cfg:          blackholeConfig{communities: agreed, authorized: authorized},
 			hasCommunity: true,
 			prefix:       pfx,
 			want:         routetype.Blackhole,
 		},
 		{
-			name:         "both conditions met but the route carries no BLACKHOLE",
-			cfg:          blackholeConfig{honor: true, authorized: authorized},
+			name:         "both conditions met but the route carries no agreed community",
+			cfg:          blackholeConfig{communities: agreed, authorized: authorized},
 			hasCommunity: false,
 			prefix:       pfx,
 			want:         0,
 		},
 		{
-			name:         "honor on, community present, prefix outside the authorization",
-			cfg:          blackholeConfig{honor: true, authorized: authorized},
+			name:         "community agreed and present, prefix outside the authorization",
+			cfg:          blackholeConfig{communities: agreed, authorized: authorized},
 			hasCommunity: true,
 			prefix:       mustPrefixes(t, "198.51.100.1/32")[0],
 			want:         0,
@@ -150,7 +152,7 @@ func TestBlackholeRouteTypeDecision(t *testing.T) {
 			if got != c.want {
 				t.Errorf("blackholeRouteType = %v, want %v", got, c.want)
 			}
-			wantScan := c.cfg.honor && coveredByAuthorized(c.cfg.authorized, c.prefix)
+			wantScan := len(c.cfg.communities) > 0 && coveredByAuthorized(c.cfg.authorized, c.prefix)
 			if scanned != wantScan {
 				t.Errorf("community scan reached = %v, want %v: the cheap config tests must gate the wire scan", scanned, wantScan)
 			}
@@ -158,32 +160,48 @@ func TestBlackholeRouteTypeDecision(t *testing.T) {
 	}
 }
 
-// The wire scan that answers "does this route carry BLACKHOLE". The COMMUNITIES
-// attribute is a set of 4-octet values, so the scan must find the value at any
-// position and must not match a value that merely shares two octets.
+// The wire scan that answers "does this route carry a community this session
+// agreed to honor". The COMMUNITIES attribute is a set of 4-octet values, so the
+// scan must find a value at any position and must not match a value that merely
+// shares two octets with one.
 func TestCarriesBlackholeCommunity(t *testing.T) {
 	blackhole := []byte{0xFF, 0xFF, 0x02, 0x9A}
 	noExport := []byte{0xFF, 0xFF, 0xFF, 0x01}
 	other := []byte{0x00, 0x64, 0x00, 0x01}
 
+	wellKnown := []attribute.Community{attribute.CommunityBlackhole}
+	// 65001:666, an operator's own RTBH community. Operators use one of these
+	// far more often than the well-known value, which is why the scan takes the
+	// set from configuration instead of holding one constant.
+	ownValue := []byte{0xFD, 0xE9, 0x02, 0x9A}
+	own := []attribute.Community{attribute.Community(65001<<16 | 666)}
+
 	cases := []struct {
 		name string
 		data []byte
-		want bool
+		want []attribute.Community
+		ok   bool
 	}{
-		{"only value", blackhole, true},
-		{"first of three", concat(blackhole, noExport, other), true},
-		{"last of three", concat(other, noExport, blackhole), true},
-		{"middle of three", concat(other, blackhole, noExport), true},
-		{"absent", concat(other, noExport), false},
-		{"empty", nil, false},
-		{"straddles a boundary, must not match", concat([]byte{0x00, 0xFF, 0xFF, 0x02}, []byte{0x9A, 0x00, 0x00, 0x00}), false},
-		{"truncated attribute", []byte{0xFF, 0xFF, 0x02}, false},
+		{"only value", blackhole, wellKnown, true},
+		{"first of three", concat(blackhole, noExport, other), wellKnown, true},
+		{"last of three", concat(other, noExport, blackhole), wellKnown, true},
+		{"middle of three", concat(other, blackhole, noExport), wellKnown, true},
+		{"absent", concat(other, noExport), wellKnown, false},
+		{"empty", nil, wellKnown, false},
+		{"straddles a boundary, must not match", concat([]byte{0x00, 0xFF, 0xFF, 0x02}, []byte{0x9A, 0x00, 0x00, 0x00}), wellKnown, false},
+		{"truncated attribute", []byte{0xFF, 0xFF, 0x02}, wellKnown, false},
+		{"no community agreed matches nothing", blackhole, nil, false},
+
+		// The case the hardcoded value could not express at all.
+		{"an operator's own community", concat(other, ownValue), own, true},
+		{"the well-known value does not match an operator's own agreement", blackhole, own, false},
+		{"an operator's own value does not match the well-known agreement", ownValue, wellKnown, false},
+		{"either of two agreed values matches", concat(other, ownValue), append(append([]attribute.Community{}, wellKnown...), own...), true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := carriesBlackholeCommunity(c.data); got != c.want {
-				t.Errorf("carriesBlackholeCommunity = %v, want %v", got, c.want)
+			if got := carriesBlackholeCommunity(c.data, c.want); got != c.ok {
+				t.Errorf("carriesBlackholeCommunity = %v, want %v", got, c.ok)
 			}
 		})
 	}

@@ -15,7 +15,13 @@ module ze-rib {
           "RFC 7999 blackhole honoring, per BGP session. Section 3.3 binds the
            agreement to 'that particular BGP session', so the leaves sit in a
            grouping augmented at the bgp, group and peer levels rather than in
-           one daemon-wide switch.";
+           one daemon-wide switch.
+           The community is named by the operator rather than fixed at 65535:666:
+           operators run destination-based RTBH on their own community far more
+           often than on the well-known one, and a knob that answers only the
+           well-known value does not serve the common case. The separate honor
+           boolean is gone with it, because a listed community already says the
+           session agreed.";
     }
 
     revision 2025-01-31 {
@@ -31,24 +37,33 @@ module ze-rib {
                BLACKHOLE community, 65535:666. RFC 7999. Section 4 uses the
                suggested shorthand keyword for the community value.";
 
-            leaf honor {
-                type boolean;
-                default "false";
+            leaf-list community {
+                type string;
+                ze:cumulative;
                 description
-                  "Discard traffic sent toward a prefix this peer announces with
-                   the BLACKHOLE community. RFC 7999 Section 3.3 requires the
-                   receiving party to have agreed to honor BLACKHOLE on that
-                   particular BGP session, and this leaf is that agreement.
+                  "Discard traffic sent toward a prefix this peer announces
+                   carrying one of these communities. Ze installs the prefix as a
+                   discard route directly: no next-hop to allocate, no static
+                   route to pre-create, and nothing else to configure.
 
-                   The default is false, which RFC 7999 Section 4 states: without
-                   an explicit configuration directive a network element does not
-                   discard traffic toward a tagged prefix. A speaker that ignores
-                   the community is conformant, per Section 3.1.
+                   ASN:VAL (e.g. 65001:666), or a well-known name. blackhole and
+                   65535:666 are the same value, the one RFC 7999 registers and
+                   RFC 7999 Section 4 suggests that keyword for. An operator's own
+                   community is the common case and is why this is a list rather
+                   than a fixed value.
 
-                   Turning it on is not enough on its own. RFC 7999 Section 3.3
+                   Listing a community IS the agreement RFC 7999 Section 3.3
+                   requires the receiving party to have made 'on that particular
+                   BGP session'. An empty list is the closed state and the
+                   default: RFC 7999 Section 4 states that without an explicit
+                   configuration directive a network element does not discard
+                   traffic toward a tagged prefix, and Section 3.1 makes a speaker
+                   that ignores the community conformant.
+
+                   Listing one is not enough on its own. RFC 7999 Section 3.3
                    states two conditions, and authorized-covering-prefix is the
-                   other one. A peer with honor true and no covering prefix
-                   listed can blackhole nothing.";
+                   other. A peer with a community listed and no covering prefix
+                   can blackhole nothing.";
             }
 
             leaf-list authorized-covering-prefix {

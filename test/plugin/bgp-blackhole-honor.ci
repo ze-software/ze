@@ -15,9 +15,11 @@
 # entry must carry route-type and the other must not.
 #
 # Flow:
-# 1. ze-peer sends two UPDATEs, both carrying COMMUNITY 65535:666:
-#      10.0.0.1/32     -- inside the peer's authorized-covering-prefix 10.0.0.0/24
-#      192.0.2.1/32    -- outside every authorized block
+# 1. ze-peer sends three UPDATEs from one session with one next-hop:
+#      10.0.0.1/32     65535:666  -- inside the authorized 10.0.0.0/24
+#      192.0.2.1/32    65535:666  -- outside every authorized block
+#      10.0.0.2/32     65001:666  -- inside it, tagged with the OPERATOR's own
+#                                    community, which the peer also agreed
 # 2. A connected covering route for the next-hop is injected so both resolve and
 #    reach the system RIB (the same mechanism engine-steps-predicates.ci uses).
 # 3. `show rib` renders route-type for a discard route and omits it otherwise.
@@ -44,6 +46,11 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B40010
 # Same session, same community, same next-hop. NLRI 20C0000201 (192.0.2.1/32),
 # which no authorized-covering-prefix covers.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE940030401010101C00804FFFF029A20C0000201
+# Same session and next-hop, covered prefix 10.0.0.2/32 (200A000002), tagged with
+# the OPERATOR's own community 65001:666 (C00804FDE9029A) rather than the
+# well-known value. The peer agreed both, so this must be discarded too. A
+# hardcoded 65535:666 in the decision path forwards it.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE940030401010101C00804FDE9029A200A000002
 EOF_PEER
 
 stdin=config:terminator=EOF_CONFIG
@@ -88,7 +95,7 @@ bgp {
 			group-updates disable
 		}
 		blackhole {
-			honor true
+			community [ blackhole 65001:666 ]
 			authorized-covering-prefix 10.0.0.0/24
 		}
 		process bgp-rib {
@@ -113,6 +120,12 @@ command=show rib
 # The entry closes right after priority, because route-type and ecmp-paths are
 # both omitted when unset.
 expect=output:matches="prefix":"192\.0\.2\.1/32"[^}]*"priority":[0-9]+\}:timeout=15
+command=show rib
+# The operator's own community discards on the same terms as the well-known one.
+# This is the case a hardcoded community could not express, and it discriminates
+# against the row above: same session, same next-hop, covered prefix, and the
+# only difference from 192.0.2.1/32 is which community the peer agreed.
+expect=output:matches="prefix":"10\.0\.0\.2/32"[^}]*"route-type":"blackhole":timeout=15
 expect=exit:code=0
 expect=stderr:contains=engine-steps: all steps passed
 reject=stderr:pattern=panic recovered

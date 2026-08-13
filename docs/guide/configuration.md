@@ -448,21 +448,39 @@ A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
 the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
 route for that prefix, and the traffic is dropped in the kernel FIB or in VPP.
 
+Ze installs the discard route itself. There is no next-hop to allocate and no
+static route to pre-create: the community is read on the session and the prefix
+is programmed as a discard directly.
+
 Honoring is off by default and is configured per session. Both leaves are
 required, and each one is a separate condition from RFC 7999 Section 3.3.
 
 | Leaf | Meaning |
 |------|---------|
-| `honor` | `true` means this session agreed to honor BLACKHOLE. Default `false` |
+| `community` | A community this session agreed to honor. `blackhole` and `65535:666` are the same well-known value; any `ASN:VAL` works. An empty list agreed to nothing, which is the default |
 | `authorized-covering-prefix` | A prefix this peer is authorized to advertise. Repeat the leaf for each one. An empty list authorizes nothing |
 
 ```
 bgp {
     peer transit-a {
         blackhole {
-            honor true;
+            community blackhole;
             authorized-covering-prefix 192.0.2.0/24;
             authorized-covering-prefix 198.51.100.0/24;
+        }
+    }
+}
+```
+
+Most operators run RTBH on their own community rather than on the well-known
+one. Name it, and name both when a peer sends either:
+
+```
+bgp {
+    peer transit-a {
+        blackhole {
+            community [ blackhole 65001:666 ];
+            authorized-covering-prefix 192.0.2.0/24;
         }
     }
 }
@@ -479,9 +497,37 @@ advertise a prefix that CONTAINS the announcement. The listed prefix must be equ
 shorter than the announced one. So `192.0.2.0/24` covers every host route inside
 192.0.2.0/24, and it covers no part of 198.51.100.0/24.
 
-The container is available at the `bgp`, `group` and `peer` levels. `honor`
-replaces the inherited value. `authorized-covering-prefix` accumulates across
-the levels.
+The container is available at the `bgp`, `group` and `peer` levels. Both
+leaf-lists ACCUMULATE across the levels, so a peer that names one community
+keeps the ones its group named. A peer cannot drop a community its group agreed:
+where one session must be excluded, name the community on the peers rather than
+on the group.
+
+### A blackhole on a community Ze does not read
+
+The knob above answers the standard case. For anything else, a policy modifier
+conditioned on a community rewrites whatever attribute the operator chooses,
+and a next-hop rewrite toward an address routed to a discard is the vendor
+two-step form of the same idea:
+
+```
+bgp {
+    policy {
+        modify RTBH {
+            match { community 65001:666; }
+            set { next-hop 192.0.2.1; }
+        }
+    }
+    peer transit-a {
+        filter import prefix-list:AUTHORIZED modify:RTBH;
+    }
+}
+```
+
+A route that meets no stated value passes through unchanged, so the rest of the
+session forwards normally. On Linux the rewritten next-hop MUST resolve through a
+device: route it to a dummy interface. A kernel `blackhole` route for that
+address makes the gateway unresolvable and the route is never installed.
 
 ### Blackhole with origin validation
 
@@ -502,7 +548,7 @@ bgp {
             blackhole-exempt true;
         }
         blackhole {
-            honor true;
+            community blackhole;
             authorized-covering-prefix 192.0.2.0/24;
         }
     }
@@ -514,9 +560,12 @@ route's own origin AS and disagrees on nothing but prefix length. A wrong origin
 AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no
 covering VRP is NotFound rather than Invalid, so the exemption never reaches it.
 
-Set `blackhole-exempt` on the same session as `honor`. On its own it accepts a
-route it would have rejected and discards nothing.
-<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly -->
+Set `blackhole-exempt` on the same session that names a blackhole community. On
+its own it accepts a route it would have rejected and discards nothing. The
+exemption reads the well-known BLACKHOLE community, which is what RFC 7999
+Section 3.3 names; a session honoring only an operator community does not get
+it.
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType, carriesBlackholeCommunity; internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- match; internal/component/bgp/plugins/filter_modify/match.go -- matchCond; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly -->
 
 ## Capabilities
 
