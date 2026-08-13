@@ -77,6 +77,13 @@ func blackholeLocRIBType(t *testing.T, loc *locrib.RIB, pfx netip.Prefix) routet
 
 // AC-2: both RFC 7999 Section 3.3 conditions hold, so the route becomes a
 // discard on both rails.
+//
+// RFC requirement: RFC7999-3.3-1 positive -- the announced prefix is covered by
+// an equal or shorter prefix the neighbor is authorized to advertise, so the
+// announcement is accepted and honored.
+// RFC requirement: RFC7999-3.3-2 positive -- the receiving party agreed to
+// honor BLACKHOLE on that particular BGP session, so the announcement is
+// accepted and honored.
 func TestBlackholeRouteTypeStampedOnBestPath(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
@@ -101,6 +108,9 @@ func TestBlackholeRouteTypeStampedOnBestPath(t *testing.T) {
 //
 // This is the pair that makes the test above discriminate. An assertion that a
 // blackhole route was installed passes when EVERY route is installed as one.
+//
+// RFC requirement: RFC7999-4-1 positive -- a network element with no blackhole
+// configuration at all does not discard traffic toward a tagged prefix.
 func TestBlackholeNotStampedWithoutAgreement(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{})
@@ -121,6 +131,13 @@ func TestBlackholeNotStampedWithoutAgreement(t *testing.T) {
 // honor leaf is never consulted. Here the peer IS configured, with a covering
 // authorization listed, and honor is false. RFC 7999 Section 3.3 needs both
 // conditions, and the agreement is the one missing.
+//
+// RFC requirement: RFC7999-3.3-2 negative -- the receiving party did NOT agree
+// to honor BLACKHOLE on this session, so the announcement is not honored even
+// though its prefix is covered.
+// RFC requirement: RFC7999-4-1 positive -- absent an explicit configuration
+// directive, the network element does not discard traffic toward the tagged
+// prefix.
 func TestBlackholeNotStampedWhenHonorIsOffButAuthorizationExists(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
@@ -143,6 +160,10 @@ func TestBlackholeNotStampedWhenHonorIsOffButAuthorizationExists(t *testing.T) {
 // AC-3: RFC 7999 Section 3.3, first condition. The agreement is in force and
 // the community is present, and the prefix sits outside every block the peer is
 // authorized for.
+//
+// RFC requirement: RFC7999-3.3-1 negative -- the announced prefix is covered by
+// no equal or shorter prefix the neighbor is authorized to advertise, so the
+// announcement is not honored even though the session agreed to honor it.
 func TestBlackholeNotStampedOutsideAuthorization(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{

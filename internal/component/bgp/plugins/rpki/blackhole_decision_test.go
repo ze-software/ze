@@ -52,6 +52,9 @@ func blackholeRequest(prefix string, originAS uint32, blackhole bool) validation
 // AC-5. The exemption is on, the route carries BLACKHOLE, and the only fault is
 // that a /32 is longer than the covering VRP's maxLength 24. RFC 7999 Section
 // 3.3 says origin validation must not block this announcement.
+//
+// RFC requirement: RFC7999-3.3-4 positive -- origin validation does not block a
+// legitimate announcement carrying the BLACKHOLE community.
 func TestBlackholeSurvivesLengthOnlyInvalid(t *testing.T) {
 	rp := blackholeDecisionPlugin(t, true)
 
@@ -69,6 +72,11 @@ func TestBlackholeSurvivesLengthOnlyInvalid(t *testing.T) {
 
 // AC-6. The same session, the same exemption, the same community, and an origin
 // AS no covering VRP names. This is the hijack shape, and it stays rejected.
+//
+// RFC requirement: RFC7999-3.3-4 negative -- the obligation is not to block a
+// LEGITIMATE announcement, so an announcement whose origin AS no covering VRP
+// names is still blocked. Reading the requirement as a general exemption is
+// what this refuses.
 func TestBlackholeDoesNotSurviveAWrongOrigin(t *testing.T) {
 	rp := blackholeDecisionPlugin(t, true)
 
