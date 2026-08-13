@@ -65,14 +65,21 @@ func blackholeGuardCommunity(guard string) (attribute.Community, bool) {
 // here is the first time a normal eBGP peer's communities are parsed on
 // ingress.
 //
-// KNOWN LIMIT, stated because the RFC sentence above states a purpose this
-// cannot reach alone: adding the community is what Section 3.2 asks a
-// receiver to DO, and a conforming neighbor honors it. Ze itself does not
-// yet honor NO_EXPORT or NO_ADVERTISE automatically on egress --
-// rfc/short/rfc1997.md annotates RFC1997-Well-1, Well-2 and Well-3 as gaps
-// over reactor.writeUpdateGated, and docs/features/rfc-status.md discloses
-// it. So the prefix is withheld by every peer that honors the community and
-// still re-advertised by Ze's own egress until that gap is closed.
+// WHAT REACHES THE PURPOSE. The RFC sentence above states a purpose this
+// function cannot reach alone. Adding the community is what Section 3.2 asks
+// a receiver to DO. Preventing propagation is what it asks the community to
+// ACHIEVE.
+//
+// Ze's own egress closes that second half. Reactor.wellKnownAllowsEgress
+// (reactor/forward_wellknown.go) suppresses a route that carries NO_EXPORT
+// or NO_ADVERTISE. RFC1997-Well-1, Well-2 and Well-3 each carry a tagged
+// positive and negative pair.
+//
+// The limit that remains is the OFF state. It is a configuration state, not
+// a gap. This guard is opt-in per peer, so a peer that did not ask for it
+// adds nothing. A BLACKHOLE-tagged route from that peer is re-advertised as
+// any other route is. Section 3.1 makes ignoring the community conformant,
+// so that state is supported.
 func blackholePropagationGuard(payload []byte, localAS uint32, guard string) []byte {
 	add, on := blackholeGuardCommunity(guard)
 	if !on {

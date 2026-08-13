@@ -17,6 +17,11 @@ assertions are not decoration. Without them a check that only asserts a
 blackhole appeared passes just as well when Ze discards everything it receives.
 """
 
+# RFC requirement: RFC7999-3.3-1 positive -- "The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise" (RFC 7999 Section 3.3, first condition). FRR 10.3.1 announces 10.100.0.1/32 carrying 65535:666, inside the 10.100.0.0/24 that peer is authorized for, and the Linux FIB in the ze container holds `blackhole 10.100.0.1`. The condition holds and the announcement is honored, asserted on kernel state rather than on a Ze table.
+# RFC requirement: RFC7999-3.3-1 negative -- the same FRR session announces 198.51.100.1/32 with the same community, outside every authorized-covering-prefix. The kernel holds an ordinary `via` route for it and no discard route, so the first condition failing withholds honoring. Without this polarity the check passes equally when the community alone grants a discard.
+# RFC requirement: RFC7999-3.3-2 positive -- "The receiving party agreed to honor the BLACKHOLE community on the particular BGP session" (RFC 7999 Section 3.3, second condition). The FRR session carries `honor true`, which is that agreement, and the same 10.100.0.1/32 reaches the kernel as a discard route. Both conditions of the one MUST sentence hold on this session, which is why one outcome is positive evidence for both.
+# RFC requirement: RFC7999-3.3-2 negative -- BIRD announces 10.200.0.1/32 with the same community, inside the 10.200.0.0/24 that peer IS authorized for, on a session carrying `honor false`. The kernel forwards it. The authorization is present and only the session agreement is withheld, so this isolates the second condition rather than testing an absent config block.
+
 import os
 import re
 import sys
@@ -112,7 +117,9 @@ def check():
             "%s reached neither the FIB nor a discard route:\n%s" % (UNCOVERED, table)
         )
 
-    # AC-1 / RFC 7999 Section 4: the receiver never agreed on this session.
+    # AC-1 / RFC 7999 Section 3.3 second condition, and Section 4: the receiver
+    # never agreed to honor BLACKHOLE on this session, and no explicit directive
+    # tells the element to discard.
     if is_blackhole(table, NOT_HONORED):
         raise AssertionError(
             "%s comes from a peer with honor false, so the community must be "

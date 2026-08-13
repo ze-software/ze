@@ -1,0 +1,130 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7999",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7999.txt",
+  "source-sha": "f9768bb1d175830a",
+  "signed-off": "2026-08-13",
+  "reviewer": "ze-implement agent, spec-bcp194-6-blackhole enrolment step",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked because the site scan attributes one site here. That site is the IETF Trust Legal Provisions boilerplate and is excluded below."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. States the operational problem: each network triggers blackholing by a different mechanism, so an operator must learn the mechanism of every neighbor. Gives the reason for one well-known community. No sentence directs a speaker."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. Restricts the RFC 2119 key words to their upper-case form and states that the lower-case forms are English words without normative meaning. It binds how the document is read and states no obligation of its own. The summary records the restriction, because sections 3.2, 3.3 and 6 each carry a lower-case 'should' that must not be read as a requirement."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BLACKHOLE Community. Defines the community as well-known, transitive and advisory, and states its semantics: the presence of the community asks the receiver to drop traffic sent toward the prefix. Every sentence is declarative. The registered value is stated in section 5."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operational Recommendations. Section heading only. The three subsections carry all of the text."
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "IP Prefix Announcements with BLACKHOLE Community Attached. One MUST-level site, mapped below. The section also states that accepting and honoring the community or ignoring it is each operator's choice, and carries one MAY on deployment scenarios, one SHOULD on ignoring the community, one MAY and one SHOULD on announcing under DDoS duress, and one MAY on RTBH trigger communities. Captured as RFC7999-3.1-1 through RFC7999-3.1-6. The multilateral sentence states that the decision follows the operator's routing policy and is recorded as guidance without a keyword."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Local Scope of Blackholes. No MUST-level site: both obligations are SHOULD. The receiver adds NO_ADVERTISE, NO_EXPORT or a similar community to prevent propagation outside the local AS, and chooses which one by routing policy. Captured as RFC7999-3.2-1 and RFC7999-3.2-2. The closing caution about propagating a tagged prefix outside the local routing domain uses a lower-case 'should' and is recorded as guidance without a keyword."
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Accepting Blackholed IP Prefixes. Two MUST-level sites, both mapped below. The first states one obligation with two bullet conditions, and the summary captures each bullet as its own requirement because each is independently violable: a speaker can honor an uncovered prefix while the session agreement holds, and can honor a covered prefix on a session that agreed to nothing. The site scan sees the lead-in sentence alone, so the second bullet has no site of its own and RFC7999-3.3-2 is recorded as unsourced here. The section also carries one SHOULD extending both conditions to multilateral topologies (RFC7999-3.3-3), the RFC 7606 pointer that makes a malformed community treat-as-withdraw, and four lower-case statements recorded as guidance without a keyword.",
+      "unsourced-ids": ["RFC7999-3.3-2"]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Vendor Implementation Recommendations. No MUST-level site. One SHOULD NOT states that a network element does not discard traffic toward a tagged prefix without an explicit configuration directive, and one MAY offers a configuration shorthand whose suggested string is 'blackhole'. Captured as RFC7999-4-1 and RFC7999-4-2."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA has registered BLACKHOLE as 0xFFFF029A in the 'BGP Well-known Communities' registry, and that the low-order two octets are 666 in decimal. The sentence reports a completed registry action and binds IANA. The value it records is carried in the summary's Constants and Encoding tables, which state a codepoint rather than an obligation."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. No MUST-level site. One SHOULD asks the receiving speaker to verify by strict filtering that the announcing peer is authorized for the prefix, and one RECOMMENDED asks operators to protect their BGP sessions. Captured as RFC7999-6-1 and RFC7999-6-2. The rest is threat analysis: a forwarding agent can alter, add or remove communities, recipients cannot detect the change, and BGPsec does not resolve it. Two lower-case sentences, on filtering an unauthorized announcement and on the validation method following routing policy, are recorded as guidance without a keyword."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 1997, RFC 2119, RFC 4271 and RFC 7606."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: the BGPsec protocol draft, RFC 3882, RFC 5575, RFC 5635, RFC 6811 and RFC 7454."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The IETF Trust Legal Provisions boilerplate of the Copyright Notice. Its 'must' is lower case, which section 1.1 puts outside the normative set, and it binds a party that extracts Code Components from the document rather than a BGP speaker. RFC 7999 contains no code component: it defines one codepoint and no syntax."
+    },
+    {
+      "id": "3.1:1",
+      "quote": "In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7999-3.1-2",
+      "reason": "The Tx obligation of section 3.1, captured verbatim. Its subject is 'use of the BLACKHOLE community' and its actor is 'the two networks', which is the distinction section 3.3 draws in the other direction when it binds 'BGP speakers'."
+    },
+    {
+      "id": "3.3:1",
+      "quote": "BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7999-3.3-1",
+      "reason": "The lead-in sentence of the two-condition Rx obligation. It maps to the first bullet, on prefix coverage. The second bullet, on session agreement, carries no MUST-level keyword of its own and is recorded as unsourced on section 3.3."
+    },
+    {
+      "id": "3.3:2",
+      "quote": "An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7999-3.3-4",
+      "reason": "The origin-validation obligation of section 3.3, captured verbatim. It binds the operator, and RFC 7999 names no mechanism for it."
+    }
+  ]
+}

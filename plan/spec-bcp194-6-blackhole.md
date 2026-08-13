@@ -98,6 +98,49 @@ Reach enrolment with the MUSTs already proven or already annotated. Six ratchets
 judge the stem from that commit on, and a stem that enrols and then loses a
 proof is what they refuse.
 
+### Enrolment prepared 2026-08-13, NOT taken (one owner ruling is owed)
+
+Four of the five enrolment steps are done. `rfc/enrolled.txt` is untouched,
+because taking the fifth step today would land a red gate that the ratchets then
+hold.
+
+| Step | State |
+|------|-------|
+| Extraction sign-off | DONE. `rfc/extraction/rfc7999.json`, signed 2026-08-13. 14 sections and 4 sites, every one classified. 1 site excluded, the IETF Trust Legal Provisions boilerplate of the front matter, so the exclusion ratio is 0.25 over all sites and 0 over the three body sites. `make ze-rfc-check` exits 0, which is what makes the sign-off valid |
+| Register | `prose`, not the `rfc2119` this spec predicted. The register is DERIVED and the derivation is right: `prose` is also derived when the source has FEWER MUST-level sites than the summary declares gated rows. RFC 7999 has 3 body sites for 4 gated rows, because Section 3.3's first sentence states one obligation with two bullets and the site scan sees the lead-in sentence alone. No `register-reason` is owed, and none is written |
+| Public row | UPDATED, not added. The phase 4 row stood but carried a false claim; see below |
+| Interop tags | DONE. `test/interop/scenarios/59-rfc7999-blackhole-frr/check.py` now tags RFC7999-3.3-1 and RFC7999-3.3-2 in both polarities, at `interop/nightly`. This is a permanent `check_evidence_ratchet` commitment: neither requirement may afterwards be proven by unit evidence alone. That is the right commitment, because the kernel-state assertion is the only thing that caught the phase 4 defect |
+| Disposition | NOT taken. `rfc7999` stays in `rfc/not-enrolled.txt`, with its reason corrected |
+
+**The phase 4 ledgers carried a false claim, and it is withdrawn.** Both
+`docs/features/rfc-status.md` and `rfc/not-enrolled.txt` said RFC7999-3.1-2 has
+no producer "because Ze originates no BLACKHOLE-tagged announcement". Ze does.
+`handleAnnounceBlackhole`
+(`internal/component/bgp/plugins/cmd/announce/announce.go`) builds a route
+carrying `attribute.CommunityBlackhole` and sends it to the peers the command
+selector names. It consults no record of any agreement, and no configuration
+holds one.
+
+**What blocks enrolment is exactly one requirement, and this is measured rather
+than reasoned.** Driving `evaluate()` in `scripts/dev/rfc_requirements.py` over
+the summary and the live tag set, with `rfc7999` added to the enrolled set,
+returns one violation: `RFC7999-3.1-2 [MUST] has no test and no annotation`.
+
+**The ruling that is owed.** RFC 7999 Section 3.1 states "use of the BLACKHOLE
+community MUST be agreed upon by the two networks before advertising it". Its
+actor is "the two networks", where Section 3.3's first sentence says "BGP
+speakers", so the document draws the distinction deliberately. Two readings
+follow and the owner picks one:
+
+| Reading | What it costs |
+|---------|---------------|
+| The obligation binds an out-of-band agreement between operators, so no daemon can be held to it | An owner-authorised `{not-applicable}` annotation on RFC7999-3.1-2, and enrolment lands the same day |
+| The obligation is met the way Section 3.3's second condition already is, by a per-peer leaf that RECORDS the agreement and a speaker that refuses to advertise without it | A Tx agreement leaf defaulting off, a gate in `handleAnnounceBlackhole`, and a tagged pair. The second advertising path is already covered: a received BLACKHOLE-tagged route is withheld from egress once the Section 3.2 guard adds NO_EXPORT or NO_ADVERTISE, because `Reactor.wellKnownAllowsEgress` (`internal/component/bgp/reactor/forward_wellknown.go`) suppresses such a route and RFC1997-Well-1, Well-2 and Well-3 each carry both polarities. So the work is bounded by the `announce` path |
+
+The second reading is a spec, not a step. Neither is written here, because an
+annotation that lowers what Ze owes is the owner's to authorise
+(`ai/rules/rfc-compliance.md`).
+
 ## Design (settled 2026-08-13, re-read against HEAD)
 
 **Both ends exist. The work is the middle.**
