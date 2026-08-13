@@ -11,6 +11,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -129,10 +130,14 @@ func (r *RIBManager) blackholeHonorPeerCount() int {
 // Caller must not hold r.peerMu.
 func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []byte, pfx netip.Prefix, peerAddr netip.Addr) routetype.Type {
 	p := r.blackholeCfg.Load()
-	if p == nil {
+	if p == nil || len(*p) == 0 {
 		return 0
 	}
-	cfg, ok := (*p)[peerAddr]
+	// The empty-map check above is what keeps an unconfigured deployment free of
+	// the address formatting this key needs (ai/rules/performance.md). A
+	// deployment that DID configure the feature pays one String() per best-path
+	// change, which is the same order as the wire scan it gates.
+	cfg, ok := (*p)[configjson.PeerConfigKey{ID: peerAddr.String()}]
 	if !ok {
 		return 0
 	}

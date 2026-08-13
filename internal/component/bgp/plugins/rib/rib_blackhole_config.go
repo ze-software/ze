@@ -9,6 +9,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -37,22 +38,28 @@ func (c blackholeConfig) hasAnyRule() bool {
 	return len(c.communities) > 0 || len(c.authorized) > 0
 }
 
-// parseBlackholeConfig resolves the RFC 7999 leaves for every configured peer,
-// keyed by the peer's remote IP.
+// parseBlackholeConfig resolves the RFC 7999 leaves for every configured peer
+// and every dynamic group's template, under the key blackholecfg stored each
+// one: a peer's remote IP, or the group for a template.
 //
 // The walk itself lives in blackholecfg, because two other deciders read the
 // same container: origin validation keeps a route RFC 6811 would drop, and the
 // origination path decides whether BLACKHOLE may go on a peer's wire. This is
 // the one place the shared shape becomes the honoring path's own, so the
 // coverage test below it can stay where the honoring decision is made.
-func parseBlackholeConfig(bgpCfg map[string]any) (map[netip.Addr]blackholeConfig, error) {
+//
+// The template entries are carried, not consumed: blackholeRouteTypeForBest
+// holds a winner's ADDRESS and no group identity, so resolving a dynamic
+// member's rule needs that identity threaded through best-path selection. That
+// is the remaining half of this feature and it is not done here.
+func parseBlackholeConfig(bgpCfg map[string]any) (map[configjson.PeerConfigKey]blackholeConfig, error) {
 	rules, err := blackholecfg.Parse(bgpCfg)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[netip.Addr]blackholeConfig, len(rules))
-	for addr, rule := range rules {
-		out[addr] = blackholeConfig{communities: rule.Communities, authorized: rule.Authorized}
+	out := make(map[configjson.PeerConfigKey]blackholeConfig, len(rules))
+	for key, rule := range rules {
+		out[key] = blackholeConfig{communities: rule.Communities, authorized: rule.Authorized}
 	}
 	return out, nil
 }

@@ -201,3 +201,82 @@ func TestUnusableRoleConfigDoesNotShadowUsablePeers(t *testing.T) {
 	assert.Equal(t, "10.0.0.3", nameToIP["good"])
 	assert.NotContains(t, nameToIP, "broken")
 }
+
+// TestRoleCapabilityDeclaredForDynamicGroup covers AC-4's declaration half.
+//
+// An IXP route server is a listen-range group: it names no peer at all, and its
+// members are built from the group's template when a connection arrives. The
+// role an operator states on that group used to reach nothing, because the
+// traversal never visited the group and the "dynamic" placeholder was rejected
+// as an unusable key.
+//
+// VALIDATES: a dynamic group stating a role declares RFC 9234 capability 9 under
+// the group selector, carrying the value the group stated.
+// PREVENTS: a route server whose members advertise no Role capability while the
+// operator reads the role in the running config.
+func TestRoleCapabilityDeclaredForDynamicGroup(t *testing.T) {
+	captureRoleLog(t)
+
+	caps := extractRoleCapabilities(`{"bgp":{"group":{"ix":{
+		"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+		"role":{"import":"rs","strict":true}}}}}`)
+
+	require.Len(t, caps, 1, "the group's role must be declared exactly once")
+	require.Len(t, caps[0].Peers, 1)
+	assert.Equal(t, "group:ix", caps[0].Peers[0],
+		"the selector must be the group, which is the identity a dynamic member carries")
+	assert.Equal(t, uint8(roleCapCode), caps[0].Code)
+	// RFC 9234 Section 4, Table 1: RS is value 1. The assertion is on the STATED
+	// value rather than on the presence of a capability, and 1 is not the zero
+	// byte a miss would produce -- 0 is Provider.
+	assert.Equal(t, "01", caps[0].Payload, "the group's stated role, not a default")
+}
+
+// TestRoleConfigForDynamicGroupIsNotKeyedByAnAddress is the collision guard
+// (A-7). A group name and a peer name share no uniqueness check in
+// config.ResolveBGPTree, so the template must never occupy the key space the
+// address readers use.
+//
+// VALIDATES: the template is stored under the prefixed group selector and under
+// no address-shaped key, and a static peer in the same config keeps its own.
+// PREVENTS: a group named like a peer answering that peer's role lookup.
+func TestRoleConfigForDynamicGroupIsNotKeyedByAnAddress(t *testing.T) {
+	captureRoleLog(t)
+
+	configs, nameToIP := extractPeerRoleConfigs(`{"bgp":{
+		"peer":{"ix":{"connection":{"remote":{"ip":"10.0.0.1"}},"role":{"import":"provider"}}},
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+			"role":{"import":"rs"}}}}}`)
+
+	require.Contains(t, configs, "group:ix", "the template is keyed by the group selector")
+	assert.Equal(t, roleRS, configs["group:ix"].role)
+
+	require.Contains(t, configs, "10.0.0.1", "the peer of the same name keeps its address key")
+	assert.Equal(t, roleProvider, configs["10.0.0.1"].role,
+		"the group's template answered the peer's lookup")
+
+	assert.NotContains(t, configs, "ix", "the bare group name is never a key")
+	assert.NotContains(t, configs, dynamicPeerIP, "the placeholder is never a key")
+	assert.Equal(t, "10.0.0.1", nameToIP["ix"], "the name map still resolves the peer")
+}
+
+// TestRoleConfigStillRejectsANamedPeerInheritingThePlaceholder is the control.
+// A NAMED peer inside a dynamic group is not built from the template, so it has
+// no address any reader can produce and its role config stays unusable.
+//
+// VALIDATES: the template branch is scoped to the template visit alone.
+// PREVENTS: the fix widening into peers whose role config can still never be
+// looked up.
+func TestRoleConfigStillRejectsANamedPeerInheritingThePlaceholder(t *testing.T) {
+	buf := captureRoleLog(t)
+
+	configs, _ := extractPeerRoleConfigs(`{"bgp":{"group":{"ix":{
+		"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+		"peer":{"named":{"role":{"import":"provider"}}}}}}}`)
+
+	assert.NotContains(t, configs, "named", "a named peer is never keyed by its name")
+	assert.NotContains(t, configs, "group:ix", "the group stated no role of its own")
+	assert.Contains(t, buf.String(), "no usable remote ip",
+		"the operator must be told the named peer's role does nothing")
+}

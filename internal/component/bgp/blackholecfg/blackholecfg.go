@@ -123,13 +123,22 @@ const (
 	levelPeer  = "peer"
 )
 
-// Parse resolves the `blackhole` container for every configured peer, keyed by
-// the peer's remote IP.
+// Parse resolves the `blackhole` container for every configured peer and for
+// every dynamic group's template.
 //
-// Keyed by IP rather than by config name because every consumer identifies a
-// session by address at runtime. configjson.PeerRemoteIP is the single correct
+// A configured peer is keyed by its remote IP, because every consumer identifies
+// a session by address at runtime. configjson.PeerRemoteIP is the single correct
 // reader for that value, and the plugins that identify peers by IP (RPKI,
 // watchdog, role) all key on it.
+//
+// A dynamic group's members have no address in the config document: they are
+// created from the group's template when a connection arrives, so the address
+// the consumer holds at runtime exists nowhere here. The template is therefore
+// keyed by the GROUP, under configjson.GroupKey, which is the one identity the
+// template shares with the peers built from it. That is why the key is
+// configjson.PeerConfigKey rather than a netip.Addr: the two namespaces are
+// separated by the type, and a group named like a peer cannot answer that peer's
+// lookup (configjson.PeerConfigKey).
 //
 // Inheritance is bgp, then group, then peer, the same order every other BGP
 // plugin leaf uses. Both lists ACCUMULATE, matching their ze:cumulative
@@ -140,15 +149,15 @@ const (
 // whether a peer can make Ze discard traffic, and whether Ze may ask a peer to
 // discard it, so a dropped entry is an agreement the operator reads as in force
 // in the running config and which does nothing.
-func Parse(bgpCfg map[string]any) (map[netip.Addr]Rule, error) {
+func Parse(bgpCfg map[string]any) (map[configjson.PeerConfigKey]Rule, error) {
 	base, err := parseLevel(bgpCfg, levelBGP, "")
 	if err != nil {
 		return nil, err
 	}
 
-	out := make(map[netip.Addr]Rule)
+	out := make(map[configjson.PeerConfigKey]Rule)
 	var walkErr error
-	configjson.ForEachPeer(bgpCfg, func(peerName string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpCfg, func(peerName string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		if walkErr != nil {
 			return
 		}
@@ -176,16 +185,30 @@ func Parse(bgpCfg map[string]any) (map[netip.Addr]Rule, error) {
 		}
 		rule = rule.applyDefaultCommunity()
 
+		if origin.Template {
+			// A dynamic group states the agreement its members inherit. Its
+			// connection > remote > ip is the "dynamic" placeholder, so the address
+			// parse below would refuse the whole configuration -- and refusing is
+			// wrong twice over: the operator wrote the block on the only object
+			// that exists for a listen-range group, and the block loaded silently
+			// doing nothing before the template was visited at all.
+			out[configjson.GroupKey(origin.Group)] = rule
+			return
+		}
+
 		ipStr := configjson.PeerRemoteIP(peerMap, groupMap)
 		addr, err := netip.ParseAddr(ipStr)
 		if err != nil {
 			// Refused rather than skipped. Every lookup keys on the address, so a
 			// peer kept under a name nothing queries is a blackhole agreement that
-			// reads as in force and does nothing.
+			// reads as in force and does nothing. A peer inside a dynamic group
+			// that states no address of its own lands here, and that is correct:
+			// it is a NAMED peer, so the reactor never builds it from the template
+			// and it has no address any consumer can produce.
 			walkErr = fmt.Errorf("blackhole: peer %q states a blackhole block and has no usable remote IP (%q)", peerName, ipStr)
 			return
 		}
-		out[addr] = rule
+		out[configjson.PeerConfigKey{ID: addr.String()}] = rule
 	})
 	if walkErr != nil {
 		return nil, walkErr

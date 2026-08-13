@@ -154,9 +154,13 @@ var validExportTokens = map[string]bool{
 
 // extractPeerRoleConfigs parses BGP config JSON and returns per-peer role configs
 // and a name-to-IP mapping for resolving peer names to addresses.
-// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
+// Handles standalone peers (bgp.peer), grouped peers (bgp.group.<name>.peer) and
+// a dynamic group's template (bgp.group.<name> whose remote ip is "dynamic").
 // Configs are keyed by IP address (from remote.ip) for filter lookups.
 // Falls back to the config key (peer name) if no remote.ip is found.
+// A dynamic group's template is keyed by configjson.CapabilitySelector, which is
+// the group name behind a "group:" prefix, because the peers built from that
+// template carry the group's name and no address the config document holds.
 func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[string]string) {
 	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
 	if !ok {
@@ -167,7 +171,7 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 	configs := make(map[string]*peerRoleConfig)
 	nameToIP := make(map[string]string)
 
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Check per-peer role config first.
 		peerCfg := parseRoleFromMap(peerMap)
 
@@ -191,6 +195,30 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 		}
 
 		if useCfg == nil {
+			return
+		}
+
+		if origin.Template {
+			// A dynamic group's members are built from this template when a
+			// connection arrives, so no address here identifies them. The GROUP is
+			// the one identity the template shares with them:
+			// reactor.buildDynamicPeerSettings writes it to PeerSettings.GroupName.
+			//
+			// The key is configjson.CapabilitySelector rather than the bare group
+			// name because this map IS the capability selector index --
+			// extractRoleCapabilities publishes each key as a CapabilityDecl.Peers
+			// entry, and Peers is a []string crossing the plugin process boundary.
+			// The "group:" prefix keeps the two namespaces apart in that one string
+			// space: a peer named "ix" and a group named "ix" would otherwise
+			// declare the same capability code under the same selector, and
+			// plugin.AddPluginCapabilities would refuse a config that loads today.
+			//
+			// The OTC gates do not read this entry: getFilterConfig is passed
+			// PeerFilterInfo.Address, which never spells a group. Reaching it there
+			// is the RFC 9234 ingress half of this feature and is not done here.
+			configs[configjson.CapabilitySelector(peerAddr, origin)] = useCfg
+			logger().Debug("role config for dynamic group template",
+				"group", origin.Group, "role", useCfg.role, "strict", useCfg.strict)
 			return
 		}
 

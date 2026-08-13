@@ -115,7 +115,7 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 	var caps []sdk.CapabilityDecl
 
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Check per-peer link-local-nexthop capability first.
 		peerHasExplicit, peerEnabled := isLLNHEnabled(configjson.GetCapability(peerMap))
 
@@ -137,7 +137,7 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 		// Capability 77 has empty payload -- just the code signals support
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:  llnhCapCode,
-			Peers: []string{peerAddr},
+			Peers: []string{configjson.CapabilitySelector(peerAddr, origin)},
 		})
 		logger().Debug("link-local-nexthop capability", "peer", peerAddr)
 	})

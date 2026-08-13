@@ -102,7 +102,7 @@ func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	const softverCapCode = 75
 	var caps []sdk.CapabilityDecl
 
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Check per-peer software-version capability first.
 		peerHasExplicit := false
 		peerEnabled := false
@@ -152,7 +152,7 @@ func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Code:     softverCapCode,
 			Encoding: sdk.CapEncodingHex,
 			Payload:  encodeValue(),
-			Peers:    []string{peerAddr},
+			Peers:    []string{configjson.CapabilitySelector(peerAddr, origin)},
 		})
 		Logger.Debug("software-version capability enabled", "peer", peerAddr)
 	})

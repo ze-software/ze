@@ -328,9 +328,14 @@ type RIBManager struct {
 	// remote IP and resolved across the bgp, group and peer levels in the Stage
 	// 2 configure callback. A nil pointer or a missing key means the peer never
 	// agreed to honor BLACKHOLE, which is the RFC 7999 Section 4 default, so an
-	// unconfigured deployment pays one map miss per best-path change and no wire
-	// scan. Stored whole so the read side needs no lock.
-	blackholeCfg atomic.Pointer[map[netip.Addr]blackholeConfig]
+	// unconfigured deployment pays one empty-map check per best-path change and
+	// no wire scan. Stored whole so the read side needs no lock.
+	//
+	// The key is configjson.PeerConfigKey because a dynamic group's template is
+	// keyed by the GROUP: its members have no address in the config document.
+	// The honoring path reads only the address entries today (see
+	// blackholeRouteTypeForBest).
+	blackholeCfg atomic.Pointer[map[configjson.PeerConfigKey]blackholeConfig]
 
 	// peerMu protects the peer-keyed maps ONLY: ribInPool (and bgpPeers), ribOut, peerUp,
 	// peerMeta, retainedPeers, grState. bestPrev is sharded (see

@@ -9,14 +9,14 @@ package rib
 
 import (
 	"encoding/json"
-	"net/netip"
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-func parseBlackholeJSON(t *testing.T, jsonStr string) map[netip.Addr]blackholeConfig {
+func parseBlackholeJSON(t *testing.T, jsonStr string) map[configjson.PeerConfigKey]blackholeConfig {
 	t.Helper()
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &tree); err != nil {
@@ -39,7 +39,7 @@ func TestParseBlackholeConfigPeerLevel(t *testing.T) {
 		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24","2001:db8::/32"]}
 	}}}}`)
 
-	addr := netip.MustParseAddr("198.51.100.1")
+	addr := configjson.PeerConfigKey{ID: "198.51.100.1"}
 	cfg, ok := cfgs[addr]
 	if !ok {
 		t.Fatalf("no config for %v; got keys %v", addr, cfgs)
@@ -61,7 +61,7 @@ func TestParseBlackholeConfigInheritsFromGroup(t *testing.T) {
 		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}}}}
 	}}}}`)
 
-	cfg := cfgs[netip.MustParseAddr("198.51.100.1")]
+	cfg := cfgs[configjson.PeerConfigKey{ID: "198.51.100.1"}]
 	if !slices.Contains(cfg.communities, attribute.CommunityBlackhole) {
 		t.Error("the group's agreed community did not reach the peer")
 	}
@@ -84,7 +84,7 @@ func TestParseBlackholeConfigPeerAddsToGroupCommunity(t *testing.T) {
 		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}},"blackhole":{"communities":["65001:666"]}}}
 	}}}}`)
 
-	cfg := cfgs[netip.MustParseAddr("198.51.100.1")]
+	cfg := cfgs[configjson.PeerConfigKey{ID: "198.51.100.1"}]
 	if !slices.Contains(cfg.communities, attribute.CommunityBlackhole) {
 		t.Error("the peer's own community replaced the group's instead of adding to it")
 	}
@@ -125,7 +125,7 @@ func TestParseBlackholeConfigAuthorizationAccumulates(t *testing.T) {
 		}}
 	}}}}`)
 
-	cfg := cfgs[netip.MustParseAddr("198.51.100.1")]
+	cfg := cfgs[configjson.PeerConfigKey{ID: "198.51.100.1"}]
 	if len(cfg.authorized) != 2 {
 		t.Fatalf("authorized = %v, want the group's and the peer's", cfg.authorized)
 	}

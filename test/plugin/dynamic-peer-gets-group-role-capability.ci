@@ -1,0 +1,155 @@
+# Test: a peer created from a dynamic group advertises the RFC 9234 Role
+# capability its GROUP states.
+#
+# VALIDATES: a dynamic group's `role` block reaches the capability injector under
+#            the group's own selector (extractPeerRoleConfigs, through
+#            configjson.ForEachPeer's template visit and
+#            configjson.CapabilitySelector), and the member built from that group
+#            resolves it (Peer.getPluginCapabilities,
+#            internal/component/bgp/reactor/peer.go, third link of its fallback
+#            chain, gated on PeerSettings.IsDynamic).
+# PREVENTS: an IXP route server whose members advertise NO Role capability.
+#           bgp-role reads its config through configjson.ForEachPeer, which
+#           visited `bgp.peer` and `bgp.group.<name>.peer` only. A dynamic group
+#           carries no `peer` list, so it was skipped whole and its name was
+#           discarded by the loop. The operator wrote `role import rs` on the one
+#           object a listen-range group has, `ze config validate` accepted it, and
+#           nothing advertised it. RFC 9234's whole Section 5 machinery is keyed
+#           off the negotiated pair, so a route server silently ran with none of
+#           it against exactly the peer population an operator has not vetted.
+#
+# DISCRIMINATION: the assertion is ze's OPEN, whole, and the three octets 09 01 01
+# at its tail are the subject. Measured 2026-08-13 by deleting the group link from
+# getPluginCapabilities: the OPEN arrives 3 octets shorter (length 002B, optional
+# parameter length 0E) with no capability 9 at all, and this file goes red on the
+# hex. It cannot pass vacuously either: 01 is the STATED value (RFC 9234 Table 1,
+# RS), not a default and not the zero byte a miss would leave -- 0 is Provider,
+# and a peer with no role config gets no capability 9 at all rather than a zero.
+#
+# The peer takes the ACTIVE role and dials ze (--dial): the group is `ip dynamic`
+# + `connect false`, so ze only ever ACCEPTS. The configuration names NO static
+# peer, so the only socket in the run is the one the GROUP asks for and the only
+# peer is the one the inbound connection creates (tryCreateDynamicPeer,
+# internal/component/bgp/reactor/reactor_dynamic.go).
+#
+# NOT covered here: the RFC 9234 Section 5 OTC gates and strict mode for this
+# member. Those read role config through getFilterConfig, which is passed
+# PeerFilterInfo.Address, and through rpc.ValidateOpenInput, which carries Peer,
+# Local and Remote and no group at all. Neither can name a group, so neither runs
+# for a dynamic member. This file is about what the member ADVERTISES.
+
+# "dynamic peer created" is an Info line and the daemon's base level is warn
+# (ze.log, internal/core/slogutil/slogutil.go), so the assertion at the foot of
+# this file sees nothing without this.
+option=env:var=ze.log.bgp.reactor:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65010
+option=tcp_connections:value=1
+
+# ze-peer mirrors ze's Role capability by default. RS's complement is RS-Client
+# (RFC 9234 Section 4.2, Table 2), so the pair is stated explicitly rather than
+# left to a mirror: this file must not depend on bgp-role finding no config for a
+# dynamic peer and accepting the OPEN for that reason.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=02
+
+# Hand ze's OPEN to the checker as message 1 of the exchange.
+option=open:value=inspect-open-message
+
+# ze's OPEN, whole. Version 4, my AS 65533, hold time 30 (001E, from the group's
+# timer block), BGP identifier 1.2.3.4, then one RFC 5492 type-2 optional
+# parameter (length 0F) holding three capabilities:
+#
+#   01 04 0001 00 01   Multiprotocol ipv4/unicast (RFC 4760 Section 8)
+#   41 04 0000FFFD     4-octet AS (RFC 6793)
+#   09 01 01           Role = RS (RFC 9234 Section 4.1, Table 1)
+#
+# The Role capability is last because session_negotiate.go appends the plugin
+# getter's answer after the multiprotocol and ASN4 capabilities it builds itself.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0104FFFD001E0102030411020F01040001000141040000FFFD090101
+
+# End-of-RIB for ipv4/unicast (RFC 4724 Section 2). Its arrival says the session
+# reached initial sync, so the OPEN above was the start of a real session rather
+# than a handshake that died.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# One dynamic group and nothing else: the route-server shape. The `role` block is
+# stated at the group level, which is where an IXP states its member policy.
+# tmpfs rather than stdin because the runner writes daemon.pid and daemon.ready
+# beside the config, and trigger.sh waits on both.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer {
+			receive-hold-time 30
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# The subject. Strict mode is NOT set: it is enforced in
+		# validateOpenRolePair, which resolves config through
+		# rpc.ValidateOpenInput and so cannot reach a dynamic member's group.
+		# Setting it here would assert a hole rather than this feature.
+		role {
+			import rs
+		}
+	}
+}
+EOF_CONF
+
+# Trigger: let the session establish and drain, then stop the daemon. The sleep
+# only has to cover a dial the peer retries every 500ms against a daemon that has
+# already written daemon.ready; too short and the file fails on the missing
+# End-of-RIB rather than passing quietly.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 5
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role start ze-bgp.conf:timeout=30s
+
+# The session above really was a DYNAMIC peer's. Without this the wire assertions
+# would hold for any peer ze accepted, which is how a first attempt at a dynamic
+# test can pass against unfixed code: the inbound is attributed to a statically
+# configured peer and no dynamic peer is ever built.
+expect=stderr:contains=dynamic peer created
+
+# ... and it reached Established, so the End-of-RIB above was sent by the initial
+# sync of a live session rather than by any earlier state.
+expect=stderr:contains=session established

@@ -188,7 +188,7 @@ func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	const llgrCapCode = 71
 	var caps []sdk.CapabilityDecl
 
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		families := collectPeerFamilies(peerMap, groupMap)
 
 		peerCapValue := parseLLGRCapValue(configjson.GetCapability(peerMap), peerAddr, families)
@@ -210,7 +210,7 @@ func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Code:     llgrCapCode,
 			Encoding: sdk.CapEncodingHex,
 			Payload:  capValue,
-			Peers:    []string{peerAddr},
+			Peers:    []string{configjson.CapabilitySelector(peerAddr, origin)},
 		})
 		logger().Debug("llgr capability", "peer", peerAddr)
 	})

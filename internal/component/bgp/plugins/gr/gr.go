@@ -675,7 +675,7 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	const grCapCode = 64
 	var caps []sdk.CapabilityDecl
 
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Check per-peer graceful-restart capability first.
 		peerCapValue := parseGRCapValue(configjson.GetCapability(peerMap), peerAddr)
 
@@ -698,7 +698,7 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Code:     grCapCode,
 			Encoding: sdk.CapEncodingHex,
 			Payload:  capValue,
-			Peers:    []string{peerAddr},
+			Peers:    []string{configjson.CapabilitySelector(peerAddr, origin)},
 		})
 		logger().Debug("gr capability", "peer", peerAddr)
 	})

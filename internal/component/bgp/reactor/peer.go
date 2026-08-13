@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
@@ -902,10 +903,24 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		return nil
 	}
 
-	// Try peer name first, then IP address (plugins may key by either).
+	// Try peer name first, then IP address (plugins may key by either), then the
+	// group a dynamic peer was built from.
 	injected := r.api.GetPluginCapabilitiesForPeer(settings.Name)
 	if len(injected) == 0 {
 		injected = r.api.GetPluginCapabilitiesForPeer(settings.Address.String())
+	}
+	if len(injected) == 0 && settings.IsDynamic && settings.GroupName != "" {
+		// A dynamic peer is created from its group's template when the connection
+		// arrives (reactor.tryCreateDynamicPeer), so neither its generated name
+		// ("dyn-<addr>") nor its address appears in the config a plugin read. Its
+		// group's name does, and buildDynamicPeerSettings put it here.
+		//
+		// Gated on IsDynamic so a STATIC peer can never draw a capability declared
+		// for a group: a peer and a group may share a name (nothing compares the
+		// two namespaces in config.ResolveBGPTree), and the prefix
+		// configjson.CapabilityGroupKey adds is what separates them in the one
+		// string space rpc.CapabilityDecl.Peers gives both.
+		injected = r.api.GetPluginCapabilitiesForPeer(configjson.CapabilityGroupKey(settings.GroupName))
 	}
 	if len(injected) == 0 {
 		return nil

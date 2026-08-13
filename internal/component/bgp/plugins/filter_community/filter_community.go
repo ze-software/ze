@@ -19,11 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -89,7 +91,7 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 
 	// Parse per-peer filter configs, accumulating bgp + group + peer levels.
 	configs := make(map[string]filterConfig)
-	configjson.ForEachPeer(bgpCfg, func(peerName string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpCfg, func(peerName string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Layer 1: BGP-level defaults.
 		fc := bgpFilter
 
@@ -109,18 +111,30 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 			return
 		}
 
-		configs[peerName] = fc
+		// A dynamic group's template is keyed by configjson.CapabilitySelector
+		// rather than by its bare name. This map is keyed by peer NAME and read
+		// by src.Name / dest.Name below, and a group name and a peer name share no
+		// uniqueness check: config.ResolveBGPTree refuses a duplicate PEER name and
+		// never compares a group's against it, so `bgp { peer ix {...} group ix
+		// {...} }` loads. Under the bare name the group's template would overwrite
+		// that peer's entry -- groups are visited after standalone peers -- and the
+		// peer would silently get another object's community policy. The "group:"
+		// prefix cannot collide: naming.ValidateNodeName accepts no ":".
+		//
+		// The entry is carried, not yet consumed: the three readers below hold a
+		// peer's name and no group identity. Reaching it is the remaining half.
+		configs[configjson.CapabilitySelector(peerName, origin)] = fc
 	})
 
 	// Validate all referenced community names exist.
-	for peerName, fc := range configs {
+	for subject, fc := range configs {
 		for _, refs := range [][]string{fc.ingressTag, fc.ingressStrip, fc.egressTag, fc.egressStrip} {
 			if err := validateCommunityRefs(defs, refs); err != nil {
-				return fmt.Errorf("peer %s: %w", peerName, err)
+				return fmt.Errorf("%s: %w", configLabel(subject), err)
 			}
 		}
 		if err := validateScrubKeepList(fc); err != nil {
-			return fmt.Errorf("peer %s: %w", peerName, err)
+			return fmt.Errorf("%s: %w", configLabel(subject), err)
 		}
 	}
 
@@ -135,6 +149,18 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 	)
 
 	return nil
+}
+
+// configLabel names the config object an error is about, reading the key back.
+// A template's key carries the "group:" prefix configjson.CapabilitySelector
+// added, and "peer group:ix" would tell the operator to look at a peer that does
+// not exist.
+func configLabel(key string) string {
+	var tb textbuf.Buffer
+	if group, found := strings.CutPrefix(key, configjson.GroupKeyPrefix); found {
+		return tb.Str("group ").Str(group).String()
+	}
+	return tb.Str("peer ").Str(key).String()
 }
 
 // ingressFilter is the registered IngressFilterFunc at

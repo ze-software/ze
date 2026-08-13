@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -61,7 +62,7 @@ func blackholeRIB(t *testing.T, peer netip.Addr, cfg blackholeConfig) (*RIBManag
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
 	if cfg.hasAnyRule() {
-		m := map[netip.Addr]blackholeConfig{peer: cfg}
+		m := map[configjson.PeerConfigKey]blackholeConfig{{ID: peer.String()}: cfg}
 		r.blackholeCfg.Store(&m)
 	}
 	return r, loc

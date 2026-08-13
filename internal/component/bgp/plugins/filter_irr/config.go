@@ -75,7 +75,7 @@ func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
 
 	globalChained := chainReferencesIRR(bgpCfg)
 
-	configjson.ForEachPeer(bgpCfg, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpCfg, func(peerAddr string, peerMap, groupMap map[string]any, _ configjson.PeerOrigin) {
 		p := parsePeerIRR(peerAddr, peerMap)
 		if p.RemoteASN == 0 {
 			return

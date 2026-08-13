@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -61,7 +62,10 @@ func agreedSelector(ctx *pluginserver.CommandContext, sel *selector.Selector, ve
 	agreed := make([]netip.Addr, 0, len(peers))
 	var refused []string
 	for i := range peers {
-		if rules[peers[i].Address].Agreed(attribute.CommunityBlackhole) {
+		// Keyed by the peer's own address. A dynamic member's agreement is stated
+		// on its group, and blackholecfg keys that under the group; reaching it
+		// needs the member's group identity, which PeersMatching does not carry.
+		if rules[configjson.PeerConfigKey{ID: peers[i].AddrStr()}].Agreed(attribute.CommunityBlackhole) {
 			agreed = append(agreed, peers[i].Address)
 			continue
 		}

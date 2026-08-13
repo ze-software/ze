@@ -287,7 +287,7 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[string]pe
 
 	result := make(map[string]peerActionSet)
 
-	configjson.ForEachPeer(bgpTree, func(_ string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpTree, func(peerName string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		var peerRPKI, groupRPKI map[string]any
 		if peerMap != nil {
 			peerRPKI, _ = peerMap["rpki"].(map[string]any)
@@ -319,13 +319,26 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[string]pe
 		// Key on the remote IP so buildDecisions' req.peerAddr matches. Dynamic/range peers have
 		// no static remote IP (connection>remote>ip == "dynamic" or absent) and cannot be keyed;
 		// they fall back to the global actions (documented Known Limitation).
+		//
+		// A dynamic GROUP's template reaches this branch too, and it is the case an
+		// operator is most likely to hit: a listen-range group is where an IXP states
+		// its member policy, and every member falls back to the global actions. The
+		// subject is named in the message because the template's own name is the
+		// group's, and this is the only place the operator is told.
 		ip := configjson.PeerRemoteIP(peerMap, groupMap)
 		if ip == "" || ip == "dynamic" {
-			logger().Warn("rpki: per-peer action override ignored: peer has no static remote IP")
+			subject, kind := peerName, "peer"
+			if origin.Template {
+				subject, kind = origin.Group, "group"
+			}
+			logger().Warn("rpki: per-peer action override ignored: no static remote ip",
+				kind, subject,
+				"effect", "origin validation and ASPA use the global actions for this session",
+				"fix", "set connection > remote > ip to a literal address on the peer")
 			return
 		}
 		if addr, addrErr := netip.ParseAddr(ip); addrErr == nil {
-			set.BlackholeCommunities = agreements[addr].Communities
+			set.BlackholeCommunities = agreements[configjson.PeerConfigKey{ID: addr.String()}].Communities
 		}
 		// A guard that fails closed must say so (ai/rules/evidence.md). This one
 		// keeps a route origin validation would drop, so an operator who asked for

@@ -140,7 +140,7 @@ func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	const fqdnCapCode = 73
 	var caps []sdk.CapabilityDecl
 
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Check per-peer hostname config first.
 		peerCfg := parseFQDNFromCapability(configjson.GetCapability(peerMap))
 
@@ -163,7 +163,7 @@ func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Code:     fqdnCapCode,
 			Encoding: sdk.CapEncodingHex,
 			Payload:  useCfg.encodeValue(),
-			Peers:    []string{peerAddr},
+			Peers:    []string{configjson.CapabilitySelector(peerAddr, origin)},
 		})
 		Logger.Debug("hostname capability", "peer", peerAddr, "hostname", useCfg.hostname, "domain", useCfg.domain)
 	})

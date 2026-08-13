@@ -81,7 +81,7 @@ func validateNoTearDownInExport(bgpCfg map[string]any, instances map[string]*fam
 		return err
 	}
 	var visitErr error
-	configjson.ForEachPeer(bgpCfg, func(_ string, peerMap, groupMap map[string]any) {
+	configjson.ForEachPeer(bgpCfg, func(_ string, peerMap, groupMap map[string]any, _ configjson.PeerOrigin) {
 		if visitErr != nil {
 			return
 		}
