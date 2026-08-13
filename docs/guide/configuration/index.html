@@ -11,7 +11,7 @@
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Configuration (Guide) - Ze" />
         <meta name="twitter:description" content="Ze documentation: guide/configuration.md" />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/configuration/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/configuration/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -59,6 +59,12 @@
 <li><a href="#ospf">OSPF</a></li>
 <li><a href="#inheritance">Inheritance</a></li>
 <li><a href="#peer-settings">Peer Settings</a></li>
+<li><a href="#blackhole-honoring-rfc-7999">Blackhole Honoring (RFC 7999)</a>
+<ol>
+<li><a href="#announcing-a-blackhole-to-a-peer">Announcing a blackhole to a peer</a></li>
+<li><a href="#a-blackhole-on-a-community-ze-does-not-read">A blackhole on a community Ze does not read</a></li>
+<li><a href="#blackhole-with-origin-validation">Blackhole with origin validation</a></li>
+</ol></li>
 <li><a href="#capabilities">Capabilities</a></li>
 <li><a href="#address-families">Address Families</a>
 <ol>
@@ -675,9 +681,181 @@ delivered to a new peer.</p>
 <td>Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding)</td>
 <td class="cell-no">✕</td>
 </tr>
+<tr>
+<td><code>blackhole { }</code></td>
+<td>Honor RFC 7999's BLACKHOLE community from this peer. See <a href="#blackhole-honoring-rfc-7999">Blackhole Honoring</a></td>
+<td class="cell-no">✕</td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+
+<h2 id="blackhole-honoring-rfc-7999">Blackhole Honoring (RFC 7999)</h2>
+<p>A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
+the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
+route for that prefix, and the traffic is dropped in the kernel FIB or in VPP.</p>
+<p>Ze installs the discard route itself. There is no next-hop to allocate and no
+static route to pre-create: the community is read on the session and the prefix
+is programmed as a discard directly.</p>
+<p>Honoring is off by default and is configured per session. Each leaf-list is a
+separate condition from RFC 7999 Section 3.3.</p>
+<table>
+<thead>
+<tr>
+<th>Leaf-list</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>communities</code></td>
+<td>The communities this session agreed to honor. <code>blackhole</code> and are the same well-known value; any <code>ASN:VAL</code> works. Unset means the well-known value when <code>prefixes</code> is set, and nothing otherwise. <span class="ev-src"><span class="ev-ref"><code>65535:666</code></span></span></td>
+</tr>
+<tr>
+<td><code>prefixes</code></td>
+<td>The prefixes this peer is authorized to advertise. A received blackhole is honored only when one of them covers it and is equal or shorter, which is RFC 7999 Section 3.3's first condition. An empty list authorizes nothing</td>
+</tr>
+</tbody>
+</table>
+<p>Standard RTBH takes one line. Writing the prefixes a neighbour may blackhole
+within IS the explicit configuration directive RFC 7999 Section 4 asks for, so
+<code>communities</code> defaults to the well-known value:</p>
+<pre><code>bgp {
+    peer transit-a {
+        blackhole {
+            prefixes [ 192.0.2.0/24 198.51.100.0/24 ];
+        }
+    }
+}
+</code></pre>
+<p>Most operators run RTBH on their own community rather than on the well-known
+one. Name it, and name both when a peer sends either:</p>
+<pre><code>bgp {
+    peer transit-a {
+        blackhole {
+            communities [ blackhole 65001:666 ];
+            prefixes    [ 192.0.2.0/24 198.51.100.0/24 ];
+        }
+    }
+}
+</code></pre>
+<p>A stated list is taken exactly: the well-known value is NOT added to it. An
+operator who names <code>65001:666</code> alone honors that community and not 65535:666.</p>
+<p>The four combinations:</p>
+<table>
+<thead>
+<tr>
+<th><code>prefixes</code></th>
+<th><code>communities</code></th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>set</td>
+<td>unset</td>
+<td>The well-known 65535:666 only</td>
+</tr>
+<tr>
+<td>set</td>
+<td>set</td>
+<td>Exactly the stated set</td>
+</tr>
+<tr>
+<td>unset</td>
+<td>set</td>
+<td>Nothing is honored: a community with no authorized prefix covers nothing</td>
+</tr>
+<tr>
+<td>unset</td>
+<td>unset</td>
+<td>Nothing, which is RFC 7999 Section 4's default</td>
+</tr>
+</tbody>
+</table>
+<p>With the second configuration above, a BLACKHOLE-tagged announcement of
+192.0.2.1/32 installs a discard route. The same announcement for 203.0.113.1/32
+installs an ordinary route, because no listed prefix covers it.</p>
+<p><code>prefixes</code> asks a different question from a prefix list. A
+prefix list bounds the LENGTH of an announcement, so a <code>192.0.2.0/24 le 24</code>
+entry rejects the /32 inside it. This leaf-list asks whether the peer is authorized to
+advertise a prefix that CONTAINS the announcement. The listed prefix must be equal to or
+shorter than the announced one. So <code>192.0.2.0/24</code> covers every host route inside
+192.0.2.0/24, and it covers no part of 198.51.100.0/24.</p>
+<p>The container is available at the <code>bgp</code>, <code>group</code> and <code>peer</code> levels. Both
+leaf-lists ACCUMULATE across the levels, so a peer that names one community
+keeps the ones its group named. A peer cannot drop a community its group agreed:
+where one session must be excluded, name the community on the peers rather than
+on the group.</p>
+<h3 id="announcing-a-blackhole-to-a-peer">Announcing a blackhole to a peer</h3>
+<p>The same <code>communities</code> list decides which peers Ze may ADVERTISE the well-known
+BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
+on use of the community before it is advertised, and naming it on the peer is
+Ze's half of that agreement.</p>
+<p><code>announce blackhole &lt;prefix&gt;</code> reaches only the sessions whose resolved list holds
+65535:666, under either spelling, which includes a session configured with
+<code>prefixes</code> alone. A peer with no <code>blackhole</code> block, or one that named only
+its own value such as <code>65001:666</code>, is left OUT of the announcement. It is not
+sent the prefix untagged: an ordinary announcement of a host route under attack
+attracts the traffic the operator asked to have discarded. When no selected peer
+has agreed, the command fails and names the peers that have not.</p>
+<p><code>announce unicast &lt;prefix&gt; community 65535:666</code> meets the same gate, because the
+obligation is about the community rather than the verb. Any other community is
+untouched.</p>
+<p>To advertise your own RTBH value to a peer, name that value on the announcement:</p>
+<pre><code>announce unicast 192.0.2.1/32 community 65001:666
+</code></pre>
+<h3 id="a-blackhole-on-a-community-ze-does-not-read">A blackhole on a community Ze does not read</h3>
+<p>The knob above answers the standard case. For anything else, a policy modifier
+conditioned on a community rewrites whatever attribute the operator chooses,
+and a next-hop rewrite toward an address routed to a discard is the vendor
+two-step form of the same idea:</p>
+<pre><code>bgp {
+    policy {
+        modify RTBH {
+            match { community 65001:666; }
+            set { next-hop 192.0.2.1; }
+        }
+    }
+    peer transit-a {
+        filter import prefix-list:AUTHORIZED modify:RTBH;
+    }
+}
+</code></pre>
+<p>A route that meets no stated value passes through unchanged, so the rest of the
+session forwards normally. On Linux the rewritten next-hop MUST resolve through a
+device: route it to a dummy interface. A kernel <code>blackhole</code> route for that
+address makes the gateway unresolvable and the route is never installed.</p>
+<h3 id="blackhole-with-origin-validation">Blackhole with origin validation</h3>
+<p>An operator who runs origin validation with <code>rpki { action { invalid reject } }</code>
+must also set <code>blackhole-exempt</code>, or no blackhole announcement is honored.</p>
+<p>A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for
+the covering block carries its maxLength at the aggregate, often a /24. RFC 6811
+then makes the /32 Invalid on length alone, and a session that rejects Invalid
+routes drops the announcement before the blackhole logic sees it. The symptom is
+a peer that reports the announcement as sent and a Ze that installs nothing.</p>
+<pre><code>bgp {
+    peer transit-a {
+        rpki {
+            action { invalid reject; }
+            blackhole-exempt true;
+        }
+        blackhole {
+            communities blackhole;
+            prefixes    192.0.2.0/24;
+        }
+    }
+}
+</code></pre>
+<p>The exemption is narrow. It keeps the route only when a covering VRP names the
+route's own origin AS and disagrees on nothing but prefix length. A wrong origin
+AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no
+covering VRP is NotFound rather than Invalid, so the exemption never reaches it.</p>
+<p>Set <code>blackhole-exempt</code> on the same session that names a blackhole community. The
+exemption reads the communities THAT SESSION agreed to, so a peer running RTBH on
+<code>65001:666</code> gets it for <code>65001:666</code>. On a session that names no community at all
+the exemption does nothing, and Ze logs that at configure time naming the peer.</p>
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/blackholecfg/blackholecfg.go -- Rule, Parse, Carries, Agreed; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType; internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go -- agreedSelector; internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- match; internal/component/bgp/plugins/filter_modify/match.go -- matchCond; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
 
 <h2 id="capabilities">Capabilities</h2>
 <p>Configured under <code>capability { }</code> at any inheritance level.</p>
@@ -3737,6 +3915,7 @@ Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.</p>
     enabled true;
     ac-name &quot;ze&quot;;
     service-name &quot;internet&quot;;
+    auth-method chap-md5;
     cookie-timeout 5;
     max-sessions 65535;
     padi-rate-limit 100;
@@ -3777,6 +3956,18 @@ Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.</p>
 <td>leaf-list</td>
 <td>(empty)</td>
 <td>Accepted Service-Name values. Empty list means accept any Service-Name.</td>
+</tr>
+<tr>
+<td><code>auth-method</code></td>
+<td>enumeration</td>
+<td><code>chap-md5</code></td>
+<td>PPP Auth-Protocol the AC advertises in its own LCP Configure-Request: <code>none</code>, <code>pap</code>, <code>chap-md5</code>, <code>ms-chap-v2</code>. The credential is verified by <code>l2tp-auth-local</code> or <code>l2tp-auth-radius</code>.</td>
+</tr>
+<tr>
+<td><code>allow-no-auth</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Accept a subscriber whose LCP ends with no Auth-Protocol. Required beside <code>auth-method none</code>, which is otherwise refused at startup.</td>
 </tr>
 <tr>
 <td><code>cookie-timeout</code></td>

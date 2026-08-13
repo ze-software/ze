@@ -2,10 +2,10 @@
   "gate": {
     "ok": true,
     "error_count": 0,
-    "gated_must": 2963,
-    "enrolled_rfcs": 170,
-    "test_tags": 3339,
-    "message": "rfc-requirements OK: 2963 gated MUST-level requirement(s) across 170 enrolled RFC(s); 3339 test tag(s) resolved."
+    "gated_must": 2967,
+    "enrolled_rfcs": 171,
+    "test_tags": 3453,
+    "message": "rfc-requirements OK: 2967 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3453 test tag(s) resolved."
   },
   "satisfaction": [
     {
@@ -13,8 +13,8 @@
       "short": "Test pair",
       "condition": "positive tag + negative tag",
       "key": "both_polarities",
-      "count": 1223,
-      "share": 41.3
+      "count": 1231,
+      "share": 41.5
     },
     {
       "label": "One polarity plus reason",
@@ -30,15 +30,15 @@
       "condition": "{not-applicable} annotation",
       "key": "not_applicable",
       "count": 841,
-      "share": 28.4
+      "share": 28.3
     },
     {
       "label": "Declared gap",
       "short": "Gap",
       "condition": "{gap} annotation + public ledger disclosure",
       "key": "gap",
-      "count": 528,
-      "share": 17.8
+      "count": 524,
+      "share": 17.7
     },
     {
       "label": "One polarity, unexcused",
@@ -58,12 +58,12 @@
     }
   ],
   "gaps": {
-    "requirements": 528,
-    "rfcs": 82,
+    "requirements": 524,
+    "rfcs": 81,
     "status_counts": [
       {
         "status": "Partial",
-        "count": 60
+        "count": 59
       },
       {
         "status": "Experimental",
@@ -172,7 +172,7 @@
     "fresh": 52,
     "shifted": 0,
     "stale": 0,
-    "missing": 2911
+    "missing": 2915
   },
   "checks": [
     {

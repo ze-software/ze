@@ -18,7 +18,7 @@ Once the feature set stops moving, the effort turns to hardening what is there: 
 
 ## 3. Prove it in production
 
-Tests and lab interop take Ze a long way, but they are not a substitute for real traffic on real hardware over real time. This step is about operational mileage: running Ze in places where it has to keep working, watching what breaks, and fixing it. This is also where feedback from operators matters most, which is exactly why the project is open this early.
+Tests and lab interop take Ze a long way, but they are not a substitute for real traffic on real hardware for long enough to find operational failures. This step is about running Ze where it has to keep working, watching what breaks, and fixing it. Operator feedback matters most here, which is why the project is open this early.
 
 `Real traffic` `Telemetry` `Hardware`
 

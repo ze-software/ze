@@ -1,6 +1,6 @@
 # Milestones
 
-The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, color-coded by category.
+The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, colour-coded by category.
 
 ## Q3 2026
 
@@ -114,7 +114,7 @@ A complete BFD implementation (RFC 5880/5881/5883): single- and multi-hop, authe
 
 *platform*
 
-The first gokrazy VM appliance build for x86_64: the start of Ze shipping as a self-contained appliance image, not just a daemon.
+The first gokrazy VM appliance build for x86_64 starts the appliance path: a self-contained image as well as daemon mode.
 
 [Read the week](../changes/2026-04-06/)
 
@@ -148,7 +148,7 @@ An MCP server exposing tools for AI-assisted BGP operations: announce, withdraw,
 
 *secure*
 
-A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes arrive on the adjacency RIB-in path, not after the fact.
+A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes enter the adjacency RIB-in path.
 
 [Read the week](../changes/2026-03-16/)
 
@@ -156,7 +156,7 @@ A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates
 
 *secure*
 
-An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorization.
+An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorisation.
 
 [Read the week](../changes/2026-03-09/)
 
@@ -168,11 +168,11 @@ On-demand best-path selection in the RIB, covering LOCAL_PREF, AS_PATH length, O
 
 [Read the week](../changes/2026-03-02/)
 
-### BGP Route Server (Feb 2026)
+### BGP route server (Feb 2026)
 
 *routing*
 
-A forward-all Route Server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.
+A forward-all route server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.
 
 [Read the week](../changes/2026-02-23/)
 

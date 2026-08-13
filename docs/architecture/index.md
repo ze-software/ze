@@ -7,11 +7,14 @@ rationale, wire format details, and performance analysis, see
 
 ## What Ze Is
 
-Ze is a network operating system built in Go. Its protocol-agnostic Engine
-composes a ConfigProvider, a PluginManager, and the shared Plugin Server that
-implements the typed EventBus. YANG ConfigRoots select registry-loaded protocol
-and feature plugins; PPPoE and L2TP can register as lifecycle-managed subsystems.
-The Engine has no knowledge of BGP or any other specific protocol.
+Ze is an open-source configuration and protocol engine. The network operating
+system built on it speaks BGP, manages Linux network interfaces, programs the
+FIB, and serves configuration over SSH and the web UI.
+
+None of that is in the core. The core is a supervisor which holds a typed
+message bus, a config provider, and a plugin manager. BGP, interface management
+and the rest register as subsystems and plugins. Each one brings its own YANG
+and augments the configuration tree where it belongs.
 <!-- source: internal/component/engine/engine.go -- Engine supervisor -->
 <!-- source: cmd/ze/hub/main.go -- primary YANG runtime composition -->
 

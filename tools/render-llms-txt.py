@@ -164,7 +164,7 @@ def render_intro():
         [
             "# Ze",
             "",
-            "> Open routing for white-label hardware. Ze is an open, programmable network OS for Linux that speaks BGP, IS-IS, and OSPF, manages interfaces, programs the FIB, and gives operators a CLI, web UI, telemetry, looking glass, API, and plugin system around one coherent configuration model.",
+            "> Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the same YANG-modeled configuration through CLI, SSH, web, API, and MCP. Its core holds the supervisor, message bus, config provider, and plugin manager; protocols and services arrive as subsystems or plugins.",
             "",
             "Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See ExaBGP [migration path](usage/exabgp-migration/index.md).",
             "",
@@ -183,9 +183,9 @@ def render_product_snapshot():
     lines = ["## Product snapshot", ""]
     lines.extend(
         [
-            "- Purpose: Linux network OS and routing stack with one schema-driven configuration model.",
-            "- Protocols and subsystems: BGP, IS-IS, OSPF, BFD, static routes, policy routing, FIB programming, interfaces, firewall, traffic control, DNS, DHCP, NTP, IPsec, L2TP, PPPoE, telemetry, web UI, SSH CLI, MCP, and plugins.",
-            "- Operator surfaces: SSH CLI with commit and rollback, generated command reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, JSON/YAML/NDJSON/table output, and shell-like output pipes.",
+            "- Purpose: configuration and protocol engine for Linux routing, plus a network operating system built on that core.",
+            "- Protocols and subsystems in the shipped daemon: BGP, IS-IS, OSPF, BFD, static routes, policy routing, FIB programming, interfaces, firewall, traffic control, DNS, DHCP, NTP, IPsec, L2TP, PPPoE, telemetry, web UI, SSH CLI, MCP, and plugins.",
+            "- Operator surfaces: SSH CLI with commit and rollback, generated command reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, JSON/YAML/NDJSON/table output, and shell-like output pipes derived from the schema where possible.",
             "- Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.",
             "- Release state: pre-release, main-branch builds, no tagged stable release yet.",
             "- License and repos: AGPLv3. Canonical repository: %s. Discord: %s."

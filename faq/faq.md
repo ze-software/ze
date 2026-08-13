@@ -14,8 +14,9 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
   <details class="faq-card cat-operate" id="what-is-ze" open>
     <summary>What is Ze?</summary>
     <div>
-      <p>Ze is an open, programmable network OS for Linux. It has a native BGP, OSPF, and IS-IS engine, it manages interfaces and programs the FIB, and it wraps all of that in one operator surface: an SSH CLI, a web UI, telemetry, a looking glass, an API, and a plugin system, all driven by a single YANG configuration model.</p>
-      <p>You can run it as a daemon on an existing distribution or build it into a dedicated appliance from the same binary and the same config.</p>
+      <p>Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux network interfaces, programs the FIB, and serves its configuration over SSH, a web UI, API, and MCP.</p>
+      <p>That operating surface is not hardwired into the core. The core holds a message bus, a config provider and a plugin manager; BGP, interface management and other subsystems register themselves with their own YANG and extend the config tree where they belong.</p>
+      <p>Once a subsystem declares its model, Ze derives the CLI, completion, validation, web editor and MCP tools from the schema.</p>
     </div>
   </details>
 
@@ -31,7 +32,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
     <summary>Why would I use Ze instead of BIRD, FRR, or GoBGP?</summary>
     <div>
       <p>Those projects are mature, and Ze does not pretend otherwise. The <a href="../compare/">comparison page</a> is blunt about where they are still ahead.</p>
-      <p>Ze's difference is integration: the BGP engine, configuration model, plugins, and operator tooling were built together. One YANG model drives the system, plugins extend the daemon, the SSH CLI has diff and commit, and the MCP server lets an AI assistant inspect live state through the same command surface.</p>
+      <p>Ze's difference is the model: the core stays protocol-agnostic, and subsystems bring YANG with them. One schema feeds the CLI, validation, web editor, generated references and MCP tools, while plugins extend the daemon without a second operator surface.</p>
     </div>
   </details>
 
@@ -47,7 +48,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
     <summary>I run ExaBGP. Can I move to Ze?</summary>
     <div>
       <p>That is one of the paths Ze is built for. Ze aims for an easy migration from ExaBGP rather than perfect compatibility.</p>
-      <p>There is a config converter (<code>ze exabgp migrate</code>) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The <a href="../usage/exabgp-migration/">ExaBGP migration usage example</a> walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.</p>
+      <p>There is a config converter (<code>ze config migrate</code>) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The <a href="../usage/exabgp-migration/">ExaBGP migration usage example</a> walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.</p>
     </div>
   </details>
 
@@ -78,7 +79,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
   <details class="faq-card cat-observe" id="ai-mcp">
     <summary>Does the AI and MCP support mean Ze needs an LLM to run?</summary>
     <div>
-      <p>No. Ze is a routing daemon and runs entirely on its own. The MCP server is an optional surface that lets an AI assistant read Ze's state and help you debug when you choose to use one. Nothing in the data path depends on it.</p>
+      <p>No. Ze runs entirely on its own. The MCP server is an optional surface derived from the same schema and command catalogue. It lets an AI assistant ask what the running daemon, including compiled-in plugins, can do and then operate it.</p>
     </div>
   </details>
 

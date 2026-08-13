@@ -34,6 +34,7 @@ pppoe {
     enabled true
     ac-name "my-bng"
     service-name "internet"
+    auth-method chap-md5
     cookie-timeout 5
     max-sessions 65535
     padi-rate-limit 100
@@ -47,6 +48,41 @@ pppoe {
 ```
 
 See [configuration guide](../configuration/index.md#pppoe-access) for all settings.
+
+### Subscriber authentication
+
+`auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
+LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
+`none` requires `allow-no-auth true` beside it, because an access concentrator
+that asks nobody who they are is a decision and not a default.
+
+The credential comes from the same auth plugins the L2TP LNS uses. Configure a
+local user, or a RADIUS server:
+
+```
+l2tp {
+    auth {
+        local {
+            user alice {
+                password "s3cr3t"
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.20.0.1
+            start 10.20.0.2
+            end 10.20.0.254
+        }
+    }
+}
+```
+
+The `l2tp` block here configures the shared BNG plugins, not an L2TP listener:
+`l2tp-auth-local` verifies the credential and `l2tp-pool` supplies the IPCP
+address. A PPPoE-only BNG needs neither `l2tp enabled` nor an L2TP server.
+RADIUS takes precedence over the local user list once a RADIUS server is
+configured.
 
 ## CLI Commands
 

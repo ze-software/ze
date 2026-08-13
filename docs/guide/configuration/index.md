@@ -436,7 +436,171 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
 | `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding) | No (default: disable) |
+| `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+
+## Blackhole Honoring (RFC 7999)
+
+A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
+the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
+route for that prefix, and the traffic is dropped in the kernel FIB or in VPP.
+
+Ze installs the discard route itself. There is no next-hop to allocate and no
+static route to pre-create: the community is read on the session and the prefix
+is programmed as a discard directly.
+
+Honoring is off by default and is configured per session. Each leaf-list is a
+separate condition from RFC 7999 Section 3.3.
+
+| Leaf-list | Meaning |
+|-----------|---------|
+| `communities` | The communities this session agreed to honor. `blackhole` and `65535:666` are the same well-known value; any `ASN:VAL` works. Unset means the well-known value when `prefixes` is set, and nothing otherwise |
+| `prefixes` | The prefixes this peer is authorized to advertise. A received blackhole is honored only when one of them covers it and is equal or shorter, which is RFC 7999 Section 3.3's first condition. An empty list authorizes nothing |
+
+Standard RTBH takes one line. Writing the prefixes a neighbour may blackhole
+within IS the explicit configuration directive RFC 7999 Section 4 asks for, so
+`communities` defaults to the well-known value:
+
+```
+bgp {
+    peer transit-a {
+        blackhole {
+            prefixes [ 192.0.2.0/24 198.51.100.0/24 ];
+        }
+    }
+}
+```
+
+Most operators run RTBH on their own community rather than on the well-known
+one. Name it, and name both when a peer sends either:
+
+```
+bgp {
+    peer transit-a {
+        blackhole {
+            communities [ blackhole 65001:666 ];
+            prefixes    [ 192.0.2.0/24 198.51.100.0/24 ];
+        }
+    }
+}
+```
+
+A stated list is taken exactly: the well-known value is NOT added to it. An
+operator who names `65001:666` alone honors that community and not 65535:666.
+
+The four combinations:
+
+| `prefixes` | `communities` | Behavior |
+|------------|---------------|----------|
+| set | unset | The well-known 65535:666 only |
+| set | set | Exactly the stated set |
+| unset | set | Nothing is honored: a community with no authorized prefix covers nothing |
+| unset | unset | Nothing, which is RFC 7999 Section 4's default |
+
+With the second configuration above, a BLACKHOLE-tagged announcement of
+192.0.2.1/32 installs a discard route. The same announcement for 203.0.113.1/32
+installs an ordinary route, because no listed prefix covers it.
+
+`prefixes` asks a different question from a prefix list. A
+prefix list bounds the LENGTH of an announcement, so a `192.0.2.0/24 le 24`
+entry rejects the /32 inside it. This leaf-list asks whether the peer is authorized to
+advertise a prefix that CONTAINS the announcement. The listed prefix must be equal to or
+shorter than the announced one. So `192.0.2.0/24` covers every host route inside
+192.0.2.0/24, and it covers no part of 198.51.100.0/24.
+
+The container is available at the `bgp`, `group` and `peer` levels. Both
+leaf-lists ACCUMULATE across the levels, so a peer that names one community
+keeps the ones its group named. A peer cannot drop a community its group agreed:
+where one session must be excluded, name the community on the peers rather than
+on the group.
+
+### Announcing a blackhole to a peer
+
+The same `communities` list decides which peers Ze may ADVERTISE the well-known
+BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
+on use of the community before it is advertised, and naming it on the peer is
+Ze's half of that agreement.
+
+`announce blackhole <prefix>` reaches only the sessions whose resolved list holds
+65535:666, under either spelling, which includes a session configured with
+`prefixes` alone. A peer with no `blackhole` block, or one that named only
+its own value such as `65001:666`, is left OUT of the announcement. It is not
+sent the prefix untagged: an ordinary announcement of a host route under attack
+attracts the traffic the operator asked to have discarded. When no selected peer
+has agreed, the command fails and names the peers that have not.
+
+`announce unicast <prefix> community 65535:666` meets the same gate, because the
+obligation is about the community rather than the verb. Any other community is
+untouched.
+
+To advertise your own RTBH value to a peer, name that value on the announcement:
+
+```
+announce unicast 192.0.2.1/32 community 65001:666
+```
+
+### A blackhole on a community Ze does not read
+
+The knob above answers the standard case. For anything else, a policy modifier
+conditioned on a community rewrites whatever attribute the operator chooses,
+and a next-hop rewrite toward an address routed to a discard is the vendor
+two-step form of the same idea:
+
+```
+bgp {
+    policy {
+        modify RTBH {
+            match { community 65001:666; }
+            set { next-hop 192.0.2.1; }
+        }
+    }
+    peer transit-a {
+        filter import prefix-list:AUTHORIZED modify:RTBH;
+    }
+}
+```
+
+A route that meets no stated value passes through unchanged, so the rest of the
+session forwards normally. On Linux the rewritten next-hop MUST resolve through a
+device: route it to a dummy interface. A kernel `blackhole` route for that
+address makes the gateway unresolvable and the route is never installed.
+
+### Blackhole with origin validation
+
+An operator who runs origin validation with `rpki { action { invalid reject } }`
+must also set `blackhole-exempt`, or no blackhole announcement is honored.
+
+A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for
+the covering block carries its maxLength at the aggregate, often a /24. RFC 6811
+then makes the /32 Invalid on length alone, and a session that rejects Invalid
+routes drops the announcement before the blackhole logic sees it. The symptom is
+a peer that reports the announcement as sent and a Ze that installs nothing.
+
+```
+bgp {
+    peer transit-a {
+        rpki {
+            action { invalid reject; }
+            blackhole-exempt true;
+        }
+        blackhole {
+            communities blackhole;
+            prefixes    192.0.2.0/24;
+        }
+    }
+}
+```
+
+The exemption is narrow. It keeps the route only when a covering VRP names the
+route's own origin AS and disagrees on nothing but prefix length. A wrong origin
+AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no
+covering VRP is NotFound rather than Invalid, so the exemption never reaches it.
+
+Set `blackhole-exempt` on the same session that names a blackhole community. The
+exemption reads the communities THAT SESSION agreed to, so a peer running RTBH on
+`65001:666` gets it for `65001:666`. On a session that names no community at all
+the exemption does nothing, and Ze logs that at configure time naming the peer.
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/blackholecfg/blackholecfg.go -- Rule, Parse, Carries, Agreed; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType; internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go -- agreedSelector; internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- match; internal/component/bgp/plugins/filter_modify/match.go -- matchCond; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
 
 ## Capabilities
 
@@ -2774,6 +2938,7 @@ pppoe {
     enabled true;
     ac-name "ze";
     service-name "internet";
+    auth-method chap-md5;
     cookie-timeout 5;
     max-sessions 65535;
     padi-rate-limit 100;
@@ -2792,6 +2957,8 @@ pppoe {
 | `enabled` | boolean | `true` | Presence of `pppoe {}` implies enabled. Use `enabled false` to disable. |
 | `ac-name` | string | `ze` | Access Concentrator Name advertised in PADO (RFC 2516 S5.2). |
 | `service-name` | leaf-list | (empty) | Accepted Service-Name values. Empty list means accept any Service-Name. |
+| `auth-method` | enumeration | `chap-md5` | PPP Auth-Protocol the AC advertises in its own LCP Configure-Request: `none`, `pap`, `chap-md5`, `ms-chap-v2`. The credential is verified by `l2tp-auth-local` or `l2tp-auth-radius`. |
+| `allow-no-auth` | boolean | `false` | Accept a subscriber whose LCP ends with no Auth-Protocol. Required beside `auth-method none`, which is otherwise refused at startup. |
 | `cookie-timeout` | uint16 | 5 | AC-Cookie validity in seconds (1-300). Older cookies rejected in PADR. |
 | `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
 | `padi-rate-limit` | uint16 | 100 | Maximum PADI packets per second per source MAC (1-10000). |

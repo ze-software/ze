@@ -251,14 +251,14 @@ def main():
     if "" not in seen:
         records.append(
             make_record(
-                "Ze - Open, Programmable Network OS For Linux",
+                "Ze - Configuration and protocol engine",
                 "",
                 "Home",
                 (
-                    "Ze is an open, programmable network OS for Linux, built "
-                    "around a native BGP, OSPF, and IS-IS engine, operator "
-                    "interfaces, telemetry, and a plugin system around one "
-                    "configuration model."
+                    "Ze is an open-source configuration and protocol engine. "
+                    "The network operating system built on it speaks BGP, "
+                    "manages Linux interfaces, programs the FIB, and serves "
+                    "configuration through SSH, web, API, and MCP."
                 ),
             )
         )

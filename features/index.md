@@ -4,7 +4,7 @@
 
 ## Built for demanding operators.
 
-Ze owns its BGP engine, configuration model, plugin system, operator tools, minimal appliance runtime, and diagnostics as one product.
+Ze starts with a configuration and protocol engine. The shipped network operating system adds BGP, interface management, FIB programming, plugins, operator tools, a minimal appliance runtime, and diagnostics as one product.
 
 ### AI Tool Interfaces
 

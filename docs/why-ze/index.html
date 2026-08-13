@@ -11,7 +11,7 @@
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Why Ze / Why Not Ze - Ze" />
         <meta name="twitter:description" content="Ze documentation: why-ze.md" />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/why-ze/" />
         <meta property="og:url" content="https://ze-software.net/docs/why-ze/" />
         <link rel="stylesheet" href="../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -56,6 +56,7 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#when-to-use-ze">When to use Ze</a>
 <ol>
+<li><a href="#configuration-and-protocol-engine">Configuration and protocol engine</a></li>
 <li><a href="#programmable-route-injection">Programmable route injection</a></li>
 <li><a href="#bgp-monitoring-and-analysis">BGP monitoring and analysis</a></li>
 <li><a href="#route-server-with-custom-policy">Route server with custom policy</a></li>
@@ -87,13 +88,22 @@ and will be updated as features mature. Last updated: 2026-05-29. Corrections
 welcome via the <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">issue tracker</a>.</p>
 </blockquote>
 <h2 id="when-to-use-ze">When to use Ze</h2>
+<h3 id="configuration-and-protocol-engine">Configuration and protocol engine</h3>
+<p>Ze is useful when protocols, configuration and operator tools need to be one
+system. The core holds the supervisor, message bus, config provider and plugin
+manager, while BGP, interface management and other subsystems register
+themselves with their own YANG.</p>
+<p>That model gives a subsystem the CLI, completion, validation, web editor and MCP
+tools without another hand-written surface. It also gives operators one config
+tree to commit, diff and roll back.</p>
 <h3 id="programmable-route-injection">Programmable route injection</h3>
-<p>Ze's primary strength is letting external processes interact with BGP. If your use case
-is "receive BGP events in my Python/Go/Rust program and inject routes back," Ze was
-built for this. JSON events out, text commands in, any language that reads lines.</p>
-<p>ExaBGP pioneered this model and is deployed worldwide for DDoS mitigation, traffic
-engineering, and SDN integration. Ze is its successor: same programmable model, but
-multithreaded, with broader protocol coverage, and a plugin SDK for deeper integration.</p>
+<p>Ze still carries ExaBGP's programmable route-injection model. External processes
+can receive BGP events in Python, Go, Rust or any language that reads lines, and
+they can inject routes back through text commands or the plugin SDK.</p>
+<p>ExaBGP pioneered this model and is deployed worldwide for DDoS mitigation,
+traffic engineering, and SDN integration. Ze keeps that programmability, on a
+stack which also configures the device and was written for update rates ExaBGP
+was never meant to carry.</p>
 <table>
 <thead>
 <tr>
@@ -167,8 +177,8 @@ debugging, test generation, and education.</p>
 route redistribution, policy routing, MPLS FIB programming, firewall, interface,
 and VPP code in tree. Those pieces are still pre-release. If you need a router
 that has years of production mileage, use FRR, BIRD, OpenBGPd, or a vendor NOS.</p>
-<p>Ze is becoming a Network OS, not just an ExaBGP-style protocol speaker. Treat its
-dataplane features according to the status labels in <code>features.md</code>.</p>
+<p>The network operating system built on Ze has a dataplane now. Treat those
+features according to the status labels in <code>features.md</code>.</p>
 <h3 id="you-need-a-full-routing-suite">You need a full routing suite</h3>
 <p>Ze does BGP, OSPFv2/OSPFv3, IS-IS, BFD, LDP, RSVP-TE, static routes, route
 redistribution, IPsec/IKE, L2TP/PPP, PPPoE, and several dataplane integrations.

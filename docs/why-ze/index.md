@@ -8,15 +8,27 @@ An honest assessment of when Ze is the right tool and when it is not.
 
 ## When to use Ze
 
+### Configuration and protocol engine
+
+Ze is useful when protocols, configuration and operator tools need to be one
+system. The core holds the supervisor, message bus, config provider and plugin
+manager, while BGP, interface management and other subsystems register
+themselves with their own YANG.
+
+That model gives a subsystem the CLI, completion, validation, web editor and MCP
+tools without another hand-written surface. It also gives operators one config
+tree to commit, diff and roll back.
+
 ### Programmable route injection
 
-Ze's primary strength is letting external processes interact with BGP. If your use case
-is "receive BGP events in my Python/Go/Rust program and inject routes back," Ze was
-built for this. JSON events out, text commands in, any language that reads lines.
+Ze still carries ExaBGP's programmable route-injection model. External processes
+can receive BGP events in Python, Go, Rust or any language that reads lines, and
+they can inject routes back through text commands or the plugin SDK.
 
-ExaBGP pioneered this model and is deployed worldwide for DDoS mitigation, traffic
-engineering, and SDN integration. Ze is its successor: same programmable model, but
-multithreaded, with broader protocol coverage, and a plugin SDK for deeper integration.
+ExaBGP pioneered this model and is deployed worldwide for DDoS mitigation,
+traffic engineering, and SDN integration. Ze keeps that programmability, on a
+stack which also configures the device and was written for update rates ExaBGP
+was never meant to carry.
 
 | What you get | How |
 |---|---|
@@ -82,8 +94,8 @@ route redistribution, policy routing, MPLS FIB programming, firewall, interface,
 and VPP code in tree. Those pieces are still pre-release. If you need a router
 that has years of production mileage, use FRR, BIRD, OpenBGPd, or a vendor NOS.
 
-Ze is becoming a Network OS, not just an ExaBGP-style protocol speaker. Treat its
-dataplane features according to the status labels in `features.md`.
+The network operating system built on Ze has a dataplane now. Treat those
+features according to the status labels in `features.md`.
 
 ### You need a full routing suite
 

@@ -1,6 +1,6 @@
 # Ze Features
 
-Ze is a network operating system written in Go. It runs on any Linux or as a gokrazy appliance.
+Ze is an open-source configuration and protocol engine written in Go. The network operating system built on it runs on any Linux or as a gokrazy appliance.
 
 Status values: `Supported` means implemented and covered in the normal release evidence for this pre-release; `Experimental` means implemented but still needs deployment evidence or hardening before production claims; `Partial` means a named subset is not implemented or not proven; `Stub-backed` means external dependency evidence currently comes from a stub harness; `Rejected` means unsupported by design; `Future` means planned but not shipped.
 

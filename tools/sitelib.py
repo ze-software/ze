@@ -976,8 +976,9 @@ def structured_data_script():
                 "name": "Ze",
                 "url": SITE_BASE,
                 "description": (
-                    "Open, programmable network OS for Linux with BGP, IS-IS, "
-                    "OSPF, telemetry, operator interfaces, and plugins."
+                    "Open-source configuration and protocol engine for Linux "
+                    "routing, with YANG-modeled plugins, operator interfaces, "
+                    "telemetry, and MCP."
                 ),
                 "inLanguage": "en",
             },
@@ -985,8 +986,9 @@ def structured_data_script():
                 "@type": "SoftwareSourceCode",
                 "name": "Ze",
                 "description": (
-                    "Open-source network OS for Linux, built around native "
-                    "routing engines and operator automation."
+                    "Open-source configuration and protocol engine for Linux "
+                    "routing, used to build a plugin-based network operating "
+                    "system."
                 ),
                 "codeRepository": REPO_URL,
                 "license": "https://www.gnu.org/licenses/agpl-3.0.en.html",
@@ -1017,7 +1019,7 @@ _SOCIAL_META = (
     '        <meta property="og:image:width" content="1200" />\n'
     '        <meta property="og:image:height" content="630" />\n'
     '        <meta property="og:image:alt" '
-    'content="Ze, an open, programmable network OS for Linux" />\n'
+    'content="Ze, an open-source configuration and protocol engine" />\n'
     '        <meta name="twitter:card" content="summary_large_image" />\n'
     '        <meta name="twitter:image" content="%s" />\n'
 ) % (html.escape(OG_IMAGE, quote=True), html.escape(OG_IMAGE, quote=True))
@@ -1054,7 +1056,7 @@ PAGE_HEAD = """<!doctype html>
         <meta property="og:image" content="{og_image}" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="{og_title}" />
         <meta name="twitter:description" content="{og_desc}" />

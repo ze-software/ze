@@ -11,7 +11,7 @@
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RPKI Origin Validation - Ze" />
         <meta name="twitter:description" content="Ze documentation: guide/rpki.md" />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/rpki/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/rpki/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -310,7 +310,7 @@ overrides with the source of each leaf (<code>peer-actions</code>).</p>
 <tbody>
 <tr>
 <td><code>show bgp rpki status</code></td>
-<td>Show RTR session count and VRP counts</td>
+<td>Show RTR session count, sync state, and VRP counts</td>
 </tr>
 <tr>
 <td><code>show bgp rpki cache</code></td>
@@ -328,8 +328,15 @@ overrides with the source of each leaf (<code>peer-actions</code>).</p>
 </table>
 <p>Example:</p>
 <pre><code>$ ze cli -c &quot;show bgp rpki status&quot;
-{&quot;running&quot;:true,&quot;vrp-count-ipv4&quot;:3,&quot;vrp-count-ipv6&quot;:0,&quot;sessions&quot;:1}
+{&quot;running&quot;:true,&quot;vrp-count-ipv4&quot;:3,&quot;vrp-count-ipv6&quot;:0,&quot;sessions&quot;:1,&quot;sessions-synced&quot;:1,&quot;synced&quot;:true,&quot;aspa-enabled&quot;:false,&quot;aspa-records&quot;:0,&quot;cache-servers&quot;:[{&quot;address&quot;:&quot;192.0.2.1&quot;,&quot;port&quot;:3323,&quot;state&quot;:&quot;idle&quot;,&quot;synced&quot;:true,&quot;version&quot;:2}],&quot;actions&quot;:{&quot;invalid&quot;:&quot;reject&quot;,&quot;not-found&quot;:&quot;accept&quot;,&quot;aspa-invalid&quot;:&quot;log-only&quot;,&quot;aspa-unknown&quot;:&quot;accept&quot;},&quot;peer-actions&quot;:[]}
 </code></pre>
+<p><code>running</code> says that a cache server is configured. <code>synced</code> says that a cache
+server completed a sync and gave ze a VRP set. The two are different states:
+while <code>synced</code> is false, ze holds no VRP set, so every prefix reads <code>not-found</code>
+and the default <code>not-found accept</code> action accepts it. <code>sessions-synced</code> counts
+the cache servers that delivered data, and each entry in <code>cache-servers</code> carries
+its own <code>synced</code>. <code>state</code> is the RTR connection state, which returns to <code>idle</code>
+between polls even after a successful sync.</p>
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
 
 <h2 id="rpki-validation-events">RPKI Validation Events</h2>

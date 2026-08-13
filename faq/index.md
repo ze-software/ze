@@ -4,21 +4,23 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
 
 **What is Ze?**
 
-Ze is an open, programmable network OS for Linux. It has a native BGP, OSPF, and IS-IS engine, it manages interfaces and programs the FIB, and it wraps all of that in one operator surface: an SSH CLI, a web UI, telemetry, a looking glass, an API, and a plugin system, all driven by a single YANG configuration model.
+Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux network interfaces, programs the FIB, and serves its configuration over SSH, a web UI, API, and MCP.
 
-You can run it as a daemon on an existing distribution or build it into a dedicated appliance from the same binary and the same config.
+That operating surface is not hardwired into the core. The core holds a message bus, a config provider and a plugin manager; BGP, interface management and other subsystems register themselves with their own YANG and extend the config tree where they belong.
+
+Once a subsystem declares its model, Ze derives the CLI, completion, validation, web editor and MCP tools from the schema.
 
 **Is Ze ready for production?**
 
-Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but operational mileage is still limited and the configuration syntax can still change before the first release.
+Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but production exposure is still limited and the configuration syntax can still change before the first release.
 
-The honest place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and tell us where it breaks. The [roadmap](https://ze-software.net/roadmap/) explains what stands between here and a release you can run in anger.
+The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The [roadmap](https://ze-software.net/roadmap/) explains what remains before a stable release.
 
 **Why would I use Ze instead of BIRD, FRR, or GoBGP?**
 
-Those are mature, and Ze does not pretend otherwise. The [comparison page](https://ze-software.net/compare/) is blunt about where they are still ahead.
+Those projects are mature, and Ze does not pretend otherwise. The [comparison page](https://ze-software.net/compare/) is blunt about where they are still ahead.
 
-What Ze offers that they do not is a single design where the BGP engine, the configuration model, the plugins, and the operator tooling were built together: one YANG model for everything, a plugin architecture for extending the daemon, an SSH CLI with diff and commit, and an MCP server so an AI assistant can help you debug live state.
+Ze's difference is the model: the core stays protocol-agnostic, and subsystems bring YANG with them. One schema feeds the CLI, validation, web editor, generated references and MCP tools, while plugins extend the daemon without a second operator surface.
 
 **What can Ze actually do today?**
 
@@ -30,7 +32,7 @@ OSPFv2, OSPFv3, IS-IS, and MPLS are in the core. Around that sit a firewall, VPN
 
 That is one of the paths Ze is built for. Ze aims for an easy migration from ExaBGP rather than perfect compatibility.
 
-There is a config converter (`ze exabgp migrate`) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The [ExaBGP migration usage example](https://ze-software.net/usage/exabgp-migration/) walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.
+There is a config converter (`ze config migrate`) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The [ExaBGP migration usage example](https://ze-software.net/usage/exabgp-migration/) walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.
 
 **What license is Ze under, and what does that mean for me?**
 
@@ -52,7 +54,7 @@ Build it as an **appliance** when you want a purpose-built box: a read-only root
 
 **Does the AI and MCP support mean Ze needs an LLM to run?**
 
-No. Ze is a routing daemon and runs entirely on its own. The MCP server is an optional surface that lets an AI assistant read Ze's state and help you debug when you choose to use one. Nothing in the data path depends on it.
+No. Ze runs entirely on its own. The MCP server is an optional surface derived from the same schema and command catalogue. It lets an AI assistant ask what the running daemon, including compiled-in plugins, can do and then operate it.
 
 **Will my configuration keep working as Ze changes?**
 

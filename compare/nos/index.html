@@ -11,7 +11,7 @@
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Open Source Network OS comparison - Ze" />
         <meta name="twitter:description" content="How Ze compares to VyOS and freeRtr as full router operating systems." />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/compare/nos/" />
         <meta property="og:url" content="https://ze-software.net/compare/nos/" />
         <link rel="stylesheet" href="../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -3303,7 +3303,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Topology and interop tests</td>
-<td>Docker interop against FRR, BIRD, GoBGP, ExaBGP, scenario orchestration, container lifecycle, 120 scenarios, and BGP, IS-IS, OSPF coverage; Make targets for interop and IPsec interop. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/testing/interop.md:1-16</code>, <code>:29-53</code>, <code>:97-113</code>, <code>:167-186</code></span><span class="ev-ref"><code>mk/test-integration.mk:35-50</code></span></span></td>
+<td>Docker interop against FRR, BIRD, GoBGP, ExaBGP, scenario orchestration, container lifecycle, 121 scenarios, and BGP, IS-IS, OSPF coverage; Make targets for interop and IPsec interop. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/testing/interop.md:1-16</code>, <code>:29-53</code>, <code>:97-113</code>, <code>:167-186</code></span><span class="ev-ref"><code>mk/test-integration.mk:35-50</code></span></span></td>
 <td>GitHub workflow builds a custom ISO and runs smoketests in containers with privileged options; VPP smoketest and config-load jobs, <code>:225-252</code>, <code>:325-352</code>. Topology/interop beyond QEMU/VPP smoketest not found in inspected <code>vyos-1x</code> source. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:150-183</code>, <code>:192-218</code></span></span></td>
 <td>Readme says <code>img</code> VM images are used for interop and dataplane testing; tester can launch multiple routers with generated ports and captures, selftest/topology scripts and. <span class="ev-src"><span class="ev-ref"><code>readme.md:55-60</code></span><span class="ev-ref"><code>src/org/freertr/user/userTester.java:36-48</code>, <code>:1437-1440</code>, <code>:2422-2429</code></span><span class="ev-ref"><code>src/t*.sh</code></span><span class="ev-ref"><code>cfg/*.tst</code></span></span></td>
 <td>Ze has most explicit source docs for third-party interop.</td>

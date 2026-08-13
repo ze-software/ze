@@ -3,18 +3,18 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Ze - Open routing for white-label hardware</title>
-        <meta name="description" content="Ze is an open, programmable network OS for Linux: native BGP, IS-IS, and OSPF, YANG configuration, operator interfaces, runnable labs, and an ExaBGP migration path." />
-        <meta property="og:title" content="Ze - Open routing for white-label hardware" />
-        <meta property="og:description" content="Open routing for white-label hardware, with generated references, runnable labs, inspectable automation hooks, and one coherent configuration model." />
+        <title>Ze - Configuration and protocol engine for Linux routing</title>
+        <meta name="description" content="Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves config over SSH, web, API, and MCP." />
+        <meta property="og:title" content="Ze - Configuration and protocol engine for Linux routing" />
+        <meta property="og:description" content="Open-source configuration and protocol engine with a protocol-agnostic core, YANG-modeled subsystems, operator interfaces, runnable labs, and an ExaBGP migration path." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Ze - Open routing for white-label hardware" />
-        <meta name="twitter:description" content="Open routing for white-label hardware, with generated references, runnable labs, inspectable automation hooks, and one coherent configuration model." />
+        <meta name="twitter:title" content="Ze - Configuration and protocol engine for Linux routing" />
+        <meta name="twitter:description" content="Open-source configuration and protocol engine with a protocol-agnostic core, YANG-modeled subsystems, operator interfaces, runnable labs, and an ExaBGP migration path." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/" />
         <meta property="og:url" content="https://ze-software.net/" />
         <link rel="stylesheet" href="assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -67,9 +67,8 @@
                             </div>
                             <div class="hero-start-copy">
                                 <h1 id="hero-title" class="hero-start-title">
-                                    Open routing for
-                                    <span class="nowrap">white-label</span>
-                                    hardware
+                                    Configuration and protocol engine for
+                                    Linux routing
                                 </h1>
                                 <p class="hero-release-badge">
                                     Expected release: Q4 2026
@@ -77,19 +76,18 @@
                             </div>
                             <div class="hero-start-lead-wrap">
                                 <p class="hero-start-lead">
-                                    Open routing today is split across daemons,
-                                    config syntaxes, and operator tools.
+                                    Ze starts with a small core: a supervisor,
+                                    message bus, config provider, and plugin
+                                    manager.
                                 </p>
                                 <p class="hero-start-lead">
-                                    Ze makes Linux routing operable as one
-                                    system: native <strong class="hl blue">BGP</strong>,
-                                    <strong class="hl blue">OSPF</strong>, and
-                                    <strong class="hl blue">IS-IS</strong>, one
-                                    <strong class="hl blue">YANG</strong> model,
-                                    one daemon, and the same commands exposed
-                                    through <strong class="hl blue">CLI</strong>,
-                                    <strong class="hl blue">SSH</strong>, web,
-                                    API, and <strong class="hl blue">MCP</strong>.
+                                    Protocols and services register themselves
+                                    with <strong class="hl blue">YANG</strong>.
+                                    <strong class="hl blue">BGP</strong>,
+                                    interface management, FIB programming,
+                                    <strong class="hl blue">CLI</strong>, web,
+                                    API, and <strong class="hl blue">MCP</strong>
+                                    then share the same model.
                                 </p>
                             </div>
                         </div>
@@ -158,11 +156,11 @@
             </section>
 
             <section class="outcome-strip reveal" aria-label="Ze product map">
-                <a href="config-reference/">One YANG model</a>
-                <a href="features/#routing">Native BGP, OSPF, IS-IS</a>
+                <a href="docs/architecture/">Protocol-agnostic core</a>
+                <a href="config-reference/">YANG per subsystem</a>
+                <a href="features/#routing">BGP, interfaces, FIB</a>
                 <a href="docs/features/ai-first/">CLI, SSH, web, API, MCP</a>
-                <a href="docs/guide/ze-install/">Daemon or appliance</a>
-                <a href="labs/">Reproducible labs</a>
+                <a href="docs/features/plugins/">Compiled or external plugins</a>
                 <a href="license/">AGPLv3 source</a>
             </section>
 
@@ -313,9 +311,10 @@
                 <div class="section-head reveal cat-operate">
                     <h2 id="why-title">Why Ze.</h2>
                     <p>
-                        Ze is built around one management plane. The routing
-                        engines, operator tools, generated references, and
-                        diagnostics are developed together.
+                        Ze keeps the core protocol-agnostic. Subsystems bring
+                        their own YANG, and the CLI, web editor, validation,
+                        generated references, and MCP tools are derived from the
+                        resulting schema.
                     </p>
                 </div>
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
@@ -323,35 +322,37 @@
                         <span class="cat">Model</span>
                         <h3><a href="config-reference/">One model feeds every interface</a></h3>
                         <p>
-                            The YANG model drives CLI, SSH, web, REST/gRPC, MCP,
-                            docs, audit, diagnostics, and generated references.
+                            Each subsystem declares YANG. The config tree,
+                            validation, CLI completion, web editor, API, MCP,
+                            docs, audit, and diagnostics read that model.
                         </p>
                     </article>
                     <article class="card usp-card cat-platform">
                         <span class="cat">Runtime</span>
-                        <h3><a href="docs/guide/ze-install/">Same binary, two run modes</a></h3>
+                        <h3><a href="docs/architecture/">Small core, registered subsystems</a></h3>
                         <p>
-                            Daemon mode and appliance mode use the same binary
-                            and configuration, so a lab install exercises the
-                            behaviour you would later run on spare hardware.
+                            The core holds the supervisor, message bus, config
+                            provider, and plugin manager. BGP and interface
+                            management register into it.
                         </p>
                     </article>
                     <article class="card usp-card cat-routing">
                         <span class="cat">Routing</span>
-                        <h3><a href="docs/architecture/">Routing engines ship with their operator tools</a></h3>
+                        <h3><a href="docs/architecture/">Network OS built on the engine</a></h3>
                         <p>
-                            Native BGP, OSPF, and IS-IS are developed with the
-                            commands, APIs, references, and checks operators use
-                            to inspect them.
+                            The shipped daemon speaks BGP, manages Linux
+                            interfaces, programs the FIB, and serves its
+                            configuration through SSH and the web UI.
                         </p>
                     </article>
                     <article class="card usp-card cat-secure">
                         <span class="cat">Honest</span>
-                        <h3><a href="quality/">Source and test evidence are public</a></h3>
+                        <h3><a href="docs/features/plugins/">Plugins keep their own contract</a></h3>
                         <p>
-                            The source, generated docs, RFC report, and test
-                            evidence are public. Ze is still pre-release, so
-                            labs and feedback are the right place to start.
+                            Plugins can be compiled Go modules or external
+                            processes. Compiled modules load their YANG into the
+                            daemon validator; external plugins can expose their
+                            model through <code>ze schema</code>.
                         </p>
                     </article>
                 </div>
@@ -364,11 +365,11 @@
                 </div>
                 <div class="section-note reveal">
                     <p>
-                        Ze owns its BGP engine, configuration model, plugin
-                        system, and operator tools. They are designed together,
-                        from native BGP, OSPF, IS-IS, and the SSH CLI through
-                        to RPKI, looking glass, telemetry, firewall, VPN, MPLS,
-                        and appliance packaging.
+                        Ze is an open-source configuration and protocol engine.
+                        The network operating system built on it speaks BGP,
+                        manages Linux interfaces, programs the FIB, and serves
+                        the same YANG-modeled configuration through SSH, web,
+                        API, and MCP.
                     </p>
                 </div>
                 <div class="legend reveal" role="group" aria-label="Browse features by category">

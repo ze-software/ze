@@ -11,7 +11,7 @@
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Milestones - Ze" />
         <meta name="twitter:description" content="The landmark features Ze has shipped, newest first: one node per capability the first time it arrived, on a timeline." />
@@ -113,7 +113,7 @@
                 .tl-node { left: -1.4rem; }
             }
         </style>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -139,7 +139,7 @@
                 <div class="section-head journey-hero reveal">
                     <span class="journey-eyebrow">Timeline</span>
                     <h1 id="milestones-title">The road so far.</h1>
-                    <p>25 milestones, newest first. The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, color-coded by category.</p>
+                    <p>25 milestones, newest first. The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, colour-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each node's color is its category. This is the coarse view: the <a href="../changes/">Changes</a> log has every week, and <a href="../features/">Features</a> lists what ships today. Click a category to filter, click again to show everything.</p>
@@ -328,7 +328,7 @@
                                 <h3 class="tl-title">gokrazy appliance build</h3>
                                 <span class="tl-cat">platform</span>
                             </div>
-                            <p>The first gokrazy VM appliance build for x86_64: the start of Ze shipping as a self-contained appliance image, not just a daemon.</p>
+                            <p>The first gokrazy VM appliance build for x86_64 starts the appliance path: a self-contained image as well as daemon mode.</p>
                             <a class="tl-link" href="../changes/2026-04-06/">Read the week &rarr;</a>
                         </div>
                     </li>
@@ -381,7 +381,7 @@
                                 <h3 class="tl-title">RPKI origin validation</h3>
                                 <span class="tl-cat">secure</span>
                             </div>
-                            <p>A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes arrive on the adjacency RIB-in path, not after the fact.</p>
+                            <p>A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes enter the adjacency RIB-in path.</p>
                             <a class="tl-link" href="../changes/2026-03-16/">Read the week &rarr;</a>
                         </div>
                     </li>
@@ -393,7 +393,7 @@
                                 <h3 class="tl-title">SSH CLI, TCP-MD5, and RBAC</h3>
                                 <span class="tl-cat">secure</span>
                             </div>
-                            <p>An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorization.</p>
+                            <p>An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorisation.</p>
                             <a class="tl-link" href="../changes/2026-03-09/">Read the week &rarr;</a>
                         </div>
                     </li>
@@ -414,10 +414,10 @@
                         <div class="tl-date"><time datetime="2026-02-23">Feb 2026</time></div>
                         <div class="tl-card">
                             <div class="tl-head">
-                                <h3 class="tl-title">BGP Route Server</h3>
+                                <h3 class="tl-title">BGP route server</h3>
                                 <span class="tl-cat">routing</span>
                             </div>
-                            <p>A forward-all Route Server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.</p>
+                            <p>A forward-all route server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.</p>
                             <a class="tl-link" href="../changes/2026-02-23/">Read the week &rarr;</a>
                         </div>
                     </li>

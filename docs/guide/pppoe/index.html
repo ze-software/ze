@@ -11,7 +11,7 @@
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="PPPoE Access Concentrator - Ze" />
         <meta name="twitter:description" content="Ze documentation: guide/pppoe.md" />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/pppoe/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/pppoe/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -57,7 +57,10 @@ over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#architecture">Architecture</a></li>
-<li><a href="#configuration">Configuration</a></li>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#subscriber-authentication">Subscriber authentication</a></li>
+</ol></li>
 <li><a href="#cli-commands">CLI Commands</a></li>
 <li><a href="#security">Security</a></li>
 <li><a href="#concurrent-operation">Concurrent Operation</a></li>
@@ -86,6 +89,7 @@ Auth/Pool/Shaper plugins (shared with L2TP)
     enabled true
     ac-name &quot;my-bng&quot;
     service-name &quot;internet&quot;
+    auth-method chap-md5
     cookie-timeout 5
     max-sessions 65535
     padi-rate-limit 100
@@ -98,6 +102,35 @@ Auth/Pool/Shaper plugins (shared with L2TP)
 }
 </code></pre>
 <p>See <a href="../configuration/#pppoe-access">configuration guide</a> for all settings.</p>
+<h3 id="subscriber-authentication">Subscriber authentication</h3>
+<p><code>auth-method</code> is the PPP Auth-Protocol the access concentrator puts in its own
+LCP Configure-Request: <code>chap-md5</code> (the default), <code>pap</code>, <code>ms-chap-v2</code>, or <code>none</code>.
+<code>none</code> requires <code>allow-no-auth true</code> beside it, because an access concentrator
+that asks nobody who they are is a decision and not a default.</p>
+<p>The credential comes from the same auth plugins the L2TP LNS uses. Configure a
+local user, or a RADIUS server:</p>
+<pre><code>l2tp {
+    auth {
+        local {
+            user alice {
+                password &quot;s3cr3t&quot;
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.20.0.1
+            start 10.20.0.2
+            end 10.20.0.254
+        }
+    }
+}
+</code></pre>
+<p>The <code>l2tp</code> block here configures the shared BNG plugins, not an L2TP listener:
+<code>l2tp-auth-local</code> verifies the credential and <code>l2tp-pool</code> supplies the IPCP
+address. A PPPoE-only BNG needs neither <code>l2tp enabled</code> nor an L2TP server.
+RADIUS takes precedence over the local user list once a RADIUS server is
+configured.</p>
 <h2 id="cli-commands">CLI Commands</h2>
 <table>
 <thead>
