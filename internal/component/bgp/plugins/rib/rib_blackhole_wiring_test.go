@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
@@ -251,4 +252,43 @@ func TestBlackholeClearedWhenCommunityRemoved(t *testing.T) {
 	assert.Equal(t, routetype.Type(0), change.RouteType)
 	assert.Equal(t, routetype.Type(0), blackholeLocRIBType(t, loc, pfx),
 		"traffic is still discarded after the peer stopped asking for it")
+}
+
+// AC-8: the peer WITHDRAWS the prefix instead of re-announcing it untagged.
+//
+// This is not the test above with a different verb. Removing the community
+// leaves a best path to re-stamp. The Loc-RIB entry survives, and only its
+// route type changes. A withdraw leaves NO path, so the entry must leave both
+// rails. The event-bus rail must carry BestChangeWithdraw, and the Loc-RIB must
+// hold no best at all.
+//
+// A discard route the FIB keeps after its last path is gone is a permanent
+// black hole for a prefix nobody announces. Nothing upstream would ever
+// revisit it.
+func TestBlackholeRemovedWhenPrefixWithdrawn(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	r, loc := blackholeRIB(t, peer, blackholeConfig{
+		honor:      true,
+		authorized: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
+	})
+	fam := family.Family{AFI: 1, SAFI: 1}
+	nlri := ipv4Prefix(32, 10, 0, 0, 1)
+	pfx := netip.MustParsePrefix("10.0.0.1/32")
+
+	_, ok := announce(t, r, peer, nlri,
+		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
+	require.True(t, ok)
+	require.Equal(t, routetype.Blackhole, blackholeLocRIBType(t, loc, pfx))
+
+	// The withdraw: the peer's route is gone, and the best path is recomputed
+	// with no candidate left.
+	require.True(t, r.bgpPeers[peer].Remove(fam, nlri), "the peer route was not there to withdraw")
+	change, ok := r.checkBestPathChange(fam, nlri, false, nil)
+
+	require.True(t, ok, "the withdraw produced no best-path change: the FIB is never told")
+	assert.Equal(t, ribevents.BestChangeWithdraw, change.Action,
+		"event-bus rail: the forked-plugin deployment keeps discarding a withdrawn prefix")
+	_, stillBest := loc.Best(fam, pfx)
+	assert.False(t, stillBest,
+		"Loc-RIB rail: the discard route outlived the announcement that asked for it")
 }

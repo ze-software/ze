@@ -12,28 +12,37 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | spec-bcp194-1-communities |
-| Phase | 3/4 |
+| Phase | 4/4 |
 | Deferral shard | - |
 | Updated | 2026-08-13 |
 
-## Package boundary reached 2026-08-13 (NOT closure)
+## Phase 4 complete 2026-08-13 (NOT closure)
 
-Landed and green in five commits: the route-type carry-through, the per-peer
-honoring decision with both Section 3.3 conditions, the RPKI length-only
-exemption, the tagged requirement pairs, and the `show rib` renderer.
-
-**Phase 4 is not started and is a package of its own.** Three items, and none of
-them is optional:
+Phases 1-3 landed in six commits. Phase 4 closes the three items they left, and
+found one defect that made the whole feature inert on Linux.
 
 | Owed | State |
 |------|-------|
-| Functional `.ci` | `test/plugin/bgp-blackhole-honor.ci` is written and UNCOMMITTED because it is RACY. Diagnosed, not guessed: `ze-peer` exits as soon as its `action=send` script completes, the session drops, and the announced routes are withdrawn from the system RIB. The engine-steps executor RE-RUNS the command while polling, so the second assertion re-reads a table the first one emptied. It passed in a full-suite run and failed run alone, which is the tell. The fix is route persistence, not a longer timeout: either hold the peer session open, or drive the routes through `request bgp rib inject` from the configured peer address so no session lifetime is involved |
-| Interop with FRR | not started. `test/interop/scenarios/ospf-gr-fib-retention/` is the precedent: it runs `fib-kernel` inside the ze container, and `docker_exec` lets `check.py` assert a literal `blackhole 192.0.2.1/32` from `ip route show` |
-| Docs | not started. The Documentation Update Checklist below is unanswered. `docs/guide/configuration.md` and the `docs/features/rfc-status.md` RFC 7999 row are the two that certainly apply |
+| Functional `.ci` | DONE. `test/plugin/bgp-blackhole-honor.ci` takes `option=linger:value=true`. `runMessageLoop` reaches `Peer.completed` from its `action=send` exhaustion site (`internal/test/peer/peer.go`), so linger holds the session open there and the two assertions read one steady state. 8/8 alone, 6/6 under `make ze-plugin-test`. The reported flake did NOT reproduce on this machine without linger either (6/6), so linger is justified by the teardown path in source, not by an observed red |
+| Interop with FRR | DONE. `test/interop/scenarios/59-rfc7999-blackhole-frr/`. FRR and BIRD both announce 65535:666; `check.py` asserts `ip route show` inside the ze container. Three outcomes from one community: `blackhole 10.100.0.1`, `198.51.100.1 via` (uncovered), `10.200.0.1 via` (honor false). All three proven to discriminate by mutation, each rebuilt from source |
+| Docs | DONE. `docs/guide/configuration.md` gains "Blackhole Honoring (RFC 7999)" with the coverage-vs-prefix-list distinction and a "Blackhole with origin validation" subsection naming `blackhole-exempt`. `docs/features/rfc-status.md` gains the RFC 7999 row. `rfc/not-enrolled.txt` records what enrolment still owes |
+
+**The defect phase 4 found: no honored route could reach the Linux kernel.**
+`buildRichRoute` (`internal/plugins/fib/kernel/nexthop_linux.go`) set
+`route.Gw` from the change's next-hop whatever the route type was. Linux
+`fib_create_info` rejects RTN_BLACKHOLE, RTN_UNREACHABLE and RTN_PROHIBIT that
+carry a gateway, a device or multipath, and every BGP path resolves a next-hop.
+Measured in an ephemeral netns: without the fix the kernel holds ZERO ze routes
+for a blackhole change, with it exactly one RTN_BLACKHOLE and no gateway. No
+test looked, because `test/plugin/fib-blackhole.ci` is a blind hold and the only
+producer of a route type before phase 1 was the `fakefib` test plugin.
 
 `rfc/enrolled.txt` is untouched, which the owner directed: enrolling RFC 7999
-needs an extraction sign-off and a public status row, and it is a separate step
-nobody has authorised.
+needs an extraction sign-off, and that is a separate step nobody has authorised.
+The scenario carries NO `RFC requirement:` tag: an interop-tier tag is a
+permanent `check_evidence_ratchet` commitment and is the owner's to make. It
+WOULD serve RFC7999-3.3-1 (positive and negative), RFC7999-3.3-2 (positive and
+negative) and RFC7999-4-1 (positive).
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -288,7 +297,7 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `bgp-blackhole-honor` | `test/plugin/bgp-blackhole-honor.ci` | An opted-in peer's tagged /32 inside its authorized block shows `route-type: blackhole` in `show rib`; a tagged /32 outside it shows no route type at all | done, 8/8 alone and 6/6 under the suite |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -296,7 +305,7 @@ That is Section 3.3's fourth requirement in live code: "An operator MUST ensure 
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+| `59-rfc7999-blackhole-frr` | `test/interop/scenarios/59-rfc7999-blackhole-frr/` | FRR 10.3.1 and BIRD | Ze discards a real FRR announcement in the Linux FIB, and forwards the two that fail one RFC 7999 Section 3.3 condition each. `check.py` reads `ip route show` in the ze container | done. Discrimination proven three ways: disabling the honor path reddens only the positive; bypassing the coverage test reddens only the uncovered negative; ignoring the `honor` leaf reddens only the un-agreed negative |
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.

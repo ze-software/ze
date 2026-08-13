@@ -1,0 +1,120 @@
+# Test: RFC 7999 Section 3.3 -- honoring BLACKHOLE reaches the system RIB
+#
+# VALIDATES: AC-2 and AC-3 -- an opted-in peer's BLACKHOLE announcement inside
+#            its authorized block becomes a discard route in the system RIB, and
+#            the same peer's BLACKHOLE announcement OUTSIDE that block does not.
+# PREVENTS:  the honoring decision stopping at the BGP RIB. The unit tests drive
+#            checkBestPathChange directly; only this proves the route type
+#            survives the Loc-RIB, sysrib arbitration and next-hop resolution to
+#            reach what an operator can see.
+#
+# The vacuity trap this avoids: an assertion that a blackhole route was
+# installed passes when EVERY route is installed as one. Both announcements come
+# from the SAME session with the SAME community and the SAME next-hop, and
+# differ only in whether the prefix is covered by an authorized prefix. One
+# entry must carry route-type and the other must not.
+#
+# Flow:
+# 1. ze-peer sends two UPDATEs, both carrying COMMUNITY 65535:666:
+#      10.0.0.1/32     -- inside the peer's authorized-covering-prefix 10.0.0.0/24
+#      192.0.2.1/32    -- outside every authorized block
+# 2. A connected covering route for the next-hop is injected so both resolve and
+#    reach the system RIB (the same mechanism engine-steps-predicates.ci uses).
+# 3. `show rib` renders route-type for a discard route and omits it otherwise.
+
+option=env:var=ze.log.bgp.plugins.rib:value=info
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# The peer MUST outlive its own script. ze-peer returns from its last
+# action=send through Peer.completed (internal/test/peer/peer.go,
+# runMessageLoop), and without linger that return closes the session: ze
+# withdraws both routes, and the poll below re-runs `show rib` against a table
+# the first assertion emptied. linger makes that same site hold the session open
+# and answer KEEPALIVEs until teardown, so the two assertions read one steady
+# state instead of racing the session teardown.
+option=linger:value=true
+# Marker(16) + Len=0037(55) + Type=02 + WdLen=0000 + AttrLen=001B(27)
+#   ORIGIN:    40010100 (IGP)
+#   AS_PATH:   40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP:  40030401010101 (1.1.1.1)
+#   COMMUNITY: C00804FFFF029A (65535:666, BLACKHOLE per RFC 7999 Section 2)
+#   NLRI:      200A000001 (10.0.0.1/32) -- inside the authorized 10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE940030401010101C00804FFFF029A200A000001
+# Same session, same community, same next-hop. NLRI 20C0000201 (192.0.2.1/32),
+# which no authorized-covering-prefix covers.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE940030401010101C00804FFFF029A20C0000201
+EOF_PEER
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal rib {
+		use rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		blackhole {
+			honor true
+			authorized-covering-prefix 10.0.0.0/24
+		}
+		process bgp-rib {
+		}
+		process rib {
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
+
+# Resolve 1.1.1.1 so both announced prefixes reach the system RIB.
+command=request bgp rib inject 10.0.0.2 ipv4/unicast 1.1.1.0/24 origin igp
+command=show rib
+# AC-2: the covered prefix is a discard route. The regexp is scoped inside one
+# JSON object ([^}]*) so it cannot match route-type belonging to another entry.
+expect=output:matches="prefix":"10\.0\.0\.1/32"[^}]*"route-type":"blackhole":timeout=15
+command=show rib
+# AC-3: the uncovered prefix reached the system RIB and carries NO route-type.
+# The entry closes right after priority, because route-type and ecmp-paths are
+# both omitted when unset.
+expect=output:matches="prefix":"192\.0\.2\.1/32"[^}]*"priority":[0-9]+\}:timeout=15
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

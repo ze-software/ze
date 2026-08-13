@@ -439,7 +439,84 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
 | `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding) | No (default: disable) |
+| `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+
+## Blackhole Honoring (RFC 7999)
+
+A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
+the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
+route for that prefix, and the traffic is dropped in the kernel FIB or in VPP.
+
+Honoring is off by default and is configured per session. Both leaves are
+required, and each one is a separate condition from RFC 7999 Section 3.3.
+
+| Leaf | Meaning |
+|------|---------|
+| `honor` | `true` means this session agreed to honor BLACKHOLE. Default `false` |
+| `authorized-covering-prefix` | A prefix this peer is authorized to advertise. Repeat the leaf for each one. An empty list authorizes nothing |
+
+```
+bgp {
+    peer transit-a {
+        blackhole {
+            honor true;
+            authorized-covering-prefix 192.0.2.0/24;
+            authorized-covering-prefix 198.51.100.0/24;
+        }
+    }
+}
+```
+
+With this configuration, a BLACKHOLE-tagged announcement of 192.0.2.1/32
+installs a discard route. The same announcement for 203.0.113.1/32 installs an
+ordinary route, because no listed prefix covers it.
+
+`authorized-covering-prefix` asks a different question from a prefix list. A
+prefix list bounds the LENGTH of an announcement, so a `192.0.2.0/24 le 24`
+entry rejects the /32 inside it. This leaf asks whether the peer is authorized to
+advertise a prefix that CONTAINS the announcement. The listed prefix must be equal to or
+shorter than the announced one. So `192.0.2.0/24` covers every host route inside
+192.0.2.0/24, and it covers no part of 198.51.100.0/24.
+
+The container is available at the `bgp`, `group` and `peer` levels. `honor`
+replaces the inherited value. `authorized-covering-prefix` accumulates across
+the levels.
+
+### Blackhole with origin validation
+
+An operator who runs origin validation with `rpki { action { invalid reject } }`
+must also set `blackhole-exempt`, or no blackhole announcement is honored.
+
+A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for
+the covering block carries its maxLength at the aggregate, often a /24. RFC 6811
+then makes the /32 Invalid on length alone, and a session that rejects Invalid
+routes drops the announcement before the blackhole logic sees it. The symptom is
+a peer that reports the announcement as sent and a Ze that installs nothing.
+
+```
+bgp {
+    peer transit-a {
+        rpki {
+            action { invalid reject; }
+            blackhole-exempt true;
+        }
+        blackhole {
+            honor true;
+            authorized-covering-prefix 192.0.2.0/24;
+        }
+    }
+}
+```
+
+The exemption is narrow. It keeps the route only when a covering VRP names the
+route's own origin AS and disagrees on nothing but prefix length. A wrong origin
+AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no
+covering VRP is NotFound rather than Invalid, so the exemption never reaches it.
+
+Set `blackhole-exempt` on the same session as `honor`. On its own it accepts a
+route it would have rejected and discards nothing.
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly -->
 
 ## Capabilities
 
