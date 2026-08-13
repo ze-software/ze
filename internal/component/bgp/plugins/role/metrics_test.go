@@ -158,7 +158,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 			reason: reasonLabelLeak,
 			run: func(t *testing.T) bool {
 				setFilterState(map[string]*peerRoleConfig{"10.0.0.1": {role: roleProvider}}, nil)
-				setFilterRemoteRole("10.0.0.1", roleCustomer)
+				setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
 				accept, _ := OTCIngressFilter(src, withOTC, map[string]any{})
 				return accept
@@ -170,7 +170,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 			reason: reasonLabelMalformedOTC,
 			run: func(t *testing.T) bool {
 				setFilterState(map[string]*peerRoleConfig{"10.0.0.1": {role: roleCustomer}}, nil)
-				setFilterRemoteRole("10.0.0.1", roleProvider)
+				setFilterRemoteRole("10.0.0.1", "", roleProvider)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
 				accept, _ := OTCIngressFilter(src, malformed, map[string]any{})
 				return accept
@@ -185,7 +185,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 					"10.0.0.1": {role: roleProvider},
 					"10.0.0.5": {role: roleCustomer},
 				}, nil)
-				setFilterRemoteRole("10.0.0.5", roleProvider)
+				setFilterRemoteRole("10.0.0.5", "", roleProvider)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
 				dest := filterapi.PeerFilterInfo{Address: destAddr, PeerAS: 65005, LocalAS: 65000}
 				var mods filterapi.ModAccumulator
@@ -201,7 +201,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 					"10.0.0.1": {role: roleCustomer},
 					"10.0.0.5": {role: roleCustomer},
 				}, nil)
-				setFilterRemoteRole("10.0.0.5", roleProvider)
+				setFilterRemoteRole("10.0.0.5", "", roleProvider)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
 				dest := filterapi.PeerFilterInfo{Address: destAddr, PeerAS: 65005, LocalAS: 65000}
 				var mods filterapi.ModAccumulator
@@ -222,7 +222,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 						resolvedExport: resolveExport(roleProvider, []string{roleProvider})},
 					"10.0.0.5": {role: roleProvider},
 				}, nil)
-				setFilterRemoteRole("10.0.0.5", roleCustomer)
+				setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
 				dest := filterapi.PeerFilterInfo{Address: destAddr, PeerAS: 65005, LocalAS: 65000}
 				var mods filterapi.ModAccumulator
@@ -260,8 +260,8 @@ func TestRoleAcceptedRouteIsNotCounted(t *testing.T) {
 		"10.0.0.1": {role: roleProvider},
 		"10.0.0.5": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 65005, LocalAS: 65000}
@@ -312,7 +312,7 @@ func TestRoleFirstDropEmitsWarn(t *testing.T) {
 		"10.0.0.1": {role: roleProvider},
 		"10.0.0.5": {role: roleCustomer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.5", roleProvider)
+	setFilterRemoteRole("10.0.0.5", "", roleProvider)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 65005, LocalAS: 65000}
@@ -350,7 +350,7 @@ func TestRoleMetricsSafeBeforeConfigure(t *testing.T) {
 	clearFilterState(t)
 
 	setFilterState(map[string]*peerRoleConfig{"10.0.0.1": {role: roleProvider}}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)

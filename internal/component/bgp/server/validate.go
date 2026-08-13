@@ -132,7 +132,13 @@ const validateOpenTimeout = 5 * time.Second
 // broadcastValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
 // local and remote are *message.Open passed as any from the generic hook.
 // Iterates processes, sends validate-open RPC, fails fast on first rejection.
-func broadcastValidateOpen(s *pluginserver.Server, peerAddr string, local, remote any) error {
+//
+// group is the peer's enclosing group, empty for a peer that stands alone. A
+// peer created from a dynamic group's template shares no other identity with
+// the operator's config document. A plugin that keys per-peer policy on that
+// document resolves such a peer through the group or not at all
+// (rpc.ValidateOpenInput).
+func broadcastValidateOpen(s *pluginserver.Server, peerAddr, group string, local, remote any) error {
 	localOpen, ok := local.(*message.Open)
 	if !ok {
 		return fmt.Errorf("broadcastValidateOpen: local not *message.Open: %T", local)
@@ -151,6 +157,7 @@ func broadcastValidateOpen(s *pluginserver.Server, peerAddr string, local, remot
 	// Build the RPC input once (shared across all plugin calls)
 	input := &rpc.ValidateOpenInput{
 		Peer:   peerAddr,
+		Group:  group,
 		Local:  openMessageToRPC(localOpen),
 		Remote: openMessageToRPC(remoteOpen),
 	}

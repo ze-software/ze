@@ -959,6 +959,7 @@ func (p *Peer) getPluginFamilies() []string {
 func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error {
 	p.mu.RLock()
 	r := p.reactor
+	settings := p.settings
 	p.mu.RUnlock()
 
 	if r == nil {
@@ -997,7 +998,13 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 		return nil
 	}
 
-	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, local, remote)
+	// The group travels with the peer id. A peer created from a dynamic group's
+	// template appears in the operator's config document under neither its
+	// generated name ("dyn-<addr>") nor its address. Its group's name is the one
+	// identity it shares with that document, and buildDynamicPeerSettings put it
+	// here. A plugin without the group resolves no config for such a peer. For
+	// bgp-role that skipped every RFC 9234 Section 4.2 OPEN check.
+	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, local, remote)
 }
 
 // claimPeerAS returns the AS that scopes this peer's BGP Identifier claim.

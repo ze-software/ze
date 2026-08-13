@@ -43,8 +43,8 @@ func TestReconfigureKeepsLearnedRolesForStillConfiguredPeers(t *testing.T) {
 		"10.0.0.2": {role: roleProvider},
 	}
 	setFilterState(configs, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.2", rolePeer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.2", "", rolePeer)
 
 	// Reload: 10.0.0.1 survives, 10.0.0.2 is removed, 10.0.0.3 is new.
 	setFilterState(map[string]*peerRoleConfig{
@@ -52,16 +52,16 @@ func TestReconfigureKeepsLearnedRolesForStillConfiguredPeers(t *testing.T) {
 		"10.0.0.3": {role: roleProvider},
 	}, nil)
 
-	_, learned := getFilterConfig("10.0.0.1")
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	assert.Equal(t, roleCustomer, learned,
 		"a peer whose session survived the reload has not withdrawn the role it advertised")
-	assert.True(t, remoteRoleRecorded("10.0.0.1"),
+	assert.True(t, remoteRoleRecorded("10.0.0.1", ""),
 		"the surviving peer's role is still recorded, so the export set can still be evaluated")
 
-	assert.False(t, remoteRoleRecorded("10.0.0.2"),
+	assert.False(t, remoteRoleRecorded("10.0.0.2", ""),
 		"a peer the new config no longer names keeps no learned role: it can never be read again")
 
-	assert.False(t, remoteRoleRecorded("10.0.0.3"),
+	assert.False(t, remoteRoleRecorded("10.0.0.3", ""),
 		"a newly configured peer has advertised nothing yet; its role is genuinely unrecorded")
 }
 
@@ -86,21 +86,21 @@ func TestOpenDeclaringNoRoleIsRecordedNotDeleted(t *testing.T) {
 	nameToIP := map[string]string{"edge1": "10.0.0.1"}
 	setFilterState(configs, nameToIP)
 
-	require.False(t, remoteRoleRecorded("10.0.0.1"),
+	require.False(t, remoteRoleRecorded("10.0.0.1", ""),
 		"before any OPEN, nothing is recorded")
 
 	applyValidateOpen(configs, nameToIP, openWithRole("edge1", 3)) // Customer
-	_, learned := getFilterConfig("10.0.0.1")
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	require.Equal(t, roleCustomer, learned)
-	require.True(t, remoteRoleRecorded("10.0.0.1"))
+	require.True(t, remoteRoleRecorded("10.0.0.1", ""))
 
 	// The peer reconnects advertising no Role capability at all.
 	applyValidateOpen(configs, nameToIP, openWithoutRole("edge1"))
 
-	_, learned = getFilterConfig("10.0.0.1")
+	_, learned = getFilterConfig("10.0.0.1", "", "")
 	assert.Empty(t, learned,
 		"the stale role must not survive: the peer stopped claiming it")
-	assert.True(t, remoteRoleRecorded("10.0.0.1"),
+	assert.True(t, remoteRoleRecorded("10.0.0.1", ""),
 		"but the OPEN WAS seen, and 'declared no role' is an answer -- it must not read as 'never recorded'")
 	assert.Equal(t, roleCustomer, resolvePeerRole(learned, configs["10.0.0.1"]),
 		"the RFC 9234 Section 5 gates still take the configured complement, unchanged")
@@ -134,7 +134,7 @@ func TestExportSetSuppressionDistinguishesUnrecordedFromPolicy(t *testing.T) {
 		"10.0.0.21": {role: roleCustomer},
 	}, nil)
 	// 10.0.0.20's OPEN was seen and declared a role that is not in the set.
-	setFilterRemoteRole("10.0.0.20", roleProvider)
+	setFilterRemoteRole("10.0.0.20", "", roleProvider)
 	// 10.0.0.21's OPEN was never recorded at all.
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
@@ -206,7 +206,7 @@ func TestExportSetUnrecordedStillMatchesExplicitUnknown(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.22")}
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 
-	require.False(t, remoteRoleRecorded("10.0.0.22"), "precondition: nothing recorded")
+	require.False(t, remoteRoleRecorded("10.0.0.22", ""), "precondition: nothing recorded")
 	assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil),
 		"an explicit `unknown` in the export set admits this peer; Thomas ruled this on 2026-08-03 (R6-1 / Q-1), so do not change it without a fresh owner ruling")
 	assert.Equal(t, int64(0), rec.value(metricRouteSuppressions, reasonLabelRoleUnrecorded),

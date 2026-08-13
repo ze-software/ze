@@ -1047,6 +1047,19 @@ The engine sends both local and remote OPENs for inspection:
 #7 ok {"accept":true}
 ```
 
+`peer` is the peer's configured name. `group` is its enclosing group, and the
+field is omitted for a peer that stands alone:
+
+```
+#8 ze-plugin-callback:validate-open {"peer":"dyn-192.0.2.7","group":"ix","local":{...},"remote":{...}}
+```
+
+A peer created from a dynamic group's template has only that second identity. The
+engine builds such a peer when a connection arrives inside the group's range, and
+names it `dyn-<addr>`. Neither that name nor its address is in the config the
+plugin read. A plugin that keys per-peer policy on the config resolves that peer
+through `group` or resolves nothing for it.
+
 To reject:
 ```
 #7 ok {"accept":false,"notify-code":2,"notify-subcode":6,"reason":"unacceptable hold time"}

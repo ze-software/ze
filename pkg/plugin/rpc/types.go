@@ -819,8 +819,20 @@ type ValidateOpenMessage struct {
 
 // ValidateOpenInput is the input for ze-plugin-callback:validate-open.
 // The engine sends both local and remote OPENs for the plugin to validate.
+//
+// Peer is the peer's configured name, so a plugin looks its config up by the
+// key the operator's document holds. Group is the second identity, and a peer
+// created from a dynamic group's template has ONLY that one. The engine names
+// such a peer "dyn-<addr>" when a connection arrives, and neither that name nor
+// its address appears in the config the plugin read. Without Group a plugin
+// resolves no config for that peer, and every per-peer decision it makes takes
+// its permissive branch.
+//
+// Group is omitted for a peer that stands alone, so a plugin built against an
+// older SDK reads the same message it always read.
 type ValidateOpenInput struct {
 	Peer   string              `json:"peer"`
+	Group  string              `json:"group,omitempty"`
 	Local  ValidateOpenMessage `json:"local"`
 	Remote ValidateOpenMessage `json:"remote"`
 }

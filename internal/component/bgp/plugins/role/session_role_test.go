@@ -60,7 +60,7 @@ func TestReconnectWithoutRoleCapabilityClearsStaleRole(t *testing.T) {
 	// Session 1: the peer advertises Provider (value 0).
 	out := applyValidateOpen(configs, nameToIP, openWithRole("upstream", 0))
 	require.NotNil(t, out)
-	_, learned := getFilterConfig("10.0.0.1")
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	require.Equal(t, roleProvider, learned, "session 1 must record the advertised role")
 
 	// Session 2: the peer reconnects with no Role capability.
@@ -69,7 +69,7 @@ func TestReconnectWithoutRoleCapabilityClearsStaleRole(t *testing.T) {
 	assert.True(t, out.Accept,
 		"RFC 9234 Section 4.2: absence of the capability is accepted when strict is unset")
 
-	cfg, learned := getFilterConfig("10.0.0.1")
+	cfg, learned := getFilterConfig("10.0.0.1", "", "")
 	assert.Empty(t, learned,
 		"the stale capability role must not survive a session that does not advertise it")
 
@@ -97,18 +97,18 @@ func TestReconnectWithNewRoleCapabilityWinsOverPrevious(t *testing.T) {
 
 	// Session 1: peer advertises Provider (0).
 	applyValidateOpen(configs, nameToIP, openWithRole("lateral", 0))
-	_, learned := getFilterConfig("10.0.0.1")
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	require.Equal(t, roleProvider, learned)
 
 	// Session 2: peer now advertises Peer (4).
 	applyValidateOpen(configs, nameToIP, openWithRole("lateral", 4))
-	_, learned = getFilterConfig("10.0.0.1")
+	_, learned = getFilterConfig("10.0.0.1", "", "")
 	assert.Equal(t, rolePeer, learned, "the newest OPEN must win")
 
 	// Session 3: back to Provider. Repeated flaps must keep converging on the
 	// value the current session advertised.
 	applyValidateOpen(configs, nameToIP, openWithRole("lateral", 0))
-	_, learned = getFilterConfig("10.0.0.1")
+	_, learned = getFilterConfig("10.0.0.1", "", "")
 	assert.Equal(t, roleProvider, learned, "each OPEN re-establishes the learned role")
 }
 
@@ -130,12 +130,12 @@ func TestReconnectWithUnassignedRoleValueClearsStaleRole(t *testing.T) {
 	setFilterState(configs, nameToIP)
 
 	applyValidateOpen(configs, nameToIP, openWithRole("upstream", 0))
-	_, learned := getFilterConfig("10.0.0.1")
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	require.Equal(t, roleProvider, learned)
 
 	// Value 7 is unassigned in RFC 9234 Table 1.
 	applyValidateOpen(configs, nameToIP, openWithRole("upstream", 7))
-	_, learned = getFilterConfig("10.0.0.1")
+	_, learned = getFilterConfig("10.0.0.1", "", "")
 	assert.Empty(t, learned, "an unassigned role value must not preserve the previous role")
 }
 
@@ -156,15 +156,15 @@ func TestClearedRoleIsKeyedLikeTheSetter(t *testing.T) {
 	setFilterState(configs, nameToIP)
 
 	// Set by NAME (as OnValidateOpen does); the entry lands under the IP.
-	setFilterRemoteRole("named-peer", roleCustomer)
-	_, learned := getFilterConfig("10.0.0.1")
+	setFilterRemoteRole("named-peer", "", roleCustomer)
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	require.Equal(t, roleCustomer, learned, "setter resolves name -> IP")
 
 	// Clear by NAME; the IP-keyed entry the filters read must be the one cleared.
-	recordNoRemoteRole("named-peer")
-	_, learned = getFilterConfig("10.0.0.1")
+	recordNoRemoteRole("named-peer", "")
+	_, learned = getFilterConfig("10.0.0.1", "", "")
 	assert.Empty(t, learned, "clear must reach the same key the setter wrote")
-	assert.True(t, remoteRoleRecorded("10.0.0.1"),
+	assert.True(t, remoteRoleRecorded("10.0.0.1", ""),
 		"the OPEN was observed and declared no role: that is an ANSWER, and it must stay distinguishable from a peer whose OPEN was never recorded at all")
 }
 
@@ -187,14 +187,14 @@ func TestStaleRoleClearedEvenWhenOpenIsRejected(t *testing.T) {
 	setFilterState(configs, nameToIP)
 
 	applyValidateOpen(configs, nameToIP, openWithRole("upstream", 3)) // Customer: valid pair
-	_, learned := getFilterConfig("10.0.0.1")
+	_, learned := getFilterConfig("10.0.0.1", "", "")
 	require.Equal(t, roleCustomer, learned)
 
 	out := applyValidateOpen(configs, nameToIP, openWithoutRole("upstream"))
 	require.NotNil(t, out)
 	require.False(t, out.Accept, "strict mode rejects a peer that sends no Role capability")
 
-	_, learned = getFilterConfig("10.0.0.1")
+	_, learned = getFilterConfig("10.0.0.1", "", "")
 	assert.Empty(t, learned, "a rejected OPEN must not leave the previous session's role behind")
 }
 

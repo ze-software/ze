@@ -54,7 +54,7 @@ func TestOTCIngressPublishesPeerRole(t *testing.T) {
 
 	t.Run("an announced capability wins over the config complement", func(t *testing.T) {
 		setFilterState(map[string]*peerRoleConfig{"10.0.0.2": {role: roleCustomer}}, nil)
-		setFilterRemoteRole("10.0.0.2", rolePeer)
+		setFilterRemoteRole("10.0.0.2", "", rolePeer)
 		meta := ingress("10.0.0.2", 65002)
 
 		assert.Equal(t, roleCustomer, meta["src-role"], "unchanged: still our config")
@@ -67,7 +67,7 @@ func TestOTCIngressPublishesPeerRole(t *testing.T) {
 		// returns early here; the key must still be set, because what the peer
 		// IS is a different question from whether OTC applies to it.
 		setFilterState(map[string]*peerRoleConfig{"10.0.0.3": nil}, nil)
-		setFilterRemoteRole("10.0.0.3", roleProvider)
+		setFilterRemoteRole("10.0.0.3", "", roleProvider)
 		meta := ingress("10.0.0.3", 65003)
 
 		assert.Equal(t, roleProvider, meta["src-peer-role"])

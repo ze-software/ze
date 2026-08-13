@@ -413,7 +413,7 @@ func payloadToWithdrawal(payload []byte) []byte {
 // Table 2 complement of the config. A reader that wants "is this a provider"
 // wants the second (docs/architecture/meta/role.md).
 func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
-	cfg, capRole := getFilterConfig(src.Address.String())
+	cfg, capRole := getFilterConfig(src.Address.String(), src.Name, src.GroupName)
 
 	// Always record source peer's role in metadata from our configuration.
 	if cfg != nil && cfg.role != "" {
@@ -558,8 +558,9 @@ var peerRoleComplement = map[string]string{
 // destination peer on egress.
 //
 // capRole is the role the peer announced in its OPEN Role capability.
-// setFilterRemoteRole is the ONLY writer of filterRemoteRoles (role.go:77) and
-// its only caller is guarded by len(remoteRoles) > 0 (role.go:169-174), so
+// applyValidateOpen (role.go) calls setFilterRemoteRole only when the OPEN
+// carried a usable Role capability and calls recordNoRemoteRole otherwise, and
+// that pair is the only writer of filterRemoteRoles, so
 // capRole is empty for any peer that did not send the capability -- a case
 // validateOpenRolePair deliberately ACCEPTS when strict is unset, quoting RFC
 // 9234 Section 4.2's SHOULD-ignore (validate.go:88-94).
@@ -610,8 +611,8 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 		return true
 	}
 
-	srcCfg, _ := getFilterConfig(src.Address.String())
-	destCfg, destCapRole := getFilterConfig(dest.Address.String())
+	srcCfg, _ := getFilterConfig(src.Address.String(), src.Name, src.GroupName)
+	destCfg, destCapRole := getFilterConfig(dest.Address.String(), dest.Name, dest.GroupName)
 
 	// destRemoteRole gates RFC 9234 Section 5 MUSTs and falls back to the
 	// config complement when the peer sent no Role capability (resolvePeerRole).
@@ -709,7 +710,7 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 			// The recorded lookup is taken HERE, on the cold suppression path,
 			// rather than beside the config read above: the accepting path never
 			// needs it and must not pay a second lock (ai/rules/performance.md).
-			recorded := remoteRoleRecorded(dest.Address.String())
+			recorded := remoteRoleRecorded(dest.Address.String(), dest.Name)
 			reason := dropExportSet
 			if !recorded {
 				reason = dropRoleUnrecorded

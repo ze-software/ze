@@ -16,6 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -43,13 +44,32 @@ func ConfigureLogger(l *slog.Logger) {
 
 // Package-level filter state. Populated by RunRolePlugin (OnConfigure, OnValidateOpen).
 // Read by filter closures registered in register.go. Protected by filterMu.
-// All maps are keyed by peer IP address (from remote.ip in config).
+//
+// A configured peer is keyed by its IP address (from remote.ip in config). A
+// dynamic group's template is keyed by configjson.CapabilityGroupKey, which is
+// the group's name behind a "group:" prefix. The peers built from that template
+// carry the group's name and no address the config document holds. No address
+// can carry that prefix, so the two namespaces cannot collide.
 var (
 	filterMu          sync.RWMutex
-	filterPeerConfigs map[string]*peerRoleConfig // IP -> role config (from OnConfigure)
-	filterRemoteRoles map[string]string          // IP -> remote role name (from OnValidateOpen)
+	filterPeerConfigs map[string]*peerRoleConfig // IP or group selector -> role config (from OnConfigure)
+	filterRemoteRoles map[string]remoteRoleState // filter key -> what the peer's OPEN declared (from OnValidateOpen)
 	filterNameToIP    map[string]string          // peer name -> IP (for OnValidateOpen name resolution)
 )
+
+// remoteRoleState is what one peer's OPEN declared about its role, plus the
+// group that peer belongs to.
+//
+// group is empty for a configured peer and carries the group's name for a peer
+// created from a dynamic group's template. setFilterState needs it: the
+// retention loop keeps a learned role only while the new config still answers
+// for that peer, and a dynamic member's own key is in no config. Its GROUP's key
+// is. Without it every reconfigure dropped the learned role of every dynamic
+// member, which is the silent failure described on setFilterState below.
+type remoteRoleState struct {
+	role  string
+	group string
+}
 
 // setFilterState stores peer role configs and name-to-IP mapping for filter closures.
 // The local AS used for OTC egress stamping is NOT captured here: the reactor hands
@@ -73,10 +93,21 @@ func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) 
 	filterNameToIP = n2ip
 	// Drop learned roles for peers the new config no longer names; a role we
 	// cannot map back to a configured peer can never be read again anyway.
-	for key := range filterRemoteRoles {
-		if _, stillConfigured := configs[key]; !stillConfigured {
-			delete(filterRemoteRoles, key)
+	//
+	// A peer created from a dynamic group's template is named by its GROUP alone,
+	// because the config document holds no entry for it. Asking only configs[key]
+	// therefore dropped every dynamic member's learned role on every reconfigure.
+	// The member's session sends no second OPEN to write it back.
+	for key, state := range filterRemoteRoles {
+		if _, stillConfigured := configs[key]; stillConfigured {
+			continue
 		}
+		if state.group != "" {
+			if _, groupStillConfigured := configs[configjson.CapabilityGroupKey(state.group)]; groupStillConfigured {
+				continue
+			}
+		}
+		delete(filterRemoteRoles, key)
 	}
 	filterMu.Unlock()
 }
@@ -99,12 +130,15 @@ func filterKeyLocked(peerID string) string {
 
 // setFilterRemoteRole stores a peer's negotiated remote role for filter closures.
 // peerID is the peer name from OnValidateOpen; it is resolved to IP via filterNameToIP.
-func setFilterRemoteRole(peerID, remoteRole string) {
+// group is the peer's enclosing group, empty for a peer that stands alone. It
+// lets setFilterState tell a live dynamic member from a peer the config dropped
+// (remoteRoleState).
+func setFilterRemoteRole(peerID, group, remoteRole string) {
 	filterMu.Lock()
 	if filterRemoteRoles == nil {
-		filterRemoteRoles = make(map[string]string)
+		filterRemoteRoles = make(map[string]remoteRoleState)
 	}
-	filterRemoteRoles[filterKeyLocked(peerID)] = remoteRole
+	filterRemoteRoles[filterKeyLocked(peerID)] = remoteRoleState{role: remoteRole, group: group}
 	filterMu.Unlock()
 }
 
@@ -122,30 +156,79 @@ func setFilterRemoteRole(peerID, remoteRole string) {
 // causes, so an operator needs them told apart in the drop reason
 // (remoteRoleRecorded). Both resolve to the configured complement for the RFC
 // gates, so the Section 5 procedures are unchanged either way.
-func recordNoRemoteRole(peerID string) string {
+func recordNoRemoteRole(peerID, group string) string {
 	filterMu.Lock()
 	defer filterMu.Unlock()
 	if filterRemoteRoles == nil {
-		filterRemoteRoles = make(map[string]string)
+		filterRemoteRoles = make(map[string]remoteRoleState)
 	}
 	key := filterKeyLocked(peerID)
-	previous := filterRemoteRoles[key]
-	filterRemoteRoles[key] = ""
+	previous := filterRemoteRoles[key].role
+	filterRemoteRoles[key] = remoteRoleState{group: group}
 	return previous
 }
 
-// getFilterConfig returns the role config and remote role for a peer by IP address.
-func getFilterConfig(peerIP string) (cfg *peerRoleConfig, remoteRole string) {
+// getFilterConfig returns the role config and the learned remote role for one
+// peer, identified by the three names every filter decision already carries
+// (filterapi.PeerFilterInfo: Address, Name, GroupName).
+//
+// The config is resolved by ADDRESS first and by the peer's GROUP second. That
+// is the precedence configjson.LookupPeerConfig defines: what a peer states
+// beats what its group states. A configured peer already carries its group's
+// statement, merged into its own entry at parse time, so the fallback answers
+// only for a peer the config document does not hold. That peer is a dynamic
+// group's member, created from the template when its connection arrives, so no
+// address and no name of its own can key it. Before the fallback existed, cfg
+// was nil for every such peer, and each RFC 9234 Section 5 gate below took its
+// permissive branch.
+//
+// This is one lookup mechanism, not a second one beside configjson's. It is
+// spelled out here because role's map is keyed by string rather than by
+// configjson.PeerConfigKey. The same map IS the capability selector index
+// extractRoleCapabilities publishes (config.go). The group's key therefore
+// carries configjson.CapabilityGroupKey's prefix, which no address can carry.
+func getFilterConfig(addr, name, group string) (cfg *peerRoleConfig, remoteRole string) {
 	filterMu.RLock()
 	defer filterMu.RUnlock()
-	return filterPeerConfigs[peerIP], filterRemoteRoles[peerIP]
+	cfg = filterPeerConfigs[addr]
+	if cfg == nil && group != "" {
+		cfg = filterPeerConfigs[configjson.CapabilityGroupKey(group)]
+	}
+	state, _ := remoteRoleLocked(addr, name)
+	return cfg, state.role
+}
+
+// remoteRoleLocked resolves one peer's learned-role entry from the two keys its
+// writer can have used, and reports whether an entry was found.
+//
+// filterKeyLocked keys the entry by the peer's ADDRESS when the config names
+// that peer, and by the peer NAME itself when it does not. A peer built from a
+// dynamic group's template is always the second case. Reactor's
+// buildDynamicPeerSettings names it "dyn-<addr>", and no config document holds
+// that name, so filterNameToIP can never translate it. A reader of the address
+// alone therefore cannot see what such a peer declared in its OPEN.
+//
+// The address is tried first, so a configured peer resolves exactly as it did
+// before the name was consulted at all.
+//
+// Caller must hold filterMu.
+func remoteRoleLocked(addr, name string) (remoteRoleState, bool) {
+	if state, ok := filterRemoteRoles[addr]; ok {
+		return state, true
+	}
+	if name != "" && name != addr {
+		if state, ok := filterRemoteRoles[filterKeyLocked(name)]; ok {
+			return state, true
+		}
+	}
+	return remoteRoleState{}, false
 }
 
 // remoteRoleRecorded reports whether this peer's OPEN was ever recorded, which
 // is a different question from what it recorded.
 //
-// getFilterConfig above reads the map bare, so it answers "" for two states that
-// are not the same fact (ai/rules/evidence.md):
+// getFilterConfig above returns the entry's role, so it answers "" for two
+// states that are not the same fact (ai/rules/evidence.md):
 //
 //   - the key is present and empty: this peer's OPEN was validated and declared
 //     no usable role.
@@ -163,10 +246,13 @@ func getFilterConfig(peerIP string) (cfg *peerRoleConfig, remoteRole string) {
 // 9234 Section 5 gate resolves through
 // resolvePeerRole, which takes the configured complement for either state and
 // so cannot tell them apart by design.
-func remoteRoleRecorded(peerIP string) bool {
+// It takes the peer's address and name for the reason remoteRoleLocked gives:
+// a dynamic group's member is recorded under its name, so an address-only reader
+// would report every such peer as never validated.
+func remoteRoleRecorded(addr, name string) bool {
 	filterMu.RLock()
 	defer filterMu.RUnlock()
-	_, recorded := filterRemoteRoles[peerIP]
+	_, recorded := remoteRoleLocked(addr, name)
 	return recorded
 }
 
@@ -295,6 +381,22 @@ func applyValidateOpen(
 		configKey = ip
 	}
 	cfg := peerConfigs[configKey]
+	if cfg == nil && input.Group != "" {
+		// A peer created from a dynamic group's template carries neither a name
+		// nor an address the config document holds. The group is the only key
+		// that answers for it. Without this, cfg was nil for every such peer and
+		// validateOpenRolePair accepted its OPEN unconditionally.
+		//
+		// RFC 9234 Section 4.2 requires the Roles to correspond to Table 2, and
+		// requires the connection to be rejected with the Role Mismatch
+		// NOTIFICATION when they do not. Ze advertises the group's Role
+		// capability to this peer, so the check binds it as it binds a
+		// configured peer.
+		//
+		// The peer's own key is tried first, so a peer that states its own role
+		// still beats its group's.
+		cfg = peerConfigs[configjson.CapabilityGroupKey(input.Group)]
+	}
 	result := validateOpenRolePair(cfg, input)
 
 	// What role, if any, this OPEN declares. An unassigned value (RFC 9234
@@ -306,13 +408,13 @@ func applyValidateOpen(
 	}
 
 	if learned != "" {
-		setFilterRemoteRole(input.Peer, learned)
+		setFilterRemoteRole(input.Peer, input.Group, learned)
 		return result
 	}
 
 	// Report only a real transition: a peer that has never advertised a role
 	// must not log on every reconnect.
-	if previous := recordNoRemoteRole(input.Peer); previous != "" {
+	if previous := recordNoRemoteRole(input.Peer, input.Group); previous != "" {
 		logger().Info("role capability withdrawn: peer reconnected without the role it previously advertised",
 			"peer", input.Peer, "previous-role", previous,
 			"effect", "RFC 9234 Section 5 gates now use the configured role complement for this peer")

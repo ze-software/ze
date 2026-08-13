@@ -557,7 +557,7 @@ func TestNameToIPResolution(t *testing.T) {
 	defer setFilterState(nil, nil)
 
 	// Store remote role by NAME (as OnValidateOpen does).
-	setFilterRemoteRole("my-upstream", roleCustomer)
+	setFilterRemoteRole("my-upstream", "", roleCustomer)
 	defer func() {
 		filterMu.Lock()
 		filterRemoteRoles = nil
@@ -565,7 +565,7 @@ func TestNameToIPResolution(t *testing.T) {
 	}()
 
 	// Look up by IP (as filters do).
-	cfg, remoteRole := getFilterConfig("10.0.0.1")
+	cfg, remoteRole := getFilterConfig("10.0.0.1", "", "")
 	require.NotNil(t, cfg, "config should be found by IP")
 	assert.Equal(t, roleProvider, cfg.role)
 	assert.Equal(t, roleCustomer, remoteRole, "remote role should be found by IP after name resolution")

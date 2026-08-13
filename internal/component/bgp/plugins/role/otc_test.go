@@ -427,9 +427,9 @@ func TestOTCIngressFilter(t *testing.T) {
 		"10.0.0.2": {role: roleCustomer},
 		"10.0.0.3": {role: rolePeer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.2", roleProvider)
-	setFilterRemoteRole("10.0.0.3", rolePeer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.2", "", roleProvider)
+	setFilterRemoteRole("10.0.0.3", "", rolePeer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -466,9 +466,9 @@ func TestOTCIngressFilter(t *testing.T) {
 			"10.0.0.2": {role: roleCustomer},
 			"10.0.0.3": {role: rolePeer},
 		}, nil)
-		setFilterRemoteRole("10.0.0.1", roleCustomer)
-		setFilterRemoteRole("10.0.0.2", roleProvider)
-		setFilterRemoteRole("10.0.0.3", rolePeer)
+		setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+		setFilterRemoteRole("10.0.0.2", "", roleProvider)
+		setFilterRemoteRole("10.0.0.3", "", rolePeer)
 	})
 
 	t.Run("reject_leak_from_customer", func(t *testing.T) {
@@ -526,10 +526,10 @@ func TestOTCEgressFilter(t *testing.T) {
 		"10.0.0.6": {role: roleProvider, export: []string{"default", "unknown"}, resolvedExport: resolveExport(roleProvider, []string{"default", "unknown"})},
 		"10.0.0.7": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.10", roleCustomer)
-	setFilterRemoteRole("10.0.0.11", roleProvider)
-	setFilterRemoteRole("10.0.0.12", rolePeer)
-	setFilterRemoteRole("10.0.0.13", roleRSClient)
+	setFilterRemoteRole("10.0.0.10", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.11", "", roleProvider)
+	setFilterRemoteRole("10.0.0.12", "", rolePeer)
+	setFilterRemoteRole("10.0.0.13", "", roleRSClient)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -619,7 +619,7 @@ func TestOTCEgressFilter(t *testing.T) {
 	})
 
 	t.Run("otc_suppress_to_rs", func(t *testing.T) {
-		setFilterRemoteRole("10.0.0.15", roleRS)
+		setFilterRemoteRole("10.0.0.15", "", roleRS)
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")}
 		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
@@ -852,11 +852,11 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.100": {role: roleProvider}, // we are provider to 10.0.0.100 but the route doesn't come from here
 	}, nil)
-	setFilterRemoteRole("10.0.0.200", roleProvider) // EBGP dest: provider
-	setFilterRemoteRole("10.0.0.201", roleCustomer) // EBGP dest: customer
-	setFilterRemoteRole("10.0.0.202", rolePeer)     // EBGP dest: peer
-	setFilterRemoteRole("10.0.0.203", roleRS)       // EBGP dest: RS
-	setFilterRemoteRole("10.0.0.204", roleRSClient) // EBGP dest: RS-client
+	setFilterRemoteRole("10.0.0.200", "", roleProvider) // EBGP dest: provider
+	setFilterRemoteRole("10.0.0.201", "", roleCustomer) // EBGP dest: customer
+	setFilterRemoteRole("10.0.0.202", "", rolePeer)     // EBGP dest: peer
+	setFilterRemoteRole("10.0.0.203", "", roleRS)       // EBGP dest: RS
+	setFilterRemoteRole("10.0.0.204", "", roleRSClient) // EBGP dest: RS-client
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -895,9 +895,9 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 // VALIDATES: Routes without OTC are never suppressed by OTC egress rules.
 // PREVENTS: Legitimate routes from IBGP being dropped on egress.
 func TestEgressFilter_IBGPSourceToEBGPDest_NoOTC(t *testing.T) {
-	setFilterRemoteRole("10.0.0.200", roleProvider)
-	setFilterRemoteRole("10.0.0.201", roleCustomer)
-	setFilterRemoteRole("10.0.0.202", rolePeer)
+	setFilterRemoteRole("10.0.0.200", "", roleProvider)
+	setFilterRemoteRole("10.0.0.201", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.202", "", rolePeer)
 	defer func() {
 		filterMu.Lock()
 		filterRemoteRoles = nil
@@ -926,9 +926,9 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 		"10.0.0.1": {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
 		// 10.0.0.2 has NO role config (IBGP or legacy peer)
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer) // EBGP: we are provider, they are customer
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer) // EBGP: we are provider, they are customer
 	// 10.0.0.2: no remote role
-	setFilterRemoteRole("10.0.0.10", roleProvider) // dest with role
+	setFilterRemoteRole("10.0.0.10", "", roleProvider) // dest with role
 	// 10.0.0.20: dest without role
 	defer func() {
 		setFilterState(nil, nil)
@@ -973,8 +973,8 @@ func TestOTCEgressStampMod(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1039,8 +1039,8 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1084,8 +1084,8 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer}, // our role customer => 10.0.0.1 IS our Provider
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
-	setFilterRemoteRole("10.0.0.5", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
+	setFilterRemoteRole("10.0.0.5", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1145,7 +1145,7 @@ func TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig(t *testing.T) {
 		// role container at all: an iBGP peer, an RR client, or an origination.
 		"10.0.0.71": {role: roleProvider}, // our role provider => 10.0.0.71 IS our Customer
 	}, nil)
-	setFilterRemoteRole("10.0.0.71", roleCustomer)
+	setFilterRemoteRole("10.0.0.71", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1224,8 +1224,8 @@ func TestOTCEgressMalformedMetaTakesConfigFallback(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer}, // our role customer => 10.0.0.1 IS our Provider
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
-	setFilterRemoteRole("10.0.0.5", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
+	setFilterRemoteRole("10.0.0.5", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1256,8 +1256,8 @@ func TestOTCEgressMetaTakesPrecedenceOverConfig(t *testing.T) {
 		// Config says our role is customer => source IS our Provider => suppress.
 		"10.0.0.1": {role: roleCustomer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
-	setFilterRemoteRole("10.0.0.5", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
+	setFilterRemoteRole("10.0.0.5", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1294,7 +1294,7 @@ func TestOTCEgressSuppressToProviderWithoutRoleCapability(t *testing.T) {
 		"10.0.0.1": {role: roleProvider}, // source IS our Customer: may transit
 		"10.0.0.5": {role: roleCustomer}, // our role customer => 10.0.0.5 IS our Provider
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	// 10.0.0.5 deliberately gets NO setFilterRemoteRole: it sent no Role
 	// capability, which is an accepted session when strict is unset.
 	defer func() {
@@ -1320,8 +1320,8 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1349,8 +1349,8 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1382,8 +1382,8 @@ func TestOTCEgressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1415,7 +1415,7 @@ func TestOTCIngressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1571,8 +1571,8 @@ func TestOTCEgressStampPeer(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: rolePeer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", rolePeer)
-	setFilterRemoteRole("10.0.0.5", rolePeer)
+	setFilterRemoteRole("10.0.0.1", "", rolePeer)
+	setFilterRemoteRole("10.0.0.5", "", rolePeer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1598,8 +1598,8 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleRS},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleRSClient)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleRSClient)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1630,8 +1630,8 @@ func TestOTCEgressStampLocalASNZero(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil) // localASN = 0
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1666,8 +1666,8 @@ func TestOTCEgressStampFailClosedObservability(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1745,10 +1745,10 @@ func TestIsPayloadUnicastTruncatedMPReach(t *testing.T) {
 func TestOTCEgressWireBytesCheck(t *testing.T) {
 	// Only destination peer has role config. Source peer has none.
 	setFilterState(nil, nil)
-	setFilterRemoteRole("10.0.0.200", roleProvider)
-	setFilterRemoteRole("10.0.0.201", roleCustomer)
-	setFilterRemoteRole("10.0.0.202", rolePeer)
-	setFilterRemoteRole("10.0.0.203", roleRS)
+	setFilterRemoteRole("10.0.0.200", "", roleProvider)
+	setFilterRemoteRole("10.0.0.201", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.202", "", rolePeer)
+	setFilterRemoteRole("10.0.0.203", "", roleRS)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1794,7 +1794,7 @@ func TestOTCIngressMalformedTreatAsWithdraw(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1865,8 +1865,8 @@ func customerEgressPeers(t *testing.T) (src, dest filterapi.PeerFilterInfo) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleCustomer)
-	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
 	t.Cleanup(func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -1984,7 +1984,7 @@ func TestOTCIngressNoStampOnPureWithdrawal(t *testing.T) {
 		// our role customer => 10.0.0.1 IS our Provider, the role that stamps.
 		"10.0.0.1": {role: roleCustomer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -2011,7 +2011,7 @@ func TestOTCIngressNoStampOnMPUnreachOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
 		filterMu.Lock()
@@ -2130,8 +2130,8 @@ func TestOTCNonUnicastWithdrawalSkipsOTCProcedures(t *testing.T) {
 			// egress rule 2 suppresses an OTC-carrying route towards.
 			"10.0.0.5": {role: roleCustomer},
 		}, nil)
-		setFilterRemoteRole("10.0.0.1", roleCustomer)
-		setFilterRemoteRole("10.0.0.5", roleProvider)
+		setFilterRemoteRole("10.0.0.1", "", roleCustomer)
+		setFilterRemoteRole("10.0.0.5", "", roleProvider)
 		t.Cleanup(func() {
 			setFilterState(nil, nil)
 			filterMu.Lock()
@@ -2160,7 +2160,7 @@ func TestOTCNonUnicastWithdrawalSkipsOTCProcedures(t *testing.T) {
 			// from a Customer is a leak -- for unicast only.
 			"10.0.0.1": {role: roleProvider},
 		}, nil)
-		setFilterRemoteRole("10.0.0.1", roleCustomer)
+		setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 		t.Cleanup(func() {
 			setFilterState(nil, nil)
 			filterMu.Lock()
@@ -2226,7 +2226,7 @@ func TestOTCNotStampedWithoutReachableNLRI(t *testing.T) {
 			// our role customer => 10.0.0.1 IS our Provider, the role that stamps.
 			"10.0.0.1": {role: roleCustomer},
 		}, nil)
-		setFilterRemoteRole("10.0.0.1", roleProvider)
+		setFilterRemoteRole("10.0.0.1", "", roleProvider)
 		t.Cleanup(func() {
 			setFilterState(nil, nil)
 			filterMu.Lock()
