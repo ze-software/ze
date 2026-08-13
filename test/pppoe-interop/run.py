@@ -62,6 +62,22 @@ def build_images(no_build=False):
         timeout=900,
     )
 
+    print("Building pppd/rp-pppoe client image...")
+    subprocess.run(
+        [
+            "docker",
+            "build",
+            "-t",
+            "ze-pppoe-client",
+            "-f",
+            os.path.join(SCRIPT_DIR, "Dockerfile.client"),
+            SCRIPT_DIR,
+            "-q",
+        ],
+        check=True,
+        timeout=600,
+    )
+
 
 def main():
     no_build = os.environ.get("NO_BUILD", "0") == "1"

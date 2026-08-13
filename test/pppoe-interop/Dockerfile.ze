@@ -27,8 +27,10 @@ RUN ZE_FEATURES="$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr
 FROM alpine:3.21
 
 # iproute2: ip link/addr; ppp: /dev/ppp device support; kmod: modprobe;
-# iputils: ping for the dataplane check.
-RUN apk add --no-cache tini iproute2 kmod ppp iputils
+# iputils: ping for the dataplane check; curl: the ze-ac scenarios read Ze's own
+# session table over its REST API, which refuses any non-loopback listener (no
+# TLS transport), so the request has to originate inside this container.
+RUN apk add --no-cache tini iproute2 kmod ppp iputils curl
 
 COPY --from=builder /ze /usr/local/bin/ze
 

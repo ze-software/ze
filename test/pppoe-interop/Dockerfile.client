@@ -1,0 +1,24 @@
+# pppd + rp-pppoe PPPoE client image for the Ze access-concentrator lab.
+#
+# pppd with the rp-pppoe plugin is the reference CPE stack: it is what nearly
+# every consumer router and every Linux PPPoE dialer runs, and it is a second
+# implementation family from accel-ppp (which the Ze-as-client scenario already
+# faces). Alpine 3.21 ships pppd 2.5.1; the rp-pppoe plugin is packaged apart
+# as ppp-pppoe (/usr/lib/pppd/2.5.1/pppoe.so).
+#
+# The container stays alive doing nothing. The scenario's check.py runs pppd
+# itself with `docker exec`, once per credential it wants to try, so the good
+# and the rejected credential are two runs of the same client rather than two
+# containers.
+
+FROM alpine:3.21
+
+# ppp + ppp-pppoe: pppd and the rp-pppoe plugin; iproute2: ip link/addr on the
+# negotiated pppN; iputils: ping for the dataplane assertion; kmod: modprobe
+# ppp_generic from the shared host /lib/modules.
+RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils kmod
+
+COPY entrypoint-client.sh /usr/local/bin/entrypoint-client.sh
+RUN chmod +x /usr/local/bin/entrypoint-client.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-client.sh"]
