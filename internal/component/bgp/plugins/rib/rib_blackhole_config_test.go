@@ -36,7 +36,7 @@ func parseBlackholeJSON(t *testing.T, jsonStr string) map[netip.Addr]blackholeCo
 func TestParseBlackholeConfigPeerLevel(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24","2001:db8::/32"]}
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24","2001:db8::/32"]}
 	}}}}`)
 
 	addr := netip.MustParseAddr("198.51.100.1")
@@ -57,7 +57,7 @@ func TestParseBlackholeConfigPeerLevel(t *testing.T) {
 // sessions has stated it for each of them.
 func TestParseBlackholeConfigInheritsFromGroup(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"group":{"customers":{
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]},
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24"]},
 		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}}}}
 	}}}}`)
 
@@ -80,8 +80,8 @@ func TestParseBlackholeConfigInheritsFromGroup(t *testing.T) {
 // rather than on the group.
 func TestParseBlackholeConfigPeerAddsToGroupCommunity(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"group":{"customers":{
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]},
-		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}},"blackhole":{"community":["65001:666"]}}}
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24"]},
+		"peer":{"cust-a":{"connection":{"remote":{"ip":"198.51.100.1"}},"blackhole":{"communities":["65001:666"]}}}
 	}}}}`)
 
 	cfg := cfgs[netip.MustParseAddr("198.51.100.1")]
@@ -100,7 +100,7 @@ func TestParseBlackholeConfigRejectsBadCommunity(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"community":["not-a-community"],"authorized-covering-prefix":["192.0.2.0/24"]}
+		"blackhole":{"communities":["not-a-community"],"prefixes":["192.0.2.0/24"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}
@@ -118,10 +118,10 @@ func TestParseBlackholeConfigRejectsBadCommunity(t *testing.T) {
 // make a peer that adds one prefix silently drop the group's.
 func TestParseBlackholeConfigAuthorizationAccumulates(t *testing.T) {
 	cfgs := parseBlackholeJSON(t, `{"bgp":{"group":{"customers":{
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]},
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24"]},
 		"peer":{"cust-a":{
 			"connection":{"remote":{"ip":"198.51.100.1"}},
-			"blackhole":{"authorized-covering-prefix":["203.0.113.0/24"]}
+			"blackhole":{"prefixes":["203.0.113.0/24"]}
 		}}
 	}}}}`)
 
@@ -150,7 +150,7 @@ func TestParseBlackholeConfigRejectsBadPrefix(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24","not-a-prefix"]}
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24","not-a-prefix"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestParseBlackholeConfigRejectsBareAddress(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
 		"connection":{"remote":{"ip":"198.51.100.1"}},
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0"]}
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestParseBlackholeConfigRejectsBareAddress(t *testing.T) {
 func TestParseBlackholeConfigRefusesPeerWithNoRemoteIP(t *testing.T) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(`{"bgp":{"peer":{"upstream":{
-		"blackhole":{"community":["blackhole"],"authorized-covering-prefix":["192.0.2.0/24"]}
+		"blackhole":{"communities":["blackhole"],"prefixes":["192.0.2.0/24"]}
 	}}}}`), &tree); err != nil {
 		t.Fatalf("bad test config: %v", err)
 	}

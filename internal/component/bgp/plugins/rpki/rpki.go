@@ -344,8 +344,10 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 
 	// RFC 7999 Section 3.3, the operator obligation. Read once per UPDATE, from
 	// the same attribute bytes the AS_PATH came out of, and carried per prefix
-	// so buildDecisions can apply the exemption without re-reading the wire.
-	carriesBlackhole := rpkiCarriesBlackhole(msg.AttrsWire)
+	// so buildDecisions can apply the exemption without re-reading the wire. The
+	// communities that count are the ones THIS session agreed to, which is why
+	// the peer's address is an input.
+	carriesBlackhole := rp.carriesAgreedBlackhole(peerAddr, msg.AttrsWire)
 
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
@@ -512,7 +514,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	// treated as if it asked for a blackhole.
 	blackhole := false
 	if len(event.RawAttributeBytes) > 0 {
-		blackhole = rpkiCarriesBlackhole(
+		blackhole = rp.carriesAgreedBlackhole(peerAddr,
 			attribute.NewAttributesWire(event.RawAttributeBytes, bgpctx.APIContextID))
 	}
 

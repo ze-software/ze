@@ -160,57 +160,10 @@ func TestBlackholeRouteTypeDecision(t *testing.T) {
 	}
 }
 
-// The wire scan that answers "does this route carry a community this session
-// agreed to honor". The COMMUNITIES attribute is a set of 4-octet values, so the
-// scan must find a value at any position and must not match a value that merely
-// shares two octets with one.
-func TestCarriesBlackholeCommunity(t *testing.T) {
-	blackhole := []byte{0xFF, 0xFF, 0x02, 0x9A}
-	noExport := []byte{0xFF, 0xFF, 0xFF, 0x01}
-	other := []byte{0x00, 0x64, 0x00, 0x01}
-
-	wellKnown := []attribute.Community{attribute.CommunityBlackhole}
-	// 65001:666, an operator's own RTBH community. Operators use one of these
-	// far more often than the well-known value, which is why the scan takes the
-	// set from configuration instead of holding one constant.
-	ownValue := []byte{0xFD, 0xE9, 0x02, 0x9A}
-	own := []attribute.Community{attribute.Community(65001<<16 | 666)}
-
-	cases := []struct {
-		name string
-		data []byte
-		want []attribute.Community
-		ok   bool
-	}{
-		{"only value", blackhole, wellKnown, true},
-		{"first of three", concat(blackhole, noExport, other), wellKnown, true},
-		{"last of three", concat(other, noExport, blackhole), wellKnown, true},
-		{"middle of three", concat(other, blackhole, noExport), wellKnown, true},
-		{"absent", concat(other, noExport), wellKnown, false},
-		{"empty", nil, wellKnown, false},
-		{"straddles a boundary, must not match", concat([]byte{0x00, 0xFF, 0xFF, 0x02}, []byte{0x9A, 0x00, 0x00, 0x00}), wellKnown, false},
-		{"truncated attribute", []byte{0xFF, 0xFF, 0x02}, wellKnown, false},
-		{"no community agreed matches nothing", blackhole, nil, false},
-
-		// The case the hardcoded value could not express at all.
-		{"an operator's own community", concat(other, ownValue), own, true},
-		{"the well-known value does not match an operator's own agreement", blackhole, own, false},
-		{"an operator's own value does not match the well-known agreement", ownValue, wellKnown, false},
-		{"either of two agreed values matches", concat(other, ownValue), append(append([]attribute.Community{}, wellKnown...), own...), true},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := carriesBlackholeCommunity(c.data, c.want); got != c.ok {
-				t.Errorf("carriesBlackholeCommunity = %v, want %v", got, c.ok)
-			}
-		})
-	}
-}
-
-func concat(parts ...[]byte) []byte {
-	var out []byte
-	for _, p := range parts {
-		out = append(out, p...)
-	}
-	return out
-}
+// test-relax: TestCarriesBlackholeCommunity and its concat helper MOVED, they
+// were not dropped. carriesBlackholeCommunity no longer exists in this package:
+// the COMMUNITIES scan now lives in blackholecfg because origin validation and
+// the origination gate read the same bytes, and every one of its 13 cases is
+// carried over verbatim as TestCarries in
+// internal/component/bgp/blackholecfg/blackholecfg_test.go. Keeping a copy here
+// against a one-line delegate is the drift this extraction removes.

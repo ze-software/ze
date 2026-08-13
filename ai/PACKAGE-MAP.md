@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 624 packages, 621 described, 3 TODO
+Total: 625 packages, 622 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -114,6 +114,7 @@ Total: 624 packages, 621 described, 3 TODO
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `internal/component/bgp/attrpool` | provides refcounted, deduplicating attribute pools for BGP path attributes |  |
+| `internal/component/bgp/blackholecfg` | reads the per-peer `blackhole` container of a BGP config subtree |  |
 | `internal/component/bgp/cli` | provides the Ze BGP daemon subcommand |  |
 | `internal/component/bgp/cli/yang` | embeds and registers the BGP tools CLI command YANG module |  |
 | `internal/component/bgp/config` | converts BGP configuration trees into peer definitions and route attributes |  |

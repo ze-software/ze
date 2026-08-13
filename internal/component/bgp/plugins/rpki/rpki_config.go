@@ -1,12 +1,17 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- RPKI config parsing
+// RFC: rfc/short/rfc6811.md -- Section 3, the per-state actions parsed here
+// RFC: rfc/short/rfc7999.md -- Section 3.3, the per-session blackhole agreement
 // Overview: rpki.go -- plugin entry point using parsed config
 package rpki
 
 import (
 	"errors"
+	"net/netip"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 var errRpkiInvalidBgpConfigJson = errors.New("rpki: invalid BGP config JSON")
@@ -81,6 +86,12 @@ type peerActionSet struct {
 	// blackhole agreement to one BGP session, and a daemon-wide exemption would
 	// reach sessions that agreed to nothing.
 	BlackholeExempt bool
+	// BlackholeCommunities are the values this session agreed to blackhole on,
+	// read from the same `blackhole communities` leaf-list the honoring path uses.
+	// The exemption protects a LEGITIMATE announcement, and RFC 7999 Section 3.3
+	// makes the session's agreement part of what legitimate means, so an empty
+	// list exempts nothing however the exempt flag is set.
+	BlackholeCommunities []attribute.Community
 }
 
 // rpkiConfig holds the parsed RPKI plugin configuration.
@@ -162,7 +173,11 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 
 	// Parse per-peer / per-group action overrides. Uses the final global actions above as the
 	// fallback for unset leaves, so the resolved sets are what enforcement applies.
-	cfg.PeerActions = parsePeerActions(bgpTree, cfg)
+	peerActions, err := parsePeerActions(bgpTree, cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfg.PeerActions = peerActions
 
 	// Parse cache-server list (YANG list keyed by address)
 	csMap, ok := rpkiMap["cache-server"].(map[string]any)
@@ -258,7 +273,18 @@ func parseActionOverride(rpkiMap map[string]any) actionOverride {
 // parsePeerActions walks every peer in the config and builds the per-peer resolved action map,
 // keyed by remote IP. Each leaf resolves peer > group > global. A peer is recorded only when at
 // least one leaf came from peer or group config (an all-global peer uses the global path).
-func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) map[string]peerActionSet {
+//
+// The `blackhole` container is read through blackholecfg rather than here, because
+// the honoring path and the origination gate read the same leaves and a second
+// walk is what would let the three answers drift. Its error is returned rather
+// than logged: the container decides whether a peer can make Ze discard traffic,
+// so a value nobody could parse must not resolve to a silently empty agreement.
+func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[string]peerActionSet, error) {
+	agreements, err := blackholecfg.Parse(bgpTree)
+	if err != nil {
+		return nil, err
+	}
+
 	result := make(map[string]peerActionSet)
 
 	configjson.ForEachPeer(bgpTree, func(_ string, peerMap, groupMap map[string]any) {
@@ -298,13 +324,27 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) map[string]pee
 			logger().Warn("rpki: per-peer action override ignored: peer has no static remote IP")
 			return
 		}
+		if addr, addrErr := netip.ParseAddr(ip); addrErr == nil {
+			set.BlackholeCommunities = agreements[addr].Communities
+		}
+		// A guard that fails closed must say so (ai/rules/evidence.md). This one
+		// keeps a route origin validation would drop, so an operator who asked for
+		// it and gets nothing has to be told which leaf is missing rather than
+		// reading a running config that exempts nothing.
+		if set.BlackholeExempt && len(set.BlackholeCommunities) == 0 {
+			logger().Warn("rpki: blackhole-exempt has no effect on this session: it names no blackhole community",
+				"peer", ip, "fix", "add `blackhole { communities <value>; }` or `blackhole { prefixes <block>; }` to the same peer or its group")
+		}
 		result[ip] = set
 	})
 
 	if len(result) == 0 {
-		return nil
+		// A nil map, not an empty one: the decision path branches on nil to mean
+		// "every route uses the global actions", and that branch is the common
+		// deployment.
+		result = nil
 	}
-	return result
+	return result, nil
 }
 
 // parseBoolLeaf reads a YANG boolean that may be absent. The config framework

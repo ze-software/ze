@@ -44,7 +44,7 @@ option=linger:value=true
 #   NLRI:      200A000001 (10.0.0.1/32) -- inside the authorized 10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE940030401010101C00804FFFF029A200A000001
 # Same session, same community, same next-hop. NLRI 20C0000201 (192.0.2.1/32),
-# which no authorized-covering-prefix covers.
+# which no `covering` entry covers.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE940030401010101C00804FFFF029A20C0000201
 # Same session and next-hop, covered prefix 10.0.0.2/32 (200A000002), tagged with
 # the OPERATOR's own community 65001:666 (C00804FDE9029A) rather than the
@@ -95,8 +95,8 @@ bgp {
 			group-updates disable
 		}
 		blackhole {
-			community [ blackhole 65001:666 ]
-			authorized-covering-prefix 10.0.0.0/24
+			communities [ blackhole 65001:666 ]
+			prefixes    10.0.0.0/24
 		}
 		process bgp-rib {
 		}

@@ -220,6 +220,9 @@ func handleAnnounceUnicast(ctx *pluginserver.CommandContext, bgpReactor bgptypes
 	builder := attribute.NewBuilder()
 	builder.SetOrigin(0) // IGP
 	nextHop := bgptypes.NewNextHopSelf()
+	// RFC 7999 Section 3.1 binds the community, not the verb that attaches it, so
+	// this path meets the same agreement gate when the operator names BLACKHOLE.
+	blackholeAsked := false
 
 	i := 0
 	for i < len(remaining) {
@@ -257,6 +260,9 @@ func handleAnnounceUnicast(ctx *pluginserver.CommandContext, bgpReactor bgptypes
 				return nil, fmt.Errorf("invalid community: %w", parseErr)
 			}
 			builder.AddCommunityValue(comm)
+			if attribute.Community(comm) == attribute.CommunityBlackhole {
+				blackholeAsked = true
+			}
 			i += 2
 		case kwTag, kwFor:
 			goto parseOpts
@@ -272,6 +278,12 @@ parseOpts:
 	}
 
 	sel := selector.ParseDefault(ctx.PeerSelector())
+	if blackholeAsked {
+		sel, err = agreedSelector(ctx, sel, "announce unicast")
+		if err != nil {
+			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+		}
+	}
 	fam := prefixToFamily(prefix)
 	inet := nlri.NewINET(fam, prefix, 0)
 
@@ -318,7 +330,14 @@ parseOpts:
 	builder.SetOrigin(0) // IGP
 	builder.AddCommunityValue(uint32(attribute.CommunityBlackhole))
 
-	sel := selector.ParseDefault(ctx.PeerSelector())
+	// RFC 7999 Section 3.1: "In a bilateral peering relationship, use of the
+	// BLACKHOLE community MUST be agreed upon by the two networks before
+	// advertising it." This verb attaches that community itself, so the fan-out
+	// is narrowed to the sessions that recorded the agreement.
+	sel, err := agreedSelector(ctx, selector.ParseDefault(ctx.PeerSelector()), "announce blackhole")
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+	}
 	fam := prefixToFamily(prefix)
 	inet := nlri.NewINET(fam, prefix, 0)
 

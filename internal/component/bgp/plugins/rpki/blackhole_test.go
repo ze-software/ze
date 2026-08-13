@@ -110,7 +110,8 @@ func TestRPKICarriesBlackhole(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			wire := attribute.NewAttributesWire(c.attrs, bgpctx.APIContextID)
-			if got := rpkiCarriesBlackhole(wire); got != c.want {
+			agreed := []attribute.Community{attribute.CommunityBlackhole}
+			if got := rpkiCarriesBlackhole(wire, agreed); got != c.want {
 				t.Errorf("rpkiCarriesBlackhole = %v, want %v", got, c.want)
 			}
 		})
@@ -120,7 +121,7 @@ func TestRPKICarriesBlackhole(t *testing.T) {
 // A nil wire is what an event with no attributes at all delivers. It must read
 // as "no blackhole" rather than panicking or guessing.
 func TestRPKICarriesBlackholeNilWire(t *testing.T) {
-	if rpkiCarriesBlackhole(nil) {
+	if rpkiCarriesBlackhole(nil, []attribute.Community{attribute.CommunityBlackhole}) {
 		t.Error("a nil attribute wire was read as carrying BLACKHOLE")
 	}
 }

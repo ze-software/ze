@@ -80,6 +80,12 @@ func All() *Selector                      { return &Selector{kind: KindAll} }
 func Addr(ip netip.Addr) *Selector        { return &Selector{kind: KindAddr, ip: ip} }
 func ExcludeAddr(ip netip.Addr) *Selector { return &Selector{kind: KindAddr, ip: ip, exclude: true} }
 
+// Addrs selects exactly the listed peers. It is the constructor a caller reaches
+// for after narrowing a wider selector to a subset it resolved itself, which
+// Parse can only express by re-joining the addresses into a string and reading
+// them back.
+func Addrs(ips []netip.Addr) *Selector { return multiAddr(ips) }
+
 func multiAddr(ips []netip.Addr) *Selector {
 	sel := &Selector{kind: KindAddrs, ips: ips}
 	if len(ips) > 16 {

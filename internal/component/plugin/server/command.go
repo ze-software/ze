@@ -259,8 +259,7 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 // several peers. This one must name one target for a destructive verb, so it
 // accepts the same selector spellings and a strictly narrower set of meanings.
 func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.Response, error) {
-	r, errResp, err := RequireReactor(ctx)
-	if err != nil {
+	if _, errResp, err := RequireReactor(ctx); err != nil {
 		return netip.Addr{}, errResp, err
 	}
 
@@ -297,12 +296,10 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errExcludePeerSelector
 	}
 
-	peers := r.Peers()
-	var matched []netip.Addr
-	for i := range peers {
-		if selectorMatchesPeer(parsed, &peers[i]) {
-			matched = append(matched, peers[i].Address)
-		}
+	found := PeersMatching(ctx, parsed)
+	matched := make([]netip.Addr, 0, len(found))
+	for i := range found {
+		matched = append(matched, found[i].Address)
 	}
 
 	switch len(matched) {
@@ -329,6 +326,31 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 			Str(" peers; it must identify exactly one").String()
 		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errAmbiguousPeerSelector
 	}
+}
+
+// PeersMatching returns every configured peer the selector names.
+//
+// It is the plural sibling of ResolveSinglePeer, and the two share one matcher
+// on purpose: a caller that acts on a SUBSET of the fan-out has to resolve the
+// same selector vocabulary a caller acting on one peer resolves, and a third
+// hand-rolled loop is how "!edge1" came to mean two different things in two
+// commands (see selectorMatchesPeer below).
+//
+// Returns nil when no reactor is attached, which is a context with nothing to
+// select from rather than an empty selection.
+func PeersMatching(ctx *CommandContext, sel *selector.Selector) []plugin.PeerInfo {
+	r := ctx.Reactor()
+	if r == nil || sel == nil {
+		return nil
+	}
+	peers := r.Peers()
+	var out []plugin.PeerInfo
+	for i := range peers {
+		if selectorMatchesPeer(sel, &peers[i]) {
+			out = append(out, peers[i])
+		}
+	}
+	return out
 }
 
 // selectorMatchesPeer applies the selector to one peer, mirroring the kind

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3295 files
+Total: 261 design docs, 3297 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -709,9 +709,12 @@ Total: 261 design docs, 3295 files
 
 ## `docs/architecture/bgp/on-demand-origination.md`
 
-- `internal/component/bgp/plugins/cmd/announce/announce.go` -- on-demand route origination CLI verbs
-- `internal/component/bgp/plugins/cmd/announce/registry.go` -- tag registry for on-demand route origination
-- `internal/component/bgp/plugins/cmd/announce/require.go` -- BGP reactor type assertion for announce cmd
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/cmd/announce/announce.go` | on-demand route origination CLI verbs |
+| `internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go` | the verbs this gate sits in front of |
+| `internal/component/bgp/plugins/cmd/announce/registry.go` | tag registry for on-demand route origination |
+| `internal/component/bgp/plugins/cmd/announce/require.go` | BGP reactor type assertion for announce cmd |
 
 ## `docs/architecture/bgp/peeringdb-prefix-update.md`
 
@@ -2983,6 +2986,7 @@ Total: 261 design docs, 3295 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/bgp/blackholecfg/blackholecfg.go` | the honoring path that consumes a Rule |
 | `internal/component/bgp/event.go` | BGP event parsing |
 | `internal/component/bgp/format.go` | route command formatting |
 | `internal/component/bgp/nlri.go` | NLRI value parsing |

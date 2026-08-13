@@ -7,26 +7,50 @@
 package rpki
 
 import (
-	"encoding/binary"
 	"net"
 
+	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// rpkiCarriesBlackhole reports whether an UPDATE carries the RFC 7999 BLACKHOLE
-// community, 0xFFFF029A.
+// carriesAgreedBlackhole reports whether an UPDATE from peerAddr carries a
+// community that SESSION agreed to blackhole on.
+//
+// The value is not fixed at 0xFFFF029A. RFC 7999 Section 3.3 binds the agreement
+// to "that particular BGP session", and operators run destination-based RTBH on
+// their own community far more often than on the well-known one, so the set
+// comes from the peer's own `blackhole communities` leaf-list. A constant here
+// gave the common case an exemption that could never fire: a session honoring
+// only 65001:666 asked for blackhole-exempt and got nothing.
+//
+// A session that named no community agreed to nothing, and a peer with no
+// per-peer entry never asked, so both answer false. The exemption this feeds is
+// closed by default, which is RFC 7999 Section 4.
+func (rp *rPKIPlugin) carriesAgreedBlackhole(peerAddr string, attrs *attribute.AttributesWire) bool {
+	p := rp.perPeerActions.Load()
+	if p == nil {
+		return false
+	}
+	set, ok := (*p)[peerAddr]
+	if !ok || len(set.BlackholeCommunities) == 0 {
+		return false
+	}
+	return rpkiCarriesBlackhole(attrs, set.BlackholeCommunities)
+}
+
+// rpkiCarriesBlackhole reports whether an UPDATE carries any of the communities
+// want names.
 //
 // It reads the COMMUNITIES attribute through the indexed accessor rather than
 // walking the attribute list again: the index is built once per UPDATE and
-// rpkiASPathFromWire already uses it. RFC 1997 gives the attribute set
-// semantics, so the value is one 4-octet element at any position, and the scan
-// steps 4 octets at a time. A match that straddles two adjacent communities is
-// not the value.
+// rpkiASPathFromWire already uses it. The 4-octet scan itself lives in
+// blackholecfg, beside the parse that produced want, because the honoring path
+// answers the same question about the same bytes.
 //
 // A malformed attribute list, an absent attribute, and a trailing partial
 // community all yield false. The exemption this feeds stays closed on input it
 // cannot read.
-func rpkiCarriesBlackhole(attrs *attribute.AttributesWire) bool {
+func rpkiCarriesBlackhole(attrs *attribute.AttributesWire, want []attribute.Community) bool {
 	if attrs == nil {
 		return false
 	}
@@ -34,12 +58,7 @@ func rpkiCarriesBlackhole(attrs *attribute.AttributesWire) bool {
 	if err != nil || len(value) == 0 {
 		return false
 	}
-	for i := 0; i+4 <= len(value); i += 4 {
-		if attribute.Community(binary.BigEndian.Uint32(value[i:i+4])) == attribute.CommunityBlackhole {
-			return true
-		}
-	}
-	return false
+	return blackholecfg.Carries(value, want)
 }
 
 // invalidByLengthOnly reports whether a prefix is RFC 6811 Invalid for one

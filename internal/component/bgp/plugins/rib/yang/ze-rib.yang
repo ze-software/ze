@@ -10,6 +10,31 @@ module ze-rib {
          Tracks Adj-RIB-In (routes from peers) and Adj-RIB-Out (routes to peers).
          Supports ADD-PATH (RFC 7911) with per-path-id storage.";
 
+    revision 2026-08-14 {
+        description
+          "Both leaf-lists take their plural name. community becomes communities
+           and authorized-covering-prefix becomes prefixes. Each holds several
+           values. The container already says blackhole, so neither leaf repeats
+           it. A later sibling that takes AS-SETs is named as-sets, the word
+           session/irr/as-set already uses.
+
+           This is a rename. The semantics, the cumulative behaviour and both
+           RFC 7999 Section 3.3 conditions are unchanged. No release carries the
+           old spellings, so no deployed configuration breaks. That is why it
+           happens now.
+
+           The communities list now records the agreement in BOTH directions.
+           RFC 7999 Section 3.1 requires the two networks to agree on use of the
+           BLACKHOLE community before a speaker advertises it. The community
+           named on the peer is this speaker's half of that agreement. Ze
+           advertises 65535:666 only to a session that named it. No leaf is
+           added: one session is what Section 3.1 and Section 3.3 both bind.
+
+           prefixes alone now turns standard RTBH on. It resolves communities to
+           the well-known value, because stating those prefixes IS Section 4's
+           explicit configuration directive.";
+    }
+
     revision 2026-08-13 {
         description
           "RFC 7999 blackhole honoring, per BGP session. Section 3.3 binds the
@@ -33,47 +58,81 @@ module ze-rib {
     grouping blackhole-honor-fields {
         container blackhole {
             description
-              "What this speaker does with a received route that carries the
-               BLACKHOLE community, 65535:666. RFC 7999. Section 4 uses the
-               suggested shorthand keyword for the community value.";
+              "The RFC 7999 agreement on this BGP session, in both directions.
+               It states what this speaker does with a received route carrying
+               the BLACKHOLE community, 65535:666. It also states whether this
+               speaker CAN advertise that community to this peer. Section 4 uses
+               the suggested shorthand keyword for the value.
 
-            leaf-list community {
+               A later revision adds an as-sets leaf-list here. It answers a
+               DIFFERENT question from session/irr/as-set. That one states what
+               the peer CAN advertise at all. This one would state what the peer
+               CAN blackhole within. Whether one deployment puts the same set in
+               both is the operator's business, not this model's.";
+
+            leaf-list communities {
                 type string;
                 ze:cumulative;
                 description
                   "Discard traffic sent toward a prefix this peer announces
-                   carrying one of these communities. Ze installs the prefix as a
-                   discard route directly: no next-hop to allocate, no static
-                   route to pre-create, and nothing else to configure.
+                   carrying one of these communities. Ze installs that prefix as
+                   a discard route directly. There is no next-hop to allocate and
+                   no static route to pre-create.
 
-                   ASN:VAL (e.g. 65001:666), or a well-known name. blackhole and
-                   65535:666 are the same value, the one RFC 7999 registers and
-                   RFC 7999 Section 4 suggests that keyword for. An operator's own
-                   community is the common case and is why this is a list rather
-                   than a fixed value.
+                   Write ASN:VAL, for example 65001:666, or a well-known name.
+                   blackhole and 65535:666 are one value, the one RFC 7999
+                   registers. Section 4 suggests that keyword. An operator's own
+                   community is the common case, which is why this is a list.
 
-                   Listing a community IS the agreement RFC 7999 Section 3.3
-                   requires the receiving party to have made 'on that particular
-                   BGP session'. An empty list is the closed state and the
-                   default: RFC 7999 Section 4 states that without an explicit
-                   configuration directive a network element does not discard
-                   traffic toward a tagged prefix, and Section 3.1 makes a speaker
-                   that ignores the community conformant.
+                   A listed community IS the agreement RFC 7999 Section 3.3
+                   requires the receiving party to make 'on that particular BGP
+                   session'.
 
-                   Listing one is not enough on its own. RFC 7999 Section 3.3
-                   states two conditions, and authorized-covering-prefix is the
-                   other. A peer with a community listed and no covering prefix
-                   can blackhole nothing.";
+                   An empty list beside a set prefixes list means the well-known
+                   value alone. Stating the prefixes a peer CAN blackhole within
+                   IS the explicit configuration directive Section 4 asks for.
+                   The same act is Section 3.3's agreement on that session, so
+                   standard RTBH takes one line. Section 4's default holds: a
+                   container with neither list discards nothing, and so does a
+                   peer with no container.
+
+                   A STATED list is taken exactly. The well-known value is NOT
+                   added to it. An operator who names 65001:666 and not 65535:666
+                   means it, and Section 3.1 makes that their choice.
+
+                   The parser applies that default, not a YANG default statement.
+                   The default is conditional on a SIBLING leaf, which a leaf-list
+                   default cannot express. A value materialised into the schema
+                   would also make every peer read as having agreed to 65535:666
+                   on the send side.
+
+                   One community is not enough on its own. RFC 7999 Section 3.3
+                   states two conditions, and the prefixes list is the other. A
+                   peer with a community and no covering prefix blackholes
+                   nothing.
+
+                   The list governs the SEND side too. RFC 7999 Section 3.1
+                   requires the two networks to agree on use of the BLACKHOLE
+                   community before a speaker advertises it. Naming it here is
+                   this speaker's half. `announce blackhole` reaches only the
+                   sessions that hold 65535:666, under either spelling. A session
+                   that named its own value alone is left out of the
+                   announcement, and is not sent the prefix untagged.";
             }
 
-            leaf-list authorized-covering-prefix {
+            leaf-list prefixes {
                 type string;
                 ze:cumulative;
                 description
-                  "Prefixes this neighbor is authorized to advertise. A received
-                   BLACKHOLE announcement is honored only when one of these
-                   covers it and is equal or shorter, which is RFC 7999 Section
-                   3.3, first condition.
+                  "The prefixes this PEER is authorized to advertise. Ze honors a
+                   received blackhole announcement only when one of them covers
+                   it and is equal or shorter. That is RFC 7999 Section 3.3's
+                   first condition, in the RFC's own words. The announced prefix
+                   is 'covered by an equal or shorter IP prefix that the
+                   neighboring network is authorized to advertise'.
+
+                   The container already says blackhole, so the leaf does not
+                   repeat it.
 
                    Coverage is not prefix-list membership. A list entry
                    192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,

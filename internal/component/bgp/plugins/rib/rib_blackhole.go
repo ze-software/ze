@@ -7,11 +7,10 @@
 package rib
 
 import (
-	"encoding/binary"
 	"errors"
 	"net/netip"
-	"slices"
 
+	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -22,32 +21,6 @@ import (
 // returned rather than logged because the blackhole configuration decides
 // whether a peer can make Ze discard traffic.
 var errRibInvalidBgpConfigJson = errors.New("rib: invalid bgp config JSON")
-
-// carriesBlackholeCommunity reports whether a COMMUNITIES attribute value
-// carries any of the communities this session agreed to honor.
-//
-// The value is not fixed at 0xFFFF029A. Operators run destination-based RTBH on
-// their own community far more often than on the well-known one, so the set
-// comes from the peer's configuration and the well-known value is simply the
-// one an operator most often names.
-//
-// data is the attribute's value bytes, a sequence of 4-octet communities. The
-// scan steps 4 octets at a time rather than searching for a byte pattern,
-// because a match that straddles two adjacent communities is not the value.
-// 0x0000FFFF followed by 0x029A0000 contains the four bytes of BLACKHOLE and
-// carries no BLACKHOLE.
-//
-// A trailing partial community is ignored. RFC 7606 governs a malformed
-// attribute, and this function is not where that is decided.
-func carriesBlackholeCommunity(data []byte, want []attribute.Community) bool {
-	for i := 0; i+4 <= len(data); i += 4 {
-		v := attribute.Community(binary.BigEndian.Uint32(data[i : i+4]))
-		if slices.Contains(want, v) {
-			return true
-		}
-	}
-	return false
-}
 
 // coveredByAuthorized reports whether route is covered by an equal or shorter
 // prefix in authorized.
@@ -98,9 +71,12 @@ func coveredByAuthorized(authorized []netip.Prefix, route netip.Prefix) bool {
 // the three inputs are the three the RFC names:
 //
 //  1. cfg.communities is non-empty. RFC7999-3.3-2, the receiving party agreed
-//     to honor BLACKHOLE on that particular BGP session. A peer that named no
-//     community agreed to nothing, which is RFC7999-4-1: without an explicit
-//     configuration directive, do not discard.
+//     to honor BLACKHOLE on that particular BGP session. A session that agreed
+//     to nothing has an empty set here and discards nothing, which is
+//     RFC7999-4-1: without an explicit configuration directive, do not discard.
+//     Which configuration counts as that directive is blackholecfg's decision,
+//     not this one's: it resolves prefixes-without-communities to the well-known
+//     value before the map is built.
 //  2. A covering prefix in cfg.authorized. RFC7999-3.3-1.
 //  3. hasCommunity. The announcement carries one of the agreed communities. An
 //     untagged route is an ordinary announcement whatever the peer is
@@ -192,5 +168,5 @@ func (r *RIBManager) bestCarriesBlackhole(fam family.Family, nlriBytes []byte, p
 	if err != nil {
 		return false
 	}
-	return carriesBlackholeCommunity(data, want)
+	return blackholecfg.Carries(data, want)
 }

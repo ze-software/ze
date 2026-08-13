@@ -17,11 +17,13 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 hand-written prefix list.**
 
 Owner request, 2026-08-13, on reading `authorized-covering-prefix 192.0.2.0/24`: make this
-more flexible, an as-set or multiple prefixes.
+more flexible, an as-set or multiple prefixes. That leaf-list is now named
+`prefixes`, and the container's `community` leaf-list is now `communities`
+(owner, 2026-08-13, before any release carried either spelling).
 
 ### What already works
 
-**Multiple prefixes already work.** `authorized-covering-prefix`
+**Multiple prefixes already work.** `prefixes`
 (`internal/component/bgp/plugins/rib/yang/ze-rib.yang`) is a `leaf-list` carrying
 `ze:cumulative`. An operator states as many as they need. They accumulate down the bgp,
 group and peer levels.
@@ -41,17 +43,28 @@ blackhole inside an authorized block passes it.
 Owner constraint, 2026-08-13: the configuration that lands today MUST keep working when
 this spec lands. **It does, and the shape needs no change now.**
 
-`authorized-covering-as-set` arrives as a SIBLING leaf-list beside
-`authorized-covering-prefix`. Every configuration written today keeps parsing.
+`as-sets` arrives as a SIBLING leaf-list beside `prefixes`. Every configuration
+written today keeps parsing. The name matches `session.irr.as-set`, so an
+operator meets one word for one kind of object, and the two answer DIFFERENT
+questions: `session.irr.as-set` states what the peer may advertise at all, and
+the blackhole `as-sets` states what it may blackhole within. Whether a deployment
+puts the same set in both is the operator's business.
 
 **Do NOT wrap the two in an `authorized { }` container.** A container is the edit that
 breaks an operator's configuration, and a sibling leaf buys the same result for nothing.
+
+**A grouped `list` form has no natural key here, either.** The `blackhole` block
+is per peer, so every entry authorizes the same neighbour and they all OR
+together: there is nothing for a list key to distinguish. A grouped form earns
+its place only when a rule carries a SECOND field that binds to specific
+prefixes, such as a per-rule community or a per-rule action. Without that field,
+a later reader gets a name nobody reads.
 
 ## Why this is not a defect
 
 `plan/future/README.md` refuses defects. RFC 7999 Section 3.3's first condition is met
 today. A peer with a community listed and no covering prefix blackholes nothing, and
-`authorized-covering-prefix` is what the operator states. Nothing Ze does is wrong.
+`prefixes` is what the operator states. Nothing Ze does is wrong.
 
 This work removes a maintenance cost. An operator peering with a customer who holds fifty
 prefixes states fifty lines, and edits them by hand when the customer's IRR record changes.
