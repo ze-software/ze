@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 623 packages, 620 described, 3 TODO
+Total: 624 packages, 621 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -120,6 +120,7 @@ Total: 623 packages, 620 described, 3 TODO
 | `internal/component/bgp/configjson` | provides shared helpers for traversing BGP config JSON delivered to plugins at Stage 2 (configure callback) |  |
 | `internal/component/bgp/filter` | implements BGP route filtering based on attribute matching rules |  |
 | `internal/component/bgp/filterapi` | defines the BGP route filter pipeline contract: the value types passed to ingress/egress filters, the modification accumulator egress filters write to, and the registration of filter chains and... |  |
+| `internal/component/bgp/filtertext` | reads one attribute out of the policy filter text format |  |
 | `internal/component/bgp/format` | provides JSON and text formatting of BGP messages directly from wire bytes |  |
 | `internal/component/bgp/fsm` | implements the BGP Finite State Machine per RFC 4271 Section 8, managing peer state transitions, timers, and session lifecycle events |  |
 | `internal/component/bgp/grmarker` | implements RFC 4724 Restarting Speaker detection using a GR marker in zefs |  |

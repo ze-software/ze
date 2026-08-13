@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -72,10 +73,18 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 
 		for key := range defMap {
 			switch key {
-			case "set", "increment", "decrement":
+			case "match", "set", "increment", "decrement":
 			default:
 				return nil, fmt.Errorf("modify %q: unknown key %q", name, key)
 			}
+		}
+
+		if matchBlock, ok := defMap["match"].(map[string]any); ok {
+			cond, err := parseMatchBlock(matchBlock)
+			if err != nil {
+				return nil, fmt.Errorf("modify %q: %w", name, err)
+			}
+			def.match = cond
 		}
 
 		if setBlock, ok := defMap["set"].(map[string]any); ok {
@@ -117,6 +126,62 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 		result[name] = def
 	}
 	return result, nil
+}
+
+// parseMatchBlock reads the condition a route meets before the operations
+// apply. An unknown key is refused rather than ignored: a condition nobody
+// evaluates reads as in force in the running config and is not.
+func parseMatchBlock(block map[string]any) (matchCond, error) {
+	var cond matchCond
+
+	for key := range block {
+		switch key {
+		case "community", "large-community", "extended-community":
+		default:
+			return matchCond{}, fmt.Errorf("match: unknown key %q (allowed: community, large-community, extended-community)", key)
+		}
+	}
+
+	for _, s := range readStringList(block["community"]) {
+		// Normalized through the attribute's own text form, because the match is
+		// a comparison against the text the formatter emits and that text
+		// substitutes a name for a well-known value. An operator who writes
+		// 65535:666 means the value the formatter renders as "blackhole", and
+		// without this the condition could never fire.
+		v, err := attribute.ParseCommunity(s)
+		if err != nil {
+			return matchCond{}, fmt.Errorf("match: community %q: %w", s, err)
+		}
+		cond.communities = append(cond.communities, matchCommunity{
+			kind:  filtertext.CommunityStandard,
+			value: attribute.Community(v).String(),
+		})
+	}
+
+	// Large and extended values are validated and kept as written. Neither
+	// attribute substitutes a name for a value, so the written form is the
+	// emitted form.
+	for _, s := range readStringList(block["large-community"]) {
+		if err := validateLargeCommunity(s); err != nil {
+			return matchCond{}, fmt.Errorf("match: large-community %q: %w", s, err)
+		}
+		cond.communities = append(cond.communities, matchCommunity{
+			kind:  filtertext.CommunityLarge,
+			value: s,
+		})
+	}
+
+	for _, s := range readStringList(block["extended-community"]) {
+		if err := validateExtCommunity(s); err != nil {
+			return matchCond{}, fmt.Errorf("match: extended-community %q: %w", s, err)
+		}
+		cond.communities = append(cond.communities, matchCommunity{
+			kind:  filtertext.CommunityExtended,
+			value: s,
+		})
+	}
+
+	return cond, nil
 }
 
 func parseIncDecBlock(block map[string]any, kind string) ([]incdec, error) {

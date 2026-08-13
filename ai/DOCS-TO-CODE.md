@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3293 files
+Total: 261 design docs, 3295 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1142,6 +1142,7 @@ Total: 261 design docs, 3293 files
 | `internal/component/bgp/cli/flags.go` | BGP CLI commands |
 | `internal/component/bgp/cli/main.go` | BGP CLI commands |
 | `internal/component/bgp/filter/filter.go` | route filtering |
+| `internal/component/bgp/filtertext/community.go` | the policy filter text format |
 | `internal/component/bgp/grmarker/grmarker.go` | GR restart marker for Restarting Speaker detection |
 | `internal/component/bgp/message/rfc7606_withdraw.go` | RFC 7606 treat-as-withdraw synthesis |
 | `internal/component/bgp/plugin/register.go` | BGP plugin registration with ConfigRoots |
@@ -1180,6 +1181,7 @@ Total: 261 design docs, 3293 files
 | `internal/component/bgp/plugins/filter_family/handler.go` | family-filter per-update decision |
 | `internal/component/bgp/plugins/filter_modify/config.go` | route modify filter config parsing |
 | `internal/component/bgp/plugins/filter_modify/filter_modify.go` | route attribute modifier plugin |
+| `internal/component/bgp/plugins/filter_modify/match.go` | route attribute modifier |
 | `internal/component/bgp/plugins/filter_modify/modify.go` | route attribute modifier |
 | `internal/component/bgp/plugins/filter_prefix/config.go` | prefix-list filter config parsing |
 | `internal/component/bgp/plugins/filter_prefix/filter_prefix.go` | prefix-list filter plugin |

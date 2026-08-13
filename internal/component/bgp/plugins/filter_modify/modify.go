@@ -28,10 +28,11 @@ import (
 // modifyDef is a named modifier definition loaded from config.
 type modifyDef struct {
 	name       string
-	delta      string   // pre-built delta for static set operations
-	increments []incdec // runtime: increment operations
-	decrements []incdec // runtime: decrement operations
-	commOps    []commOp // runtime: community add/remove directives
+	match      matchCond // when stated, the condition a route meets to be modified
+	delta      string    // pre-built delta for static set operations
+	increments []incdec  // runtime: increment operations
+	decrements []incdec  // runtime: decrement operations
+	commOps    []commOp  // runtime: community add/remove directives
 }
 
 // isDynamic returns true if this modifier needs the update text at runtime.

@@ -13,8 +13,7 @@
 package filter_community_match
 
 import (
-	"slices"
-	"strings"
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 )
 
 // action is the per-entry decision applied when a community matches.
@@ -32,39 +31,16 @@ func (a action) String() string {
 	return "reject"
 }
 
-// communityType identifies which community attribute to check.
-type communityType int
+// communityType identifies which community attribute to check. It is an alias
+// on the shared definition, not a second one: filter_modify decides on the same
+// attribute of the same text, and one reading serves both.
+type communityType = filtertext.CommunityKind
 
 const (
-	communityStandard communityType = iota
-	communityLarge
-	communityExtended
+	communityStandard = filtertext.CommunityStandard
+	communityLarge    = filtertext.CommunityLarge
+	communityExtended = filtertext.CommunityExtended
 )
-
-func (ct communityType) String() string {
-	switch ct {
-	case communityStandard:
-		return "standard"
-	case communityLarge:
-		return "large"
-	case communityExtended:
-		return "extended"
-	}
-	return "unknown"
-}
-
-// textFieldName returns the attribute keyword in the filter text format.
-func (ct communityType) textFieldName() string {
-	switch ct {
-	case communityStandard:
-		return "community"
-	case communityLarge:
-		return "large-community"
-	case communityExtended:
-		return "extended-community"
-	}
-	return ""
-}
 
 // communityEntry is one ordered match entry inside a community-list.
 type communityEntry struct {
@@ -85,94 +61,9 @@ type communityList struct {
 func evaluateCommunities(entries []communityEntry, updateText string) action {
 	for i := range entries {
 		e := &entries[i]
-		values := extractCommunityField(updateText, e.ctype)
-		if containsCommunity(values, e.community) {
+		if filtertext.HasCommunity(updateText, e.ctype, e.community) {
 			return e.action
 		}
 	}
 	return actionReject
-}
-
-// extractCommunityField extracts the community values from the filter text
-// for the specified type. Returns individual value strings.
-//
-// Text format examples:
-//   - "community 65001:100" -> ["65001:100"]
-//   - "community [65001:100 no-export]" -> ["65001:100", "no-export"]
-//   - "large-community 65000:1:2" -> ["65000:1:2"]
-//   - "extended-community 000200010000000a" -> ["000200010000000a"]
-//
-// For standard community, uses cutOnWordBoundary to avoid false-matching
-// "community " inside "extended-community " or "large-community ".
-// Large and extended names are unique prefixes with no collision risk.
-func extractCommunityField(updateText string, ctype communityType) []string {
-	fieldName := ctype.textFieldName()
-	if fieldName == "" {
-		return nil
-	}
-
-	rest, ok := cutOnWordBoundary(updateText, fieldName)
-	if !ok {
-		return nil
-	}
-
-	value := extractValueUntilNextAttr(rest)
-	if value == "" {
-		return nil
-	}
-
-	// Strip brackets and split: "[val1 val2]" -> ["val1", "val2"]
-	if len(value) >= 2 && value[0] == '[' && value[len(value)-1] == ']' {
-		return strings.Fields(value[1 : len(value)-1])
-	}
-	return []string{value}
-}
-
-// cutOnWordBoundary finds "keyword " in text where keyword is preceded by
-// start-of-string or a space (word boundary). Returns the text after
-// "keyword " and true, or ("", false) if not found. This prevents
-// "community " from matching inside "extended-community " or
-// "large-community ".
-func cutOnWordBoundary(text, keyword string) (string, bool) {
-	needle := keyword + " "
-
-	// Check start of string.
-	if strings.HasPrefix(text, needle) {
-		return text[len(needle):], true
-	}
-
-	// Check after a space: " keyword ".
-	_, after, ok := strings.Cut(text, " "+needle)
-	if ok {
-		return after, true
-	}
-
-	return "", false
-}
-
-// containsCommunity checks if target is present in the values slice.
-func containsCommunity(values []string, target string) bool {
-	return slices.Contains(values, target)
-}
-
-// extractValueUntilNextAttr returns the portion of s up to the first token
-// that is a known attribute keyword. Handles both bracketed [val1 val2] and
-// single-value forms.
-func extractValueUntilNextAttr(s string) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return ""
-	}
-	if s[0] == '[' {
-		end := strings.IndexByte(s, ']')
-		if end >= 0 {
-			return s[:end+1]
-		}
-		return s
-	}
-	before, _, found := strings.Cut(s, " ")
-	if !found {
-		return s
-	}
-	return before
 }

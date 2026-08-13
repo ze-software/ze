@@ -8,11 +8,22 @@ module ze-filter-modify {
 
     description "Route attribute modifier for the BGP policy framework.
                  Named modifier definitions with attribute setters.
-                 Each modifier unconditionally sets the declared attributes
-                 on routes that reach it in the filter chain. For conditional
-                 modification, compose with match filters (prefix-list,
-                 as-path-list, community-match) earlier in the chain.
+                 A modifier sets the declared attributes on every route that
+                 reaches it, or, when it states a match condition, only on the
+                 routes that meet it. Routes that do not meet the condition pass
+                 through unchanged.
                  Referenced from peer filter chains as modify:NAME.";
+
+    revision 2026-08-13 {
+        description
+          "Add the match container. A filter chain is a pipe in which a reject
+           DROPS the route, so a match filter placed earlier can only express
+           'modify these and discard the rest'. A route that must keep flowing
+           untouched had nowhere to go. This is what lets a community select an
+           action: a next-hop rewrite toward a discard address on a route
+           carrying an operator's blackhole community, RFC 7999 among them,
+           while every other route from the same peer forwards normally.";
+    }
 
     revision 2026-05-25 {
         description "Add increment/decrement containers and community add/remove leaf-lists";
@@ -31,6 +42,49 @@ module ze-filter-modify {
                 type string;
                 description "Modifier instance name (referenced in peer filter
                              chains as modify:NAME).";
+            }
+
+            container match {
+                description "Condition a route meets before the operations
+                             apply. A route that meets none of the stated values
+                             passes through UNCHANGED, not rejected: the chain
+                             drops a rejected route, and a conditional modifier
+                             exists so the routes it does not touch keep
+                             flowing.
+                             An absent match container applies the operations to
+                             every route that reaches the modifier.
+                             Values across the three leaf-lists are
+                             alternatives: any one present in the route
+                             satisfies the condition.";
+
+                leaf-list community {
+                    type string;
+                    description "Apply only to a route whose COMMUNITIES
+                                 attribute (RFC 1997, type 8) carries this
+                                 value.
+                                 ASN:VAL (e.g. 65001:666), or a well-known name
+                                 (blackhole, no-export, no-advertise,
+                                 no-export-subconfed, nopeer). The two spellings
+                                 of a well-known value are equivalent: 65535:666
+                                 and blackhole select the same community, which
+                                 RFC 7999 registers and RFC 7999 Section 4 names
+                                 with that suggested keyword.";
+                }
+
+                leaf-list large-community {
+                    type string;
+                    description "Apply only to a route whose LARGE COMMUNITIES
+                                 attribute (RFC 8092, type 32) carries this
+                                 value. GA:LD1:LD2 (e.g. 65001:100:200).";
+                }
+
+                leaf-list extended-community {
+                    type string;
+                    description "Apply only to a route whose EXTENDED
+                                 COMMUNITIES attribute (RFC 4360, type 16)
+                                 carries this value. target:ASN:NN,
+                                 origin:ASN:NN, or a hex string.";
+                }
             }
 
             container set {

@@ -96,6 +96,15 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
+	// A route that does not meet the definition's condition passes through
+	// UNCHANGED. Accept, never reject: the chain drops a rejected route, and a
+	// conditional modifier exists precisely so the routes it does not touch keep
+	// flowing. A definition that states no condition matches every route, which
+	// is what every definition written before the match container did.
+	if !def.match.matches(in.Update) {
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
+	}
+
 	var delta string
 	if def.isDynamic() {
 		delta = buildDynamicDelta(def, in.Update)
