@@ -4,10 +4,14 @@
 package pppoe
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 const (
@@ -15,7 +19,17 @@ const (
 	DefaultCookieTimeout = 5 * time.Second
 	DefaultMaxSessions   = 65535
 	DefaultPADIRateLimit = 100
+	// DefaultAuthMethod matches the L2TP LNS default: a BNG asks a subscriber
+	// who it is. Both transports feed the same PPP driver and the same auth
+	// handlers, so an operator who configures a credential for one gets the
+	// same treatment on the other.
+	DefaultAuthMethod = ppp.AuthMethodCHAPMD5
 )
+
+// ErrAuthMethodNoneRequiresAllow refuses the one combination that reads as a
+// typo rather than a decision: no authentication method, and no statement that
+// unauthenticated subscribers are wanted. Mirrors the L2TP subsystem's rule.
+var ErrAuthMethodNoneRequiresAllow = errors.New("pppoe auth-method none requires allow-no-auth true")
 
 // InterfaceConfig holds per-interface PPPoE settings.
 type InterfaceConfig struct {
@@ -33,6 +47,12 @@ type Parameters struct {
 	CookieTimeout time.Duration
 	MaxSessions   int
 	PADIRateLimit int
+
+	// AuthMethod is the PPP Auth-Protocol the AC advertises in its LCP
+	// Configure-Request; AllowNoAuth admits a subscriber whose LCP ends with
+	// no method negotiated. Both travel to ppp.StartSession (server.go).
+	AuthMethod  ppp.AuthMethod
+	AllowNoAuth bool
 }
 
 // ExtractParameters parses PPPoE configuration from the YANG config tree, in
@@ -46,17 +66,22 @@ type Parameters struct {
 // so registerBNGSubsystems never registered the subsystem, so a configured AC
 // answered no PADI at all. Two unit tests passed throughout because both built
 // the map by hand in a shape no producer emits.
-func ExtractParameters(tree map[string]any) Parameters {
+//
+// The error is returned for a configuration that cannot be honored, so the hub
+// refuses to start rather than running an access concentrator that admits
+// everybody. Today that is auth-method none without allow-no-auth.
+func ExtractParameters(tree map[string]any) (Parameters, error) {
 	p := Parameters{
 		ACName:        DefaultACName,
 		CookieTimeout: DefaultCookieTimeout,
 		MaxSessions:   DefaultMaxSessions,
 		PADIRateLimit: DefaultPADIRateLimit,
+		AuthMethod:    DefaultAuthMethod,
 	}
 
 	pppoe, ok := tree["pppoe"].(map[string]any)
 	if !ok {
-		return p
+		return p, nil
 	}
 
 	if enabled, ok := cfgBool(pppoe["enabled"]); ok {
@@ -75,10 +100,23 @@ func ExtractParameters(tree map[string]any) Parameters {
 	if rateLimit, ok := cfgFloat(pppoe["padi-rate-limit"]); ok && rateLimit > 0 {
 		p.PADIRateLimit = int(rateLimit)
 	}
+	if method, ok := pppoe["auth-method"].(string); ok && method != "" {
+		m, err := ppp.ParseAuthMethod(method)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("pppoe auth-method: %w", err)
+		}
+		p.AuthMethod = m
+	}
+	if allow, ok := cfgBool(pppoe["allow-no-auth"]); ok {
+		p.AllowNoAuth = allow
+	}
+	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
+		return Parameters{}, ErrAuthMethodNoneRequiresAllow
+	}
 
 	entries, ok := pppoe["interface"].(map[string]any)
 	if !ok {
-		return p
+		return p, nil
 	}
 	// The list key IS the interface name: `interface veth-bng { }` yields the
 	// entry "veth-bng" mapped to an empty body, so nothing inside carries the
@@ -108,7 +146,7 @@ func ExtractParameters(tree map[string]any) Parameters {
 		p.Interfaces = append(p.Interfaces, ic)
 	}
 
-	return p
+	return p, nil
 }
 
 // cfgStrings coerces a YANG leaf-list to a slice. Tree.ToMap collapses a

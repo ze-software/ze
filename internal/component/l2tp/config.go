@@ -219,7 +219,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	if v, ok := l2tpRoot.Get("auth-method"); ok {
-		m, err := parsePPPAuthMethod(v)
+		m, err := ppp.ParseAuthMethod(v)
 		if err != nil {
 			return Parameters{}, fmt.Errorf("l2tp auth-method: %w", err)
 		}
@@ -385,20 +385,6 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	return p, nil
-}
-
-func parsePPPAuthMethod(v string) (ppp.AuthMethod, error) {
-	switch v {
-	case "none":
-		return ppp.AuthMethodNone, nil
-	case "pap":
-		return ppp.AuthMethodPAP, nil
-	case "chap-md5":
-		return ppp.AuthMethodCHAPMD5, nil
-	case "ms-chap-v2":
-		return ppp.AuthMethodMSCHAPv2, nil
-	}
-	return ppp.AuthMethodNone, fmt.Errorf("unsupported method %q", v)
 }
 
 func parseListen(ip, port string) (netip.AddrPort, error) {

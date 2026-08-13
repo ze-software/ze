@@ -2777,6 +2777,7 @@ pppoe {
     enabled true;
     ac-name "ze";
     service-name "internet";
+    auth-method chap-md5;
     cookie-timeout 5;
     max-sessions 65535;
     padi-rate-limit 100;
@@ -2795,6 +2796,8 @@ pppoe {
 | `enabled` | boolean | `true` | Presence of `pppoe {}` implies enabled. Use `enabled false` to disable. |
 | `ac-name` | string | `ze` | Access Concentrator Name advertised in PADO (RFC 2516 S5.2). |
 | `service-name` | leaf-list | (empty) | Accepted Service-Name values. Empty list means accept any Service-Name. |
+| `auth-method` | enumeration | `chap-md5` | PPP Auth-Protocol the AC advertises in its own LCP Configure-Request: `none`, `pap`, `chap-md5`, `ms-chap-v2`. The credential is verified by `l2tp-auth-local` or `l2tp-auth-radius`. |
+| `allow-no-auth` | boolean | `false` | Accept a subscriber whose LCP ends with no Auth-Protocol. Required beside `auth-method none`, which is otherwise refused at startup. |
 | `cookie-timeout` | uint16 | 5 | AC-Cookie validity in seconds (1-300). Older cookies rejected in PADR. |
 | `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
 | `padi-rate-limit` | uint16 | 100 | Maximum PADI packets per second per source MAC (1-10000). |

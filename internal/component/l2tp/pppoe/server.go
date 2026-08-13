@@ -31,6 +31,8 @@ type InterfaceServer struct {
 	cookieTimeout time.Duration
 	acName        string
 	serviceNames  []string
+	authMethod    ppp.AuthMethod
+	authRequired  bool
 
 	discFD    int
 	pppDriver *ppp.Driver
@@ -193,6 +195,11 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		return
 	}
 
+	// AuthMethod is what the AC advertises in its own LCP Configure-Request:
+	// without it every subscriber reaches the accounting-only no-auth phase,
+	// where an auth handler that holds credentials sees an empty username and
+	// refuses. AuthRequired disconnects a client that rejects the method
+	// rather than admitting it unauthenticated.
 	start := ppp.StartSession{
 		TunnelID:        uint16(s.ifIndex),
 		SessionID:       sid,
@@ -200,6 +207,8 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		UnitFD:          unitFD,
 		UnitNum:         unitNum,
 		LNSMode:         true,
+		AuthMethod:      s.authMethod,
+		AuthRequired:    s.authRequired,
 		MaxMRU:          PPPoEMaxMTU,
 		AccessInterface: s.ifName,
 		SubscriberMAC:   net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),

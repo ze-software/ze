@@ -3,10 +3,12 @@
 package pppoe
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // extractFromConfigText drives ExtractParameters from its REAL producer: the
@@ -22,7 +24,24 @@ func extractFromConfigText(t *testing.T, text string) Parameters {
 	if err != nil {
 		t.Fatalf("parse config: %v", err)
 	}
-	return ExtractParameters(tree.ToMap())
+	p, err := ExtractParameters(tree.ToMap())
+	if err != nil {
+		t.Fatalf("extract parameters: %v", err)
+	}
+	return p
+}
+
+// extractErrFromConfigText is extractFromConfigText's negative twin: it returns
+// the error instead of failing the test, for the configurations the AC must
+// refuse to start on.
+func extractErrFromConfigText(t *testing.T, text string) error {
+	t.Helper()
+	tree, err := zeconfig.ParseTreeForValidation(text)
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	_, extractErr := ExtractParameters(tree.ToMap())
+	return extractErr
 }
 
 // VALIDATES: a configured access interface reaches Parameters.Interfaces, which
@@ -148,11 +167,63 @@ func TestExtractParametersWithoutInterfaces(t *testing.T) {
 		t.Errorf("interfaces = %v, want none", bare.Interfaces)
 	}
 
-	absent := ExtractParameters(map[string]any{})
+	absent, err := ExtractParameters(map[string]any{})
+	if err != nil {
+		t.Fatalf("absent pppoe block must not error: %v", err)
+	}
 	if absent.Enabled {
 		t.Error("no pppoe block must not enable the subsystem")
 	}
 	if absent.ACName != DefaultACName || absent.MaxSessions != DefaultMaxSessions {
 		t.Errorf("defaults = %q/%d, want %q/%d", absent.ACName, absent.MaxSessions, DefaultACName, DefaultMaxSessions)
+	}
+}
+
+// VALIDATES: `auth-method` reaches Parameters.AuthMethod, and the default when
+// the leaf is absent is CHAP-MD5 rather than "no authentication at all".
+// PREVENTS: an access concentrator that never advertises an Auth-Protocol. Ze
+// then runs every subscriber through the accounting-only no-auth phase, where
+// EventAuthRequest carries an empty Username, so an auth handler holding the
+// operator's credentials answers "unknown user" and no session ever comes up.
+// The AC looked healthy through PADS and failed on the first frame that
+// mattered.
+func TestExtractParametersAuthMethod(t *testing.T) {
+	def := extractFromConfigText(t, "pppoe {\n    enabled true\n    interface eth0 {\n    }\n}\n")
+	if def.AuthMethod != ppp.AuthMethodCHAPMD5 {
+		t.Errorf("default auth-method = %v, want chap-md5", def.AuthMethod)
+	}
+	if def.AllowNoAuth {
+		t.Error("allow-no-auth must default to false, so a client that refuses the method is disconnected")
+	}
+
+	for _, tc := range []struct {
+		spelling string
+		want     ppp.AuthMethod
+	}{
+		{"pap", ppp.AuthMethodPAP},
+		{"chap-md5", ppp.AuthMethodCHAPMD5},
+		{"ms-chap-v2", ppp.AuthMethodMSCHAPv2},
+	} {
+		p := extractFromConfigText(t, "pppoe {\n    enabled true\n    auth-method "+tc.spelling+"\n    interface eth0 {\n    }\n}\n")
+		if p.AuthMethod != tc.want {
+			t.Errorf("auth-method %s = %v, want %v", tc.spelling, p.AuthMethod, tc.want)
+		}
+	}
+}
+
+// VALIDATES: `auth-method none` is refused unless `allow-no-auth true` says so,
+// and accepted when it does.
+// PREVENTS: a one-word edit turning a BNG into an open access concentrator. The
+// hub propagates the error and refuses to start (cmd/ze/hub/register_l2tp.go),
+// which is louder than admitting every subscriber unauthenticated.
+func TestExtractParametersAuthMethodNoneNeedsAllowNoAuth(t *testing.T) {
+	err := extractErrFromConfigText(t, "pppoe {\n    enabled true\n    auth-method none\n    interface eth0 {\n    }\n}\n")
+	if !errors.Is(err, ErrAuthMethodNoneRequiresAllow) {
+		t.Fatalf("auth-method none alone: err = %v, want ErrAuthMethodNoneRequiresAllow", err)
+	}
+
+	ok := extractFromConfigText(t, "pppoe {\n    enabled true\n    auth-method none\n    allow-no-auth true\n    interface eth0 {\n    }\n}\n")
+	if ok.AuthMethod != ppp.AuthMethodNone || !ok.AllowNoAuth {
+		t.Errorf("auth-method none + allow-no-auth true = %v/%v, want none/true", ok.AuthMethod, ok.AllowNoAuth)
 	}
 }

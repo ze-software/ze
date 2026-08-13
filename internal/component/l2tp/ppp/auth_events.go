@@ -5,6 +5,8 @@
 
 package ppp
 
+import "fmt"
+
 // AuthMethod identifies the PPP authentication protocol negotiated for
 // a session. The zero value (AuthMethodNone) means LCP advertised no
 // Auth-Protocol option; the session is accepted without wire-level auth
@@ -38,6 +40,28 @@ func (m AuthMethod) String() string {
 		return "ms-chap-v2"
 	}
 	panic("BUG: unknown AuthMethod")
+}
+
+// ParseAuthMethod maps the config spelling of a PPP authentication protocol
+// to its AuthMethod. The spellings are the ones the YANG enumerations use, and
+// they are String()'s output, so config, logs and events all name a method the
+// same way.
+//
+// Both PPP transports read it: the L2TP LNS (`l2tp auth-method`) and the PPPoE
+// access concentrator (`pppoe auth-method`). It lives here because the type
+// does, and because pppoe MUST NOT import the l2tp package (doc.go).
+func ParseAuthMethod(v string) (AuthMethod, error) {
+	switch v {
+	case "none":
+		return AuthMethodNone, nil
+	case "pap":
+		return AuthMethodPAP, nil
+	case "chap-md5":
+		return AuthMethodCHAPMD5, nil
+	case "ms-chap-v2":
+		return AuthMethodMSCHAPv2, nil
+	}
+	return AuthMethodNone, fmt.Errorf("unsupported method %q", v)
 }
 
 // AuthEvent is the sealed sum emitted on Driver.AuthEventsOut(). The

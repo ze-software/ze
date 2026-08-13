@@ -307,7 +307,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		p.MaxSessions = uint16(n)
 	}
 	if v, ok := l2tpRoot["auth-method"].(string); ok {
-		m, perr := parsePPPAuthMethod(v)
+		m, perr := ppp.ParseAuthMethod(v)
 		if perr != nil {
 			return Parameters{}, fmt.Errorf("auth-method: %w", perr)
 		}

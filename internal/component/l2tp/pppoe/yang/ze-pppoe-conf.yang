@@ -6,6 +6,11 @@ module ze-pppoe-conf {
 
     description "PPPoE access concentrator configuration for Ze (RFC 2516).";
 
+    revision 2026-08-12 {
+        description "Add auth-method and allow-no-auth: the AC had no way to
+                     ask a subscriber to authenticate.";
+    }
+
     revision 2026-05-08 {
         description "Initial revision (spec-bng-5-pppoe).";
     }
@@ -35,6 +40,33 @@ module ze-pppoe-conf {
             description "Accepted Service-Name values. Empty list means accept any
                          Service-Name (RFC 2516 Section 5.1). Per-interface
                          service-name overrides this global list.";
+        }
+
+        leaf auth-method {
+            type enumeration {
+                enum none;
+                enum pap;
+                enum chap-md5;
+                enum ms-chap-v2;
+            }
+            default "chap-md5";
+            description
+                "PPP Auth-Protocol method the access concentrator advertises
+                 in its LCP Configure-Request (RFC 1661 Section 6.2) for every
+                 subscriber that completes PPPoE discovery. The credential is
+                 verified by the auth handler (l2tp-auth-local or
+                 l2tp-auth-radius). The default requires CHAP-MD5 (RFC 1994).
+                 Set to none only together with allow-no-auth true.";
+        }
+
+        leaf allow-no-auth {
+            type boolean;
+            default false;
+            description
+                "Accept a subscriber whose LCP negotiation ends with no
+                 Auth-Protocol option. The default is false, so a client that
+                 rejects the configured method is disconnected instead of
+                 being admitted unauthenticated.";
         }
 
         leaf cookie-timeout {

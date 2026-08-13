@@ -48,7 +48,10 @@ func registerBNGSubsystems(loadTree *zeconfig.Tree, configTree map[string]any, e
 	// PPPoE subsystem. ExtractParameters returns defaults when the config
 	// tree has no `pppoe {}` block; we only register when the operator
 	// configured at least one access interface.
-	pppoeParams := pppoe.ExtractParameters(configTree)
+	pppoeParams, pppoeErr := pppoe.ExtractParameters(configTree)
+	if pppoeErr != nil {
+		return nil, fmt.Errorf("parse pppoe config: %w", pppoeErr)
+	}
 	if pppoeParams.Enabled && len(pppoeParams.Interfaces) > 0 {
 		if regErr := eng.RegisterSubsystem(pppoe.NewSubsystem(pppoeParams)); regErr != nil {
 			return nil, fmt.Errorf("register pppoe subsystem: %w", regErr)

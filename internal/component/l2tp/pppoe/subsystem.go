@@ -151,6 +151,8 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			cookieTimeout: s.params.CookieTimeout,
 			acName:        s.params.ACName,
 			serviceNames:  svcNames,
+			authMethod:    s.params.AuthMethod,
+			authRequired:  !s.params.AllowNoAuth,
 			discFD:        s.discFD,
 			pppDriver:     s.pppDriver,
 			logger:        s.logger.With("interface", ic.Name),
