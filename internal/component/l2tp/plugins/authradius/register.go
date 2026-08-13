@@ -37,10 +37,6 @@ var (
 )
 
 func init() {
-	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
-		return authInstance.handle(req, respond)
-	})
-
 	reg := registry.Registration{
 		Name:                    Name,
 		Description:             "RADIUS authentication and accounting for L2TP PPP sessions",
@@ -182,6 +178,18 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 		primaryAddr = cfg.Servers[0].Address
 	}
 	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	// Claim the auth slot HERE, not in init(). The slot holds one handler
+	// (internal/component/l2tp/subscriber/handler_registry.go), and this plugin
+	// and l2tp-auth-local both sit in the same binary, so an init()-time claim
+	// made the owner a function of link order rather than of configuration. An
+	// unconfigured RADIUS plugin then answered every CHAP Response with "no
+	// RADIUS client", and the operator's local users were never consulted: a
+	// PPPoE or L2TP subscriber authenticated against a local credential could
+	// not come up at all. Claiming it once RADIUS has a client makes the
+	// precedence "RADIUS when configured, local otherwise".
+	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
+		return authInstance.handle(req, respond)
+	})
 	acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	if oldClient != nil {
 		oldClient.Close() //nolint:errcheck // best-effort on replaced client
