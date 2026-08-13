@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3289 files
+Total: 261 design docs, 3290 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -493,6 +493,7 @@ Total: 261 design docs, 3289 files
 | `internal/core/events/ids.go` | typed event IDs for hot-path matching |
 | `internal/core/events/typed.go` | typed event handles |
 | `internal/core/iface/events/events.go` | interface event types |
+| `internal/core/rib/routetype/routetype.go` | the FIB forwarding action |
 | `internal/core/vpp/events/events.go` | VPP lifecycle event types |
 | `internal/plugins/fib/kernel/events/events.go` | FIB event types |
 | `internal/plugins/ntp/events/events.go` | system event types |

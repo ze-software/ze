@@ -1,5 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md -- BGP-RIB event types
+// RFC: rfc/short/rfc7999.md -- Section 2, the discard action RouteType carries
 // Related: ../../../component/bgp/plugins/rib/rib_bestchange.go -- publishes BestChange; format must stay in sync
+// Related: ../../rib/routetype/routetype.go -- the forwarding actions RouteType names
 
 // Package ribevents defines the (bgp-rib, ...) event constants and typed event
 // handles: the best-path change contract between the BGP RIB and everything
@@ -26,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
 // Namespace is the event namespace for the BGP RIB plugin.
@@ -69,8 +72,18 @@ type BestChangeEntry struct {
 	Priority     int                      `json:"priority"`
 	Metric       uint32                   `json:"metric"`
 	ProtocolType routeaction.ProtocolType `json:"protocol-type,omitempty"`
-	Labels       []uint32                 `json:"labels,omitempty"`
-	SRv6SID      netip.Addr               `json:"srv6-sid,omitzero"`
+	// RouteType is the forwarding action the FIB programs for this prefix: an
+	// ordinary next-hop, or a discard. Unset (omitted) means the producer has no
+	// opinion and the FIB installs an ordinary route, so every producer that
+	// predates the field is unchanged. ProtocolType says WHO contributed the
+	// route and drives admin distance. RouteType says WHAT the FIB does with it.
+	// The two are separate axes, and a value of one never implies the other.
+	//
+	// RFC 7999 Section 2 is the producer today: a BLACKHOLE-tagged prefix a peer
+	// is authorized for, on a session where the operator agreed to honor it.
+	RouteType routetype.Type `json:"route-type,omitempty"`
+	Labels    []uint32       `json:"labels,omitempty"`
+	SRv6SID   netip.Addr     `json:"srv6-sid,omitzero"`
 	// OriginAS is the last ASN in the best path's AS_PATH (the route's origin);
 	// ASPath is the full path. Both are populated on add/update from the winning
 	// candidate, and are empty on withdraw and on full-table replay. Consumers

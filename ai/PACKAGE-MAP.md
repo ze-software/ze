@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 622 packages, 619 described, 3 TODO
+Total: 623 packages, 620 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -468,6 +468,7 @@ Total: 622 packages, 619 described, 3 TODO
 | `internal/core/rib/igpcost` | carries the IGP metric of a resolved next-hop from whoever computes it to whoever ranks paths by it |  |
 | `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |
 | `internal/core/rib/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |
+| `internal/core/rib/routetype` | holds the forwarding action a FIB entry takes |  |
 | `internal/core/rib/store` | provides a generic prefix-keyed route store backed by a BART trie |  |
 | `internal/core/routewatch` | subscribes to kernel route changes via netlink and fans them out to handlers |  |
 | `internal/core/routingtable` | maps routing-table names to kernel table IDs |  |

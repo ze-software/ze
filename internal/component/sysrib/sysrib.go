@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -138,6 +139,17 @@ type protocolRoute struct {
 	metric           uint32
 	labels           []uint32   // MPLS label stack (nil for unlabeled routes)
 	srv6SID          netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
+
+	// routeType is the forwarding action the FIB programs: an ordinary next-hop,
+	// or a discard. Unset means the protocol has no opinion and the FIB installs
+	// an ordinary route. It rides the winner into BestChangeEntry.RouteType.
+	//
+	// It is NOT part of arbitration. recomputeBest still selects on priority,
+	// then protocol name, so a discard route never beats a forwarding one on the
+	// strength of being a discard. It IS part of the change comparison, because
+	// a prefix that turns into a discard with every other field unchanged must
+	// still reach the kernel.
+	routeType routetype.Type
 
 	// backupNextHop and backupLabels are the fast-reroute alternate for this
 	// route's primary next-hop (an IP FRR backup + optional MPLS repair stack).
@@ -327,6 +339,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				metric:           c.Metric,
 				labels:           c.Labels,
 				srv6SID:          c.SRv6SID,
+				routeType:        c.RouteType,
 				backupNextHop:    c.BackupNextHop,
 				backupLabels:     c.BackupRepairLabels,
 				// Intra-protocol equal-cost siblings (isis-9 ECMP, umbrella A-2)
@@ -472,16 +485,21 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			Protocol:  winner.protocol,
 			Labels:    winner.labels,
 			SRv6SID:   winner.srv6SID,
+			RouteType: winner.routeType,
 			Metric:    winner.metric,
 			ECMPPaths: ecmpPaths,
 			Backup:    backupPaths(winner),
 		}
 	}
 
+	// The no-op test. Every field the FIB programs is compared here, the
+	// forwarding action included. A prefix that turns into a discard with its
+	// next-hop, metric and labels unchanged is a change the kernel must see.
+	// Leaving routeType out suppresses the case RFC 7999 exists for.
 	ecmpPaths := ecmpCollect(protocols, winner)
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
-		prev.srv6SID == winner.srv6SID &&
+		prev.srv6SID == winner.srv6SID && prev.routeType == winner.routeType &&
 		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
 		s.best[key] = winner
 		return nil
@@ -522,6 +540,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		Protocol:  winner.protocol,
 		Labels:    winner.labels,
 		SRv6SID:   winner.srv6SID,
+		RouteType: winner.routeType,
 		Metric:    winner.metric,
 		ECMPPaths: ecmpPaths,
 		Backup:    backupPaths(winner),
@@ -608,6 +627,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 				Protocol:  best.protocol,
 				Labels:    best.labels,
 				SRv6SID:   best.srv6SID,
+				RouteType: best.routeType,
 				Metric:    best.metric,
 				ECMPPaths: remaining,
 				Backup:    backupPaths(best),
@@ -656,6 +676,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 		Protocol:  best.protocol,
 		Labels:    best.labels,
 		SRv6SID:   best.srv6SID,
+		RouteType: best.routeType,
 		Metric:    best.metric,
 		ECMPPaths: ecmpPaths,
 		Backup:    backupPaths(best),
@@ -805,6 +826,7 @@ func (s *sysRIB) replayBest(req *replay.Request) {
 			Protocol:  route.protocol,
 			Labels:    route.labels,
 			SRv6SID:   route.srv6SID,
+			RouteType: route.routeType,
 			Metric:    route.metric,
 			ECMPPaths: s.lastECMP[key],
 			Backup:    backupPaths(route),
@@ -1056,6 +1078,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 	var priority int
 	var metric uint32
 	var labels []uint32
+	var routeTyp routetype.Type
 	if c.Kind != locrib.ChangeRemove {
 		nextHop = c.Best.NextHop
 		priority = int(c.Best.AdminDistance)
@@ -1064,6 +1087,12 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 		// MPLS push entry rather than a plain IP route (the Loc-RIB now retains
 		// Labels; without this they were dropped here).
 		labels = c.Best.Labels
+		// Carry the forwarding action for the same reason. This is the only
+		// translation from a Loc-RIB Change into the batch processEvent consumes.
+		// A field dropped here is invisible to every in-process deployment.
+		// Left unset on ChangeRemove, where c.Best is the zero Path and a
+		// withdraw needs no forwarding action.
+		routeTyp = c.Best.RouteType
 	}
 	protocol := redistevents.ProtocolName(c.Best.Source)
 	// Assert the ChangeRemove invariant cheaply: a Remove MUST carry the zero Path
@@ -1087,6 +1116,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			Priority:     priority,
 			Metric:       metric,
 			Labels:       labels,
+			RouteType:    routeTyp,
 			ProtocolType: bgpProtocolTypeFromPath(c.Best),
 			// Intra-source equal-cost siblings computed at Loc-RIB emit; sysrib
 			// builds the ECMP group from these instead of re-looking-up the RIB.

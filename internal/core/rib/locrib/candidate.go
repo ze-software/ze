@@ -1,5 +1,7 @@
 // Design: docs/architecture/rib/unified-locrib.md -- candidate and path model
+// RFC: rfc/short/rfc7999.md -- Section 2, the discard action RouteType carries
 // Related: entry.go -- Entry holds the per-prefix PathGroup these Paths live in
+// Related: ../routetype/routetype.go -- the forwarding actions RouteType names
 
 package locrib
 
@@ -8,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
 // Path is one route option for a single (family, prefix), contributed by one
@@ -94,6 +97,21 @@ type Path struct {
 	// so it never affects arbitration. Built once per best-path change, shared
 	// not mutated, exactly like Labels.
 	ECMP []netip.Addr
+
+	// RouteType is the forwarding action the FIB programs for this path: an
+	// ordinary next-hop, or a discard. The zero value is "unset" and the FIB
+	// installs an ordinary route, so a producer that never sets it is unchanged.
+	//
+	// Carry-through metadata, on the same contract as Labels and BackupNextHop.
+	// EXCLUDED from key(), because a source re-advertising a prefix with a new
+	// forwarding action is the same path updated rather than a second one. It IS
+	// compared by Equal, because the FIB must observe the change. A prefix that
+	// becomes a discard with an unchanged next-hop is otherwise suppressed as a
+	// no-op, and keeps forwarding.
+	//
+	// RFC 7999 Section 2 is the producer today: a BLACKHOLE-tagged prefix a peer
+	// is authorized for, on a session where the operator agreed to honor it.
+	RouteType routetype.Type
 }
 
 // Valid reports whether p can be selected as a best path. An invalid Path is
@@ -103,9 +121,11 @@ func (p Path) Valid() bool {
 }
 
 // Equal reports whether two Paths are identical for change detection: every
-// selection field plus the MPLS label stack. Required because Path now has a
-// slice field (Labels) and so cannot be compared with ==/!=. Without the label
-// comparison a relabel (same next hop, new label) would be missed.
+// selection field, the MPLS label stack, and the forwarding action. Required
+// because Path has a slice field (Labels) and cannot be compared with ==/!=.
+// Without the label comparison a relabel is missed: same next hop, new label.
+// Without the RouteType comparison a prefix turning into a discard with an
+// unchanged next-hop is missed the same way.
 func (p Path) Equal(q Path) bool {
 	return p.Source == q.Source &&
 		p.Instance == q.Instance &&
@@ -113,6 +133,7 @@ func (p Path) Equal(q Path) bool {
 		p.AdminDistance == q.AdminDistance &&
 		p.Metric == q.Metric &&
 		p.BackupNextHop == q.BackupNextHop &&
+		p.RouteType == q.RouteType &&
 		slices.Equal(p.Labels, q.Labels) &&
 		slices.Equal(p.BackupRepairLabels, q.BackupRepairLabels)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
 // Namespace is the event namespace for the system RIB plugin.
@@ -25,15 +26,20 @@ const (
 	EventReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
 )
 
-// RouteType identifies the forwarding action for a FIB entry.
-// Values match Linux RTN_ constants for direct mapping in the kernel backend.
-type RouteType uint8
+// RouteType identifies the forwarding action for a FIB entry. It is an alias
+// on the core definition, not a second one. The Loc-RIB Path and the BGP
+// best-path change carry the same value from the producing protocol, and both
+// live on the core tier, where this package is unreachable. The alias keeps
+// every FIB backend spelling it as sysribevents.RouteType.
+type RouteType = routetype.Type
 
+// The forwarding actions, re-exported so the FIB backends keep their existing
+// spelling. Each is the core constant, not a copy.
 const (
-	RouteTypeUnicast     RouteType = 1
-	RouteTypeBlackhole   RouteType = 6
-	RouteTypeUnreachable RouteType = 7
-	RouteTypeProhibit    RouteType = 8
+	RouteTypeUnicast     = routetype.Unicast
+	RouteTypeBlackhole   = routetype.Blackhole
+	RouteTypeUnreachable = routetype.Unreachable
+	RouteTypeProhibit    = routetype.Prohibit
 )
 
 // ECMPPath is a single next-hop within an ECMP group.
