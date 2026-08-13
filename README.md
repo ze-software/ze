@@ -4,9 +4,13 @@
 
 > **Pre-release.** Ze is under active development and has not been released yet. The core BGP engine works, and it is covered by 20,000+ unit tests, 1,600+ functional tests, 70+ fuzz targets, chaos replay and 100+ Docker interop scenarios which run it against FRR, BIRD and GoBGP. I keep OpenBGPd, FreeRtr, RustyBGP and rustbgpd images alongside those, for comparison. Some of the more advanced features are still incomplete, and the API and the config syntax may change before a release.
 
-Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB and serves its own configuration over SSH and a web UI.
+Ze is an open-source configuration and protocol engine. The network operating system I built on it speaks BGP, manages Linux network interfaces, programs the FIB and serves its own configuration over SSH and a web UI.
 
-None of that is in the core. The core is a supervisor which holds a message bus, a config provider and a plugin manager, and it knows nothing about BGP or about any other protocol. BGP, interface management and the rest of it register themselves as subsystems and plugins, and a plugin can be a Go module compiled into the binary or a separate process written in whatever language suits you.
+None of that is in the core. The core is a supervisor which holds a message bus, a config provider and a plugin manager, and it knows nothing about BGP or about any other protocol. BGP, interface management and the rest of it register themselves as subsystems and plugins. Each one arrives with its own YANG and augments the configuration tree at the point where it belongs.
+
+The CLI, the completion, the validation, the web editor and the MCP tools are all derived from that schema. A subsystem which declares its model gets every one of them without any code of its own.
+
+A plugin can be a Go module compiled into the binary, and its YANG is loaded with the rest so the daemon holds the running config to it. It can also be a separate process written in whatever language suits you, and that shape only gets half of this today. `ze schema` runs the plugin with `--yang` and shows you its config model, while the daemon's own validator is still built from the compiled-in modules alone.
 
 There is also an MCP server, which exposes every feature the running daemon has, plugins included, so an AI assistant can ask what this particular instance can do and then operate it.
 
