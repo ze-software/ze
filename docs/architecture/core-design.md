@@ -1371,6 +1371,51 @@ Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply
 
 Full protocol: `config/transaction-protocol.md`. Per-plugin wiring: `spec-config-tx-consumers`.
 
+## 18a. BGP Peer Reload: Swap or Restart
+
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- peerSettingsSwapPlan, hotSwappableSettings, applyHotSwappableSettings -->
+
+A reload diffs each configured peer against the running one and takes one of three
+branches. `peerSettingsEqual` (`reactor_api.go`) compares the whole `PeerSettings`
+struct, so a field nobody classified still counts as a change.
+
+| Branch | Condition | Effect on the session |
+|--------|-----------|----------------------|
+| No change | the two structs compare equal | nothing happens, and nothing is logged |
+| Swap | every difference is in a field a running session re-reads or republishes | the FSM, the TCP connection and the negotiated capabilities all survive |
+| Restart | any other difference | the peer is removed and re-added, and one log line names every field that forced it |
+
+`hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
+struct rather than a list of what matters. Three fields qualify: `ImportFilters`,
+`ExportFilters` and `PrefixUpdated`. Every other field forces a restart, so a field
+added to `PeerSettings` tomorrow is restart-scoped until somebody classifies it on
+purpose. A wrongly restarted session is visible and self-healing; a session left
+running on settings nobody checked is silent.
+
+The capability set is the one conditional member. `negotiationOutcomeUnchanged`
+(`peer_settings_negotiation.go`) re-runs the negotiation: it builds the candidate
+OPEN from the new settings with `buildOpen`, negotiates it against the capabilities
+the peer really advertised, and compares the result with the running session's. An
+identical outcome means the session is already what the new config asks for, so the
+set is delivered and the session stays up. Anything the probe cannot prove
+identical restarts, an unparsable OPEN and a peer with no session included. RFC 5492
+Section 2 is why there is no third option: a peer's capabilities come from its OPEN
+alone, so a change applies at the next OPEN or not at all.
+
+<!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, openHeaderEqual -->
+
+The swap writes onto the struct the peer points at, under `p.mu`, rather than
+replacing the pointer: `Session` holds its own copy of the same pointer, so
+replacing it would leave every `s.settings` reader on the old struct. Cross-goroutine
+readers of the three swappable fields go through the `p.mu`-guarded accessors
+`Peer.ImportFilters` and `Peer.OldestPrefixUpdated` (`peer.go`), and the egress
+snapshot and the prefix-stale alarm are rebuilt after the lock is released.
+
+Reload delivers a policy change to routes received AFTER the swap. It does not
+re-run policy over already-imported routes. BIRD behaves the same way on
+reconfigure; doing more needs a route refresh or route retention
+(`docs/research/bird-bgp-reference.md`).
+
 ## 19. Component Boundaries
 
 Each component under `internal/component/` is independently removable.

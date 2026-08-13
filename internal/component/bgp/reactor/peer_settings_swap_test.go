@@ -256,12 +256,6 @@ func TestPeerSettingsRestartRequiredIsFailClosed(t *testing.T) {
 	}
 }
 
-// TestPeerDiffCountCountsSwapAsOneChange verifies the reload budget estimate still
-// reports a swap-only edit as a change.
-//
-// VALIDATES: AC-2 — an import-policy edit must not read as "0 peer changes".
-// PREVENTS: the silent-success failure. A swap costs one apply, not the two of a
-// remove plus a re-add, so it counts 1 rather than 2.
 // prefixStaleTestPeer is the address the prefix-date tests below configure. It is
 // not the address swapTestPeerSettings uses, so a warning one of these tests leaves
 // on the process-wide report bus cannot be mistaken for another test's.
@@ -432,6 +426,16 @@ func TestReloadStalePrefixDatesRaiseStaleAlarm(t *testing.T) {
 		"dates that cross the staleness threshold must drive ze_bgp_prefix_stale to 1")
 }
 
+// TestPeerDiffCountCountsSwapAsOneChange verifies the reload budget estimate still
+// reports a swap-only edit as a change.
+//
+// VALIDATES: AC-2 — an import-policy edit must not read as "0 peer changes".
+// PREVENTS: the silent-success failure. A swap costs one apply, not the two of a
+// remove plus a re-add, so it counts 1 rather than 2.
+//
+// DISCRIMINATION: the assertion is an exact 1, so it separates both failures. The
+// original omission (ImportFilters neutralized inside peerSettingsEqual,
+// reactor_api.go) reads 0, and a change delivered by a bounce reads 2.
 func TestPeerDiffCountCountsSwapAsOneChange(t *testing.T) {
 	initial := swapTestPeerSettings()
 	next := swapTestPeerSettings()

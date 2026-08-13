@@ -85,10 +85,17 @@ evidenced below; a future session should re-design, not re-plumb.
    spec too.** During this audit `spec-bgp-filtered-route-storage` went
    `skeleton` -> `in-progress` -> `blocked` in a concurrent session, which
    concluded (its D-4) that it is **superseded, not merely blocked**, by
-   `spec-bgp-peer-settings-reload-ignored`: that spec's Phase B builds a
-   **pre-policy store** which "must capture the ORIGINAL payload"
-   (`plan/spec-bgp-peer-settings-reload-ignored.md`), making `routes_filtered`
-   a QUERY over that store rather than separate storage.
+   `spec-bgp-peer-settings-reload-ignored`: that spec's Phase B was read as
+   building a **pre-policy store**, making `routes_filtered` a QUERY over that
+   store rather than separate storage.
+
+   **That reading is VOID, and so is the supersession it produced.**
+   `spec-bgp-peer-settings-reload-ignored` withdrew it (its D-4) and then built
+   no store of any kind (its D-5): the delivered design is an atomic settings
+   swap on the running peer, `peerSettingsSwapPlan`
+   (`internal/component/bgp/reactor/peer_settings_apply.go`). It closed on
+   2026-08-13. No store exists for `routes_filtered` to query, so this spec owns
+   its own storage question.
 
    **Read that before re-designing this one.** A store keyed by prefix identity is
    exactly what A-4 says the wire tally lacks: with it a re-announce REPLACES

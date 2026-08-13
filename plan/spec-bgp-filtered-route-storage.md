@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-bgp-peer-settings-reload-ignored (AC-3 only: policy changes do not reach a running peer today) |
+| Depends | - (was spec-bgp-peer-settings-reload-ignored for AC-3; that spec closed 2026-08-13 and a policy change now reaches a running peer) |
 | Phase | - |
 | Updated | 2026-07-16 |
 
@@ -25,7 +25,11 @@ rest held.)
 3. `docs/research/bird-bgp-reference.md` lines 1276-1281 (`rte_update` / `REF_FILTERED`) - the design this spec copies
 4. `docs/architecture/core-design.md` lines 629-665 ("Ingress Filter Pipeline")
 5. `internal/component/bgp/reactor/reactor_notify.go` (the reject gate, line 468), `internal/component/bgp/plugins/rib/rib_structured.go`
-6. `plan/spec-bgp-peer-settings-reload-ignored.md` - the sibling this depends on for AC-3
+6. `spec-bgp-peer-settings-reload-ignored` - the sibling this depended on for AC-3.
+   CLOSED 2026-08-13, so the dependency is discharged: a policy edit now reaches
+   the running peer through `peerSettingsSwapPlan`
+   (`internal/component/bgp/reactor/peer_settings_apply.go`), which is what AC-3
+   needed. It built no pre-policy store, so nothing here is superseded.
 
 ## Task
 

@@ -1617,7 +1617,7 @@ bouncing sessions, contrary to what this section claimed until
 2026-08-08. `reconcilePeersJournaled` (`reactor_api.go`) applied ANY
 per-peer difference by removing and re-adding the peer, so an edit to
 a filter chain or a prefix refresh date tore the session down
-(`plan/spec-bgp-peer-settings-reload-ignored.md`).
+(spec-bgp-peer-settings-reload-ignored, closed 2026-08-13).
 
 ze has since taken the **compare-then-act pattern** from BIRD.
 `peerSettingsSwapPlan` (`peer_settings_apply.go`) compares old and new

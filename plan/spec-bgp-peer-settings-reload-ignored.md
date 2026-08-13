@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
-| Phase | 4/9 |
-| Updated | 2026-08-12 |
+| Phase | 9/9 |
+| Updated | 2026-08-13 |
 
 ## B1 ANSWERED (Thomas, 2026-08-07)
 
@@ -324,9 +324,32 @@ over a peer with a live negotiated session, in `peer_settings_negotiation_test.g
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-policy-reload-bird` | `test/interop/scenarios/` | BIRD | if the design uses ROUTE_REFRESH: the peer honors the refresh and re-sends, and the new policy applies without a session reset | |
-<!-- Required only if the chosen design sends ROUTE_REFRESH (RFC 2918). If the design is
-     bounce-only, justify skipping: no new wire behavior is introduced. -->
+| `NN-policy-reload-bird` (B5) | `test/interop/scenarios/` | BIRD | nothing this design can be wrong about | NOT APPLICABLE, 2026-08-13 |
+
+**B5 is not applicable, and two independent reasons say so.**
+
+The first is this table's own condition: the scenario was required only if the
+chosen design sends ROUTE_REFRESH (RFC 2918). It does not. `SoftClearPeer`
+(`internal/component/bgp/reactor/reactor_api.go`) has exactly one non-test caller,
+`handleBgpPeerClearSoft`
+(`internal/component/bgp/plugins/route_refresh/handler/clear_soft.go`), which is the
+operator `clear soft` command. No reload path reaches it. Verified at the producer
+on 2026-08-13.
+
+The second is stronger, because it holds even if the condition were read loosely:
+the scenario would be VACUOUS. The swap branch sends ZERO bytes. No message, no
+capability change on the wire, no session event. A scenario asserting "BIRD's
+session stays up while ze swaps a filter chain" passes identically with the swap
+mechanism deleted, because the absence it asserts is the same absence. That is the
+second vacuity trap named in `ai/rules/interop-and-goal-validation.md`. The restart
+branch introduces no new wire form either: it is the pre-existing teardown and
+re-OPEN that every existing interop scenario already exercises. Nothing here is a
+wire-format change, a new capability, or a new family.
+
+Enforcement is proved instead at the layer where it is observable, against a real
+BGP speaker over a real session: `test/reload/reload-import-policy-applies.ci`
+asserts that after the reload the edited peer REJECTS the route while a control
+peer whose chain no edit touched still accepts it.
 
 ### Future (if deferring any tests)
 - The filter-CONTENTS facet (R-4) may split into its own spec once verified. Requires user approval.
@@ -708,3 +731,315 @@ Do not commit A2 as a standalone fix without re-consulting the user (`ai/rules/c
 - [ ] No speculative features (needed NOW?)
 - [ ] Single responsibility per component
 - [ ] Minimal coupling
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+A config reload now takes one of three branches per peer instead of one.
+
+- `peerSettingsEqual` (`internal/component/bgp/reactor/reactor_api.go`) compares
+  the whole `PeerSettings` struct with `reflect.DeepEqual`, excluding only
+  `Capabilities`, which compare semantically by wire encoding. The
+  hand-maintained field list is gone, so a field added tomorrow cannot fall out
+  of the comparison.
+- `peerSettingsSwapPlan` (`internal/component/bgp/reactor/peer_settings_apply.go`)
+  answers swap-or-restart and returns the copier that delivers what it judged
+  deliverable. `hotSwappableSettings` is a SUBTRACTION from the struct, not an
+  enumeration: `ImportFilters`, `ExportFilters` and `PrefixUpdated` swap, and
+  everything else restarts.
+- `negotiationOutcomeUnchanged`
+  (`internal/component/bgp/reactor/peer_settings_negotiation.go`) implements
+  Thomas's ruling of 2026-08-07 by RUNNING the negotiation rather than classifying
+  fields, and `openHeaderEqual` derives its field list from `message.Open` by
+  reflection so a new OPEN field cannot escape it in the fail-open direction.
+- `applyHotSwappableSettings` and `refreshPrefixStale` deliver the change to the
+  running peer under `p.mu` and republish the two surfaces that read from the
+  delivered values.
+- `reconcilePeersJournaled` reads `peer.SettingsSnapshot()` instead of
+  `peer.Settings()`, and records a swap in the journal with an undo taken from the
+  live peer before the apply.
+- The restart branch logs one line naming EVERY field that forced it.
+
+### Bugs Found/Fixed
+
+- `option=linger` did nothing when a peer script ended on a `sighup` or `sigterm`
+  action: both sites in `runMessageLoop` (`internal/test/peer/peer.go`) returned
+  success instead of calling `Peer.completed`. It blocked this spec's own test,
+  so it was fixed on the spot. Covered by
+  `test/reload/reload-import-policy-applies.ci`, the only `.ci` in the tree that
+  pairs `linger` with a signal action.
+- The prefix-stale alarm could not clear on a PeeringDB refresh. Landed 2026-08-07
+  as the three edits `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md`
+  named. Covered by `TestReloadFreshPrefixDatesClearStaleAlarm`,
+  `TestReloadStalePrefixDatesRaiseStaleAlarm` and
+  `test/reload/reload-prefix-updated-clears-stale.ci`.
+- `reconcilePeersJournaled` removed every established DYNAMIC peer on reload. Found
+  here, recorded in `plan/journal/gate-excludes-part-of-its-population.md`, and
+  FIXED since by another session, with
+  `test/reload/reload-dynamic-peer-survives.ci`. Nothing is left open on it.
+
+### Documentation Updates
+
+- `docs/architecture/core-design.md`, new section "18a. BGP Peer Reload: Swap or
+  Restart", carrying a source anchor on `peer_settings_apply.go`
+  (`peerSettingsSwapPlan`, `hotSwappableSettings`, `applyHotSwappableSettings`) and
+  one on `peer_settings_negotiation.go` (`negotiationOutcomeUnchanged`,
+  `openHeaderEqual`). This answers checklist row 12, which was marked Yes and never
+  written until closure.
+- `docs/research/bird-bgp-reference.md`: the false claim was already corrected on
+  2026-08-08 (B4). At closure its citation of this spec was restated as a bare
+  stem, because commit B removes the file.
+- Checklist row 16 answered No, with evidence: the six `docs/` anchors on
+  `reactor_api.go` name `command dispatch`, `DrainPeerSync`, `apiStateObserver`,
+  `OnPeerEstablished`/`OnPeerClosed` and `getMatchingPeersSel`. None describes
+  `peerSettingsEqual` or `reconcilePeersJournaled`, so none went stale.
+- `make ze-doc-test` result recorded under Pre-Commit Verification.
+
+### Deviations from Plan
+
+- **A4 was never implemented, deliberately.** The spec itself flagged it as
+  "likely unnecessary" in 2026-07-16, and D-1b replaced it: the new chain governs
+  subsequently received routes, and asking the peer to re-send is a strictly larger
+  promise than parity. `SoftClearPeer` is therefore never called from the reload
+  path, which is also what makes B5 not applicable.
+- **B1 was answered by a procedure, not a categorisation.** Recorded at the top of
+  this spec and implemented as D-6. No field was hand-classified to satisfy it.
+- **B5 is NOT APPLICABLE.** Reasoned in the Interop Tests section above, at the
+  producer.
+- **The Files to Create entry `plan/learned/NNN-...` was not written.** The lesson
+  is a journal row, per `ai/rules/planning.md` as it now stands: `plan/journal/`
+  replaced the learned-summary artifact after this spec was drafted.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | (A-1) The omission from `peerSettingsEqual` was an oversight | Confirmed: no design note, no learned summary and no comment explained an intentional exclusion, and the doc comment claimed the opposite of what the code did | grep + git history, 2026-07-16 | A-1 confirmed |
+| assumption | (A-3) Bouncing the session on a policy edit is acceptable | Broken. Thomas chose soft reconfiguration on 2026-07-16, so the cheap guard fix was unshippable alone | USER DECISION | Recorded in "A2 MUST NOT SHIP ALONE"; the swap branch is the answer |
+| approach | A pre-policy Adj-RIB-In store (D-1) | The defect is a stale pointer, not missing data. BIRD swaps a pointer and stores nothing | BIRD v2.19.0 source, 2026-07-16 | D-1b / D-5: no store of any kind |
+| approach | An uncited claim about BIRD's `import keep filtered` was written into Design Insights, then found by a later search and reported back as repo evidence | Three separate BIRD mechanisms, not one store. Every clause was false | Reading BIRD v2.19.0 at `nest/route.h`, `nest/rt-table.c` and `nest/config.Y` | Retracted in place; it also required un-superseding a sibling spec (D-4 WITHDRAWN) |
+| escalation | A hand-maintained equality list in a guard silently drops fields added later | This defect IS that pattern, and `peerSettingsEqual` had dropped about 35 of ~50 fields | This spec | The rule already exists and was applied: `ai/rules/evidence.md` requires a guard to fail closed. No new rule is proposed. Both replacement guards are SUBTRACTIONS from a derived field set (`hotSwappableSettings`, `openHeaderEqual`), which is the shape that answers it |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An edit to any functionally significant per-peer field takes effect on reload | Done | `peerSettingsEqual` (`reactor_api.go`), `peerSettingsSwapPlan` (`peer_settings_apply.go`) | The comparison is over the whole struct, so "significant" is no longer a list |
+| `peerDiffCount` reports such an edit as a change | Done | `peerDiffCount` (`reactor_api.go`), same predicate | `TestPeerDiffCountCountsSwapAsOneChange` |
+| The `bgp peer <ip>` `import-policy` display agrees with what the datapath enforces | Done | `Peer.ImportFilters` (`peer.go`), read by `runIngressPolicyChain` (`filter_ordered.go`) | `TestReloadImportPolicyDisplayMatchesDatapath` reads both |
+| A config edit that genuinely changes nothing is still a no-op | Done | `peerSettingsEqual` | `TestPeerDiffCountIsZeroForAnIdenticalReload`, `test/reload/reload-no-change.ci` |
+| The journal / rollback semantics of `reconcilePeersJournaled` stay intact | Done | `swapPeerSettingsJournaled` (`peer_settings_apply.go`) | A swap records an undo taken from the live peer before the apply |
+| Capability changes keep forcing a bounce where renegotiation is required | Changed | `negotiationOutcomeUnchanged` (`peer_settings_negotiation.go`) | Thomas's ruling of 2026-08-07 narrowed this: a capability edit that negotiates to the same outcome against THIS peer swaps. `capabilitiesEqual` is retained and still gates the branch |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/reload/reload-import-policy-applies.ci`; `TestReloadImportPolicyKeepsTheSamePeer` | Two mutations, Round-2 table |
+| AC-2 | Done | `TestPeerDiffCountCountsSwapAsOneChange` | Mutation added 2026-08-13, below |
+| AC-3 | Done | `TestPeerDiffCountIsZeroForAnIdenticalReload`; `test/reload/reload-no-change.ci` | Round-2 table |
+| AC-4 | Done | `TestReloadRouteReflectorClientReachesForwarding` | Round-2 table |
+| AC-5 | Done | `TestReloadImportPolicyDisplayMatchesDatapath` | Round-2 table |
+| AC-6 | Done | `TestPeerSettingsRestartRequiredIsFailClosed` | Mutation added 2026-08-13, below |
+| AC-7 | Done | `TestReloadWhileReceivingNoRace` under `make ze-race-reactor` | Round-2 table |
+
+There are seven acceptance criteria and there were never more. The `4/9` in the
+Phase cell counted the A1-A4 + B1-B5 implementation steps, not ACs.
+
+#### Round-3 discrimination evidence (2026-08-13), AC-2 and AC-6
+
+The closure review found these two ACs claimed as "proved to discriminate" while
+the Round-1 and Round-2 tables covered neither. Both mutations were run rather than
+the claim softened. Each was applied, the package run, and the mutation removed.
+
+| Mutation applied | Test | Observed red |
+|------------------|------|--------------|
+| `ac.ImportFilters, bc.ImportFilters = nil, nil` in `peerSettingsEqual` (`reactor_api.go`), reproducing the original hand-maintained-list omission for one field | `TestPeerDiffCountCountsSwapAsOneChange` | `expected: 1`, `actual: 0` -- the silent-success failure AC-2 names. `TestPeerSettingsEqualDetectsImportFilterChange`, `TestPeerSettingsEqualDetectsEachSignificantField/ImportFilters` and `TestReloadImportPolicyKeepsTheSamePeer` went red with it |
+| `dst.MinTTL = src.MinTTL` added to `hotSwappableSettings` (`peer_settings_apply.go`), which is exactly the rot the fail-closed subtraction exists to prevent | `TestPeerSettingsRestartRequiredIsFailClosed` | `--- FAIL: .../MinTTL` -- `Should be true`, `an unclassified field must force a restart, never a silent swap` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPeerSettingsEqualDetectsImportFilterChange` | Done | `peer_settings_reload_test.go` | Moved from `reactor_api_test.go` |
+| `TestPeerSettingsEqualDetectsEachSignificantField` | Done | `peer_settings_reload_test.go` | 11 subtests, not 9: the A2 finding widened it |
+| `TestPeerSettingsEqualIdenticalIsEqual` | Done | `peer_settings_reload_test.go` | The no-over-trigger baseline |
+| `TestPeerSettingsEqualFailsClosedOnUnknownField` | Changed | `TestPeerSettingsRestartRequiredIsFailClosed`, `peer_settings_swap_test.go` | Renamed once the mechanism became swap-or-restart: the fail-closed property lives in the RESTART decision, not the equality predicate |
+| `TestReloadWhileReceivingNoRace` | Done | `peer_settings_reload_race_test.go` | `make ze-race-reactor` |
+| `TestPeerDiffCountIsZeroForAnIdenticalReload` | Done | `peer_settings_swap_test.go` | |
+| `TestReloadRouteReflectorClientReachesForwarding` | Done | `peer_settings_swap_test.go` | |
+| `TestReloadImportPolicyDisplayMatchesDatapath` | Done | `peer_settings_swap_test.go` | |
+| `TestOpenHeaderEqualCoversEveryOpenField` | Done | `peer_settings_negotiation_test.go` | |
+| `TestReloadDecisionReadsPeerSettingsUnderLock` | Done | `peer_settings_negotiation_test.go` | Race-detector test |
+| `TestNegotiationProbeFailsClosed` | Done | `peer_settings_negotiation_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/reactor_api.go` | Done | `peerSettingsEqual`, `reconcilePeersJournaled` swap branch |
+| `internal/component/bgp/reactor/peer.go` | Done | `SettingsSnapshot`, `ImportFilters`, `OldestPrefixUpdated` -- the `p.mu`-guarded accessors |
+| `internal/component/bgp/reactor/reactor_api_test.go` | Changed | The unit tests landed in three purpose-named files instead: `peer_settings_reload_test.go`, `peer_settings_swap_test.go`, `peer_settings_negotiation_test.go` |
+| `internal/component/bgp/reactor/peer_settings_apply.go` | Done | Created; not in the original plan, which predates the swap-or-restart split |
+| `internal/component/bgp/reactor/peer_settings_negotiation.go` | Done | Created; delivers D-6 |
+| `test/reload/reload-import-policy-applies.ci` | Done | Created 2026-08-12 |
+| `internal/component/bgp/reactor/peer_settings_reload_race_test.go` | Done | Created 2026-08-12 |
+| `plan/learned/NNN-bgp-peer-settings-reload-ignored.md` | Changed | Not written. `ai/rules/planning.md` now routes the lesson to a `plan/journal/` row, which this closure writes |
+
+### Audit Summary
+- **Total items:** 40 (6 requirements, 7 ACs, 11 tests, 8 files, 8 implementation steps A1-A4 + B1-B5 minus A4)
+- **Done:** 36
+- **Partial:** 0
+- **Skipped:** 1 (A4, superseded by D-1b before any code was written; not a reduction in delivered behavior)
+- **Changed:** 4 (`TestPeerSettingsEqualFailsClosedOnUnknownField` renamed, `reactor_api_test.go` split into three files, the learned summary replaced by a journal row, capability changes no longer unconditionally bounce)
+- **Not applicable:** 1 (B5, reasoned at the producer in the Interop Tests section)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who tightens import policy and reloads gets the policy ENFORCED, not merely displayed | functional, against a real BGP speaker | `test/reload/reload-import-policy-applies.ci` PASS. It asserts the edited peer REJECTS the route after the reload while a control peer whose chain no edit touched still accepts it, so the assertion separates "delivered" from "enforced". Mutating the fixture's DENY rule to `action accept` reds it with `ZE-OBSERVER-FAIL: the DENY chain must reject the route after the reload, got accept` |
+| The daemon stops reporting success on a change it discarded | unit | `TestPeerDiffCountCountsSwapAsOneChange` asserts exactly 1. Reproducing the original omission reds it at `expected: 1, actual: 0` (Round-3 table) |
+| The display and the enforcement agree | unit | `TestReloadImportPolicyDisplayMatchesDatapath` reads BOTH `Peers()` and `Peer.ImportFilters()`. Neutralizing `ImportFilters` reds both reads at `expected: ["policy:new-import"], actual: ["policy:old-import"]` |
+| The next field added to `PeerSettings` cannot fall out silently (the rot itself) | unit, fail-closed | `TestPeerSettingsRestartRequiredIsFailClosed`, table-driven over six unclassified fields spanning scalar, map, slice and pointer shapes. Adding one of them to `hotSwappableSettings` reds it (Round-3 table) |
+| The fix does not become a self-inflicted outage on a large fleet | unit + functional | `TestPeerDiffCountIsZeroForAnIdenticalReload` (exactly 0 on two separately built structs) and `test/reload/reload-no-change.ci`. Comparing by identity instead of value reds the first at `expected: 0, actual: 2` |
+| BIRD parity: no restart unless unavoidable | functional | `test/reload/reload-import-policy-no-bounce.ci` proves the edit arrives by a swap rather than a bounce, and `test/reload/reload-capability-restart-names-both-fields.ci` proves the restart branch names EVERY field that forced it, not just the first |
+| No data race on the settings a running session reads | race detector | `TestReloadWhileReceivingNoRace` under `make ze-race-reactor`. Replacing the guarded `peer.ImportFilters()` with the raw `peer.settings.ImportFilters` in `runIngressPolicyChain` reds it with `WARNING: DATA RACE` |
+| Interop | not applicable | Reasoned at the producer in the Interop Tests section: the design sends no ROUTE_REFRESH, the swap branch sends zero bytes, and a scenario asserting that absence would pass with the mechanism deleted |
+
+## Deferrals Resolved
+
+This spec has no deferral shard of its own: `plan/deferrals/bgp-peer-settings-reload-ignored.md`
+does not exist. What follows is every row in any shard that names this spec.
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md`, row of 2026-08-04: a config change touching only the prefix `updated` dates never reaches a running peer, so the prefix-stale warning and `ze_bgp_prefix_stale` cannot clear until a daemon restart. Homed HERE | done | Landed 2026-08-07 as the three edits the row named. Evidence in the row itself: `TestReloadPrefixDatesSwapWithoutRestart`, `TestReloadFreshPrefixDatesClearStaleAlarm`, `TestReloadStalePrefixDatesRaiseStaleAlarm`, `test/reload/reload-prefix-updated-clears-stale.ci`, each of the three edits reverted in turn with a different red |
+
+No shard is removed by this closure. `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md`
+still holds one live `deferred` row, homed at `plan/spec-bgp-peer-metric-labels.md`,
+so the shard outlives this spec. `plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md`
+is mentioned in this spec's body but names no row against it, and its own live row
+is untouched here.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-peer-settings-reload-ignored-640fa955-f03a-45e8-a58f-4b367f5859e6.md` |
+| `review_gate.py check` | clean (hashes match, 14 files recorded) |
+| Rounds | 1. Round 1 found 0 BLOCKER and 0 ISSUE in the product, so the loop ended there (`ai/rules/planning.md`, "Bounding the loop") |
+| Reviewer lenses used | (A) logic, wiring, fail-closed, concurrency. (B) tests, vacuity, AC coverage |
+
+**Independence, stated plainly.** The review ran in a fresh context that authored
+none of this code: the implementation is at HEAD across commits ending
+`9e884d097`, all written by earlier sessions. That satisfies the load-bearing rule
+(`ai/rules/planning.md`: a DIFFERENT context than the author, "or a fresh
+session"). It does NOT satisfy the two-subagent SHAPE, because this closure
+agent's registry carries no Agent tool. The two lenses ran sequentially in one
+context instead. Recorded rather than glossed.
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | `swapPeerSettingsJournaled`'s doc comment justified the pre-apply snapshot by saying the apply writes onto the struct the reconcile loop holds as `current`. Reconcile holds a SNAPSHOT (`SettingsSnapshot`), so that clause is false. The CODE was always correct: the undo is read from the live peer under `p.mu` | `internal/component/bgp/reactor/peer_settings_apply.go` | Comment rewritten to give the real reason, which is that "current" is a stale snapshot AND the apply overwrites the live values |
+| 2 | NOTE | The doc comment for `TestPeerDiffCountCountsSwapAsOneChange` sat far from it, glued to `const prefixStaleTestPeer`, so it documented the wrong symbol | `internal/component/bgp/reactor/peer_settings_swap_test.go` | Moved onto the function, and given a DISCRIMINATION paragraph the new mutation supports |
+| 3 | NOTE | The spec claimed "each test was proved to discriminate (Round-2 table above)" while the Round-1 and Round-2 tables covered neither AC-2 nor AC-6 | this spec | Both mutations RUN rather than the claim softened. Round-3 table above |
+| 4 | NOTE | Documentation checklist row 12 was marked Yes and never written | `docs/architecture/core-design.md` | New section "18a. BGP Peer Reload: Swap or Restart", with two source anchors |
+
+Nothing above is a BLOCKER or an ISSUE, so no round re-opened. Findings 1, 2 and 3
+are record defects, and `ai/rules/planning.md` is explicit that a round whose
+findings are all record defects is the last round.
+
+Checks that could have failed and did not, recorded because their absence is the
+finding: `PeerSettings` holds no unexported field, so `peerSettingsSwapPlan`'s
+`reflect.Value.Interface()` walk cannot panic; `negotiationOutcomeUnchanged`
+answers false on a nil receiver, a nil `next`, a missing OPEN pair, either parse
+error and a changed OPEN header, so every branch fails closed; and
+`applyHotSwappableSettings` releases `p.mu` before calling the two republishers,
+which both re-acquire it and would deadlock on a non-reentrant `RWMutex`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/reload/reload-import-policy-applies.ci` | yes | `ls -la test/reload/` 2026-08-13: 10650 bytes |
+| `test/reload/reload-import-policy-no-bounce.ci` | yes | same listing: 5212 bytes |
+| `test/reload/reload-no-change.ci` | yes | same listing: 2204 bytes |
+| `test/reload/reload-capability-restart-names-both-fields.ci` | yes | same listing: 4787 bytes |
+| `internal/component/bgp/reactor/peer_settings_reload_race_test.go` | yes | `grep -rn "func TestReloadWhileReceivingNoRace"` finds it |
+| `internal/component/bgp/reactor/peer_settings_apply.go` | yes | `gopls symbols` lists `hotSwappableSettings`, `peerSettingsSwapPlan`, `applyHotSwappableSettings` |
+| `internal/component/bgp/reactor/peer_settings_negotiation.go` | yes | `gopls symbols` lists `negotiationOutcomeUnchanged`, `openHeaderEqual` |
+| `plan/learned/NNN-bgp-peer-settings-reload-ignored.md` | no, by design | Replaced by a `plan/journal/` row (Deviations) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The new chain is enforced on subsequently evaluated routes | `test/reload/reload-import-policy-applies.ci` exists and asserts rejection against a control peer; `TestReloadImportPolicyKeepsTheSamePeer` (`peer_settings_swap_test.go`) PASS in the 2026-08-13 package run |
+| AC-2 | `peerDiffCount` reports >= 1 | `TestPeerDiffCountCountsSwapAsOneChange` (`peer_settings_swap_test.go`) PASS. Mutation run 2026-08-13: `expected: 1, actual: 0` |
+| AC-3 | A byte-identical reload bounces nothing | `TestPeerDiffCountIsZeroForAnIdenticalReload` (`peer_settings_swap_test.go`) PASS |
+| AC-4 | The new `route-reflector-client` governs forwarding | `TestReloadRouteReflectorClientReachesForwarding` (`peer_settings_swap_test.go`) PASS |
+| AC-5 | Display and datapath agree | `TestReloadImportPolicyDisplayMatchesDatapath` (`peer_settings_swap_test.go`) PASS |
+| AC-6 | A new field is not silently ignored | `TestPeerSettingsRestartRequiredIsFailClosed` (`peer_settings_swap_test.go`) PASS. Mutation run 2026-08-13: `--- FAIL: .../MinTTL` |
+| AC-7 | No data race on `peer.settings` | `TestReloadWhileReceivingNoRace` (`peer_settings_reload_race_test.go`) PASS; race evidence from `make ze-race-reactor` 2026-08-12 |
+
+Package evidence, 2026-08-13, after every mutation was removed:
+
+```
+$ make ze-test-pkg PKG=./internal/component/bgp/reactor
+ok  	github.com/ze-software/ze/internal/component/bgp/reactor	23.464s
+$ make ze-lint-changed
+(exit 0)
+```
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Operator edits a peer's import policy and reloads | `test/reload/reload-import-policy-applies.ci` | Yes. Read at closure: it drives a real reload over a live session and asserts the DENY chain REJECTS the route while a control peer accepts it. Both halves were mutated in the Round-2 table, and the second mutation separates delivery from evaluation |
+| Operator reloads with NO change | `test/reload/reload-no-change.ci`, plus `TestPeerDiffCountIsZeroForAnIdenticalReload` | Yes. The unit test asserts exactly 0 over two separately built structs, so an identity comparison would red it |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The omission was an oversight: no design note, no learned summary and no comment explained it, and the doc comment at the predicate claimed functional equivalence that was false for nine fields |
+| A-2 | confirmed | A field-by-field list DID rot, and worse than reported: `peerSettingsEqual` compared about 15 of ~50 fields, and `StaticRoutes` by length only. Both replacement guards are subtractions from a derived field set |
+| A-3 | broken | Bouncing on a policy edit was NOT acceptable. Thomas chose soft reconfiguration on 2026-07-16, and the swap branch is the answer. Mistake Log row recorded |
+| A-4 | confirmed | Verified 2026-07-16 by grep and read: nothing else re-applied settings post-reload, and there was no setter on `Peer.settings` |
+
+Surviving risks: R-3 stands as a deliberate behavior change (a policy edit that
+now applies WILL change the RIB, which is the correct behavior) and R-4, the
+filter-CONTENTS facet, which remains unverified and which this spec's own Known
+Limitations exclude. R-1 and R-2 are closed by AC-7 and AC-3.
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 2, config syntax changed | No. The spec adds no config surface; it makes existing surface work. No `.yang` file was touched | Yes |
+| Row 12, internal architecture changed | Yes. `docs/architecture/core-design.md` section 18a written at closure, against `peer_settings_apply.go` and `peer_settings_negotiation.go` read at the producer, with a source anchor on each | Yes |
+| Row 16, changed files referenced by doc source anchors | No. `grep -rn "source: .*reactor_api.go" docs/` returns six anchors, naming `command dispatch`, `DrainPeerSync`, `apiStateObserver`, `OnPeerEstablished`/`OnPeerClosed` and `getMatchingPeersSel`. None describes `peerSettingsEqual` or `reconcilePeersJournaled`, so none went stale | Yes |
+| Row 11, affects daemon comparison | No. `docs/comparison.md` makes no claim about reload semantics; `docs/research/bird-bgp-reference.md` already carries the corrected BIRD parity statement (B4, dated 2026-08-08 in the text) | Yes |
+| B4, the false claim about ze's filter reload path | `docs/research/bird-bgp-reference.md` now states the path did NOT handle the common case, and names `peerSettingsSwapPlan` as the compare-then-act answer | Yes |
+
+## Core Insight
+
+**A guard that enumerates what matters is a guard that fails open, and the fix is
+to make it a SUBTRACTION from a derived set.**
+
+`peerSettingsEqual` listed the fields that counted, so every field nobody added to
+the list compared equal, and an operator's edit was discarded while the daemon
+reported success. The replacement does not list anything: it compares the whole
+struct and subtracts the fields one decision proved deliverable. `openHeaderEqual`
+has the same shape over `message.Open`, and for the same reason, which is worth
+saying because its hand-picked list was TOTAL when it was written. A list that is
+correct today is not a guard. It is a guard that has not met its first new field
+yet.
+
+The second half is that the subtraction has to travel with the decision.
+`peerSettingsSwapPlan` returns the copier it neutralized with, and the apply site
+uses that same function. The original defect was a field judged equal and then
+never delivered; returning the copier makes "classified swappable" and "actually
+delivered" the same object, so they cannot drift apart.
+

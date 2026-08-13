@@ -168,10 +168,12 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 // swapPeerSettingsJournaled delivers each swap to its running peer, recording an
 // undo that restores the peer's previous hot-swappable fields.
 //
-// The undo is a snapshot taken BEFORE the apply, because the apply writes onto the
-// struct the reconcile loop holds as "current": reading the old values afterwards
-// would read the new ones. A rollback therefore returns the running session to the
-// chain it was enforcing, without restarting it either.
+// The undo is read from the RUNNING peer, and BEFORE the apply. Each half has its
+// own reason. The reconcile loop's "current" is a snapshot taken at the top of the
+// diff (SettingsSnapshot, reactor_api.go), so it is not the peer's live value by
+// the time a swap runs. The apply then writes onto the struct the peer holds, so
+// reading it afterwards would read the new values. A rollback therefore returns
+// the running session to the chain it was enforcing, and restarts nothing either.
 //
 // A peer that left the map between the diff and the apply is skipped rather than
 // treated as an error: it is already gone, so there is nothing to keep current.
