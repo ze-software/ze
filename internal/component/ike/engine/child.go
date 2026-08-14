@@ -115,10 +115,15 @@ type ChildSA struct {
 	// no NAT was detected" -- the floated port is what puts the ESP-in-UDP template on
 	// the INBOUND state.
 	//
-	// In production the second implies the first, because every site that sets
-	// NATDetected also floats the SA. They are kept separate because they answer
-	// different questions, and merging them is the defect
-	// plan/spec-fixit-ike-responder-natt-port-float.md records.
+	// In production the FIRST implies the second: every site that sets NATDetected
+	// also floats the SA. They are kept separate because they answer different
+	// questions, and merging them is a defect recorded by
+	// spec-fixit-ike-responder-natt-port-float.
+	//
+	// The implication does NOT run the other way, and that is why the disjunct below
+	// is not redundant. A peer that moved to 4500 with no NAT present floats
+	// localPort through adoptAuthenticatedEndpoint (sa.go) and sets NATDetected
+	// nowhere. That case is the one this leaf exists to catch.
 	//
 	// KNOWN INTEROP CONFLICT, unresolved and NOT to be "fixed" by deleting the
 	// localPort disjunct. strongSwan 5.9.14 moves IKE to 4500 after IKE_SA_INIT with

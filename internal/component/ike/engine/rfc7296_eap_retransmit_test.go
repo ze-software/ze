@@ -184,11 +184,14 @@ func TestEapRtxMidEAPReplayRefusesUnprotected(t *testing.T) {
 //
 // PREVENTS: an amplifier an attacker can run without bound. carriesSKPayload raises the
 // cost of a forgery from a 28-byte header to about forty octets. It does not remove the
-// amplification. RFC 7296 Section 2.21.4 therefore asks for a rate limit as well.
+// amplification, so a rate limit is needed beside it: RFC 7296 Section 2.4 MUST,
+// "Implementations MUST limit the rate at which they take actions based on unprotected
+// messages" (`RFC7296-2.4-12`).
 //
-// This carries no RFC requirement tag. The bound is a Section 2.21.4 defense rather than a
-// Section 2.1 retransmission obligation, and the two Section 2.1 rows are proven by the
-// two tests above.
+// This carries no RFC requirement tag. The bound is a Section 2.4 rate-limit defense
+// rather than a Section 2.1 retransmission obligation. The two Section 2.1 rows are
+// proven by the two tests above. Section 2.21.4 is NOT the source: it opens with "A node
+// needs to limit the rate ...", which is not RFC 2119 language.
 func TestEapRtxMidEAPReplayIsRateLimited(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	resp, ps, authReq := eaprtxResponderMidExchange(t)

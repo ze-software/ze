@@ -59,11 +59,17 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	case inboundRetransmit:
 		// RFC 7296 §2.3: a duplicate request is answered from cache, not reprocessed.
 		//
-		// RFC 7296 Section 2.21.4 MUST NOT: "A peer receiving such an unprotected Notify
-		// payload MUST NOT respond". classifyInbound runs before the message is
-		// authenticated, so an unprotected forgery carrying the cached Message ID
-		// reaches this branch. Both SPIs and the Message ID travel in the clear in every
-		// IKE header, so an attacker who saw one datagram can build that forgery.
+		// RFC 7296 Section 2.4 MUST, requirement RFC7296-2.4-12: "Implementations MUST
+		// limit the rate at which they take actions based on unprotected messages".
+		// classifyInbound runs before the message is authenticated, so an unprotected
+		// forgery carrying the cached Message ID reaches this branch. Both SPIs and the
+		// Message ID travel in the clear in every IKE header, so an attacker who saw one
+		// datagram can build that forgery.
+		//
+		// Section 2.21.4 is NOT the obligation here, though it is the section a reader
+		// reaches for. Its MUST NOTs cover a message marked as a RESPONSE and a peer
+		// receiving an unprotected INVALID_IKE_SPI Notify. For an unprotected REQUEST it
+		// says the node "MAY send a response". Refusing is permitted, not mandated.
 		//
 		// Every genuine post-IKE_AUTH request is protected (RFC 7296 Section 1.4), so
 		// the presence of an Encrypted payload separates a real retransmission from a
@@ -76,10 +82,14 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 			countErrorNotifySuppressed("unprotected-retransmit")
 			return ownedOutcome{}
 		}
-		// RFC 7296 Section 2.21.4 asks for a rate limit on what unprotected traffic
-		// can draw out of this node. The SK-presence test above raises the cost of a
-		// forgery from a 28-byte header to about forty octets. It does not remove the
-		// amplification: the cached response is several hundred octets.
+		// The same `RFC7296-2.4-12` MUST as the guard above, which is why both are
+		// needed and neither is optional. Section 2.21.4 opens with "A node needs to
+		// limit the rate ...", which is not RFC 2119 language, so Section 2.4 carries
+		// the only obligation here.
+		//
+		// The SK-presence test above raises the cost of a forgery from a bare header
+		// to about forty octets. It does not remove the amplification: the cached
+		// response is several hundred octets.
 		//
 		// The token bucket is the second guard, and both are needed. The sibling
 		// site is replayCachedResponse (responder.go). It carries the identical pair

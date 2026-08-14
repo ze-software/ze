@@ -114,9 +114,13 @@ type SA struct {
 
 	// cachedReplayLimiter bounds how often this SA replays lastResponse to an address
 	// it observed rather than to the configured peer.
-	// RFC 7296 Section 2.21.4 requires a rate limit on messages sent in answer to
-	// unprotected traffic. The cached response is the largest thing an
-	// unauthenticated datagram can draw out of Ze (notify_error.go).
+	// RFC 7296 Section 2.4 MUST, requirement RFC7296-2.4-12: "Implementations MUST
+	// limit the rate at which they take actions based on unprotected messages". That
+	// is the obligation, not Section 2.21.4, which only says a node "needs to" limit
+	// the rate and is not RFC 2119 language there.
+	//
+	// The cached response is the largest thing an unauthenticated datagram can draw
+	// out of Ze (notify_error.go).
 	cachedReplayLimiter *outboundNotifyLimiter
 
 	// invalidMsgIDLimiter bounds how many INVALID_MESSAGE_ID notifications this SA
@@ -235,8 +239,19 @@ type SA struct {
 	// in sendPath compares against transport.NATTPort rather than against zero.
 	//
 	// It answers a different question from NATDetected, which selects UDP
-	// encapsulation for the Child SA and starts the keepalive. Merging the two is the
-	// defect plan/spec-fixit-ike-responder-natt-port-float.md records.
+	// encapsulation for the Child SA and starts the keepalive. Merging the two is a
+	// defect, recorded by spec-fixit-ike-responder-natt-port-float.
+	//
+	// The implication runs ONE way, and it holds at every writer of NATDetected.
+	// detectResponderNAT (responder.go) and the two fsm.go branches set it and call
+	// floatToNATTPort in the same branch. The two rekey sites (rekey.go) copy it from
+	// the SA they replace and call inheritSendPath, which carries localPort across.
+	//
+	// The reverse is false, which is what makes reading one for the other a defect.
+	// adoptAuthenticatedEndpoint floats on arrivedOnNATT alone, so a peer that moved
+	// to 4500 with no NAT present floats this port and never sets NATDetected.
+	// Reading NATDetected where the port is meant then sends that peer a datagram it
+	// reads as ESP and drops.
 	localPort uint16
 
 	// ikeSocket and nattSocket are the two sockets this SA can send from. The session

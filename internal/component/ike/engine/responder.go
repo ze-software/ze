@@ -116,13 +116,22 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 // "MUST respond to the address and port from which the request was received".
 //
 // An attacker therefore chooses this destination. The cached IKE_AUTH response is
-// several hundred octets, and the request that draws it is a 28-byte header. An
-// unguarded replay is a spoofable amplifier. Two guards bound it, and both are needed.
+// several hundred octets, and the request that draws it is a 28-byte header. An unguarded
+// replay is a spoofable amplifier. Two guards bound it, and both are needed.
 //
-// RFC 7296 Section 2.21.4 MUST NOT: an unprotected message draws no response. Every
-// genuine retransmission carries an Encrypted payload. carriesSKPayload therefore
-// separates a real one from a bare forged header, and it needs no decrypt
-// (notify_error.go). The token bucket then caps what survives that first guard.
+// RFC 7296 Section 2.4 MUST, requirement RFC7296-2.4-12: "Implementations MUST limit
+// the rate at which they take actions based on unprotected messages". Both guards below
+// serve that one obligation. Every genuine retransmission carries an Encrypted payload.
+// carriesSKPayload therefore separates a real one from a forged header, with no decrypt
+// (notify_error.go). The token bucket then caps what survives it.
+//
+// Refusing to answer is a CHOICE the RFC permits, not an obligation it imposes, and the
+// difference matters to anyone reading this guard later. Section 2.21.4 says of a
+// message outside a known IKE SA that "if the message is marked as a request, the node
+// can audit the suspicious event and MAY send a response". Its MUST NOTs govern other
+// cases, among them a message marked as a RESPONSE and a peer receiving the unprotected
+// INVALID_IKE_SPI Notify that answer produces. None of them is the case here. Ze refuses
+// because the amplification is not worth the courtesy, not because 2.21.4 forbids it.
 func replayCachedResponse(sa *SA, msg *wire.Message, pkt transport.Packet, tr *transport.UDPTransport, log *slog.Logger) bool {
 	if !sa.lastResponseSet || msg.Header.MessageID != sa.lastResponseID {
 		return false

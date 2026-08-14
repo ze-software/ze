@@ -136,12 +136,11 @@ def check():
             check=False,
             timeout=30,
         )
-        # A fixed wait, not a poll of charon's log. charon block-buffers its output, so
-        # `docker logs` returns a frozen snapshot while the exchange is in flight and
-        # catches up only later. A loop that waited for the retransmit line to APPEAR
-        # would therefore run to its own deadline no matter what charon did, and the
-        # blackout would overrun ZE_HANDSHAKE_TIMEOUT. The count is taken at the end
-        # instead, off a settled log.
+        # A fixed wait, not a poll of charon's log, because the blackout must stay
+        # BOUNDED by ZE_HANDSHAKE_TIMEOUT (responderHandshakeTimeout, engine/fsm.go).
+        # A loop that ran to its own deadline waiting for a line would overrun that
+        # timer, and the teardown it caused would fail this scenario for a reason that
+        # has nothing to do with how a duplicate is handled.
         #
         # charon's first retransmit of an unanswered request falls at about 4s, so this
         # window carries at least one duplicate into ze.
@@ -171,9 +170,14 @@ def check():
         "(RFC 7296 Section 2.1)"
     )
 
-    # Vacuity guard, read LAST off a settled log. An establishment with no duplicate in
-    # it says nothing about how a duplicate is handled, and charon's buffering means
-    # this count is only trustworthy once the exchange has finished.
+    # Vacuity guard. An establishment with no duplicate in it says nothing about how a
+    # duplicate is handled.
+    #
+    # Differencing two counts is only sound because charon flushes every line
+    # (flush_line, this scenario's strongswan.conf). Under stdio's default block
+    # buffering a part-one retransmit could sit unflushed at the baseline read and
+    # surface in this one, and the guard would pass on a duplicate that predates the
+    # blackout entirely.
     retransmits_after = docker_logs_all(SWAN_CONTAINER).count("retransmit 1 of request")
     if retransmits_after <= retransmits_before:
         raise AssertionError(
