@@ -717,33 +717,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	var loadConfigFromDisk func() (map[string]any, error)
 	var loadBoth func() (map[string]any, *zeconfig.Tree, error)
 	if configPath != "" && configPath != "-" {
-		readAndParse := func() (*zeconfig.LoadConfigResult, error) {
-			var reloadData []byte
-			var readErr error
-			var hasCandidate bool
-			reloadData, _, hasCandidate, readErr = storage.ReadCandidateConfig(store, configPath)
-			if readErr == nil && !hasCandidate {
-				reloadData, readErr = storage.ReadActiveConfig(store, configPath)
-			}
-			if readErr != nil {
-				reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
-			}
-			if readErr != nil {
-				return nil, fmt.Errorf("read config: %w", readErr)
-			}
-			return zeconfig.LoadConfig(string(reloadData), configPath, plugins)
-		}
-		loadBoth = func() (map[string]any, *zeconfig.Tree, error) {
-			result, err := readAndParse()
-			if err != nil {
-				return nil, nil, err
-			}
-			return result.Tree.ToMap(), result.Tree, nil
-		}
-		loadConfigFromDisk = func() (map[string]any, error) {
-			m, _, err := loadBoth()
-			return m, err
-		}
+		loadConfigFromDisk, loadBoth = diskConfigLoaders(store, configPath, plugins)
 		apiServer.SetConfigLoader(loadConfigFromDisk)
 	}
 

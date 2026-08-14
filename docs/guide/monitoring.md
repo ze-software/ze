@@ -175,7 +175,7 @@ telemetry {
 | `basic-auth/realm` | `ze prometheus` | Basic Auth realm |
 | `basic-auth/username` | unset | Basic Auth username |
 | `basic-auth/password` | unset | Bcrypt-hashed Basic Auth password |
-| `basic-auth/plaintext-password` | unset | Write-only password input, hashed on commit |
+| `basic-auth/plaintext-password` | unset | Write-only password input, hashed at commit and at load |
 | `netdata/enabled` | true | Enable Netdata-compatible OS collectors |
 | `netdata/prefix` | `netdata` | Prefix for Netdata-compatible OS collector metrics only |
 | `netdata/interval` | 1 | Netdata-compatible OS collector sampling interval (1-60s) |
@@ -185,7 +185,10 @@ Deprecated compatibility aliases remain accepted: `prefix`, `interval`, and `col
 
 ### HTTP Basic Authentication
 
-When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when editing the config and the commit hook will replace it with `password`. If automation already has a hash from `ze passwd`, set `password` directly.
+When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when you edit the config and Ze replaces it with `password` at commit. If automation already has a hash from `ze passwd`, set `password` directly.
+
+A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 
 Prometheus scrape configuration:
 

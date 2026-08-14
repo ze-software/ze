@@ -48,7 +48,8 @@ func TestApplyPasswordHashingPlaintextToHash(t *testing.T) {
 	entry.Set("plaintext-password", "secret")
 	auth.AddListEntry("user", "alice", entry)
 
-	require.NoError(t, ApplyPasswordHashing(tree, schema))
+	_, hashErr := ApplyPasswordHashing(tree, schema)
+	require.NoError(t, hashErr)
 
 	alice := tree.GetContainer("system").GetContainer("authentication").GetList("user")["alice"]
 	require.NotNil(t, alice)
@@ -77,12 +78,17 @@ func TestApplyPasswordHashingIdempotent(t *testing.T) {
 	entry.Set("plaintext-password", "secret")
 	auth.AddListEntry("user", "alice", entry)
 
-	require.NoError(t, ApplyPasswordHashing(tree, schema))
+	hashed, hashErr := ApplyPasswordHashing(tree, schema)
+	require.NoError(t, hashErr)
+	assert.Equal(t, []string{"system.authentication.user.alice.password"}, hashed,
+		"the walk reports the canonical leaf it hashed, by dot-path")
 	alice := tree.GetContainer("system").GetContainer("authentication").GetList("user")["alice"]
 	firstHash, _ := alice.Get("password")
 
 	// Second invocation: no plaintext sibling -> no-op.
-	require.NoError(t, ApplyPasswordHashing(tree, schema))
+	hashed, hashErr = ApplyPasswordHashing(tree, schema)
+	require.NoError(t, hashErr)
+	assert.Empty(t, hashed, "a second run hashes nothing, so LoadConfig warns about nothing")
 	secondHash, _ := alice.Get("password")
 	assert.Equal(t, firstHash, secondHash, "second run must not re-hash the canonical")
 }
@@ -101,7 +107,8 @@ func TestApplyPasswordHashingNoPlaintext(t *testing.T) {
 	entry.Set("password", "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234")
 	auth.AddListEntry("user", "bob", entry)
 
-	require.NoError(t, ApplyPasswordHashing(tree, schema))
+	_, hashErr := ApplyPasswordHashing(tree, schema)
+	require.NoError(t, hashErr)
 
 	bob := tree.GetContainer("system").GetContainer("authentication").GetList("user")["bob"]
 	val, ok := bob.Get("password")
@@ -109,12 +116,17 @@ func TestApplyPasswordHashingNoPlaintext(t *testing.T) {
 	assert.Equal(t, "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234", val)
 }
 
-// TestApplyPasswordHashingEmptyPlaintext: empty plaintext is skipped (no-op).
+// TestApplyPasswordHashingEmptyPlaintext: empty plaintext hashes nothing and is
+// still dropped.
 //
-// VALIDATES: hook does not hash the empty string.
+// VALIDATES: two properties of hashPlaintextSibling for an empty value. It does
+// not hash the empty string, and it deletes the leaf anyway, because
+// plaintext-<name> is ze:ephemeral and must not reach a running tree or a
+// serialized file whatever its value.
 //
-// PREVENTS: a stored hash of "" that would match any attacker input
-// submitting an empty password (defense-in-depth).
+// PREVENTS: a stored hash of "" that would match any attacker input submitting an
+// empty password (defense-in-depth), and a write-only leaf surviving into
+// `show config` and into the file the editor commits.
 func TestApplyPasswordHashingEmptyPlaintext(t *testing.T) {
 	schema := bcryptHashSchema()
 	tree := NewTree()
@@ -124,11 +136,15 @@ func TestApplyPasswordHashingEmptyPlaintext(t *testing.T) {
 	entry.Set("plaintext-password", "")
 	auth.AddListEntry("user", "eve", entry)
 
-	require.NoError(t, ApplyPasswordHashing(tree, schema))
+	_, hashErr := ApplyPasswordHashing(tree, schema)
+	require.NoError(t, hashErr)
 
 	eve := tree.GetContainer("system").GetContainer("authentication").GetList("user")["eve"]
 	_, ok := eve.Get("password")
 	assert.False(t, ok, "canonical must not be populated from empty plaintext")
+
+	_, plainOK := eve.Get("plaintext-password")
+	assert.False(t, plainOK, "the ephemeral leaf is dropped even when it is empty")
 }
 
 // TestApplyPasswordHashingMultipleUsers: each list entry is processed independently.
@@ -150,7 +166,8 @@ func TestApplyPasswordHashingMultipleUsers(t *testing.T) {
 	b.Set("plaintext-password", "bobpw")
 	auth.AddListEntry("user", "bob", b)
 
-	require.NoError(t, ApplyPasswordHashing(tree, schema))
+	_, hashErr := ApplyPasswordHashing(tree, schema)
+	require.NoError(t, hashErr)
 
 	users := tree.GetContainer("system").GetContainer("authentication").GetList("user")
 
@@ -169,9 +186,14 @@ func TestApplyPasswordHashingMultipleUsers(t *testing.T) {
 //
 // PREVENTS: panics in call sites that pass optional tree/schema.
 func TestApplyPasswordHashingNilInputs(t *testing.T) {
-	assert.NoError(t, ApplyPasswordHashing(nil, nil))
-	assert.NoError(t, ApplyPasswordHashing(NewTree(), nil))
-	assert.NoError(t, ApplyPasswordHashing(nil, NewSchema()))
+	for _, c := range []struct {
+		tree   *Tree
+		schema *Schema
+	}{{nil, nil}, {NewTree(), nil}, {nil, NewSchema()}} {
+		hashed, err := ApplyPasswordHashing(c.tree, c.schema)
+		assert.NoError(t, err)
+		assert.Empty(t, hashed, "a no-op walk reports no hashed leaf")
+	}
 }
 
 // TestIsBcryptHash exercises the format check at boundaries.
@@ -254,7 +276,7 @@ func TestApplyPasswordHashingOversizePlaintextRejected(t *testing.T) {
 	entry.Set("plaintext-password", strings.Repeat("a", 73))
 	auth.AddListEntry("user", "alice", entry)
 
-	err := ApplyPasswordHashing(tree, schema)
+	_, err := ApplyPasswordHashing(tree, schema)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "too long")
 	assert.Contains(t, err.Error(), "72")

@@ -20,6 +20,56 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// diskConfigLoaders builds the two config loaders the SIGHUP path runs on:
+// the map-only one the plugin server takes as its ConfigLoader (diff + plugin
+// reload) and the map-plus-tree one doReload passes to runReload.
+//
+// Both go through zeconfig.LoadConfig, which is where the config transforms
+// live: the ze:validate custom validators, and the ze:bcrypt password hashing.
+// The reload therefore needs no branch of its own for either -- the SAME
+// function that hashes a plaintext-password at boot hashes it at SIGHUP.
+//
+// It reads the candidate first, then the active version, then the file, which
+// is what makes a store that is blob-only (gokrazy read-only root, ze-test
+// tmpfs) reload from a filesystem path at all.
+//
+// This is a named function rather than a closure inside runYANGConfig so a test
+// can drive the loader the daemon actually uses. A test that builds its own
+// closure proves only that the test can call LoadConfig.
+func diskConfigLoaders(store storage.Storage, configPath string, plugins []string) (
+	loadMap func() (map[string]any, error),
+	loadBoth func() (map[string]any, *zeconfig.Tree, error),
+) {
+	readAndParse := func() (*zeconfig.LoadConfigResult, error) {
+		var reloadData []byte
+		var readErr error
+		var hasCandidate bool
+		reloadData, _, hasCandidate, readErr = storage.ReadCandidateConfig(store, configPath)
+		if readErr == nil && !hasCandidate {
+			reloadData, readErr = storage.ReadActiveConfig(store, configPath)
+		}
+		if readErr != nil {
+			reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
+		}
+		if readErr != nil {
+			return nil, fmt.Errorf("read config: %w", readErr)
+		}
+		return zeconfig.LoadConfig(string(reloadData), configPath, plugins)
+	}
+	loadBoth = func() (map[string]any, *zeconfig.Tree, error) {
+		result, err := readAndParse()
+		if err != nil {
+			return nil, nil, err
+		}
+		return result.Tree.ToMap(), result.Tree, nil
+	}
+	loadMap = func() (map[string]any, error) {
+		m, _, err := loadBoth()
+		return m, err
+	}
+	return loadMap, loadBoth
+}
+
 // handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,
 // triggers plugin-level reload via ReloadFromDisk, refreshes the shared
 // ConfigProvider with the freshly loaded tree, then fans Reload out to every

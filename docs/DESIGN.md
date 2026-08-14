@@ -495,9 +495,27 @@ graph LR
     Tree --> Plugins["ExtractPluginsFromTree()"] --> PI["Plugin Infrastructure"]
 ```
 
+`LoadConfig` runs three whole-tree passes between the parse and
+`ExtractPluginsFromTree`, in this order. The registered value validators judge the
+tree the operator wrote. Then `RejectMaskedBcryptLeaves` refuses a `ze:bcrypt` leaf
+holding the display placeholder. Then `ApplyPasswordHashing` bcrypt-hashes the
+`plaintext-<name>` sibling of every such leaf, so a credential is canonical before
+any consumer reads it.
+
+The last two are one pair, and the editor commit path makes the same two calls in
+the same order, so one implementation guards and hashes a credential on either
+route. The validation pass belongs to the loader alone. `refuseInvalidCustomSections`
+calls `ValidateCustomSections`, and the one other caller of that function is
+`ze config validate`. The editor commit path makes no validation call.
+
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree() -->
 <!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree() -->
-<!-- source: internal/component/config/loader.go -- LoadConfig, ExtractPluginsFromTree -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, refuseInvalidCustomSections, RejectMaskedBcryptLeaves, ApplyPasswordHashing, ExtractPluginsFromTree -->
+<!-- source: internal/component/config/mask.go -- RejectMaskedBcryptLeaves -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+<!-- source: internal/component/config/validate_sections.go -- refuseInvalidCustomSections, ValidateCustomSections -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ValidateCustomSections -->
+<!-- source: internal/component/cli/editor_commit.go -- ApplyPasswordHashing -->
 
 ### Inheritance
 

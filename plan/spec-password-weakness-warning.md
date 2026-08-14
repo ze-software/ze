@@ -12,10 +12,15 @@ work, learned 1181): the R-4 risk materialized benignly -- 1181 touched the
 same three commit sites and wired `RejectMaskedBcryptLeaves` there, shifting
 anchors ~6-9 lines (citations below updated in-body): `editor_commit.go`
 152 -> 158 and 312 -> 321; `MigrationWarning` build 190 -> 196 and
-330 -> 339. `ApplyPasswordHashing` is
-still error-only (`password_hash.go`) and `hashPlaintextSibling`'s empty
-no-op is preserved, so AC-5 holds. Rebase the helper wiring onto
+330 -> 339. Rebase the helper wiring onto
 the current commit-site lines per R-4's stated mitigation.
+
+**Superseded 2026-08-14 by spec-netlab-integration.** Two premises stated here are
+now false. `ApplyPasswordHashing` is no longer error-only: it returns
+`([]string, error)`, the dot-paths it hashed, which is the warning channel this
+spec's Key Design Decisions section says does not exist. And the empty case is no
+longer a no-op: it hashes nothing, as before, and now DELETES the ephemeral leaf.
+AC-5 still holds, for the corrected reason recorded in its own row.
 
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
@@ -68,15 +73,19 @@ placeholder "N". Neither is a final decision.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` (password_hash.go) reads the plaintext sibling (:155-158) and bcrypt-hashes it (:159), rejecting only empty (:156-158 returns nil no-op) and too-long (:161-164). No strength check. `ApplyPasswordHashing` (:88) is the commit entry point.
+- [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` reads the plaintext sibling and bcrypt-hashes it, hashing nothing for an empty value and returning an error for a too-long one. No strength check. `ApplyPasswordHashing` is the entry point.
+  → Constraint (corrected 2026-08-14 by spec-netlab-integration): the empty case is NO LONGER a no-op. It hashes nothing, as before, and it now DELETES the ephemeral `plaintext-` leaf, so the leaf reaches neither the running tree nor a serialized file. `ApplyPasswordHashing` also has a second entry point now: `LoadConfig` calls it, so a config FILE reaches this code and not only an editor commit.
 - [ ] `internal/plugins/passwd/main.go` - `runImpl` (main.go) reads plaintext (:66), rejects empty (:71-74) and too-long (:77-79), then hashes (:75). No strength check.
 
 ### Post-wave corrections (2026-07-10)
 
 All refs re-verified against current code: NO drift. `ApplyPasswordHashing`
-(password_hash.go), `hashPlaintextSibling` (:153-170 with empty no-op
-:156-158, hash :159, too-long :161-164) and `runImpl` (main.go, empty
+(password_hash.go), `hashPlaintextSibling` and `runImpl` (main.go, empty
 :71-74, hash :75, too-long :77-79) all match the citations above exactly.
+
+**Superseded 2026-08-14 by spec-netlab-integration.** The line citations into
+`password_hash.go` are stale, and the "empty no-op" reading is now false: the
+empty branch deletes the ephemeral leaf. Re-read the file before implementing.
 
 Additional evidence strengthening A-1 (warning channel): the SAME file already
 produces advisory warnings on this exact surface -- `CheckBcryptLeaves`
@@ -122,7 +131,7 @@ the new test is `test/parse/password-weakness-warning.ci`.
 
 ### Integration Points
 - New shared helper (e.g. under the config or a small auth util package) taking plaintext, returning an optional weakness reason.
-- `internal/component/config/password_hash.go` - call the helper in `hashPlaintextSibling` before hashing. Today `ApplyPasswordHashing` and `hashPlaintextSibling` return error-only, and there is no warning-carrying return: the reason must be threaded out of `ApplyPasswordHashing` (new out-param or a `([]string, error)` / result-struct return) so the three commit call sites can surface it. `CheckBcryptLeaves` is NOT the route -- its only non-test caller besides `ze config validate` (`internal/component/cli/validator.go`) never sets a password.
+- `internal/component/config/password_hash.go` - call the helper in `hashPlaintextSibling` before hashing. **Corrected 2026-08-14:** `ApplyPasswordHashing` now returns `([]string, error)` and `hashPlaintextSibling` returns `(bool, error)`, so the warning-carrying return this bullet asked for already exists in the shape it proposed. Thread the reason through those, and note there are now FOUR call sites, not three: `LoadConfig` (`internal/component/config/loader.go`) is a config-file entry point this spec's Data Flow does not list. `CheckBcryptLeaves` is NOT the route -- its only non-test caller besides `ze config validate` (`internal/component/cli/validator.go`) never sets a password.
 - `internal/component/cli/editor_commit.go,321` - map the returned reason into `CommitResult.MigrationWarning` (built at `:196`, `:339`).
 - `internal/component/cli/editor_commands.go` - `commitContent()` returns only `(string, error)` today, so this site must also gain a warning surface (extend its signature or route to the editor's status/warning path) for AC-1/AC-2 to hold here.
 - `internal/plugins/passwd/main.go` - call the helper in `runImpl` before hashing; write the reason to `errOut`.
@@ -137,7 +146,10 @@ the new test is `test/parse/password-weakness-warning.ci`.
 
 **The warning-channel route (load-bearing).** No path today both emits a warning
 AND sets the password: `ApplyPasswordHashing` (`internal/component/config/password_hash.go`)
-and `hashPlaintextSibling` return error-only, and `CommitResult` carries a
+and `hashPlaintextSibling` return error-only (**corrected 2026-08-14: they no longer
+do. `ApplyPasswordHashing` returns `([]string, error)` and `hashPlaintextSibling`
+returns `(bool, error)`, so the channel exists and `LoadConfig` already uses it to
+warn. Re-derive this decision before implementing**), and `CommitResult` carries a
 single-purpose `MigrationWarning` string (`internal/component/cli/contract/contract.go,63`)
 built only at `internal/component/cli/editor_commit.go,339`. The
 `CheckBcryptLeaves` -> `validator.go` warning walk is the `ze config validate`
@@ -190,7 +202,7 @@ re-approving the design.
 | AC-2 | password matching the embedded denylist | warning emitted; password still set |
 | AC-3 | password matching denylist (different case) | warning emitted (case-insensitive) |
 | AC-4 | strong password (long, not in list) | no warning |
-| AC-5 | empty password | unchanged, and no weakness warning: config path is a NO-OP (`password_hash.go` returns nil, leaf untouched -- not a rejection); `ze passwd` still rejects it (`internal/plugins/passwd/main.go`) |
+| AC-5 | empty password | unchanged, and no weakness warning: the config path hashes nothing, so there is no password to judge. It is not a rejection. Corrected 2026-08-14: the leaf is no longer left untouched, it is DELETED, so a weakness check placed after the hash never sees it. `ze passwd` still rejects an empty value (`internal/plugins/passwd/main.go`) |
 | AC-6 | password over 72 bytes | still rejected (unchanged) |
 | AC-7 | `ze passwd` with a weak value | warning on stderr; hash still printed |
 

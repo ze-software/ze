@@ -9,7 +9,7 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-08-06
+Last updated: 2026-08-14
 
 ## Overview
 
@@ -298,6 +298,7 @@ one.
 | Runtime health monitoring | Yes | No | No | No | No | No | No | No | No | No | No |
 | Pre-start readiness checks | Yes | No | No | No | No | No | No | No | No | No | No |
 | Docker image | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
+| netlab lab integration | Yes (daemon, in-repo, unvalidated) | No | Yes (daemon) | Yes (device) | Yes (device) | Not found | Not found | Not found | Not found | Not found | Not found |
 | Fuzz testing | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
 | Interop test suite | Yes | No | No | No | No | No | Partial | No | No | Yes | Yes |
 | Static routes (ECMP+BFD) | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | Yes |
@@ -330,6 +331,27 @@ marked `Unclear`: it runs its own IP stack, and this claim was not checked
 against its source.
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- Router Advertisement send loop -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+
+**netlab lab integration:** [netlab](https://netlab.tools) builds a lab from a YAML
+topology and runs each node under containerlab. Scope: netlab 26.08, inspected at
+`netsim/daemons/` and `netsim/devices/`. `Not found` means not found in that scope.
+BIRD is a daemon there and the recipe builds BIRD 2.19.1, so the BIRD 3 column is `No`
+rather than a gap. OpenBGPd is reached through the `openbsd` device and a vrnetlab
+image. FRR is reached through a device and the `quay.io/frrouting/frr:10.6.1`
+container.
+
+Each daemon declares what it supports in a `features:` block. Ze declares 6 keys
+(initial, bgp, ospf, isis, bfd, routing), BIRD declares 10, and FRR declares 19. FRR
+covers EVPN, MPLS, SR, SRv6, VRF, VXLAN, VLAN, LAG and STP. Ze declares none of them.
+IS-IS is the one place where the ze daemon declares a protocol the BIRD daemon does
+not.
+
+Every ze key is rendered and parsed by `make ze-netlab-render-check`. No key is
+validated against netlab's own integration tests, because a live lab was never started
+here. Ze's artifacts are in this repository at `contrib/netlab/` and are not upstream
+yet.
+<!-- source: contrib/netlab/ze.yml -- features, daemon_config -->
+<!-- source: netlab 26.08 (Python package netsim, __init__.py __version__) -- netsim/daemons/bird.yml features and clab.sw_version 2.19.1; netsim/devices/frr.yml features and clab.image; netsim/devices/openbsd.yml clab.image -->
 
 **Update groups:** Ze automatically groups peers by encoding context (ContextID) and builds each UPDATE once per group, fanning out the wire bytes to all members. No configuration needed. FRR requires explicit peer-group assignment for update group optimization. BIRD batches updates in its write loop but does not have a cross-peer build-sharing mechanism.
 <!-- source: internal/component/bgp/reactor/update_group.go -- automatic grouping by sendCtxID -->

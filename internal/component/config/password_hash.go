@@ -78,22 +78,42 @@ const plaintextPrefix = "plaintext-"
 
 // ApplyPasswordHashing walks the tree and, for every schema leaf marked
 // ze:bcrypt (LeafNode.Bcrypt), bcrypt-hashes the value of the sibling
-// "plaintext-<name>" leaf into the canonical leaf. The plaintext sibling
-// is removed after hashing. No-op if the plaintext sibling is absent or
-// empty. Idempotent: an already-hashed canonical leaf with no plaintext
-// sibling is left untouched.
+// "plaintext-<name>" leaf into the canonical leaf.
 //
-// Invoke this before persisting the tree (editor commit, cmd_set, cmd_import).
-func ApplyPasswordHashing(tree *Tree, schema *Schema) error {
+// The plaintext sibling is removed on every path that returns without an error,
+// whether or not it was hashed. An EMPTY sibling hashes nothing and is still
+// deleted, because the leaf is ze:ephemeral: it must reach neither a running tree
+// nor a serialized file. An ABSENT sibling is the no-op, and it is what makes the
+// call idempotent: an already-hashed canonical leaf is left untouched. A sibling
+// over bcrypt's 72-byte limit is the exception and survives, because that path
+// returns an error and every caller aborts on it.
+//
+// It returns the dot-path of every canonical leaf it HASHED, and nil when it
+// hashed nothing. Order follows the schema walk, except across the entries of
+// one list, which come from a Go map and are unordered. The caller that reads
+// it is LoadConfig, which writes no file itself, so it must warn that the
+// plaintext is still where the operator put it, and it can only know that from
+// this walk. Making the walk report what it did is what keeps a second walk
+// (and a second spelling of the plaintext- prefix rule) out of the tree.
+//
+// Invoke this before persisting the tree (editor commit, cmd_set, cmd_import),
+// and on the load path before anything reads a credential.
+func ApplyPasswordHashing(tree *Tree, schema *Schema) ([]string, error) {
 	if tree == nil || schema == nil {
-		return nil
+		return nil, nil
 	}
-	return walkHashNodes(tree, schema.root)
+	var hashed []string
+	if err := walkHashNodes(tree, schema.root, "", &hashed); err != nil {
+		return nil, err
+	}
+	return hashed, nil
 }
 
 // walkHashNodes recursively applies the bcrypt transform at the current
-// tree/schema level and descends into every child-bearing node.
-func walkHashNodes(tree *Tree, node Node) error {
+// tree/schema level and descends into every child-bearing node. prefix is the
+// dot-path of the current level, and every canonical leaf hashed is appended to
+// hashed.
+func walkHashNodes(tree *Tree, node Node, prefix string, hashed *[]string) error {
 	cp, ok := node.(childProvider)
 	if !ok {
 		return nil
@@ -101,12 +121,16 @@ func walkHashNodes(tree *Tree, node Node) error {
 	for _, childName := range cp.Children() {
 		child := cp.Get(childName)
 		if leaf, ok := child.(*LeafNode); ok && leaf.Bcrypt {
-			if err := hashPlaintextSibling(tree, childName); err != nil {
+			did, err := hashPlaintextSibling(tree, childName)
+			if err != nil {
 				return err
+			}
+			if did {
+				*hashed = append(*hashed, joinDotPath(prefix, childName))
 			}
 			continue
 		}
-		if err := descend(tree, childName, child); err != nil {
+		if err := descend(tree, childName, child, joinDotPath(prefix, childName), hashed); err != nil {
 			return err
 		}
 	}
@@ -122,48 +146,60 @@ func walkHashNodes(tree *Tree, node Node) error {
 // List, Flex) does not produce a node whose Children() includes itself; if
 // a future schema feature introduces recursion, the fallback walk would
 // loop. Bound by node-graph traversal depth in practice.
-func descend(tree *Tree, name string, node Node) error {
+func descend(tree *Tree, name string, node Node, path string, hashed *[]string) error {
 	if c, ok := node.(*ContainerNode); ok {
 		if sub := tree.GetContainer(name); sub != nil {
-			return walkHashNodes(sub, c)
+			return walkHashNodes(sub, c, path, hashed)
 		}
 		return nil
 	}
 	if l, ok := node.(*ListNode); ok {
-		for _, entry := range tree.GetList(name) {
-			if err := walkHashNodes(entry, l); err != nil {
+		for key, entry := range tree.GetList(name) {
+			if err := walkHashNodes(entry, l, joinDotPath(path, key), hashed); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
 	if _, ok := node.(childProvider); ok {
-		return walkHashNodes(tree, node)
+		return walkHashNodes(tree, node, path, hashed)
 	}
 	return nil
 }
 
 // hashPlaintextSibling hashes the plaintext-<canonical> leaf into <canonical>
-// and deletes the plaintext sibling. No-op if plaintext is absent or empty.
+// and deletes the plaintext sibling. An ABSENT sibling is the no-op. An EMPTY
+// one hashes nothing and is deleted anyway, because the leaf is ze:ephemeral.
+// The bool reports whether a hash was written, so the empty case returns false.
 // Returns an error if the plaintext exceeds bcrypt's 72-byte limit (vendored
 // bcrypt rejects with ErrPasswordTooLong) so the commit fails fast instead of
 // silently storing a hash that only validates a prefix of the user's input.
 // The caller surfaces this as a commit failure with a clear message.
-func hashPlaintextSibling(tree *Tree, canonical string) error {
+func hashPlaintextSibling(tree *Tree, canonical string) (bool, error) {
 	plaintextKey := plaintextPrefix + canonical
 	plaintext, ok := tree.Get(plaintextKey)
-	if !ok || plaintext == "" {
-		return nil
+	if !ok {
+		return false, nil
+	}
+	// An empty plaintext leaf is not a password, so there is nothing to hash and
+	// nothing to warn about. It is still an EPHEMERAL leaf, so it is dropped
+	// rather than carried into the running tree: the leaf exists to be consumed
+	// here, and `show config` must never display it. The canonical leaf keeps
+	// whatever it held, which for an unset password is empty, and CheckPassword
+	// (internal/component/authz/auth.go) refuses an empty hash.
+	if plaintext == "" {
+		tree.Delete(plaintextKey)
+		return false, nil
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintext), bcrypt.DefaultCost)
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
-			return fmt.Errorf("%s: password too long (%d bytes; bcrypt limit is 72)",
+			return false, fmt.Errorf("%s: password too long (%d bytes; bcrypt limit is 72)",
 				canonical, len(plaintext))
 		}
-		return fmt.Errorf("bcrypt %s: %w", canonical, err)
+		return false, fmt.Errorf("bcrypt %s: %w", canonical, err)
 	}
 	tree.Set(canonical, string(hash))
 	tree.Delete(plaintextKey)
-	return nil
+	return true, nil
 }

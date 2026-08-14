@@ -9,6 +9,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestParsingSuiteHonorsTmpfsMode verifies the PARSE suite materializes a tmpfs
+// block with the mode the block declares.
+//
+// VALIDATES: setupWorkDir writes through tmpfs.WriteTo, so `mode=755` and the
+// executable default of a `.sh` path both reach disk.
+// PREVENTS: the defect this test was written for. setupWorkDir open-coded the
+// write loop with a fixed 0o644, so `exec=./script.sh` in a test/parse/*.ci
+// failed with "fork/exec: permission denied" -- the directive was parsed,
+// accepted and silently ignored, while every other suite honored it.
+func TestParsingSuiteHonorsTmpfsMode(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ciContent := `tmpfs=driver.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+exit 0
+EOF_SH
+
+tmpfs=router.conf:terminator=EOF_CONF
+bgp {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=./driver.sh
+expect=exit:code=0
+`
+	ciFile := filepath.Join(tmpDir, "mode-honored.ci")
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+
+	pt := NewParsingTests(tmpDir)
+	test, err := pt.parseCIFile(ciFile)
+	require.NoError(t, err)
+
+	r := NewParsingRunner(pt, tmpDir, "ze")
+	workDir, err := r.setupWorkDir(test)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(workDir) })
+
+	script, err := os.Stat(filepath.Join(workDir, "driver.sh"))
+	require.NoError(t, err)
+	assert.NotZero(t, script.Mode().Perm()&0o100, "a mode=755 script must be executable by its owner")
+
+	conf, err := os.Stat(filepath.Join(workDir, "router.conf"))
+	require.NoError(t, err)
+	assert.Zero(t, conf.Mode().Perm()&0o111, "a block with no mode= keeps the non-executable default")
+}
+
 // TestParseTmpfsInCI verifies tmpfs blocks are parsed from .ci files.
 //
 // VALIDATES: tmpfs blocks extracted and stored in TmpfsFiles map.

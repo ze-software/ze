@@ -20,6 +20,13 @@ kill -HUP $(pidof ze)               # Direct signal
 | Plugin config changed | Plugin reloaded |
 | Static routes changed | New routes announced, old withdrawn |
 | Capability changes | Session restarted to renegotiate |
+| A user given a new `plaintext-password` | Ze hashes the leaf during the load, and the user logs in with the new password |
+
+The reload runs the same loader as daemon start, so it applies the password transform
+with no branch of its own. Every load that hashes a leaf warns that the file still
+holds the plaintext. Refer to
+[Passwords in a config file](authentication.md#passwords-in-a-config-file).
+<!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing, warnPlaintextOnDisk -->
 
 ## What Requires Restart
 

@@ -354,6 +354,20 @@ func hasFormatOp(ops []pipeOp) bool {
 	return false
 }
 
+// HasFormatPipe reports whether the input's pipe chain names an output format
+// (json, ndjson, table, text, yaml).
+//
+// A caller that carries a default format of its own uses this to step aside:
+// what the operator typed outranks a default. ProcessPipesDetectLog already
+// applies that precedence internally, by appending the configured default only
+// when the chain names no format. A caller that goes through
+// ProcessPipesChecked has to apply it itself, and this is what it asks.
+func HasFormatPipe(input string) bool {
+	command, ops := ParsePipe(input)
+	_, ops, _ = foldFilters(command, ops)
+	return hasFormatOp(ops)
+}
+
 // ValidatePipes checks a pipe chain for errors without running it.
 // Returns an error message if invalid, empty string if OK.
 func ValidatePipes(ops []pipeOp) string {

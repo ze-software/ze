@@ -1,0 +1,6 @@
+# netlab writes this file to /etc/ze/isis.ignore and nothing reads it.
+#
+# Ze has no include directive, so ze/ze.j2 renders the isis configuration into
+# /etc/ze/ze.conf with the rest of the running configuration. This stub exists
+# because netlab needs one configuration template per declared module: without
+# it, `netlab create` fails with "Cannot find isis configuration template".

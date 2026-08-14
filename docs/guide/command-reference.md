@@ -1854,8 +1854,10 @@ bgp decode/encode, env, schema, yang, completion). These are dispatched
 via local handlers before attempting SSH connection.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
-`--format <format>` (default: yaml).
-<!-- source: internal/component/cli/client/main.go -- Run -->
+`--format <format>` (default: yaml). A format pipe inside the command wins over the
+flag, so `ze cli -c "show bgp peer list | json compact"` prints JSON.
+<!-- source: internal/component/cli/client/main.go -- Run, renderCommandOutput -->
+<!-- source: internal/component/command/pipe.go -- HasFormatPipe -->
 
 ### Peer Selector
 

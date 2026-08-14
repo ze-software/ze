@@ -77,6 +77,7 @@ KNOWN_ROOTS = {
     "etc",
     "examples",
     "api",
+    "contrib",
     "gokrazy",
     "third_party",
     "parked",

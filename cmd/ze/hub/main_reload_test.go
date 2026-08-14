@@ -7,15 +7,18 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
@@ -364,6 +367,97 @@ func TestAwaitReloadWorker(t *testing.T) {
 			t.Errorf("waited %v for a worker that never returns, want the grace", elapsed)
 		}
 	})
+}
+
+// TestReloadHashesPlaintextPassword: SIGHUP inherits the password transform.
+//
+// VALIDATES: spec-netlab-integration AC-2 -- the reload path has no branch of
+// its own. diskConfigLoaders (main_reload.go) is the loader the daemon installs
+// for SIGHUP, it goes through zeconfig.LoadConfig, and the tree it hands
+// runReload carries the bcrypt hash rather than the operator's plaintext.
+//
+// PREVENTS: a fix applied to boot only. Hashing at start and not at reload
+// would lock every user out on the first SIGHUP after they set a password,
+// which is worse than the defect being fixed. Driving diskConfigLoaders rather
+// than a load closure written here is what makes this a wiring test: a
+// hand-built closure would prove only that the test can call LoadConfig.
+func TestReloadHashesPlaintextPassword(t *testing.T) {
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+
+	dir := t.TempDir()
+	store := storage.NewFilesystem()
+	configPath := filepath.Join(dir, "router.conf")
+	config := `bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65533; remote 65533; }
+		}
+	}
+}
+
+system {
+	authentication {
+		user lab {
+			plaintext-password "labsecret";
+		}
+	}
+}
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
+
+	_, loadBoth := diskConfigLoaders(store, configPath, nil)
+
+	treeMap, tree, err := loadBoth()
+	require.NoError(t, err)
+
+	lab := tree.GetContainer("system").GetContainer("authentication").GetList("user")["lab"]
+	require.NotNil(t, lab)
+	hash, ok := lab.Get("password")
+	require.True(t, ok, "the reload loader must populate the canonical password leaf")
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte("labsecret")))
+	_, plainOK := lab.Get("plaintext-password")
+	assert.False(t, plainOK, "the ephemeral plaintext leaf must not survive the reload")
+
+	// The map the plugin runtime receives carries the same hash, so a plugin
+	// reading credentials after a SIGHUP sees the hashed leaf, not an empty one.
+	assert.Equal(t, hash, reloadUserPassword(t, treeMap, "lab"))
+
+	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
+	require.NoError(t, err)
+	t.Cleanup(func() { server.Stop() })
+
+	require.NoError(t, doReload(server, nil, nil, store, configPath, loadBoth, nil))
+	installed := reloadUserPassword(t, reactor.setTree, "lab")
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(installed), []byte("labsecret")),
+		"the tree the reload installed carries a hash of the operator's password")
+	// R-6, measured here rather than assumed: bcrypt salts randomly, so each
+	// load of the same file yields a DIFFERENT hash. The credential is the same
+	// one either way; what it costs is the plugin-server diff seeing `system`
+	// change on every SIGHUP, which the spec accepted for a config that carries
+	// a plaintext password at all.
+	assert.NotEqual(t, hash, installed, "each load re-salts, so the two hashes differ")
+}
+
+// reloadUserPassword reads system.authentication.user.<name>.password out of a
+// tree map, the shape Tree.ToMap produces (a list is a map keyed by list key).
+func reloadUserPassword(t *testing.T, tree map[string]any, name string) string {
+	t.Helper()
+	system, ok := tree["system"].(map[string]any)
+	require.True(t, ok, "tree carries a system container")
+	auth, ok := system["authentication"].(map[string]any)
+	require.True(t, ok, "system carries authentication")
+	users, ok := auth["user"].(map[string]any)
+	require.True(t, ok, "authentication carries a user list")
+	entry, ok := users[name].(map[string]any)
+	require.True(t, ok, "the user list carries %q", name)
+	password, ok := entry["password"].(string)
+	require.True(t, ok, "user %q carries a password leaf", name)
+	return password
 }
 
 func mustParseReloadStamp(t *testing.T, stamp string) time.Time {

@@ -96,7 +96,7 @@ func maskBcryptWalk(tree *Tree, node Node) {
 
 // RejectMaskedBcryptLeaves returns an error if any ze:bcrypt leaf in tree holds
 // exactly SecretDataPlaceholder — the value the display mask emits. It is a
-// fail-closed guard for the commit and upload/validate entry points: a masked
+// fail-closed guard for the commit, load and upload/validate entry points: a masked
 // `show config` (or a downloaded-then-hand-edited artifact that lost the raw
 // hash) pasted back into a commit would otherwise clobber the stored password
 // with the placeholder. Rejecting (rather than silently resolving the
@@ -113,7 +113,7 @@ func RejectMaskedBcryptLeaves(tree *Tree, schema *Schema) error {
 	if len(masked) == 0 {
 		return nil
 	}
-	return fmt.Errorf("config leaf %s holds the display placeholder %q: the bcrypt hash was masked for display and cannot be committed. Restore the real hash from the edit-authorized raw config download, or set the password via plaintext-<name> (e.g. plaintext-password) or 'ze passwd'",
+	return fmt.Errorf("config leaf %s holds the display placeholder %q: the bcrypt hash was masked for display and cannot be used. Restore the real hash from the edit-authorized raw config download, or set the password via plaintext-<name> (e.g. plaintext-password) or 'ze passwd'",
 		strings.Join(masked, ", "), SecretDataPlaceholder)
 }
 

@@ -1001,7 +1001,7 @@ func (e *Editor) commitContent() (string, error) {
 		if err := config.RejectMaskedBcryptLeaves(e.tree, e.schema); err != nil {
 			return "", err
 		}
-		if err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {
+		if _, err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {
 			return "", fmt.Errorf("hash password: %w", err)
 		}
 	}

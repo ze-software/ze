@@ -1,0 +1,256 @@
+{#
+  The WHOLE running configuration for a netlab node running ze.
+
+  Ze has no include directive, so one template renders every module. The other
+  templates in this directory write ignore files that nothing reads; the reason
+  is in contrib/netlab/ze.yml, beside the daemon_config map that needs them.
+
+  netlab hands this template one node's data model (host_vars/<node>/
+  topology.json). The keys read here:
+
+    module            the modules active on THIS node, which is a subset of the
+                      modules the topology declares
+    interfaces[]      ifname, ipv4 (CIDR), ifindex, and one sub-dict per module
+    loopback          the router's loopback interface
+    bgp               as, router_id, neighbors[]
+    ospf              router_id, areas[]
+    isis              net, type
+    bfd               min_tx, min_rx, multiplier, all in milliseconds
+    routing.static[]  prefix and nexthop
+
+  `make ze-netlab-render-check` renders this against contrib/netlab/topology.yml
+  and compares the result with contrib/netlab/golden/, then runs
+  `ze config validate` on the golden files. A change here that ze would reject
+  fails that check.
+#}
+{% set module = module|default([]) %}
+{% set lab_user = netlab_lab_user|default('netlab') %}
+{% set lab_password = netlab_lab_password|default('netlab') %}
+{#  Map a netlab interface index to the interface itself, for the BGP peers
+    whose local address is the address of the link they sit on. #}
+{% macro local_address(neighbor) %}
+{% if neighbor._source_intf is defined %}
+{{ neighbor._source_intf.ipv4.split('/')[0] }}
+{%- elif neighbor.ifindex is defined %}
+{{ (interfaces|selectattr('ifindex','equalto',neighbor.ifindex)|first).ipv4.split('/')[0] }}
+{%- endif %}
+{%- endmacro %}
+# Rendered by netlab from contrib/netlab/ze/ze.j2. Edits are lost on the next
+# `netlab create`.
+
+# The lab login. This is a well-known lab credential in a throwaway container,
+# never a deployment credential. Ze hashes plaintext-password when it loads the
+# file, so the file carries what the operator typed and the running tree carries
+# a bcrypt hash.
+system {
+	authentication {
+		user {{ lab_user }} {
+			plaintext-password "{{ lab_password }}";
+		}
+	}
+}
+
+# `netlab validate` and `netlab connect` reach the CLI over SSH, from inside the
+# container: netlab_show_command runs through `docker exec`. The listener is
+# therefore bound to the loopback and not to the node's links.
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port {{ netlab_ze_ssh_port|default(2222) }};
+		}
+	}
+}
+
+# rib and fib-kernel put learned routes in the container's kernel FIB, which is
+# what a `ping` validation measures. connected makes the interface prefixes
+# resolvable next-hops.
+plugin {
+	internal rib {
+		use rib;
+	}
+	internal fib-kernel {
+		use fib-kernel;
+	}
+	internal connected {
+		use connected;
+	}
+{% if 'bgp' in module %}
+	internal bgp-rib {
+		use bgp-rib;
+	}
+{% endif %}
+}
+
+connected {
+}
+{% if 'bfd' in module %}
+
+# netlab states the BFD timers in milliseconds; ze takes microseconds.
+bfd {
+	enabled true;
+	profile netlab {
+		detect-multiplier {{ bfd.multiplier }};
+		desired-min-tx-us {{ bfd.min_tx * 1000 }};
+		required-min-rx-us {{ bfd.min_rx * 1000 }};
+	}
+}
+{% endif %}
+{% if 'ospf' in module %}
+
+ospf {
+	router-id {{ ospf.router_id }};
+	areas {
+{% for area in ospf.areas %}
+		area {{ area.area }} {
+			area-type {{ 'normal' if area.kind == 'regular' else area.kind }};
+		}
+{% endfor %}
+	}
+	interfaces {
+{% for intf in interfaces if intf.ospf is defined and not intf.ospf.passive %}
+		interface {{ intf.ifname }} {
+			area {{ intf.ospf.area }};
+{% if intf.ospf.network_type is defined %}
+			network-type {{ 'nbma' if intf.ospf.network_type == 'non-broadcast' else intf.ospf.network_type }};
+{% endif %}
+{% if intf.ospf.cost is defined %}
+			cost {{ intf.ospf.cost }};
+{% endif %}
+{% if intf.ospf.priority is defined %}
+			priority {{ intf.ospf.priority }};
+{% endif %}
+{% if intf.ospf.timers is defined %}
+			hello-interval {{ intf.ospf.timers.hello }};
+			dead-interval {{ intf.ospf.timers.dead }};
+{% endif %}
+{% if intf.ospf.bfd is defined and intf.ospf.bfd %}
+			bfd {
+				enabled true;
+				min-tx {{ bfd.min_tx }};
+				min-rx {{ bfd.min_rx }};
+				multiplier {{ bfd.multiplier }};
+			}
+{% endif %}
+		}
+{% endfor %}
+{#      The loopback prefix is advertised without an adjacency: it has no
+        neighbor to form one with. #}
+		interface {{ loopback.ifname }} {
+			area {{ ospf.area }};
+			passive true;
+		}
+	}
+}
+{% endif %}
+{% if 'isis' in module %}
+
+isis {
+	net {{ isis.net }};
+	level {{ {'level-1': 'l1', 'level-2': 'l2', 'level-1-2': 'l1-l2'}[isis.type] }};
+	interfaces {
+{% for intf in interfaces if intf.isis is defined and not intf.isis.passive %}
+		interface {{ intf.ifname }} {
+{% if intf.isis.network_type is defined %}
+			circuit-type {{ intf.isis.network_type }};
+{% endif %}
+{% if intf.isis.metric is defined %}
+			metric {{ intf.isis.metric }};
+{% endif %}
+		}
+{% endfor %}
+		interface {{ loopback.ifname }} {
+			passive true;
+		}
+	}
+}
+{% endif %}
+{% if 'routing' in module and routing.static is defined and routing.static %}
+
+static {
+	table default {
+{% for route in routing.static %}
+		route {{ route.ipv4|default(route.ipv6) }} {
+{% if route.nexthop.discard is defined and route.nexthop.discard %}
+			blackhole;
+{% elif route.nexthop.ipv4 is defined or route.nexthop.ipv6 is defined %}
+			next {
+				hop {{ route.nexthop.ipv4|default(route.nexthop.ipv6) }} {
+					interface {{ route.nexthop.intf }};
+				}
+			}
+{% else %}
+			next {
+				interface {{ route.nexthop.intf }} {
+				}
+			}
+{% endif %}
+		}
+{% endfor %}
+	}
+}
+{% endif %}
+{% if 'bgp' in module and bgp.neighbors is defined %}
+
+bgp {
+{% for n in bgp.neighbors if n.ipv4 is defined %}
+	peer {{ n.name }} {
+		connection {
+			remote {
+				ip {{ n.ipv4 }};
+			}
+			local {
+				ip {{ local_address(n) }};
+			}
+		}
+		session {
+			asn {
+				local {{ bgp.as }};
+				remote {{ n.as }};
+			}
+			router-id {{ bgp.router_id }};
+{% if n.type == 'ibgp' and n.next_hop_self %}
+{#          netlab's next_hop_self carries 'ebgp' (rewrite only what eBGP taught
+            us) as well as true. Ze's `self` always rewrites, which is broader.
+            It is the same thing in a netlab lab: netlab builds a full iBGP mesh
+            and contrib/netlab/ze.yml declares no route-reflector support, so no
+            iBGP-learned route is ever re-advertised to another iBGP peer. #}
+			next-hop self;
+{% endif %}
+			family {
+{% if n.activate.ipv4 is defined and n.activate.ipv4 %}
+				ipv4/unicast {
+					prefix {
+						maximum {{ netlab_ze_max_prefix|default(100000) }};
+					}
+				}
+{% endif %}
+{% if n.activate.ipv6 is defined and n.activate.ipv6 %}
+				ipv6/unicast {
+					prefix {
+						maximum {{ netlab_ze_max_prefix|default(100000) }};
+					}
+				}
+{% endif %}
+			}
+		}
+	}
+{% endfor %}
+}
+
+# netlab labs validate with a ping, so the sessions have to carry the prefixes
+# the containers own. Ze redistributes the connected prefixes, the loopback
+# among them, which is the whole route set a netlab node has to offer.
+redistribute {
+	destination bgp {
+		import connected
+{% if 'ospf' in module %}
+		import ospf
+{% endif %}
+{% if 'isis' in module %}
+		import isis
+{% endif %}
+	}
+}
+{% endif %}

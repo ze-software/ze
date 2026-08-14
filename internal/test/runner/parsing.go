@@ -55,8 +55,13 @@ type parsingTest struct {
 	// Parsed commands from cmd= lines (nil for legacy .conf files)
 	Commands []*ciCommand
 
-	// Tmpfs files to materialize in working directory
-	TmpfsFiles map[string][]byte
+	// Tmpfs files to materialize in the working directory. The parsed value is
+	// kept whole, rather than flattened to path->content, because a file's MODE
+	// is part of what the block declares: `mode=755`, and the executable
+	// default a `.sh` path gets from defaultModeForPath. Flattening dropped
+	// both, so `exec=./script.sh` in a parse test died with "permission
+	// denied" while the same block worked in every other suite.
+	Tmpfs *tmpfs.Tmpfs
 
 	// Stdin blocks for piping into commands
 	StdinBlocks map[string][]byte
@@ -279,10 +284,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 	}
 
 	if len(v.Files) > 0 {
-		test.TmpfsFiles = make(map[string][]byte, len(v.Files))
-		for _, f := range v.Files {
-			test.TmpfsFiles[f.Path] = f.Content
-		}
+		test.Tmpfs = v
 	}
 
 	if len(v.StdinBlocks) > 0 {
@@ -412,7 +414,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		}
 	}
 
-	if test.InlineConfig == nil && len(test.TmpfsFiles) == 0 && len(test.Commands) == 0 {
+	if test.InlineConfig == nil && test.Tmpfs == nil && len(test.Commands) == 0 {
 		return test, errNoConfigContentOrCommandsFound
 	}
 
@@ -554,16 +556,14 @@ func (r *parsingRunner) setupWorkDir(test *parsingTest) (string, error) {
 		return "", fmt.Errorf("create work dir: %w", mkErr)
 	}
 
-	for path, content := range test.TmpfsFiles {
-		full := filepath.Join(workDir, path)
-		dir := filepath.Dir(full)
-		if dirErr := os.MkdirAll(dir, 0o750); dirErr != nil {
+	// Materialize through the package that parsed the blocks. The copy that
+	// stood here wrote every file 0o644, so a `mode=755` script -- and the
+	// executable default a `.sh` path carries -- reached disk unexecutable, and
+	// `exec=./script.sh` died with "permission denied" before the test ran.
+	if test.Tmpfs != nil {
+		if wErr := test.Tmpfs.WriteTo(workDir); wErr != nil {
 			os.RemoveAll(workDir) //nolint:errcheck // cleanup on error
-			return "", fmt.Errorf("mkdir %s: %w", dir, dirErr)
-		}
-		if wErr := os.WriteFile(full, content, 0o644); wErr != nil { //nolint:gosec // Test runner
-			os.RemoveAll(workDir) //nolint:errcheck // cleanup on error
-			return "", fmt.Errorf("write tmpfs %s: %w", path, wErr)
+			return "", fmt.Errorf("write tmpfs: %w", wErr)
 		}
 	}
 

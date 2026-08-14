@@ -1,0 +1,26 @@
+{#
+  The image recipe netlab would use if it built the ze image itself.
+
+  It does not build it today: contrib/netlab/ze.yml sets `clab.build: False` and
+  names netlab/ze:latest, which `make ze-docker-lab` builds from
+  docker/Dockerfile.lab in the ze tree. That is the right way round while ze is
+  unpublished, because the lab image and the deployment image must carry the
+  SAME feature set, and only the ze tree holds feature-gates.txt, the file both
+  derive it from.
+
+  This template is kept so the day netlab builds the image is a one-line change
+  (`clab.build: True`). It expects the ze binary beside it, which is what
+  `netlab clab build ze` stages. It deliberately mirrors docker/Dockerfile.lab's
+  runtime stage rather than restating it: tini forwards SIGTERM and SIGHUP to
+  ze, which is the config-push contract, and iproute2 supplies the `ip` netlab
+  runs inside the node to assign the addresses the topology declares.
+#}
+FROM alpine:3.21
+
+RUN apk add --no-cache tini iproute2
+
+COPY ze /usr/local/bin/ze
+
+EXPOSE 179 1790 8080
+
+ENTRYPOINT ["tini", "--", "ze"]

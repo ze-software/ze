@@ -18,7 +18,8 @@ import (
 // side effects. It is for static validation paths that must inspect the same
 // tree shape as LoadConfig without mutating process state.
 func ParseTreeForValidation(input string) (*Tree, error) {
-	return parseTreeWithYANG(input, nil)
+	tree, _, err := parseTreeWithYANG(input, nil)
+	return tree, err
 }
 
 // VerifyPluginConfigContent parses content and runs registered in-process,

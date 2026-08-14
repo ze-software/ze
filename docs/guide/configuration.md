@@ -517,6 +517,26 @@ keeps the ones its group named. A peer cannot drop a community its group agreed:
 where one session must be excluded, name the community on the peers rather than
 on the group.
 
+A listen-range group states the agreement for every session it accepts. Such a
+session has no `peer` block, so the group is where an IXP route server writes
+one `blackhole` container for all of its members:
+
+```
+bgp {
+    group ix {
+        connection {
+            remote {
+                ip    dynamic;
+                range 192.0.2.0/24;
+            }
+        }
+        blackhole {
+            prefixes 192.0.2.0/24;
+        }
+    }
+}
+```
+
 ### Announcing a blackhole to a peer
 
 The same `communities` list decides which peers Ze may ADVERTISE the well-known
@@ -2101,7 +2121,7 @@ and an optional list of authorization profile names.
 system {
     authentication {
         user alice {
-            plaintext-password "secret"     # write-only; hashed on commit
+            plaintext-password "secret"     # write-only; hashed at commit and at load
             profile [ admin ]
         }
         user bob {
@@ -2115,13 +2135,21 @@ system {
 | Leaf | Stored on disk | Notes |
 |------|---------------|-------|
 | `password` | bcrypt hash (`$2a$10$...`) | Canonical, displayed in `show config`. Hand-editing a literal plaintext here triggers a `ze config validate` warning. |
-| `plaintext-password` | never persisted | Junos-style write-only input. The commit hook bcrypt-hashes the value into `password` and removes this leaf. |
+| `plaintext-password` | only in a file you wrote | Junos-style write-only input. Ze bcrypt-hashes the value into `password` and removes this leaf. Ze never writes this leaf itself. |
 
-Both leaves are mutually exchangeable inputs; only `password` survives a
-commit. For end-to-end usage (login, hashing, multi-user setup) see
+Both leaves are inputs and only `password` reaches the running tree. Ze applies the
+same transform on two paths:
+
+| Path | What happens to the file |
+|------|--------------------------|
+| Editor `commit`, `ze config set`, `ze config import` | The file Ze writes carries the hash. It never carries the plaintext |
+| A config file loaded at daemon start or at SIGHUP | Ze hashes the leaf in memory and leaves your file as you wrote it. It warns once, naming the file, because the plaintext is still in it |
+
+For end-to-end usage (login, hashing, multi-user setup) see
 [authentication.md](authentication.md).
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 
 Remote AAA backends authenticate operators against a central server, with local
 users as the fallback: `system.authentication.tacacs` (RFC 8907, see

@@ -7,6 +7,7 @@
 # Quick reference:
 #   make ze-interop-test               FRR/BIRD interop (Docker)
 #   make ze-ipsec-interop-test         strongSwan interop (Docker + privileged)
+#   make ze-netlab-render-check        contrib/netlab render vs golden (netlab)
 #   make ze-stress-test                BGP stress (Linux, root, netns)
 #   make ze-integration-test           All netns integration tests (CAP_NET_ADMIN)
 #   make ze-netns-plugin-test          Kernel-capability plugin .ci subset (Linux + sudo)
@@ -17,7 +18,7 @@
 #   make ze-install-scenarios-qemu-test Installer failure-path/pin/rescue evidence (QEMU)
 #   make ze-install-ventoy-qemu-test    Installer Ventoy ISO-on-FAT evidence (QEMU)
 
-.PHONY: ze-interop-test ze-ipsec-interop-test
+.PHONY: ze-interop-test ze-ipsec-interop-test ze-netlab-render-check
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile ze-stress-web-test ze-stress-fleet-test
 .PHONY: ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
@@ -41,6 +42,26 @@ IPSEC_INTEROP_SCENARIO ?=
 ze-ipsec-interop-test:
 	@echo "Running IPsec interop tests (requires Docker + privileged containers)..."
 	python3 test/ipsec-interop/run.py $(IPSEC_INTEROP_SCENARIO)
+
+# ─── netlab ─────────────────────────────────────────────────────────────────
+#
+# contrib/netlab/ mirrors the artifacts a netlab daemon integration needs. This
+# renders them with a REAL netlab and compares the result with the committed
+# golden files, so the mirror cannot drift from ze config syntax.
+#
+# It sits here, and not in ze-verify, because it needs netlab (which brings
+# Jinja2 with it) and ze-verify must run on a machine that has neither. It is
+# NOT gated by a self-skip: a missing netlab is an error exit, because a check
+# that passes without its dependency reports "no drift" about a render it never
+# performed (scripts/dev/netlab_render_check.py find_netlab).
+#
+#   make ze-netlab-render-check                        render and compare
+#   make ze-netlab-render-check NETLAB=/path/to/netlab use a specific install
+#   make ze-netlab-render-check ARGS=--update          rewrite the golden files
+NETLAB ?=
+ze-netlab-render-check: $(ZEBIN_ZE)
+	@echo "Rendering contrib/netlab/ against the golden files (requires netlab)..."
+	NETLAB='$(NETLAB)' ZE_BIN='$(CURDIR)/$(ZEBIN_ZE)' python3 scripts/dev/netlab_render_check.py $(ARGS)
 
 # ─── Stress ─────────────────────────────────────────────────────────────────
 

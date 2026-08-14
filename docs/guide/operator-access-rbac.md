@@ -12,7 +12,7 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user and environment.ssh -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.profile -->
 <!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->
-<!-- source: internal/component/config/password_hash.go -- password hashing on commit -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
 <!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
 
 ## 1. Start from the Ubuntu install page

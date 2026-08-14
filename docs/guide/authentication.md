@@ -54,7 +54,7 @@ Two equivalent ways to set the password:
 | Form | When to use |
 |------|------------|
 | `password "$2a$10$..."` | You already have a hash (from `ze passwd`, fleet automation, or a backup) |
-| `plaintext-password "secret"` | You want to type the plaintext and let the commit hook hash it (Junos style) |
+| `plaintext-password "secret"` | You want to type the plaintext and let Ze hash it (Junos style) |
 
 Example using the plaintext form:
 
@@ -70,10 +70,40 @@ system {
 
 After `commit` (or `ze config set`), the persisted file contains
 only the bcrypt hash; the `plaintext-password` leaf is removed and never
-written to disk. This matches Junos's `plain-text-password` behaviour.
+written to disk. This matches Junos's `plain-text-password` behavior.
 
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+<!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
+
+### Passwords in a config file
+
+An operator, a template, or a lab tool can also write `plaintext-password` straight
+into a config file. Ze hashes that leaf when it loads the file, at daemon start and at
+every SIGHUP reload. The running tree then holds the bcrypt hash and no
+`plaintext-password` leaf, which is the same tree the editor produces. The user
+authenticates with the password as written.
+<!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing -->
+
+**The load path does not rewrite your file.** `LoadConfig` writes nothing, so the secret
+stays readable on disk exactly as you typed it. The daemon says so once per load, naming
+the file:
+
+```
+plaintext password in /etc/ze/ze.conf: ze hashed it at load, and the file still holds the secret
+```
+
+The warning names the leaf paths in a log attribute and never the password. Replace the
+plaintext with a hash from `ze passwd`, or protect the file, or accept the risk if the
+file is a throwaway lab render (see [netlab](netlab.md)).
+<!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
+
+Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
+schema evolution makes `applyEvolutions` serialize the loaded tree back to the config
+path, and a rollback makes `RecoverConfig` do the same. `applyEvolutions` archives the
+current file first, so the archived version keeps the plaintext.
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+<!-- source: internal/component/config/stamp.go -- RecoverConfig -->
 
 ### Step 3: reload
 
@@ -363,7 +393,7 @@ super-admin (created by `ze init`) authenticates with a password.
 The canonical `password` leaf is marked `ze:bcrypt` -- the parser stores
 the value verbatim and never tries to apply the `$9$` reversible
 obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
-it with `$9$` would be a footgun.
+it with `$9$` would let an operator recover the password from the file.
 
 If you write a literal plaintext directly on `password`:
 
@@ -389,11 +419,27 @@ deleted afterward. Plaintext never appears in the canonical config file
 nor in commit metadata, but does briefly live in the local zefs database
 during the editing session.
 
-The bcrypt algorithm only considers the first 72 bytes of input. `ze passwd`
-rejects oversize input outright with a clear error so the user does not get
-a hash that validates only a prefix of their intended passphrase. The
-commit hook accepts oversize input (preserving an existing config) but emits
-a `slog.Warn` so the truncation surfaces in daemon logs.
+A config file you write yourself is the other path. Ze hashes it at load and leaves
+your file as you wrote it, so the plaintext stays on disk until you replace it. Refer
+to [Passwords in a config file](#passwords-in-a-config-file).
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
+
+bcrypt takes 72 bytes at most. The vendored library refuses a longer input with
+`ErrPasswordTooLong` and hashes nothing, so no path stores a hash that matches
+only a prefix. Every path reports the refusal as an error, and none of them warns
+and continues.
+
+| Path | What an oversize password does |
+|------|--------------------------------|
+| `ze passwd` | Prints `error: password too long (<n> bytes; bcrypt limit is 72)` and exits 1 |
+| `ze config edit`, at commit | `hashPlaintextSibling` returns `<leaf>: password too long (<n> bytes; bcrypt limit is 72)`. The commit wraps it as `hash password: ...` and fails. The config file is not rewritten |
+| `plaintext-password` in a config file | `LoadConfig` wraps the same error as `hash password: ...`. The daemon refuses to start, unless the config stamp is newer than the binary: that error is recoverable, so `RecoverConfig` can start the daemon on a rollback version instead. A SIGHUP reload fails with `reload: parse config: hash password: ...` and the running configuration stays in place |
+
+<!-- source: internal/component/config/password_hash.go -- hashPlaintextSibling -->
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReload -->
 
 ## Things that do NOT work
 

@@ -1,0 +1,61 @@
+---
+# Reference topology for the ze netlab daemon integration.
+#
+# It exercises every module contrib/netlab/ze.yml declares, so `netlab create`
+# has to find a configuration template for each one, and so the golden renders
+# under contrib/netlab/golden/ cover every branch of ze/ze.j2.
+#
+#     r1 ---- internal ---- r2      AS 65001, iBGP + OSPF + IS-IS + BFD
+#      \
+#       ---- external ---- r3       AS 65002, eBGP only
+#
+# The split matters: netlab runs an IGP only on internal links, so a two-node
+# eBGP lab would drop OSPF and IS-IS with a warning. r3 carries the eBGP session
+# and no IGP, which also covers what ze/ze.j2 renders for a node whose modules
+# are a subset of the declared set. r1 carries two static routes, one with a
+# next hop and one discard.
+#
+# Render it and compare against the golden files:
+#     make ze-netlab-render-check
+#
+# Run it (needs netlab, containerlab, docker, and `make ze-docker-lab` first):
+#     netlab up -t contrib/netlab/topology.yml
+
+provider: clab
+defaults.device: ze
+
+module: [ bgp, ospf, isis, bfd, routing ]
+
+bgp.as: 65001
+
+# BFD is not a protocol of its own: a client protocol references it. Ze carries
+# it on the OSPF interface, so ospf.bfd is what puts the bfd block in the
+# rendered configuration.
+bfd.min_tx: 200
+bfd.min_rx: 200
+bfd.multiplier: 3
+ospf.bfd: True
+
+ospf.timers.hello: 3
+ospf.timers.dead: 12
+
+isis.type: level-2
+
+nodes:
+  r1:
+    ospf.priority: 10
+    routing.static:
+    - ipv4: 10.42.0.0/24
+      nexthop.node: r2
+    - ipv4: 10.43.0.0/24
+      nexthop.discard: True
+  r2:
+  r3:
+    bgp.as: 65002
+    module: [ bgp ]
+
+links:
+- r1:
+  r2:
+  isis.network_type: point-to-point
+- r1-r3

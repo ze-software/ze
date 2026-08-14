@@ -19,6 +19,7 @@
 | Migrate from ExaBGP | [ExaBGP Migration](../exabgp/exabgp-migration.md) |
 | Run Ze in production | [Operations](operations.md) |
 | Run Ze in Docker | [Docker](docker.md) |
+| Build a lab topology with netlab | [netlab](netlab.md) |
 | Build a VM appliance for an N100 PC | [VM Appliance](appliance.md) |
 | Debug a peer that won't come up | [Operations](operations.md#troubleshooting) |
 
@@ -77,7 +78,8 @@
 | [Production Diagnostics](production-diagnostics.md) | Symptom-based troubleshooting with built-in diagnostic commands |
 | [Self-Update](self-update.md) | Automated firmware updates with fleet rollout and rollback |
 | [REST and gRPC API](api.md) | Programmatic API: OpenAPI, Swagger UI, SSE streaming, config sessions, TLS, per-user auth |
-| [Docker](docker.md) | Container image for evaluation, labs, and lightweight deployments |
+| [Docker](docker.md) | Two container images: the scratch deployment image and the alpine lab image |
+| [netlab](netlab.md) | Run Ze as a netlab daemon device under containerlab |
 | [VM Appliance](appliance.md) | Bootable x86_64 image for N100 PCs using gokrazy |
 | [Zero-Touch Provisioning](ze-install.md) | PXE bare-metal provisioning |
 | [MCP Remote Access](mcp/remote-access.md) | SSH tunnels and WireGuard for remote MCP access |

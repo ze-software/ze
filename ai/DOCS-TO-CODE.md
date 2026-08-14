@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3297 files
+Total: 261 design docs, 3298 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -981,6 +981,7 @@ Total: 261 design docs, 3297 files
 | `internal/component/config/listener.go` | listener conflict detection at config parse time |
 | `internal/component/config/loader.go` | config file loading and plugin extraction |
 | `internal/component/config/loader_extract.go` | environment service config extraction |
+| `internal/component/config/loader_test.go` | the boot and SIGHUP load path |
 | `internal/component/config/meta.go` | metadata tracking for concurrent config editing |
 | `internal/component/config/migration/api.go` | config migration |
 | `internal/component/config/migration/detect.go` | config migration |

@@ -99,6 +99,59 @@ func TestPrintFormatted(t *testing.T) {
 	}
 }
 
+// TestRenderCommandOutputFormatPipeBeatsFormatFlag proves the precedence that
+// `ze cli -c "show ... | json"` depends on.
+//
+// VALIDATES: spec-netlab-integration AC-10. A format operator the command names
+//
+//	outranks the --format flag, which only says what to do when the
+//	command named none.
+//
+// PREVENTS:  the defect this test was written for. Execute applied the pipe,
+//
+//	producing JSON, and then handed the result to printFormatted with
+//	the flag's "yaml" default, which unmarshalled it and re-rendered
+//	YAML. Every consumer that asked for JSON on the command line got
+//	YAML with exit code 0, netlab validation among them
+//	(plan/journal/silent-fall-through.md, 2026-08-14).
+func TestRenderCommandOutputFormatPipeBeatsFormatFlag(t *testing.T) {
+	// What ProcessPipesChecked hands back for `... | json compact`: the pipe has
+	// already rendered the JSON, so the only question left is whether the flag
+	// re-renders it.
+	compact := `{"peers":{"10.0.0.1":{"state":"established"}}}`
+
+	output := captureOutput(t, false, func() {
+		renderCommandOutput("show bgp peer list | json compact", "yaml", compact)
+	})
+
+	var got any
+	if err := json.Unmarshal([]byte(output), &got); err != nil {
+		t.Fatalf("an explicit | json must survive --format yaml, got %q: %v", output, err)
+	}
+	if !strings.HasSuffix(output, "\n") {
+		t.Errorf("output must end with a newline, got %q", output)
+	}
+}
+
+// TestRenderCommandOutputFormatFlagAppliesWithoutAPipe holds the other half of
+// the same precedence: with no format operator in the command, the --format flag
+// still decides. Without this the fix above could have been "never format", which
+// would break every `ze cli -c "show ..."` that relies on the yaml default.
+func TestRenderCommandOutputFormatFlagAppliesWithoutAPipe(t *testing.T) {
+	compact := `{"peers":{"10.0.0.1":{"state":"established"}}}`
+
+	output := captureOutput(t, false, func() {
+		renderCommandOutput("show bgp peer list", "yaml", compact)
+	})
+
+	if strings.HasPrefix(strings.TrimSpace(output), "{") {
+		t.Errorf("with no format pipe the --format flag must render, got %q", output)
+	}
+	if !strings.Contains(output, "10.0.0.1") {
+		t.Errorf("output missing the peer address: %q", output)
+	}
+}
+
 // TestPrintFormattedNestedData verifies nested data formatting.
 //
 // VALIDATES: Nested maps and arrays format with proper indentation.

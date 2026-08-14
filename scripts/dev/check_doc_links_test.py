@@ -893,6 +893,51 @@ class DesignRefTest(unittest.TestCase):
         self.assertIn("broken Design reference", res.stdout)
 
 
+class KnownRootTest(unittest.TestCase):
+    """Every top-level directory this repo cites has to be a checked root.
+
+    VALIDATES: `candidate_paths` returns a path to verify for each top-level
+               directory the tree's prose cites, so a dead citation into it is
+               reported rather than skipped.
+    PREVENTS:  a new tree arriving with no citation checking. `contrib/` was
+               added for the netlab daemon integration
+               (spec-netlab-integration), and until it joined KNOWN_ROOTS every
+               `contrib/...` reference in `ai/INDEX.md` was DISCARDED by the
+               root filter: the discovery rows pointed into a tree the gate
+               could not see, so a rename would have gone unnoticed.
+    """
+
+    def test_contrib_is_a_checked_root(self) -> None:
+        """A `contrib/...` span reaches path_resolves instead of being discarded."""
+        self.assertEqual(
+            cdl.candidate_paths("contrib/netlab/ze.yml"),
+            ["contrib/netlab/ze.yml"],
+        )
+        self.assertEqual(
+            cdl.candidate_paths("contrib/netlab/does-not-exist.yml"),
+            ["contrib/netlab/does-not-exist.yml"],
+        )
+
+    def test_the_contrib_citations_in_the_index_resolve(self) -> None:
+        """The rows ai/INDEX.md carries point at files that exist.
+
+        The assertion above only proves the grammar READS the span. This proves
+        the tree it reads is really there, so neither can pass over an empty
+        set.
+        """
+        with InRepo():
+            for path in (
+                "contrib/netlab/README.md",
+                "contrib/netlab/ze.yml",
+                "contrib/netlab/ze/ze.j2",
+                "contrib/netlab/topology.yml",
+                "contrib/netlab/golden/",
+            ):
+                self.assertTrue(
+                    cdl.path_resolves(path), f"{path} is cited and does not resolve"
+                )
+
+
 class RealCorpusTest(unittest.TestCase):
     """AC-4: after the fixes, the lint exits 0 against the real tree."""
 

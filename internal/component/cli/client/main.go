@@ -348,8 +348,7 @@ func (c *cliClient) Execute(command, format string) int {
 		return 1
 	}
 
-	formatted := formatFn(output)
-	printFormatted(formatted, format)
+	renderCommandOutput(command, format, formatFn(output))
 	return 0
 }
 
@@ -370,9 +369,37 @@ func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.Tra
 
 	tw.Record(command, output)
 
-	formatted := formatFn(output)
-	printFormatted(formatted, format)
+	renderCommandOutput(command, format, formatFn(output))
 	return 0
+}
+
+// renderCommandOutput prints what the pipe chain produced for a `-c` command.
+//
+// A format operator the command names -- `show bgp peer list | json compact` --
+// is the operator's own choice, and it outranks the --format flag. The flag says
+// what to do when the command asks for nothing, and nothing more.
+//
+// Without that precedence the flag's "yaml" default fed the pipe's JSON straight
+// back into printFormatted, which unmarshalled it and re-rendered YAML. The
+// requested format never reached the caller, and the exit code stayed 0, so a
+// consumer parsing the output saw only a parse error with no cause
+// (plan/journal/silent-fall-through.md, 2026-08-14). The interactive path never
+// had the defect: it goes through ProcessPipesDetectLog, which applies the same
+// precedence with its HasFormat flag (internal/component/command/pipe.go).
+//
+// Empty output is printed as nothing on this branch, where printFormatted prints
+// "OK". That is deliberate: the caller asked for a machine format, and "OK" is
+// not valid JSON. A human running the command with no format operator still gets
+// "OK", because that input takes the branch above.
+func renderCommandOutput(command, format, formatted string) {
+	if !cmd.HasFormatPipe(command) {
+		printFormatted(formatted, format)
+		return
+	}
+	if formatted != "" && !strings.HasSuffix(formatted, "\n") {
+		formatted += "\n"
+	}
+	fmt.Print(formatted)
 }
 
 // SendCommand sends a command to the daemon via SSH exec and returns the response.

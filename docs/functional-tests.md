@@ -350,6 +350,30 @@ gated by a build tag not in the default set and has a dedicated make target:
 <!-- source: cmd/ze/hub/fleet_perf_test.go -- TestFleetManyClientsPerf -->
 <!-- source: mk/test-integration.mk -- ze-stress-web-test, ze-stress-fleet-test -->
 
+### netlab template render check (`make ze-netlab-render-check`, out of `ze-verify`)
+
+`contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
+Jinja2 templates that emit ze configuration, one reference topology, and the committed
+render under `contrib/netlab/golden/`. The check builds a scratch lab from that mirror
+and runs `netlab create`. It then compares each rendered node configuration against its
+golden file, and runs `ze config validate` on each golden. It never writes to the
+operator's netlab install. `ARGS=--update` rewrites the golden files.
+
+It is out of `ze-verify` because it needs netlab installed, and `ze-verify` must run on
+a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a
+skip:** a check that passes without its dependency reports "no drift" about a render it
+never performed. `NETLAB=/path/to/netlab` names a specific install.
+
+`test/plugin/netlab-lab-profile.ci` is the second half and runs inside the normal plugin
+suite, because it needs no netlab. It reads `contrib/netlab/golden/r3.conf` through
+`ZE_REPO_ROOT`, starts a daemon from it, logs in as the user that render declared, and
+parses `show bgp peer list | json compact` with `json.loads`. The render check proves the
+templates still emit what ze accepts. The functional test proves ze still runs what they
+emitted.
+<!-- source: scripts/dev/netlab_render_check.py -- find_netlab, build_lab, run_netlab_create, compare, validate_golden -->
+<!-- source: mk/test-integration.mk -- ze-netlab-render-check -->
+<!-- source: test/plugin/netlab-lab-profile.ci -- golden read, daemon start, json compact -->
+
 ### Allocation-ceiling gate (`make ze-alloc-gate`, always-run in `ze-verify`)
 
 `make ze-alloc-gate` runs the reactor hot-path `ReportAllocs` benchmarks
@@ -2173,11 +2197,11 @@ See `docs/contributing/rfc-implementation-guide.md` §9.7 and `ai/skills/ze-rfc.
 <!-- source: internal/test/runner/timing.go -- per-test timing baseline -->
 <!-- source: internal/test/runner/parallel.go -- parallel test execution -->
 
-### Package: `internal/tmpfs/`
+### Package: `internal/test/tmpfs/`
 
 | File | Purpose |
 |------|---------|
-| `tmpfs.go` | Tmpfs parser and writer |
+| `tmpfs.go` | Tmpfs parser and writer. `WriteTo` is the one writer, so every suite honors `mode=` |
 | `limits.go` | Configurable limits from environment |
 | `security.go` | Path validation (traversal, escape) |
 

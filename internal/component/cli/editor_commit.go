@@ -155,7 +155,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// so the serialized config never carries plaintext. Drop the matching
 	// SessionEntries so commit metadata does not record orphan annotations
 	// for a leaf that no longer exists in the tree.
-	if err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
+	if _, err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 	myEntries = dropPlaintextPasswordEntries(myEntries)
@@ -318,7 +318,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	if err := config.RejectMaskedBcryptLeaves(committedTree, e.schema); err != nil {
 		return nil, "", err
 	}
-	if err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
+	if _, err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
 		return nil, "", fmt.Errorf("hash password: %w", err)
 	}
 	myEntries = dropPlaintextPasswordEntries(myEntries)

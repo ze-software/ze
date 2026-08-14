@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -70,6 +71,99 @@ func TestDropPlaintextPasswordEntriesAllMatch(t *testing.T) {
 	}
 	out := dropPlaintextPasswordEntries(in)
 	assert.Empty(t, out)
+}
+
+// TestCommitPathPasswordHashingUnchanged: the editor commit path is untouched
+// by the load path gaining the same transform.
+//
+// VALIDATES: spec-netlab-integration AC-5 -- an existing config that commits a
+// plaintext password through the editor still hashes it, still drops the
+// ephemeral leaf, and still serializes a file carrying no plaintext.
+//
+// This one passes before the change as well as after, by design: AC-5 is the
+// no-regression half of the spec. What it discriminates is the change that
+// would break it -- the editor call site losing its ApplyPasswordHashing (it
+// now takes two return values), or a second hashing implementation appearing
+// on the load path and diverging from this one.
+func TestCommitPathPasswordHashingUnchanged(t *testing.T) {
+	seed := validBGPConfig + `
+system {
+	authentication {
+		user lab {
+			plaintext-password "labsecret"
+		}
+	}
+}
+`
+	configPath := writeTestConfig(t, seed)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ed.Close() })
+	ed.SetSession(NewEditSession("thomas", "local"))
+
+	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	result, err := ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	written := string(data)
+
+	assert.NotContains(t, written, "labsecret", "the committed file must never carry the plaintext")
+	assert.NotContains(t, written, "plaintext-password", "the ephemeral leaf must not be serialized")
+
+	tree, err := config.ParseTreeWithYANG(written, nil)
+	require.NoError(t, err)
+	lab := tree.GetContainer("system").GetContainer("authentication").GetList("user")["lab"]
+	require.NotNil(t, lab)
+	hash, ok := lab.Get("password")
+	require.True(t, ok, "the committed file carries the canonical password leaf")
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte("labsecret")),
+		"the committed hash validates the password the operator typed")
+}
+
+// TestCommitPathDropsEmptyPlaintextLeaf: an EMPTY ephemeral leaf is dropped too.
+//
+// VALIDATES: the deliberate change spec-netlab-integration made to the commit
+// path. plaintext-password is ze:ephemeral, so it must never reach a serialized
+// file whatever its value. Before this change hashPlaintextSibling returned early
+// on an empty value without deleting the leaf, and serializeSetMetaChild writes
+// every name present in the tree, so `plaintext-password ""` was committed to
+// config.conf.
+//
+// PREVENTS: a serialized config carrying a write-only leaf. Ze re-reads that file
+// at boot, and the leaf is meaningless there.
+func TestCommitPathDropsEmptyPlaintextLeaf(t *testing.T) {
+	seed := validBGPConfig + `
+system {
+	authentication {
+		user lab {
+			plaintext-password ""
+		}
+	}
+}
+`
+	configPath := writeTestConfig(t, seed)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ed.Close() })
+	ed.SetSession(NewEditSession("thomas", "local"))
+
+	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	result, err := ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(data), "plaintext-password",
+		"an empty ephemeral leaf is dropped, not serialized")
 }
 
 // newBlobEditor builds a session editor backed by blob storage, mirroring the

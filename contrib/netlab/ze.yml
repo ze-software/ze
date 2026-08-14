@@ -1,0 +1,88 @@
+---
+# netlab daemon definition for Ze.
+#
+# netlab (netlab.tools) runs a "daemon" as a containerlab node: one YAML file
+# plus one directory of Jinja2 templates, no Ansible task lists and no Vagrant
+# box. This file is the mirror of what upstream netlab installs at
+# netsim/daemons/ze.yml; the templates beside it mirror netsim/daemons/ze/.
+#
+# Ze has NO include directive, so ze.j2 renders the WHOLE running configuration
+# into one file. Every other daemon_config key points at an ignore file with a
+# stub template. This is the dnsmasq pattern (netsim/daemons/dnsmasq.yml), and
+# it is required rather than stylistic: netlab decides which templates a node
+# needs from daemon_config, so a declared module with no key fails
+# `netlab create` with "Cannot find <module> configuration template".
+#
+# `make ze-netlab-render-check` renders these templates and compares the output
+# against contrib/netlab/golden/, so they cannot drift from ze config syntax.
+
+description: Ze network operating system
+docname: Ze
+
+# A daemon inherits `role: host` from its linux parent, and netlab gives a host
+# no loopback and applies no IGP to it. Ze is a router, so it says so.
+role: router
+
+packages:
+  ze: ze
+
+# One real file, five ignore files. The five are the modules the features block
+# below declares; add a module and it needs a key here and a stub template.
+daemon_config:
+  ze: /etc/ze/ze.conf
+  bgp: /etc/ze/bgp.ignore
+  ospf: /etc/ze/ospf.ignore
+  isis: /etc/ze/isis.ignore
+  bfd: /etc/ze/bfd.ignore
+  routing: /etc/ze/routing.ignore
+
+clab:
+  group_vars:
+    # `ze cli -c "show ... | json compact"` is what `netlab validate` parses.
+    netlab_show_command: [ ze, cli, '-c', 'show $@ | json compact' ]
+    docker_shell: sh
+    netlab_config_mode: sh
+    netlab_start_daemon: "/usr/local/bin/ze start /etc/ze/ze.conf"
+  # The image is built by ze, not by netlab: `make ze-docker-lab` builds
+  # netlab/ze:latest from docker/Dockerfile.lab, deriving its feature tags from
+  # feature-gates.txt. Dockerfile.j2 is kept beside the templates for the day
+  # netlab builds it itself; flip build to True to use it.
+  image: netlab/ze:latest
+  build: False
+  node:
+    kind: linux
+    # `netlab validate` runs netlab_show_command through `docker exec`, so the
+    # ze CLI it starts inside the node needs a credential to reach the daemon's
+    # SSH server. These two MUST match the netlab_lab_user / netlab_lab_password
+    # defaults in ze/ze.j2: override one and this pair needs the same override.
+    env:
+      ZE_SSH_HOST: 127.0.0.1
+      ZE_SSH_USERNAME: netlab
+      ZE_SSH_PASSWORD: netlab
+  features:
+    initial:
+      roles: [ host, router ]
+      config_mode: [ sh ]
+
+libvirt:                        # Container-only: no Vagrant box exists
+  image:
+virtualbox:
+  image:
+
+# Every key below is rendered by ze/ze.j2. netlab's own integration suite tests
+# whatever this block declares, so declare only what the template emits.
+features:
+  initial:
+    roles: [ host, router ]
+    reload: false               # Ze reloads on SIGHUP, which netlab does not send
+  bgp:
+    activate_af: true
+  ospf:
+    priority: true
+    timers: true
+  isis:
+    circuit_type: true
+  bfd: true
+  routing:
+    static:
+      discard: true

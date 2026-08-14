@@ -1,0 +1,52 @@
+# Lab image: ze on an Alpine base, for netlab and containerlab.
+#
+# It is NOT the deployment image. docker/Dockerfile stays a static binary on
+# scratch and is what a deployment runs; this one carries a shell and iproute2
+# because containerlab and netlab drive a node from the outside: they exec `sh`,
+# `ip` and `cat` inside the container to assign the interface addresses the
+# topology declares, and neither exists on a scratch base.
+#
+# Both images build the same binary features. That is deliberate: a defect must
+# not reproduce in a lab and disappear in production, or the reverse
+# (plan/spec-netlab-integration.md, R-8).
+
+# Build stage
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG ZE_VERSION
+ARG ZE_BUILD_DATE
+# ZE_TAGS carries EXTRA tags (e.g. maprib), the same meaning it has everywhere
+# else in the build system. It is added to the default feature set, never a
+# replacement for it.
+ARG ZE_TAGS
+
+# The default-on tags are DERIVED from feature-gates.txt, the single source of
+# truth Makefile ZE_FEATURES and test/interop/Dockerfile.ze read the same way. A
+# hand-written list here is what makes the two images drift, and `ze_bgp` is one
+# of the gates: without it ze rejects the `bgp` config root as an unknown
+# top-level keyword, so a lab node would start with no BGP at all.
+RUN ZE_FEATURES="$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" && \
+    CGO_ENABLED=0 go build \
+    -tags "ze_core $ZE_FEATURES $ZE_TAGS" \
+    -ldflags "-X main.version=${ZE_VERSION:-dev} -X main.buildDate=${ZE_BUILD_DATE:-unknown}" \
+    -o /ze ./cmd/ze
+
+# Runtime stage
+FROM alpine:3.21
+
+# tini forwards SIGTERM and SIGHUP to ze, which is the config-push contract: a
+# lab tool rewrites the file and signals the node (cmd/ze/hub/main_reload.go,
+# handleSIGHUPReload). iproute2 provides the `ip` netlab uses for addressing.
+RUN apk add --no-cache tini iproute2
+
+COPY --from=builder /ze /usr/local/bin/ze
+
+EXPOSE 179 1790 8080
+
+ENTRYPOINT ["tini", "--", "ze"]

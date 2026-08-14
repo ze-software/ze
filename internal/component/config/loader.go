@@ -33,10 +33,17 @@ type LoadConfigResult struct {
 func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
 
-	tree, err := ParseTreeWithYANG(input, pluginYANG)
+	// The schema is kept, not rebuilt: ApplyPasswordHashing below is
+	// schema-driven (it hashes the plaintext- sibling of every ze:bcrypt leaf),
+	// and YANGSchemaWithPlugins caches nothing -- it reloads and resolves every
+	// embedded YANG module on each call. Parsing once and carrying the schema
+	// costs one pointer; asking for it again would cost a second full build on
+	// every daemon start and every SIGHUP.
+	tree, schema, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
 		return nil, err
 	}
+	applyParsedEnvironment(tree)
 
 	// Apply the registered ze:validate custom validators. Until this call
 	// existed, ValidateTreeAllModules had exactly one non-test caller
@@ -52,6 +59,33 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	if err := refuseInvalidCustomSections(tree); err != nil {
 		return nil, err
 	}
+
+	// Refuse a ze:bcrypt leaf holding the display placeholder, then hash the
+	// plaintext- sibling of every such leaf. The two calls are ONE pair, and the
+	// commit path makes both in this order (internal/component/cli/editor_commit.go,
+	// internal/component/cli/editor_commands.go). Taking only the second half
+	// leaves the placeholder in the tree, where CheckPassword
+	// (internal/component/authz/auth.go) accepts the literal placeholder string as
+	// the credential on a trusted-local transport.
+	//
+	// This is the same defect class as the validation call above, one leaf further
+	// on: ApplyPasswordHashing had callers only on the commit path, so a config
+	// FILE carrying `plaintext-password` loaded with an EMPTY canonical leaf,
+	// CheckPassword refused every login for that user, and `ze config validate`
+	// called the file valid (plan/journal/silent-fall-through.md, 2026-08-14).
+	//
+	// Both run AFTER the validators, so they judge the tree the operator wrote,
+	// and BEFORE plugin extraction and everything downstream that reads a
+	// credential.
+	if err := RejectMaskedBcryptLeaves(tree, schema); err != nil {
+		return nil, err
+	}
+
+	hashed, err := ApplyPasswordHashing(tree, schema)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+	warnPlaintextOnDisk(configPath, hashed)
 
 	plugins, err := ExtractPluginsFromTree(tree)
 	if err != nil {
@@ -89,19 +123,77 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 // ParseTreeWithYANG parses config with optional plugin YANG schemas.
 // Returns the parsed tree for further processing by callers.
 func ParseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
-	tree, err := parseTreeWithYANG(input, pluginYANG)
+	tree, _, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
 		return nil, err
 	}
 
-	envValues := ExtractEnvironment(tree)
-	slogutil.ApplyLogConfig(envValues)
-	ApplyEnvConfig(envValues)
+	applyParsedEnvironment(tree)
 
 	return tree, nil
 }
 
-func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
+// applyParsedEnvironment pushes the tree's environment block into the log and
+// env layers. Both callers of parseTreeWithYANG do it, and they must do the
+// same thing: LoadConfig cannot go through ParseTreeWithYANG because it needs
+// the schema that parse built.
+func applyParsedEnvironment(tree *Tree) {
+	envValues := ExtractEnvironment(tree)
+	slogutil.ApplyLogConfig(envValues)
+	ApplyEnvConfig(envValues)
+}
+
+// warnPlaintextOnDisk warns once that the config source still holds the
+// plaintext the load just hashed. LoadConfig itself writes no file, so this
+// warning is the only thing that tells the operator the secret stays readable
+// where they wrote it.
+//
+// Two boot paths DO rewrite that file afterwards, and both replace the plaintext
+// with the hash: applyEvolutions (cmd/ze/hub/main_evolve.go) re-serializes the
+// loaded tree when a schema evolution applies, and RecoverConfig
+// (internal/component/config/stamp.go) does the same on the rollback path.
+// applyEvolutions also calls store.WriteVersion FIRST, so the archived version
+// keeps the ORIGINAL plaintext.
+//
+// The source name is in the MESSAGE rather than an attribute because the log
+// ring keeps only the message: LogEntry (internal/core/slogutil/ring.go) has
+// fields for time, level, component and message and none for attributes, so a
+// path carried as an attribute is invisible to `show log recent`. The leaf list
+// stays an attribute deliberately, and is therefore visible in a structured sink
+// and not in `show log recent`: the operator needs the FILE to act, and the leaf
+// names only say which users to re-enter.
+//
+// A caller that names no source gets no invented name. Naming stdin for a
+// caller that simply passed no path told the operator to look at the wrong
+// place, and four production call sites pass none.
+//
+// The leaf paths are NOT redacted, and they need no redaction: hashed carries
+// schema dot-paths, never values, because hashPlaintextSibling deletes the
+// plaintext leaf before this runs. redact.Command would also do nothing here,
+// because it blanks the token AFTER a credential key and a whole dot-path is
+// one token.
+func warnPlaintextOnDisk(configPath string, hashed []string) {
+	if len(hashed) == 0 {
+		return
+	}
+	var tb textbuf.Buffer
+	var msg string
+	switch configPath {
+	case "", "-":
+		msg = tb.Str("plaintext password in the loaded config").
+			Str(": ze hashed it at load, and the source still holds the secret").String()
+	default:
+		msg = tb.Str("plaintext password in ").Str(configPath).
+			Str(": ze hashed it at load, and the file still holds the secret").String()
+	}
+	loaderLogger().Warn(msg, "leaves", textbuf.Join(hashed, " "))
+}
+
+// parseTreeWithYANG parses config text and returns the tree together with the
+// schema it was parsed against. The schema is returned because a caller that
+// transforms the tree needs the same one (LoadConfig -> ApplyPasswordHashing),
+// and rebuilding it means reloading and resolving every YANG module again.
+func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, *Schema, error) {
 	var schema *Schema
 	var schemaErr error
 	if len(pluginYANG) > 0 {
@@ -110,7 +202,7 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 		schema, schemaErr = YANGSchema()
 	}
 	if schemaErr != nil {
-		return nil, fmt.Errorf("YANG schema: %w", schemaErr)
+		return nil, nil, fmt.Errorf("YANG schema: %w", schemaErr)
 	}
 
 	format := DetectFormat(input)
@@ -127,12 +219,12 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 		tree, err = p.Parse(input)
 		if err != nil {
 			if hint := detectLegacySyntaxHint(input, err); hint != "" {
-				return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+				return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
 			}
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
+		return nil, nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	// Prune inactive containers and list entries before extracting environment
@@ -142,7 +234,7 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 	// CreateReactorFromTree (and runs after this prune).
 	PruneInactive(tree, schema)
 
-	return tree, nil
+	return tree, schema, nil
 }
 
 // parseSetWithMigration parses set-format config, applying migrations for stale fields.

@@ -1,0 +1,165 @@
+# Test: the configuration netlab renders for a ze node runs, authenticates, and
+# answers the show command netlab validation parses.
+#
+# VALIDATES: spec-netlab-integration AC-9 and AC-10.
+#            AC-9  -- `ze config validate` accepts contrib/netlab/golden/r3.conf,
+#                     the committed render of contrib/netlab/ze/ze.j2.
+#            AC-10 -- a daemon started from that render lets the user the render
+#                     declared log in over SSH, and
+#                     `ze cli -c "show bgp peer list | json compact"` -- the exact
+#                     string contrib/netlab/ze.yml puts in netlab_show_command --
+#                     returns output a JSON parser accepts.
+# PREVENTS:  two failures that look nothing alike and have the same cause, a
+#            contributed artifact nothing executes.
+#            1. The templates emit config the parser accepts and the daemon
+#               refuses, or refuses to run with. `make ze-netlab-render-check`
+#               catches a drifted RENDER; only a daemon catches a drifted
+#               RUNTIME, and that check needs netlab installed while this test
+#               needs nothing.
+#            2. `netlab validate` gets YAML where it asked for JSON. That was
+#               real: `ze cli -c "show x | json compact"` ran the pipe and then
+#               printFormatted re-rendered its JSON back to YAML under the
+#               default --format yaml (internal/component/cli/client/main.go).
+#               The user's explicit pipe lost to a flag default, and every
+#               netlab validation over a ze node would have failed to parse.
+#
+# The config under test is the COMMITTED GOLDEN, read through ZE_REPO_ROOT, and
+# not a copy pasted into this file. A copy is a second source of truth that goes
+# stale the first time the template changes, which is the whole failure this test
+# exists to catch. r3 is the node to use: it is the topology's bgp-only node, so
+# it carries no OSPF, IS-IS or BFD block, and those need real interfaces that no
+# unprivileged test host has.
+#
+# Two edits are applied to the golden, and each one is asserted to have changed
+# something so a rename in the template cannot make this test quietly stop
+# testing:
+#   - the link addresses 10.1.0.5 / 10.1.0.6 become 127.0.0.1, because a test
+#     host has neither and `ze start` then dies on "can't assign requested
+#     address";
+#   - the SSH port becomes 0 (ephemeral), because the plugin suite runs tests in
+#     parallel and the rendered default 2222 is one port for all of them.
+# Nothing else is touched. The session never establishes (both ends are this
+# host) and it does not need to: `show bgp peer list` reports a configured peer
+# either way, which is what netlab validation reads.
+#
+# DISCRIMINATOR: revert the format-pipe precedence in
+# internal/component/cli/client/main.go renderCommandOutput and seq 1 fails at
+# the JSON step, because the output is YAML. Break any ze.j2 branch r3 renders
+# and it fails earlier, at `ze config validate` or at daemon start.
+
+tmpfs=test-netlab-lab-profile.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+GOLDEN="$ZE_REPO_ROOT/contrib/netlab/golden/r3.conf"
+if [ ! -f "$GOLDEN" ]; then
+	echo "FAIL: no committed render at $GOLDEN" >&2
+	exit 1
+fi
+
+# AC-9: the artifact netlab writes into the container is valid ze configuration.
+if ! ze config validate "$GOLDEN" >validate.log 2>&1; then
+	echo "FAIL: the committed netlab render is not valid ze configuration" >&2
+	cat validate.log >&2
+	exit 1
+fi
+echo "OK: AC-9 -- ze config validate accepts contrib/netlab/golden/r3.conf" >&2
+
+sed -e 's/10\.1\.0\.5/127.0.0.1/g' \
+    -e 's/10\.1\.0\.6/127.0.0.1/g' \
+    -e 's/port 2222;/port 0;/' "$GOLDEN" > lab.conf
+
+# Each edit must have bitten. A template rename that made one of them a no-op
+# would otherwise leave this test starting a daemon on the wrong addresses and
+# reporting the failure as a ze defect.
+if grep -q '10\.1\.0\.' lab.conf; then
+	echo "FAIL: the link addresses were not rewritten; the render changed shape" >&2
+	grep '10\.1\.0\.' lab.conf >&2
+	exit 1
+fi
+if ! grep -q 'port 0;' lab.conf; then
+	echo "FAIL: the SSH port was not rewritten; ze.j2 no longer renders 'port 2222;'" >&2
+	exit 1
+fi
+
+# The user this test logs in as is the one the RENDER declared, read back out of
+# it rather than assumed, so a change to netlab_lab_user in ze.j2 reaches here.
+LAB_USER=$(sed -n 's/^[[:space:]]*user \([A-Za-z0-9_-]*\) {.*/\1/p' lab.conf | head -1)
+LAB_PASSWORD=$(sed -n 's/^[[:space:]]*plaintext-password "\(.*\)";.*/\1/p' lab.conf | head -1)
+if [ -z "$LAB_USER" ] || [ -z "$LAB_PASSWORD" ]; then
+	echo "FAIL: the render declares no lab credential to log in with" >&2
+	exit 1
+fi
+
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+ze start lab.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep 'SSH server listening' daemon.log 2>/dev/null \
+		| grep -o '127\.0\.0\.1:[0-9]*' | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: the daemon did not start an SSH server from the netlab render" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+# An empty config dir, so no credential store can answer: the only credential in
+# play is the one the rendered configuration declared.
+EMPTY_DIR=$(mktemp -d)
+trap 'rm -rf "$EMPTY_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+export ZE_CONFIG_DIR="$EMPTY_DIR"
+export ZE_SSH_HOST="127.0.0.1"
+export ZE_SSH_PORT="$SSH_PORT"
+export ZE_SSH_PASSWORD="$LAB_PASSWORD"
+
+if ! ze cli --user "$LAB_USER" -c "show bgp peer list" >peers.txt 2>&1; then
+	echo "FAIL: the user the render declared cannot log in" >&2
+	cat peers.txt >&2
+	cat daemon.log >&2
+	exit 1
+fi
+if ! grep -q "SSH auth success.*username=$LAB_USER" daemon.log; then
+	echo "FAIL: the daemon did not authenticate this request as $LAB_USER" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "OK: AC-10 -- the render's own credential logs in over SSH" >&2
+
+# The exact command contrib/netlab/ze.yml puts in netlab_show_command, with
+# `show $@` expanded. netlab parses this output with a JSON parser.
+if ! ze cli --user "$LAB_USER" -c "show bgp peer list | json compact" >peers.json 2>&1; then
+	echo "FAIL: the netlab show command failed" >&2
+	cat peers.json >&2
+	exit 1
+fi
+if ! python3 -c '
+import json, sys
+raw = open("peers.json").read()
+data = json.loads(raw)
+if "peers" not in data:
+    sys.exit("parsed JSON has no peers key: %r" % (data,))
+if not data["peers"]:
+    sys.exit("parsed JSON lists no peer, so the render configured none")
+'; then
+	echo "FAIL: netlab_show_command output is not the JSON netlab validation parses" >&2
+	echo "--- got ---" >&2
+	cat peers.json >&2
+	exit 1
+fi
+echo "OK: AC-10 -- show bgp peer list | json compact parses as JSON with a peer" >&2
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-netlab-lab-profile.sh:timeout=30s
+expect=exit:code=0

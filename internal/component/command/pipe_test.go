@@ -497,6 +497,38 @@ func TestFoldFiltersValidationErrors(t *testing.T) {
 
 // VALIDATES: checked pipe processing returns validation errors before formatting.
 // PREVENTS: invalid filters dispatching the base command first.
+// TestHasFormatPipe covers the predicate that gives an explicit format operator
+// precedence over a caller's own default.
+//
+// VALIDATES: spec-netlab-integration AC-10, the pipe-engine half.
+// PREVENTS:  a caller reading "count" or "match" as a format and stepping aside
+//
+//	when it should still apply its default. Both are data transforms
+//	whose result is JSON for a downstream formatter, which is the
+//	distinction hasFormatOp already draws for the interactive path.
+func TestHasFormatPipe(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"show bgp peer list", false},
+		{"show bgp peer list | json", true},
+		{"show bgp peer list | json compact", true},
+		{"show bgp peer list | ndjson", true},
+		{"show bgp peer list | yaml", true},
+		{"show bgp peer list | table", true},
+		{"show bgp peer list | text", true},
+		{"show bgp peer list | count", false},
+		{"show bgp peer list | match established", false},
+		{"show bgp peer list | match established | json", true},
+	}
+	for _, tt := range tests {
+		if got := HasFormatPipe(tt.input); got != tt.want {
+			t.Errorf("HasFormatPipe(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestProcessPipesChecked_InvalidFilter(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
