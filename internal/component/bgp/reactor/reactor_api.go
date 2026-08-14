@@ -417,9 +417,7 @@ func (a *reactorAPIAdapter) Reload() error {
 }
 
 // VerifyConfig validates peer settings without modifying reactor state.
-// When reloadFunc is available (production), uses the full config parsing pipeline
-// for accurate validation of all peer fields. Falls back to parsePeersFromTree
-// for basic address validation in tests.
+// Peer parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the verify phase.
 func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
 	if peers, err := a.loadPeersFullOrTree(bgpTree); err != nil {
@@ -431,9 +429,7 @@ func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
 }
 
 // ApplyConfigDiff applies peer changes from config.
-// When reloadFunc is available (production), uses the full config parsing pipeline
-// so PeerSettings are complete (all fields from configToPeer). Falls back to
-// parsePeersFromTree in tests.
+// Peer parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the apply phase.
 func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
 	newPeers, err := a.loadPeersFullOrTree(bgpTree)
@@ -444,11 +440,23 @@ func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
 	return a.reconcilePeers(newPeers, "apply config diff")
 }
 
-// loadPeersFullOrTree loads peers using the full config parsing pipeline when
-// reloadFunc is available (production), or falls back to parsePeersFromTree
-// for basic parsing in tests. The full pipeline produces PeerSettings with all
-// fields populated (capabilities, static routes, etc.), avoiding false diffs
-// in peerSettingsEqual.
+// loadPeersFullOrTree loads peers from a BGP config tree.
+//
+// A file-configured daemon has both a config path and a reload function
+// (CreateReactor, ../config/loader.go, sets the two together), so it re-reads
+// and re-parses the file. That route runs the full pipeline: PruneInactive,
+// ResolveBGPTree, CheckRequiredFields and applyPeerSchemaDefaults before the
+// parse, and patchRoutes after it (peersAndDynamicGroups, ../config/peers.go).
+// It is what populates every field, including YANG defaults, group inheritance
+// and static routes, and a PeerSettings missing them reads as a change to
+// peerSettingsEqual. It also refreshes the dynamic peer groups, which the tree
+// alone cannot do.
+//
+// Every other reactor parses the tree it was handed, with none of that around
+// it. The only stage the two routes share is PeersFromTree (config.go), and
+// sharing it is what stops them disagreeing about how a peer's config is READ.
+// It does not make them equivalent, because they differ in what reaches the
+// parser and in what runs on the result.
 func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	r := a.r
 
@@ -461,7 +469,7 @@ func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*Peer
 		return reloadFn(configPath)
 	}
 
-	return parsePeersFromTree(bgpTree)
+	return PeersFromTree(bgpTree)
 }
 
 // configJournal records transactional apply/undo operations.
@@ -767,129 +775,6 @@ func (j *internalJournal) Rollback() []error {
 
 func (j *internalJournal) Discard() {
 	j.entries = nil
-}
-
-// parsePeersFromTree extracts PeerSettings from a BGP config tree.
-// The tree uses "peer" as the key, with peer names as sub-keys.
-// Field values are strings (from config parser's Tree.ToMap()).
-func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
-	peerSection, ok := bgpTree["peer"]
-	if !ok {
-		return nil, nil // No peers configured.
-	}
-
-	peerMap, ok := peerSection.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid peer section type: %T", peerSection)
-	}
-
-	var peers []*PeerSettings
-	for peerName, peerData := range peerMap {
-		fields, ok := peerData.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("invalid peer data for %s: %T", peerName, peerData)
-		}
-
-		// Read remote > ip and remote > as.
-		remoteMap, _ := fields["remote"].(map[string]any)
-		if remoteMap == nil {
-			return nil, fmt.Errorf("peer %s: missing required remote container", peerName)
-		}
-
-		addrStr, _ := remoteMap["ip"].(string)
-		if addrStr == "" {
-			return nil, fmt.Errorf("peer %s: missing required remote ip", peerName)
-		}
-		addr, err := netip.ParseAddr(addrStr)
-		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid remote ip %q: %w", peerName, addrStr, err)
-		}
-
-		var peerAS uint32
-		if v, ok := remoteMap["as"].(string); ok {
-			parseUint32FromString(v, &peerAS)
-		}
-
-		// Read local > as (optional per-peer override).
-		var localAS uint32
-		if localMap, ok := fields["local"].(map[string]any); ok {
-			if v, ok := localMap["as"].(string); ok {
-				parseUint32FromString(v, &localAS)
-			}
-		}
-
-		settings := NewPeerSettings(addr, localAS, peerAS, 0)
-		settings.Name = peerName
-
-		// Parse optional fields.
-		if v, ok := fields["receive-hold-time"].(string); ok {
-			var ht uint32
-			parseUint32FromString(v, &ht)
-			// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds.
-			if ht >= 1 && ht <= 2 {
-				reactorLogger().Warn("invalid receive-hold-time in peer config, ignoring", "peer", peerName, "value", ht)
-			} else if ht > 0 {
-				settings.ReceiveHoldTime = time.Duration(ht) * time.Second
-			}
-		}
-		if v, ok := fields["send-hold-time"].(string); ok {
-			var sht uint32
-			parseUint32FromString(v, &sht)
-			// RFC 9687: Send Hold Timer must be 0 (auto) or >= 480 seconds.
-			if sht != 0 && sht < 480 {
-				reactorLogger().Warn("invalid send-hold-time in peer config, ignoring", "peer", peerName, "value", sht)
-			} else {
-				settings.SendHoldTime = time.Duration(sht) * time.Second
-			}
-		}
-		if v, ok := fields["keepalive"].(string); ok {
-			var ka uint32
-			parseUint32FromString(v, &ka)
-			if ka > 0 && settings.ReceiveHoldTime > 0 && time.Duration(ka)*time.Second >= settings.ReceiveHoldTime {
-				reactorLogger().Warn("invalid keepalive in peer config, ignoring", "peer", peerName, "value", ka)
-			} else {
-				settings.KeepaliveTime = time.Duration(ka) * time.Second
-			}
-		}
-		if v, ok := fields["connect-retry"].(string); ok {
-			var cr uint32
-			parseUint32FromString(v, &cr)
-			if cr > 0 {
-				settings.ConnectRetry = time.Duration(cr) * time.Second
-			}
-		}
-		if remoteMap, ok := fields["remote"].(map[string]any); ok {
-			if v, ok := remoteMap["connect"].(string); ok {
-				settings.Connection.Connect = v == "true"
-			}
-		}
-		if localMap, ok := fields["local"].(map[string]any); ok {
-			if v, ok := localMap["accept"].(string); ok {
-				settings.Connection.Accept = v == "true"
-			}
-		}
-		if !settings.Connection.Connect && !settings.Connection.Accept {
-			reactorLogger().Warn("connect and accept both false, using default", "peer", peerName)
-			settings.Connection = ConnectionBoth
-		}
-		// Same helper as the full pipeline (configToPeer), so the two parses of this
-		// leaf cannot drift: a bare netip.ParseAddr here accepted 0.0.0.0 as a valid
-		// BGP Identifier (RFC 6286 Section 2.1 requires non-zero) and swallowed a
-		// malformed value into a silent RouterID of 0 -- a zero that reads as a
-		// valid answer (ai/rules/evidence.md). Reject instead, matching
-		// how this function already treats an invalid remote ip.
-		if v, ok := fields["router-id"].(string); ok {
-			id, err := parseRouterID(v)
-			if err != nil {
-				return nil, fmt.Errorf("peer %s: %w", peerName, err)
-			}
-			settings.RouterID = id
-		}
-
-		peers = append(peers, settings)
-	}
-
-	return peers, nil
 }
 
 // parseUint32FromString parses a decimal string into a uint32.

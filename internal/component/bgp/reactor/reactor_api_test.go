@@ -240,28 +240,43 @@ func TestReconcilePeersJournalRemoveThenAdd(t *testing.T) {
 func TestBGPVerifyEstimate(t *testing.T) {
 	r := New(&Config{})
 
-	// Start with 2 peers using the same addresses as the tree will use.
-	// parsePeersFromTree produces PeerSettings with minimal fields,
-	// so we match by creating peers the same way.
+	// Peer trees in the shape `grouping peer-fields` produces
+	// (../yang/ze-bgp-conf.yang). The global local AS lives under
+	// bgp > session > asn > local: without it PeersFromTree skips every peer as
+	// incomplete and the diff below counts nothing.
+	peerTree := func(ip, as string) map[string]any {
+		return map[string]any{
+			"connection": map[string]any{
+				"remote": map[string]any{"ip": ip},
+				"local":  map[string]any{"ip": "auto"},
+			},
+			"session": map[string]any{"asn": map[string]any{"remote": as}},
+		}
+	}
+	globalASN := map[string]any{"asn": map[string]any{"local": "65000"}}
+
 	tree := map[string]any{
+		"session": globalASN,
 		"peer": map[string]any{
-			"peer1": map[string]any{"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"}},
-			"peer2": map[string]any{"remote": map[string]any{"ip": "192.0.2.2", "as": "65002"}},
-			"peer3": map[string]any{"remote": map[string]any{"ip": "192.0.2.3", "as": "65003"}},
-			"peer4": map[string]any{"remote": map[string]any{"ip": "192.0.2.4", "as": "65004"}},
-			"peer5": map[string]any{"remote": map[string]any{"ip": "192.0.2.5", "as": "65005"}},
+			"peer1": peerTree("192.0.2.1", "65001"),
+			"peer2": peerTree("192.0.2.2", "65002"),
+			"peer3": peerTree("192.0.2.3", "65003"),
+			"peer4": peerTree("192.0.2.4", "65004"),
+			"peer5": peerTree("192.0.2.5", "65005"),
 		},
 	}
 
 	// Pre-add 2 peers via the same tree parsing path so PeerKey matches.
 	existingTree := map[string]any{
+		"session": globalASN,
 		"peer": map[string]any{
-			"peer1": map[string]any{"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"}},
-			"peer2": map[string]any{"remote": map[string]any{"ip": "192.0.2.2", "as": "65002"}},
+			"peer1": peerTree("192.0.2.1", "65001"),
+			"peer2": peerTree("192.0.2.2", "65002"),
 		},
 	}
-	existingPeers, err := parsePeersFromTree(existingTree)
+	existingPeers, err := PeersFromTree(existingTree)
 	require.NoError(t, err)
+	require.Len(t, existingPeers, 2, "both peers must parse: a skipped peer makes the diff below vacuous")
 	for _, p := range existingPeers {
 		require.NoError(t, r.AddPeer(p))
 	}
@@ -368,25 +383,24 @@ func (j *testJournal) Discard() {
 	j.entries = nil
 }
 
-// TestParsePeersFromTreeRejectsBadRouterID verifies that the tree-parsing fallback
-// applies the same BGP Identifier rule as the full config pipeline.
+// TestPeersFromTreeRejectsBadRouterID drives the BGP Identifier rule from the
+// WHOLE-TREE entry point loadPeersFullOrTree reaches, not from the per-peer
+// helper (ai/rules/evidence.md: a guard's test starts where callers enter).
 //
-// This is the SECOND parse of the per-peer `router-id` leaf. It used a bare
-// netip.ParseAddr with an Is4 test and no non-zero check, so 0.0.0.0 produced a
-// RouterID of 0 and a malformed value was swallowed into that same 0 -- a zero
-// that reads as a valid answer rather than a rejection
-// (ai/rules/evidence.md). The YANG `ze:validate "nonzero-ipv4"` on the
-// leaf is the outer defense; this test pins the inner one so the two parses of
-// one leaf cannot drift apart.
+// PeersFromTree skips a peer whose error wraps ErrIncompleteConfig and keeps
+// parsing the rest. A bad router-id must NOT take that route: parseRouterID's
+// error is unwrapped, so the whole tree is refused and no peer is returned.
+// TestParsePeerFromTreeInvalid (config_test.go) pins the two rejections at the
+// helper; this test pins what the tree-level caller does with them.
 //
-// VALIDATES: router-id 0.0.0.0 through parsePeersFromTree is REJECTED with an
-// error naming the peer and RFC 6286 Section 2.1, not accepted as RouterID 0.
+// VALIDATES: router-id 0.0.0.0 is REJECTED with an error naming the peer and
+// RFC 6286 Section 2.1, not accepted as RouterID 0 and not skipped.
 // VALIDATES: a malformed router-id is rejected rather than silently ignored.
 // VALIDATES: a valid router-id is still parsed into RouterID.
 // PREVENTS: a peer reaching the reactor with a zero BGP Identifier, which every
 // RFC 6286 Section 2.2 implementation answers with Bad BGP Identifier, so the
 // session can never come up.
-func TestParsePeersFromTreeRejectsBadRouterID(t *testing.T) {
+func TestPeersFromTreeRejectsBadRouterID(t *testing.T) {
 	tests := []struct {
 		name       string
 		routerID   string
@@ -418,14 +432,19 @@ func TestParsePeersFromTreeRejectsBadRouterID(t *testing.T) {
 			tree := map[string]any{
 				"peer": map[string]any{
 					"peer1": map[string]any{
-						"remote":    map[string]any{"ip": "192.0.2.1", "as": "65001"},
-						"local":     map[string]any{"as": "65000"},
-						"router-id": tt.routerID,
+						"connection": map[string]any{
+							"remote": map[string]any{"ip": "192.0.2.1"},
+							"local":  map[string]any{"ip": "auto"},
+						},
+						"session": map[string]any{
+							"asn":       map[string]any{"remote": "65001", "local": "65000"},
+							"router-id": tt.routerID,
+						},
 					},
 				},
 			}
 
-			peers, err := parsePeersFromTree(tree)
+			peers, err := PeersFromTree(tree)
 
 			if tt.wantErr {
 				require.Error(t, err, "router-id %q must be rejected", tt.routerID)
@@ -440,4 +459,44 @@ func TestParsePeersFromTreeRejectsBadRouterID(t *testing.T) {
 			assert.Equal(t, tt.wantID, peers[0].RouterID)
 		})
 	}
+}
+
+// TestPeersFromTreeRejectsWrongTypedPeerSection pins the difference between a
+// config that states NO peers and a config whose `peer` node this parser cannot
+// read. Both arrive at the same lookup, and mapMap (config.go) answers each with
+// the same false, so reading the raw value is what keeps them apart.
+//
+// VALIDATES: a `peer` node that is not a map is REJECTED with an error naming
+// the type it found, not reported as an empty peer set.
+// VALIDATES: an absent `peer` node is still no peers and no error.
+// PREVENTS: a reload reporting success over config nobody could read, which
+// ApplyConfigDiff (reactor_api.go) then applies by reconciling the reactor to
+// zero peers -- every session torn down, no error anywhere
+// (ai/rules/evidence.md, a zero that reads as a valid answer).
+func TestPeersFromTreeRejectsWrongTypedPeerSection(t *testing.T) {
+	// The tree route is operator JSON, so `peer` can arrive as any shape.
+	for _, tt := range []struct {
+		name    string
+		section any
+		wantHas string
+	}{
+		{name: "string", section: "london", wantHas: "string"},
+		{name: "list", section: []any{"london"}, wantHas: "[]interface {}"},
+		{name: "number", section: float64(2), wantHas: "float64"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			peers, err := PeersFromTree(map[string]any{"peer": tt.section})
+
+			require.Error(t, err, "a peer section of type %T must be rejected", tt.section)
+			assert.Contains(t, err.Error(), tt.wantHas, "the error must name the type it found")
+			assert.Nil(t, peers, "an unreadable peer section may not read as an empty peer set")
+		})
+	}
+
+	t.Run("absent", func(t *testing.T) {
+		peers, err := PeersFromTree(map[string]any{})
+
+		require.NoError(t, err, "a config stating no peers is not an error")
+		assert.Empty(t, peers)
+	})
 }

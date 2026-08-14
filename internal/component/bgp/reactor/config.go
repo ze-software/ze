@@ -550,9 +550,21 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	}
 
 	// Parse peers. Key is now peer name (not IP address).
-	peerMap, ok := mapMap(bgpTree, "peer")
+	//
+	// Read the raw value rather than mapMap: mapMap answers "key absent" and
+	// "key present, wrong type" with the same false, and the two mean opposite
+	// things here. Absent is a config that states no peers. Wrong type is a
+	// config this parser cannot read, and answering it with (nil, nil) would
+	// report success with an empty peer set, which ApplyConfigDiff reconciles
+	// by tearing every session down (ai/rules/evidence.md: a zero that reads
+	// as a valid answer).
+	peerSection, ok := bgpTree["peer"]
 	if !ok {
 		return nil, nil
+	}
+	peerMap, ok := peerSection.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid peer section type: %T", peerSection)
 	}
 
 	peerNames := make([]string, 0, len(peerMap))

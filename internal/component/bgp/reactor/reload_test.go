@@ -500,8 +500,11 @@ type testPeer struct {
 	holdTime string // optional
 }
 
-// makeBGPTree builds a bgp config tree with the given peers.
-// Each peer is defined by name → testPeer struct, matching the new config tree format.
+// makeBGPTree builds a bgp config tree with the given peers, in the shape
+// `grouping peer-fields` produces (../yang/ze-bgp-conf.yang): the transport
+// leaves under `connection`, the AS numbers under `session > asn`, and the
+// timers under `timer`. This is what a resolved config hands the reactor, so a
+// tree built here reaches PeersFromTree exactly as an operator's config does.
 func makeBGPTree(peers map[string]testPeer) map[string]any {
 	peerMap := make(map[string]any, len(peers))
 	for name, p := range peers {
@@ -510,11 +513,16 @@ func makeBGPTree(peers map[string]testPeer) map[string]any {
 			localIP = "auto"
 		}
 		m := map[string]any{
-			"remote": map[string]any{"ip": p.remoteIP, "as": p.remoteAS},
-			"local":  map[string]any{"ip": localIP, "as": p.localAS},
+			"connection": map[string]any{
+				"remote": map[string]any{"ip": p.remoteIP},
+				"local":  map[string]any{"ip": localIP},
+			},
+			"session": map[string]any{
+				"asn": map[string]any{"remote": p.remoteAS, "local": p.localAS},
+			},
 		}
 		if p.holdTime != "" {
-			m["receive-hold-time"] = p.holdTime
+			m["timer"] = map[string]any{"receive-hold-time": p.holdTime}
 		}
 		peerMap[name] = m
 	}
@@ -541,6 +549,14 @@ func TestReactorVerifyConfigValid(t *testing.T) {
 
 	err := adapter.VerifyConfig(bgpTree)
 	require.NoError(t, err)
+
+	// VerifyConfig discards the parse, so "no error" alone is also what a tree
+	// whose peers were all SKIPPED as incomplete returns (PeersFromTree,
+	// config.go, warns and continues on ErrIncompleteConfig). Assert the tree
+	// really produced both peers, or this test passes on a shape nobody reads.
+	peers, err := adapter.loadPeersFullOrTree(bgpTree)
+	require.NoError(t, err)
+	assert.Len(t, peers, 2, "both peers must parse, not be skipped as incomplete")
 }
 
 // TestReactorVerifyConfigInvalidAddress verifies that VerifyConfig rejects invalid peer address.
@@ -590,6 +606,12 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 
 	err := adapter.VerifyConfig(bgpTree)
 	require.NoError(t, err)
+
+	// A tree that parses to nothing would also leave the count unchanged, so
+	// pin that peer99 is a peer this config really produces.
+	parsed, err := adapter.loadPeersFullOrTree(bgpTree)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1, "the verified tree must produce the peer it names")
 
 	// Peer count must be unchanged — verify is read-only.
 	peersAfter := len(r.Peers())
