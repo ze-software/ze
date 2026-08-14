@@ -163,9 +163,27 @@ func TestRunInvalidConfig(t *testing.T) {
 	assert.Equal(t, 1, exit)
 }
 
-// TestRunHubConfigRejectsCLIPlugins verifies hub/orchestrator configs reject
-// the global --plugin startup flag with actionable guidance.
-func TestRunHubConfigRejectsCLIPlugins(t *testing.T) {
+// TestRunPassesCLIPluginsToConfigLoad pins the contract commit 8d92e9fab shipped
+// when it deleted the standalone orchestrator: a plugin-only config reaches
+// runYANGConfig like every other config, and the --plugin list goes with it to
+// zeconfig.LoadConfig. There is no pre-flight refusal any more.
+//
+// VALIDATES: --plugin is accepted for a config the old ProbeConfigType called a
+// hub config, and the name it carries is resolved by the config loader.
+//
+// PREVENTS: the predecessor test asserted the refusal 8d92e9fab deleted. Nothing
+// updated it, so it kept calling Run on a config that now BOOTS: the call parked
+// in waitLoop and cmd/ze/hub hit the 20 minute package timeout on every CI run
+// from 2026-08-12.
+//
+// The unresolvable ze. name is what makes this test terminate. It fails inside
+// MergeCliPlugins (internal/component/config/loader.go), which sits downstream of
+// the deleted guard and upstream of the daemon, so the failure proves the list
+// traveled the whole path. A restored pre-flight refusal reports a different
+// message and fails the assertions below; a --plugin dropped on the floor lets
+// the config boot, and the deadline reports that in seconds rather than at the
+// package timeout.
+func TestRunPassesCLIPluginsToConfigLoad(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "hub.conf")
 	err := os.WriteFile(configPath, []byte("plugin { external demo { } }\n"), 0o600)
@@ -183,15 +201,38 @@ func TestRunHubConfigRejectsCLIPlugins(t *testing.T) {
 		os.Stderr = origStderr
 	}()
 
-	exit := Run(storage.NewFilesystem(), configPath, []string{"bgp-rib"}, 0, -1, false, "", false, "", "")
-	assert.Equal(t, 1, exit)
+	captured := make(chan string, 1)
+	go func() {
+		data, readErr := io.ReadAll(r)
+		if readErr != nil {
+			captured <- ""
+			return
+		}
+		captured <- string(data)
+	}()
 
-	_ = w.Close()
-	data, readErr := io.ReadAll(r)
-	assert.NoError(t, readErr)
-	assert.Contains(t, string(data), "--plugin")
-	assert.Contains(t, string(data), "plugin { external ... }")
-	_ = r.Close()
+	exited := make(chan int, 1)
+	go func() {
+		exited <- Run(storage.NewFilesystem(), configPath, []string{"ze.no-such-plugin"}, 0, -1, false, "", false, "", "")
+	}()
+
+	select {
+	case exit := <-exited:
+		assert.Equal(t, 1, exit)
+	case <-time.After(60 * time.Second):
+		t.Fatal("Run did not return: the config booted, so --plugin never reached LoadConfig")
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	stderr := <-captured
+	assert.Contains(t, stderr, "load config", "the failure comes from the config load phase")
+	assert.Contains(t, stderr, "ze.no-such-plugin", "the CLI plugin name reached plugin resolution")
+	assert.Contains(t, stderr, "unknown internal plugin", "resolution refused the name, no pre-flight guard did")
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestReadStdinConfigWithNUL verifies that a NUL sentinel stops reading

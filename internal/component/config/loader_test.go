@@ -233,3 +233,28 @@ func TestLoadConfigNamesNoSourceItWasNotGiven(t *testing.T) {
 		assert.NotContains(t, w, "labsecret", "the warning must never carry the secret")
 	}
 }
+
+// TestLoadConfigMergesCLIPluginsIntoAPluginOnlyConfig: a config whose only
+// top-level block is `plugin` takes the --plugin list like any other config.
+//
+// VALIDATES: the plugin-only shape, which commit 8d92e9fab moved off the deleted
+// orchestrator runtime and onto runYANGConfig, loads with cliPlugins set, and the
+// result carries both the plugin the file declares and the plugin the flag names.
+//
+// PREVENTS: the refusal returning. The orchestrator could not run an in-process
+// plugin, so `--plugin` was refused for exactly this config shape; the daemon
+// passes it to LoadConfig instead. Every other LoadConfig test here passes nil
+// for cliPlugins, so the shape and the flag were never exercised together.
+func TestLoadConfigMergesCLIPluginsIntoAPluginOnlyConfig(t *testing.T) {
+	input := "plugin { external demo { } }\n"
+
+	result, err := LoadConfig(input, filepath.Join(t.TempDir(), "plugin-only.conf"), []string{"extra-demo"})
+	require.NoError(t, err)
+
+	names := make(map[string]bool, len(result.Plugins))
+	for _, p := range result.Plugins {
+		names[p.Name] = true
+	}
+	assert.True(t, names["demo"], "the plugin the config declares survives the merge, got %v", names)
+	assert.True(t, names["extra-demo"], "the plugin --plugin names is merged in, got %v", names)
+}
