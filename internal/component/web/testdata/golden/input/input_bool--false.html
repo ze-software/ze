@@ -1,0 +1,10 @@
+
+<div class="ze-tristate" id="tristate-hold-time">
+
+  <span class="ze-tristate-label">yes</span>
+  <button type="button" class="ze-tristate-track ze-tristate-no"
+          hx-post="/config/set/bgp/peer/london" hx-target="closest .ze-field" hx-swap="outerHTML"
+          hx-vals='{"leaf":"hold-time","value":"__default__"}' data-tristate data-default="90"><span class="ze-tristate-thumb"></span></button>
+  <span class="ze-tristate-label ze-tristate-active">no</span>
+
+</div>

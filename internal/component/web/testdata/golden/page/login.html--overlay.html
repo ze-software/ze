@@ -1,0 +1,17 @@
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <button class="login-close" data-action="dismiss-login">&times;</button>
+    <h2>Login</h2>
+    <div class="login-error">session expired</div>
+    <form method="POST" action="/login">
+      <input type="hidden" name="return_to" value="/show/">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit" class="login-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+

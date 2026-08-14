@@ -428,7 +428,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		listName := strings.ToUpper(listPath[len(listPath)-1][:1]) + listPath[len(listPath)-1][1:]
 		keyless := listNode.KeyName == ""
 		displayKey := listNode.DisplayKey
-		workbench := r.URL.Query().Get("ui") == "workbench"
+		workbench := r.URL.Query().Get("ui") == uiModeTokenWorkbench
 		heading := "New " + listName
 		keyLabel := listNode.KeyName
 		keyInputID := "field-" + formFieldID(keyLabel)

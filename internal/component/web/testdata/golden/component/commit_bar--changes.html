@@ -1,0 +1,8 @@
+
+
+<div id="commit-bar" class="commit-bar visible">
+  <span id="commit-count" class="commit-count">4 pending changes</span>
+  <button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+  <button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+</div>
+

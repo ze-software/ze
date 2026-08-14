@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L2TP Sessions</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav class="breadcrumb-bar">
+  <a href="/">ze</a> / <a href="/l2tp">l2tp</a>
+</nav>
+<main class="content-area">
+  <h2>L2TP Sessions</h2>
+  <p>Tunnels: 1 | Sessions: 2</p>
+  
+  <table class="l2tp-table" id="session-table">
+    <thead>
+      <tr>
+        <th>SID</th>
+        <th>Tunnel</th>
+        <th>Username</th>
+        <th>Address</th>
+        <th>Peer</th>
+        <th>Interface</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td><a href="/l2tp/1">1</a></td>
+        <td>7</td>
+        <td>alice</td>
+        <td>192.0.2.10</td>
+        <td>198.51.100.1</td>
+        <td>ppp0</td>
+        <td>established</td>
+      </tr>
+      
+      <tr>
+        <td><a href="/l2tp/2">2</a></td>
+        <td>7</td>
+        <td>bob</td>
+        <td>192.0.2.11</td>
+        <td>198.51.100.1</td>
+        <td>ppp1</td>
+        <td>establishing</td>
+      </tr>
+      
+    </tbody>
+  </table>
+  
+</main>
+</div>
+</body>
+</html>

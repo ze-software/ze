@@ -1,0 +1,69 @@
+<div class="config-list-layout">
+  <div class="config-key-panel">
+    <h3 class="config-section-title">Keys</h3>
+    <ul class="config-key-list">
+      
+      <li>
+        <a class="config-key-item selected"
+           hx-get="/show/bgp/peer/london/" hx-target="#detail-panel" hx-push-url="true"
+           href="/show/bgp/peer/london/">london</a>
+      </li>
+      
+      <li>
+        <a class="config-key-item"
+           hx-get="/show/bgp/peer/paris/" hx-target="#detail-panel" hx-push-url="true"
+           href="/show/bgp/peer/paris/">paris</a>
+      </li>
+      
+    </ul>
+    <div class="config-key-actions">
+      <button class="config-btn config-btn-add" disabled title="Add (available in edit mode)">+ Add</button>
+    </div>
+  </div>
+
+  <div class="config-detail-panel" id="detail-panel">
+    
+    <div class="config-container">
+      
+      <section class="config-section">
+        <h3 class="config-section-title">Fields</h3>
+        <div class="config-fields">
+          
+          
+<div class="config-field">
+  <label class="config-label" for="field-hold-time" title="BGP hold timer in seconds">hold-time</label>
+  
+  <input type="text" class="config-input" id="field-hold-time" name="hold-time"
+         value="180"
+         pattern="[0-9]&#43;"
+         
+         placeholder="seconds"
+         title="BGP hold timer in seconds">
+  
+</div>
+
+          
+        </div>
+      </section>
+      
+
+      
+      <section class="config-section">
+        <h3 class="config-section-title">Children</h3>
+        <ul class="config-nav-list">
+          
+          <li>
+            <a class="config-nav-link" hx-get="/show/bgp/peer/" hx-target="#content-area" hx-push-url="true" href="/show/bgp/peer/">peer</a>
+          </li>
+          
+          <li>
+            <a class="config-nav-link" hx-get="/show/bgp/timers/" hx-target="#content-area" hx-push-url="true" href="/show/bgp/timers/">timers</a>
+          </li>
+          
+        </ul>
+      </section>
+      
+    </div>
+    
+  </div>
+</div>

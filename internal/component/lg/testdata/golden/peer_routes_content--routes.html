@@ -1,0 +1,42 @@
+
+
+<div class="peer-info">
+<span class="peer-info-state state-up">established</span>
+<span>AS 64500 <span class="asn-name">Example Transit</span></span>
+<span class="peer-info-desc">transit</span>
+<a href="/lg/peer/192.0.2.1/download" class="btn-download" title="Download all routes as compressed CSV">Download CSV</a>
+</div>
+
+
+
+<h3>Routes</h3>
+<table class="route-table">
+<thead>
+<tr>
+<th></th><th>Prefix</th><th>Next Hop</th><th>AS Path</th><th>Origin</th>
+<th>Local Pref</th><th>MED</th>
+</tr>
+</thead>
+<tbody>
+
+<tr class="best-route" hx-get="/lg/route/detail?prefix=203.0.113.0/24&amp;peer=192.0.2.1" hx-target="this" hx-swap="afterend">
+<td>&#9733;</td>
+<td>203.0.113.0/24</td>
+<td>192.0.2.1</td>
+<td>64500 64510</td>
+<td>igp</td>
+<td>100</td>
+<td>0</td>
+</tr>
+<tr hx-get="/lg/route/detail?prefix=198.51.100.0/24&amp;peer=2001:db8::1" hx-target="this" hx-swap="afterend">
+<td></td>
+<td>198.51.100.0/24</td>
+<td>2001:db8::1</td>
+<td>64501</td>
+<td>incomplete</td>
+<td>90</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+

@@ -1,0 +1,30 @@
+
+<div class="tool-overlay tool-overlay--error"
+     id="tool-overlay-1"
+     hx-swap-oob="beforeend:#tool-overlays">
+  <header class="tool-overlay-header">
+    <span class="tool-overlay-title">Peer summary</span>
+    <code class="tool-overlay-command">show bgp summary</code>
+    <button class="tool-overlay-close" type="button" aria-label="Close">×</button>
+  </header>
+  <section class="tool-overlay-body">
+    
+      <div class="tool-overlay-error" role="alert">
+        <strong>Error:</strong>
+        <pre class="tool-overlay-error-message">dispatch failed: no such command</pre>
+      </div>
+    
+  </section>
+  <footer class="tool-overlay-footer">
+    
+      <button type="button"
+              class="tool-overlay-rerun"
+              hx-post="/tools/related/run"
+              hx-target="#tool-overlays"
+              hx-swap="beforeend"
+              hx-vals='{"tool_id":"bgp-summary","context_path":"bgp/peer/london","confirm":"true"}'>
+        Rerun
+      </button>
+    
+  </footer>
+</div>

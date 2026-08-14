@@ -1,0 +1,32 @@
+
+<div class="wb-table-container">
+  <h2 class="wb-form-title">Recent Events</h2>
+  <div class="wb-table-toolbar">
+    <form method="get" action="/show/events/">
+      <select name="namespace" class="wb-form-input" data-action="submit-on-change" aria-label="Namespace filter">
+        <option value="">All Namespaces</option>
+        <option value="bgp" selected>bgp</option><option value="iface">iface</option>
+      </select>
+    </form>
+  </div>
+  
+  <table class="wb-table">
+    <thead>
+      <tr>
+        <th class="wb-table-col">Name</th><th class="wb-table-col">State</th><th class="wb-table-col">Uptime</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr class="wb-table-row">
+        <td class="wb-table-cell">12:00:01</td><td class="wb-table-cell">bgp</td><td class="wb-table-cell">peer flap</td>
+      </tr>
+      
+      <tr class="wb-table-row">
+        <td class="wb-table-cell">12:00:02</td><td class="wb-table-cell">iface</td><td class="wb-table-cell">link down</td>
+      </tr>
+      
+    </tbody>
+  </table>
+  
+</div>

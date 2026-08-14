@@ -1,0 +1,57 @@
+<div class="config-container" id="content-area">
+  
+  <section class="config-section">
+    <ul class="config-nav-list">
+      
+      <li>
+        <a class="config-nav-link config-nav-list" href="/show/bgp/peer/">peer</a>
+      </li>
+      
+      <li>
+        <a class="config-nav-link config-nav-container" href="/show/bgp/timers/">timers</a>
+      </li>
+      
+    </ul>
+  </section>
+  
+
+  
+  <section class="config-section">
+    <h3 class="config-section-title">Fields</h3>
+    <div class="config-fields">
+      
+      <form class="config-set-form" method="POST" action="/config/set/bgp">
+        
+<div class="config-field">
+  <label class="config-label" for="field-hold-time" title="BGP hold timer in seconds">hold-time</label>
+  
+  <input type="text" class="config-input" id="field-hold-time" name="hold-time"
+         value="180"
+         pattern="[0-9]&#43;"
+         
+         placeholder="seconds"
+         title="BGP hold timer in seconds">
+  
+</div>
+
+        <button type="submit" class="config-btn-set">Set</button>
+      </form>
+      
+      <form class="config-set-form" method="POST" action="/config/set/bgp">
+        
+<div class="config-field">
+  <label class="config-label" for="field-hold-time" title="BGP hold timer in seconds">hold-time</label>
+  
+  <input type="checkbox" class="config-input config-checkbox" id="field-hold-time" name="hold-time"
+         checked
+         title="BGP hold timer in seconds">
+  
+</div>
+
+        <button type="submit" class="config-btn-set">Set</button>
+      </form>
+      
+    </div>
+  </section>
+  
+</div>

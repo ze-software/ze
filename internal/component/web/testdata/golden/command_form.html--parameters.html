@@ -1,0 +1,26 @@
+<div class="command-form">
+  <h3 class="command-form-title">peer teardown</h3>
+  
+  <p class="command-form-description">Reset a BGP session</p>
+  
+  <form method="post" action="/admin/bgp/peer/london/teardown"
+        hx-post="/admin/bgp/peer/london/teardown"
+        hx-target="#command-results"
+        hx-swap="afterbegin">
+    
+    <div class="command-form-field">
+      <label class="command-form-label" for="param-peer">peer</label>
+      <input type="text" class="command-form-input" id="param-peer"
+             name="peer" value="london" placeholder="peer name">
+    </div>
+    
+    <div class="command-form-field">
+      <label class="command-form-label" for="param-reason">reason</label>
+      <input type="text" class="command-form-input" id="param-reason"
+             name="reason" value="" placeholder="free text">
+    </div>
+    
+    <button type="submit" class="command-form-execute">Execute</button>
+  </form>
+  <div id="command-results" class="command-results-container"></div>
+</div>

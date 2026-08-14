@@ -9,6 +9,7 @@
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check ze-regen-check-readonly ze-arch-map ze-arch-map-check
+.PHONY: ze-web-golden-check ze-web-golden-update
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -222,6 +223,39 @@ ze-yang-glue-check:
 
 ze-feature-tags-check:
 	@go run scripts/codegen/feature_tags.go --check
+
+# require-go-test fails when no test in package $(2) is named exactly $(1).
+# `go test -run <name>` exits 0 over an empty selection, so a target that only
+# runs a named test passes after that test is renamed or deleted. That is the
+# cheapest route from red to green, and it is the move a ratchet exists to
+# refuse. `-list` prints the names that match; an empty print fails here before
+# the run. A build failure exits with go's own status, so a broken package
+# never reports as a missing test.
+define require-go-test
+names="$$($(GO_TEST) -list '^$(1)$$' $(2))" || exit $$?; \
+	echo "$$names" | grep -qx '$(1)' || { echo "error: $(2) holds no test named $(1); this target cannot pass over zero tests"; exit 1; }
+endef
+
+# Compare the rendered bytes of every web and lg template against the fixtures
+# in each package's testdata/golden/. The suites that assert on HTML use
+# strings.Contains, which cannot see a byte-level change that keeps the asserted
+# substring, so this is the only check that proves the rendered output is
+# unchanged. Both tests also run under ze-unit-test; this target names them so a
+# rendering change can be checked on its own.
+ze-web-golden-check:
+	@$(call require-go-test,TestWebGoldenOutput,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebGoldenOutput' ./internal/component/web/
+	@$(call require-go-test,TestLGGoldenOutput,./internal/component/lg/)
+	@$(GO_TEST) -run 'TestLGGoldenOutput' ./internal/component/lg/
+
+# Recapture the golden fixtures after a DELIBERATE markup change. Read the diff
+# before committing it: every byte this rewrites is a byte an operator receives.
+ze-web-golden-update:
+	@$(call require-go-test,TestWebGoldenOutput,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebGoldenOutput' ./internal/component/web/ -update-golden
+	@$(call require-go-test,TestLGGoldenOutput,./internal/component/lg/)
+	@$(GO_TEST) -run 'TestLGGoldenOutput' ./internal/component/lg/ -update-golden
+	@echo "Updated internal/component/web/testdata/golden/ and internal/component/lg/testdata/golden/"
 
 # Regenerate plugin/all registry snapshots (testdata/*.snapshot) from the live
 # registry after adding or removing a plugin. ze-unit-test fails with a clear

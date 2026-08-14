@@ -1,0 +1,46 @@
+
+<div class="add-entry-overlay" id="add-entry-overlay">
+  <div class="add-entry-card">
+    <h3>New Peer</h3>
+    <form hx-post="/config/add/bgp/peer/" hx-target="#workbench-workspace" hx-swap="innerHTML" data-close-on-after-request="true">
+      <input type="hidden" name="_workbench" value="1">
+      
+        
+      <div class="add-entry-row">
+        <label class="add-entry-label" for="add-entry-key">address</label>
+        <input type="text" class="add-entry-input" id="add-entry-key" name="field:address" aria-label="address" autofocus>
+      </div>
+        
+      
+      
+      <div class="add-entry-row add-entry-required">
+        <label class="add-entry-label" for="field-remote-as">Remote AS <span class="add-entry-req-mark">*</span></label>
+        <input type="text" class="add-entry-input" id="field-remote-as" name="field:remote/as"
+               value="64500"
+               placeholder="peer AS"
+               data-required="true">
+      </div>
+      
+      <div class="add-entry-row add-entry-suggest">
+        <label class="add-entry-label" for="field-remote-ip">Remote IP</label>
+        <input type="text" class="add-entry-input" id="field-remote-ip" name="field:remote/ip"
+               
+               placeholder="peer address"
+               >
+      </div>
+      
+      <div class="add-entry-row add-entry-unique">
+        <label class="add-entry-label" for="field-description">Description</label>
+        <input type="text" class="add-entry-input" id="field-description" name="field:description"
+               
+               placeholder="free text"
+               >
+      </div>
+      
+      <div class="add-entry-actions">
+        <button type="submit" class="add-entry-submit">Save</button>
+        <button type="button" class="add-entry-cancel" data-action="close-add-overlay">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>

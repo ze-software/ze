@@ -1,0 +1,38 @@
+
+<div class="tool-overlay tool-overlay--result"
+     id="tool-overlay-1"
+     hx-swap-oob="beforeend:#tool-overlays">
+  <header class="tool-overlay-header">
+    <span class="tool-overlay-title">Peer summary</span>
+    <code class="tool-overlay-command">show bgp summary</code>
+    <button class="tool-overlay-close" type="button" aria-label="Close">×</button>
+  </header>
+  <section class="tool-overlay-body">
+    
+      <pre class="tool-overlay-output">peer 192.0.2.1 established</pre>
+      
+        <details class="tool-overlay-overflow">
+          <summary>Show full output</summary>
+          <pre class="tool-overlay-output-overflow">... 4096 more lines</pre>
+        </details>
+      
+      
+        <p class="tool-overlay-truncation" role="status">
+          Output truncated server-side at the buffer cap.
+        </p>
+      
+    
+  </section>
+  <footer class="tool-overlay-footer">
+    
+      <button type="button"
+              class="tool-overlay-rerun"
+              hx-post="/tools/related/run"
+              hx-target="#tool-overlays"
+              hx-swap="beforeend"
+              hx-vals='{"tool_id":"bgp-summary","context_path":"bgp/peer/london","confirm":"true"}'>
+        Rerun
+      </button>
+    
+  </footer>
+</div>

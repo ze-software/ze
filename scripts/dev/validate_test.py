@@ -253,6 +253,115 @@ class TestCrossPackageWiring(unittest.TestCase):
             findings = check_cross_package_wiring(root, changed)
             self.assertEqual(findings, [], f"unexpected findings: {findings}")
 
+    def test_internal_test_helper_wired_by_a_cross_package_test(self):
+        """A helper under internal/test/ counts a cross-package _test.go caller.
+
+        Such a package exists to be called from another package's tests, so a
+        test caller IS its wiring. Everywhere else a test-only caller still
+        reads as unwired.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "test" / "golden"
+            pkg.mkdir(parents=True)
+            consumer = root / "internal" / "component" / "web"
+            consumer.mkdir(parents=True)
+
+            (pkg / "golden.go").write_text(
+                "package golden\n\nfunc Compare(a string) string {\n\treturn a\n}\n"
+            )
+            (consumer / "golden_test.go").write_text(
+                "package web\n\nimport (\n\t"
+                '"testing"\n\n\t'
+                '"github.com/ze-software/ze/internal/test/golden"\n'
+                ")\n\n"
+                'func TestG(t *testing.T) { golden.Compare("x") }\n'
+            )
+
+            changed = ["internal/test/golden/golden.go"]
+            findings = check_cross_package_wiring(root, changed)
+            self.assertEqual(findings, [], f"unexpected findings: {findings}")
+
+    def test_internal_test_helper_needs_an_import_not_just_a_word(self):
+        """A test file spelling the name without importing does NOT clear it.
+
+        `grep -w` matches a bare word, which over _test.go is far too loose:
+        in the real tree it cleared Colors.Red on the English word in a comment,
+        BaseTest.GetName on a protobuf accessor, and runner.TestSet on a
+        `func TestSet(t *testing.T)` declaration. Requiring the import narrows
+        the file to one that could call the helper. A word colliding INSIDE an
+        importing file still clears, which is the gate's existing bare-word
+        standard rather than this branch's.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "test" / "runner"
+            pkg.mkdir(parents=True)
+            other = root / "internal" / "core" / "env"
+            other.mkdir(parents=True)
+
+            (pkg / "base.go").write_text("package runner\n\nfunc TestSet() {}\n")
+            # Collides by name only: a test function, no import of runner.
+            (other / "env_test.go").write_text(
+                'package env\n\nimport "testing"\n\nfunc TestSet(t *testing.T) {}\n'
+            )
+
+            changed = ["internal/test/runner/base.go"]
+            findings = check_cross_package_wiring(root, changed)
+            self.assertEqual(len(findings), 1)
+            self.assertIn("TestSet", findings[0].message)
+
+    def test_internal_test_helper_with_no_caller_is_still_flagged(self):
+        """The exemption is narrow: no caller at all is still unwired.
+
+        internal/test/ also holds product code that ships in ze-test, so the
+        subtree is never dropped from the checked population. Only a symbol with
+        a real cross-package test caller is cleared.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "test" / "runner"
+            pkg.mkdir(parents=True)
+
+            (pkg / "ports.go").write_text(
+                "package runner\n\nfunc FindFreePortRange() int {\n\treturn 0\n}\n"
+            )
+
+            changed = ["internal/test/runner/ports.go"]
+            findings = check_cross_package_wiring(root, changed)
+            self.assertEqual(len(findings), 1)
+            self.assertIn("FindFreePortRange", findings[0].message)
+
+    def test_test_only_caller_outside_internal_test_still_flagged(self):
+        """Outside internal/test/, a cross-package test caller is not wiring.
+
+        The consumer IMPORTS alpha, so _imports_package answers True and cannot
+        be what keeps this flagged. Only the internal/test/ prefix test can,
+        which is the line this pins: widen that check and this test fails.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "component" / "alpha"
+            pkg.mkdir(parents=True)
+            consumer = root / "internal" / "component" / "beta"
+            consumer.mkdir(parents=True)
+
+            (pkg / "helper.go").write_text(
+                "package alpha\n\nfunc OnlyTestsCallMe() {}\n"
+            )
+            (consumer / "beta_test.go").write_text(
+                "package beta\n\nimport (\n\t"
+                '"testing"\n\n\t'
+                '"github.com/ze-software/ze/internal/component/alpha"\n'
+                ")\n\n"
+                "func TestB(t *testing.T) { alpha.OnlyTestsCallMe() }\n"
+            )
+
+            changed = ["internal/component/alpha/helper.go"]
+            findings = check_cross_package_wiring(root, changed)
+            self.assertEqual(len(findings), 1)
+            self.assertIn("OnlyTestsCallMe", findings[0].message)
+
     def test_type_with_unused_constants_still_flagged(self):
         """A typed enum whose constants are also unused stays flagged."""
         with tempfile.TemporaryDirectory() as tmp:

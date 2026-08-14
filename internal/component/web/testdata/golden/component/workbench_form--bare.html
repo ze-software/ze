@@ -1,0 +1,21 @@
+
+<div class="wb-form">
+  <h2 class="wb-form-title">System settings</h2>
+  <form class="wb-form-post" method="post" action="/config/form/system/" hx-post="/config/form/system/" hx-swap="none">
+    
+    <div class="wb-form-field">
+      
+      <label for="field-hostname" class="wb-form-label">Hostname</label>
+      
+      <input type="text" id="field-hostname" name="field:hostname" value="edge1" class="wb-form-input">
+      
+      
+      
+    </div>
+    
+    <div class="wb-form-actions">
+      <button type="button" id="workbench-form-save" class="wb-form-save" hx-post="/config/form/system/" hx-include="closest form" hx-swap="none">Save</button>
+      
+    </div>
+  </form>
+</div>

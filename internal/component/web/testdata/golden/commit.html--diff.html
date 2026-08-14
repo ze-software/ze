@@ -1,0 +1,26 @@
+<div class="commit-review">
+  <h2 class="commit-title">Review Uncommitted Changes</h2>
+
+  
+
+  
+  <section class="commit-diff">
+    <h3>Changes</h3>
+    <pre class="commit-diff-output"><span class="diff-add">&#43; peer 192.0.2.1</span>
+<span class="diff-del">- peer 192.0.2.2</span>
+<span class="diff-change">~ hold-time 90</span>
+<span class="diff-context">  bgp</span>
+</pre>
+  </section>
+  
+
+  <div class="commit-actions">
+    
+    <button class="config-btn config-btn-confirm"
+            hx-post="/config/commit"
+            hx-target="#content-area"
+            hx-confirm="Commit these changes?">Confirm Commit</button>
+    
+    <a class="config-btn config-btn-cancel" href="/config/edit/">Cancel</a>
+  </div>
+</div>

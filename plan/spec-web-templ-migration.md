@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Deferral shard | - |
 | Updated | 2026-08-14 |
 
@@ -82,8 +82,10 @@ Written from an assessment Thomas asked for on 2026-08-09.
   a plain `WorkbenchTableData.Title` field that `html/template` auto-escapes.
 - [x] `scripts/dev/code_to_docs.py` - `check_path_exists` validates the doc
   anchor PATH only, never the symbol named after `--`.
-- [x] `Makefile` - `generate` (line 188) is four `go run` calls, all from
-  vendor, nothing on PATH. `ze-proto-gen` (line 204) is the precedent for a
+- [x] `Makefile` - `generate` (line 188) is three `go run` calls from vendor
+  plus one `python3` call, nothing on PATH. Corrected 2026-08-14 in phase 1:
+  the fourth line is `python3 scripts/dev/fuzz-targets.py`, not a `go run`.
+  `ze-proto-gen` (line 204) is the precedent for a
   generator built from vendor and is deliberately excluded from `generate`
   because it needs `protoc`. `ze-plugin-imports-check` (line 214) is the
   precedent for a `--check` gate that catches stale generated output.
@@ -187,7 +189,8 @@ route and no plugin emits HTML.
 | HTTP GET a looking-glass graph page | → | ported templ component replacing `renderPage` / `renderToString` | NEW test required. `TestRenderSVG` / `TestRenderSVGWithNames` do NOT cover this: they build a `Graph` and call `renderGraphSVG` (`internal/component/lg/layout.go`), a `strings.Builder` path that never reaches `renderPage` |
 | HTTP GET the looking-glass with a token | → | ported `lg` page component | NEW test required. `TestLGTokenMiddleware` asserts HTTP status only, so it stays green whether or not the page body renders |
 | HTTP GET `/show/interface/` in the workbench | → | ported component replacing `RenderFragment("workbench_table")` | NEW test required. `TestInterfaceTableData_Build` asserts struct fields (`data.Title`, `data.Rows[0].Key`) and renders nothing |
-| Every reachable page, before and after the port | → | the golden-output capture | `make ze-web-golden-check` (new, phase 1). This is the ONLY evidence for AC-2 |
+| Every template body, before and after the port | → | the TEMPLATE golden capture | `make ze-web-golden-check` (built 2026-08-14). Proven to discriminate: one added space in `lg/templates/error.html` reds three named subtests |
+| An HTTP request to every reachable route | → | the HANDLER golden capture | NEW, still owed by phase 1. The template capture does NOT cover this: it executes the parsed template directly and bypasses `RenderLayout`, `RenderWorkbench`, `RenderFragment`, `RenderConfigToHTML`, `RenderField` and `RenderL2TPTemplate`, and its view models are authored in the test rather than built by a handler. Phase 3 rewrites exactly those wrappers, so without this a port that changes composition or view-model construction stays green |
 | HTTP GET the config editor layout | → | ported component replacing `RenderLayout` | `TestRenderLayout` (existing test) |
 | HTMX POST deleting a list entry | → | ported `HandleFragment` OOB path | `test/ui/web-delete-list-entry.ci` |
 | HTMX POST committing config | → | ported `WriteOOBError` and commit bar | `test/ui/web-commit-transactional.ci` |
@@ -198,7 +201,7 @@ route and no plugin emits HTML.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A view-model field is renamed without updating its markup | `go build` fails. Today the page renders blank. |
-| AC-2 | Every page and fragment reachable in the web UI is requested | Rendered bytes are unchanged from before the migration, proved by diffing against the golden capture taken in phase 1. The `strings.Contains` suite CANNOT prove this and is not evidence for it |
+| AC-2 | Every page and fragment reachable in the web UI is requested | Rendered bytes are unchanged from before the migration. TWO captures are needed and phase 1 owns both. The TEMPLATE capture pins each template body under fixed test-authored input. The HANDLER capture pins the response bytes of an actual HTTP request. Neither proves the other, and the `strings.Contains` suite proves neither |
 | AC-3 | `make generate` runs on a clean tree | No file changes. Generated output is in sync with its `.templ` sources |
 | AC-4 | A package is declared migrated | No `html/template` parse call remains in it (no-layering) |
 | AC-5 | A value containing `<script>` reaches any rendered field | It appears escaped exactly once, never twice, never raw |
@@ -324,10 +327,25 @@ renderer.
    - Tests: `make ze-templ-generate-check` (new), `make ze-web-golden-check` (new)
    - Files: `tools.go`, `go.mod`, `go.sum`, `vendor/`, `Makefile`, `.gomuignore`,
      `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go`
-   - **The golden capture happens HERE, against the UNPORTED tree.** It is the
-     only thing that can prove AC-2, and it is unobtainable once a page is
-     ported: the bytes it must compare against no longer exist. Capturing it
+   - **Both golden captures happen HERE, against the UNPORTED tree.** They are
+     the only things that can prove AC-2, and they are unobtainable once a page
+     is ported: the bytes they must compare against no longer exist. Capturing
      late is the one mistake in this spec that cannot be corrected later.
+   - **DONE 2026-08-14: the TEMPLATE capture.** 57 web files / 60 templates /
+     141 fixtures, 8 lg files / 14 templates / 29 fixtures. It executes the
+     parsed template directly, deliberately, because `RenderFragment`,
+     `RenderField`, `RenderConfigToHTML` and `RenderL2TPTemplate` each discard
+     the execution error and return `""`, so a capture taken through them would
+     record an empty fixture as a pass. Proven red then green by hand.
+   - **STILL OWED: the HANDLER capture.** The consequence of that deliberate
+     bypass is that the template capture pins template bodies under fixed
+     test-authored input, NOT the bytes an operator receives. It never issues
+     an HTTP request, and every view model in it is authored in the test rather
+     than built by the handler that runs in production. Phase 3 rewrites the
+     wrappers it bypasses, so a port that renders each template identically
+     from a differently-built or differently-composed handler model would stay
+     green. Capture the response bytes of a real request to every reachable
+     route. Phase 1 is NOT complete until this exists.
    - Also settle in this phase, because each blocks a later phase and each is
      cheap now: the compile-failure mechanism for AC-1, and the A-1 number.
    - Verify: the check targets fail while nothing is generated, then pass.
@@ -337,7 +355,7 @@ renderer.
      rise for one build-time generator. Below that, proceed and record the
      measurement. The x/vuln precedent (`Makefile`) refuses on the SHAPE of
      the churn rather than a size, so it supplies no threshold; this one is
-     set here to make the go/no-go answerable rather than a judgement call
+     set here to make the go/no-go answerable rather than a judgment call
      made under implementation pressure.
 2. **Phase: `lg`** -- 8 templates, 356 lines, one renderer, `map[string]any` data
    - Tests: `TestLGViewDataIsTyped` (new, AC-8), the golden diff from phase 1,
@@ -399,7 +417,8 @@ renderer.
 | Vendor delta measured | `du -sh vendor` before and after, recorded against A-1 |
 | Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed, through the mechanism chosen in phase 1 |
 | `lg` view data typed (AC-8) | No `map[string]any` in the `lg` render path; `TestLGViewDataIsTyped` green |
-| Rendered bytes unchanged (AC-2) | `make ze-web-golden-check` against the phase-1 capture. Nothing else proves this |
+| Rendered bytes unchanged (AC-2), markup layer | `make ze-web-golden-check` against the phase-1 template capture |
+| Rendered bytes unchanged (AC-2), composition and handler layers | the phase-1 HANDLER capture. The template capture cannot stand in for it: it bypasses every wrapper phase 3 rewrites |
 | No HTML literals left in Go (AC-7) | Match BOTH string forms. The double-quoted `Str("<` finds 8 sites, all in `page_snapshot.go`; the backtick raw-string form (`Str(` and `WriteString(` followed by a backtick and `<`) finds 99 more. A grep for the double-quoted form alone was already near-vacuous before any work started, so it MUST NOT be the deliverable's check |
 
 ### Security Review Checklist

@@ -1,0 +1,34 @@
+
+<div class="wb-detail-panel">
+  <div class="wb-detail-header">
+    <span class="wb-detail-title">Peer london</span>
+    <a href="/show/bgp/peer/" class="wb-detail-close">Close</a>
+  </div>
+  
+  <div class="wb-detail-tabs">
+    
+    <button class="wb-detail-tab wb-detail-tab--active" data-tab="state" type="button">State</button>
+    
+    <button class="wb-detail-tab" data-tab="routes" type="button">Routes</button>
+    
+  </div>
+  
+  <div class="wb-detail-content wb-detail-content--active" data-tab-content="state"><p>established</p></div>
+  
+  <div class="wb-detail-content" data-tab-content="routes"><p>1200 routes</p></div>
+  
+  
+  
+  <div class="wb-detail-tools">
+    
+    <button class="wb-detail-tool"
+            hx-post="/admin/bgp/peer/london/refresh"
+            type="button">Refresh</button>
+    
+    <button class="wb-detail-tool wb-detail-tool--danger"
+            hx-post="/admin/bgp/peer/london/teardown" hx-confirm="Reset the session?"
+            type="button">Teardown</button>
+    
+  </div>
+  
+</div>

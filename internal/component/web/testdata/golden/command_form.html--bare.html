@@ -1,0 +1,12 @@
+<div class="command-form">
+  <h3 class="command-form-title">restart</h3>
+  
+  <form method="post" action="/admin/restart"
+        hx-post="/admin/restart"
+        hx-target="#command-results"
+        hx-swap="afterbegin">
+    
+    <button type="submit" class="command-form-execute">Execute</button>
+  </form>
+  <div id="command-results" class="command-results-container"></div>
+</div>

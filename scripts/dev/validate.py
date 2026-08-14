@@ -165,7 +165,20 @@ def check_source_anchor_stale_paths(root: Path) -> list[Finding]:
 def _has_cross_pkg_ref(
     root: Path, sym: str, pkg_dir: str, search_dirs: list[str]
 ) -> bool:
-    """True if sym is referenced (whole word) by a non-test file in another package."""
+    """True if sym is referenced (whole word) by another package.
+
+    Test files are excluded, so a symbol only tests call reads as unwired. A
+    helper package under internal/test/ inverts that: its whole purpose is to be
+    called from another package's _test.go, so there a cross-package TEST caller
+    is the wiring. The exemption is scoped to where the symbol is DEFINED, not
+    to where it is called, so it counts test callers for internal/test/golden
+    while leaving every other package's rule intact. It stays this narrow on
+    purpose: internal/test/ also holds product code that ships in the ze-test
+    binary (cmd/ze/ze_test_register.go blank-imports internal/test/cli), so
+    dropping the subtree from the checked population would blind the gate over
+    120 files to clear 3 findings.
+    """
+    defined_in_test_helper = pkg_dir.startswith("internal/test/")
     proc = subprocess.run(
         ["grep", "-rlw", "--include=*.go", sym] + search_dirs,
         cwd=root,
@@ -174,11 +187,38 @@ def _has_cross_pkg_ref(
         check=False,
     )
     for mf in (f.strip() for f in proc.stdout.splitlines()):
-        if not mf or mf.endswith("_test.go"):
+        if not mf:
             continue
-        if str(Path(mf).parent) != pkg_dir:
+        if str(Path(mf).parent) == pkg_dir:
+            continue
+        if not mf.endswith("_test.go"):
+            return True
+        # A test caller counts only for a helper defined under internal/test/,
+        # and only when the file IMPORTS that helper. `grep -w` matches a bare
+        # word, and over _test.go that is far too loose to accept on its own:
+        # it cleared Colors.Red on the English word in an ike comment,
+        # BaseTest.GetName on a protobuf accessor, and runner.TestSet on
+        # `func TestSet(t *testing.T)` in env_test.go -- a collision class that
+        # exists only among test files. The import narrows the FILE to one that
+        # could call the helper. It does not make the match a reference: a word
+        # colliding inside an importing file still clears, exactly as the
+        # non-test branch above clears Compare on slogutil.go. That bare-word
+        # standard is the gate's, not this branch's, and this branch is
+        # strictly narrower than it.
+        if not defined_in_test_helper:
+            continue
+        if _imports_package(root, mf, pkg_dir):
             return True
     return False
+
+
+def _imports_package(root: Path, go_file: str, pkg_dir: str) -> bool:
+    """True if go_file's source carries an import path ending in pkg_dir."""
+    try:
+        content = (root / go_file).read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return f'/{pkg_dir}"' in content
 
 
 # One const spec's leading form: "Name1, Name2  Type = expr", "Name = expr",

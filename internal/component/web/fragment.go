@@ -491,6 +491,11 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 	return meta
 }
 
+// fieldTypeString is the field type a string leaf renders as, and the answer
+// valueTypeToFieldType gives for a value type it does not map. Two paths return
+// it, so it carries a name.
+const fieldTypeString = "string"
+
 // valueTypeToFieldType maps config.ValueType to the field type string for data-type.
 func valueTypeToFieldType(vt config.ValueType) string {
 	switch vt {
@@ -509,9 +514,9 @@ func valueTypeToFieldType(vt config.ValueType) string {
 	case config.TypeDuration:
 		return "duration"
 	case config.TypeString, config.TypeEmpty:
-		return "string"
+		return fieldTypeString
 	}
-	return "string"
+	return fieldTypeString
 }
 
 // nodeDescription extracts the YANG description from a schema node, if available.

@@ -1,0 +1,89 @@
+
+
+<section class="config-section">
+  
+  <div class="list-table-toolbar" id="list-table-toolbar">
+    
+    <button class="related-tool related-tool--inspect"
+            data-tool-id="bgp-summary"
+            hx-post="/tools/related/run"
+            hx-target="#tool-overlays"
+            hx-swap="beforeend"
+            hx-vals='{"tool_id":"bgp-summary","context_path":"bgp/peer"}'>
+      Summary
+    </button>
+    
+  </div>
+  
+  <table class="finder-table detail-table">
+    <thead>
+      <tr>
+        <th class="finder-table-action"></th>
+        
+        <th>name</th>
+        
+        <th>remote/ip</th>
+        
+        <th>remote/as</th>
+        
+        <th class="finder-table-action"></th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr class="row--pending" data-row-key="london">
+        <td class="finder-table-action"></td>
+        <td><span class="row-pending-marker" title="Uncommitted changes" aria-label="Pending changes">●</span><a class="finder-table-link" href="/show/bgp/peer/london/"
+               hx-get="/fragment/detail?path=bgp/peer/london&ui=workbench" hx-target="#workbench-workspace" hx-swap="innerHTML" hx-push-url="/show/bgp/peer/london/">london</a></td>
+        
+        
+        <td>192.0.2.1</td>
+        
+        
+        
+        <td>64500</td>
+        
+        
+        <td class="finder-table-action">
+          
+          <span class="row-tools" data-row-tools="london">
+            
+            <button class="related-tool related-tool--danger"
+                    data-tool-id="peer-teardown"
+                    data-confirm="true"
+                    hx-post="/tools/related/run"
+                    hx-target="#tool-overlays"
+                    hx-swap="beforeend"
+                    hx-vals='{"tool_id":"peer-teardown","context_path":"bgp/peer/london"}'>
+              Teardown
+            </button>
+            
+          </span>
+          
+          
+        </td>
+      </tr>
+      
+      <tr class="" data-row-key="paris">
+        <td class="finder-table-action"></td>
+        <td><a class="finder-table-link" href="/show/bgp/peer/paris/"
+               hx-get="/fragment/detail?path=bgp/peer/paris&ui=workbench" hx-target="#workbench-workspace" hx-swap="innerHTML" hx-push-url="/show/bgp/peer/paris/">paris</a></td>
+        
+        
+        <td></td>
+        
+        
+        
+        <td>64501</td>
+        
+        
+        <td class="finder-table-action">
+          
+          
+        </td>
+      </tr>
+      
+    </tbody>
+  </table>
+  
+</section>

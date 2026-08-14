@@ -1,0 +1,31 @@
+<div class="config-list-layout">
+  <div class="config-key-panel">
+    <h3 class="config-section-title">Keys</h3>
+    <ul class="config-key-list">
+      
+      <li>
+        <a class="config-key-item"
+           hx-get="/show/bgp/peer/london/" hx-target="#detail-panel" hx-push-url="true"
+           href="/show/bgp/peer/london/">london</a>
+      </li>
+      
+      <li>
+        <a class="config-key-item"
+           hx-get="/show/bgp/peer/paris/" hx-target="#detail-panel" hx-push-url="true"
+           href="/show/bgp/peer/paris/">paris</a>
+      </li>
+      
+    </ul>
+    <div class="config-key-actions">
+      <button class="config-btn config-btn-add" disabled title="Add (available in edit mode)">+ Add</button>
+    </div>
+  </div>
+
+  <div class="config-detail-panel" id="detail-panel">
+    
+    <div class="config-empty-detail">
+      <p class="config-hint">Select an item from the list.</p>
+    </div>
+    
+  </div>
+</div>

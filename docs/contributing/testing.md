@@ -239,3 +239,5 @@ fuzz corpus entry becomes a regression test automatically.
 | Mutation test one package | `make ze-mutation-pkg PKG=./internal/core/textbuf/` |
 | Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
 | Check the commit I just made compiles | `make ze-tracked-build-check` |
+| Prove a web or looking-glass template renders the same bytes | `make ze-web-golden-check` |
+| Recapture those bytes after a deliberate markup change | `make ze-web-golden-update`, then read the diff |

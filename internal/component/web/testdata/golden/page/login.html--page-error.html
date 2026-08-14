@@ -1,0 +1,27 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connexion</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <h2>Connexion</h2>
+    <div class="login-error">invalid credentials</div>
+    <form method="POST" action="/login">
+      <input type="hidden" name="return_to" value="/show/bgp/">
+      <label for="username">Nom d&#39;utilisateur</label>
+      <input type="text" id="username" name="username" required autofocus>
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit" class="login-submit">Se connecter</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
+

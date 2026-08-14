@@ -1,0 +1,67 @@
+<div class="config-list-layout">
+  <div class="config-key-panel">
+    <h3 class="config-section-title">Entries</h3>
+    <ul class="config-key-list">
+      
+      <li>
+        <a class="config-key-item selected"
+           href="/show/bgp/peer/london/">london</a>
+      </li>
+      
+      <li>
+        <a class="config-key-item"
+           href="/show/bgp/peer/paris/">paris</a>
+      </li>
+      
+    </ul>
+    <button class="sidebar-flyout-add" data-action="add-entry" data-base-url="/show/bgp/peer/">+ new</button>
+  </div>
+
+  <div class="config-detail-panel" id="detail-panel">
+    
+    <div class="config-container">
+      
+      <section class="config-section">
+        <h3 class="config-section-title">Fields</h3>
+        <div class="config-fields">
+          
+          <form class="config-set-form" method="POST" action="/config/set/bgp/peer/london">
+            
+<div class="config-field">
+  <label class="config-label" for="field-hold-time" title="BGP hold timer in seconds">hold-time</label>
+  
+  <input type="text" class="config-input" id="field-hold-time" name="hold-time"
+         value="180"
+         pattern="[0-9]&#43;"
+         
+         placeholder="seconds"
+         title="BGP hold timer in seconds">
+  
+</div>
+
+            <button type="submit" class="config-btn-set">Set</button>
+          </form>
+          
+        </div>
+      </section>
+      
+
+      
+      <section class="config-section">
+        <ul class="config-nav-list">
+          
+          <li>
+            <a class="config-nav-link config-nav-list" href="/show/bgp/peer/">peer</a>
+          </li>
+          
+          <li>
+            <a class="config-nav-link config-nav-container" href="/show/bgp/timers/">timers</a>
+          </li>
+          
+        </ul>
+      </section>
+      
+    </div>
+    
+  </div>
+</div>
