@@ -358,8 +358,12 @@ func TestHTMXFragmentVsFullPage(t *testing.T) {
 	fullBody, _ := io.ReadAll(resp.Body)
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
-	if !strings.Contains(string(fullBody), "<!DOCTYPE html>") {
-		t.Error("full page response should contain <!DOCTYPE html>")
+	// test-relax: the doctype is matched case-insensitively because templ
+	// lowercases it unconditionally (generateDocType, in the vendored
+	// generator). A doctype is case-insensitive in HTML, and the assertion is
+	// about a full page carrying one at all.
+	if !strings.Contains(strings.ToLower(string(fullBody)), "<!doctype html>") {
+		t.Error("full page response should contain a doctype")
 	}
 
 	// Fragment request (with HX-Request header).
@@ -375,8 +379,8 @@ func TestHTMXFragmentVsFullPage(t *testing.T) {
 	fragBody, _ := io.ReadAll(resp.Body)
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
-	if strings.Contains(string(fragBody), "<!DOCTYPE html>") {
-		t.Error("fragment response should NOT contain <!DOCTYPE html>")
+	if strings.Contains(strings.ToLower(string(fragBody)), "<!doctype html>") {
+		t.Error("fragment response should NOT contain a doctype")
 	}
 }
 

@@ -1,0 +1,51 @@
+package lg
+
+// searchPage is the route search form and its results.
+//
+// The results panel renders whenever there are routes OR an error. Before
+// 2026-08-14 it rendered only when there were routes, so a validation error on
+// a non-HTMX request reached no byte: the error banner lives inside
+// routeResults (plan/journal/silent-fall-through.md).
+templ searchPage(v searchView) {
+	<h1>Route Search</h1>
+	@searchForm(v)
+	<div id="results">
+		if len(v.Routes) > 0 || v.Error != "" {
+			@routeResults(v)
+		}
+	</div>
+}
+
+// searchForm is the stackable filter form. Every field is optional and the
+// handler requires at least one of prefix, AS path and community.
+templ searchForm(v searchView) {
+	<form hx-post="/lg/search" hx-target="#results" hx-indicator="#search-spinner" class="search-form">
+		<div class="search-row">
+			<div class="search-field">
+				<label for="prefix">Prefix</label>
+				<input type="text" id="prefix" name="prefix" value={ v.Prefix } placeholder="10.0.0.0/24 or 10.0.0.1">
+			</div>
+			<div class="search-field">
+				<label for="aspath">AS Path</label>
+				<input type="text" id="aspath" name="aspath" value={ v.ASPath } placeholder="64500 64501">
+			</div>
+			<div class="search-field">
+				<label for="community">Community</label>
+				<input type="text" id="community" name="community" value={ v.Community } placeholder="65000:100">
+			</div>
+			<div class="search-field search-field-narrow">
+				<label for="family">Family</label>
+				<select id="family" name="family">
+					<option value="">All</option>
+					<option value="ipv4/unicast" selected?={ v.Family == "ipv4/unicast" }>IPv4 Unicast</option>
+					<option value="ipv6/unicast" selected?={ v.Family == "ipv6/unicast" }>IPv6 Unicast</option>
+				</select>
+			</div>
+			<div class="search-field search-field-btn">
+				<label>&nbsp;</label>
+				<button type="submit">Search</button>
+			</div>
+		</div>
+		<span id="search-spinner" class="htmx-indicator"><span class="spinner"></span></span>
+	</form>
+}

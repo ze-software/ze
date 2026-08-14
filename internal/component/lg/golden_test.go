@@ -1,284 +1,313 @@
-// Related: render.go -- parseLGTemplates builds the template set captured here
-// Related: handler_ui.go -- the handlers that supply the data shapes below
+// Related: render.go -- the helpers every component below calls
+// Related: view.go -- the structs the fixture data builds
+// Related: handler_ui.go -- the handlers that supply these data shapes
 
 package lg
 
 import (
 	"bytes"
-	"html/template"
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/a-h/templ"
+
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
-// lgGolden is the golden harness over the lg template tree. The spec below, the
-// fixture data and the ExecuteTemplate call stay in this package. The walk over
-// the FS, the coverage check, the fixture path rule and the byte comparison are
-// shared with internal/component/web through internal/test/golden.
+// lgGolden is the golden harness over the lg templ tree. The spec below, the
+// fixture data and the Render call stay in this package. The walk over the
+// sources, the coverage check, the fixture path rule and the byte comparison
+// are shared with internal/component/web through internal/test/golden.
+//
+// The walk reads the package directory rather than an embedded FS: templ
+// compiles each .templ into Go, so nothing is embedded any more. Ext keeps the
+// walk to the sources and off the Go files beside them.
 //
 // Recapture a deliberate markup change with `make ze-web-golden-update`.
 var lgGolden = golden.Set{
-	FS:      templatesFS,
-	Dir:     "templates",
+	FS:      os.DirFS("."),
+	Dir:     ".",
+	Ext:     ".templ",
 	Spec:    lgGoldenSpec,
 	SpecVar: "lgGoldenSpec",
 }
 
-// lgGoldenSpec maps each file in the embedded template FS to the templates it
-// defines and the data each one renders with. TestLGGoldenOutput compares this
-// map against the FS and fails when the two disagree. A new template file, or a
-// new {{define}} inside an existing file, fails until it is captured here.
+// lgGoldenSpec maps each templ source to the components it declares and the
+// data each one renders with. TestLGGoldenOutput compares this map against the
+// directory and fails when the two disagree. A new .templ file, or a new templ
+// component inside an existing one, fails until it is captured here.
+//
+// Fixture names are the html/template names these components replaced. A
+// component is a Go function and carries a Go name, and renaming 29 fixtures
+// would hide the byte delta of the port inside a rename.
 var lgGoldenSpec = golden.Spec{
-	"templates/error.html": {{
-		Name: "error_banner",
+	"error.templ": {{
+		Name:    "errorBanner",
+		Fixture: "error_banner",
 		Variants: []golden.Variant{
-			{Name: "set", Data: map[string]any{"Error": "engine unreachable"}},
-			{Name: "clear", Data: map[string]any{"Error": ""}},
+			{Name: "set", Data: errorBanner("engine unreachable")},
+			{Name: "clear", Data: errorBanner("")},
 		},
 	}},
-	"templates/help.html": {{
-		Name:     "help",
-		Variants: []golden.Variant{{Data: map[string]any{"Title": "Help", "ActiveTab": "help"}}},
+	"help.templ": {{
+		Name:     "helpPage",
+		Fixture:  "help",
+		Variants: []golden.Variant{{Data: helpPage()}},
 	}},
-	"templates/layout.html": {{
-		Name: "layout",
+	"layout.templ": {{
+		Name:    "pageLayout",
+		Fixture: "layout",
 		Variants: []golden.Variant{
-			{Name: "peers", Data: lgLayoutData("Peers", "peers")},
-			{Name: "search", Data: lgLayoutData("Route Search", "search")},
+			{Name: "peers", Data: lgLayoutFixture("Peers", "peers")},
+			{Name: "search", Data: lgLayoutFixture("Route Search", "search")},
 		},
 	}},
-	"templates/peers.html": {
-		{Name: "peers", Variants: lgPeersVariants()},
-		{Name: "peers_content", Variants: lgPeersVariants()},
-		{Name: "peers_table_body", Variants: lgPeersVariants()},
-		{Name: "bmp_peers_content", Variants: []golden.Variant{
-			{Data: map[string]any{"BMPPeers": lgBMPPeerRows()}},
+	"peers.templ": {
+		{Name: "peersPage", Fixture: "peers", Variants: lgPeersVariants(peersPage)},
+		{Name: "peersContent", Fixture: "peers_content", Variants: lgPeersVariants(peersContent)},
+		{Name: "peersTableBody", Fixture: "peers_table_body", Variants: []golden.Variant{
+			{Name: "full", Data: peersTableBody(lgPeerRows())},
+			{Name: "empty", Data: peersTableBody(nil)},
 		}},
-		{Name: "peer_detail_area", Variants: []golden.Variant{{Data: map[string]any{}}}},
+		{Name: "bmpPeersContent", Fixture: "bmp_peers_content", Variants: []golden.Variant{
+			{Data: bmpPeersContent(lgBMPPeerRows())},
+		}},
+		{Name: "peerDetailArea", Fixture: "peer_detail_area", Variants: []golden.Variant{
+			{Data: peerDetailArea()},
+		}},
 	},
-	"templates/peer_routes.html": {
-		{Name: "peer_routes", Variants: lgPeerRoutesVariants()},
-		{Name: "peer_routes_content", Variants: lgPeerRoutesVariants()},
+	"peer_routes.templ": {
+		{Name: "peerRoutesPage", Fixture: "peer_routes", Variants: lgPeerRoutesVariants(peerRoutesPage)},
+		{Name: "peerRoutesContent", Fixture: "peer_routes_content", Variants: lgPeerRoutesVariants(peerRoutesContent)},
 	},
-	"templates/route_detail.html": {{
-		Name: "route_detail",
+	"route_detail.templ": {{
+		Name:    "routeDetail",
+		Fixture: "route_detail",
 		Variants: []golden.Variant{
-			{Name: "found", Data: map[string]any{
-				"Route":  lgRouteRows()[0],
-				"Prefix": "203.0.113.0/24",
-			}},
-			{Name: "missing", Data: map[string]any{
-				"Route":  nil,
-				"Prefix": "203.0.113.0/24",
-			}},
+			{Name: "found", Data: routeDetail(routeDetailView{
+				Prefix: "203.0.113.0/24",
+				Route:  lgRouteRowPtr(0),
+			})},
+			{Name: "missing", Data: routeDetail(routeDetailView{
+				Prefix: "203.0.113.0/24",
+			})},
 		},
 	}},
-	"templates/route_table.html": {{
-		Name:     "route_results",
+	"route_table.templ": {{
+		Name:     "routeResults",
+		Fixture:  "route_results",
 		Variants: lgRouteResultsVariants(),
 	}},
-	"templates/search.html": {
-		{Name: "search", Variants: lgSearchVariants()},
-		{Name: "search_form", Variants: lgSearchVariants()},
+	"search.templ": {
+		{Name: "searchPage", Fixture: "search", Variants: lgSearchVariants(searchPage)},
+		{Name: "searchForm", Fixture: "search_form", Variants: lgSearchVariants(searchForm)},
 	},
 }
 
-// lgLayoutData reproduces the map renderPage builds for the layout template.
-func lgLayoutData(title, tab string) map[string]any {
-	return map[string]any{
-		"Title":     title,
-		"ActiveTab": tab,
-		"Content":   template.HTML("<p>page content</p>"), //nolint:gosec // fixed test fixture
-	}
+// lgLayoutFixture reproduces what renderPage composes: one page's chrome
+// around already-rendered content.
+func lgLayoutFixture(title, tab string) templ.Component {
+	return pageLayout(layoutView{Title: title, ActiveTab: tab}, lgRawComponent("<p>page content</p>"))
 }
 
-// lgPeerRows reproduces the entries extractPeers builds. The two rows differ in
+// lgRawComponent writes fixed markup, standing in for the page component the
+// layout wraps.
+func lgRawComponent(markup string) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, markup)
+
+		return err
+	})
+}
+
+// lgPeerRows reproduces the rows extractPeers builds. The two differ in
 // RemoteASName and State so both branches of each conditional render.
-func lgPeerRows() []map[string]any {
-	return []map[string]any{
+func lgPeerRows() []peerRow {
+	return []peerRow{
 		{
-			"Address": "192.0.2.1", "RemoteAS": "64500", "RemoteASName": "Example Transit",
-			"State": "established", "Uptime": "3h12m4s",
-			"RoutesReceived": "1200", "RoutesAccepted": "1180", "RoutesSent": "42",
-			"UpdatesReceived": "9000", "UpdatesSent": "12",
-			"Description": "transit", "Name": "upstream",
+			Address: "192.0.2.1", RemoteAS: "64500", RemoteASName: "Example Transit",
+			State: "established", Uptime: "3h12m4s",
+			RoutesReceived: "1200", RoutesAccepted: "1180", RoutesSent: "42",
+			UpdatesReceived: "9000", UpdatesSent: "12",
+			Description: "transit",
 		},
 		{
-			"Address": "2001:db8::1", "RemoteAS": "64501", "RemoteASName": "",
-			"State": "idle", "Uptime": "0s",
-			"RoutesReceived": "0", "RoutesAccepted": "0", "RoutesSent": "0",
-			"UpdatesReceived": "0", "UpdatesSent": "0",
-			"Description": "", "Name": "peer2",
+			Address: "2001:db8::1", RemoteAS: "64501", RemoteASName: "",
+			State: "idle", Uptime: "0s",
+			RoutesReceived: "0", RoutesAccepted: "0", RoutesSent: "0",
+			UpdatesReceived: "0", UpdatesSent: "0",
+			Description: "",
 		},
 	}
 }
 
-// lgBMPPeerRows reproduces the entries extractBMPPeers builds. The two rows
-// differ in State, PeerASName and IPv6 so both branches of each render.
-func lgBMPPeerRows() []map[string]any {
-	return []map[string]any{
+// lgBMPPeerRows reproduces the rows extractBMPPeers builds. The two differ in
+// State, PeerASName and IPv6 so both branches of each render.
+func lgBMPPeerRows() []bmpPeerRow {
+	return []bmpPeerRow{
 		{
-			"Router": "198.51.100.7", "PeerAS": "64502", "PeerASName": "Example Two",
-			"BGPID": "198.51.100.1", "State": "up", "IPv6": false,
+			Router: "198.51.100.7", PeerAS: "64502", PeerASName: "Example Two",
+			BGPID: "198.51.100.1", State: "up", IPv6: false,
 		},
 		{
-			"Router": "198.51.100.8", "PeerAS": "64503", "PeerASName": "",
-			"BGPID": "198.51.100.2", "State": "down", "IPv6": true,
+			Router: "198.51.100.8", PeerAS: "64503", PeerASName: "",
+			BGPID: "198.51.100.2", State: "down", IPv6: true,
 		},
 	}
 }
 
-// lgRouteRows reproduces the maps extractRoutes yields. The first is the best
-// path and the second is not, so both branches of isBest render.
-func lgRouteRows() []any {
-	return []any{
-		map[string]any{
-			"prefix": "203.0.113.0/24", "next-hop": "192.0.2.1",
-			"as-path":            []any{float64(64500), float64(64510)},
-			"origin":             "igp",
-			"local-preference":   float64(100),
-			"med":                float64(0),
-			"peer-address":       "192.0.2.1",
-			"best":               true,
-			"community":          []any{"64500:100", "64500:200"},
-			"large-community":    []any{"64500:1:2"},
-			"extended-community": []any{"rt:64500:7"},
+// lgRouteRows reproduces the rows routeRows builds from the decoded RIB. The
+// first is the best path and the second is not, so both branches of Best
+// render.
+func lgRouteRows() []routeRow {
+	return []routeRow{
+		{
+			Prefix: "203.0.113.0/24", NextHop: "192.0.2.1",
+			ASPath:              []string{"64500", "64510"},
+			Origin:              "igp",
+			LocalPreference:     "100",
+			MED:                 "0",
+			PeerAddress:         "192.0.2.1",
+			Best:                true,
+			Communities:         []string{"64500:100", "64500:200"},
+			LargeCommunities:    []string{"64500:1:2"},
+			ExtendedCommunities: []string{"rt:64500:7"},
 		},
-		map[string]any{
-			"prefix": "198.51.100.0/24", "next-hop": "2001:db8::1",
-			"as-path":          []any{float64(64501)},
-			"origin":           "incomplete",
-			"local-preference": float64(90),
-			"med":              float64(5),
-			"peer-address":     "2001:db8::1",
-			"best":             false,
+		{
+			Prefix: "198.51.100.0/24", NextHop: "2001:db8::1",
+			ASPath:          []string{"64501"},
+			Origin:          "incomplete",
+			LocalPreference: "90",
+			MED:             "5",
+			PeerAddress:     "2001:db8::1",
+			Best:            false,
 		},
 	}
 }
 
-func lgPeersVariants() []golden.Variant {
+// lgRouteRowPtr addresses one fixture route, for the view models that hold a
+// pointer.
+func lgRouteRowPtr(i int) *routeRow {
+	rows := lgRouteRows()
+
+	return &rows[i]
+}
+
+func lgPeersVariants(render func(peersView) templ.Component) []golden.Variant {
 	return []golden.Variant{
-		{Name: "full", Data: map[string]any{
-			"Title":     "Peers",
-			"ActiveTab": "peers",
-			"Peers":     lgPeerRows(),
-			"BGPPeers":  lgPeerRows(),
-			"BMPPeers":  lgBMPPeerRows(),
-			"Error":     "",
-		}},
-		{Name: "empty", Data: map[string]any{
-			"Title":     "Peers",
-			"ActiveTab": "peers",
-			"Peers":     nil,
-			"BGPPeers":  nil,
-			"BMPPeers":  nil,
-			"Error":     "engine unreachable",
-		}},
+		{Name: "full", Data: render(peersView{
+			layoutView: layoutView{Title: "Peers", ActiveTab: "peers"},
+			Peers:      lgPeerRows(),
+			BMPPeers:   lgBMPPeerRows(),
+		})},
+		{Name: "empty", Data: render(peersView{
+			layoutView: layoutView{Title: "Peers", ActiveTab: "peers"},
+			Error:      "engine unreachable",
+		})},
 	}
 }
 
-func lgPeerRoutesVariants() []golden.Variant {
+func lgPeerRoutesVariants(render func(peerRoutesView) templ.Component) []golden.Variant {
+	base := layoutView{Title: "Routes from 192.0.2.1", ActiveTab: "peers"}
+
 	return []golden.Variant{
-		{Name: "routes", Data: map[string]any{
-			"Title": "Routes from 192.0.2.1", "ActiveTab": "peers",
-			"Address": "192.0.2.1",
-			"Peer": map[string]any{
-				"state": "established", "remote-as": "64500",
-				"remote-as-name": "Example Transit", "description": "transit",
+		{Name: "routes", Data: render(peerRoutesView{
+			layoutView: base,
+			Address:    "192.0.2.1",
+			Peer: &peerInfoRow{
+				State: "established", RemoteAS: "64500",
+				RemoteASName: "Example Transit", Description: "transit",
 			},
-			"PrefixSummary": nil,
-			"Count":         2,
-			"Routes":        lgRouteRows(),
-			"Error":         "",
-		}},
-		{Name: "summary", Data: map[string]any{
-			"Title": "Routes from 192.0.2.1", "ActiveTab": "peers",
-			"Address": "192.0.2.1",
-			"Peer": map[string]any{
-				"state": "idle", "remote-as": "64501",
-				"remote-as-name": "", "description": "",
+			Routes: lgRouteRows(),
+		})},
+		{Name: "summary", Data: render(peerRoutesView{
+			layoutView: base,
+			Address:    "192.0.2.1",
+			Peer: &peerInfoRow{
+				State: "idle", RemoteAS: "64501",
 			},
-			"PrefixSummary": []map[string]any{
-				{"Family": "ipv4 unicast", "Length": 24, "Count": 1200},
-				{"Family": "ipv6 unicast", "Length": 48, "Count": 30},
+			PrefixSummary: []prefixSummaryRow{
+				{Family: "ipv4 unicast", Length: "24", Count: "1200"},
+				{Family: "ipv6 unicast", Length: "48", Count: "30"},
 			},
-			"Count":  1230,
-			"Routes": nil,
-			"Error":  "",
-		}},
-		{Name: "empty", Data: map[string]any{
-			"Title": "Routes from 192.0.2.1", "ActiveTab": "peers",
-			"Address":       "192.0.2.1",
-			"Peer":          nil,
-			"PrefixSummary": nil,
-			"Count":         0,
-			"Routes":        nil,
-			"Error":         "",
-		}},
+		})},
+		{Name: "empty", Data: render(peerRoutesView{
+			layoutView: base,
+			Address:    "192.0.2.1",
+		})},
 	}
 }
 
 func lgRouteResultsVariants() []golden.Variant {
 	return []golden.Variant{
-		{Name: "routes", Data: map[string]any{
-			"Title": "Route Search", "ActiveTab": "search",
-			"Prefix": "203.0.113.0/24", "ASPath": "64500 64510",
-			"Community": "64500:100", "Family": "ipv4/unicast",
-			"Routes": lgRouteRows(), "Count": 2, "Error": "",
-		}},
-		{Name: "no-prefix", Data: map[string]any{
-			"Title": "Route Search", "ActiveTab": "search",
-			"Prefix": "", "ASPath": "64500", "Community": "", "Family": "",
-			"Routes": lgRouteRows(), "Count": 2, "Error": "",
-		}},
-		{Name: "empty", Data: map[string]any{
-			"Title": "Route Search", "ActiveTab": "search",
-			"Prefix": "", "ASPath": "", "Community": "", "Family": "",
-			"Routes": nil, "Count": 0, "Error": "",
-		}},
-		{Name: "error", Data: map[string]any{
-			"Title": "Route Search", "ActiveTab": "search",
-			"Prefix": "bad", "ASPath": "", "Community": "", "Family": "",
-			"Routes": nil, "Count": 0, "Error": "invalid prefix",
-		}},
+		{Name: "routes", Data: routeResults(searchView{
+			layoutView: searchLayout,
+			Prefix:     "203.0.113.0/24", ASPath: "64500 64510",
+			Community: "64500:100", Family: "ipv4/unicast",
+			Routes: lgRouteRows(), Count: 2,
+		})},
+		{Name: "no-prefix", Data: routeResults(searchView{
+			layoutView: searchLayout,
+			ASPath:     "64500",
+			Routes:     lgRouteRows(), Count: 2,
+		})},
+		{Name: "empty", Data: routeResults(searchView{layoutView: searchLayout})},
+		{Name: "error", Data: routeResults(searchView{
+			layoutView: searchLayout,
+			Prefix:     "bad",
+			Error:      "invalid prefix",
+		})},
 	}
 }
 
-func lgSearchVariants() []golden.Variant {
+func lgSearchVariants(render func(searchView) templ.Component) []golden.Variant {
 	return []golden.Variant{
-		{Name: "blank", Data: map[string]any{
-			"Title": "Route Search", "ActiveTab": "search",
-			"Prefix": "", "ASPath": "", "Community": "", "Family": "",
-		}},
-		{Name: "filled", Data: map[string]any{
-			"Title": "Route Search", "ActiveTab": "search",
-			"Prefix": "203.0.113.0/24", "ASPath": "64500 64510",
-			"Community": "64500:100", "Family": "ipv6/unicast",
-			"Routes": lgRouteRows(), "Count": 2, "Error": "",
-		}},
+		{Name: "blank", Data: render(searchView{layoutView: searchLayout})},
+		{Name: "filled", Data: render(searchView{
+			layoutView: searchLayout,
+			Prefix:     "203.0.113.0/24", ASPath: "64500 64510",
+			Community: "64500:100", Family: "ipv6/unicast",
+			Routes: lgRouteRows(), Count: 2,
+		})},
 	}
 }
 
-// TestLGGoldenOutput captures the rendered bytes of every lg template and
+// lgGoldenRoot is where the captured template fixtures live.
+func lgGoldenRoot() string { return filepath.Join("testdata", "golden") }
+
+// lgRenderUnit renders one spec variant.
+func lgRenderUnit(t *testing.T, file, name string, data any) []byte {
+	t.Helper()
+
+	component, ok := data.(templ.Component)
+	if !ok {
+		t.Fatalf("variant of %q in %s carries %T, not a templ.Component", name, file, data)
+	}
+
+	var buf bytes.Buffer
+	if err := component.Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render %q from %s: %v", name, file, err)
+	}
+
+	return buf.Bytes()
+}
+
+// TestLGGoldenOutput captures the rendered bytes of every lg component and
 // compares them against the committed fixtures.
 //
-// VALIDATES: the lg template set renders byte for byte what it rendered when
+// VALIDATES: the lg component set renders byte for byte what it rendered when
 // the fixtures were captured.
-// PREVENTS: a rendering-engine change that keeps every substring assertion
-// green and still moves the bytes an operator receives.
+// PREVENTS: a rendering change that keeps every substring assertion green and
+// still moves the bytes an operator receives.
 func TestLGGoldenOutput(t *testing.T) {
-	tpl, err := parseLGTemplates()
-	if err != nil {
-		t.Fatalf("parse lg templates: %v", err)
-	}
-
 	files := lgGolden.Files(t)
 	lgGolden.AssertCoversFS(t, files)
 
-	root := filepath.Join("testdata", "golden")
+	root := lgGoldenRoot()
 	if !golden.Updating() {
 		if _, statErr := os.Stat(root); statErr != nil {
 			t.Fatalf("fixture directory %s is missing; capture it with -update-golden: %v", root, statErr)
@@ -296,31 +325,25 @@ func TestLGGoldenOutput(t *testing.T) {
 				written = append(written, lgGolden.FixturePath(root, file, name))
 
 				t.Run(name, func(t *testing.T) {
-					var buf bytes.Buffer
-					// Execute the parsed template directly rather than through
-					// renderPage or renderFragment. Those wrappers log the
-					// error and answer HTTP 500, so a capture taken through
-					// them would record an error page as if it were markup.
-					if err := tpl.ExecuteTemplate(&buf, unit.Name, variant.Data); err != nil {
-						t.Fatalf("render %q from %s: %v", unit.Name, file, err)
-					}
+					got := lgRenderUnit(t, file, unit.Name, variant.Data)
 
-					if strings.TrimSpace(buf.String()) != "" {
+					if strings.TrimSpace(string(got)) != "" {
 						content = true
 					}
 
-					golden.Compare(t, lgGolden.FixturePath(root, file, name), buf.Bytes())
+					golden.Compare(t, lgGolden.FixturePath(root, file, name), got)
 				})
 			}
 
 			if !content && !golden.Updating() {
-				t.Errorf("template %q from %s rendered only whitespace in every variant; its fixture data does not reach the markup",
+				t.Errorf("component %q from %s rendered only whitespace in every variant; its fixture data does not reach the markup",
 					unit.Name, file)
 			}
 		}
 	}
 
-	// A template deleted from the FS takes its spec entry with it. Its fixture
-	// stays on disk, where the next reader counts bytes nobody compares.
+	// A component deleted from the tree takes its spec entry with it. Its
+	// fixture stays on disk, where the next reader counts bytes nobody
+	// compares.
 	golden.AssertCoversDir(t, root, "lgGoldenSpec", written)
 }

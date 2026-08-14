@@ -1,6 +1,7 @@
 package golden
 
 import (
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -256,5 +257,59 @@ func TestFixtureNameAndPath(t *testing.T) {
 		if got := set.FixturePath("testdata", c.file, c.fixture); got != c.want {
 			t.Errorf("FixturePath(%s, %s) = %q, want %q", c.file, c.fixture, got, c.want)
 		}
+	}
+}
+
+// TestTemplSourcesDeriveTheirComponents drives the templ half of the coverage
+// check. A templ file declares its units with the templ keyword, not with
+// {{define}}. It also lives beside the package's Go files.
+//
+// VALIDATES: Set.Ext keeps the walk to the templ sources, definedNames reads
+// every templ component out of one, and Unit.Fixture decouples the fixture
+// stem from the component's Go name.
+// PREVENTS: a templ component added later rendering into no fixture, which is
+// the hole the {{define}} rule would leave over a templ tree.
+func TestTemplSourcesDeriveTheirComponents(t *testing.T) {
+	set := Set{
+		FS: fstest.MapFS{
+			"peers.templ": &fstest.MapFile{Data: []byte(
+				"package lg\n\ntempl peersPage(v peersView) {\n\t<h1>Peers</h1>\n}\n\n" +
+					"templ peersTableBody(rows []peerRow) {\n\t<tr></tr>\n}\n")},
+			"peers_templ.go": &fstest.MapFile{Data: []byte("package lg\n")},
+			"handler.go":     &fstest.MapFile{Data: []byte("package lg\n")},
+		},
+		Dir: ".",
+		Ext: ".templ",
+		Spec: Spec{
+			"peers.templ": {
+				{Name: "peersPage", Fixture: "peers", Variants: []Variant{{}}},
+			},
+		},
+		SpecVar: "lgGoldenSpec",
+	}
+
+	files := set.Files(t)
+	if len(files) != 1 || files[0] != "peers.templ" {
+		t.Fatalf("Files() = %v, want only peers.templ; Ext did not keep the walk off the Go files", files)
+	}
+
+	findings := set.coverage(files)
+	if len(findings) != 1 {
+		t.Fatalf("coverage() reported %d findings, want 1: %v", len(findings), findings)
+	}
+
+	if got := findings[0].Error(); !strings.Contains(got, "peersTableBody") {
+		t.Errorf("coverage() = %q, want it to name the uncaptured component", got)
+	}
+
+	// The captured unit writes the fixture its Fixture field names, not one
+	// named after the Go identifier.
+	unit := set.Spec["peers.templ"][0]
+	if got := unit.FixtureName(Variant{}); got != "peers" {
+		t.Errorf("FixtureName = %q, want peers", got)
+	}
+
+	if got := set.FixturePath("testdata/golden", "peers.templ", "peers"); got != "testdata/golden/peers.html" {
+		t.Errorf("FixturePath = %q, want testdata/golden/peers.html", got)
 	}
 }

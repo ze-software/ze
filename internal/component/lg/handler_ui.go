@@ -28,59 +28,45 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 	result := s.query("show bgp summary")
 	zeData := parseJSON(result)
 
-	peers := s.extractPeers(zeData)
-
 	bmpResult := s.query("show bmp peers")
 	bmpData := parseJSON(bmpResult)
-	bmpPeers := s.extractBMPPeers(bmpData)
 
-	data := map[string]any{
-		"Peers":     peers,
-		"BGPPeers":  peers,
-		"BMPPeers":  bmpPeers,
-		"Title":     "Peers",
-		"ActiveTab": "peers",
-		"Error":     engineError(zeData),
+	v := peersView{
+		layoutView: layoutView{Title: "Peers", ActiveTab: "peers"},
+		Peers:      s.extractPeers(zeData),
+		BMPPeers:   s.extractBMPPeers(bmpData),
+		Error:      engineError(zeData),
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "peers", data)
+		s.renderFragment(w, peersPage(v))
 		return
 	}
-	s.renderPage(w, "peers", data)
+	s.renderPage(w, v.layoutView, peersPage(v))
 }
 
 // handleUIHelp renders the help page.
 func (s *LGServer) handleUIHelp(w http.ResponseWriter, r *http.Request) {
-	data := map[string]any{
-		"Title":     "Help",
-		"ActiveTab": "help",
-	}
-
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "help", data)
+		s.renderFragment(w, helpPage())
 		return
 	}
-	s.renderPage(w, "help", data)
+	s.renderPage(w, layoutView{Title: "Help", ActiveTab: "help"}, helpPage())
 }
 
 // handleUISearchForm renders the route search form.
 func (s *LGServer) handleUISearchForm(w http.ResponseWriter, r *http.Request) {
-	data := map[string]any{
-		"Title":     "Route Search",
-		"ActiveTab": "search",
-		"Prefix":    "",
-		"ASPath":    "",
-		"Community": "",
-		"Family":    "",
-	}
+	v := searchView{layoutView: searchLayout}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "search", data)
+		s.renderFragment(w, searchPage(v))
 		return
 	}
-	s.renderPage(w, "search", data)
+	s.renderPage(w, v.layoutView, searchPage(v))
 }
+
+// searchLayout is the chrome every search response carries.
+var searchLayout = layoutView{Title: "Route Search", ActiveTab: "search"}
 
 // handleUISearch processes the route search form with stackable filters.
 // All filter fields are optional but at least one must be provided.
@@ -146,44 +132,51 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		routes = routes[:maxSearchResults]
 	}
 
-	data := map[string]any{
-		"Title":     "Route Search",
-		"ActiveTab": "search",
-		"Prefix":    prefix,
-		"ASPath":    aspath,
-		"Community": community,
-		"Family":    fam,
-		"Routes":    routes,
-		"Count":     len(routes),
-		"Error":     engineError(zeData),
+	rows := routeRows(routes)
+
+	v := searchView{
+		layoutView: searchLayout,
+		Prefix:     prefix,
+		ASPath:     aspath,
+		Community:  community,
+		Family:     fam,
+		Routes:     rows,
+		Count:      len(rows),
+		Error:      engineError(zeData),
 	}
 
-	if isHTMXRequest(r) {
-		s.renderFragment(w, "route_results", data)
-		return
-	}
-	s.renderPage(w, "search", data)
+	s.renderSearch(w, r, v)
 }
 
 // renderSearchError renders a validation error within the search results area.
 func (s *LGServer) renderSearchError(w http.ResponseWriter, r *http.Request,
 	errMsg, prefix, aspath, community, family string) {
 
-	data := map[string]any{
-		"Title":     "Route Search",
-		"ActiveTab": "search",
-		"Prefix":    prefix,
-		"ASPath":    aspath,
-		"Community": community,
-		"Family":    family,
-		"Error":     errMsg,
-	}
+	s.renderSearch(w, r, searchView{
+		layoutView: searchLayout,
+		Prefix:     prefix,
+		ASPath:     aspath,
+		Community:  community,
+		Family:     family,
+		Error:      errMsg,
+	})
+}
 
+// renderSearch answers a search request. HTMX swaps the results panel alone.
+// A plain browser request gets the whole page.
+//
+// searchPage renders the results panel when there are routes OR an error. A
+// validation error therefore reaches the operator on both paths. Until
+// 2026-08-14 the page rendered the panel only when there were routes. The
+// error banner lives inside that panel, so a bad prefix answered HTTP 200 with
+// an empty form (plan/journal/silent-fall-through.md).
+func (s *LGServer) renderSearch(w http.ResponseWriter, r *http.Request, v searchView) {
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "route_results", data)
+		s.renderFragment(w, routeResults(v))
 		return
 	}
-	s.renderPage(w, "search", data)
+
+	s.renderPage(w, v.layoutView, searchPage(v))
 }
 
 // maxDisplayRoutes is the maximum number of individual routes shown in the browser.
@@ -225,7 +218,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	zeData := parseJSON(result)
 
 	totalCount := 0
-	var prefixSummary []map[string]any
+	var prefixSummary []prefixSummaryRow
 
 	if zeData != nil {
 		if _, isErr := zeData["error"].(string); !isErr {
@@ -234,14 +227,15 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data := map[string]any{
-		"Title":         tb.Reset().Str("Routes from ").Str(address).String(),
-		"ActiveTab":     "peers",
-		"Address":       address,
-		"Peer":          peerInfo,
-		"PrefixSummary": prefixSummary,
-		"Count":         totalCount,
-		"Error":         engineError(zeData),
+	v := peerRoutesView{
+		layoutView: layoutView{
+			Title:     tb.Reset().Str("Routes from ").Str(address).String(),
+			ActiveTab: "peers",
+		},
+		Address:       address,
+		Peer:          peerInfoFrom(peerInfo),
+		PrefixSummary: prefixSummary,
+		Error:         engineError(zeData),
 	}
 
 	// For small route tables, also fetch individual routes.
@@ -250,16 +244,16 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		routeData := parseJSON(routeResult)
 		if routeData != nil {
 			if _, isErr := routeData["error"].(string); !isErr {
-				data["Routes"] = extractRoutes(routeData)
+				v.Routes = routeRows(extractRoutes(routeData))
 			}
 		}
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "peer_routes", data)
+		s.renderFragment(w, peerRoutesPage(v))
 		return
 	}
-	s.renderPage(w, "peer_routes", data)
+	s.renderPage(w, v.layoutView, peerRoutesPage(v))
 }
 
 // handleUIPeerDownload streams all routes for a peer as gzip-compressed text.
@@ -319,47 +313,137 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// flattenPrefixSummary converts the nested prefix-summary JSON into a flat sorted list
-// of {Family, Length, Count} entries for template rendering.
-func flattenPrefixSummary(ze map[string]any) []map[string]any {
+// flattenPrefixSummary converts the nested prefix-summary JSON into a flat
+// sorted list of rows the summary table renders.
+func flattenPrefixSummary(ze map[string]any) []prefixSummaryRow {
 	summary, _ := ze["prefix-summary"].(map[string]any)
 	if summary == nil {
 		return nil
 	}
 
-	var rows []map[string]any
+	var rows []prefixSummaryRow
 	for fam, byLen := range summary {
 		lenMap, ok := byLen.(map[string]any)
 		if !ok {
 			continue
 		}
 		for length, count := range lenMap {
-			rows = append(rows, map[string]any{
-				"Family": fam,
-				"Length": length,
-				"Count":  count,
+			rows = append(rows, prefixSummaryRow{
+				Family: fam,
+				Length: length,
+				Count:  scalarString(count),
 			})
 		}
 	}
 
 	// Sort by family, then numerically by prefix length.
 	sort.Slice(rows, func(i, j int) bool {
-		fi, _ := rows[i]["Family"].(string)
-		fj, _ := rows[j]["Family"].(string)
-		if fi != fj {
-			return fi < fj
+		if rows[i].Family != rows[j].Family {
+			return rows[i].Family < rows[j].Family
 		}
-		si, _ := rows[i]["Length"].(string)
-		sj, _ := rows[j]["Length"].(string)
-		li, _ := strconv.Atoi(si)
-		lj, _ := strconv.Atoi(sj)
+		li, _ := strconv.Atoi(rows[i].Length)
+		lj, _ := strconv.Atoi(rows[j].Length)
+
 		return li < lj
 	})
 
 	return rows
 }
 
+// peerInfoFrom types the peer header above a peer's routes. It returns nil for
+// a peer the summary does not hold, which is the nil branch
+// peerRoutesContent renders.
+func peerInfoFrom(peer map[string]any) *peerInfoRow {
+	if peer == nil {
+		return nil
+	}
+
+	return &peerInfoRow{
+		State:        getStr(peer, "state"),
+		RemoteAS:     getStr(peer, "remote-as"),
+		RemoteASName: getStr(peer, "remote-as-name"),
+		Description:  getStr(peer, "description"),
+	}
+}
+
+// routeRows types the decoded RIB JSON extractRoutes yields. The API handlers
+// keep the untyped form, because they serialize it back to JSON. Only the
+// browser view is typed.
+func routeRows(routes []any) []routeRow {
+	if len(routes) == 0 {
+		return nil
+	}
+
+	rows := make([]routeRow, 0, len(routes))
+	for _, r := range routes {
+		rm, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		rows = append(rows, routeRow{
+			Prefix:              getStr(rm, "prefix"),
+			NextHop:             getStr(rm, "next-hop"),
+			ASPath:              scalarList(rm["as-path"]),
+			Origin:              getStr(rm, "origin"),
+			LocalPreference:     getStr(rm, "local-preference"),
+			MED:                 getStr(rm, "med"),
+			PeerAddress:         getStr(rm, "peer-address"),
+			Best:                getBool(rm, "best"),
+			Communities:         scalarList(rm["community"]),
+			LargeCommunities:    scalarList(rm["large-community"]),
+			ExtendedCommunities: scalarList(rm["extended-community"]),
+		})
+	}
+
+	return rows
+}
+
+// scalarList renders a decoded JSON array as strings. A value that is not an
+// array gives no entries. That is what the AS path and the community column
+// showed for a scalar before the port.
+func scalarList(v any) []string {
+	arr, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+
+	out := make([]string, 0, len(arr))
+	for _, a := range arr {
+		out = append(out, scalarString(a))
+	}
+
+	return out
+}
+
+// scalarString renders one decoded JSON scalar.
+//
+// A JSON number decodes to float64. The %v verb prints a large one in
+// exponent form, so AS 4200000000 reached the browser as "4.2e+09" in every
+// AS path until 2026-08-14. FormatFloat with precision -1 prints the digits.
+// That is what getStr already did for a scalar attribute.
+func scalarString(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	case int:
+		return textbuf.StringInt(int64(t))
+	case bool:
+		return strconv.FormatBool(t)
+	case nil:
+		return ""
+	}
+
+	return fmt.Sprint(v)
+}
+
 // formatASPathPlain returns the AS path as space-separated ASNs for text export.
+//
+// It renders each ASN through scalarString, the same function the browser view
+// uses. The CSV download printed AS 4200000000 as "4.2e+09" until 2026-08-14,
+// because it read the decoded float64 with the %v verb.
 func formatASPathPlain(route map[string]any) string {
 	v, ok := route["as-path"].([]any)
 	if !ok {
@@ -368,7 +452,7 @@ func formatASPathPlain(route map[string]any) string {
 	}
 	parts := make([]string, len(v))
 	for i, a := range v {
-		parts[i] = fmt.Sprint(a)
+		parts[i] = scalarString(a)
 	}
 	return textbuf.Join(parts, " ")
 }
@@ -437,12 +521,14 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data := map[string]any{
-		"Route":  route,
-		"Prefix": prefix,
+	v := routeDetailView{Prefix: prefix}
+	if route != nil {
+		if rows := routeRows([]any{route}); len(rows) == 1 {
+			v.Route = &rows[0]
+		}
 	}
 
-	s.renderFragment(w, "route_detail", data)
+	s.renderFragment(w, routeDetail(v))
 }
 
 // handleUIEvents serves SSE events for live peer state updates.
@@ -496,11 +582,13 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			peers := s.extractPeers(zeData)
-			data := map[string]any{"Peers": peers}
-			html := s.renderToString("peers_table_body", data)
+			// A render error skips the tick. An EMPTY body does not: zero
+			// peers is a state the browser must be told about, and the
+			// template returned "" for both until 2026-08-14.
+			html, err := renderToString(peersTableBody(s.extractPeers(zeData)))
+			if err != nil {
+				s.logger.Warn("SSE: peer table render error", "error", err)
 
-			if html == "" {
 				continue
 			}
 
@@ -520,7 +608,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 
 // extractPeers converts Ze peer summary data into template-friendly format
 // and decorates ASN names.
-func (s *LGServer) extractPeers(ze map[string]any) []map[string]any {
+func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 	if ze == nil {
 		return nil
 	}
@@ -532,7 +620,7 @@ func (s *LGServer) extractPeers(ze map[string]any) []map[string]any {
 	}
 
 	peers, _ := summary["peers"].([]any)
-	var result []map[string]any
+	var result []peerRow
 
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
@@ -545,41 +633,33 @@ func (s *LGServer) extractPeers(ze map[string]any) []map[string]any {
 			address = getStr(peer, "peer-address")
 		}
 
-		// Route counts (NLRI-level) and UPDATE message counts (separate).
-		received := getStr(peer, "routes-received")
-		accepted := getStr(peer, "routes-accepted")
-		sent := getStr(peer, "routes-sent")
-		updatesRecv := getStr(peer, "updates-received")
-		updatesSent := getStr(peer, "updates-sent")
-
 		remoteAS := getStr(peer, "remote-as")
 
-		entry := map[string]any{
-			"Address":         address,
-			"RemoteAS":        remoteAS,
-			"RemoteASName":    s.resolveASN(remoteAS),
-			"State":           getStr(peer, "state"),
-			"Uptime":          getStr(peer, "uptime"),
-			"RoutesReceived":  received,
-			"RoutesAccepted":  accepted,
-			"RoutesSent":      sent,
-			"UpdatesReceived": updatesRecv,
-			"UpdatesSent":     updatesSent,
-			"Description":     getStr(peer, "description"),
-			"Name":            getStr(peer, "name"),
-		}
-
-		result = append(result, entry)
+		result = append(result, peerRow{
+			Address:      address,
+			RemoteAS:     remoteAS,
+			RemoteASName: s.resolveASN(remoteAS),
+			State:        getStr(peer, "state"),
+			Uptime:       getStr(peer, "uptime"),
+			// Route counts (NLRI-level) and UPDATE message counts are
+			// separate. A count the engine cannot produce stays an empty
+			// string. It never becomes a zero.
+			RoutesReceived:  getStr(peer, "routes-received"),
+			RoutesAccepted:  getStr(peer, "routes-accepted"),
+			RoutesSent:      getStr(peer, "routes-sent"),
+			UpdatesReceived: getStr(peer, "updates-received"),
+			UpdatesSent:     getStr(peer, "updates-sent"),
+			Description:     getStr(peer, "description"),
+		})
 	}
 
 	sort.Slice(result, func(i, j int) bool {
-		addrI, _ := result[i]["Address"].(string)
-		addrJ, _ := result[j]["Address"].(string)
-		ipI := net.ParseIP(addrI)
-		ipJ := net.ParseIP(addrJ)
+		ipI := net.ParseIP(result[i].Address)
+		ipJ := net.ParseIP(result[j].Address)
 		if ipI == nil || ipJ == nil {
-			return addrI < addrJ
+			return result[i].Address < result[j].Address
 		}
+
 		return string(ipI.To16()) < string(ipJ.To16())
 	})
 
@@ -588,7 +668,7 @@ func (s *LGServer) extractPeers(ze map[string]any) []map[string]any {
 
 // extractBMPPeers converts BMP peer data into template-friendly format.
 // Returns nil when BMP is not configured or has no peers.
-func (s *LGServer) extractBMPPeers(ze map[string]any) []map[string]any {
+func (s *LGServer) extractBMPPeers(ze map[string]any) []bmpPeerRow {
 	if ze == nil {
 		return nil
 	}
@@ -598,29 +678,23 @@ func (s *LGServer) extractBMPPeers(ze map[string]any) []map[string]any {
 		return nil
 	}
 
-	var result []map[string]any
+	var result []bmpPeerRow
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		router := getStr(peer, "router")
 		peerAS := getStr(peer, "peer-as")
-		bgpID := getStr(peer, "peer-bgp-id")
-		isUp := getBool(peer, "up")
 
-		state := peerState(isUp)
-
-		entry := map[string]any{
-			"Router":     router,
-			"PeerAS":     peerAS,
-			"PeerASName": s.resolveASN(peerAS),
-			"BGPID":      bgpID,
-			"State":      state,
-			"IPv6":       getBool(peer, "ipv6"),
-		}
-		result = append(result, entry)
+		result = append(result, bmpPeerRow{
+			Router:     getStr(peer, "router"),
+			PeerAS:     peerAS,
+			PeerASName: s.resolveASN(peerAS),
+			BGPID:      getStr(peer, "peer-bgp-id"),
+			State:      peerState(getBool(peer, "up")),
+			IPv6:       getBool(peer, "ipv6"),
+		})
 	}
 
 	return result

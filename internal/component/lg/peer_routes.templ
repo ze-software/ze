@@ -1,0 +1,83 @@
+package lg
+
+// peerRoutesPage is one peer's route table.
+templ peerRoutesPage(v peerRoutesView) {
+	<h2>{ v.Title }</h2>
+	@errorBanner(v.Error)
+	@peerRoutesContent(v)
+}
+
+// peerRoutesContent is the peer header, the prefix-length summary and the
+// route rows. A peer with more routes than maxDisplayRoutes gets the summary
+// and no rows.
+templ peerRoutesContent(v peerRoutesView) {
+	if v.Peer != nil {
+		<div class="peer-info">
+			<span class={ "peer-info-state", stateClass(v.Peer.State) }>{ v.Peer.State }</span>
+			<span>
+				if v.Peer.RemoteASName != "" {
+					AS { v.Peer.RemoteAS } <span class="asn-name">{ v.Peer.RemoteASName }</span>
+				} else {
+					AS { v.Peer.RemoteAS }
+				}
+			</span>
+			if v.Peer.Description != "" {
+				<span class="peer-info-desc">{ v.Peer.Description }</span>
+			}
+			<a href={ "/lg/peer/" + v.Address + "/download" } class="btn-download" title="Download all routes as compressed CSV">Download CSV</a>
+		</div>
+	}
+	if len(v.PrefixSummary) > 0 {
+		<table class="route-table">
+			<thead>
+				<tr><th>Family</th><th>Prefix Length</th><th>Count</th></tr>
+			</thead>
+			<tbody>
+				for _, s := range v.PrefixSummary {
+					<tr>
+						<td>{ s.Family }</td>
+						<td>/{ s.Length }</td>
+						<td>{ formatNum(s.Count) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+	if len(v.Routes) > 0 {
+		<h3>Routes</h3>
+		<table class="route-table">
+			<thead>
+				<tr>
+					<th></th><th>Prefix</th><th>Next Hop</th><th>AS Path</th><th>Origin</th>
+					<th>Local Pref</th><th>MED</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, r := range v.Routes {
+					<tr
+						if r.Best {
+							class="best-route"
+						}
+						hx-get={ routeDetailURL(r) }
+						hx-target="this"
+						hx-swap="afterend"
+					>
+						<td>
+							if r.Best {
+								&#9733;
+							}
+						</td>
+						<td>{ r.Prefix }</td>
+						<td>{ r.NextHop }</td>
+						<td>{ formatASPath(r.ASPath) }</td>
+						<td>{ r.Origin }</td>
+						<td>{ formatNum(r.LocalPreference) }</td>
+						<td>{ formatNum(r.MED) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	} else if v.Error == "" && len(v.PrefixSummary) == 0 {
+		<p class="empty-state">No routes available for this peer.</p>
+	}
+}

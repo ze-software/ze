@@ -57,6 +57,15 @@ var defineRe = regexp.MustCompile("\\{\\{-?\\s*define\\s+\"([^\"]+)\"")
 // actionRe matches one {{ ... }} action, trim markers included.
 var actionRe = regexp.MustCompile(`(?s)\{\{.*?\}\}`)
 
+// templRe matches a templ component declaration. templ requires the keyword at
+// the start of a line, so an anchored pattern reads exactly what the generator
+// reads.
+var templRe = regexp.MustCompile(`(?m)^templ\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
+
+// templExt is the templ source suffix. A file carrying it declares its
+// renderable units with the templ keyword rather than with {{define}}.
+const templExt = ".templ"
+
 // Variant is one data set a template renders with. A template with a branch
 // gets one variant per branch, so the captured bytes cover the branch body and
 // not only the markup around it.
@@ -68,9 +77,25 @@ type Variant struct {
 
 // Unit is one renderable template inside a template file.
 type Unit struct {
-	// Name is the template name, as the renderer resolves it.
-	Name     string
+	// Name is the template name, as the renderer resolves it. For a templ
+	// source that is the component's Go identifier.
+	Name string
+	// Fixture overrides the fixture stem. It is empty for a template whose
+	// fixture is named after it. Set it where a rename would move fixtures
+	// that nothing else about the change moves. A templ component named
+	// peersTableBody keeps the fixture peers_table_body, captured from the
+	// html/template it replaced.
+	Fixture  string
 	Variants []Variant
+}
+
+// stem is the fixture name a unit's variants hang off.
+func (u Unit) stem() string {
+	if u.Fixture != "" {
+		return u.Fixture
+	}
+
+	return u.Name
 }
 
 // FixtureName joins a unit and one of its variants into the name the fixture
@@ -78,12 +103,12 @@ type Unit struct {
 // about which fixture a variant writes.
 func (u Unit) FixtureName(v Variant) string {
 	if v.Name == "" {
-		return u.Name
+		return u.stem()
 	}
 
 	var tb textbuf.Buffer
 
-	return tb.Str(u.Name).Str("--").Str(v.Name).String()
+	return tb.Str(u.stem()).Str("--").Str(v.Name).String()
 }
 
 // Spec maps each file in a template FS to the templates it defines and the data
@@ -96,6 +121,10 @@ type Set struct {
 	FS fs.FS
 	// Dir is the directory inside FS that holds the templates.
 	Dir string
+	// Ext keeps the walk to files carrying one suffix. It is empty for an FS
+	// that holds nothing but templates. Set it for a templ source tree. That
+	// tree lives beside the package's Go files, not in a directory of its own.
+	Ext string
 	// Spec is the capture plan for that tree.
 	Spec Spec
 	// SpecVar names the Go variable a failure tells the reader to edit.
@@ -114,7 +143,7 @@ func (s Set) Files(t *testing.T) []string {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() {
+		if !d.IsDir() && (s.Ext == "" || strings.HasSuffix(p, s.Ext)) {
 			files = append(files, p)
 		}
 
@@ -242,6 +271,18 @@ func (s Set) definedNames(file string) (map[string]bool, error) {
 	src := string(data)
 
 	names := make(map[string]bool)
+
+	if strings.HasSuffix(file, templExt) {
+		// templ compiles each component into a Go function, so the file
+		// renders no body of its own and the {{define}} rules below do not
+		// apply.
+		for _, m := range templRe.FindAllStringSubmatch(src, -1) {
+			names[m[1]] = true
+		}
+
+		return names, nil
+	}
+
 	for _, m := range defineRe.FindAllStringSubmatch(src, -1) {
 		names[m[1]] = true
 	}

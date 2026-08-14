@@ -1,0 +1,8 @@
+package lg
+
+// errorBanner shows an engine or validation error above a page's content.
+templ errorBanner(message string) {
+	if message != "" {
+		<div class="error-banner">{ message }</div>
+	}
+}

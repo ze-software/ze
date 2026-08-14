@@ -135,4 +135,41 @@
 # THE HOOK ARM. Same one-file-per-edit blindness as the row above, one file type
 # along: the `.ci` arm counts cmd=/expect= LINES, so deleting a false annotation
 # reads as removing an expectation.
-757
+
+# raised-for: the lg templ port, 2026-08-14, 757 -> 760. THREE tokens, one
+# commit, and the two below the first are the port itself.
+#
+# render_test.go. Every test here used to reach its function through a cloned
+# html/template and an ExecuteTemplate call, because the function was reachable
+# only as an lgFuncMap entry. templ calls plain Go functions, so the funcMap is
+# gone and each function is called directly. The assertion count per test falls
+# with the template plumbing. The CASE count rises.
+#
+# server_test.go. The doctype is now matched without regard to case. templ
+# lowercases it unconditionally (generateDocType, in the vendored generator), a
+# doctype is case-insensitive in HTML, and the assertion is about a full page
+# carrying one at all.
+#
+# view_test.go, and the rest of this block.
+# NOTHING LEFT THE SUITE, AND THE CHECK GOT STRICTER. The AST walk in
+# internal/component/lg/view_test.go moved into internal/test/templcheck,
+# because phase 3 of plan/spec-web-templ-migration.md applies the same guard to
+# internal/component/web. A guard that lives in one package's test file cannot
+# be called from another.
+#
+# WHAT MOVED. The walk over every generated component, the refusal of a map
+# parameter, and the component count that stops an empty walk passing. All three
+# are in templcheck.Report, and TestLGViewDataIsTyped calls it.
+#
+# WHAT THE MOVE ADDED. The old walk read MapType, ArrayType and StarExpr only. A
+# component taking a named type was an ast.Ident and passed, so
+# `type viewData map[string]any` defeated the guard. A bare `any` passed too.
+# templcheck resolves a named type through the package's own declarations and
+# refuses both. TestReportRefusesEachEscape names every escape, and each one reds
+# when the resolver is reverted to the old ident-blind walk.
+#
+# WHY THE TOKEN EXISTS. The hook sees one file per edit. It read six assertions
+# leaving view_test.go and could not see them land in another package of the same
+# commit. That is the cross-file blindness the 2026-08-14 blackholecfg row above
+# records, in the same Go arm.
+760

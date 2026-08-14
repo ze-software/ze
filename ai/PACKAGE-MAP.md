@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 626 packages, 623 described, 3 TODO
+Total: 627 packages, 624 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -737,6 +737,7 @@ Total: 626 packages, 623 described, 3 TODO
 | `internal/test/sessionpath` | answers one question: where do THIS AI session's build and test artifacts go? Concurrent AI sessions share one working tree |  |
 | `internal/test/sim` | provides fake implementations of clock and network interfaces for use in unit tests |  |
 | `internal/test/syslog` | provides a UDP syslog server for functional tests |  |
+| `internal/test/templcheck` | reads the components templ generates and requires every parameter to be a type the compiler checks a field name against |  |
 | `internal/test/testcond` | provides conditional test-skipping helpers |  |
 | `internal/test/tmpfs` | provides a Virtual File System for embedding multiple files in a single stream |  |
 | `internal/test/trace` | formats per-step functional-test trace output |  |

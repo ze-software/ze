@@ -96,6 +96,17 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     ("internal/test/golden/response.go", "VersionHeader"),
     ("internal/test/golden/routes.go", "RoutePatterns"),
     ("internal/test/golden/routes.go", "RepoFile"),
+    # NormalizeHTML is the same package and the same shape. It is the AC-2
+    # instrument of plan/spec-web-templ-migration.md: a port to templ is proven
+    # by comparing normalized renders, and only a _test.go renders anything.
+    ("internal/test/golden/normalize.go", "NormalizeHTML"),
+    # internal/test/templcheck is the AC-8 guard of the same spec. It reads the
+    # generated templ components of a package and refuses a parameter the
+    # compiler cannot check a field name against. internal/component/lg calls it
+    # from view_test.go and internal/component/web joins in phase 3, so its
+    # entry points are exported and no production caller exists by design.
+    ("internal/test/templcheck/templcheck.go", "Report"),
+    ("internal/test/templcheck/templcheck.go", "AssertTyped"),
 }
 
 # User-facing area -> functional suite directory expected to change with it

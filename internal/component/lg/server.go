@@ -2,8 +2,8 @@
 // Detail: handler_api.go -- Birdwatcher REST API handlers
 // Detail: handler_ui.go -- HTMX web UI handlers
 // Detail: handler_graph.go -- AS path topology graph handler
-// Detail: render.go -- Template rendering
-// Detail: embed.go -- Embedded assets and templates
+// Detail: render.go -- templ component rendering
+// Detail: embed.go -- Embedded assets
 
 // Package lg provides the looking glass HTTP server for Ze.
 //
@@ -30,7 +30,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
 	stdlog "log"
@@ -131,7 +130,6 @@ type LGServer struct {
 	tlsCfg      *tls.Config
 	dispatch    CommandDispatcher
 	decorateASN ASNDecorator
-	templates   *template.Template
 	sseClients  atomic.Int32 // concurrent SSE connection counter
 }
 
@@ -172,11 +170,6 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		}
 	}
 
-	tpl, err := parseLGTemplates()
-	if err != nil {
-		return nil, fmt.Errorf("lg server: %w", err)
-	}
-
 	mux := http.NewServeMux()
 	configured := append([]string(nil), cfg.ListenAddrs...)
 
@@ -190,7 +183,6 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		tlsCfg:      tlsCfg,
 		dispatch:    cfg.Dispatch,
 		decorateASN: cfg.DecorateASN,
-		templates:   tpl,
 		server: &http.Server{
 			// Addr is informational; multi-listener serving uses Serve(ln).
 			Addr: configured[0],

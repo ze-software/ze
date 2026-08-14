@@ -161,8 +161,9 @@ unmarshal it back into a `map[string]any` for template rendering.
     `show bgp rib ...` pipeline string, and calls `s.query(cmd)`
     (`internal/component/lg/server.go`) → `s.dispatch(cmd)` (step 2's
     closure) → `parseJSON` (`internal/component/lg/handler_api.go`) →
-    `extractRoutes` (`handler_ui.go`) → `s.renderFragment`/`s.renderPage`
-    (`internal/component/lg/render.go,162`). Birdwatcher REST endpoints
+    `extractRoutes` (`handler_ui.go`) → `routeRows` (`handler_ui.go`, which
+    types the decoded JSON) → `s.renderFragment`/`s.renderPage`
+    (`internal/component/lg/render.go`), each taking a templ component. Birdwatcher REST endpoints
     (`internal/component/lg/handler_api.go` on) follow the same
     query→parseJSON→transform*→`writeJSON` shape, skipping templates.
     `GET /lg/graph` → `handleGraph` (`internal/component/lg/handler_graph.go`)
@@ -176,7 +177,7 @@ unmarshal it back into a `map[string]any` for template rendering.
 14. **Looking glass live peers.** `GET /lg/events` → `handleUIEvents`
     (`internal/component/lg/handler_ui.go`) is its own poll-and-render SSE
     loop (not `sseSnapshotStream`): every 5s it re-dispatches `show bgp
-    summary`, renders `peers_table_body` to a string (`s.renderToString`,
+    summary`, renders `peersTableBody` to a string (`renderToString`,
     `internal/component/lg/render.go`), and pushes it as a `peer-update`
     event with each embedded newline continued as its own `data:` line.
 
@@ -209,7 +210,8 @@ unmarshal it back into a `map[string]any` for template rendering.
 | `internal/component/lg/handler_ui.go` | HTMX UI handlers: peers, search, peer routes, route detail, live events |
 | `internal/component/lg/handler_api.go` | Birdwatcher-compatible REST handlers; `parseJSON`, input validators, `transform*` |
 | `internal/component/lg/handler_graph.go`, `graph.go`, `graph_nexthop.go`, `layout.go`, `layout_nexthop.go` | Topology graph: build, layout, SVG/text render |
-| `internal/component/lg/render.go`, `embed.go` | Template render helpers; `//go:embed` of `assets`/`templates` |
+| `internal/component/lg/render.go`, `view.go`, `*.templ` | templ components, the view-model structs they take, and the render helpers `formatNum`, `formatUptime` and `stateClass` |
+| `internal/component/lg/embed.go` | `//go:embed` of `assets`. The markup is compiled into Go by templ, so nothing else is embedded |
 
 ## Invariants & gotchas
 - **`RegisterRoutes`/`RegisterCLIRoutes` are not production wiring.**

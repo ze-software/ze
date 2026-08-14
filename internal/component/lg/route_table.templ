@@ -1,0 +1,70 @@
+package lg
+
+// routeResults is the search result panel. HTMX swaps it into #results, and
+// the full search page renders the same component.
+templ routeResults(v searchView) {
+	@errorBanner(v.Error)
+	if len(v.Routes) > 0 {
+		<p class="result-count">
+			{ formatCount(v.Count) } routes
+			if v.Prefix != "" {
+				// "for" starts a templ loop, so this clause is one expression.
+				{ "for " + v.Prefix }
+			}
+			if v.ASPath != "" {
+				matching AS path { v.ASPath }
+			}
+			if v.Community != "" {
+				with community { v.Community }
+			}
+		</p>
+		if v.Prefix != "" {
+			<div class="graph-controls">
+				<button class="graph-mode-btn" data-mode="aspath" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=aspath" } hx-target="#graph-container" hx-swap="innerHTML" onclick="document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">
+					AS Path
+				</button>
+				<button class="graph-mode-btn" data-mode="nexthop" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=nexthop" } hx-target="#graph-container" hx-swap="innerHTML" onclick="document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">
+					Next Hop
+				</button>
+			</div>
+			<div id="graph-container">
+				<span class="spinner"></span> Loading topology...
+			</div>
+		}
+		<table class="route-table">
+			<thead>
+				<tr>
+					<th></th><th>Prefix</th><th>Next Hop</th><th>AS Path</th><th>Origin</th>
+					<th>Local Pref</th><th>MED</th><th>Peer</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, r := range v.Routes {
+					<tr
+						if r.Best {
+							class="best-route"
+						}
+						hx-get={ routeDetailURL(r) }
+						hx-target="this"
+						hx-swap="afterend"
+					>
+						<td>
+							if r.Best {
+								&#9733;
+							}
+						</td>
+						<td>{ r.Prefix }</td>
+						<td>{ r.NextHop }</td>
+						<td>{ formatASPath(r.ASPath) }</td>
+						<td>{ r.Origin }</td>
+						<td>{ formatNum(r.LocalPreference) }</td>
+						<td>{ formatNum(r.MED) }</td>
+						<td>{ r.PeerAddress }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	} else if v.Error == "" {
+		<p class="empty-state">No routes found. Try a different query.</p>
+	}
+}

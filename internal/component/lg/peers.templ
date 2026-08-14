@@ -1,0 +1,89 @@
+package lg
+
+// peersPage is the BGP peer dashboard.
+templ peersPage(v peersView) {
+	<h1>BGP Peers</h1>
+	@errorBanner(v.Error)
+	@peersContent(v)
+	if len(v.BMPPeers) > 0 {
+		<h2>BMP Monitored Peers</h2>
+		@bmpPeersContent(v.BMPPeers)
+	}
+	@peerDetailArea()
+}
+
+// peersContent is the peer table. Its body is swapped by server-sent events.
+templ peersContent(v peersView) {
+	<table class="peers-table">
+		<thead>
+			<tr>
+				<th>Peer</th><th>Remote AS</th><th>State</th><th>Uptime</th>
+				<th>Received</th><th>Accepted</th><th>Sent</th><th>Updates In</th><th>Updates Out</th><th>Description</th>
+			</tr>
+		</thead>
+		<tbody hx-ext="sse" sse-connect="/lg/events" sse-swap="peer-update">@peersTableBody(v.Peers)</tbody>
+	</table>
+}
+
+// peersTableBody is the row set handleUIEvents pushes over SSE.
+templ peersTableBody(rows []peerRow) {
+	for _, p := range rows {
+		<tr class={ stateClass(p.State) } hx-get={ "/lg/peer/" + p.Address } hx-target="#peer-detail" hx-swap="innerHTML" hx-sync="#peer-detail:replace" hx-indicator="#peer-detail">
+			<td>{ p.Address }</td>
+			<td>
+				if p.RemoteASName != "" {
+					{ p.RemoteAS }<span class="asn-name">{ p.RemoteASName }</span>
+				} else {
+					{ p.RemoteAS }
+				}
+			</td>
+			<td class="state">{ p.State }</td>
+			<td>{ formatUptime(p.Uptime) }</td>
+			<td>{ formatNum(p.RoutesReceived) }</td>
+			<td>{ formatNum(p.RoutesAccepted) }</td>
+			<td>{ formatNum(p.RoutesSent) }</td>
+			<td>{ formatNum(p.UpdatesReceived) }</td>
+			<td>{ formatNum(p.UpdatesSent) }</td>
+			<td>{ p.Description }</td>
+		</tr>
+	}
+}
+
+// bmpPeersContent is the BMP monitored-peer table.
+templ bmpPeersContent(rows []bmpPeerRow) {
+	<table class="peers-table bmp-peers-table">
+		<thead>
+			<tr>
+				<th>Router</th><th>Peer BGP ID</th><th>Remote AS</th><th>State</th><th>Family</th>
+			</tr>
+		</thead>
+		<tbody>
+			for _, p := range rows {
+				<tr class={ bmpStateClass(p.State) }>
+					<td>{ p.Router }</td>
+					<td>{ p.BGPID }</td>
+					<td>
+						if p.PeerASName != "" {
+							{ p.PeerAS }<span class="asn-name">{ p.PeerASName }</span>
+						} else {
+							{ p.PeerAS }
+						}
+					</td>
+					<td class="state">{ p.State }</td>
+					<td>
+						if p.IPv6 {
+							IPv6
+						} else {
+							IPv4
+						}
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+// peerDetailArea is the empty target a peer row swaps its routes into.
+templ peerDetailArea() {
+	<div id="peer-detail" class="peer-detail-area"></div>
+}

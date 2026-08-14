@@ -55,23 +55,18 @@ func TestExtractPeers(t *testing.T) {
 			t.Fatalf("expected 1 peer, got %d", len(peers))
 		}
 
-		p := peers[0]
-		checks := map[string]string{
-			"Address":        "10.0.0.1",
-			"RemoteAS":       "65001",
-			"State":          "established",
-			"Uptime":         "3600",
-			"RoutesReceived": "100",
-			"RoutesAccepted": "95",
-			"RoutesSent":     "50",
-			"Description":    "test",
-			"Name":           "peer1",
+		want := peerRow{
+			Address:        "10.0.0.1",
+			RemoteAS:       "65001",
+			State:          "established",
+			Uptime:         "3600",
+			RoutesReceived: "100",
+			RoutesAccepted: "95",
+			RoutesSent:     "50",
+			Description:    "test",
 		}
-		for key, want := range checks {
-			got, _ := p[key].(string)
-			if got != want {
-				t.Errorf("peer[%q] = %q, want %q", key, got, want)
-			}
+		if peers[0] != want {
+			t.Errorf("peer = %+v, want %+v", peers[0], want)
 		}
 	})
 
@@ -98,11 +93,11 @@ func TestExtractPeers(t *testing.T) {
 		if len(peers) != 1 {
 			t.Fatalf("expected 1 peer, got %d", len(peers))
 		}
-		if peers[0]["Address"] != "10.0.0.2" {
-			t.Errorf("Address = %q, want 10.0.0.2", peers[0]["Address"])
+		if peers[0].Address != "10.0.0.2" {
+			t.Errorf("Address = %q, want 10.0.0.2", peers[0].Address)
 		}
-		if peers[0]["Name"] != "peer1" {
-			t.Errorf("Name = %q, want peer1", peers[0]["Name"])
+		if peers[0].RemoteAS != "65001" {
+			t.Errorf("RemoteAS = %q, want 65001", peers[0].RemoteAS)
 		}
 	})
 
@@ -142,9 +137,8 @@ func TestExtractPeersWithASNNames(t *testing.T) {
 		t.Fatalf("expected 1 peer, got %d", len(peers))
 	}
 
-	name, _ := peers[0]["RemoteASName"].(string)
-	if name != "Test Org" {
-		t.Errorf("RemoteASName = %q, want %q", name, "Test Org")
+	if peers[0].RemoteASName != "Test Org" {
+		t.Errorf("RemoteASName = %q, want %q", peers[0].RemoteASName, "Test Org")
 	}
 }
 
@@ -370,15 +364,16 @@ func TestExtractPeersSortOrder(t *testing.T) {
 
 	want := []string{"10.0.0.1", "10.0.0.2", "10.0.0.10"}
 	for i, w := range want {
-		got, _ := peers[i]["Address"].(string)
-		if got != w {
-			t.Errorf("peers[%d].Address = %q, want %q", i, got, w)
+		if peers[i].Address != w {
+			t.Errorf("peers[%d].Address = %q, want %q", i, peers[i].Address, w)
 		}
 	}
 }
 
-func TestIsBestTemplateFunc(t *testing.T) {
-	// VALIDATES: AC-8 -- isBest correctly reads "best" field from route map.
+func TestRouteRowsBest(t *testing.T) {
+	// VALIDATES: routeRows reads the "best" flag out of the decoded RIB, which
+	// is what marks a row with the star and the best-route class.
+	// PREVENTS: a route map with no "best" key rendering as the best path.
 	tests := []struct {
 		name string
 		in   any
@@ -387,19 +382,105 @@ func TestIsBestTemplateFunc(t *testing.T) {
 		{"best true", map[string]any{"best": true, "prefix": "10.0.0.0/24"}, true},
 		{"best false", map[string]any{"best": false, "prefix": "10.0.0.0/24"}, false},
 		{"missing best", map[string]any{"prefix": "10.0.0.0/24"}, false},
-		{"nil input", nil, false},
-		{"non-map", "not-a-map", false},
+		{"wrapped value", map[string]any{"best": map[string]any{"value": true}}, true},
 	}
 
-	fn, ok := lgFuncMap["isBest"].(func(any) bool)
-	if !ok {
-		t.Fatal("isBest not found in lgFuncMap")
-	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := fn(tt.in); got != tt.want {
-				t.Errorf("isBest(%v) = %v, want %v", tt.in, got, tt.want)
+			rows := routeRows([]any{tt.in})
+			if len(rows) != 1 {
+				t.Fatalf("routeRows returned %d rows, want 1", len(rows))
+			}
+			if rows[0].Best != tt.want {
+				t.Errorf("Best = %v, want %v", rows[0].Best, tt.want)
 			}
 		})
 	}
+
+	t.Run("non-map skipped", func(t *testing.T) {
+		if rows := routeRows([]any{"not-a-map"}); len(rows) != 0 {
+			t.Errorf("routeRows kept %d rows for a non-map entry, want 0", len(rows))
+		}
+	})
+}
+
+// largeASN is a 4-byte ASN from the private range (RFC 6996). Its float64 form
+// prints in exponent notation under the %v verb. That makes it the
+// discriminating input for both scalar renderers below.
+const largeASN = 4200000000
+
+// TestScalarStringRendersALargeASN pins the digits of a decoded JSON number.
+//
+// VALIDATES: scalarString prints 4200000000, not 4.2e+09. encoding/json decodes
+// every number into a float64, and the %v verb renders a float64 with %g, which
+// gives exponent form for this magnitude.
+// PREVENTS: an operator reading "4.2e+09" where an AS number belongs. Every
+// fixture in this package holds an ASN of 65002 or less. The two forms agree
+// there, so no golden capture can see this.
+func TestScalarStringRendersALargeASN(t *testing.T) {
+	tests := []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"large ASN", float64(largeASN), "4200000000"},
+		{"small ASN", float64(65002), "65002"},
+		{"fractional", float64(1.5), "1.5"},
+		{"string", "64500", "64500"},
+		{"int", 64500, "64500"},
+		{"bool", true, "true"},
+		{"nil", nil, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := scalarString(tt.in); got != tt.want {
+				t.Errorf("scalarString(%#v) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestASPathRendersALargeASN pins the same digits on both AS-path paths.
+//
+// VALIDATES: the browser column (scalarList, through routeRows) and the CSV
+// download (formatASPathPlain) render a 4-byte ASN identically.
+// PREVENTS: one of the two paths keeping fmt.Sprint on the decoded float64.
+// The CSV path did until 2026-08-14, after the browser path was fixed.
+func TestASPathRendersALargeASN(t *testing.T) {
+	route := map[string]any{
+		"prefix":  "10.0.0.0/24",
+		"as-path": []any{float64(largeASN), float64(65002)},
+	}
+
+	t.Run("browser column", func(t *testing.T) {
+		rows := routeRows([]any{route})
+		if len(rows) != 1 {
+			t.Fatalf("routeRows returned %d rows, want 1", len(rows))
+		}
+
+		want := []string{"4200000000", "65002"}
+		if len(rows[0].ASPath) != len(want) {
+			t.Fatalf("ASPath = %v, want %v", rows[0].ASPath, want)
+		}
+
+		for i, w := range want {
+			if rows[0].ASPath[i] != w {
+				t.Errorf("ASPath[%d] = %q, want %q", i, rows[0].ASPath[i], w)
+			}
+		}
+	})
+
+	t.Run("csv download", func(t *testing.T) {
+		if got, want := formatASPathPlain(route), "4200000000 65002"; got != want {
+			t.Errorf("formatASPathPlain = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("csv keeps a string as it is", func(t *testing.T) {
+		plain := map[string]any{"as-path": "64500 65002"}
+		if got, want := formatASPathPlain(plain), "64500 65002"; got != want {
+			t.Errorf("formatASPathPlain = %q, want %q", got, want)
+		}
+	})
 }

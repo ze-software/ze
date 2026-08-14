@@ -1,0 +1,28 @@
+package lg
+
+// routeDetail is the attribute panel a route row expands into.
+templ routeDetail(v routeDetailView) {
+	<tr class="route-detail">
+		<td colspan="8">
+			<div class="detail-panel">
+				if v.Route != nil {
+					<h3>Route Detail: { v.Prefix }</h3>
+					<dl>
+						<dt>Prefix</dt><dd>{ v.Route.Prefix }</dd>
+						<dt>Next Hop</dt><dd>{ v.Route.NextHop }</dd>
+						<dt>Origin</dt><dd>{ v.Route.Origin }</dd>
+						<dt>AS Path</dt><dd>{ formatASPath(v.Route.ASPath) }</dd>
+						<dt>Local Preference</dt><dd>{ formatNum(v.Route.LocalPreference) }</dd>
+						<dt>MED</dt><dd>{ formatNum(v.Route.MED) }</dd>
+						<dt>Communities</dt><dd>{ formatCommunities(v.Route.Communities) }</dd>
+						<dt>Large Communities</dt><dd>{ formatCommunities(v.Route.LargeCommunities) }</dd>
+						<dt>Extended Communities</dt><dd>{ formatCommunities(v.Route.ExtendedCommunities) }</dd>
+						<dt>Peer</dt><dd>{ v.Route.PeerAddress }</dd>
+					</dl>
+				} else {
+					<p>Route not found</p>
+				}
+			</div>
+		</td>
+	</tr>
+}

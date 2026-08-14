@@ -205,8 +205,10 @@ All source files in `internal/component/lg/` reference this document via `// Des
 | `handler_graph.go` | AS path topology SVG endpoint |
 | `graph.go` | Graph data model (nodes/edges from AS paths), prepending dedup |
 | `layout.go` | Layered layout algorithm, SVG rendering |
-| `render.go` | Go html/template rendering, page vs fragment detection |
-| `embed.go` | Embedded assets (CSS, HTMX, SSE) and templates via go:embed |
+| `render.go` | templ component rendering, page vs fragment detection |
+| `view.go` | One named view-model struct per page, which the components take |
+| `*.templ` | The markup, compiled into `*_templ.go` by `make generate` |
+| `embed.go` | Embedded assets (CSS, HTMX, SSE) via go:embed |
 | `auth.go` | Optional bearer-token gate over the whole mux |
 
 <!-- source: internal/component/lg/server.go -- LGServer, NewLGServer -->

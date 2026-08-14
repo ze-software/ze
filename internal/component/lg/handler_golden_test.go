@@ -87,7 +87,12 @@ var lgHandlerGoldenCases = []lgHandlerCase{
 	// HTML pages. These are the bytes the templ port must keep.
 	{Name: "ui-peers", Method: http.MethodGet, Target: "/lg/peers"},
 	{Name: "ui-search-form", Method: http.MethodGet, Target: "/lg/search"},
+	// family=ipv4 is NOT a family isValidFamily accepts, so this case reaches
+	// the validation error path. It is kept because an operator can send it,
+	// and because the answer it used to receive was an empty form with no
+	// message. ui-search-routes below is the one that searches.
 	{Name: "ui-search-result", Method: http.MethodPost, Target: "/lg/search", Form: "prefix=10.0.0.0%2F24&family=ipv4"},
+	{Name: "ui-search-routes", Method: http.MethodPost, Target: "/lg/search", Form: "prefix=10.0.0.0%2F24&family=ipv4%2Funicast"},
 	{Name: "ui-search-empty", Method: http.MethodPost, Target: "/lg/search", Form: "family=ipv4"},
 	{Name: "ui-search-invalid", Method: http.MethodPost, Target: "/lg/search", Form: "prefix=not-a-prefix"},
 	{Name: "ui-lookup-redirect", Method: http.MethodGet, Target: "/lg/lookup"},

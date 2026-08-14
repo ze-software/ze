@@ -4,6 +4,7 @@
 #              handleUIPeers       GET  /lg/peers            -> "BGP Peers"
 #              handleUISearchForm  GET  /lg/search           -> "Route Search"
 #              handleUISearch      POST /lg/search           -> "Route Search"
+#              handleUISearch      POST /lg/search (bad)     -> the error banner
 #              handleUIPeerRoutes  GET  /lg/peer/{address}   -> "Routes from <addr>"
 #              handleUIRouteDetail GET  /lg/route/detail     -> "Route Detail: <prefix>"
 #              handleUIHelp        GET  /lg/help             -> "AS Path Graph"
@@ -14,12 +15,21 @@
 # The JSON/birdwatcher API and the graph SVG are covered by lg-paginate.ci and
 # lg-graph-lab.ci respectively; this test covers ONLY the HTML page surface.
 #
-# Body tokens are producer-verified:
-#   templates/peers.html:2       <h1>BGP Peers</h1>
-#   templates/search.html:2      <h1>Route Search</h1>
-#   templates/peer_routes.html:2 <h2>{{.Title}}</h2>  (Title = "Routes from "+addr, handler_ui.go:238)
-#   templates/route_detail.html:6 <h3>Route Detail: {{.Prefix}}</h3>
-#   templates/help.html:20       <h3>AS Path Graph</h3>
+# Body tokens are producer-verified, against the templ components the port left
+# in internal/component/lg (the templates/ directory is gone):
+#   peers.templ        <h1>BGP Peers</h1>
+#   search.templ       <h1>Route Search</h1>
+#   peer_routes.templ  <h2>{ v.Title }</h2>  (Title = "Routes from "+addr, handler_ui.go)
+#   route_detail.templ <h3>Route Detail: { v.Prefix }</h3>
+#   help.templ         <h3>AS Path Graph</h3>
+#   error.templ        <div class="error-banner">{ message }</div>
+#
+# The "Route Search" token above is supplied by the h1, so it holds whether or
+# not the banner renders. The invalid-prefix POST is the case that reads the
+# banner, and it is the case the page got wrong until 2026-08-14: searchPage
+# rendered the results panel only when there were routes, and the banner lives
+# inside that panel. A bad prefix therefore answered 200 with an empty form
+# (plan/journal/silent-fall-through.md).
 
 # ze-peer expectations (minimal handshake)
 stdin=peer:terminator=EOF_PEER
@@ -34,6 +44,12 @@ EOF_PEER
 tmpfs=lg-search.body:mode=644:terminator=EOF_BODY
 prefix=198.51.100.0/24
 EOF_BODY
+
+# POST body carrying a prefix isValidPrefix rejects. handleUISearch answers it
+# through renderSearchError, so the response must carry the error banner.
+tmpfs=lg-search-invalid.body:mode=644:terminator=EOF_BAD_BODY
+prefix=not-a-prefix
+EOF_BAD_BODY
 
 # Python test plugin: injects 15 distinct prefixes to peer 10.0.1.1, then stays alive
 tmpfs=lg-ui-pages.run:mode=755:terminator=EOF_RUN
@@ -178,3 +194,8 @@ http=get:seq=5:url=http://127.0.0.1:$PORT2/lg/route/detail?prefix=10.20.0.0/24:s
 
 # --- handleUIHelp: help page ---
 http=get:seq=6:url=http://127.0.0.1:$PORT2/lg/help:status=200:contains=AS Path Graph
+
+# --- handleUISearch: an invalid prefix reaches the operator as a banner.
+#     The token pins the banner element AND the message inside it, so a page
+#     that renders the form alone fails here. ---
+http=post:seq=7:url=http://127.0.0.1:$PORT2/lg/search:status=200:sendfile=lg-search-invalid.body:content-type=application/x-www-form-urlencoded:contains=error-banner">invalid prefix format

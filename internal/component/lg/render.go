@@ -1,77 +1,59 @@
 // Design: docs/architecture/web-interface.md -- LG template rendering
 // Overview: server.go -- LG server and route registration
+// Related: view.go -- the structs every component below takes
 
 package lg
 
 import (
 	"bytes"
-	"fmt"
-	"html/template"
-	"io/fs"
+	"context"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/a-h/templ"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// lgFuncMap defines the template functions available to LG templates.
-var lgFuncMap = template.FuncMap{
-	"stateClass": func(state string) string {
-		switch state {
-		case "established":
-			return "state-up"
-		case "idle", "active", "connect", "opensent", "openconfirm":
-			return "state-down"
-		}
-		return "state-unknown"
-	},
-	"formatNum":    formatNumCommas,
-	"formatUptime": formatUptime,
-	"formatASPath": func(v any) string {
-		arr, ok := v.([]any)
-		if !ok {
-			return ""
-		}
-		var parts []string
-		for _, a := range arr {
-			parts = append(parts, fmt.Sprintf("%v", a))
-		}
-		return textbuf.Join(parts, " ")
-	},
-	"formatCommunities": func(v any) string {
-		arr, ok := v.([]any)
-		if !ok {
-			return ""
-		}
-		var parts []string
-		for _, a := range arr {
-			parts = append(parts, fmt.Sprintf("%v", a))
-		}
-		return textbuf.Join(parts, ", ")
-	},
-	"isBest": func(v any) bool {
-		route, ok := v.(map[string]any)
-		if !ok {
-			return false
-		}
-		return getBool(route, "best")
-	},
+// stateClass maps an FSM state onto the CSS class its peer row carries.
+func stateClass(state string) string {
+	switch state {
+	case "established":
+		return "state-up"
+	case "idle", "active", "connect", "opensent", "openconfirm":
+		return "state-down"
+	}
+
+	return "state-unknown"
 }
 
-// parseLGTemplates parses all embedded HTML template files.
-func parseLGTemplates() (*template.Template, error) {
-	tplFS, err := fs.Sub(templatesFS, "templates")
-	if err != nil {
-		return nil, fmt.Errorf("lg: embedded templates sub-fs: %w", err)
+// bmpStateClass maps a BMP peer's state onto its row class. BMP reports up or
+// down and nothing else, so this is not stateClass with more cases.
+func bmpStateClass(state string) string {
+	if state == "up" {
+		return "state-up"
 	}
 
-	t, err := template.New("").Option("missingkey=zero").Funcs(lgFuncMap).ParseFS(tplFS, "*.html")
-	if err != nil {
-		return nil, fmt.Errorf("lg: parse templates: %w", err)
-	}
+	return "state-down"
+}
 
-	return t, nil
+// formatASPath renders an AS path as space-separated ASNs.
+func formatASPath(path []string) string {
+	return textbuf.Join(path, " ")
+}
+
+// formatCommunities renders a community list as a comma-separated string.
+func formatCommunities(values []string) string {
+	return textbuf.Join(values, ", ")
+}
+
+// routeDetailURL is the HTMX target that expands one route row.
+func routeDetailURL(r routeRow) string {
+	var tb textbuf.Buffer
+
+	return tb.Str("/lg/route/detail?prefix=").Str(r.Prefix).Str("&peer=").Str(r.PeerAddress).String()
 }
 
 // formatUptime converts a Go duration string like "6m10.766415s" to "6m 10s".
@@ -100,35 +82,32 @@ func formatUptime(v string) string {
 	case mins > 0:
 		return b.Reset().Int(int64(mins)).Str("m ").Int(int64(secs)).Str("s").String()
 	}
+
 	return b.Reset().Int(int64(secs)).Str("s").String()
 }
 
-// formatNumCommas formats a value as an integer with comma separators.
-// Handles float64, int, int64, and string inputs. Returns the value as-is for non-numeric types.
-func formatNumCommas(v any) string {
-	var n int64
+// formatCount groups a count the looking glass computed itself.
+func formatCount(n int) string {
+	return formatNum(textbuf.StringInt(int64(n)))
+}
 
-	switch val := v.(type) {
-	case float64:
-		n = int64(val)
-	case int:
-		n = int64(val)
-	case int64:
-		n = val
-	case string:
-		var f float64
-		if _, err := fmt.Sscanf(val, "%f", &f); err != nil {
-			return val
-		}
-		n = int64(f)
-	case nil:
+// formatNum groups an engine-reported number with commas.
+//
+// The input is a string because the engine OMITS a count it cannot produce
+// (handler_api.go, routeCountsAvailable). An absent count reaches here as an
+// empty string and renders as an empty cell, so an operator never reads a zero
+// Ze never sent. A value that is not a number is returned unchanged.
+func formatNum(v string) string {
+	if v == "" {
 		return ""
-	case bool:
-		return fmt.Sprintf("%v", val)
-	case []any, map[string]any:
-		return fmt.Sprintf("%v", val)
 	}
 
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return v
+	}
+
+	n := int64(f)
 	if n == 0 {
 		return "0"
 	}
@@ -138,78 +117,71 @@ func formatNumCommas(v any) string {
 		n = -n
 	}
 
-	s := strconv.Itoa(int(n))
-	length := len(s)
+	digits := textbuf.StringInt(n)
+	length := len(digits)
 
 	var result textbuf.Buffer
 	if negative {
 		result.Byte('-')
 	}
 
-	for i, c := range s {
-		if i > 0 && (length-i)%3 == 0 {
+	for pos, c := range digits {
+		if pos > 0 && (length-pos)%3 == 0 {
 			result.Byte(',')
 		}
+
 		result.WriteRune(c)
 	}
 
 	return result.String()
 }
 
-// renderPage renders a full HTML page with layout wrapper.
-// Both inner content and layout are rendered to buffers before writing to w,
-// so a template error never produces a partial 200 response.
-func (s *LGServer) renderPage(w http.ResponseWriter, name string, data map[string]any) {
-	var content bytes.Buffer
-	if err := s.templates.ExecuteTemplate(&content, name, data); err != nil {
-		s.logger.Warn("template render error", "template", name, "error", err)
-		http.Error(w, "render error", http.StatusInternalServerError)
-		return
-	}
-
-	layoutData := map[string]any{
-		"Title":     data["Title"],
-		"ActiveTab": data["ActiveTab"],
-		"Content":   template.HTML(content.String()), //nolint:gosec // pre-rendered trusted template output
-	}
-
+// renderPage writes one full page. Layout and content render into a buffer
+// before any byte reaches w, so a render error never produces a partial 200.
+func (s *LGServer) renderPage(w http.ResponseWriter, v layoutView, content templ.Component) {
 	var page bytes.Buffer
-	if err := s.templates.ExecuteTemplate(&page, "layout", layoutData); err != nil {
-		s.logger.Warn("layout render error", "error", err)
+	if err := pageLayout(v, content).Render(context.Background(), &page); err != nil {
+		s.logger.Warn("page render error", "title", v.Title, "error", err)
 		http.Error(w, "render error", http.StatusInternalServerError)
+
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	if _, err := w.Write(page.Bytes()); err != nil {
-		s.logger.Debug("write page failed", "error", err)
-	}
+	s.writeHTML(w, page.Bytes())
 }
 
-// renderFragment renders an HTML fragment (no layout wrapper).
-// Rendered to buffer first to avoid partial 200 responses on template errors.
-func (s *LGServer) renderFragment(w http.ResponseWriter, name string, data any) {
+// renderFragment writes one HTMX fragment, with no layout around it. It
+// buffers for the same reason renderPage does.
+func (s *LGServer) renderFragment(w http.ResponseWriter, content templ.Component) {
 	var buf bytes.Buffer
-	if err := s.templates.ExecuteTemplate(&buf, name, data); err != nil {
-		s.logger.Warn("fragment render error", "template", name, "error", err)
+	if err := content.Render(context.Background(), &buf); err != nil {
+		s.logger.Warn("fragment render error", "error", err)
 		http.Error(w, "render error", http.StatusInternalServerError)
+
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	if _, err := w.Write(buf.Bytes()); err != nil {
-		s.logger.Debug("write fragment failed", "error", err)
-	}
+	s.writeHTML(w, buf.Bytes())
 }
 
-// renderToString renders a template to a string.
-func (s *LGServer) renderToString(name string, data any) string {
-	var buf bytes.Buffer
-	if err := s.templates.ExecuteTemplate(&buf, name, data); err != nil {
-		s.logger.Warn("render to string error", "template", name, "error", err)
-		return ""
+// renderToString renders a component for a caller that must post-process the
+// markup. handleUIEvents is the only one: SSE prefixes every line.
+func renderToString(content templ.Component) (string, error) {
+	var buf strings.Builder
+	if err := content.Render(context.Background(), &buf); err != nil {
+		return "", err
 	}
-	return buf.String()
+
+	return buf.String(), nil
+}
+
+// writeHTML sends rendered markup with the headers every looking-glass page
+// carries.
+func (s *LGServer) writeHTML(w http.ResponseWriter, body []byte) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	if _, err := w.Write(body); err != nil {
+		s.logger.Debug("write html failed", "error", err)
+	}
 }

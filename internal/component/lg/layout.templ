@@ -1,0 +1,55 @@
+package lg
+
+// pageLayout wraps one page's content in the looking glass chrome.
+templ pageLayout(v layoutView, content templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<title>{ v.Title } - Ze Looking Glass</title>
+			<link rel="stylesheet" href="/lg/assets/style.css">
+			<script src="/lg/assets/htmx.min.js"></script>
+			<script src="/lg/assets/sse.js"></script>
+			<script src="/lg/assets/theme.js"></script>
+		</head>
+		<body>
+			<header>
+				<div class="header-row">
+					<nav class="tab-bar">
+						<a
+							href="/lg/peers"
+							hx-get="/lg/peers"
+							hx-target="#content"
+							hx-push-url="true"
+							if v.ActiveTab == "peers" {
+								class="tab-active"
+							}
+						>Peers</a>
+						<a
+							href="/lg/search"
+							hx-get="/lg/search"
+							hx-target="#content"
+							hx-push-url="true"
+							if v.ActiveTab == "search" {
+								class="tab-active"
+							}
+						>Search</a>
+						<a
+							href="/lg/help"
+							hx-get="/lg/help"
+							hx-target="#content"
+							hx-push-url="true"
+							if v.ActiveTab == "help" {
+								class="tab-active"
+							}
+						>Help</a>
+					</nav>
+					<a class="nav-brand" href="/lg/peers"><img class="ze-logo" src="/lg/assets/ze.svg" alt="Ze" width="28" height="28"> Ze Looking Glass</a>
+					<button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">&#9789;</button>
+				</div>
+			</header>
+			<main><div id="content">@content</div></main>
+		</body>
+	</html>
+}
