@@ -268,6 +268,13 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		peer.health.stop()
 	}
 
+	// Drop the RFC 7911 Path Identifiers ze assigned to this peer's paths
+	// (forward_path_id.go). Removal is the point where those paths are gone for
+	// good: a peer that merely reconnects keeps its entries, so it re-announces
+	// each path under the identifier the destinations already hold, which they
+	// read as the replacement it is.
+	fwdPathIDs.releaseSource(peer.SourceID())
+
 	delete(r.peers, key)
 	r.peerGeneration.Add(1)
 

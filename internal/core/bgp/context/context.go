@@ -202,6 +202,20 @@ func (c *EncodingContext) AddPathFor(f family.Family) bool {
 	return c.AddPath(f)
 }
 
+// AnyAddPath reports whether ADD-PATH is enabled for any family in this
+// direction. NewEncodingContext inserts a family only when the negotiated mode
+// enables it for this direction, so an empty map is the whole answer.
+//
+// The forward rail asks this before it looks at an UPDATE's sections at all
+// (reactor/forward_path_id.go): a session that negotiated ADD-PATH for nothing
+// needs no Path Identifier work, and that is most sessions.
+func (c *EncodingContext) AnyAddPath() bool {
+	if c == nil {
+		return false
+	}
+	return len(c.addPath) > 0
+}
+
 // PathsLimit returns the negotiated path count limit for the given family in this direction.
 // draft-abraitis-idr-addpath-paths-limit: returns 0 if no limit is negotiated.
 func (c *EncodingContext) PathsLimit(f family.Family) uint16 {

@@ -1,4 +1,7 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- shared body-building for forwarding
+// RFC: rfc/short/rfc7911.md — Section 2, a re-advertised route carries the speaker's own Path Identifier
+// RFC: rfc/short/rfc7606.md — Section 5.1, one NLRI-bearing field per emitted UPDATE
+// Related: forward_path_id.go -- the Path Identifier generator both branches read
 // Related: reactor_api_forward.go -- ForwardUpdate (caller)
 // Related: forward_rs.go -- reactorForwardRS (caller)
 package reactor
@@ -14,6 +17,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/source"
 )
 
 // fwdBodyResult holds the output of buildFwdBody.
@@ -54,10 +58,55 @@ func buildFwdBody(
 	updateSize := message.HeaderLen + len(peerWire.Payload())
 	srcCtxID := peerWire.SourceCtxID()
 	sameCtx := srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID
-	// Preserve the same-context zero-copy path before any parse or re-encode.
+
+	// SINGLE point that decides a borrowed buffer's fate, whichever branch
+	// borrowed it: the RFC 7911 Path Identifier rewrite in the raw branch, or
+	// the RFC 6793 transcode in fwdUpdateForDestination. Both hand their bytes
+	// to a forward-pool worker that writes them to TCP AFTER this call returns,
+	// so on success the handle travels out on result for the caller to adopt
+	// onto the ReceivedUpdate (adoptFwdHandle), and on any failure it goes
+	// straight back to the pool. Never both -- a caller that sees ok=false never
+	// adopts.
+	var ownedBuf BufHandle
+	defer func() {
+		if ok {
+			result.transcodeBuf = ownedBuf
+			return
+		}
+		ReturnReadBuffer(ownedBuf)
+	}()
+
+	// Preserve the same-context raw-split path before any parse or re-encode.
 	// RFC 7911 ADD-PATH and RFC 6793 ASN4 differences are encoded in ContextID,
 	// so raw splitting is safe only when the source and destination IDs match.
 	if sameCtx {
+		// Matching contexts mean matching FRAMING, never a right to relay the
+		// identifiers inside that framing. RFC 7911 Section 2 makes a
+		// re-advertised route carry ze's own Path Identifier, and this is the
+		// branch a route server between like-configured clients takes, so it is
+		// the branch where relaying the source's identifier loses a route. The
+		// rewrite is length-preserving and lands in a copy, so the split below
+		// stays raw. A session that negotiated ADD-PATH for nothing gets a nil
+		// patch and keeps its zero-copy forward.
+		//
+		// The ADD-PATH answer comes from peer.sendContext(), an atomic load, and
+		// not from a registry lookup on destCtxID: sameCtx already says the two
+		// IDs are one, and a peer sets and clears sendCtx beside sendCtxID
+		// (peer.go). A re-negotiation between the forwardFacts snapshot and this
+		// call nulls sendCtx, which reads as no ADD-PATH -- and those bytes are
+		// bound for a session that is being torn down. The parsed branch below
+		// takes the same reading for its split decision.
+		bodyOut := peerWire.Payload()
+		patched, patchBuf, patchErr := fwdRegenerateRawPathIDs(peerWire, peer.sendContext())
+		if patchErr != nil {
+			fwdLogger().Warn("forward path identifier rewrite failed", "peer", peerAddr, "err", patchErr)
+			return result, false
+		}
+		if patched != nil {
+			bodyOut = patched
+			ownedBuf = patchBuf
+		}
+
 		// Size is not the only reason to re-chunk. RFC 7606 Section 5.1: "An UPDATE
 		// message MUST NOT contain more than one of the following: non-empty Withdrawn
 		// Routes field, non-empty Network Layer Reachability Information field,
@@ -65,11 +114,20 @@ func buildFwdBody(
 		// the bytes it relays, so a mixed shape received from a peer must be split before
 		// it goes back out. The verdict is cached on the WireUpdate, which is shared
 		// across this loop's destinations, so the common single-field UPDATE costs one
-		// bool read and keeps the zero-copy append below.
+		// bool read and keeps the raw append below. The copy has the source's shape
+		// byte for byte, so the source's cached verdict is the copy's verdict.
 		if updateSize > maxMsgSize || peerWire.MixesNLRIFields() {
 			srcCtx := bgpctx.Registry.Get(srcCtxID)
 			maxBodySize := maxMsgSize - message.HeaderLen
-			splits, err := wireu.SplitWireUpdate(peerWire, maxBodySize, srcCtx)
+			// The splitter reads a WireUpdate, so the rewritten payload gets one
+			// here rather than on every forward.
+			splitWire := peerWire
+			if patched != nil {
+				var rewritten wireu.WireUpdate
+				wireu.InitWireUpdate(&rewritten, patched, srcCtxID)
+				splitWire = &rewritten
+			}
+			splits, err := wireu.SplitWireUpdate(splitWire, maxBodySize, srcCtx)
 			if err != nil {
 				fwdLogger().Warn("forward split failed", "peer", peerAddr, "err", err)
 				return result, false
@@ -78,7 +136,7 @@ func buildFwdBody(
 				result.rawBodies = append(result.rawBodies, split.Payload())
 			}
 		} else {
-			result.rawBodies = append(result.rawBodies, peerWire.Payload())
+			result.rawBodies = append(result.rawBodies, bodyOut)
 		}
 	} else {
 		if cache.update == nil || cache.wire != peerWire {
@@ -96,24 +154,16 @@ func buildFwdBody(
 		// or RFC 6793 four-octet ASNs the destination did not negotiate. Convert
 		// to destination-context UPDATE sections before applying RFC 8654 size
 		// splitting so every emitted chunk is valid for the recipient.
-		destUpdate, transcodeBuf, encodeErr := fwdUpdateForDestination(cache.update, srcCtxID, destCtxID)
+		destUpdate, transcodeBuf, encodeErr := fwdUpdateForDestination(cache.update, srcCtxID, destCtxID, peerWire.SourceID())
 		if encodeErr != nil {
 			fwdLogger().Warn("encoding update for forward",
 				"peer", peerAddr, "error", encodeErr)
 			return result, false
 		}
 		// destUpdate aliases transcodeBuf zero-copy (see fwdUpdateForDestination).
-		// This is the SINGLE point inside buildFwdBody that decides the handle's
-		// fate: on success it travels out on result for the caller to adopt onto
-		// the ReceivedUpdate, on any failure below it goes straight back to the
-		// pool. Never both -- a caller that sees ok=false never adopts.
-		defer func() {
-			if ok {
-				result.transcodeBuf = transcodeBuf
-				return
-			}
-			ReturnReadBuffer(transcodeBuf)
-		}()
+		// The handle joins the one ownership point declared at the top of this
+		// function, which decides its fate for both branches.
+		ownedBuf = transcodeBuf
 
 		// Same RFC 7606 Section 5.1 restriction as the raw branch above. This UPDATE is
 		// ze's own composition -- fwdUpdateForDestination rebuilt its sections for the
@@ -168,7 +218,7 @@ func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, addPath bool, 
 // ReceivedUpdate (adoptFwdHandle), which returns it exactly once at cache eviction. A
 // zero handle means there is nothing to adopt: either no transcode ran, or the transcode
 // wrote into a collector-owned buffer that needs no handle.
-func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.ContextID) (destUpdate *message.Update, transcodeBuf BufHandle, err error) {
+func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.ContextID, srcID source.SourceID) (destUpdate *message.Update, transcodeBuf BufHandle, err error) {
 	if srcCtxID == 0 || destCtxID == 0 || srcCtxID == destCtxID {
 		return update, BufHandle{}, nil
 	}
@@ -243,16 +293,21 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 		}
 	}
 
-	withdrawn, err := fwdReencodeNLRIs(baseUpdate.WithdrawnRoutes, family.IPv4Unicast, srcCtx, destCtx)
+	// One memo for every section of this UPDATE, so the identifier a withdrawn
+	// route leaves under is the one its announcement left under: both sections
+	// ask the same table with the same ingress key.
+	memo := fwdPathIDMemo{source: srcID}
+
+	withdrawn, err := fwdReencodeNLRIs(baseUpdate.WithdrawnRoutes, family.IPv4Unicast, srcCtx, destCtx, &memo)
 	if err != nil {
 		return nil, BufHandle{}, fmt.Errorf("withdrawn routes: %w", err)
 	}
-	announced, err := fwdReencodeNLRIs(baseUpdate.NLRI, family.IPv4Unicast, srcCtx, destCtx)
+	announced, err := fwdReencodeNLRIs(baseUpdate.NLRI, family.IPv4Unicast, srcCtx, destCtx, &memo)
 	if err != nil {
 		return nil, BufHandle{}, fmt.Errorf("nlri: %w", err)
 	}
 
-	attrs, err := fwdReencodeMPAttributes(baseUpdate.PathAttributes, srcCtx, destCtx)
+	attrs, err := fwdReencodeMPAttributes(baseUpdate.PathAttributes, srcCtx, destCtx, &memo)
 	if err != nil {
 		return nil, BufHandle{}, fmt.Errorf("multiprotocol attributes: %w", err)
 	}
@@ -355,7 +410,7 @@ func fwdPackUpdateBody(update *message.Update) []byte {
 	return body
 }
 
-func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingContext) ([]byte, error) {
+func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingContext, memo *fwdPathIDMemo) ([]byte, error) {
 	var out []byte
 	changed := false
 	for off := 0; off < len(attrs); {
@@ -377,7 +432,7 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 				return nil, err
 			}
 			fam := family.Family{AFI: family.AFI(mp.AFI), SAFI: family.SAFI(mp.SAFI)}
-			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx)
+			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx, memo)
 			if err != nil {
 				return nil, err
 			}
@@ -392,7 +447,7 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 				return nil, err
 			}
 			fam := family.Family{AFI: family.AFI(mp.AFI), SAFI: family.SAFI(mp.SAFI)}
-			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx)
+			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx, memo)
 			if err != nil {
 				return nil, err
 			}
@@ -425,22 +480,29 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 	return out, nil
 }
 
-func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.EncodingContext) ([]byte, error) {
+func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.EncodingContext, memo *fwdPathIDMemo) ([]byte, error) {
 	srcAddPath := srcCtx.AddPath(fam)
 	destAddPath := destCtx.AddPath(fam)
-	if srcAddPath == destAddPath || len(data) == 0 {
+	if len(data) == 0 || (!srcAddPath && !destAddPath) {
 		return data, nil
 	}
 
 	// RFC 7911 path IDs are present per family and direction. Re-frame each NLRI
 	// before size splitting so message.Splitter sees destination-context bytes.
+	//
+	// A destination that reads path IDs gets ze's own, never the source's (RFC
+	// 7911 Section 2), so this runs even when both contexts frame alike and only
+	// the value changes. The identifier the iterator reports is 0 for every
+	// prefix when the SOURCE negotiated no ADD-PATH, and 0 is then the ingress
+	// key of every path that source sends: one key, one identifier per source,
+	// which is what separates two such sources at the destination.
 	iter := nlri.NewNLRIIterator(data, srcAddPath)
-	out := make([]byte, 0, fwdReencodedNLRILen(data, iter, destAddPath))
+	out := make([]byte, 0, fwdReencodedNLRILen(data, iter, srcAddPath, destAddPath))
 	iter.Reset()
 	for prefix, pathID, ok := iter.Next(); ok; prefix, pathID, ok = iter.Next() {
 		if destAddPath {
 			var pathBuf [4]byte
-			binary.BigEndian.PutUint32(pathBuf[:], pathID)
+			binary.BigEndian.PutUint32(pathBuf[:], memo.generate(pathID))
 			out = append(out, pathBuf[:]...)
 		}
 		out = append(out, prefix...)
@@ -451,9 +513,17 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 	return out, nil
 }
 
-func fwdReencodedNLRILen(data []byte, iter *nlri.NLRIIterator, destAddPath bool) int {
-	if destAddPath {
+// fwdReencodedNLRILen sizes the re-framed section exactly: four octets per NLRI
+// appear when only the destination reads path IDs, disappear when only the
+// source wrote them, and neither when both do -- ze rewrites the value in place
+// of the source's and the length does not move.
+func fwdReencodedNLRILen(data []byte, iter *nlri.NLRIIterator, srcAddPath, destAddPath bool) int {
+	switch {
+	case srcAddPath == destAddPath:
+		return len(data)
+	case destAddPath:
 		return len(data) + iter.Count()*4
+	default:
+		return len(data) - iter.Count()*4
 	}
-	return len(data) - iter.Count()*4
 }

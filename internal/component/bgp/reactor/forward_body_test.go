@@ -115,7 +115,20 @@ func TestForwardDoesNotRetranscodeASN2RewrittenWire(t *testing.T) {
 func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 	// VALIDATES: AC-3 -- same source/destination ContextID keeps the raw split branch before parsing.
 	// PREVENTS: Regressing same-context forwarding into parsed UPDATE allocation and SendUpdate dispatch.
-	// RFC requirement: RFC7911-5-3 positive -- source and destination share an ADD-PATH-negotiated context (both addPath=true), so forwarding preserves the extended NLRI encoding: the emitted NLRI bytes equal the source NLRI including their 4-octet Path IDs.
+	// RFC requirement: RFC7911-5-3 positive -- source and destination share an ADD-PATH-negotiated context (both addPath=true), so ze generates the route update from the combination of the address prefix and the Path Identifier and emits the extended NLRI encoding: every emitted NLRI carries a 4-octet Path Identifier field ahead of the prefix the source sent.
+	//
+	// rfc-test-change-approved: 2026-08-14 Thomas approved correcting the
+	// assertion and the tag text of this test. It read "the emitted NLRI bytes
+	// equal the source NLRI including their 4-octet Path IDs", which pinned the
+	// RFC 7911 Section 2 violation this file's sibling reproduces: a speaker that
+	// re-advertises a route MUST generate its own Path Identifier. RFC7911-5-3
+	// says a speaker follows RFC 4271 procedures unless ADD-PATH is negotiated
+	// both ways, and says nothing about preserving a received identifier, so the
+	// old text read a requirement the RFC does not carry. What this test
+	// legitimately proves is that the same-context branch stays on the raw-split
+	// fast path, and it still proves it: the assertions on rawBodies are
+	// untouched, and the identifiers are checked as ze's own instead of the
+	// source's.
 	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
 	peer := forwardBodyTestPeer(ctx, ctxID)
 
@@ -135,7 +148,49 @@ func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 		require.NoError(t, err)
 		gotNLRI = append(gotNLRI, update.NLRI...)
 	}
-	assert.Equal(t, sourceNLRI, gotNLRI)
+
+	// rfc-test-change-approved: 2026-08-14 Thomas approved replacing a byte
+	// equality between the emitted NLRI and the source NLRI. That equality
+	// required the emitted Path Identifiers to be the source's, and so pinned
+	// the RFC 7911 Section 2 violation: "A BGP speaker that re-advertises a
+	// route MUST generate its own Path Identifier to be associated with the
+	// re-advertised route". The extended encoding claim RFC7911-5-3 does make is
+	// kept, split in two: the prefixes are the source's, in order, and each
+	// still carries a 4-octet identifier field ahead of it, now holding ze's
+	// value rather than the source's.
+	gotIDs, gotPrefixes := forwardBodySplitNLRI(t, gotNLRI)
+	sourceIDs, sourcePrefixes := forwardBodySplitNLRI(t, sourceNLRI)
+	assert.Equal(t, sourcePrefixes, gotPrefixes,
+		"the extended encoding must carry the source's prefixes, in order, one per Path Identifier")
+	assert.NotEqual(t, sourceIDs, gotIDs,
+		"the emitted Path Identifiers are the source's, so ze is advertising values it does not own (RFC 7911 Section 2)")
+	assert.Len(t, forwardBodyUniqueIDs(gotIDs), len(gotIDs),
+		"two paths left under one Path Identifier, so the destination sees fewer paths than were sent")
+}
+
+// forwardBodySplitNLRI splits ADD-PATH framed NLRI bytes into the Path
+// Identifiers and the prefixes they carry, so a test can assert on each half
+// without the other.
+func forwardBodySplitNLRI(t *testing.T, data []byte) (ids []uint32, prefixes [][]byte) {
+	t.Helper()
+	iter := nlri.NewNLRIIterator(data, true)
+	for prefix, pathID, ok := iter.Next(); ok; prefix, pathID, ok = iter.Next() {
+		ids = append(ids, pathID)
+		prefixes = append(prefixes, prefix)
+	}
+	require.Zero(t, iter.Remaining(), "malformed ADD-PATH NLRI")
+	require.NotEmpty(t, ids, "guard: the fixture carried no NLRI, so nothing was compared")
+	return ids, prefixes
+}
+
+// forwardBodyUniqueIDs collapses Path Identifiers to the set of values used, so
+// a caller can compare that count against the number of paths sent.
+func forwardBodyUniqueIDs(ids []uint32) map[uint32]struct{} {
+	seen := make(map[uint32]struct{}, len(ids))
+	for _, id := range ids {
+		seen[id] = struct{}{}
+	}
+	return seen
 }
 
 // crossContextTranscodeBody builds a source UPDATE that fits, carries a 4-byte
