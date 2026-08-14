@@ -62,10 +62,16 @@ func agreedSelector(ctx *pluginserver.CommandContext, sel *selector.Selector, ve
 	agreed := make([]netip.Addr, 0, len(peers))
 	var refused []string
 	for i := range peers {
-		// Keyed by the peer's own address. A dynamic member's agreement is stated
-		// on its group, and blackholecfg keys that under the group; reaching it
-		// needs the member's group identity, which PeersMatching does not carry.
-		if rules[configjson.PeerConfigKey{ID: peers[i].AddrStr()}].Agreed(attribute.CommunityBlackhole) {
+		// The peer's own address first, then the group it belongs to. A session
+		// the reactor created from a dynamic group has no address in the config
+		// document, so its agreement is the one its group stated and the group
+		// name is what reaches it. A peer that stated its own agreement keeps it,
+		// because the address is consulted first.
+		//
+		// A miss is a session that agreed to nothing, which is the closed answer
+		// this gate exists to give.
+		rule, ok := configjson.LookupPeerConfig(rules, peers[i].AddrStr(), peers[i].Name, peers[i].GroupName)
+		if ok && rule.Agreed(attribute.CommunityBlackhole) {
 			agreed = append(agreed, peers[i].Address)
 			continue
 		}

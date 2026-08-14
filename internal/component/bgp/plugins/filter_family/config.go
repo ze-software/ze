@@ -80,6 +80,10 @@ func validateNoTearDownInExport(bgpCfg map[string]any, instances map[string]*fam
 	if err := check(exportChain(bgpCfg)); err != nil {
 		return err
 	}
+	// This visitor validates and stores nothing, so it keys no template and does
+	// not read the origin. A dynamic group's template visit still carries the
+	// group's map, so the group's export chain is checked on that visit exactly
+	// as it is for a group that lists peers.
 	var visitErr error
 	configjson.ForEachPeer(bgpCfg, func(_ string, peerMap, groupMap map[string]any, _ configjson.PeerOrigin) {
 		if visitErr != nil {

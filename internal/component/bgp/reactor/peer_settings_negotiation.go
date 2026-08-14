@@ -176,7 +176,7 @@ func negotiatedOutcomeEqual(a, b *capability.Negotiated) bool {
 // oversight. They carry the peer's capability block to PLUGINS
 // (parseCapabilitiesFromTree, config_capabilities.go), and a plugin's own
 // capabilities enter the OPEN through pluginCapGetter, which reads the injector
-// store the plugin has already written (Server.GetPluginCapabilitiesForPeer).
+// store the plugin has already written (Server.GetPluginCapabilitiesForSelectors).
 // The probe builds its candidate OPEN from that same store, so it sees what the
 // plugin holds NOW and cannot see what the plugin would inject once it received
 // the new config. An edit whose wire effect arrives later, by a path the probe

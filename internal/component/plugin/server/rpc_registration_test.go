@@ -204,13 +204,13 @@ func TestRPCCapabilityToInjector(t *testing.T) {
 	require.NoError(t, injector.AddPluginCapabilities(caps))
 
 	// Global capability available for any peer
-	allCaps := injector.GetCapabilitiesForPeer("10.0.0.2")
+	allCaps := injector.GetCapabilitiesForSelectors("10.0.0.2")
 	require.Len(t, allCaps, 1)
 	assert.Equal(t, uint8(73), allCaps[0].Code)
 	assert.Equal(t, []byte("test"), allCaps[0].Value) // b64 "dGVzdA==" → "test"
 
 	// Specific peer gets both global and per-peer
-	peerCaps := injector.GetCapabilitiesForPeer("10.0.0.1")
+	peerCaps := injector.GetCapabilitiesForSelectors("10.0.0.1")
 	require.Len(t, peerCaps, 2)
 
 	// Per-peer comes first (takes precedence)

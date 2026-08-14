@@ -499,6 +499,24 @@ func (e *Event) GetPeerName() string {
 	return ""
 }
 
+// GetPeerGroup extracts the peer's group name (YANG: group leaf).
+//
+// It is empty for a standalone peer, and it is the one identity a session
+// created from a dynamic group shares with the operator's config document: such
+// a session's address is written nowhere in it.
+func (e *Event) GetPeerGroup() string {
+	if len(e.Peer) == 0 {
+		return ""
+	}
+
+	var info PeerInfoJSON
+	if err := json.Unmarshal(e.Peer, &info); err == nil {
+		return info.Group
+	}
+
+	return ""
+}
+
 // GetPeerState extracts peer state from the peer object or top-level State field.
 func (e *Event) GetPeerState() string {
 	if e.State != "" {

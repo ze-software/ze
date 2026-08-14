@@ -12,7 +12,13 @@ import "sync"
 // re-dispatched decision preserves the ASPA component (ASPA re-validation is handled separately
 // on ASPA cache changes; see ASPATracker).
 type originRoute struct {
-	originAS  uint32
+	originAS uint32
+	// peerGroup is the group the source session belongs to, empty for a standalone
+	// peer. Re-validation re-dispatches a decision with no UPDATE in hand, and
+	// buildDecisions resolves a session created from a listen-range group by its
+	// group's name, so the identity is stored rather than re-derived. Not part of
+	// routeKey: it identifies the SESSION's config, never the route.
+	peerGroup string
 	state     uint8
 	aspaState uint8
 	// blackhole records that the received UPDATE carried the RFC 7999 BLACKHOLE
@@ -25,6 +31,7 @@ type originRoute struct {
 // originRevalidation is a route whose origin-validation state changed on a VRP update.
 type originRevalidation struct {
 	key       routeKey
+	peerGroup string
 	state     uint8
 	aspaState uint8
 	originAS  uint32
@@ -45,9 +52,10 @@ func newOriginTracker() *originTracker {
 	return &originTracker{routes: make(map[routeKey]*originRoute)}
 }
 
-// Track records (or updates) a route's origin AS, current validation state, ASPA
-// snapshot, and whether the announcement carried the RFC 7999 BLACKHOLE community.
-func (t *originTracker) Track(key routeKey, originAS uint32, state, aspaState uint8, blackhole bool) {
+// Track records (or updates) a route's origin AS, the group of the session it came
+// from, the current validation state, the ASPA snapshot, and whether the
+// announcement carried the RFC 7999 BLACKHOLE community.
+func (t *originTracker) Track(key routeKey, peerGroup string, originAS uint32, state, aspaState uint8, blackhole bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if _, ok := t.routes[key]; !ok && len(t.routes) >= maxTrackedRoutes {
@@ -55,7 +63,10 @@ func (t *originTracker) Track(key routeKey, originAS uint32, state, aspaState ui
 			"peer", key.peerAddr, "family", key.family, "prefix", key.prefix)
 		return
 	}
-	t.routes[key] = &originRoute{originAS: originAS, state: state, aspaState: aspaState, blackhole: blackhole}
+	t.routes[key] = &originRoute{
+		originAS: originAS, peerGroup: peerGroup,
+		state: state, aspaState: aspaState, blackhole: blackhole,
+	}
 }
 
 // Remove deletes a tracked route.
@@ -77,7 +88,7 @@ func (t *originTracker) revalidate(cache *ROACache) []originRevalidation {
 		if newState != rt.state {
 			rt.state = newState
 			changed = append(changed, originRevalidation{
-				key: key, state: newState, aspaState: rt.aspaState,
+				key: key, peerGroup: rt.peerGroup, state: newState, aspaState: rt.aspaState,
 				originAS: rt.originAS, blackhole: rt.blackhole,
 			})
 		}

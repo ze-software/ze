@@ -68,6 +68,24 @@ func blackholeRIB(t *testing.T, peer netip.Addr, cfg blackholeConfig) (*RIBManag
 	return r, loc
 }
 
+// blackholeMemberRIB builds a RIBManager for a session the reactor created from
+// a dynamic group. group is what every event for that session carries
+// (rpc.StructuredEvent.PeerGroup), and rules is the config map as
+// parseBlackholeConfig built it, so a template entry sits under
+// configjson.GroupKey and nothing sits under the member's address.
+func blackholeMemberRIB(t *testing.T, peer netip.Addr, group string,
+	rules map[configjson.PeerConfigKey]blackholeConfig,
+) (*RIBManager, *locrib.RIB) {
+	t.Helper()
+	r := newTestRIBManagerWithBus(newTestEventBus())
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000, GroupName: group}
+	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
+	r.blackholeCfg.Store(&rules)
+	return r, loc
+}
+
 // announce inserts one route from the peer and returns the best-path change.
 func announce(t *testing.T, r *RIBManager, peer netip.Addr, nlri, attrs []byte) (bestChangeEntry, bool) {
 	t.Helper()
@@ -334,4 +352,82 @@ func TestBlackholeRemovedWhenPrefixWithdrawn(t *testing.T) {
 	_, stillBest := loc.Best(fam, pfx)
 	assert.False(t, stillBest,
 		"Loc-RIB rail: the discard route outlived the announcement that asked for it")
+}
+
+// AC-7: a session the reactor created from a dynamic group is stamped from the
+// rule its GROUP stated.
+//
+// The member's address is in no config entry, because a listen-range group
+// names no members: the operator writes one `blackhole` block on the group and
+// the reactor builds a session for each connection inside the range. The group
+// name is the one identity the config document and the running session share,
+// and it reaches this decision on rpc.StructuredEvent.PeerGroup.
+//
+// RFC requirement: RFC7999-3.3-1 positive -- the announced prefix is covered by
+// an equal or shorter prefix the neighboring network is authorized to
+// advertise, here through the authorization its group stated.
+// RFC requirement: RFC7999-3.3-2 positive -- the receiving party agreed to
+// honor BLACKHOLE on that particular BGP session, here through the community
+// its group stated.
+func TestBlackholeRuleForDynamicGroup(t *testing.T) {
+	member := netip.MustParseAddr("192.0.2.9")
+	groupRule := blackholeConfig{
+		communities: agreedBlackhole,
+		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
+	}
+	nlri := ipv4Prefix(32, 10, 0, 0, 1)
+	pfx := netip.MustParsePrefix("10.0.0.1/32")
+
+	t.Run("the group's rule reaches the member built from it", func(t *testing.T) {
+		r, loc := blackholeMemberRIB(t, member, "ix",
+			map[configjson.PeerConfigKey]blackholeConfig{configjson.GroupKey("ix"): groupRule})
+
+		change, ok := announce(t, r, member, nlri,
+			blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
+
+		require.True(t, ok, "best-path change not detected")
+		assert.Equal(t, routetype.Blackhole, change.RouteType,
+			"event-bus rail: the IXP member's blackhole is forwarded instead of discarded")
+		assert.Equal(t, routetype.Blackhole, blackholeLocRIBType(t, loc, pfx),
+			"Loc-RIB rail: the IXP member's blackhole is forwarded instead of discarded")
+	})
+
+	// The pair that makes the case above discriminate. Delete the group link and
+	// this session is the only state that changes: the same map, the same UPDATE,
+	// the same prefix.
+	//
+	// RFC requirement: RFC7999-3.3-2 negative -- a session that belongs to no
+	// group agreed to nothing, so a rule stated by a group does not honor it.
+	t.Run("a session outside the group is not stamped by the group's rule", func(t *testing.T) {
+		r, loc := blackholeMemberRIB(t, member, "",
+			map[configjson.PeerConfigKey]blackholeConfig{configjson.GroupKey("ix"): groupRule})
+
+		change, ok := announce(t, r, member, nlri,
+			blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
+
+		require.True(t, ok)
+		assert.Equal(t, routetype.Type(0), change.RouteType,
+			"a session that joined no group discarded traffic on another group's agreement")
+		assert.Equal(t, routetype.Type(0), blackholeLocRIBType(t, loc, pfx))
+	})
+
+	// AC-9 at this decision: a peer's own statement beats its group's. The
+	// argument order is what this holds in place -- swap the address and the
+	// group and the group answers for a peer that stated its own rule.
+	t.Run("the winner's own rule beats its group's", func(t *testing.T) {
+		r, loc := blackholeMemberRIB(t, member, "ix", map[configjson.PeerConfigKey]blackholeConfig{
+			configjson.GroupKey("ix"): groupRule,
+			{ID: member.String()}: {communities: agreedBlackhole, authorized: []netip.Prefix{
+				netip.MustParsePrefix("198.51.100.0/24"),
+			}},
+		})
+
+		change, ok := announce(t, r, member, nlri,
+			blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
+
+		require.True(t, ok)
+		assert.Equal(t, routetype.Type(0), change.RouteType,
+			"the group's authorization answered for a peer that stated its own")
+		assert.Equal(t, routetype.Type(0), blackholeLocRIBType(t, loc, pfx))
+	})
 }

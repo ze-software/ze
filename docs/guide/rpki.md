@@ -72,8 +72,14 @@ The `action` block (both the origin `action` and the ASPA `action`) can also be 
 `peer` or a `group`, overriding the global `rpki / action` for routes learned from that peer.
 Only the action blocks are per-peer; `cache-server`, `validation-timeout`, and `aspa / validation`
 remain global. Resolution is **peer > group > global, per leaf**: a leaf left unset on the peer
-inherits the group's value, then the global value. Peers with a static `connection / remote / ip`
-can be overridden; dynamically-addressed peers use the global actions.
+inherits the group's value, then the global value.
+
+A listen-range group states the actions for every session it accepts. Such a session is
+created from the group's template when the connection arrives, so it has no `peer` block of
+its own, and it inherits what the group states. A NAMED peer that gives no
+`connection / remote / ip` of its own is different: ze never builds it from the template, so
+it has no address at all and it uses the global actions. It is reported at startup with
+`rpki: per-peer action override ignored: no static remote ip`.
 
 ```
 bgp {
@@ -87,11 +93,17 @@ bgp {
             rpki { action { invalid log-only; } }  /* per-peer override; not-found inherits global */
         }
     }
+    group ix {                                     /* listen range: no peer blocks */
+        connection { remote { ip dynamic; range 192.0.2.0/24; } }
+        rpki { action { invalid reject; } }         /* every session this group accepts */
+    }
 }
 ```
 
 `show bgp rpki status` reports the effective global actions (`actions`) and the resolved per-peer
-overrides with the source of each leaf (`peer-actions`).
+overrides with the source of each leaf (`peer-actions`). An entry names what it is: `"peer"`
+carries a remote address, and `"group"` carries a listen-range group's name and states what
+every session that group accepts inherits.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
 
 ### Plugin Bindings

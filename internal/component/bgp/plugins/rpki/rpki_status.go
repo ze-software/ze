@@ -4,6 +4,7 @@ package rpki
 import (
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -29,24 +30,36 @@ func (rp *rPKIPlugin) appendGlobalActions(b *textbuf.Buffer) {
 }
 
 // appendPeerActions writes the per-peer resolved actions array to b. Each entry lists the four
-// resolved actions with the config level each was resolved from (peer/group/global). Peers are
-// sorted by IP for deterministic output. Reads the same per-peer map buildDecisions uses.
+// resolved actions with the config level each was resolved from (peer/group/global). Reads the
+// same per-peer map buildDecisions uses.
+//
+// An entry names what it IS. A dynamic group's template is keyed by the group's
+// name rather than by an address, and printing it as `"peer":"ix"` would tell the
+// operator to look for a peer that does not exist. It gets `"group":"ix"`, and it
+// states the actions every session that group accepts inherits.
+//
+// Peers sort before groups, each by key, for deterministic output.
 func (rp *rPKIPlugin) appendPeerActions(b *textbuf.Buffer) {
 	b.Str(`,"peer-actions":[`)
 
 	if p := rp.perPeerActions.Load(); p != nil && len(*p) > 0 {
-		ips := make([]string, 0, len(*p))
-		for ip := range *p {
-			ips = append(ips, ip)
+		keys := make([]configjson.PeerConfigKey, 0, len(*p))
+		for key := range *p {
+			keys = append(keys, key)
 		}
-		sort.Strings(ips)
+		sort.Slice(keys, func(i, j int) bool {
+			if keys[i].Template != keys[j].Template {
+				return !keys[i].Template
+			}
+			return keys[i].ID < keys[j].ID
+		})
 
-		for i, ip := range ips {
+		for i, key := range keys {
 			if i > 0 {
 				b.Byte(',')
 			}
-			set := (*p)[ip]
-			b.Str(`{"peer":"`).Str(ip).Byte('"')
+			set := (*p)[key]
+			b.Str(`{"`).Str(subjectKind(key)).Str(`":"`).Str(key.ID).Byte('"')
 			appendResolvedLeaf(b, "invalid", set.OriginInvalid)
 			appendResolvedLeaf(b, "not-found", set.OriginNotFound)
 			appendResolvedLeaf(b, "aspa-invalid", set.ASPAInvalid)

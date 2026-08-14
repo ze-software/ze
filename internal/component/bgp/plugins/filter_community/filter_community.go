@@ -38,7 +38,9 @@ var logger = slogutil.LazyLogger("bgp.filter.community")
 var (
 	mu          sync.RWMutex
 	definitions communityDefs
-	peerConfigs map[string]filterConfig // keyed by peer name
+	// peerConfigs is keyed by peer name, and by configjson.CapabilityGroupKey for
+	// a dynamic group's template. lookupPeerConfigLocked resolves both.
+	peerConfigs map[string]filterConfig
 )
 
 // runFilterCommunity runs the community filter plugin using the SDK RPC
@@ -121,8 +123,9 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 		// peer would silently get another object's community policy. The "group:"
 		// prefix cannot collide: naming.ValidateNodeName accepts no ":".
 		//
-		// The entry is carried, not yet consumed: the three readers below hold a
-		// peer's name and no group identity. Reaching it is the remaining half.
+		// lookupPeerConfigLocked reads the entry back for a peer the reactor built
+		// from that template, which carries the group's name and nothing else the
+		// config document holds.
 		configs[configjson.CapabilitySelector(peerName, origin)] = fc
 	})
 
@@ -163,6 +166,35 @@ func configLabel(key string) string {
 	return tb.Str("peer ").Str(key).String()
 }
 
+// lookupPeerConfigLocked resolves one peer's community filter config: the peer's
+// own entry first, then the template of the dynamic group it was created from.
+//
+// A peer built from a listen-range group appears nowhere in the config document,
+// so the group's name is the only identity it shares with what the operator
+// wrote. The order is the config's own precedence: what a peer states beats what
+// its group states. A named peer keeps its own entry, which already carries the
+// group's leaves merged in at parse time.
+//
+// The caller MUST branch on the second value rather than on the zero
+// filterConfig. That value reads as "this peer has no community policy", which
+// is the permissive answer, so a miss nothing can tell from a deliberate absence
+// is the trap ai/rules/evidence.md names.
+//
+// The caller holds mu.
+func lookupPeerConfigLocked(name, group string) (filterConfig, bool) {
+	if name != "" {
+		if fc, ok := peerConfigs[name]; ok {
+			return fc, true
+		}
+	}
+	if group != "" {
+		if fc, ok := peerConfigs[configjson.CapabilityGroupKey(group)]; ok {
+			return fc, true
+		}
+	}
+	return filterConfig{}, false
+}
+
 // ingressFilter is the registered IngressFilterFunc at
 // filterapi.FilterStagePolicy. Looks up the source peer's filter config and
 // applies strip, RFC 7454 Section 11 scrub, RFC 7999 propagation guard,
@@ -170,7 +202,7 @@ func configLabel(key string) string {
 func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
 	mu.RLock()
 	defs := definitions
-	fc, hasCfg := peerConfigs[src.Name]
+	fc, hasCfg := lookupPeerConfigLocked(src.Name, src.GroupName)
 	mu.RUnlock()
 
 	if !hasCfg {
@@ -210,7 +242,7 @@ func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]an
 // exactly what an RFC 8195 relation tag is.
 func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
 	mu.RLock()
-	fc, hasCfg := peerConfigs[src.Name]
+	fc, hasCfg := lookupPeerConfigLocked(src.Name, src.GroupName)
 	mu.RUnlock()
 
 	if !hasCfg || !fc.relationTagEnabled() {
@@ -243,7 +275,7 @@ func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta ma
 func egressFilter(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 	mu.RLock()
 	defs := definitions
-	fc, hasCfg := peerConfigs[dest.Name]
+	fc, hasCfg := lookupPeerConfigLocked(dest.Name, dest.GroupName)
 	mu.RUnlock()
 
 	if !hasCfg {

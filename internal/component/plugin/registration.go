@@ -479,21 +479,40 @@ func (ci *CapabilityInjector) AllCapabilities() []InjectedCapability {
 	return result
 }
 
-// GetCapabilitiesForPeer returns capabilities for a specific peer.
-// Returns global capabilities plus any peer-specific capabilities.
-// Per-peer capabilities override global capabilities with the same code.
-func (ci *CapabilityInjector) GetCapabilitiesForPeer(peerAddr string) []InjectedCapability {
+// GetCapabilitiesForSelectors returns capabilities for one peer that several
+// selectors can name, resolving them in the order given.
+//
+// A peer is reachable under more than one selector: the name the operator wrote,
+// its remote address, and the dynamic group whose template created it. For each
+// capability CODE the first selector that declares it wins, and a global
+// declaration answers only for a code no selector claimed.
+//
+// It takes the whole list rather than being called once per selector, because
+// every answer carries the global set: a caller probing selectors in turn and
+// stopping at the first non-empty result stops at the globals and never reaches
+// the address or the group. One plugin declaring one global capability was
+// enough to cost every peer its per-peer declarations
+// (internal/plugins/exabgp/main_sdk.go declares code 2 with no Peers).
+func (ci *CapabilityInjector) GetCapabilitiesForSelectors(selectors ...string) []InjectedCapability {
 	ci.mu.RLock()
 	defer ci.mu.RUnlock()
 
-	// Start with global capabilities
-	result := make([]InjectedCapability, 0, len(ci.globalCaps)+len(ci.peerCaps[peerAddr]))
+	result := make([]InjectedCapability, 0, len(ci.globalCaps)+len(selectors))
 	seenCodes := make(map[uint8]bool)
 
-	// Add per-peer capabilities first (they take precedence)
-	for _, cap := range ci.peerCaps[peerAddr] {
-		result = append(result, cap)
-		seenCodes[cap.Code] = true
+	// Per-peer capabilities first, in selector order: they take precedence over
+	// the globals, and an earlier selector takes precedence over a later one.
+	for _, selector := range selectors {
+		if selector == "" {
+			continue
+		}
+		for _, cap := range ci.peerCaps[selector] {
+			if seenCodes[cap.Code] {
+				continue
+			}
+			result = append(result, cap)
+			seenCodes[cap.Code] = true
+		}
 	}
 
 	// Add global capabilities that weren't overridden

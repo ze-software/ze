@@ -105,9 +105,14 @@ func blackholeRouteType(cfg blackholeConfig, route netip.Prefix, hasCommunity fu
 	return routetype.Blackhole
 }
 
-// blackholeHonorPeerCount reports how many peers stated an RFC 7999 rule. It
-// exists for the configure log line, so an operator can see the leaves landed.
-func (r *RIBManager) blackholeHonorPeerCount() int {
+// blackholeHonorRuleCount reports how many RFC 7999 rules the configuration
+// resolved to. It exists for the configure log line, so an operator can see the
+// leaves landed.
+//
+// It counts RULES rather than sessions: a dynamic group contributes one entry
+// that every member of its listen range resolves to, and the count cannot say
+// how many members will connect.
+func (r *RIBManager) blackholeHonorRuleCount() int {
 	p := r.blackholeCfg.Load()
 	if p == nil {
 		return 0
@@ -127,6 +132,13 @@ func (r *RIBManager) blackholeHonorPeerCount() int {
 // only when the peer that WON the best-path selection is the one authorized for
 // it: the FIB installs one entry, and it must reflect the route it installs.
 //
+// A session created from a dynamic group is resolved by that group's name. Such
+// a session's address is written nowhere in the operator's document, so the
+// group is the one identity the document and the session share, and the rule
+// the operator stated on the listen-range group would otherwise reach none of
+// its members. The group is consulted only after the address misses, so a
+// member that states its own rule keeps it.
+//
 // Caller must not hold r.peerMu.
 func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []byte, pfx netip.Prefix, peerAddr netip.Addr) routetype.Type {
 	p := r.blackholeCfg.Load()
@@ -135,15 +147,35 @@ func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []by
 	}
 	// The empty-map check above is what keeps an unconfigured deployment free of
 	// the address formatting this key needs (ai/rules/performance.md). A
-	// deployment that DID configure the feature pays one String() per best-path
-	// change, which is the same order as the wire scan it gates.
-	cfg, ok := (*p)[configjson.PeerConfigKey{ID: peerAddr.String()}]
+	// deployment that DID configure the feature pays one String() and one
+	// peerMeta read per best-path change, which is the same order as the wire
+	// scan it gates.
+	//
+	// The name arm is empty because this plugin identifies a session by address
+	// and carries no config name for it. It answers a peer whose config key IS
+	// its own name, and configjson.PeerKey stores one there only when the name
+	// parses as an address, which config.validatePeerName refuses.
+	cfg, ok := configjson.LookupPeerConfig(*p, peerAddr.String(), "", r.peerGroupName(peerAddr))
 	if !ok {
 		return 0
 	}
 	return blackholeRouteType(cfg, pfx, func() bool {
 		return r.bestCarriesBlackhole(fam, nlriBytes, peerAddr, cfg.communities)
 	})
+}
+
+// peerGroupName returns the peer-group one session belongs to. It is empty for
+// a standalone peer, and for a peer no event has been received from yet.
+//
+// Caller must not hold r.peerMu.
+func (r *RIBManager) peerGroupName(peerAddr netip.Addr) string {
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	meta := r.peerMeta[peerAddr]
+	if meta == nil {
+		return ""
+	}
+	return meta.GroupName
 }
 
 // bestCarriesBlackhole reports whether the winning peer's stored route for this

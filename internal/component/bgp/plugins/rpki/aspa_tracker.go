@@ -15,8 +15,14 @@ type routeKey struct {
 
 // trackedRoute holds the data needed for ASPA re-validation.
 type trackedRoute struct {
-	key       routeKey
-	peerName  string
+	key      routeKey
+	peerName string
+	// peerGroup is the group the source session belongs to, empty for a standalone
+	// peer. Re-validation re-dispatches a decision with no UPDATE in hand, and
+	// buildDecisions resolves a session created from a listen-range group by its
+	// group's name. Not part of routeKey: it identifies the SESSION's config,
+	// never the route.
+	peerGroup string
 	peerASN   uint32
 	msgID     uint64
 	path      []uint32 // owned copy of normalized AS_PATH

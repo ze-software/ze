@@ -32,11 +32,15 @@
 # peer is the one the inbound connection creates (tryCreateDynamicPeer,
 # internal/component/bgp/reactor/reactor_dynamic.go).
 #
-# NOT covered here: the RFC 9234 Section 5 OTC gates and strict mode for this
-# member. Those read role config through getFilterConfig, which is passed
-# PeerFilterInfo.Address, and through rpc.ValidateOpenInput, which carries Peer,
-# Local and Remote and no group at all. Neither can name a group, so neither runs
-# for a dynamic member. This file is about what the member ADVERTISES.
+# NOT covered here, and covered elsewhere: the RFC 9234 Section 5 OTC gates and
+# Section 4.2 strict mode DO run for this member. getFilterConfig falls back to
+# PeerFilterInfo.GroupName, and applyValidateOpen (role.go) reads the group from
+# rpc.ValidateOpenInput.Group, which internal/component/bgp/server/validate.go
+# fills. Both are proven at the unit level, by TestOTCIngressGateRunsForADynamic\
+# GroupMember and TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole
+# (role/dynamic_group_test.go). This file stays on what the member ADVERTISES,
+# because that is the one link with no unit-test seam: the reactor's capability
+# injector is reachable only from a real plugin process.
 
 # "dynamic peer created" is an Info line and the daemon's base level is warn
 # (ze.log, internal/core/slogutil/slogutil.go), so the assertion at the foot of

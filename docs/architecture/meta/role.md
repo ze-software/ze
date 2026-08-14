@@ -151,11 +151,12 @@ Reaching a capability-less customer with `export default` therefore also needs
 
 ## Config keying
 
-Role config is keyed by the peer's remote address, because that is the only
-key the readers use: all three `getFilterConfig` callers pass
-`PeerFilterInfo.Address.String()`. `extractPeerRoleConfigs` takes the address
-from `connection > remote > ip` (via `configjson.PeerRemoteIP`, which also
-covers a peer inheriting the address from its group).
+A configured peer's role config is keyed by its remote address, because that is
+the key its readers hold: all three `getFilterConfig` callers pass
+`PeerFilterInfo.Address.String()` first. `extractPeerRoleConfigs` takes the
+address from `connection > remote > ip` (via `configjson.PeerRemoteIP`, which
+also covers a peer inheriting the address from its group). A peer the config
+document does not name is keyed by its group instead (see Dynamic groups).
 
 When no remote IP resolves, the delivered map key -- the peer **name** -- is
 used instead. Only when that name is itself a parseable address. Operators
@@ -171,6 +172,9 @@ never establishes anyway (`reactor/config.go` fails an empty or `dynamic`
 remote IP with `ErrIncompleteConfig` and skips the peer). So the role config
 was inert either way -- the defect was that it was inert *silently*.
 `bgp-rpki` refuses the same two shapes.
+
+Both refusals are about a **named** peer. A dynamic group's own placeholder
+never reaches them: the template visit is keyed by the group and returns first.
 
 <!-- source: internal/component/bgp/plugins/role/config.go -- extractPeerRoleConfigs -->
 <!-- source: internal/component/bgp/configjson/traverse.go -- PeerRemoteIP -->
@@ -232,14 +236,41 @@ two states were separated, which sent operators to a policy that had not run.
 
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, buildMetrics -->
 
-## Known limits
+## Dynamic groups
 
-Role config cannot reach peers created from a **dynamic group** (`connection >
-remote > ip dynamic` plus a `range`). Such peers establish with real addresses
-but have no `peer` list entry. So `configjson.ForEachPeer` never visits them
-and neither the group's nor any peer's role config is delivered for them.
-`bgp-rpki` has the same limitation for its per-peer action overrides.
+Role config stated on a **dynamic group** (`connection > remote > ip dynamic`
+plus a `range`) governs every peer the group builds. Such a peer establishes
+with a real address and has no `peer` list entry, so no name and no address in
+the config document identifies it. Its group does: `buildDynamicPeerSettings`
+writes the group name to `PeerSettings.GroupName`, and every
+`filterapi.PeerFilterInfo` carries it.
 
-<!-- source: internal/component/bgp/configjson/traverse.go -- ForEachPeer -->
+`configjson.ForEachPeer` visits a dynamic group once, with a nil peer map and
+`origin.Template` set. `extractPeerRoleConfigs` stores that visit under
+`configjson.CapabilitySelector`, which puts the `group:` prefix in front of the
+group's name. The prefix separates the two namespaces in one string space.
+Nothing at config time compares a group's name against a peer's, so a peer named
+`ix` and a group named `ix` can both exist.
+
+Three readers resolve that entry, each from an identity it already holds:
+
+| Reader | Resolves from | Result for a peer of the group |
+|--------|---------------|--------------------------------|
+| `Peer.getPluginCapabilities` | `PeerSettings.GroupName`, the third link of its name → address → group chain | the OPEN carries capability 9 with the role the group states |
+| `getFilterConfig` | `PeerFilterInfo.GroupName` | the RFC 9234 Section 5 OTC gates run, on the group's role |
+| `applyValidateOpen` | `rpc.ValidateOpenInput.Group` | the Section 4.2 role pair check runs, `strict` included |
+
+Each reader tries the peer's own key first. A peer named in the group's `peer`
+list therefore keeps what it states for itself, and the group's entry answers
+only for the peers the template builds.
+
+The capability chain is gated on `PeerSettings.IsDynamic`. A statically
+configured peer can never draw a capability declared for a group of the same
+name.
+
+<!-- source: internal/component/bgp/configjson/traverse.go -- ForEachPeer, CapabilitySelector -->
+<!-- source: internal/component/bgp/plugins/role/config.go -- extractPeerRoleConfigs -->
+<!-- source: internal/component/bgp/plugins/role/role.go -- getFilterConfig, applyValidateOpen -->
+<!-- source: internal/component/bgp/reactor/peer.go -- getPluginCapabilities -->
 <!-- source: internal/component/bgp/config/resolve.go -- resolveDynamicGroup -->
 

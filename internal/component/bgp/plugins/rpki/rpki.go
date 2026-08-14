@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -81,7 +82,12 @@ const (
 
 // validationRequest is a pending validation decision to be processed by the worker.
 type validationRequest struct {
-	peerAddr  string
+	peerAddr string
+	// peerGroup is the name of the group the source session belongs to, empty for a
+	// standalone peer. It is carried because a session created from a listen-range
+	// group has an address the config document never mentions, so the group's name
+	// is the only key its stated actions can be found under.
+	peerGroup string
 	family    string
 	prefix    string
 	pathID    uint32
@@ -123,10 +129,12 @@ type rPKIPlugin struct {
 	// originNotFoundAction is the operator-configured action for the NotFound state.
 	// Reject excludes the route; LogOnly keeps it with a warning; Accept keeps it silently.
 	originNotFoundAction atomic.Uint32
-	// perPeerActions holds per-peer resolved action overrides keyed by remote IP, swapped
-	// atomically on each config reload. nil (or a miss) means the route uses the global actions.
+	// perPeerActions holds per-peer resolved action overrides keyed by configjson.KeyFor
+	// (a remote IP, or a dynamic group's name for the template its members inherit),
+	// swapped atomically on each config reload. nil (or a miss) means the route uses the
+	// global actions.
 	// Read lock-free from the single validationWorker goroutine; written from OnConfigure.
-	perPeerActions atomic.Pointer[map[string]peerActionSet]
+	perPeerActions atomic.Pointer[map[configjson.PeerConfigKey]peerActionSet]
 	mu             sync.RWMutex
 
 	// sessions holds active RTR sessions to cache servers.
@@ -334,6 +342,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 
 	peerAddr := se.PeerAddress
 	peerName := se.PeerName
+	peerGroup := se.PeerGroup
 	peerASN := se.PeerAS
 	msgID := se.MessageID
 	wu := msg.WireUpdate
@@ -347,7 +356,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// so buildDecisions can apply the exemption without re-reading the wire. The
 	// communities that count are the ones THIS session agreed to, which is why
 	// the peer's address is an input.
-	carriesBlackhole := rp.carriesAgreedBlackhole(peerAddr, msg.AttrsWire)
+	carriesBlackhole := rp.carriesAgreedBlackhole(peerAddr, peerGroup, msg.AttrsWire)
 
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
@@ -373,11 +382,11 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
-		rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
+		rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
 			nlriData, addPath, false, originAS, cacheEmpty, aspaState, carriesBlackhole)
 		// Track announced routes for ASPA re-validation (AC-5).
 		if aspaState != aspaStateNone {
-			rp.trackNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
+			rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
 				nlriData, addPath, false, normalizedPath, aspaState)
 		}
 	}
@@ -389,10 +398,10 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
+			rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
 				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, aspaState, carriesBlackhole)
 			if aspaState != aspaStateNone {
-				rp.trackNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
+				rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
 					nlriBytes, addPath, fam.AFI == 2, normalizedPath, aspaState)
 			}
 		}
@@ -401,7 +410,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 }
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
-func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
+func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerASN uint32, msgID uint64,
 	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8,
 	blackhole bool) {
 
@@ -448,6 +457,7 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 		select {
 		case rp.validateCh <- validationRequest{
 			peerAddr:  peerAddr,
+			peerGroup: peerGroup,
 			family:    family,
 			prefix:    prefix,
 			pathID:    pathID,
@@ -463,7 +473,7 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 		// Track the route for RFC 6811 Section 4 origin re-validation when the ROA cache (VRP set)
 		// changes. Independent of ASPA: origin validation runs whenever RPKI is active.
 		rp.originTracker.Track(routeKey{peerAddr: peerAddr, family: family, prefix: prefix, pathID: pathID},
-			originAS, state, aspaState, blackhole)
+			peerGroup, originAS, state, aspaState, blackhole)
 	}
 
 	if len(familyResults) > 0 || cacheEmpty {
@@ -489,6 +499,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 		return
 	}
 	peerName := event.GetPeerName()
+	peerGroup := event.GetPeerGroup()
 
 	// Use parsed AS_PATH (already ASN4-normalized) when available.
 	// Fall back to raw attribute parsing only if ASPath is empty.
@@ -514,7 +525,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	// treated as if it asked for a blackhole.
 	blackhole := false
 	if len(event.RawAttributeBytes) > 0 {
-		blackhole = rp.carriesAgreedBlackhole(peerAddr,
+		blackhole = rp.carriesAgreedBlackhole(peerAddr, peerGroup,
 			attribute.NewAttributesWire(event.RawAttributeBytes, bgpctx.APIContextID))
 	}
 
@@ -551,6 +562,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 				select {
 				case rp.validateCh <- validationRequest{
 					peerAddr:  peerAddr,
+					peerGroup: peerGroup,
 					family:    famName,
 					prefix:    prefix,
 					pathID:    pathID,
@@ -700,8 +712,9 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 	gUnknownAction := uint8(rp.aspaUnknownAction.Load())     //nolint:gosec // stored as uint8, fits
 	gOriginInvalid := uint8(rp.originInvalidAction.Load())   //nolint:gosec // stored as uint8, fits
 	gOriginNotFound := uint8(rp.originNotFoundAction.Load()) //nolint:gosec // stored as uint8, fits
-	// Per-peer overrides (keyed by remote IP). nil map => every route uses the global actions.
-	var perPeer map[string]peerActionSet
+	// Per-peer overrides (keyed by remote IP, or by a dynamic group's name for the
+	// template its members inherit). nil map => every route uses the global actions.
+	var perPeer map[configjson.PeerConfigKey]peerActionSet
 	if p := rp.perPeerActions.Load(); p != nil {
 		perPeer = *p
 	}
@@ -717,12 +730,13 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 		}
 
 		// Resolve the effective actions for this route's source peer: a per-peer override
-		// (already merged peer > group > global at config time) wins, else the global values.
+		// (already merged peer > group > global at config time) wins, else the group the
+		// session was created from, else the global values.
 		originInvalidAction, originNotFoundAction := gOriginInvalid, gOriginNotFound
 		invalidAction, unknownAction := gInvalidAction, gUnknownAction
 		var blackholeExempt bool
 		if perPeer != nil {
-			if set, ok := perPeer[req.peerAddr]; ok {
+			if set, ok := configjson.LookupPeerConfig(perPeer, req.peerAddr, "", req.peerGroup); ok {
 				originInvalidAction = set.OriginInvalid.Action
 				originNotFoundAction = set.OriginNotFound.Action
 				invalidAction = set.ASPAInvalid.Action
@@ -795,7 +809,7 @@ func originASFromParsed(asPath []uint32) uint32 {
 
 // trackNLRIs walks wire NLRI bytes and tracks each route in the ASPA tracker.
 // Called after ASPA verification to enable re-validation when cache data changes (AC-5).
-func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
+func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName, peerGroup string, peerASN uint32, msgID uint64,
 	fam string, nlriData []byte, addPath, isIPv6 bool, normalizedPath []uint32, aspaState uint8) {
 
 	addrLen := 4
@@ -841,6 +855,7 @@ func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName string, peerASN uint32, msgI
 		rp.aspaTracker.Track(trackedRoute{
 			key:       routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID},
 			peerName:  peerName,
+			peerGroup: peerGroup,
 			peerASN:   peerASN,
 			msgID:     msgID,
 			path:      pathCopy,
@@ -928,6 +943,7 @@ func (rp *rPKIPlugin) handleROAChange() {
 		select {
 		case rp.validateCh <- validationRequest{
 			peerAddr:  c.key.peerAddr,
+			peerGroup: c.peerGroup,
 			family:    c.key.family,
 			prefix:    c.key.prefix,
 			pathID:    c.key.pathID,
@@ -962,6 +978,7 @@ func (rp *rPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 			select {
 			case rp.validateCh <- validationRequest{
 				peerAddr:  rt.key.peerAddr,
+				peerGroup: rt.peerGroup,
 				family:    rt.key.family,
 				prefix:    rt.key.prefix,
 				pathID:    rt.key.pathID,

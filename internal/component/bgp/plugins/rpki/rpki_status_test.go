@@ -3,11 +3,13 @@ package rpki
 import (
 	"encoding/binary"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -48,14 +50,14 @@ func TestStatusCommand_GlobalActions(t *testing.T) {
 // PREVENTS: status hiding which config level supplied each action.
 func TestStatusCommand_PerPeerActions(t *testing.T) {
 	rp := &rPKIPlugin{}
-	m := map[string]peerActionSet{
-		"192.0.2.1": {
+	m := map[configjson.PeerConfigKey]peerActionSet{
+		{ID: "192.0.2.1"}: {
 			OriginInvalid:  resolvedAction{Action: ASPAPolicyAccept, Source: sourcePeer},
 			OriginNotFound: resolvedAction{Action: ASPAPolicyAccept, Source: sourceGlobal},
 			ASPAInvalid:    resolvedAction{Action: ASPAPolicyLogOnly, Source: sourceGlobal},
 			ASPAUnknown:    resolvedAction{Action: ASPAPolicyAccept, Source: sourceGlobal},
 		},
-		"198.51.100.7": {
+		{ID: "198.51.100.7"}: {
 			OriginInvalid:  resolvedAction{Action: ASPAPolicyReject, Source: sourceGroup},
 			OriginNotFound: resolvedAction{Action: ASPAPolicyAccept, Source: sourceGlobal},
 			ASPAInvalid:    resolvedAction{Action: ASPAPolicyLogOnly, Source: sourceGlobal},
@@ -81,6 +83,40 @@ func TestStatusCommand_PerPeerActions(t *testing.T) {
 			`"aspa-invalid":{"action":"log-only","source":"global"},`+
 			`"aspa-unknown":{"action":"accept","source":"global"}}]`,
 		out)
+}
+
+// TestStatusCommand_PerPeerActions_NamesAGroupAsAGroup verifies a dynamic group's
+// template is rendered for what it is.
+//
+// VALIDATES: appendPeerActions writes `"group":"<name>"` for a template entry and
+// `"peer":"<ip>"` for a configured peer, with peers first.
+// PREVENTS: `"peer":"ix"` in operator output, which sends the reader looking for a
+// peer that does not exist. The key holds a GROUP's name, and a listen-range group
+// is where an IXP states the actions every session it accepts inherits.
+func TestStatusCommand_PerPeerActions_NamesAGroupAsAGroup(t *testing.T) {
+	rp := &rPKIPlugin{}
+	leaves := peerActionSet{
+		OriginInvalid:  resolvedAction{Action: ASPAPolicyReject, Source: sourceGroup},
+		OriginNotFound: resolvedAction{Action: ASPAPolicyAccept, Source: sourceGlobal},
+		ASPAInvalid:    resolvedAction{Action: ASPAPolicyLogOnly, Source: sourceGlobal},
+		ASPAUnknown:    resolvedAction{Action: ASPAPolicyAccept, Source: sourceGlobal},
+	}
+	m := map[configjson.PeerConfigKey]peerActionSet{
+		configjson.GroupKey("ix"): leaves,
+		{ID: "192.0.2.1"}:         leaves,
+	}
+	rp.perPeerActions.Store(&m)
+
+	b := textbuf.Get()
+	defer b.Release()
+	rp.appendPeerActions(b)
+	out := b.String()
+
+	assert.Contains(t, out, `{"group":"ix","invalid":{"action":"reject","source":"group"}`)
+	assert.Contains(t, out, `{"peer":"192.0.2.1","invalid":{"action":"reject","source":"group"}`)
+	assert.NotContains(t, out, `"peer":"ix"`)
+	assert.Less(t, strings.Index(out, `"peer":"192.0.2.1"`), strings.Index(out, `"group":"ix"`),
+		"peers sort before groups")
 }
 
 // TestStatusReportsSyncSeparatelyFromConfiguration verifies an operator can tell a configured

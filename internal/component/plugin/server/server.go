@@ -652,13 +652,18 @@ func isAlphaSerial(serial string) bool {
 	return true
 }
 
-// GetPluginCapabilitiesForPeer returns plugin-declared capabilities for a specific peer.
-// Returns global capabilities plus any peer-specific capabilities (per-peer takes precedence).
-func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []plugin.InjectedCapability {
+// GetPluginCapabilitiesForSelectors returns plugin-declared capabilities for one
+// peer that several selectors can name, resolved in the order given: for each
+// capability code the first selector that declares it wins, then the globals.
+//
+// Callers MUST prefer this over probing selectors one at a time. Every answer
+// carries the global capabilities, so a caller that stops at the first non-empty
+// result stops at the globals and never reaches its later selectors.
+func (s *Server) GetPluginCapabilitiesForSelectors(selectors ...string) []plugin.InjectedCapability {
 	if s.capInjector == nil {
 		return nil
 	}
-	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
+	return s.capInjector.GetCapabilitiesForSelectors(selectors...)
 }
 
 // AllPluginCapabilities returns all stored capabilities (global + all per-peer).

@@ -6,7 +6,11 @@
 
 package rpki
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+)
 
 // blackholeDecisionPlugin builds a plugin whose global policy rejects Invalid
 // routes, with one VRP covering 192.0.2.0/24 at maxLength 24 for AS 65001.
@@ -24,8 +28,8 @@ func blackholeDecisionPlugin(t *testing.T, exempt bool) *rPKIPlugin {
 	rp.aspaInvalidAction.Store(uint32(ASPAPolicyAccept))
 	rp.aspaUnknownAction.Store(uint32(ASPAPolicyAccept))
 
-	peers := map[string]peerActionSet{
-		"198.51.100.1": {
+	peers := map[configjson.PeerConfigKey]peerActionSet{
+		{ID: "198.51.100.1"}: {
 			OriginInvalid:   resolvedAction{Action: ASPAPolicyReject, Source: sourcePeer},
 			OriginNotFound:  resolvedAction{Action: ASPAPolicyAccept, Source: sourcePeer},
 			ASPAInvalid:     resolvedAction{Action: ASPAPolicyAccept, Source: sourcePeer},

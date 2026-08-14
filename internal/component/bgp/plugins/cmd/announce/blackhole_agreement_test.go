@@ -264,6 +264,60 @@ func TestAnnounceBlackholeReachesAPeerConfiguredWithPrefixesAlone(t *testing.T) 
 	assert.Len(t, rctr.batches, 1, "a session configured with prefixes alone was refused the community it defaults to")
 }
 
+// AC-7 on the send side. A session the reactor created from a dynamic group
+// carries the agreement its group stated: the operator writes one `blackhole`
+// block on the listen-range group, and the member's own address appears nowhere
+// in the document for the gate to key on.
+//
+// RFC requirement: RFC7999-3.1-2 positive -- the two networks agreed on use of
+// the BLACKHOLE community for this session, recorded on the group the session
+// was built from, so Ze advertises the tagged route to it.
+func TestAnnounceBlackholeReachesAMemberOfADynamicGroup(t *testing.T) {
+	member := netip.MustParseAddr("192.0.2.10")
+	rctr := &agreementReactor{
+		peers: []plugin.PeerInfo{{Address: member, Name: "dyn-192.0.2.10", GroupName: "ix"}},
+		tree: map[string]any{"bgp": map[string]any{"group": map[string]any{"ix": map[string]any{
+			"connection": map[string]any{"remote": map[string]any{"ip": "dynamic", "range": []string{"192.0.2.0/24"}}},
+			"blackhole":  map[string]any{"communities": []string{"blackhole"}},
+		}}}},
+	}
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, rctr)
+	require.NoError(t, err)
+	ctx := &pluginserver.CommandContext{Server: server}
+
+	_, err = handleAnnounceBlackhole(ctx, rctr, newReg(), []string{"198.51.100.1/32"})
+
+	require.NoError(t, err, "the group's agreement did not reach the member built from it")
+	require.Len(t, rctr.batches, 1)
+	assert.True(t, carriesBlackhole(t, rctr.batches[0]), "the advertised route does not carry 65535:666")
+	assert.True(t, rctr.sels[0].Matches(member), "the member was not selected")
+}
+
+// The pair that makes the case above discriminate. The same group states the
+// same agreement, and this session belongs to no group, so nothing answers for
+// it.
+//
+// RFC requirement: RFC7999-3.1-2 negative -- a session that joined no group
+// agreed to nothing, so the BLACKHOLE community MUST NOT be advertised to it.
+func TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup(t *testing.T) {
+	stranger := netip.MustParseAddr("198.51.100.9")
+	rctr := &agreementReactor{
+		peers: []plugin.PeerInfo{{Address: stranger, Name: "stranger"}},
+		tree: map[string]any{"bgp": map[string]any{"group": map[string]any{"ix": map[string]any{
+			"connection": map[string]any{"remote": map[string]any{"ip": "dynamic", "range": []string{"192.0.2.0/24"}}},
+			"blackhole":  map[string]any{"communities": []string{"blackhole"}},
+		}}}},
+	}
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, rctr)
+	require.NoError(t, err)
+	ctx := &pluginserver.CommandContext{Server: server}
+
+	_, err = handleAnnounceBlackhole(ctx, rctr, newReg(), []string{"198.51.100.1/32"})
+
+	require.Error(t, err)
+	assert.Empty(t, rctr.batches, "a session outside the group was advertised on the group's agreement")
+}
+
 // Sanity on the fixture: the well-known value the gate tests for is the one
 // RFC 7999 registers, so a fixture drift cannot make every case pass.
 func TestBlackholeCommunityValue(t *testing.T) {

@@ -77,11 +77,15 @@ func GroupKey(group string) PeerConfigKey {
 // the peer has a key any runtime reader can produce.
 //
 // The key is the peer's remote IP, because that is what every runtime reader holds:
-// the filter chains pass filterapi.PeerFilterInfo.Address. When the peer states no
-// remote IP anywhere its config-map key is used instead, but only when that name
-// parses as an address -- operators very commonly name a peer by its own address,
-// in which case the name IS the key readers produce. A name that is not an address
-// can never be looked up, so ok is false rather than a key nothing finds.
+// the filter chains pass filterapi.PeerFilterInfo.Address. A name that is not an
+// address can never be looked up, so ok is false rather than a key nothing finds.
+//
+// The name-as-address arm below is unreachable for any config that VALIDATES:
+// config.validatePeerName (internal/component/bgp/config/resolve.go) refuses a peer
+// name that netip.ParseAddr accepts. It is kept because PeerKey is also reached
+// from tests and from callers that build a subtree by hand, and because deleting
+// it is a behavior change this spec's goal does not need. Do not read it as
+// evidence that operators name a peer by its address: they cannot.
 //
 // The "dynamic" placeholder is refused for the same reason: it is non-empty, so it
 // would sail past an emptiness check and be stored under a literal key no reader
@@ -188,14 +192,14 @@ func ParseBGPSubtree(jsonStr string) (map[string]any, bool) {
 	return root, true
 }
 
-// IsDynamicGroup reports whether a group's config map is a dynamic group: one
+// isDynamicGroup reports whether a group's config map is a dynamic group: one
 // whose connection > remote > ip is the "dynamic" placeholder, so its members are
 // created from its template when a connection arrives rather than being named in
 // the config.
 //
 // This is the same test config.isDynamicGroup applies when it builds the reactor's
 // DynamicGroupTemplate, and the two must not diverge.
-func IsDynamicGroup(groupMap map[string]any) bool {
+func isDynamicGroup(groupMap map[string]any) bool {
 	if groupMap == nil {
 		return false
 	}
@@ -249,7 +253,7 @@ func ForEachPeer(bgpTree map[string]any, visit PeerVisitor) {
 
 		// The template first, so a caller that logs its visits reads the group
 		// before the peers it encloses.
-		if IsDynamicGroup(groupMap) {
+		if isDynamicGroup(groupMap) {
 			visit(groupName, nil, groupMap, PeerOrigin{Group: groupName, Template: true})
 		}
 

@@ -889,7 +889,9 @@ func (p *Peer) SetReactor(r *Reactor) {
 // getPluginCapabilities returns capabilities declared by API plugins.
 // Used as callback for Session.SetPluginCapabilityGetter().
 // Converts plugin.InjectedCapability to capability.Capability for OPEN injection.
-// Queries capabilities for this peer's specific address to support per-peer capabilities.
+// Resolves the peer's name, its address and, for a peer built from a dynamic
+// group's template, that group -- in one query, so per-peer and per-group
+// declarations are not lost behind a plugin's global ones.
 //
 // RFC 4724 Section 4.1: If within the restart window (RestartUntil), sets the
 // Restart State bit (R=1) on code-64 capabilities so peers know we restarted.
@@ -903,13 +905,20 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		return nil
 	}
 
-	// Try peer name first, then IP address (plugins may key by either), then the
-	// group a dynamic peer was built from.
-	injected := r.api.GetPluginCapabilitiesForPeer(settings.Name)
-	if len(injected) == 0 {
-		injected = r.api.GetPluginCapabilitiesForPeer(settings.Address.String())
+	// Peer name first, then IP address (plugins may key by either), then the group
+	// a dynamic peer was built from. The whole list goes in one call: every answer
+	// carries the plugin-declared GLOBAL capabilities, so probing one selector at a
+	// time and stopping at the first non-empty result stops at the globals and
+	// never reaches the address or the group. One plugin declaring one global
+	// capability was enough to cost every peer its own declarations.
+	selectors := make([]string, 0, 3)
+	if settings.Name != "" {
+		selectors = append(selectors, settings.Name)
 	}
-	if len(injected) == 0 && settings.IsDynamic && settings.GroupName != "" {
+	if settings.Address.IsValid() {
+		selectors = append(selectors, settings.Address.String())
+	}
+	if settings.IsDynamic && settings.GroupName != "" {
 		// A dynamic peer is created from its group's template when the connection
 		// arrives (reactor.tryCreateDynamicPeer), so neither its generated name
 		// ("dyn-<addr>") nor its address appears in the config a plugin read. Its
@@ -920,8 +929,10 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		// two namespaces in config.ResolveBGPTree), and the prefix
 		// configjson.CapabilityGroupKey adds is what separates them in the one
 		// string space rpc.CapabilityDecl.Peers gives both.
-		injected = r.api.GetPluginCapabilitiesForPeer(configjson.CapabilityGroupKey(settings.GroupName))
+		selectors = append(selectors, configjson.CapabilityGroupKey(settings.GroupName))
 	}
+
+	injected := r.api.GetPluginCapabilitiesForSelectors(selectors...)
 	if len(injected) == 0 {
 		return nil
 	}

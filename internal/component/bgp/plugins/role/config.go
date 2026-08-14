@@ -213,9 +213,13 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 			// declare the same capability code under the same selector, and
 			// plugin.AddPluginCapabilities would refuse a config that loads today.
 			//
-			// The OTC gates do not read this entry: getFilterConfig is passed
-			// PeerFilterInfo.Address, which never spells a group. Reaching it there
-			// is the RFC 9234 ingress half of this feature and is not done here.
+			// Three readers resolve a member through this entry, each from the
+			// identity its own layer carries, and each only after the member's own
+			// address misses, so a peer that states its own role keeps it:
+			// getFilterConfig for the OTC gates (PeerFilterInfo.GroupName),
+			// applyValidateOpen for the RFC 9234 Section 4.2 OPEN check
+			// (rpc.ValidateOpenInput.Group), and Peer.getPluginCapabilities for
+			// the declaration itself (PeerSettings.GroupName).
 			configs[configjson.CapabilitySelector(peerAddr, origin)] = useCfg
 			logger().Debug("role config for dynamic group template",
 				"group", origin.Group, "role", useCfg.role, "strict", useCfg.strict)

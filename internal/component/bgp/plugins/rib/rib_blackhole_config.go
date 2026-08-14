@@ -48,10 +48,9 @@ func (c blackholeConfig) hasAnyRule() bool {
 // the one place the shared shape becomes the honoring path's own, so the
 // coverage test below it can stay where the honoring decision is made.
 //
-// The template entries are carried, not consumed: blackholeRouteTypeForBest
-// holds a winner's ADDRESS and no group identity, so resolving a dynamic
-// member's rule needs that identity threaded through best-path selection. That
-// is the remaining half of this feature and it is not done here.
+// A template entry is resolved by blackholeRouteTypeForBest through the group
+// name the winning session carries, after its address misses. The group is the
+// one identity a dynamic member shares with the operator's document.
 func parseBlackholeConfig(bgpCfg map[string]any) (map[configjson.PeerConfigKey]blackholeConfig, error) {
 	rules, err := blackholecfg.Parse(bgpCfg)
 	if err != nil {

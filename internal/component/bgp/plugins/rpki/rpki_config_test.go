@@ -5,6 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // VALIDATES: parseRPKIConfig extracts cache-server list from BGP config JSON
@@ -249,7 +252,7 @@ func TestParseRPKIConfig_PerPeerOverride(t *testing.T) {
 	}`)
 	require.NoError(t, err)
 	require.NotNil(t, cfg.PeerActions)
-	set, ok := cfg.PeerActions["192.0.2.1"]
+	set, ok := cfg.PeerActions[configjson.PeerConfigKey{ID: "192.0.2.1"}]
 	require.True(t, ok, "per-peer map is keyed by remote IP, not peer name")
 	assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
 	assert.Equal(t, sourcePeer, set.OriginInvalid.Source)
@@ -271,7 +274,7 @@ func TestParseRPKIConfig_GroupInheritance(t *testing.T) {
 		}
 	}`)
 	require.NoError(t, err)
-	set, ok := cfg.PeerActions["198.51.100.2"]
+	set, ok := cfg.PeerActions[configjson.PeerConfigKey{ID: "198.51.100.2"}]
 	require.True(t, ok)
 	assert.Equal(t, ASPAPolicyReject, set.OriginInvalid.Action)
 	assert.Equal(t, sourceGroup, set.OriginInvalid.Source)
@@ -292,7 +295,7 @@ func TestParseRPKIConfig_PeerBeatsGroup(t *testing.T) {
 		}
 	}`)
 	require.NoError(t, err)
-	set := cfg.PeerActions["198.51.100.2"]
+	set := cfg.PeerActions[configjson.PeerConfigKey{ID: "198.51.100.2"}]
 	assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
 	assert.Equal(t, sourcePeer, set.OriginInvalid.Source)
 }
@@ -308,7 +311,7 @@ func TestParseRPKIConfig_PerLeafFallback(t *testing.T) {
 		}}
 	}`)
 	require.NoError(t, err)
-	set := cfg.PeerActions["203.0.113.5"]
+	set := cfg.PeerActions[configjson.PeerConfigKey{ID: "203.0.113.5"}]
 	assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
 	assert.Equal(t, sourcePeer, set.OriginInvalid.Source)
 	// not-found inherits the configured GLOBAL value (reject), not the YANG default.
@@ -326,7 +329,7 @@ func TestParseRPKIConfig_ASPAPerPeer(t *testing.T) {
 		}}
 	}`)
 	require.NoError(t, err)
-	set := cfg.PeerActions["203.0.113.9"]
+	set := cfg.PeerActions[configjson.PeerConfigKey{ID: "203.0.113.9"}]
 	assert.Equal(t, ASPAPolicyAccept, set.ASPAInvalid.Action)
 	assert.Equal(t, sourcePeer, set.ASPAInvalid.Source)
 }
@@ -342,17 +345,177 @@ func TestParseRPKIConfig_NoOverrideNotInMap(t *testing.T) {
 	assert.Nil(t, cfg.PeerActions, "no overrides -> nil per-peer map")
 }
 
-// TestParseRPKIConfig_DynamicPeerSkipped verifies a peer without a static remote IP cannot be
-// keyed and is skipped (documented Known Limitation), so its override is not recorded.
-func TestParseRPKIConfig_DynamicPeerSkipped(t *testing.T) {
+// TestParseRPKIConfig_NamedPeerWithNoStaticIPSkipped verifies a NAMED peer with no
+// static remote IP cannot be keyed and is skipped, so its override is not recorded.
+// The reactor never builds such a peer from the group's template -- it is named, so
+// it has no address any consumer produces -- and an entry under a key no reader can
+// make would read as in force and do nothing.
+//
+// The group around it states no action of its own here, so nothing else is keyed:
+// the assertion is about the named peer alone.
+func TestParseRPKIConfig_NamedPeerWithNoStaticIPSkipped(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
 		"rpki": {"cache-server": {"10.0.0.1": {}}},
 		"group": {"dyn": {
 			"connection": {"remote": {"ip": "dynamic"}},
-			"rpki": {"action": {"invalid": "accept"}},
 			"peer": {"d": {"rpki": {"action": {"invalid": "accept"}}}}
 		}}
 	}`)
 	require.NoError(t, err)
-	assert.Nil(t, cfg.PeerActions, "dynamic peer without static IP is not keyed")
+	assert.Nil(t, cfg.PeerActions, "a named peer with no static IP is not keyed")
+}
+
+// TestParseRPKIConfig_KeysWhatARuntimeReaderProduces verifies the per-peer map is
+// keyed by the string buildDecisions holds at decision time, which is an address
+// rendered by netip.Addr.String().
+//
+// Two spellings reach the same key. A peer whose NAME is its address and which
+// states no connection > remote > ip is keyed by that name, because the name is
+// what a reader produces for it. A peer whose address the operator wrote in a
+// non-canonical form is keyed canonically, because the reader never sees the
+// operator's spelling.
+//
+// The first subtest drives parseRPKIConfig directly, and the config it passes is
+// one the LOADER refuses: config.validatePeerName (bgp/config/resolve.go) rejects
+// a peer name that netip.ParseAddr accepts. So it pins configjson.PeerKey's
+// name-as-address branch as a unit contract, and it is NOT evidence that an
+// operator can name a peer by its address. Read the second subtest for the
+// spelling case that a real configuration reaches.
+func TestParseRPKIConfig_KeysWhatARuntimeReaderProduces(t *testing.T) {
+	t.Run("a peer named by its own address, a shape the loader refuses", func(t *testing.T) {
+		cfg, err := parseRPKIConfig(`{
+			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"peer": {"203.0.113.4": {"rpki": {"action": {"invalid": "accept"}}}}
+		}`)
+		require.NoError(t, err)
+		set, ok := cfg.PeerActions[configjson.PeerConfigKey{ID: "203.0.113.4"}]
+		require.True(t, ok, "the peer is not keyed, got %v", cfg.PeerActions)
+		assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
+	})
+
+	t.Run("a non-canonical address is keyed canonically", func(t *testing.T) {
+		cfg, err := parseRPKIConfig(`{
+			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"peer": {"v6": {
+				"connection": {"remote": {"ip": "2001:0DB8::1"}},
+				"rpki": {"action": {"invalid": "accept"}}
+			}}
+		}`)
+		require.NoError(t, err)
+		_, ok := cfg.PeerActions[configjson.PeerConfigKey{ID: "2001:db8::1"}]
+		require.True(t, ok, "the peer is keyed by the operator's spelling, got %v", cfg.PeerActions)
+	})
+}
+
+// TestRPKIPeerActionsForDynamicGroup verifies AC-6: a listen-range group's rpki
+// action is keyed under the GROUP, which is the one identity a peer built from
+// that template shares with the config document.
+//
+// Before this, parsePeerActions returned early for the template visit ("no static
+// remote ip"), so an operator's action on the object an IXP actually configures
+// reached nobody and every member fell back to the global actions.
+func TestRPKIPeerActionsForDynamicGroup(t *testing.T) {
+	t.Run("the group's action is keyed under the group", func(t *testing.T) {
+		cfg, err := parseRPKIConfig(`{
+			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"group": {"ix": {
+				"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
+				"rpki": {"action": {"invalid": "accept"}}
+			}}
+		}`)
+		require.NoError(t, err)
+		set, ok := cfg.PeerActions[configjson.GroupKey("ix")]
+		require.True(t, ok, "the template is not keyed, got %v", cfg.PeerActions)
+		assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
+		assert.Equal(t, sourceGroup, set.OriginInvalid.Source)
+	})
+
+	t.Run("a named member keeps its own entry and its own leaf wins", func(t *testing.T) {
+		cfg, err := parseRPKIConfig(`{
+			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"group": {"ix": {
+				"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
+				"rpki": {"action": {"invalid": "reject"}},
+				"peer": {"member": {
+					"connection": {"remote": {"ip": "192.0.2.9"}},
+					"rpki": {"action": {"invalid": "accept"}}
+				}}
+			}}
+		}`)
+		require.NoError(t, err)
+		peer, ok := cfg.PeerActions[configjson.PeerConfigKey{ID: "192.0.2.9"}]
+		require.True(t, ok, "the named peer lost its entry, got %v", cfg.PeerActions)
+		assert.Equal(t, ASPAPolicyAccept, peer.OriginInvalid.Action, "the group's action beat the peer's")
+		assert.Equal(t, sourcePeer, peer.OriginInvalid.Source)
+
+		tmpl, ok := cfg.PeerActions[configjson.GroupKey("ix")]
+		require.True(t, ok, "the template stopped being keyed once the group listed a peer")
+		assert.Equal(t, ASPAPolicyReject, tmpl.OriginInvalid.Action)
+	})
+
+	t.Run("the blackhole agreement resolves for the template too", func(t *testing.T) {
+		cfg, err := parseRPKIConfig(`{
+			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"group": {"ix": {
+				"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
+				"rpki": {"blackhole-exempt": "true"},
+				"blackhole": {"communities": ["65001:666"]}
+			}}
+		}`)
+		require.NoError(t, err)
+		set, ok := cfg.PeerActions[configjson.GroupKey("ix")]
+		require.True(t, ok, "the template is not keyed, got %v", cfg.PeerActions)
+		assert.True(t, set.BlackholeExempt)
+		assert.Equal(t, []attribute.Community{attribute.Community(65001<<16 | 666)}, set.BlackholeCommunities,
+			"the RFC 7999 Section 3.3 agreement was read from a key the template does not hold")
+	})
+}
+
+// TestRPKIDynamicGroupActionsMatchAStaticPeer verifies AC-8: one config states the
+// same rpki leaves on a static peer and on a dynamic group, and both resolve to the
+// same effective action set. The template must diverge from a static peer nowhere it
+// was not told to.
+//
+// Source is normalized away before the comparison: it names the config LEVEL a leaf
+// came from, which is peer for one and group for the other by construction, and it
+// is display metadata rather than the enforced value.
+func TestRPKIDynamicGroupActionsMatchAStaticPeer(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"peer": {"static": {
+			"connection": {"remote": {"ip": "198.51.100.1"}},
+			"rpki": {
+				"action": {"invalid": "accept", "not-found": "reject"},
+				"aspa": {"action": {"invalid": "reject", "unknown": "log-only"}},
+				"blackhole-exempt": "true"
+			},
+			"blackhole": {"communities": ["65001:666"]}
+		}},
+		"group": {"ix": {
+			"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
+			"rpki": {
+				"action": {"invalid": "accept", "not-found": "reject"},
+				"aspa": {"action": {"invalid": "reject", "unknown": "log-only"}},
+				"blackhole-exempt": "true"
+			},
+			"blackhole": {"communities": ["65001:666"]}
+		}}
+	}`)
+	require.NoError(t, err)
+
+	effective := func(s peerActionSet) peerActionSet {
+		s.OriginInvalid.Source = sourceGlobal
+		s.OriginNotFound.Source = sourceGlobal
+		s.ASPAInvalid.Source = sourceGlobal
+		s.ASPAUnknown.Source = sourceGlobal
+		return s
+	}
+
+	peer, ok := cfg.PeerActions[configjson.PeerConfigKey{ID: "198.51.100.1"}]
+	require.True(t, ok, "the static peer is not keyed, got %v", cfg.PeerActions)
+	tmpl, ok := cfg.PeerActions[configjson.GroupKey("ix")]
+	require.True(t, ok, "the dynamic group's template is not keyed, got %v", cfg.PeerActions)
+
+	assert.Equal(t, effective(peer), effective(tmpl),
+		"the template resolved a different action set than the static peer stating the same leaves")
 }

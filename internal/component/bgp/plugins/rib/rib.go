@@ -196,6 +196,13 @@ type peerMetadata struct {
 	LocalASN  uint32           // local AS number (for eBGP/iBGP detection)
 	RouterID  uint32           // remote peer's BGP Identifier (for best-path step 7)
 	ContextID bgpctx.ContextID // encoding context from last received event (0 = unknown)
+	// GroupName is the peer-group this session belongs to, empty for a
+	// standalone peer. It is the only identity a session created from a dynamic
+	// group shares with the operator's config document: such a session's address
+	// is written nowhere, so a per-peer rule stated on the group is keyed by the
+	// group (configjson.GroupKey) and reached from here.
+	// Read by blackholeRouteTypeForBest.
+	GroupName string
 }
 
 // peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
@@ -333,8 +340,8 @@ type RIBManager struct {
 	//
 	// The key is configjson.PeerConfigKey because a dynamic group's template is
 	// keyed by the GROUP: its members have no address in the config document.
-	// The honoring path reads only the address entries today (see
-	// blackholeRouteTypeForBest).
+	// blackholeRouteTypeForBest resolves a member through peerMetadata.GroupName,
+	// after the winner's own address misses.
 	blackholeCfg atomic.Pointer[map[configjson.PeerConfigKey]blackholeConfig]
 
 	// peerMu protects the peer-keyed maps ONLY: ribInPool (and bgpPeers), ribOut, peerUp,
@@ -651,7 +658,7 @@ func runRIBPlugin(conn net.Conn) int {
 			"relax-as-path", r.relaxASPath.Load(),
 			"admin-distance-ebgp", r.adminDistanceEBGP.Load(),
 			"admin-distance-ibgp", r.adminDistanceIBGP.Load(),
-			"blackhole-honor-peers", r.blackholeHonorPeerCount(),
+			"blackhole-honor-rules", r.blackholeHonorRuleCount(),
 		)
 		return nil
 	})
@@ -1179,17 +1186,25 @@ func (r *RIBManager) handleState(event *Event) {
 }
 
 // updatePeerMetadata extracts and stores peer metadata from received events.
-// Uses the nested peer format which includes both local and peer ASN.
+// Uses the nested peer format which includes both local and peer ASN, plus the
+// group the session belongs to.
 // Caller must hold write lock.
+//
+// The group is kept for the same reason the ASNs are: a decision made later in
+// this plugin needs it and the event is where it arrives. An event carrying
+// none of the three says nothing about the peer, so it stores nothing rather
+// than replacing what an earlier event recorded.
 func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr) {
 	peerASN := event.GetPeerASN()
 	localASN := getLocalASN(event)
-	if peerASN == 0 && localASN == 0 {
+	group := event.GetPeerGroup()
+	if peerASN == 0 && localASN == 0 && group == "" {
 		return
 	}
 	r.peerMeta[peerAddr] = &peerMetadata{
-		PeerASN:  peerASN,
-		LocalASN: localASN,
+		PeerASN:   peerASN,
+		LocalASN:  localASN,
+		GroupName: group,
 	}
 }
 

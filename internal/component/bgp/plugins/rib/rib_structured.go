@@ -145,6 +145,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		LocalASN:  se.LocalAS,
 		RouterID:  se.RouterID,
 		ContextID: wu.SourceCtxID(),
+		GroupName: se.PeerGroup,
 	}
 	if cur := r.peerMeta[peerAddr]; cur == nil || *cur != candidate {
 		m := candidate

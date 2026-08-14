@@ -121,7 +121,7 @@ func TestCapabilityInjection(t *testing.T) {
 		require.NoError(t, injector.AddPluginCapabilities(caps))
 
 		// Get capabilities to inject
-		toInject := injector.GetCapabilitiesForPeer("")
+		toInject := injector.GetCapabilitiesForSelectors("")
 		require.Len(t, toInject, 1)
 		assert.Equal(t, uint8(73), toInject[0].Code)
 		assert.Equal(t, []byte("router1.example.com"), toInject[0].Value)
@@ -140,7 +140,7 @@ func TestCapabilityInjection(t *testing.T) {
 		injector := NewCapabilityInjector()
 		require.NoError(t, injector.AddPluginCapabilities(caps))
 
-		toInject := injector.GetCapabilitiesForPeer("")
+		toInject := injector.GetCapabilitiesForSelectors("")
 		require.Len(t, toInject, 2)
 
 		// Find by code
@@ -181,7 +181,7 @@ func TestCapabilityInjection(t *testing.T) {
 		}
 		require.NoError(t, injector.AddPluginCapabilities(caps2))
 
-		toInject := injector.GetCapabilitiesForPeer("")
+		toInject := injector.GetCapabilitiesForSelectors("")
 		require.Len(t, toInject, 2)
 	})
 }
@@ -246,7 +246,7 @@ func TestCapabilityInjectorConflictIsAtomic(t *testing.T) {
 	require.Len(t, all, 1)
 	assert.Equal(t, uint8(73), all[0].Code)
 	assert.Equal(t, "existing", all[0].Plugin)
-	assert.NotContains(t, injector.GetCapabilitiesForPeer("192.0.2.1"), InjectedCapability{Code: 74, Value: []byte{0xca, 0xfe}, Plugin: "candidate"})
+	assert.NotContains(t, injector.GetCapabilitiesForSelectors("192.0.2.1"), InjectedCapability{Code: 74, Value: []byte{0xca, 0xfe}, Plugin: "candidate"})
 }
 
 // TestNoCapabilities verifies plugins with no capabilities work.
@@ -263,6 +263,83 @@ func TestNoCapabilities(t *testing.T) {
 	injector := NewCapabilityInjector()
 	require.NoError(t, injector.AddPluginCapabilities(caps))
 
-	toInject := injector.GetCapabilitiesForPeer("")
+	toInject := injector.GetCapabilitiesForSelectors("")
 	assert.Empty(t, toInject)
+}
+
+// TestSelectorsResolveBesideAGlobalCapability is the regression for a silent
+// under-delivery: a peer-specific capability was lost whenever ANY plugin
+// declared a global one.
+//
+// VALIDATES: GetCapabilitiesForSelectors resolves every selector against the
+// per-peer declarations, and the globals fill only the codes no selector claimed.
+// PREVENTS: one plugin's global declaration costing every peer its own. Each
+// answer carries the globals, so a caller probing selectors in turn and stopping
+// at the first non-empty result stops at the globals and never reaches the
+// address or the group. `ze --plugin ze.exabgp` is enough to arm it: it declares
+// code 2 with no Peers (internal/plugins/exabgp/main_sdk.go).
+func TestSelectorsResolveBesideAGlobalCapability(t *testing.T) {
+	injector := NewCapabilityInjector()
+
+	// A plugin declaring one GLOBAL capability, exactly like the exabgp bridge.
+	require.NoError(t, injector.AddPluginCapabilities(&PluginCapabilities{
+		PluginName: "exabgp-like",
+		Capabilities: []PluginCapability{
+			{Code: 2, Encoding: rpc.CapEncodingHex, Payload: ""},
+		},
+		Done: true,
+	}))
+
+	// bgp-role declaring RFC 9234 capability 9 for a dynamic GROUP's template.
+	require.NoError(t, injector.AddPluginCapabilities(&PluginCapabilities{
+		PluginName: "role-like",
+		Capabilities: []PluginCapability{
+			{Code: 9, Encoding: rpc.CapEncodingHex, Payload: "01", Peers: []string{"group:ix"}},
+		},
+		Done: true,
+	}))
+
+	byCode := func(caps []InjectedCapability) map[uint8][]byte {
+		out := make(map[uint8][]byte, len(caps))
+		for _, c := range caps {
+			out[c.Code] = c.Value
+		}
+		return out
+	}
+
+	// A member of the group: name and address name nothing, the group names the
+	// role. The global must not displace it.
+	member := byCode(injector.GetCapabilitiesForSelectors("dyn-198.51.100.7", "198.51.100.7", "group:ix"))
+	require.Contains(t, member, uint8(9),
+		"a global capability must not stop the group's own declaration resolving")
+	assert.Equal(t, []byte{0x01}, member[9], "the payload is the role the group STATES")
+	assert.Contains(t, member, uint8(2), "the global capability is still delivered")
+
+	// The single-selector entry point keeps its own contract: one selector plus
+	// the globals.
+	standalone := byCode(injector.GetCapabilitiesForSelectors("192.0.2.1"))
+	assert.NotContains(t, standalone, uint8(9),
+		"a peer outside the group draws no capability declared for it")
+	assert.Contains(t, standalone, uint8(2))
+}
+
+// TestSelectorPrecedenceIsFirstWins pins the order the OPEN depends on: a peer's
+// own declaration beats the one its group states, per capability code.
+func TestSelectorPrecedenceIsFirstWins(t *testing.T) {
+	injector := NewCapabilityInjector()
+
+	require.NoError(t, injector.AddPluginCapabilities(&PluginCapabilities{
+		PluginName: "role-like",
+		Capabilities: []PluginCapability{
+			{Code: 9, Encoding: rpc.CapEncodingHex, Payload: "03", Peers: []string{"198.51.100.2"}},
+			{Code: 9, Encoding: rpc.CapEncodingHex, Payload: "01", Peers: []string{"group:ix"}},
+		},
+		Done: true,
+	}))
+
+	resolved := injector.GetCapabilitiesForSelectors("well-known", "198.51.100.2", "group:ix")
+	require.Len(t, resolved, 1, "one code resolves to exactly one capability")
+	assert.Equal(t, uint8(9), resolved[0].Code)
+	assert.Equal(t, []byte{0x03}, resolved[0].Value,
+		"the peer's own declaration beats its group's")
 }

@@ -108,10 +108,12 @@ type rpkiConfig struct {
 	OriginInvalidAction uint8
 	// OriginNotFoundAction is the action for the NotFound origin-validation state (default: accept).
 	OriginNotFoundAction uint8
-	// PeerActions holds per-peer resolved action overrides, keyed by the peer's remote IP
-	// (matching the route's peerAddr at decision time). A peer is present only when peer- or
-	// group-level config overrode at least one leaf; absent peers use the global actions above.
-	PeerActions map[string]peerActionSet
+	// PeerActions holds per-peer resolved action overrides, keyed by configjson.KeyFor:
+	// the peer's remote IP (matching the route's peerAddr at decision time), and a dynamic
+	// group's NAME for the template its members inherit. A peer is present only when peer-
+	// or group-level config overrode at least one leaf; absent peers use the global actions
+	// above. Readers resolve both with configjson.LookupPeerConfig.
+	PeerActions map[configjson.PeerConfigKey]peerActionSet
 }
 
 // parseRPKIConfig extracts RPKI configuration from a BGP config JSON string.
@@ -270,22 +272,37 @@ func parseActionOverride(rpkiMap map[string]any) actionOverride {
 	return o
 }
 
+// subjectKind names what a resolved-action key identifies, for a message an
+// operator reads. A template's key holds a GROUP's name, and "peer ix" sends the
+// operator looking for a peer that does not exist.
+func subjectKind(key configjson.PeerConfigKey) string {
+	if key.Template {
+		return "group"
+	}
+	return "peer"
+}
+
 // parsePeerActions walks every peer in the config and builds the per-peer resolved action map,
-// keyed by remote IP. Each leaf resolves peer > group > global. A peer is recorded only when at
-// least one leaf came from peer or group config (an all-global peer uses the global path).
+// keyed by configjson.KeyFor. Each leaf resolves peer > group > global. A peer is recorded only
+// when at least one leaf came from peer or group config (an all-global peer uses the global path).
+//
+// A dynamic group's template is recorded under the group's name. Its members are
+// created from that template when a connection arrives, so they appear nowhere in
+// the config document and the group's name is the only identity they share with it
+// (configjson.PeerOrigin). The decision path resolves address then group.
 //
 // The `blackhole` container is read through blackholecfg rather than here, because
 // the honoring path and the origination gate read the same leaves and a second
 // walk is what would let the three answers drift. Its error is returned rather
 // than logged: the container decides whether a peer can make Ze discard traffic,
 // so a value nobody could parse must not resolve to a silently empty agreement.
-func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[string]peerActionSet, error) {
+func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[configjson.PeerConfigKey]peerActionSet, error) {
 	agreements, err := blackholecfg.Parse(bgpTree)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(map[string]peerActionSet)
+	result := make(map[configjson.PeerConfigKey]peerActionSet)
 
 	configjson.ForEachPeer(bgpTree, func(peerName string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		var peerRPKI, groupRPKI map[string]any
@@ -316,29 +333,34 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[string]pe
 			return
 		}
 
-		// Key on the remote IP so buildDecisions' req.peerAddr matches. Dynamic/range peers have
-		// no static remote IP (connection>remote>ip == "dynamic" or absent) and cannot be keyed;
-		// they fall back to the global actions (documented Known Limitation).
-		//
-		// A dynamic GROUP's template reaches this branch too, and it is the case an
-		// operator is most likely to hit: a listen-range group is where an IXP states
-		// its member policy, and every member falls back to the global actions. The
-		// subject is named in the message because the template's own name is the
-		// group's, and this is the only place the operator is told.
-		ip := configjson.PeerRemoteIP(peerMap, groupMap)
-		if ip == "" || ip == "dynamic" {
-			subject, kind := peerName, "peer"
-			if origin.Template {
-				subject, kind = origin.Group, "group"
-			}
+		// Key on what a runtime reader can produce: the remote IP for a configured
+		// peer, and the group's name for a dynamic group's template. A NAMED peer
+		// with no static remote IP (its own, or the "dynamic" placeholder inherited
+		// from its group) is neither -- the reactor never builds it from the
+		// template, so no consumer ever holds an address for it -- and an entry
+		// under a key nothing queries reads as in force and does nothing.
+		key, ok := configjson.KeyFor(peerName, peerMap, groupMap, origin)
+		if !ok {
 			logger().Warn("rpki: per-peer action override ignored: no static remote ip",
-				kind, subject,
+				"peer", peerName,
 				"effect", "origin validation and ASPA use the global actions for this session",
 				"fix", "set connection > remote > ip to a literal address on the peer")
 			return
 		}
-		if addr, addrErr := netip.ParseAddr(ip); addrErr == nil {
-			set.BlackholeCommunities = agreements[configjson.PeerConfigKey{ID: addr.String()}].Communities
+		// Canonicalize the address the operator wrote. Every reader produces its key
+		// with netip.Addr.String(), and blackholecfg.Parse stores its agreements the
+		// same way, so one spelling serves the runtime lookup and the read below.
+		if !key.Template {
+			if addr, addrErr := netip.ParseAddr(key.ID); addrErr == nil {
+				key.ID = addr.String()
+			}
+		}
+		// The two maps come from one walk over one document, so this key is the key
+		// blackholecfg stored the same visit's agreement under. Branching on the
+		// comma-ok keeps a miss visible: the zero Rule names no community, which is
+		// the answer for a session that agreed to nothing (ai/rules/evidence.md).
+		if rule, agreed := agreements[key]; agreed {
+			set.BlackholeCommunities = rule.Communities
 		}
 		// A guard that fails closed must say so (ai/rules/evidence.md). This one
 		// keeps a route origin validation would drop, so an operator who asked for
@@ -346,9 +368,10 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[string]pe
 		// reading a running config that exempts nothing.
 		if set.BlackholeExempt && len(set.BlackholeCommunities) == 0 {
 			logger().Warn("rpki: blackhole-exempt has no effect on this session: it names no blackhole community",
-				"peer", ip, "fix", "add `blackhole { communities <value>; }` or `blackhole { prefixes <block>; }` to the same peer or its group")
+				subjectKind(key), key.ID,
+				"fix", "add `blackhole { communities <value>; }` or `blackhole { prefixes <block>; }` to the same peer or its group")
 		}
-		result[ip] = set
+		result[key] = set
 	})
 
 	if len(result) == 0 {

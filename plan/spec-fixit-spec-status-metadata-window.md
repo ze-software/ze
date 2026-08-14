@@ -32,7 +32,7 @@ Measured 2026-08-01: 16 of 211 specs carry the template comment, and those same
 16 are exactly the 16 the tool reports as `unknown`. The correspondence is one to
 one. Seven are pre-existing and were not created by the session that found this:
 
-- `plan/spec-fixit-dynamic-group-peer-config.md`
+- `spec-fixit-dynamic-group-peer-config` (closed 2026-08-14; written without its `plan/` path for the same reason as the entry below)
 - `plan/spec-fixit-peers-from-tree-stale-shape.md`
 - `plan/spec-fixit-positional-arg-matching.md`
 - `plan/spec-fixit-zefs-diff-structural-ops.md`

@@ -75,6 +75,12 @@ func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
 
 	globalChained := chainReferencesIRR(bgpCfg)
 
+	// A dynamic group's template visit is discarded here, and the origin is not
+	// read for that reason. IRR resolution is keyed by the peer's remote ASN,
+	// which parsePeerIRR reads from session.asn.remote. A listen-range group
+	// states no remote ASN: its members declare theirs in the OPEN, after the
+	// config is parsed. So the template carries nothing this plugin could key,
+	// and the RemoteASN == 0 test below already drops it.
 	configjson.ForEachPeer(bgpCfg, func(peerAddr string, peerMap, groupMap map[string]any, _ configjson.PeerOrigin) {
 		p := parsePeerIRR(peerAddr, peerMap)
 		if p.RemoteASN == 0 {

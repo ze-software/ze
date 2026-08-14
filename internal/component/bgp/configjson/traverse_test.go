@@ -356,7 +356,7 @@ func TestForEachPeerSkipsATemplateVisitForAPlainGroup(t *testing.T) {
 
 // TestIsDynamicGroupMatchesTheConfigResolver verifies the marker.
 //
-// VALIDATES: IsDynamicGroup keys on connection > remote > ip == "dynamic" and on
+// VALIDATES: isDynamicGroup keys on connection > remote > ip == "dynamic" and on
 // nothing else, matching config.isDynamicGroup.
 // PREVENTS: the traversal and the reactor disagreeing about which groups are
 // dynamic. The reactor would build peers from a template no plugin delivered config
@@ -366,12 +366,12 @@ func TestIsDynamicGroupMatchesTheConfigResolver(t *testing.T) {
 		return map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": ip}}}
 	}
 
-	assert.True(t, IsDynamicGroup(withIP("dynamic")))
-	assert.False(t, IsDynamicGroup(withIP("192.0.2.1")))
-	assert.False(t, IsDynamicGroup(withIP(nil)), "a non-string ip is not the placeholder")
-	assert.False(t, IsDynamicGroup(nil))
-	assert.False(t, IsDynamicGroup(map[string]any{}))
-	assert.False(t, IsDynamicGroup(map[string]any{"connection": map[string]any{}}),
+	assert.True(t, isDynamicGroup(withIP("dynamic")))
+	assert.False(t, isDynamicGroup(withIP("192.0.2.1")))
+	assert.False(t, isDynamicGroup(withIP(nil)), "a non-string ip is not the placeholder")
+	assert.False(t, isDynamicGroup(nil))
+	assert.False(t, isDynamicGroup(map[string]any{}))
+	assert.False(t, isDynamicGroup(map[string]any{"connection": map[string]any{}}),
 		"a range alone does not make a group dynamic; the placeholder does")
 }
 

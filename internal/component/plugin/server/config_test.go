@@ -200,7 +200,7 @@ func TestHostnamePluginCapabilityInjection(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify capability is registered for the peer
-	peerCaps := injector.GetCapabilitiesForPeer("127.0.0.1")
+	peerCaps := injector.GetCapabilitiesForSelectors("127.0.0.1")
 	require.Len(t, peerCaps, 1)
 	assert.Equal(t, uint8(73), peerCaps[0].Code)
 

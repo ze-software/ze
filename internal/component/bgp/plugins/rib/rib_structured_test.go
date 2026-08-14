@@ -66,11 +66,20 @@ func bestChangePrefixes(bus *testEventBus, action routeaction.Action) []netip.Pr
 // UPDATE body under the given encoding context, exactly as the reactor would after
 // synthesizing a withdrawal.
 func feedReceived(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID, body []byte) {
+	feedReceivedFromGroup(r, peer, "", ctxID, body)
+}
+
+// feedReceivedFromGroup is feedReceived for a session that belongs to a peer
+// group. group is what bgp/server's getStructuredEvent puts on every event for
+// such a session, and it is the only identity a session the reactor created
+// from a dynamic group shares with the operator's config document.
+func feedReceivedFromGroup(r *RIBManager, peer netip.Addr, group string, ctxID bgpctx.ContextID, body []byte) {
 	wu := wireu.NewWireUpdate(body, ctxID)
 	attrs, _ := wu.Attrs()
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType:   rpc.EventKindUpdate,
 		PeerAddress: peer.String(),
+		PeerGroup:   group,
 		PeerAS:      65001,
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{

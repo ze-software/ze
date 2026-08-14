@@ -10,6 +10,7 @@ import (
 	"net"
 
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -26,12 +27,17 @@ import (
 // A session that named no community agreed to nothing, and a peer with no
 // per-peer entry never asked, so both answer false. The exemption this feeds is
 // closed by default, which is RFC 7999 Section 4.
-func (rp *rPKIPlugin) carriesAgreedBlackhole(peerAddr string, attrs *attribute.AttributesWire) bool {
+//
+// peerGroup is the group the session was created from, empty for a standalone
+// peer. A session a listen-range group accepted has an address the config
+// document never mentions, so the group's stated agreement is the only one it
+// can resolve. What the peer states beats what its group states.
+func (rp *rPKIPlugin) carriesAgreedBlackhole(peerAddr, peerGroup string, attrs *attribute.AttributesWire) bool {
 	p := rp.perPeerActions.Load()
 	if p == nil {
 		return false
 	}
-	set, ok := (*p)[peerAddr]
+	set, ok := configjson.LookupPeerConfig(*p, peerAddr, "", peerGroup)
 	if !ok || len(set.BlackholeCommunities) == 0 {
 		return false
 	}

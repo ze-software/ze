@@ -336,7 +336,7 @@ type Session struct {
 	sourceID source.SourceID
 
 	// pluginCapGetter retrieves plugin-declared capabilities for OPEN messages.
-	// Set by Peer to link to plugin.Server.GetPluginCapabilitiesForPeer().
+	// Set by Peer to link to plugin.Server.GetPluginCapabilitiesForSelectors().
 	// Called in sendOpen() to inject plugin capabilities into OPEN.
 	pluginCapGetter func() []capability.Capability
 
@@ -661,7 +661,7 @@ func (s *Session) SetSourceID(id source.SourceID) {
 }
 
 // SetPluginCapabilityGetter sets the callback for retrieving plugin capabilities.
-// Called by Peer at creation time to link to plugin.Server.GetPluginCapabilitiesForPeer().
+// Called by Peer at creation time to link to plugin.Server.GetPluginCapabilitiesForSelectors().
 func (s *Session) SetPluginCapabilityGetter(getter func() []capability.Capability) {
 	s.pluginCapGetter = getter
 }
