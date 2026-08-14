@@ -72,8 +72,8 @@ func setLogger(l *slog.Logger) {
 // For an MP family it therefore carries every NLRI of the originating UPDATE,
 // not just this route's, so any consumer rebuilding a single-route UPDATE must
 // strip types 14/15 and re-synthesize MP_REACH (see the reactor's relay_payload.go).
-// This comment previously claimed the opposite; see assumption A-1 in
-// plan/spec-fixit-bgp-egress-rail-divergence.md.
+// This comment previously claimed the opposite. The correction came from
+// assumption A-1 of spec-fixit-bgp-egress-rail-divergence, closed 2026-08-14.
 //
 // NHopHex is the next-hop IP converted to wire hex.
 // NLRIHex is the individual NLRI wire bytes in hex.
@@ -897,8 +897,8 @@ func (r *AdjRIBInManager) ingestPosition() (msgID uint64, tracked bool) {
 // policy). The previous form built "update hex ... add" command strings, which
 // dropped the source and sent the route down the ANNOUNCE rail -- prepending the
 // local AS first and then running only the session's export filters, so a
-// replayed route and a forwarded one diverged on the wire. See
-// plan/spec-fixit-bgp-egress-rail-divergence.md.
+// replayed route and a forwarded one diverged on the wire. That divergence was
+// spec-fixit-bgp-egress-rail-divergence, closed 2026-08-14.
 func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uint64, cut replayCut) ([]rpc.StoredRoute, uint64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

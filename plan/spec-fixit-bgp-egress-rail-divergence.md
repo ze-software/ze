@@ -2,31 +2,72 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | done |
 | Depends | spec-fixit-stored-route-relay-hardening.md |
 | Phase | 7/7 |
-| Updated | 2026-08-03 |
+| Updated | 2026-08-14 |
 
-## Blocked
+## Unblocked 2026-08-14: the ordering fix landed, so the decision is moot
 
-Blocked on a decision by Thomas, with a named dependency. The relay path is
-implemented and wired: `reactorAPIAdapter.RelayStoredRoute`
-(`internal/component/bgp/reactor/reactor_api_relay.go`) with the byte builders
-in `relay_payload.go`, called from the adj-rib-in replay in
-`internal/component/bgp/plugins/adj_rib_in/rib.go`. AC-5 is the one criterion
-that is not met: `sendPostStartupToAll`
-(`internal/component/plugin/server/startup.go`) fans the post-startup callback
-out to every plugin in its own goroutine and imposes no order against
-`StartPeers`, so the replay claim is not guaranteed to be taken first.
-`TestReplayOwnerDedupe` gates the flag, not "exactly one replay".
+This spec was blocked on a choice between closing with AC-5 partial and holding
+it open until the startup ordering became deterministic. Neither is needed. The
+ordering fix landed in the engine, and AC-5 is met at the producer.
+
+Replay ownership is no longer decided on the post-startup fan-out. It is
+DECLARED in the plugin's static registration and delivered on the Stage-2
+configure callback:
+
+- `bgp-rs` declares the token: `Claims: []string{ClaimPeerUpReplay}`
+  (`internal/component/bgp/plugins/rs/register.go`), with the token defined as
+  `bgp-peer-up-replay` (`rs/server_handlers.go` `ClaimPeerUpReplay`).
+- The engine resolves the claim set from the STATIC registration of every
+  prospective plugin, so the claimant does not have to have handshaked yet
+  (`Server.advertiseClaims`, `internal/component/plugin/server/startup_claims.go`).
+- It is delivered on Stage 2, from `Server.deliverConfigRPC`
+  (`internal/component/plugin/server/startup.go`), which calls
+  `advertiseClaims(proc.Name())` and passes the result to `SendConfigure`.
+- `bgp-adj-rib-in` stands its self-replay down there:
+  `AdjRIBInManager.applyStartupClaims`
+  (`internal/component/bgp/plugins/adj_rib_in/rib_claims.go`), called from the
+  configure handler (`adj_rib_in/rib.go`).
+
+The ordering is structural, not probabilistic. Stage 2 is one step of the
+sequential handshake `runStartupHandshake` drives
+(`internal/component/plugin/server/startup_driver.go`), so it returns before the
+plugin sends Stage 5 ready, which is before its startup phase completes, which
+is before `signalStartupComplete` calls `SignalPluginStartupComplete` ->
+`StartPeers` (`startup.go`). `advertiseClaims`'s own doc comment states it:
+"There is no window."
+
+`sendPostStartupToAll` still does not wait, and that is now correct rather than
+a gap: its doc comment records the 2026-07-25 deadlock that made waiting
+impossible, and directs any pre-peer-up decision to the claim channel instead.
+
+**What the claim channel does NOT cover, found by the closure review.** Stage 2
+runs once per handshake, so a plugin that is ALREADY configured is never re-told.
+The backstop `claimReplayOwnership` (`rs/server_handlers.go`) does not close that:
+its only caller is `OnAllPluginsReady` (`rs/server.go`), which the engine produces
+once, from `sendPostStartupToAll` inside `signalStartupComplete`. Two cases stay
+open, and each is a criterion of `spec-fixit-stored-route-relay-hardening`:
+
+| Case | Why the claim misses it | Owner |
+|------|------------------------|-------|
+| bgp-rs joins mid-life, auto-loaded by a reload that adds the `bgp` root | bgp-adj-rib-in is already configured, so nothing re-tells it, and both replay on the next peer-up | AC-12, added by this closure |
+| bgp-adj-rib-in RESPAWNS | `ProcessManager.Respawn` calls `StartWithContext` and runs no startup handshake, so no Stage 2 happens | AC-5 |
+
+A bgp-adj-rib-in AUTO-LOADED later is NOT one of them: `autoLoadForNewConfigPaths`
+starts it through `runPluginPhase`, so it gets its own Stage 2 and
+`advertiseClaims` tells it there. The comment on `claimReplayOwnership` claimed
+mid-life coverage it does not have, and this closure corrects it to exactly the
+two rows above.
+
+AC-5 therefore closes on the STARTUP path, which is the path the four reproduced
+failures took and the only path this spec's Task describes.
 
 Follow-up R6-1 (`filterapi.EgressFilterFunc` returns a bare bool, so an OTC
-lookup failure cannot be told apart from a policy decision) is homed in
-`plan/spec-fixit-stored-route-relay-hardening.md`, which is in-progress at 1/3.
-
-Thomas chooses one: close this spec with AC-5 recorded as partial and the
-ordering fix homed in the hardening spec, or hold this spec open until the
-hardening spec lands and fixes the ordering.
+lookup failure cannot be told apart from a policy decision) stays homed in
+`spec-fixit-stored-route-relay-hardening`. It is a separate defect class with
+its own AC set, and it does not gate any AC here.
 
 > **Concurrency note (2026-07-24).** Two sessions worked this spec at once. Phase 1
 > (RPC/SDK/coordinator plumbing) and Phase 2 (`relay_payload.go` byte builders) were
@@ -302,12 +343,49 @@ second time alongside the reactor forward.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 
 ## Pre-Commit Verification
+
+Re-verified 2026-08-14 by an independent closing session, against the producers.
+
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/reactor/reactor_api_relay.go` | Yes | `ls -1` 20K |
+| `internal/component/bgp/reactor/relay_payload.go` | Yes | `ls -1` 13K |
+| `internal/component/bgp/plugins/adj_rib_in/rib_claims.go` | Yes | `ls -1` 2.7K |
+| `internal/component/plugin/server/startup_claims.go` | Yes | `ls -1` 11K |
+| `test/plugin/adj-rib-in-replay-on-peerup.ci` | Yes | `ls -1` 13K |
+
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..AC-4 | 372 / 378 / 394 / 395 / 351 green, no reproduction under stress | Recorded 2026-07-24 and last run on 2026-07-25 through Run 5 (`ze-test bgp plugin 460 372 380 396 397` `pass 5/5`). Not re-run at closure. The four `.ci` files are unchanged since, and the closure diff is two comments plus this spec. The relay and claim code around them is NOT unchanged: 102 commits have touched `internal/component/bgp/reactor/`, `adj_rib_in/`, `rs/` and `internal/component/plugin/server/` since 2026-07-26, the claim mechanism among them |
+| AC-5 (dedupe) | Exactly one replay when both plugins load; standalone adj-rib-in still replays | MET. `bgp-rs` declares the role (`rs/register.go` `Claims: []string{ClaimPeerUpReplay}`), the engine reads it from the static registration and delivers it on Stage 2 (`Server.advertiseClaims`, `Server.deliverConfigRPC` calling `SendConfigure`), and adj-rib-in stands down there (`AdjRIBInManager.applyStartupClaims`). Tests green 2026-08-14: `ok .../adj_rib_in 1.693s`, `ok .../rs 2.018s`, `ok .../plugin/server 13.920s`, `ok pkg/plugin/sdk`, `ok .../bgp/reactor 24.344s` |
+| AC-5 (ordering) | The claim is in place before any session can establish | Two tests, one per half, and neither covers the other. SDK half: `TestStartupClaimsPrecedeReady` (`pkg/plugin/sdk/claims_test.go`) asserts `ClaimActive` is true inside the configure handler while the engine has NOT yet received Stage 5 ready; its red-mutation is moving the claim assignment in `sdk_dispatch.go` `handleConfigure` below the callback. Engine half: `TestDeliverConfigCarriesClaimToPlugin` (`plugin/server/startup_claims_test.go`), which drives `deliverConfigRPC` itself. The closure review found the first test's header claiming both halves; the header is corrected in this commit |
+| AC-5 (mid-life) | bgp-rs joins after bgp-adj-rib-in is configured, or bgp-adj-rib-in respawns | NOT covered, and homed rather than closed over: `spec-fixit-stored-route-relay-hardening` AC-12 and AC-5. A bgp-adj-rib-in auto-loaded later IS covered, by its own Stage 2. See the "What the claim channel does NOT cover" table at the top of this spec |
+| AC-5 (standalone) | adj-rib-in with no bgp-rs still replays | `TestReplayOwnerDedupe/standalone self-replays` and `/unclaimed role leaves self-replay on` (`adj_rib_in/rib_test.go`); nil `claimActive` resolves to "not claimed" (`rib_claims.go`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| adj-rib-in peer-up replay -> `RelayStoredRoute` -> `forwardUpdateCore` | `test/plugin/adj-rib-in-replay-on-peerup.ci` | Yes. Read at closure: it replays to an ESTABLISHED dest on 127.0.0.2 and asserts exact wire bytes twice (seq=1 the live forward, seq=2 the relayed copy). The vacuous version this replaced is recorded in the deferral shard, with the mutation run that reproduced the vacuity |
+| both adj-rib-in and bgp-rs loaded -> replay-owner dedupe | `TestReplayOwnerDedupe` plus `TestStartupClaimsPrecedeReady` | Yes. The dedupe is now decided in the startup handshake, so the ordering gate is a Go test rather than a `.ci` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | **broken** | `RawMessage.AttrsWire` carries the WHOLE attribute section (`reactor_notify.go` -> `wireu.WireUpdate.Attrs` -> `attribute.Packed`). Mistake Log row above; the strip-14/15 step in `relay_payload.go` `isRelayStrippedAttr` is the consequence |
+| A-2 | **confirmed** | The old rail prepended local AS in `buildBatchASPath` before `writeUpdateGated` ran `exportFilterForBody`. That rail is gone: `formatHexCommand` and `buildReplayCommands` are deleted from `internal/`, `pkg/` and `cmd/` |
+| A-3 | **confirmed** | The two ingest paths do store different NLRI framings, so add-path replay is refused rather than guessed (`errRelayAddPath`). Homed in `spec-fixit-stored-route-relay-hardening` through the deferral shard |
+| A-4 | **confirmed** | Read at both peer-up handlers in Run 2. Superseded in the fix: ownership no longer depends on which handler runs first |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| D-5 API/RPC docs | `docs/architecture/api/process-protocol.md` carries the `relay-stored-route` row; `docs/architecture/api/ipc_protocol.md` names `ze-plugin-engine:relay-stored-route` with a source anchor on `pkg/plugin/rpc/types.go` | Yes, already landed |
+| D-6 Plugin SDK | `docs/plugin-development/protocol.md` lists `RelayStoredRoute` with its input type | Yes, already landed |
+| D-8 RFC compliance | `docs/features/rfc-status.md` RFC 9234 row states OTC egress with its producer `role/otc.go` `payloadAdvertisesNLRI`. The relay reproduces the received wire, so the row needs no change for the replay path | Yes, no edit needed |
+| D-9 Architecture | The `egress_inject_filter.go` header listed "bgp-adj-rib-in replay" among the routes that reach that gate. Stale since the relay switch. CORRECTED in this commit: the header now states the replay goes through `RelayStoredRoute` -> `forwardUpdateCore` and never reaches the gate. `docs/architecture/api/architecture.md`'s replay text is about the separate `plugins/rib/` plugin and its `update text` rail, so it is untouched | Yes, fixed here |
+| D-1..D-4, D-7, D-10 | No user-facing feature, config, CLI, wire encoding or runner change | Yes |
 
 ## Checklist
 ### TDD
@@ -331,7 +409,7 @@ second time alongside the reactor forward.
 | AC-2 (378 duplicate) | **MET** | `pass 1/1`; stress-repro 10 invocations, not reproduced (`bgp-plugin-378-20260724-233020.log`). |
 | AC-3 (394/395 OTC) | **MET** | both `pass 1/1`; 394 stress-repro 10 invocations, not reproduced (`bgp-plugin-394-20260724-233021.log`). |
 | AC-4 (351 multi-peer nexthop) | **MET, but NOT attributable to this spec** | `ze-test bgp plugin --pattern redistribute-l2tp-multi-peer-nexthop` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 351" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-351-20260725-000715.log`). **351 does not exercise the replay rail at all**: it launches `ze -` with no `--plugin` flags (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci`) and its `plugin {}` block loads only `l2tp-nexthop-test`, `redistribute-orchestrator` and `fakel2tp` -- neither `bgp-adj-rib-in` nor `bgp-rs` is present, so no peer-up replay exists in that test and `RelayStoredRoute` is never reached. Its load-dependent failure was the RFC 6286 duplicate BGP Identifier race, fixed by commit `e4076920c` (which gave the second ze-peer a distinct identifier, `+option=open:value=router-id:id=1.2.3.6`). 351 was mis-triaged into this spec's cluster; the egress-rail change neither caused nor fixed it. |
-| AC-5 (dedupe) | **PARTIAL** | The GATE is proven: `TestReplayOwnerDedupe` covers both directions (standalone still replays, owned stands down) and is mutation-verified (removing `!r.replayOwned.Load()` turns it RED). The AC's full text -- "both plugins loaded, peer-up: exactly one replay" -- is NOT proven, and a third review pass (2026-07-25) downgraded this row from MET. The test's own premise is that "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go`), which is exactly the ordering R2-4 shows is unenforced: `sendPostStartupToAll` does not wait before `StartPeers` (`plugin/server/startup.go`), so a peer establishing immediately can still be replayed twice, as `claimReplayOwnership` itself documents (`rs/server_handlers.go`). The test asserts the flag mechanism and therefore cannot fail when the race is lost. Deterministic ownership is homed in `plan/spec-fixit-stored-route-relay-hardening.md`. |
+| AC-5 (dedupe) | **PARTIAL on 2026-07-25, SUPERSEDED 2026-08-14 -- now MET, see the Implementation Audit below** | The GATE is proven: `TestReplayOwnerDedupe` covers both directions (standalone still replays, owned stands down) and is mutation-verified (removing `!r.replayOwned.Load()` turns it RED). The AC's full text -- "both plugins loaded, peer-up: exactly one replay" -- is NOT proven, and a third review pass (2026-07-25) downgraded this row from MET. The test's own premise is that "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go`), which is exactly the ordering R2-4 shows is unenforced: `sendPostStartupToAll` does not wait before `StartPeers` (`plugin/server/startup.go`), so a peer establishing immediately can still be replayed twice, as `claimReplayOwnership` itself documents (`rs/server_handlers.go`). The test asserts the flag mechanism and therefore cannot fail when the race is lost. Deterministic ownership is homed in `plan/spec-fixit-stored-route-relay-hardening.md`. |
 
 ### Gates
 
@@ -593,7 +671,147 @@ filter that can reach R6-1 today. All three Run 5 tests gate what they claim.
 - [x] Run 5 (independent refutation) BLOCKER fixed, ISSUEs fixed or homed
 - [x] Run 6 (independent completeness check) 0 BLOCKER; both findings homed
 - [x] AC-5 restated honestly as PARTIAL rather than closed over
-- [ ] **NOT closed.** Closure is the owner's call: AC-5 is PARTIAL and R6-1 leaves
-      one class of drop still invisible. Every AC-1..AC-4 goal is met and every
-      finding is either fixed or homed, but this spec does not get to claim a
-      clean sweep.
+- [x] **Closed 2026-08-14.** The 2026-07-25 verdict above stood on AC-5 being
+      unenforceable. It is enforced now: the claim channel replaced the racing
+      post-startup callback, so AC-5 is MET at the producer (see "Unblocked
+      2026-08-14" at the top and the Implementation Audit below). R6-1 keeps its
+      own home in `spec-fixit-stored-route-relay-hardening`; it gates no AC here.
+
+## Implementation Summary
+
+### What Was Implemented
+- `RelayStoredRoute` on the reactor (`reactor_api_relay.go`) with the byte
+  builders in `relay_payload.go`, plus the coordinator, RPC, SDK and bridge
+  plumbing. The adj-rib-in replay calls it (`adj_rib_in/rib.go` `relayRoutes`),
+  so a relayed route gets ONE egress transform: filter, then prepend.
+- Replay-owner dedupe by DECLARED claim. `bgp-rs` puts `ClaimPeerUpReplay` in
+  its static registration; the engine resolves the claim set
+  (`Server.advertiseClaims`) and delivers it on the Stage-2 configure callback
+  (`Server.deliverConfigRPC`); adj-rib-in stands its self-replay down there
+  (`AdjRIBInManager.applyStartupClaims`).
+- `verifyAdvertisedClaims` speaks when a plugin stood down for a claimant that
+  never reached Running. It does not fail startup; the comment records why
+  making it fatal was reverted.
+
+### Bugs Found/Fixed
+- Six review rounds, each finding a producer the previous enumeration missed.
+  The chain is recorded in Runs 1 to 6 above. The last product fix was R5-1
+  (`Failed: true` on the AC-13 undeclared-attribute reject).
+
+### Documentation Updates
+- `internal/component/bgp/reactor/egress_inject_filter.go`: header no longer
+  claims the adj-rib-in replay reaches that gate (D-9).
+- D-5 and D-6 landed with the implementation. See the Documentation Verified
+  table.
+
+### Deviations from Plan
+- The OTC `src-role` fallback was dropped from this spec and landed in
+  `spec-fixit-otc-src-role-meta-fallback` (closed 2026-08-11).
+- ADD-PATH sources are refused (`errRelayAddPath`) rather than replayed. The
+  functional regression is recorded and homed in the deferral shard.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Route the peer-up replay through the forward rail | Done | `reactor_api_relay.go` `RelayStoredRoute`, called from `adj_rib_in/rib.go` `relayRoutes` | The old rail is DELETED, not merely unused: `formatHexCommand` and `buildReplayCommands` exist nowhere under `internal/`, `pkg/` or `cmd/` |
+| Dedupe the double replay trigger | Done | `rs/register.go` `Claims`, `startup_claims.go` `advertiseClaims`, `rib_claims.go` `applyStartupClaims` | Declared, not raced |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | 372 `pass 1/1`, 12 stress invocations, no reproduction | |
+| AC-2 | Done | 378 `pass 1/1`, 10 stress invocations, no reproduction | |
+| AC-3 | Done | 394 / 395 `pass 1/1`, 10 stress invocations, no reproduction | |
+| AC-4 | Done, not attributable | 351 `pass 1/1` | 351 loads neither adj-rib-in nor bgp-rs, so it never reaches the relay. Fixed by `e4076920c` (RFC 6286 duplicate identifier). Mis-triaged into this cluster |
+| AC-5 | Done on the startup path | `TestStartupClaimsPrecedeReady`, `TestDeliverConfigCarriesClaimToPlugin`, `TestReplayOwnerDedupe` (seven subtests, one of them table-driven), `TestRouteServerClaimsPeerUpReplay`, nine tests in `startup_claims_test.go`, and `test/plugin/rfc7606-relay-one-field.ci`, which loads both plugins and is the only test driving the stand-down from adj-rib-in's own `OnConfigure` | Was PARTIAL on 2026-07-25 because the decision rode `sendPostStartupToAll`. The claim channel replaced it. The mid-life join is homed at hardening AC-12, not claimed here |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRelayStoredRouteEgress` | Done, renamed | `internal/component/bgp/reactor/reactor_api_relay_test.go` and siblings | Shipped as a family: fails-closed, add-path refusal, malformed input, suppression versus failure |
+| `TestReplayOwnerDedupe` | Done | `adj_rib_in/rib_test.go` | Seven subtests, including both startup-claim polarities |
+| 372/378/394/395/351 `.ci` | Done | `test/plugin/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `reactor_api_forward.go`, `types_bgp.go`, `sdk_engine.go`, `dispatch_cached.go`, `bridge.go` | Done | Plus `reactor_api_relay.go` and `relay_payload.go`, which the plan did not name |
+| `adj_rib_in/rib.go`, `rib_commands.go` | Done | Plus `rib_claims.go`, the declared-claim receiver |
+| `rs/server_handlers.go` | Done | Plus `rs/register.go`, which carries the declaration |
+
+### Audit Summary
+- **Total items:** 13
+- **Done:** 13
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A relayed route has ONE egress transform, so the two rails cannot diverge | functional, wire bytes | `test/plugin/adj-rib-in-replay-on-peerup.ci` asserts the live forward (seq=1) and the relayed copy (seq=2) are the same 51-byte UPDATE. Mutation-verified in both directions: with `RelayStoredRoute` dead the dest never receives the copy |
+| The four load-dependent wire failures stop reproducing | functional under load | `stress-repro.py` per test, 10 to 12 invocations each, no reproduction (logs named in the Verification Evidence table) |
+| Exactly one plugin replays on peer-up | unit, ordering, plus one functional | `TestStartupClaimsPrecedeReady` (`pkg/plugin/sdk/claims_test.go`) proves the claim is readable at Stage 2 before the engine has the Stage-5 ready, so the decision precedes `StartPeers`. `TestDeliverConfigCarriesClaimToPlugin` covers the engine half it does not. The functional test whose duplicate this prevents is `test/plugin/rfc7606-relay-one-field.ci`, which loads both plugins (bgp-rs pulls bgp-adj-rib-in through `OptionalDependencies` and `ExpandDependencies`). Scoped to the startup path; the mid-life join is hardening AC-12 |
+| The egress gate for originated and injected routes is unchanged | unit + functional | `exportFilterForBody` keeps its callers; `ok .../bgp/reactor 24.344s` on 2026-08-14 |
+
+## Deferrals Resolved
+
+The shard is `plan/deferrals/fixit-bgp-egress-rail-divergence.md`. It is NOT
+removed: nine rows, two terminal and seven live, and every live row names
+`spec-fixit-stored-route-relay-hardening`, which is open.
+
+The closure review checked that the destination spec actually ACCEPTS them, not
+merely that the cell names it. Two did not land: the zero-dispatch failure
+branches and the two untested non-decided `PolicyReject` producers appeared in
+no section and no criterion there. They are now AC-10 and AC-11 of that spec,
+added by this closure. Naming a destination is not homing a row.
+
+**A FOREIGN shard pointed here, and it is removed with this closure.**
+`plan/deferrals/fixit-load-dependent-functional-failures.md` held exactly one
+row, `deferred`, whose Destination was this spec: it is what carved this work
+out on 2026-07-24. That row is now terminal, so its shard is residue and this
+closure removes it (`ai/rules/planning.md`). Its source spec closed on
+2026-07-24. What the row deferred, resolved:
+
+| Part of the row | Resolution |
+|-----------------|------------|
+| `RelayStoredRoute` primitive, RPC and SDK | Done, this spec |
+| Per-family MP_REACH reconstruction | Done, `relay_payload.go` |
+| Replay-owner dedupe | Done on the startup path, this spec. Mid-life at hardening AC-12 |
+| ADD-PATH path-id gap | NOT done. The relay refuses an add-path source (`errRelayAddPath`), and normalizing the stored framing continues in this spec's own shard, homed at hardening AC-1 and AC-2. `errRelayAddPath`'s comment is repointed at those, so shipped code names a tracker that outlives this spec |
+| 351 redistribute-l2tp-multi-peer-nexthop | Mis-triaged into the cluster. Fixed by `e4076920c` (RFC 6286 duplicate BGP Identifier), not by this work |
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| OTC `src-role` meta fallback | done | `spec-fixit-otc-src-role-meta-fallback`, closed 2026-08-11 |
+| `adj-rib-in-replay-on-peerup.ci` was vacuous | done | Rewritten 2026-08-07 with an established destination and exact wire bytes; mutation-verified |
+| ADD-PATH stored NLRI framing (A-3) | deferred | `spec-fixit-stored-route-relay-hardening` |
+| RFC 2545 32-byte next hop, complex-family MP_REACH storage, relay backpressure, `Coordinator.RelayStoredRoute` untested | deferred | same |
+| Replay ownership is process-global while events are per-peer; claim does not survive a respawn | deferred | same. Narrowed by this spec: the startup RACE is closed, the SCOPE questions are not |
+| `relayChunkSize` bounds routes, not bytes | deferred | same |
+| Zero-dispatch failure branches of `forwardUpdateCore` untested | deferred | same |
+| The two remaining non-decided `PolicyReject` producers untested | deferred | same |
+| R6-1: `filterapi.EgressFilterFunc` has no failure channel | deferred | same |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-bgp-egress-rail-divergence-ca112cd4-8337-4992-b4e1-e0d7bbff5820.md`, 11 files, verdict clean |
+| `review_gate.py check` | clean |
+| Rounds | 8. Rounds 1 to 6 are recorded above, each with the product defect it found. Round 7 (2026-08-14) is the closure review: two independent subagents, one refuting "AC-5 is now met" at the producers, one auditing the closure record. Round 8 reviewed round 7's fixes only, and refuted half of one of them |
+| Reviewer lenses used | Runs 1 to 6: fix correctness, regression risk, test integrity, classification correctness, refutation, enumeration completeness. Run 7: refute the closure claim; record integrity. Run 8: are the fixes true at the producer |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R7-1 | ISSUE | The header still named the adj-rib-in replay as a caller of that gate. D-9 asked for this and it was never done. Found by the closing session's own documentation review, not by a reviewer | `internal/component/bgp/reactor/egress_inject_filter.go` | Header corrected. The same word survived in two siblings, and both are corrected with it: `filter_ordered.go` `runEgressPolicyChainASN4` and `peer_run.go` |
+| R7-2 | ISSUE | `claimReplayOwnership`'s doc claims it covers the mid-life case. It cannot: its only caller is `OnAllPluginsReady`, which the engine produces once at startup. A comment asserting coverage the code does not have is the shield that stops the next reader asking | `internal/component/bgp/plugins/rs/server_handlers.go` `claimReplayOwnership` | Doc corrected. Round 8 then caught the correction over-reaching: an auto-loaded bgp-adj-rib-in needs no backstop, because `autoLoadForNewConfigPaths` runs it through `runPluginPhase` and it gets its OWN Stage 2. Two cases are genuinely untold, and the doc now names exactly those: a RESPAWN (`ProcessManager.Respawn` calls `StartWithContext` and runs no handshake), which is hardening AC-5, and bgp-rs joining mid-life, which is hardening AC-12 |
+| R7-3 | ISSUE | A claimant joining MID-LIFE reopens the duplicate: `autoLoadForNewConfigPaths` can start bgp-rs while bgp-adj-rib-in already runs, and neither channel re-tells it | `internal/component/plugin/server/startup_autoload.go`, `startup.go` `deliverConfigRPC` | Not fixed here: it is a lifecycle change, and it is now `spec-fixit-stored-route-relay-hardening` AC-12. AC-5 is closed on the startup path only, and this spec says so |
+| R7-4 | ISSUE | Two live deferral rows named the hardening spec as their destination while no criterion there enumerated them | `plan/deferrals/fixit-bgp-egress-rail-divergence.md` | Added as hardening AC-10 and AC-11 |
+| R7-5 | ISSUE | `TestStartupClaimsPrecedeReady`'s header claimed it catches the engine-side regression. It does not: it feeds the Stage-2 payload itself, so deleting `advertiseClaims` from `deliverConfigRPC` leaves it green. It also named a `.ci` that loads neither plugin | `pkg/plugin/sdk/claims_test.go` | Header corrected to name each half's real red-mutation and the engine-side gate `TestDeliverConfigCarriesClaimToPlugin`. Assertions untouched |
+| R7-6 | NOTE | Closure record defects: a false "no code changed since" (102 commits had), "no live caller" where the symbols are deleted, a wrong subtest count, and a wrong audit total | This spec | All corrected. Per `ai/rules/planning.md` a record defect earns no further round |
+| R7-7 | ISSUE | SHIPPED CODE cited this spec by full path in six places, so commit B would have left six dangling citations in Go comments. `make ze-spec-citation-check` cannot see them: `find_dangling` reads `plan/spec-*.md` citers only | `adj_rib_in/rib.go` (2), `adj_rib_in/rib_test.go`, `reactor/reactor_api_relay.go` (2), `pkg/plugin/rpc/types.go` | Five restated as the bare stem, which keeps the name and drops a promise the tree cannot keep. The sixth, `errRelayAddPath`, tracks LIVE work, so it repoints at the two documents that survive: this spec's deferral shard and hardening AC-1 and AC-2. Six other sites already used the bare stem and needed nothing |

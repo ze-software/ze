@@ -263,10 +263,12 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 //
 //   - forwardUpdateCore (reflected / forwarded routes), via runEgressPolicyChain,
 //     which derives asn4 from the update's SOURCE encoding context.
-//   - exportFilterForBody (originated / injected / redistributed / replayed
-//     routes, incl. bgp-rs `update text` re-advertisement), which passes the
+//   - exportFilterForBody (originated / injected / redistributed routes, and the
+//     bgp-rs `update text` re-advertisement), which passes the
 //     DESTINATION peer's sendASN4, because the session write path has already
-//     encoded the body in the destination's send context.
+//     encoded the body in the destination's send context. The bgp-adj-rib-in
+//     stored-route replay is NOT one of them: it reaches the first caller
+//     through RelayStoredRoute (see egress_inject_filter.go).
 //
 // asn4 describes the encoding of the AS_PATH raw bytes in wireUpdate, and is the
 // only thing that differs between the two callers. Keeping one body is

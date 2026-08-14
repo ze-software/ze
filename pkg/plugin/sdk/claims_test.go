@@ -28,14 +28,24 @@ type configureWithClaims struct {
 // StartPeers only after every phase completes -- so a decision taken at Stage 2
 // is strictly ordered before the first session can establish.
 //
-// PREVENTS: the peer-up replay duplicate in test/plugin/rfc7606-relay-one-field
-// and test/plugin/llgr-readvertise-multipeer, by preventing the regression that
+// PREVENTS: the peer-up replay duplicate in test/plugin/rfc7606-relay-one-field,
+// which loads bgp-adj-rib-in beside bgp-rs, by preventing the regression that
 // caused it: moving an exclusive-role decision back onto the post-startup
 // callback. That callback is fanned out on detached goroutines immediately
 // before StartPeers (internal/component/plugin/server/startup.go,
 // sendPostStartupToAll -- waiting there deadlocks), so a role resolved from it
-// races session establishment by 1-2 ms on an idle host. If the claim were
-// moved there, ClaimActive would still be false at Stage 2 and this test fails.
+// races session establishment by 1-2 ms on an idle host.
+//
+// WHAT REDDENS IT, exactly. This test drives the SDK half: it feeds the Stage-2
+// payload itself, so the mutation it catches is moving the claim assignment in
+// sdk_dispatch.go handleConfigure below the configure callback. Deleting the
+// engine's own advertiseClaims call in plugin/server/startup.go
+// deliverConfigRPC leaves this test GREEN. The gate for that half is
+// TestDeliverConfigCarriesClaimToPlugin in plugin/server/startup_claims_test.go,
+// which drives deliverConfigRPC. Two tests, one per half, and neither covers
+// the other. An earlier version of this comment claimed this one caught both.
+// It also named test/plugin/llgr-readvertise-multipeer, which loads neither
+// plugin.
 func TestStartupClaimsPrecedeReady(t *testing.T) {
 	t.Parallel()
 

@@ -304,9 +304,11 @@ func (s *Session) triggerHoldTimerExpiry() {
 // writeUpdate writes an UPDATE to bufWriter without locking or flushing, running
 // the peer's export filter gate. Caller must hold writeMu.
 //
-// Use this for originated / injected / replayed routes -- anything that has NOT
-// already been through the peer's export filter chain. Forwarded routes must use
-// writeUpdatePreFiltered instead.
+// Use this for originated and injected routes, and for the bgp-rs `update text`
+// re-advertisement -- anything that has NOT already been through the peer's
+// export filter chain. Forwarded routes must use writeUpdatePreFiltered instead,
+// and so does the bgp-adj-rib-in stored-route replay, which reaches the wire
+// through forwardUpdateCore.
 func (s *Session) writeUpdate(update *message.Update) error {
 	return s.writeUpdateGated(update, true)
 }
@@ -333,10 +335,11 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	s.writeBuf.Reset()
 	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
 
-	// Egress gate: originated / injected / replayed routes honor the peer's export
-	// filter chain here (forwarded routes are filtered in forwardUpdateCore and are
-	// written pre-filtered; End-of-RIB markers of any family are exempt — RFC 4724
-	// graceful-restart signals are not routes).
+	// Egress gate: originated and injected routes, and the bgp-rs `update text`
+	// re-advertisement, honor the peer's export filter chain here. Forwarded routes
+	// are filtered in forwardUpdateCore and written pre-filtered, and so is the
+	// bgp-adj-rib-in stored-route replay. End-of-RIB markers of any family are
+	// exempt: RFC 4724 graceful-restart signals are not routes.
 	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		suppress, override := s.egressRouteFilter(body)

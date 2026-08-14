@@ -11,8 +11,8 @@
 // steps (export policy plus the in-process role/OTC/community filters) and THEN
 // prepends. One route, two transforms. A peer establishing while an UPDATE was in
 // flight could therefore see a rewritten AS_PATH, a duplicate announce, or an OTC
-// route that should have been suppressed -- see
-// plan/spec-fixit-bgp-egress-rail-divergence.md.
+// route that should have been suppressed. That was
+// spec-fixit-bgp-egress-rail-divergence, closed 2026-08-14.
 
 package reactor
 
@@ -75,10 +75,12 @@ var (
 	// strips four more bytes and announces nothing at all, silently.
 	//
 	// Refusing is the honest interim: normalizing the stored framing is the
-	// remaining work, tracked as assumption A-3 in
-	// plan/spec-fixit-bgp-egress-rail-divergence.md and homed in
-	// plan/deferrals/fixit-bgp-egress-rail-divergence.md. A logged refusal loses
-	// the replay; a corrupt frame loses the session.
+	// remaining work. It is homed in
+	// plan/deferrals/fixit-bgp-egress-rail-divergence.md, whose row for it names
+	// plan/spec-fixit-stored-route-relay-hardening.md, where it is AC-1 and AC-2.
+	// It began as assumption A-3 of spec-fixit-bgp-egress-rail-divergence, closed
+	// 2026-08-14. A logged refusal loses the replay; a corrupt frame loses the
+	// session.
 	errRelayAddPath = errors.New("relay-stored-route: add-path source not supported by stored-route replay")
 )
 

@@ -568,7 +568,7 @@ func TestNHopToHex(t *testing.T) {
 // PREVENTS: regressing to the old "update hex attr set ..." command form, which
 // dropped the source and so sent replays down the announce rail where the local
 // AS is prepended BEFORE the export filters run
-// (plan/spec-fixit-bgp-egress-rail-divergence.md).
+// (spec-fixit-bgp-egress-rail-divergence, closed 2026-08-14).
 func TestReplayRouteCarriesSource(t *testing.T) {
 	r := newTestManager(t)
 

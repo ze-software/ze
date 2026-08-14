@@ -214,8 +214,11 @@ func (p *Peer) runOnce() error {
 	session.SetClock(p.clock)
 	session.SetDialer(p.dialer)
 	session.onMessageReceived = p.messageCallback
-	// Originated / injected / replayed routes run the peer's export filter chain at
-	// the session write gate, the same as forwarded routes do in forwardUpdateCore.
+	// Originated and injected routes, and the bgp-rs `update text`
+	// re-advertisement, run the peer's export filter chain at the session write
+	// gate, the same as forwarded routes do in forwardUpdateCore. The
+	// bgp-adj-rib-in stored-route replay is not one of them: it goes through
+	// forwardUpdateCore itself (egress_inject_filter.go).
 	if p.reactor != nil {
 		session.egressRouteFilter = func(body []byte) (bool, []byte) {
 			return p.reactor.exportFilterForBody(p, body)

@@ -252,9 +252,24 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 // declaration in register.go (Registration.Claims = ClaimPeerUpReplay): the
 // engine delivers that on bgp-adj-rib-in's Stage-2 configure callback, which
 // completes before it sends Stage 5 ready and therefore before peers start.
-// This dispatch covers only the mid-life case the declaration cannot reach --
-// a bgp-adj-rib-in auto-loaded by a config reload, or respawned, after this
-// plugin was already configured.
+//
+// It reaches LESS of the mid-life case than an earlier version of this comment
+// claimed. The only caller is OnAllPluginsReady (server.go), which the engine
+// produces once, from sendPostStartupToAll inside signalStartupComplete.
+// Nothing dispatches it again. So:
+//
+//   - A bgp-adj-rib-in AUTO-LOADED later needs nothing from this dispatch. It
+//     is started by autoLoadForNewConfigPaths through runPluginPhase, so it gets
+//     its own Stage 2, and advertiseClaims reads this plugin's live
+//     Registration.Claims and tells it there.
+//   - A RESPAWNED bgp-adj-rib-in is never told. ProcessManager.Respawn calls
+//     StartWithContext and runs no startup handshake, so no Stage 2 happens.
+//   - An already-running bgp-adj-rib-in is never told when THIS plugin is the
+//     one that joins mid-life, because Stage 2 runs per handshake and is not
+//     re-delivered to a plugin that is already configured.
+//
+// The last two are acceptance criteria of
+// spec-fixit-stored-route-relay-hardening, AC-5 and AC-12.
 //
 // Called from OnAllPluginsReady, which guarantees the dispatcher's command
 // registry is frozen so the dispatch resolves. That callback is NOT ordered

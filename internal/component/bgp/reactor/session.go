@@ -294,9 +294,11 @@ type Session struct {
 	// egressRouteFilter, when non-nil, runs the peer's export filter chain on an
 	// outbound route UPDATE body just before it is written (writeUpdate /
 	// SendAnnounce). Returns suppress=true to drop the route, or an override body
-	// to write instead. Set by Peer (capturing the reactor) so originated /
-	// injected / replayed routes honor export filters like forwarded ones. EORs
-	// and the forwarded path (writeRawUpdateBody) do not call it.
+	// to write instead. Set by Peer (capturing the reactor) so originated and
+	// injected routes, and the bgp-rs `update text` re-advertisement, honor export
+	// filters like forwarded ones. EORs and the forwarded path
+	// (writeRawUpdateBody) do not call it, and neither does the bgp-adj-rib-in
+	// stored-route replay, which is filtered in forwardUpdateCore.
 	egressRouteFilter func(body []byte) (suppress bool, override []byte)
 
 	// policyTeardownPending, when non-nil, queues a NOTIFICATION + session close

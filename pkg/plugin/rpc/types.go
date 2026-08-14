@@ -401,7 +401,7 @@ type ReleaseCachedInput struct {
 //
 // Hex fields are the stored wire bytes: AttrHex is the whole path-attribute
 // section as received (it INCLUDES MP_REACH/MP_UNREACH for MP families -- see
-// the A-1 note in plan/spec-fixit-bgp-egress-rail-divergence.md), NextHopHex is
+// the A-1 note in spec-fixit-bgp-egress-rail-divergence), NextHopHex is
 // the next hop in wire form, NLRIHex is this route's own NLRI bytes.
 type StoredRoute struct {
 	SourcePeer string `json:"source-peer"`
