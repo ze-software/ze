@@ -5,7 +5,17 @@
 | Status | ready |
 | Depends | - (but SEQUENCES against three in-progress specs -- see "Convergence") |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-08-14 |
+
+## Provenance
+
+Reclassified as an improvement on 2026-08-14 at Thomas's instruction and moved
+from `plan/` to `plan/future/`. Reason: RFC 4271 Section 5.1.5 is already
+enforced on the forwarded egress path by `applyFactsLocalPref`
+(`internal/component/bgp/reactor/forward_local_pref.go`), which both forward
+rails call (`reactor_api_forward.go`, `forward_rs.go`). What remains is whether
+the two behaviours become visible auto-added export-chain entries, which is a
+config-surface preference and not a conformance question.
 
 Update (2026-07-22 plan review): the Phase 3-4 sequencing gate has mostly
 cleared -- three of the four named in-flight specs LANDED
@@ -14,7 +24,7 @@ learned 1239, parent fixit-private-asn-leak learned 1231). Only
 `spec-perf-next-1-ebgp-wire-lockfree` remains open, and that one is itself
 complete-in-code awaiting closure (learned 900), so the prepend half is
 effectively unblocked. The Phase 1-2 LOCAL_PREF half is un-landed and
-implementable now (`test/plugin/ebgp-localpref-egress-strip.ci` absent, no
+implementable now (`test/plugin/ebgp-localpref-egress-strip.ci` absent, no <!-- doc-links: ignore (test this spec proposes; not written) -->
 `auto:ebgp-*` reserved names in `internal/`).
 
 > **Readiness pass 2026-07-17:** design filled from skeleton; every placeholder replaced,
@@ -56,7 +66,7 @@ instead of special-casing both inside the wire path.
 **Provenance:** Thomas's design ruling, 2026-07-16, verbatim: *"we should have an
 'auto-added' filter added to the chain of ebgp peer to add our ASN to the peer when sending
 and another one to remove local pref"*. Given in answer to the EBGP-prepend question that
-`plan/spec-fixit-private-asn-leak.md` flagged and deliberately did not answer
+`plan/spec-fixit-private-asn-leak.md` flagged and deliberately did not answer <!-- doc-links: ignore (parent spec closed and removed) -->
 ("Flagged for Thomas"; also listed as an approved open item at `:281` and `:409`).
 
 ## RE-SCOPED 2026-08-05: the RFC violation is CLOSED. Only the architecture is left.
@@ -100,10 +110,17 @@ while it waits.
 Status moved to `ready` with that narrower scope. Do not re-open it as an RFC
 defect; the RFC half is closed and this note is the evidence.
 
-### This is not only a design preference. One half of it is an unenforced RFC MUST NOT
+### ~~This is not only a design preference. One half of it is an unenforced RFC MUST NOT~~ SUPERSEDED
 
-The trace (2026-07-16) found that **RFC 4271 §5.1.5 is not enforced on the forwarded egress
-path at all**:
+**Every claim in this section is superseded by the RE-SCOPED block above. Struck 2026-08-14 at
+the heading, because a reader who lands here can miss a correction that sits further up.** The
+table below is a 2026-07-16 reading. `applyFactsLocalPref`
+(`internal/component/bgp/reactor/forward_local_pref.go`) enforces Section 5.1.5 on BOTH forward
+rails today, and it guards the filter-set case as well as the carried-payload case. The
+"KEPT ON THE WIRE" row is FALSE now. Kept for history only.
+
+~~The trace (2026-07-16) found that **RFC 4271 §5.1.5 is not enforced on the forwarded egress
+path at all**:~~
 
 | Path | LOCAL_PREF to an EBGP peer | Evidence |
 |------|---------------------------|----------|
@@ -407,8 +424,8 @@ preferred.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| IBGP peer sends a route with LOCAL_PREF; ze forwards to an EBGP peer | → | auto `AttrModSuppress` LOCAL_PREF entry on `ExportFilters` (EBGP-gated) | `test/plugin/ebgp-localpref-egress-strip.ci` (NEW — MUST be RED before the fix: LOCAL_PREF visible on the EBGP wire) |
-| API `update text` announces to an EBGP peer | → | auto `AttrModPrepend` AS_PATH entry on `ExportFilters` (EBGP-gated) | `test/plugin/ebgp-prepend-originated.ci` (NEW — originated path prepends the local AS, agreeing with the forwarded path; `remove-private-as-export-originated.ci` stays GREEN) |
+| IBGP peer sends a route with LOCAL_PREF; ze forwards to an EBGP peer | → | auto `AttrModSuppress` LOCAL_PREF entry on `ExportFilters` (EBGP-gated) | `test/plugin/ebgp-localpref-egress-strip.ci` (NEW — MUST be RED before the fix: LOCAL_PREF visible on the EBGP wire) | <!-- doc-links: ignore (test this spec proposes; not written) -->
+| API `update text` announces to an EBGP peer | → | auto `AttrModPrepend` AS_PATH entry on `ExportFilters` (EBGP-gated) | `test/plugin/ebgp-prepend-originated.ci` (NEW — originated path prepends the local AS, agreeing with the forwarded path; `remove-private-as-export-originated.ci` stays GREEN) | <!-- doc-links: ignore (test this spec proposes; not written) -->
 | Route forwarded from an EBGP peer to an EBGP peer | → | [auto prepend entry] | `remove-private-as-export.ci` (must stay GREEN) |
 
 ## Acceptance Criteria
@@ -435,7 +452,7 @@ preferred.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| **`ebgp-localpref-egress-strip`** | `test/plugin/ebgp-localpref-egress-strip.ci` | IBGP source -> EBGP destination: LOCAL_PREF must not appear on the wire. **RED before the fix** | |
+| **`ebgp-localpref-egress-strip`** | `test/plugin/ebgp-localpref-egress-strip.ci` | IBGP source -> EBGP destination: LOCAL_PREF must not appear on the wire. **RED before the fix** | | <!-- doc-links: ignore (test this spec proposes; not written) -->
 | `remove-private-as-export` | `test/plugin/remove-private-as-export.ci` | strip-then-prepend unchanged | |
 | `attributes` | `test/plugin/attributes.ci` | IBGP baseline unchanged | |
 

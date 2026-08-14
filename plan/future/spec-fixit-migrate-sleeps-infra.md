@@ -5,7 +5,16 @@
 | Status | in-progress |
 | Depends | migrate-plugin-sleeps (committed edfe4c0e1), payload-predicate-waits (committed) |
 | Phase | 2/9 |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-14 |
+
+## Provenance
+
+Reclassified as an improvement on 2026-08-14 at Thomas's instruction and moved
+from `plan/` to `plan/future/`. Reason: this is test speed and determinism
+only. Its one production-bug premise (P0) was carved out to
+`spec-fixit-redistribute-establishment-stall`, which root-caused it to two test
+harness defects and no engine stall. Read the correction blocks below before
+you quote any number or premise in this spec.
 
 ## Correction 2026-08-03 (bookkeeping audit): the counts and the fib premise
 
@@ -59,7 +68,7 @@ the infra-gated cases. Revised Approach signed off 2026-07-16.
 
 **Re-read these after context compaction:**
 1. This spec file.
-2. `plan/deferrals.md` (the two 2026-07-14 `spec-migrate-plugin-sleeps` rows: bgp-redistribute group + DEFER/KEEP buckets).
+2. `plan/deferrals.md` (the two 2026-07-14 `spec-migrate-plugin-sleeps` rows: bgp-redistribute group + DEFER/KEEP buckets). <!-- doc-links: ignore (the single deferrals file was retired for per-source shards) -->
 3. `spec-migrate-plugin-sleeps` (closed 2026-08-12; the completed primitive-migration, whose Design Insights hold the conversion recipes -- read it from git history).
 4. `test/scripts/ze_api.py` (existing primitives) and `internal/test/runner/` (the runner / engine-step executor).
 
@@ -114,7 +123,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 
 ## Revised Approach (plan of record, 2026-07-14)
 
-1. **P0 -- Establishment-blocking investigation (BLOCKS all establishment-observing conversions).**
+1. ~~**P0 -- Establishment-blocking investigation (BLOCKS all establishment-observing conversions).**
    Root-cause why an external observer's engine RPCs during BGP establishment prevent a single-peer
    session from establishing (`bgp-redistribute-announce.ci`) while a 2-peer config
    (`redistribute-as112-announce.ci`) is unaffected. Producing code to read: the reactor connect /
@@ -122,7 +131,14 @@ already converted `rbac-web`, so the web suite was not new ground here.
    handling). Outcome is one of: (a) a real concurrency bug -> fix at source (high value; a
    monitoring plugin polling during convergence could stall production peering); (b) a documented
    config constraint + a conversion recipe that avoids it. Until P0 resolves, redistribute/rs/
-   teardown-style conversions that must observe establishment are blocked.
+   teardown-style conversions that must observe establishment are blocked.~~
+   **P0 IS RESOLVED and blocks nothing. Superseded 2026-08-14, restating the phase note above
+   where a reader meets the plan of record.** It was carved out to
+   `spec-fixit-redistribute-establishment-stall`, which root-caused it: there is NO engine stall,
+   and the symptom came from two test-harness defects. Outcome (b) is what landed, so the
+   "monitoring plugin could stall production peering" premise is withdrawn and this spec carries
+   no production-bug half. Every "P0-gated" and "P0-blocked" marker below is history. Do not read
+   one as an open blocker.
 2. **Bucket-by-bucket conversion, host-first.** For each host-runnable bucket, discover the recipe
    on ONE test, run it 3x to prove determinism (guard against false-positive passes -- verify the
    observer `main()` actually runs and the gating assertion actually fires), then apply to the rest
@@ -296,7 +312,7 @@ Infra (production/test-support) files, each additive:
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/ci-format.md` |
 
 ## Files to Create
-- Possibly `internal/test/runner/engine_predicate.go`-style helpers if a file exceeds size limits; per-piece unit-test files as needed.
+- Possibly `internal/test/runner/engine_predicate.go`-style helpers if a file exceeds size limits; per-piece unit-test files as needed. <!-- doc-links: ignore (hypothetical helper name, never created) -->
 
 ## Implementation Steps
 
@@ -352,7 +368,7 @@ Infra (production/test-support) files, each additive:
 ### Wrong Assumptions
 | Assumed | True | Discovered | Impact |
 |---------|------|------------|--------|
-| P6: redistribute UPDATEs bypass the updates-sent counter (per the deferral comment on bgp-redistribute-announce.ci) | `reactor_notify.go` calls `peer.IncrUpdatesSent()` for EVERY sent UPDATE incl. redistribute/forward-pool sends; `show bgp peer <n> detail` exposes `updates-sent`/`eor-sent`/`state` (`cmd/peer/peer.go`) | 2026-07-14 audit (read producer + `redistribute-as112-announce.ci` uses exactly this signal) | P6 needs NO new outbound signal; the counter already exists |
+| P6: redistribute UPDATEs bypass the updates-sent counter (per the deferral comment on bgp-redistribute-announce.ci) | `reactor_notify.go` calls `peer.IncrUpdatesSent()` for EVERY sent UPDATE incl. redistribute/forward-pool sends; `show bgp peer <n> detail` exposes `updates-sent`/`eor-sent`/`state` (`internal/component/bgp/plugins/cmd/peer/peer.go`) | 2026-07-14 audit (read producer + `redistribute-as112-announce.ci` uses exactly this signal) | P6 needs NO new outbound signal; the counter already exists |
 | P4: a fib reflecting-`show` must be built | `show fib kernel` already exists and returns the `installed` map as `[{prefix,next-hop}]` JSON (`fib/kernel/register.go`, `backend.go`) | 2026-07-14 audit | P4 needs NO new production code; fib-kernel conversion is a `dispatch_until('show fib kernel', ...)` poll (still QEMU-gated) |
 | "Build the signal, then conversion is mechanical" (Core Insight) | The signals mostly already exist; the real blocker is an engine BEHAVIOR (below), so conversion is NOT mechanical | 2026-07-14 redistribute investigation | Spec framing (P1..P8 = build infra) is largely wrong; the work is per-test root-causing, not infra-building |
 ### Failed Approaches
@@ -371,7 +387,7 @@ Infra (production/test-support) files, each additive:
 - **Reject-fence via injected counted message (PROVEN 2026-07-14, rfc7606-withdraw):** to prove an UNCOUNTED engine action was processed (a malformed treat-as-withdraw UPDATE returns in `session_read.go` `processMessage` at 163-171 BEFORE the `onMessageReceived` callback that drives `IncrUpdatesReceived` at `reactor_notify.go`), inject a well-formed COUNTED message (an empty EOR) right after it in the SAME `seq` group on the peer connection. ze processes a connection in TCP order on one session-read goroutine, so the counted message's `updates-received` increment is a deterministic fence proving the uncounted action already ran. The observer waits on `updates-received` instead of sleeping. This realizes the "reject-fence sentinel" decision (Key Design Decisions) concretely, WITHOUT any production change. It applies to any shape where the peer sends the uncounted message on a connection the test drives.
 - **Infra-gated shape (no pollable signal, injected-message technique does NOT apply):** reload-listener-rejected, as112-external-refuses, cos-external-warns prove a rejection/warning observable ONLY as a relayed-stderr line (checked runner-side via `expect=stderr:contains=`), driven by a standalone `wait.py` with no ze_api connection to poll and no peer connection to inject a fence on. Their correctness is ALREADY timing-independent (the runner's stderr expect waits up to the test timeout); only the secondary observer-side check keeps a sleep, and making it deterministic needs a NEW production signal (a plugin-visible reload-processed / external-plugin-exit event). These are the genuine P5 reject-fence INFRA cases.
 - **Session conversions landed 2026-07-14 (baseline 226 -> 204):** rfc7606-withdraw (EOR-fence, 9e2bb1821); remove-private-as x2 (receiver `updates-sent` over the RS fast path per `reactor_notify.go`, 16cd29d00); l2tp teardown/show x10 (raw-L2TP driver: pre-ICRQ `sleep(0.05)` -> ICRQ retransmit-until-ICRP(AVP 14) retry loop mirroring the file's SCCRQ loop, plus dropped redundant pre-SCCRQ settle sleeps; 15 sleeps; 8cf13f1c1); cli-commit x2 + rbac-web (hand-rolled readiness poll loops -> `ze_api.wait_until`, ratchet-exempt; 4 sleeps; de83367f0). 22 sleeps removed, each verified 3x+ standalone and concurrently against the prebuilt binary (the tree does not build: a concurrent session broke `internal/component/iface`, so commits used `--unverified`/`--stale-index-ok`).
-- **Remaining 204, by category + owner:** QEMU-gated needs-linux bulk (~150; requires `make ze-qemu-needs-linux-test`, unavailable on darwin); P0-blocked redistribute (7 tests + api-raw/route-refresh) -> `plan/spec-fixit-redistribute-establishment-stall.md`; infra-gated reject-fence cases (reload-listener-rejected, as112/cos-external) -> `plan/spec-fixit-reject-fence-observability.md`; a deliberate-window timer (concurrent-config-commit `sleep(3)` IS the concurrency race window, keep); raw-protocol pacing left as-is (bfd-* 0.05 BFD control loop, exabgp-bridge-sdk startup with no clear readiness signal). Blind-converting the QEMU bulk without a Linux env is explicitly NOT done: unverified sleep conversions would violate this spec's own verification principle.
+- **Remaining 204, by category + owner:** QEMU-gated needs-linux bulk (~150; requires `make ze-qemu-needs-linux-test`, unavailable on darwin); P0-blocked redistribute (7 tests + api-raw/route-refresh) -> `plan/spec-fixit-redistribute-establishment-stall.md`; infra-gated reject-fence cases (reload-listener-rejected, as112/cos-external) -> `plan/spec-fixit-reject-fence-observability.md`; a deliberate-window timer (concurrent-config-commit `sleep(3)` IS the concurrency race window, keep); raw-protocol pacing left as-is (bfd-* 0.05 BFD control loop, exabgp-bridge-sdk startup with no clear readiness signal). Blind-converting the QEMU bulk without a Linux env is explicitly NOT done: unverified sleep conversions would violate this spec's own verification principle. <!-- doc-links: ignore (spec closed and removed) -->
 
 ## Core Insight
 
@@ -474,11 +490,11 @@ Plus three mutations of the helpers themselves against their new unit tests in
 not exist and the daemon dies with `unknown field in ddos: fake`. Against a
 zetest-tagged DUT the same test passes in 653ms. The target also cannot run
 on-session at all (`bin/ze-<sid>` vs bare-name lookup). Both ->
-`plan/spec-fixit-netns-test-dut-tags.md`.
+`plan/future/spec-fixit-netns-test-dut-tags.md`.
 
 **Scope boundary observed:** `test/traffic` and `test/vpp` blind holds are the
 "backgrounded ze has no ZE_READY_FILE to poll" shape, which is
-`plan/spec-fixit-sleeps-qemu-bulk.md`'s AC-2/AC-3/AC-6, not this spec's. Left
+`plan/future/spec-fixit-sleeps-qemu-bulk.md`'s AC-2/AC-3/AC-6, not this spec's. Left
 alone deliberately rather than done under the wrong spec.
 
 **Still open here:** P2 (runner stderr-wait), P4 (fib), P6/P7 (already reported

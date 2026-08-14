@@ -6,13 +6,20 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard exists only if work is deferred out of it. Create `plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md` on the first deferral) |
-| Updated | 2026-08-02 |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard exists only if work is deferred out of it. Create `plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md` on the first deferral) | <!-- doc-links: ignore (shard owed only on the first deferral; none was made) -->
+| Updated | 2026-08-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Deferral holder created on 2026-08-02 while the rfcgate-1b RFC 7296 pilot spec was
 closing. The finding is not the pilot's work and had no home.
+
+## Provenance
+
+Reclassified as an improvement on 2026-08-14 at Thomas's instruction and moved
+from `plan/` to `plan/future/`. Reason: Ze is conformant, the peer is not, the
+workaround is in place and cross-referenced from both sites that pay for it.
+The deliverable is filing two upstream reports, which changes nothing in Ze.
 
 ## Task
 
@@ -132,7 +139,7 @@ failure into a working handshake with no CA hint, which is a correct TLS 1.3 exc
     the obligation to send it, and no phase may drop that obligation.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc8446.md` - TLS 1.3, Section 4.2.4 `certificate_authorities`
+- [ ] `rfc/short/rfc8446.md` - TLS 1.3, Section 4.2.4 `certificate_authorities` <!-- doc-links: ignore (no RFC 8446 summary in this tree) -->
   → Constraint: `DistinguishedName authorities<3..2^16-1>`. A zero-length list has no legal
     encoding. Create the summary if it is absent; do not cite Section 4.2.4 from memory.
 
@@ -273,8 +280,8 @@ extension, and the rejection is the Go stdlib). It is Required Reading, not a ch
 
 | File | Content |
 |------|---------|
-| `docs/labs/ipsec-interop.md` | The lab page the l2tp and pppoe labs already have, carrying the peer-defect note and this spec's path. Optional: fold into the header comments instead if the design phase judges a page unwarranted |
-| `plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md` | This spec's shard, if any work is deferred out of it |
+| `docs/labs/ipsec-interop.md` | The lab page the l2tp and pppoe labs already have, carrying the peer-defect note and this spec's path. Optional: fold into the header comments instead if the design phase judges a page unwarranted | <!-- doc-links: ignore (page this spec proposes; not written) -->
+| `plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md` | This spec's shard, if any work is deferred out of it | <!-- doc-links: ignore (shard owed only on the first deferral; none was made) -->
 
 ## Implementation Steps
 

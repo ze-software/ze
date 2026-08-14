@@ -7,9 +7,16 @@
 | Depends | - |
 | Phase | 7/8 (bucket 7 is the remainder) |
 | Deferral shard | `plan/deferrals/fixit-unexport-package-private-symbols.md` |
-| Updated | 2026-08-09 |
+| Updated | 2026-08-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Provenance
+
+Reclassified as an improvement on 2026-08-14 at Thomas's instruction and moved
+from `plan/` to `plan/future/`. Reason: `plan/future/README.md` names this exact
+work as its own example of a cleanup with no wire-visible or operator-visible
+effect. Every change is a rename, so no behaviour moves.
 
 ## Task
 
@@ -393,7 +400,7 @@ it.
 - [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
 - [ ] Journal row for anything this teaches
 - [ ] **Commit A:** code + spec + journal row
-- [ ] **Commit B:** `git rm plan/spec-fixit-unexport-package-private-symbols.md` only
+- [ ] **Commit B:** `git rm plan/future/spec-fixit-unexport-package-private-symbols.md` only
 
 ## Pre-Commit Verification
 

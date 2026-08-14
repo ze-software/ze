@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 `golangci-lint`'s `unused` and `unparam` linters skip an exported top-level
 declaration, on the assumption that an external package can reach it. Once
-`plan/spec-fixit-unexport-package-private-symbols.md` unexports a symbol,
+`plan/future/spec-fixit-unexport-package-private-symbols.md` unexports a symbol,
 that assumption stops holding, and the linter reports real findings that
 were sitting there the whole time, invisible only because the symbol used to
 be exported. This is not a rename defect: every rename compiles and every
@@ -47,7 +47,7 @@ export stops protecting it). Two more shapes recur in the table below:
   → Constraint: a removed parameter changes every call site in the same commit
 
 **Key insights:**
-- The finding only exists BECAUSE `plan/spec-fixit-unexport-package-private-symbols.md`
+- The finding only exists BECAUSE `plan/future/spec-fixit-unexport-package-private-symbols.md`
   unexported the symbol. Fixing this spec before that one finishes would chase a
   moving target: more findings appear as more buckets close.
 
@@ -73,7 +73,7 @@ is documented as a false positive (e.g. reached only under a build tag
 
 ### Entry Point
 `golangci-lint run ./<pkg>/...`, run against a package after
-`plan/spec-fixit-unexport-package-private-symbols.md` has unexported its
+`plan/future/spec-fixit-unexport-package-private-symbols.md` has unexported its
 flagged symbols.
 
 ### Transformation Path
@@ -92,7 +92,7 @@ flagged symbols.
 | Lint default tag set ↔ package's full `ze_*` tag set | re-run `golangci-lint` with the package's feature tags before deleting a finding | No |
 
 ### Integration Points
-- `plan/spec-fixit-unexport-package-private-symbols.md` is the producer of
+- `plan/future/spec-fixit-unexport-package-private-symbols.md` is the producer of
   every finding this spec fixes; this spec cannot start its findings sweep
   until that spec's 8 buckets all close.
 - `make ze-lint-changed` / `make ze-verify` re-run the same linter and are
@@ -102,7 +102,7 @@ flagged symbols.
 
 All found by running `golangci-lint run ./<pkg>/...` on a package right
 after `gopls rename -w` unexported the symbols named in
-`plan/spec-fixit-unexport-package-private-symbols.md`, bucket 3
+`plan/future/spec-fixit-unexport-package-private-symbols.md`, bucket 3
 (`tmp/s/7f238818-c325-45a5-af3d-d8fb11e49a46/bucket-3.tsv`). Every row here
 was left untouched: unexporting is a rename, and neither a signature change
 nor a deletion is in scope for that spec.
@@ -133,7 +133,7 @@ nor a deletion is in scope for that spec.
 This table covers only bucket 3 of 8. The other 7 buckets touch different
 packages and are likely to surface the same pattern; this spec's design
 phase should re-run `golangci-lint` over every package
-`plan/spec-fixit-unexport-package-private-symbols.md` touches, once all 8
+`plan/future/spec-fixit-unexport-package-private-symbols.md` touches, once all 8
 buckets close, rather than trust this partial list.
 
 ## Risks & Assumptions
@@ -199,7 +199,7 @@ buckets close, rather than trust this partial list.
 
 ## Implementation Steps
 
-1. Wait for every bucket of `plan/spec-fixit-unexport-package-private-symbols.md`
+1. Wait for every bucket of `plan/future/spec-fixit-unexport-package-private-symbols.md`
    to close, then re-run `golangci-lint` over every package it touched.
 2. For each finding: read the declaration, check `git blame` for intent, and
    classify it AC-1, AC-2, or AC-3.

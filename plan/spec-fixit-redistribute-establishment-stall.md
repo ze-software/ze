@@ -891,7 +891,7 @@ redistribute tests stay blind-sleep only until F1-F4 land.
 - `internal/component/bgp/plugins/redistribute_egress/replay.go` (replay-on-request flow + coordinator)
 - `internal/component/bgp/reactor/session_read.go` (`processMessage`, establishment path)
 - `internal/component/bgp/reactor/reactor_notify.go` (message counters, `notifyMessageReceiver`)
-- `plan/spec-fixit-migrate-sleeps-infra.md` (Mistake Log / Failed Approaches: the bisection)
+- `plan/future/spec-fixit-migrate-sleeps-infra.md` (Mistake Log / Failed Approaches: the bisection)
 - `plan/spec-redistribute-late-join-replay.md` (the behavior the fix must not regress)
 - `ai/rules/completion.md`, `ai/rules/evidence.md`
 

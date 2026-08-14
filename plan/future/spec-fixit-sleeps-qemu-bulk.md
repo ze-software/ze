@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | spec-fixit-migrate-sleeps-infra (QEMU-gated carve-out) |
 | Phase | 0/N (research) |
-| Updated | 2026-07-17 |
+| Updated | 2026-08-14 |
 
 Update (2026-07-22 plan review; body corrected in-body 2026-07-22): the sleep
 ratchet baseline is now **125** (`test/.ci-sleep-baseline`, composable-delta
@@ -22,6 +22,13 @@ The `record_parse.go`/`record.go` line drift is also corrected in-body:
 2026-07-23 after the origin/main fast-forward to 822029463, which touched
 both runner files again.)
 | Scope | groups A + B (needs-linux + skip-os:darwin blind sleeps); group C ungated is OUT (2026-07-17 autonomous default, see Open Questions → Resolutions) |
+
+## Provenance
+
+Reclassified as an improvement on 2026-08-14 at Thomas's instruction and moved
+from `plan/` to `plan/future/`. Reason: these are blind sleeps in QEMU-gated
+tests. A sleep is a wait, and the assertion after it still runs, so no green is
+hidden by leaving them.
 
 ## Task
 
@@ -46,7 +53,7 @@ ratcheted down in the same change.
 
 ## Origin
 
-Carved out of `plan/spec-fixit-migrate-sleeps-infra.md` (the umbrella), whose Design
+Carved out of `plan/future/spec-fixit-migrate-sleeps-infra.md` (the umbrella), whose Design
 Insights name a "QEMU-gated needs-linux bulk (~150)" that the darwin dev host cannot
 verify, and whose Implementation Summary states no further clean host-verifiable blind
 sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harness`.
@@ -148,7 +155,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 - Whether the group B / group C classification reflects intent or drift (a test may be missing an `option=needs-linux` it deserves).
 - The umbrella's "~150 QEMU-gated" figure. The measured linux-gated blind population (groups A+B) is 21, an order of magnitude smaller. The umbrella figure appears to count raw sleeps at an earlier baseline (246), before the conversions it records.
 
-**Scope update (2026-07-16, sibling hand-offs):** R-5 hands the 3 external-warn group A files (`ddos-detect-external-warns.ci`, `flowexport-external-refuses.ci`, `trafficusage-external-refuses.ci`) to `plan/spec-fixit-reject-fence-observability.md`; R-8 hands the ddos-detect-mitigate files to `plan/spec-fixit-ddos-test-infra.md`, which now carry 0 blind annotations, so this spec has nothing to convert there. After both hand-offs the cleanly-owned convertible sleeps shrink to about 5: `traffic/022-boot-qdisc-tc.ci`, `traffic/023-reload-qdisc-tc.ci` (2 sleeps), `install/dhcp-zero-listener.ci`, `install/tftp-zero-listener.ci`. At Phase 2 the residual population must be re-measured to confirm a standalone spec is still justified, versus folding the QEMU-verification of these ~5 sleeps into the sibling specs.
+**Scope update (2026-07-16, sibling hand-offs):** R-5 hands the 3 external-warn group A files (`ddos-detect-external-warns.ci`, `flowexport-external-refuses.ci`, `trafficusage-external-refuses.ci`) to `plan/spec-fixit-reject-fence-observability.md`; R-8 hands the ddos-detect-mitigate files to `plan/spec-fixit-ddos-test-infra.md`, which now carry 0 blind annotations, so this spec has nothing to convert there. After both hand-offs the cleanly-owned convertible sleeps shrink to about 5: `traffic/022-boot-qdisc-tc.ci`, `traffic/023-reload-qdisc-tc.ci` (2 sleeps), `install/dhcp-zero-listener.ci`, `install/tftp-zero-listener.ci`. At Phase 2 the residual population must be re-measured to confirm a standalone spec is still justified, versus folding the QEMU-verification of these ~5 sleeps into the sibling specs. <!-- doc-links: ignore (spec closed and removed) -->
 
 ## Data Flow (MANDATORY)
 
@@ -213,7 +220,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The originals currently pass under QEMU | they are committed and gated, not quarantined (no skip/xfail marker found) | AC-1 fails first and this becomes a test-repair spec, not a conversion spec | run `make ze-qemu-needs-linux-test` before touching anything | unvalidated |
 | A-2 | A backgrounded ze can be given a pollable readiness signal | the annotation says the ZE_READY_FILE marker is absent for backgrounded ze, not that readiness is unobservable; the asserted OnConfigure log line already exists as a signal | AC-2 collapses to "wait on the log line" only, or needs a production readiness surface (scope grows) | read the ZE_READY_FILE producer and the runner's background-spawn path | unvalidated |
-| A-3 | SIGHUP reload completion is observable without new production code | the tests already assert a post-reload log line | AC-3 needs a new reload-processed signal, overlapping `plan/spec-fixit-reject-fence-observability.md` | read the SIGHUP handler and its emitted events | unvalidated |
+| A-3 | SIGHUP reload completion is observable without new production code | the tests already assert a post-reload log line | AC-3 needs a new reload-processed signal, overlapping `plan/spec-fixit-reject-fence-observability.md` | read the SIGHUP handler and its emitted events | unvalidated | <!-- doc-links: ignore (spec closed and removed) -->
 | A-4 | Group B tests are correctly gated with `skip-os` rather than `needs-linux` | they are linux-only in substance (nft/tc/kernel) | adding `option=needs-linux` is a cheap fix bringing 12 blind sleeps into the fast QEMU loop | compare a group A and a group B test's requirements | unvalidated |
 | A-5 | Converting a blind hold to a log-line wait is not vacuous | the log line is already the asserted effect | the wait passes before the effect lands, giving a false green | assert the effect (kernel readback), not only the log line, where possible | unvalidated |
 
@@ -224,8 +231,8 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | R-2 | "Verified" via a target that silently skipped the test (group B under `ZE_QEMU_LINUX_ONLY=1`) | the QEMU run reports the test skipped, not passed, and the summary is not read closely | AC-8; always read the skip count in the QEMU summary, never just the exit code |
 | R-3 | A converted test flakes under QEMU's slower timing | intermittent red | investigate the race at the source; NEVER re-add a sleep (`ai/rules/completion.md`) |
 | R-4 | Converting a bounded poll or a deliberate timer for baseline credit | the diff touches sleeps whose comments say "bounded wait" or "IS the behavior under test" | AC-5/AC-6; the ratchet rewards removal, so guard against gaming it |
-| R-5 | Overlap with `plan/spec-fixit-reject-fence-observability.md` | two specs edit the same external-warn tests | 3 group A files (`ddos-detect-external-warns`, `flowexport-external-refuses`, `trafficusage-external-refuses`) are named by the umbrella as infra-gated reject-fence cases; confirm ownership before touching them |
-| R-8 | Overlap with `plan/spec-fixit-ddos-test-infra.md` (sibling skeleton, created 2026-07-15) | both specs edit `test/plugin/ddos-detect-mitigate.ci` | that spec's Problem A REWRITES that file onto the `ze_api` observer pattern, changing its sleep count. It has blind=0 today, so this spec has nothing to convert in it: leave it alone and let the ddos spec own it. Re-measure the baseline after that spec lands |
+| R-5 | Overlap with `plan/spec-fixit-reject-fence-observability.md` | two specs edit the same external-warn tests | 3 group A files (`ddos-detect-external-warns`, `flowexport-external-refuses`, `trafficusage-external-refuses`) are named by the umbrella as infra-gated reject-fence cases; confirm ownership before touching them | <!-- doc-links: ignore (spec closed and removed) -->
+| R-8 | Overlap with `plan/spec-fixit-ddos-test-infra.md` (sibling skeleton, created 2026-07-15) | both specs edit `test/plugin/ddos-detect-mitigate.ci` | that spec's Problem A REWRITES that file onto the `ze_api` observer pattern, changing its sleep count. It has blind=0 today, so this spec has nothing to convert in it: leave it alone and let the ddos spec own it. Re-measure the baseline after that spec lands | <!-- doc-links: ignore (spec closed and removed) -->
 | R-6 | QEMU turnaround makes per-test iteration slow | the loop drags | use `make ze-qemu-debug RUN=...` for single-test iteration; batch the final verification |
 | R-7 | Touching a `.ci` file makes the session own every sleep in it (justification gate is changed-file scoped) | the gate fails on sleeps the session did not add | expect it; justify or convert the neighbours in the same file |
 
@@ -338,9 +345,9 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 |---------|----------|
 | AC-1 fails (original red under QEMU) | fix or quarantine the test FIRST; do not convert a red test |
 | A-2 false (no backgrounded readiness possible) | fall back to a log-line wait; record the limitation |
-| A-3 false (no reload signal) | hand the reload shape to `plan/spec-fixit-reject-fence-observability.md` |
+| A-3 false (no reload signal) | hand the reload shape to `plan/spec-fixit-reject-fence-observability.md` | <!-- doc-links: ignore (spec closed and removed) -->
 | Converted test flakes | investigate the race at the source; never re-add a sleep |
-| 3 fix attempts fail | mark DEFER in `plan/deferrals.md`, move on, report |
+| 3 fix attempts fail | mark DEFER in `plan/deferrals.md`, move on, report | <!-- doc-links: ignore (the single deferrals file was retired for per-source shards) -->
 
 ## Open Questions (research before design)
 
@@ -363,8 +370,8 @@ Every open question above is resolved for readiness. Empirical confirmations tha
 | 2 | Group B fork: `ze-qemu-all-test` vs add `option=needs-linux`? | Group B is IN SCOPE. Default branch = `make ze-qemu-all-test` (zero committed change). Regating to `option=needs-linux` is an optional follow-up with its own review. Both are valid AC-8 "done" states. | scope |
 | 3 | Group C: misfiled or missing a gate? | OUT OF SCOPE for this spec (host-runnable, not QEMU-gated). The misfiled-vs-missing-gate call is handed to a follow-up host-runnable/gate-audit spec. | scope |
 | 4 | Why no ZE_READY_FILE marker for backgrounded ze (A-2)? Runner-level one-move fix? | Implement-time research (Phase 3). Design-settled: if not fixable once at the runner, AC-2 falls back to a wait on the already-asserted OnConfigure log line (A-5 requires asserting the kernel readback too where possible). Fallback stated → not design-open. | arch |
-| 5 | Reload-completion signal for SIGHUP (A-3)? | Implement-time research (Phase 5). Design-settled: if no signal exists, the reload shape hands to `plan/spec-fixit-reject-fence-observability.md` (Failure Routing) or is recorded infra-gated (AC-3). Fallback stated → not design-open. | arch |
-| 6 | Do the 3 external-warn group A files belong here or to reject-fence (R-5)? | RESOLVED by the 2026-07-16 scope update: handed to `plan/spec-fixit-reject-fence-observability.md`; `ddos-detect-mitigate.ci` handed to `plan/spec-fixit-ddos-test-infra.md` (R-8). This spec does not touch them. Cleanly-owned group A converts: `traffic/022`, `traffic/023`, `install/dhcp-zero-listener`, `install/tftp-zero-listener`, `plugin/ddos-detect-characterize`. | scope |
+| 5 | Reload-completion signal for SIGHUP (A-3)? | Implement-time research (Phase 5). Design-settled: if no signal exists, the reload shape hands to `plan/spec-fixit-reject-fence-observability.md` (Failure Routing) or is recorded infra-gated (AC-3). Fallback stated → not design-open. | arch | <!-- doc-links: ignore (spec closed and removed) -->
+| 6 | Do the 3 external-warn group A files belong here or to reject-fence (R-5)? | RESOLVED by the 2026-07-16 scope update: handed to `plan/spec-fixit-reject-fence-observability.md`; `ddos-detect-mitigate.ci` handed to `plan/spec-fixit-ddos-test-infra.md` (R-8). This spec does not touch them. Cleanly-owned group A converts: `traffic/022`, `traffic/023`, `install/dhcp-zero-listener`, `install/tftp-zero-listener`, `plugin/ddos-detect-characterize`. | scope | <!-- doc-links: ignore (spec closed and removed) -->
 | 7 | vpp `WaitConnected` (traffic/012, /026): injectable timeout, or is the real 5s wait validated? | The real timeout IS the behavior under test (012's header: WaitConnected returns an error after the 5s timeout). Kept unchanged as the AC-6 control. An injectable timeout is a separate optimisation, OUT OF SCOPE (ungated group C anyway). | low |
 | 8 | What did the umbrella's "~150" count? | Reconciled: it counted RAW sleeps at an earlier baseline (~246), before the conversions it records. The linux-gated BLIND population (groups A+B) is 21. No hidden in-scope work is revealed; group C's ungated blind sleeps are the difference and are handled as a follow-up (question 3). | low |
 
