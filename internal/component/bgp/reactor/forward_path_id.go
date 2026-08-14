@@ -1,4 +1,4 @@
-// Design: docs/architecture/bgp/forward-rails.md -- one egress transform, both rails
+// Design: docs/architecture/bgp/structural-forwarding.md -- one egress transform, both rails
 // RFC: rfc/short/rfc7911.md — Section 2, a re-advertised route carries the speaker's own Path Identifier
 // Related: forward_body.go -- buildFwdBody (raw rail) and fwdReencodeNLRIs (re-encode rail)
 package reactor

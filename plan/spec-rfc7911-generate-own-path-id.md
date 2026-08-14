@@ -59,7 +59,7 @@ proven.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/bgp/forward-rails.md` - the one-egress-transform invariant
+- [ ] `docs/architecture/bgp/structural-forwarding.md` - the one-egress-transform invariant
   → Constraint: a replayed route and a live forward MUST produce identical wire bytes for the same path
 
 ### RFC Summaries (Scope: protocol)
