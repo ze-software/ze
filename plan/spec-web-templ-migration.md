@@ -190,7 +190,7 @@ route and no plugin emits HTML.
 | HTTP GET the looking-glass with a token | → | ported `lg` page component | NEW test required. `TestLGTokenMiddleware` asserts HTTP status only, so it stays green whether or not the page body renders |
 | HTTP GET `/show/interface/` in the workbench | → | ported component replacing `RenderFragment("workbench_table")` | NEW test required. `TestInterfaceTableData_Build` asserts struct fields (`data.Title`, `data.Rows[0].Key`) and renders nothing |
 | Every template body, before and after the port | → | the TEMPLATE golden capture | `make ze-web-golden-check` (built 2026-08-14). Proven to discriminate: one added space in `lg/templates/error.html` reds three named subtests |
-| An HTTP request to every reachable route | → | the HANDLER golden capture | NEW, still owed by phase 1. The template capture does NOT cover this: it executes the parsed template directly and bypasses `RenderLayout`, `RenderWorkbench`, `RenderFragment`, `RenderConfigToHTML`, `RenderField` and `RenderL2TPTemplate`, and its view models are authored in the test rather than built by a handler. Phase 3 rewrites exactly those wrappers, so without this a port that changes composition or view-model construction stays green |
+| An HTTP request to every reachable route | → | the HANDLER golden capture | `make ze-web-golden-check` (built 2026-08-14): `TestWebHandlerGoldenOutput` and `TestLGHandlerGoldenOutput`. The template capture does NOT cover this: it executes the parsed template directly and bypasses `RenderLayout`, `RenderWorkbench`, `RenderFragment`, `RenderConfigToHTML`, `RenderField` and `RenderL2TPTemplate`, and its view models are authored in the test rather than built by a handler. Proven to discriminate: a change to `HandleAdminView`'s title composition reds two named handler cases and leaves the template capture green |
 | HTTP GET the config editor layout | → | ported component replacing `RenderLayout` | `TestRenderLayout` (existing test) |
 | HTMX POST deleting a list entry | → | ported `HandleFragment` OOB path | `test/ui/web-delete-list-entry.ci` |
 | HTMX POST committing config | → | ported `WriteOOBError` and commit bar | `test/ui/web-commit-transactional.ci` |
@@ -201,7 +201,7 @@ route and no plugin emits HTML.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A view-model field is renamed without updating its markup | `go build` fails. Today the page renders blank. |
-| AC-2 | Every page and fragment reachable in the web UI is requested | Rendered bytes are unchanged from before the migration. TWO captures are needed and phase 1 owns both. The TEMPLATE capture pins each template body under fixed test-authored input. The HANDLER capture pins the response bytes of an actual HTTP request. Neither proves the other, and the `strings.Contains` suite proves neither |
+| AC-2 | Every page and fragment reachable in the web UI is requested | Rendered bytes are unchanged from before the migration. THREE captures are needed and phase 1 owns all three. The TEMPLATE capture pins each template body under fixed test-authored input. The HANDLER capture pins the response bytes of an actual HTTP request. The MARKUP capture pins the HTML the Go builders write, which no template holds. None proves another, and the `strings.Contains` suite proves none of them |
 | AC-3 | `make generate` runs on a clean tree | No file changes. Generated output is in sync with its `.templ` sources |
 | AC-4 | A package is declared migrated | No `html/template` parse call remains in it (no-layering) |
 | AC-5 | A value containing `<script>` reaches any rendered field | It appears escaped exactly once, never twice, never raw |
@@ -337,15 +337,25 @@ renderer.
      `RenderField`, `RenderConfigToHTML` and `RenderL2TPTemplate` each discard
      the execution error and return `""`, so a capture taken through them would
      record an empty fixture as a pass. Proven red then green by hand.
-   - **STILL OWED: the HANDLER capture.** The consequence of that deliberate
-     bypass is that the template capture pins template bodies under fixed
-     test-authored input, NOT the bytes an operator receives. It never issues
-     an HTTP request, and every view model in it is authored in the test rather
-     than built by the handler that runs in production. Phase 3 rewrites the
-     wrappers it bypasses, so a port that renders each template identically
-     from a differently-built or differently-composed handler model would stay
-     green. Capture the response bytes of a real request to every reachable
-     route. Phase 1 is NOT complete until this exists.
+   - **DONE 2026-08-14: the HANDLER capture.** 51 web routes (30 the hub
+     registers plus 21 from the registry) and 29 lg routes, captured by 109 web
+     fixtures and 37 lg fixtures in `testdata/handler/`. It issues a
+     real HTTP request through the mux the hub builds and records the response.
+     The route list is DERIVED, never typed: `RegisteredWebRoutes()`, the
+     literal patterns in `cmd/ze/hub/service_web.go` and
+     `internal/component/lg/server.go`, and `sections()` for the workbench
+     pages. A route no case reaches fails the check by name. Proven to
+     discriminate at the layer the template capture cannot see: changing
+     `HandleAdminView`'s title composition leaves `TestWebGoldenOutput` green
+     and reds `TestWebHandlerGoldenOutput` on both admin cases.
+   - **DONE 2026-08-14: the MARKUP capture.** `TestWebMarkupGoldenOutput`
+     renders the HTML builders that no template holds, over input the test
+     fixes, into `internal/component/web/testdata/markup/`.
+     `buildHostHardwareHTML` is the first: the handler capture normalizes that
+     panel, because its live section list and rows follow what `host.Detect`
+     finds on the machine. Proven to discriminate: one byte changed inside the
+     builder's markup reds `TestWebMarkupGoldenOutput/host-hardware` and
+     `TestWebHandlerGoldenOutput/nav-show-system-hardware`.
    - Also settle in this phase, because each blocks a later phase and each is
      cheap now: the compile-failure mechanism for AC-1, and the A-1 number.
    - Verify: the check targets fail while nothing is generated, then pass.
@@ -418,7 +428,7 @@ renderer.
 | Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed, through the mechanism chosen in phase 1 |
 | `lg` view data typed (AC-8) | No `map[string]any` in the `lg` render path; `TestLGViewDataIsTyped` green |
 | Rendered bytes unchanged (AC-2), markup layer | `make ze-web-golden-check` against the phase-1 template capture |
-| Rendered bytes unchanged (AC-2), composition and handler layers | the phase-1 HANDLER capture. The template capture cannot stand in for it: it bypasses every wrapper phase 3 rewrites |
+| Rendered bytes unchanged (AC-2), composition and handler layers | `make ze-web-golden-check`, the handler half. The template capture cannot stand in for it: it bypasses every wrapper phase 3 rewrites |
 | No HTML literals left in Go (AC-7) | Match BOTH string forms. The double-quoted `Str("<` finds 8 sites, all in `page_snapshot.go`; the backtick raw-string form (`Str(` and `WriteString(` followed by a backtick and `<`) finds 99 more. A grep for the double-quoted form alone was already near-vacuous before any work started, so it MUST NOT be the deliverable's check |
 
 ### Security Review Checklist

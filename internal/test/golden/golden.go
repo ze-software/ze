@@ -1,17 +1,25 @@
 // Design: (none -- test utility, no architecture doc)
 
-// Package golden compares the bytes an html/template set renders against
-// fixtures committed beside the package under test.
+// Package golden compares captured bytes against fixtures committed beside the
+// package under test.
 //
-// Two packages capture their rendered output this way, internal/component/web
-// and internal/component/lg. Each parses its templates into a different shape.
-// Each therefore keeps its own spec map, its own fixture data and its own
-// execute function. What they share lives here:
+// Three kinds of capture use it, and each answers a question the others cannot.
+// The TEMPLATE capture executes one parsed template against test-authored data.
+// The HANDLER capture issues an HTTP request and records the response an
+// operator receives. It therefore covers the view model the handler builds,
+// and the wrappers it renders through. The MARKUP capture renders a Go HTML builder
+// over fixed input, because the handler capture must normalize whatever the
+// machine decides. No one of the three proves another.
 //
-//   - the walk over the template FS
-//   - the check that the spec and the FS agree
-//   - the fixture path rule
-//   - the byte comparison
+// Two packages capture this way, internal/component/web and
+// internal/component/lg. Each keeps its own spec, its own fixture data and its
+// own execute or serve function. Five things are shared, and they live here.
+//
+//   - the walk over the template FS.
+//   - the check that the spec and the FS agree.
+//   - the check that a capture covers a live name set, both directions.
+//   - the fixture path rule.
+//   - the byte comparison.
 package golden
 
 import (

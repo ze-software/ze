@@ -1,0 +1,26 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: application/json
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+{
+  "status": "degraded",
+  "components": [
+    {
+      "name": "bgp",
+      "status": "healthy",
+      "checked-at": "<TIME>"
+    },
+    {
+      "name": "web",
+      "status": "degraded",
+      "reason": "no certificate",
+      "checked-at": "<TIME>"
+    }
+  ],
+  "checked-at": "<TIME>"
+}

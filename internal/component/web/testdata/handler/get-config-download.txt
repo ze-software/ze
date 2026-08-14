@@ -1,0 +1,87 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Disposition: attachment; filename="ze.conf"
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/plain; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+bgp {
+    router-id 1.2.3.4
+    peer alpha {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65001
+                remote 65002
+            }
+            router-id 1.2.3.4
+        }
+    }
+    peer beta {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65001
+                remote 65003
+            }
+            router-id 1.2.3.4
+        }
+    }
+}
+interface {
+    backend netlink;
+    ethernet eth0 {
+        mac {
+            address 00:11:22:33:44:55;
+        }
+        description "uplink to the exchange";
+    }
+    bridge br0 {
+        mac {
+            address 02:00:00:00:00:03;
+        }
+    }
+}
+firewall {
+    backend nft;
+    table golden {
+        family inet;
+        set blocked {
+            type ipv4;
+            element 10.0.0.1 {}
+        }
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy accept;
+            term block-known {
+                from { source-address "@blocked"; }
+                then { drop; }
+            }
+        }
+    }
+}
+system {
+    host golden
+    domain example.net
+}

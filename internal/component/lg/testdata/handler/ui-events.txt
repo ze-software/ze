@@ -1,0 +1,11 @@
+status: 200
+header: Cache-Control: no-cache
+header: Connection: keep-alive
+header: Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'
+header: Content-Type: text/event-stream
+header: Referrer-Policy: no-referrer
+header: X-Accel-Buffering: no
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+

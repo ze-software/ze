@@ -1,0 +1,12 @@
+status: 302
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Location: /show/?error=invalid+path%3A+nothing-here
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<a href="/show/?error=invalid+path%3A+nothing-here">Found</a>.
+

@@ -1196,12 +1196,15 @@ func TestWebGoldenOutput(t *testing.T) {
 		}
 	}
 
+	written := make([]string, 0, len(files))
+
 	for _, file := range files {
 		for _, unit := range webGolden.Spec[file] {
 			content := false
 
 			for _, variant := range unit.Variants {
 				name := unit.FixtureName(variant)
+				written = append(written, webGolden.FixturePath(root, file, name))
 
 				t.Run(name, func(t *testing.T) {
 					var buf bytes.Buffer
@@ -1229,6 +1232,10 @@ func TestWebGoldenOutput(t *testing.T) {
 			}
 		}
 	}
+
+	// A template deleted from the FS takes its spec entry with it. Its fixture
+	// stays on disk, where the next reader counts bytes nobody compares.
+	golden.AssertCoversDir(t, root, "webGoldenSpec", written)
 }
 
 // TestWebGoldenDetailCarriesItsFields proves the detail capture is not vacuous.

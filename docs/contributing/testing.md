@@ -240,4 +240,6 @@ fuzz corpus entry becomes a regression test automatically.
 | Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
 | Check the commit I just made compiles | `make ze-tracked-build-check` |
 | Prove a web or looking-glass template renders the same bytes | `make ze-web-golden-check` |
+| Prove a web or looking-glass ROUTE answers the same bytes | `make ze-web-golden-check` (the handler capture runs in the same target) |
+| Prove an HTML builder that no template holds renders the same bytes | `make ze-web-golden-check` (the markup capture runs in the same target) |
 | Recapture those bytes after a deliberate markup change | `make ze-web-golden-update`, then read the diff |

@@ -1,5 +1,5 @@
 .PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean clean-all fmt vet tidy generate help
-.PHONY: ze-docker
+.PHONY: ze-docker ze-docker-lab
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-validate-tree ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-clean-sessions ze-hook-test
@@ -242,11 +242,27 @@ endef
 # substring, so this is the only check that proves the rendered output is
 # unchanged. Both tests also run under ze-unit-test; this target names them so a
 # rendering change can be checked on its own.
+#
+# THREE captures run here and none proves another. The TEMPLATE capture
+# executes one parsed template against data the test writes. The HANDLER capture
+# issues an HTTP request and records the response, so it covers the view model
+# the handler builds and the wrappers it renders through -- RenderFragment,
+# RenderConfigToHTML, RenderField and RenderL2TPTemplate each discard the
+# execution error and return "", which is why the template capture bypasses them.
+# The MARKUP capture renders the builders that write HTML in Go, over input it
+# fixes: no template holds that markup, and the handler capture normalizes it
+# because the live input is whatever host.Detect finds on the machine.
 ze-web-golden-check:
 	@$(call require-go-test,TestWebGoldenOutput,./internal/component/web/)
 	@$(GO_TEST) -run 'TestWebGoldenOutput' ./internal/component/web/
 	@$(call require-go-test,TestLGGoldenOutput,./internal/component/lg/)
 	@$(GO_TEST) -run 'TestLGGoldenOutput' ./internal/component/lg/
+	@$(call require-go-test,TestWebHandlerGoldenOutput,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebHandlerGoldenOutput' ./internal/component/web/
+	@$(call require-go-test,TestLGHandlerGoldenOutput,./internal/component/lg/)
+	@$(GO_TEST) -run 'TestLGHandlerGoldenOutput' ./internal/component/lg/
+	@$(call require-go-test,TestWebMarkupGoldenOutput,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebMarkupGoldenOutput' ./internal/component/web/
 
 # Recapture the golden fixtures after a DELIBERATE markup change. Read the diff
 # before committing it: every byte this rewrites is a byte an operator receives.
@@ -255,7 +271,13 @@ ze-web-golden-update:
 	@$(GO_TEST) -run 'TestWebGoldenOutput' ./internal/component/web/ -update-golden
 	@$(call require-go-test,TestLGGoldenOutput,./internal/component/lg/)
 	@$(GO_TEST) -run 'TestLGGoldenOutput' ./internal/component/lg/ -update-golden
-	@echo "Updated internal/component/web/testdata/golden/ and internal/component/lg/testdata/golden/"
+	@$(call require-go-test,TestWebHandlerGoldenOutput,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebHandlerGoldenOutput' ./internal/component/web/ -update-golden
+	@$(call require-go-test,TestLGHandlerGoldenOutput,./internal/component/lg/)
+	@$(GO_TEST) -run 'TestLGHandlerGoldenOutput' ./internal/component/lg/ -update-golden
+	@$(call require-go-test,TestWebMarkupGoldenOutput,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebMarkupGoldenOutput' ./internal/component/web/ -update-golden
+	@echo "Updated internal/component/web/testdata/ and internal/component/lg/testdata/"
 
 # Regenerate plugin/all registry snapshots (testdata/*.snapshot) from the live
 # registry after adding or removing a plugin. ze-unit-test fails with a clear
@@ -353,15 +375,36 @@ $(ZEBIN_PERF): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 ZE_DOCKER_IMAGE ?= ze
 ZE_DOCKER_TAG ?= $(ZE_VERSION)
 
+# The lab image is a SECOND image, not a replacement: docker/Dockerfile stays a
+# static binary on scratch for deployments, and this one adds the shell and
+# iproute2 netlab and containerlab exec inside a node. Distinct names, so one is
+# never mistaken for the other.
+ZE_LAB_IMAGE ?= netlab/ze
+ZE_LAB_TAG ?= latest
+
+# Both images derive their default-on feature tags from feature-gates.txt inside
+# the Dockerfile, so `docker compose build` and a bare `docker build` get the same
+# binary make does. ZE_TAGS is passed as EXTRA tags, its meaning everywhere else
+# in this file.
 ze-docker:
 	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
 	docker build \
 		-f docker/Dockerfile \
 		--build-arg ZE_VERSION=$(ZE_VERSION) \
 		--build-arg ZE_BUILD_DATE=$(ZE_BUILD_DATE) \
-		$(if $(ZE_TAGS),--build-arg ZE_TAGS=$(ZE_TAGS)) \
+		--build-arg ZE_TAGS='$(ZE_TAGS)' \
 		-t $(ZE_DOCKER_IMAGE):$(ZE_DOCKER_TAG) \
 		-t $(ZE_DOCKER_IMAGE):latest \
+		.
+
+ze-docker-lab:
+	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
+	docker build \
+		-f docker/Dockerfile.lab \
+		--build-arg ZE_VERSION=$(ZE_VERSION) \
+		--build-arg ZE_BUILD_DATE=$(ZE_BUILD_DATE) \
+		--build-arg ZE_TAGS='$(ZE_TAGS)' \
+		-t $(ZE_LAB_IMAGE):$(ZE_LAB_TAG) \
 		.
 
 # ─── Lint and specialised test targets ──────────────────────────────────────
@@ -1052,6 +1095,9 @@ help-test:
 	@echo "    ze-interop-test           FRR/BIRD interop (INTEROP_SCENARIO=name for one)"
 	@echo "    ze-ipsec-interop-test     strongSwan IKEv2 (IPSEC_INTEROP_SCENARIO=name)"
 	@echo ""
+	@echo "  netlab (needs netlab installed):"
+	@echo "    ze-netlab-render-check    contrib/netlab renders to golden (ARGS=--update, NETLAB=path)"
+	@echo ""
 	@echo "  Stress (Linux, root, netns):"
 	@echo "    ze-stress-test            BGP stress with ze-test peer injector"
 	@echo "    ze-stress-bird-test       BIRD baseline comparison"
@@ -1132,7 +1178,8 @@ help-deploy:
 	@echo "                             NAME=prod PXE_DIR=build/pxe"
 	@echo ""
 	@echo "  Docker:"
-	@echo "    ze-docker                Build Docker image (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
+	@echo "    ze-docker                Build deployment image, scratch base (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
+	@echo "    ze-docker-lab            Build lab image for netlab/containerlab, alpine base (ZE_LAB_IMAGE=netlab/ze ZE_LAB_TAG=latest)"
 	@echo ""
 	@echo "  Gokrazy VM appliance (see docs/guide/appliance.md):"
 	@echo "    ze-gokrazy-deps              One-time: download gokrazy system packages"

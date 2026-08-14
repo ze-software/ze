@@ -1,0 +1,10 @@
+status: 409
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/plain; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+required field "connection/remote/ip" is missing

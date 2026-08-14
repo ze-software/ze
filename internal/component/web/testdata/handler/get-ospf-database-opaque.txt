@@ -1,0 +1,26 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>OSPF Opaque Database</title>
+</head><body>
+<h1>OSPF Opaque Database</h1>
+<pre id="ospf-data">{&#34;rows&#34;:[{&#34;neighbor&#34;:&#34;10.0.0.2&#34;,&#34;state&#34;:&#34;full&#34;}]}</pre>
+<script>
+(function(){
+  var es = new EventSource("/ospf/database/opaque/stream");
+  es.addEventListener("opaque", function(e){
+    var el = document.getElementById("ospf-data");
+    el.textContent = e.data;
+  });
+  window.addEventListener("beforeunload", function(){ es.close(); });
+})();
+</script>
+</body></html>

@@ -713,7 +713,7 @@ Total: 626 packages, 623 described, 3 TODO
 | `internal/test/ci` | provides shared utilities for parsing .ci test files |  |
 | `internal/test/cli` | registers the ze-test command's functional-test and mock-server handlers |  |
 | `internal/test/decode` | provides shared BGP message decode helpers for test tools |  |
-| `internal/test/golden` | compares the bytes an html/template set renders against fixtures committed beside the package under test |  |
+| `internal/test/golden` | compares captured bytes against fixtures committed beside the package under test |  |
 | `internal/test/mock/cymru` | implements a deterministic Team Cymru DNS mock server for tests |  |
 | `internal/test/mock/irr` | implements a deterministic IRR whois mock server for tests |  |
 | `internal/test/mock/peeringdb` | implements a deterministic PeeringDB HTTP mock server for tests |  |

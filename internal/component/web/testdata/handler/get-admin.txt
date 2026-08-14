@@ -1,0 +1,127 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: /</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/cli.js"></script>
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/sse-client.js"></script>
+<script src="/assets/notification.js"></script>
+</head>
+<body>
+<div class="layout">
+
+<nav class="breadcrumb-bar" id="breadcrumb">
+  
+
+<div class="breadcrumb-nav">
+  <a class="breadcrumb-back" id="link-back" href="/show/"><img class="ze-logo" src="/assets/ze.svg" alt="Back" width="24" height="24"></a>
+  <ol class="breadcrumb-list">
+    
+    <li class="breadcrumb-item breadcrumb-active">
+      <span>admin</span>
+    </li>
+    
+  </ol>
+</div>
+
+
+<div class="breadcrumb-actions">
+  
+  <a class="view-toggle" href="/show/" title="Switch to Workbench" data-action="switch-ui" data-mode="workbench">Workbench</a>
+  
+  <a class="view-toggle" href="/cli" title="Open CLI terminal">CLI</a>
+  <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" data-action="toggle-theme">&#9681;</button>
+  
+</div>
+
+
+</nav>
+
+<main class="content-area" id="content-area">
+  
+<div class="main-split">
+  
+<div class="finder-columns" id="finder">
+  
+  <div class="finder-col">
+    
+    
+    
+    <a class="finder-item has-children"
+       href="/admin/peer/"
+       hx-get="/fragment/detail?path=admin/peer" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/admin/peer/">
+      peer
+    </a>
+    
+    <a class="finder-item has-children"
+       href="/admin/show/"
+       hx-get="/fragment/detail?path=admin/show" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/admin/show/">
+      show
+    </a>
+    
+  </div>
+  
+</div>
+
+  <div class="detail-panel" id="detail">
+
+
+<section class="config-section">
+  <p class="config-hint">Select an item from the sidebar.</p>
+</section>
+
+</div>
+</div>
+
+</main>
+
+<aside class="notification-bar" id="notification-bar">
+  
+</aside>
+
+
+
+
+<div id="commit-bar" class="commit-bar">
+  <span id="commit-count" class="commit-count"></span>
+  <button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+  <button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+</div>
+
+
+
+
+</div>
+<div id="notification-area" class="notification-area"></div>
+
+
+<div id="diff-modal" class="diff-modal">
+  <div class="diff-title">Review changes</div>
+  <pre class="diff-content"></pre>
+  <div class="diff-actions">
+    <button class="commit-btn" hx-post="/config/commit" hx-target="#diff-modal" hx-swap="outerHTML">Confirm Commit</button>
+    <button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
+  </div>
+</div>
+
+
+<aside id="error-panel" class="error-panel collapsed">
+  <button class="error-toggle" id="error-toggle">Errors</button>
+  <div class="error-list" id="error-list"></div>
+</aside>
+
+
+</body>
+</html>

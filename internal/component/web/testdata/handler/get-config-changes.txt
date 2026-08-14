@@ -1,0 +1,15 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+
+<div id="commit-bar" class="commit-bar" hx-swap-oob="outerHTML">
+  <span id="commit-count" class="commit-count"></span>
+  <button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+  <button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+</div>

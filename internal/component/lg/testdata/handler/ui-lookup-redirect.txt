@@ -1,0 +1,11 @@
+status: 302
+header: Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'
+header: Content-Type: text/html; charset=utf-8
+header: Location: /lg/search
+header: Referrer-Policy: no-referrer
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<a href="/lg/search">Found</a>.
+

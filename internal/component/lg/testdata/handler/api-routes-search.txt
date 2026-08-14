@@ -1,0 +1,55 @@
+status: 200
+header: Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'
+header: Content-Type: application/json
+header: Referrer-Policy: no-referrer
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+{
+  "api": {
+    "Version": "Ze Looking Glass",
+    "result_from_cache": false
+  },
+  "routes": [
+    {
+      "age": 0,
+      "bgp": {
+        "as_path": [
+          65001,
+          65002
+        ],
+        "communities": [
+          [
+            65000,
+            100
+          ],
+          [
+            65001,
+            200
+          ]
+        ],
+        "ext_communities": null,
+        "large_communities": [
+          [
+            65000,
+            0,
+            100
+          ]
+        ],
+        "local_pref": 100,
+        "med": 0,
+        "next_hop": "10.0.0.1",
+        "origin": "igp"
+      },
+      "from_protocol": "10.0.0.1",
+      "gateway": "10.0.0.1",
+      "interface": "",
+      "learnt_from": "10.0.0.1",
+      "metric": 0,
+      "network": "10.0.0.0/24",
+      "primary": false
+    }
+  ],
+  "routes_count": 1
+}

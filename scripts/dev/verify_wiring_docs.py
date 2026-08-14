@@ -83,6 +83,17 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     # stage), which has_production_reference does not count. The daemon-side
     # entry point is AuditConfigured, called by the doctor check.
     ("internal/component/config/claims/claims.go", "Audit"),
+    # internal/test/golden is the golden-capture harness. Its callers are the
+    # _test.go files of internal/component/web and internal/component/lg, which
+    # is a different package, so every entry point it offers must be exported
+    # and none of them can have a production caller. The package ships no
+    # production code at all: `make ze-web-golden-check` is its only consumer.
+    ("internal/test/golden/names.go", "AssertCoversDir"),
+    ("internal/test/golden/names.go", "AssertCoversNames"),
+    ("internal/test/golden/names.go", "AssertUniqueNames"),
+    ("internal/test/golden/response.go", "VersionHeader"),
+    ("internal/test/golden/routes.go", "RoutePatterns"),
+    ("internal/test/golden/routes.go", "RepoFile"),
 }
 
 # User-facing area -> functional suite directory expected to change with it

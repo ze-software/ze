@@ -9,6 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// restoreWebRoutes puts the route registry back when the test ends.
+// RegisterWebRoute has no removal. A test that registers a route therefore
+// leaves it in the registry every later test reads. A test that asks the
+// registry what the hub serves then gets a route no hub ever wired.
+func restoreWebRoutes(t *testing.T) {
+	t.Helper()
+
+	routeMu.RLock()
+	saved := make([]WebRoute, len(webRoutes))
+	copy(saved, webRoutes)
+	routeMu.RUnlock()
+
+	t.Cleanup(func() {
+		routeMu.Lock()
+		webRoutes = saved
+		routeMu.Unlock()
+	})
+}
+
 func lookupWebRoute(routes []WebRoute, pattern string) (WebRoute, bool) {
 	for _, r := range routes {
 		if r.Pattern == pattern {
@@ -83,6 +102,8 @@ func TestPluginWebRouteRegistration(t *testing.T) {
 // TestWebRouteRegistryRoundTrip checks the registry mechanics in isolation: a
 // registered route is retrievable and its Build produces a working handler.
 func TestWebRouteRegistryRoundTrip(t *testing.T) {
+	restoreWebRoutes(t)
+
 	before := len(RegisteredWebRoutes())
 	RegisterWebRoute(WebRoute{
 		Pattern: "GET /__test_wiring",

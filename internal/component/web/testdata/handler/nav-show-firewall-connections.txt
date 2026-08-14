@@ -1,0 +1,459 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ze: /firewall/connections</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/cli.js"></script>
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/sse-client.js"></script>
+<script src="/assets/notification.js"></script>
+<script defer src="/assets/log-live.js"></script>
+</head>
+<body class="ui-workbench">
+<div class="workbench-shell" id="workbench-shell" data-ui-mode="workbench">
+
+  <header class="workbench-topbar" id="workbench-topbar">
+    
+<div class="workbench-topbar-inner" id="workbench-topbar-inner">
+  <div class="workbench-topbar-left">
+    
+<div class="breadcrumb-nav">
+  <span class="ze-logo-link"><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"></span>
+  <ol class="breadcrumb-list">
+    
+  </ol>
+</div>
+
+    
+    <div class="workbench-router">
+      <span class="workbench-router-name">golden</span>
+      
+    </div>
+    
+  </div>
+  
+<div class="breadcrumb-actions">
+  <span class="user-badge">operator</span>
+  
+  
+  <a class="view-toggle" href="/show/" title="Switch to Finder" data-action="switch-ui" data-mode="finder">Finder</a>
+  <a class="view-toggle" href="/cli" title="Open CLI terminal">CLI</a>
+  <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" data-action="toggle-theme">&#9681;</button>
+  
+</div>
+
+</div>
+
+  </header>
+
+  <nav class="workbench-nav" id="workbench-nav" aria-label="Workbench sections">
+    
+<nav class="workbench-nav-list" id="workbench-nav-list" role="navigation" aria-label="Main sections">
+  
+  <details class="workbench-nav-section"
+           data-section="dashboard"
+           >
+    <summary class="workbench-nav-section-label">Dashboard</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/"
+           >Overview</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/health/"
+           >Health</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/events/"
+           >Recent Events</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="interfaces"
+           >
+    <summary class="workbench-nav-section-label">Interfaces</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/iface/"
+           >All Interfaces</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/iface/?type=ethernet"
+           >Ethernet</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/iface/?type=bridge"
+           >Bridge</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/iface/?type=vlan"
+           >VLAN</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/iface/?type=tunnel"
+           >Tunnel</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/iface/traffic/"
+           >Traffic</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="ip"
+           >
+    <summary class="workbench-nav-section-label">IP</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/ip/addresses/"
+           >Addresses</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/ip/routes/"
+           >Routes</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/ip/dns/"
+           >DNS</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="routing"
+           >
+    <summary class="workbench-nav-section-label">Routing</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/bgp/peer/"
+           >Peers</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/bgp/group/"
+           >Groups</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/bgp/family/"
+           >Families</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/bgp/summary/"
+           >Summary</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="policy"
+           >
+    <summary class="workbench-nav-section-label">Policy</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/bgp/policy/"
+           >Filters</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section workbench-nav-section--active"
+           data-section="firewall"
+           open>
+    <summary class="workbench-nav-section-label">Firewall</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/firewall/"
+           >Tables</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/firewall/chain/"
+           >Chains</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/firewall/rule/"
+           >Rules</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/firewall/set/"
+           >Sets</a>
+      </li>
+      
+      <li class="workbench-nav-subitem workbench-nav-subitem--active">
+        <a class="workbench-nav-sublink" href="/show/firewall/connections/"
+           aria-current="page">Connections</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="l2tp"
+           >
+    <summary class="workbench-nav-section-label">L2TP</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/l2tp/sessions/"
+           >Sessions</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/l2tp/"
+           >Configuration</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/l2tp/health/"
+           >Health</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="services"
+           >
+    <summary class="workbench-nav-section-label">Services</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/ssh/"
+           >SSH</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/web/"
+           >Web</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/telemetry/"
+           >Telemetry</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/tacacs/"
+           >TACACS</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/mcp/"
+           >MCP</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/lg/"
+           >Looking Glass</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/api/"
+           >API</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="system"
+           >
+    <summary class="workbench-nav-section-label">System</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/system/identity/"
+           >Identity</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/users/"
+           >Users</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/system/resources/"
+           >Resources</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/system/hardware/"
+           >Host Hardware</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/system/sysctl/"
+           >Sysctl Profiles</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="tools"
+           >
+    <summary class="workbench-nav-section-label">Tools</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/tools/ping/"
+           >Ping</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/tools/bgp-decode/"
+           >BGP Decode</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/tools/metrics/"
+           >Metrics Query</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/tools/capture/"
+           >Capture</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+  <details class="workbench-nav-section"
+           data-section="logs"
+           >
+    <summary class="workbench-nav-section-label">Logs</summary>
+    <ul class="workbench-nav-sublist">
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/logs/live/"
+           >Live Log</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/logs/warnings/"
+           >Warnings</a>
+      </li>
+      
+      <li class="workbench-nav-subitem">
+        <a class="workbench-nav-sublink" href="/show/logs/errors/"
+           >Errors</a>
+      </li>
+      
+    </ul>
+  </details>
+  
+</nav>
+
+  </nav>
+
+  <main class="workbench-workspace" id="workbench-workspace">
+    
+<div class="wb-table-container">
+  <h2 class="wb-table-title">Firewall Connections</h2>
+  <div class="wb-table-toolbar">
+    
+    <div class="wb-table-toolbar-right">
+      <input type="search" class="wb-table-search" placeholder="Search..." aria-label="Search table">
+    </div>
+  </div>
+  <table class="wb-table">
+    <thead>
+      <tr>
+        <th class="wb-table-flag-header">Flags</th>
+        <th class="wb-table-col wb-table-col--sortable">Protocol</th><th class="wb-table-col wb-table-col--sortable">Source</th><th class="wb-table-col wb-table-col--sortable">Destination</th><th class="wb-table-col wb-table-col--sortable">State</th><th class="wb-table-col wb-table-col--sortable">Timeout</th><th class="wb-table-col wb-table-col--sortable">Packets</th><th class="wb-table-col wb-table-col--sortable">Bytes</th>
+        <th class="wb-table-actions-header">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr class="wb-table-empty-row">
+          <td colspan="0" class="wb-table-empty">
+            <div class="wb-table-empty-content">
+              <p class="wb-table-empty-message">Connection tracking data requires a running firewall.</p>
+              <p class="wb-table-empty-hint">Conntrack entries will appear here when the firewall backend is active and tracking connections.</p>
+              
+            </div>
+          </td>
+        </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+  </main>
+
+  <aside class="workbench-notifications" id="notification-bar">
+    
+  </aside>
+
+  
+
+<div id="commit-bar" class="commit-bar">
+  <span id="commit-count" class="commit-count"></span>
+  <button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+  <button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+</div>
+
+
+
+</div>
+<div id="tool-overlays" class="tool-overlays"></div>
+<div id="notification-area" class="notification-area"></div>
+
+
+<div id="diff-modal" class="diff-modal">
+  <div class="diff-title">Review changes</div>
+  <pre class="diff-content"></pre>
+  <div class="diff-actions">
+    <button class="commit-btn" hx-post="/config/commit" hx-target="#diff-modal" hx-swap="outerHTML">Confirm Commit</button>
+    <button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
+  </div>
+</div>
+
+
+<aside id="error-panel" class="error-panel collapsed">
+  <button class="error-toggle" id="error-toggle">Errors</button>
+  <div class="error-list" id="error-list"></div>
+</aside>
+
+
+</body>
+</html>

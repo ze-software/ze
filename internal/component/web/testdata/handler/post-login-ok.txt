@@ -1,0 +1,4 @@
+status: 303
+header: Location: /
+header: Set-Cookie: ze-session=<SESSION>; Path=/; Max-Age=86400; HttpOnly; Secure; SameSite=Strict
+

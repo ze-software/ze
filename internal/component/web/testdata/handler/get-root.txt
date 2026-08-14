@@ -1,0 +1,6 @@
+status: 302
+header: Content-Type: text/html; charset=utf-8
+header: Location: /show/
+
+<a href="/show/">Found</a>.
+

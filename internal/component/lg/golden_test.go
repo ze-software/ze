@@ -285,12 +285,15 @@ func TestLGGoldenOutput(t *testing.T) {
 		}
 	}
 
+	written := make([]string, 0, len(files))
+
 	for _, file := range files {
 		for _, unit := range lgGolden.Spec[file] {
 			content := false
 
 			for _, variant := range unit.Variants {
 				name := unit.FixtureName(variant)
+				written = append(written, lgGolden.FixturePath(root, file, name))
 
 				t.Run(name, func(t *testing.T) {
 					var buf bytes.Buffer
@@ -316,4 +319,8 @@ func TestLGGoldenOutput(t *testing.T) {
 			}
 		}
 	}
+
+	// A template deleted from the FS takes its spec entry with it. Its fixture
+	// stays on disk, where the next reader counts bytes nobody compares.
+	golden.AssertCoversDir(t, root, "lgGoldenSpec", written)
 }

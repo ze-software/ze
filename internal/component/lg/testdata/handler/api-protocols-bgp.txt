@@ -1,0 +1,38 @@
+status: 200
+header: Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'
+header: Content-Type: application/json
+header: Referrer-Policy: no-referrer
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+{
+  "api": {
+    "Version": "Ze Looking Glass",
+    "result_from_cache": false
+  },
+  "protocols": {
+    "peer1": {
+      "bird_protocol": "peer1",
+      "description": "",
+      "last_error": "",
+      "neighbor_address": "10.0.0.1",
+      "neighbor_as": 0,
+      "routes": {
+        "exported": 0,
+        "filtered": 0,
+        "imported": 0,
+        "preferred": 0
+      },
+      "routes_counts_available": true,
+      "routes_exported": 0,
+      "routes_filtered": 0,
+      "routes_imported": 0,
+      "routes_received": 0,
+      "state": "established",
+      "state_changed": "2026-01-15T10:00:00Z",
+      "table": "master",
+      "uptime": 0
+    }
+  }
+}

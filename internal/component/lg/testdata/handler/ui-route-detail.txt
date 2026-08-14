@@ -1,0 +1,31 @@
+status: 200
+header: Cache-Control: no-cache
+header: Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'
+header: Content-Type: text/html; charset=utf-8
+header: Referrer-Policy: no-referrer
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+
+<tr class="route-detail">
+<td colspan="8">
+<div class="detail-panel">
+
+<h3>Route Detail: 10.0.0.0/24</h3>
+<dl>
+<dt>Prefix</dt><dd>10.0.0.0/24</dd>
+<dt>Next Hop</dt><dd>10.0.0.1</dd>
+<dt>Origin</dt><dd>igp</dd>
+<dt>AS Path</dt><dd>65001 65002</dd>
+<dt>Local Preference</dt><dd>100</dd>
+<dt>MED</dt><dd>0</dd>
+<dt>Communities</dt><dd>65000:100, 65001:200</dd>
+<dt>Large Communities</dt><dd>65000:0:100</dd>
+<dt>Extended Communities</dt><dd></dd>
+<dt>Peer</dt><dd>10.0.0.1</dd>
+</dl>
+
+</div>
+</td>
+</tr>

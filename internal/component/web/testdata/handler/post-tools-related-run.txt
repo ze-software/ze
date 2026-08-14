@@ -1,0 +1,30 @@
+status: 404
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+
+<div class="tool-overlay tool-overlay--error"
+     id="overlay-error"
+     hx-swap-oob="beforeend:#tool-overlays">
+  <header class="tool-overlay-header">
+    <span class="tool-overlay-title">Tool error</span>
+    
+    <button class="tool-overlay-close" type="button" aria-label="Close">×</button>
+  </header>
+  <section class="tool-overlay-body">
+    
+      <div class="tool-overlay-error" role="alert">
+        <strong>Error:</strong>
+        <pre class="tool-overlay-error-message">unknown tool id &#34;ping&#34; at bgp</pre>
+      </div>
+    
+  </section>
+  <footer class="tool-overlay-footer">
+    
+  </footer>
+</div>
