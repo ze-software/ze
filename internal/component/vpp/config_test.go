@@ -547,6 +547,53 @@ func TestEmptyNetnsSurvivesParseAndValidate(t *testing.T) {
 	}
 }
 
+// TestValidateNetnsRefusesWhatVPPCannotCarry drives the whole accepted set
+// rather than one character, because the leaf reaches VPP through
+// unformat(line_input, "netns %s", &ns) (third_party/vpp-linux-cp/src/lcp_cli.c)
+// and VPP's unformat_string ends a %s at whitespace. A name with a space is
+// TRUNCATED at the space, not refused, so ze accepts a config VPP then applies
+// as a different namespace and LCP pair creation fails.
+//
+// VALIDATES: ze refuses a netns VPP cannot carry, instead of accepting one it
+// will silently truncate.
+// PREVENTS: the operator-visible failure of a config ze validated and VPP
+// rejected at startup.
+func TestValidateNetnsRefusesWhatVPPCannotCarry(t *testing.T) {
+	accepted := []string{
+		"",                       // the remedy ze doctor prints, and the one silent value
+		"dataplane",              // the YANG default
+		"ns-1_a.b",               // punctuation a namespace name may legitimately carry
+		strings.Repeat("n", 255), // the last accepted length
+	}
+	for _, name := range accepted {
+		if err := validateNetns(name); err != nil {
+			t.Errorf("validateNetns(%q) = %v, want accepted", name, err)
+		}
+	}
+
+	refused := []struct {
+		name string
+		why  string
+	}{
+		{"my ns", "a space truncates the name at VPP's unformat"},
+		{"a\tb", "a tab truncates the same way"},
+		{"a\nb", "a newline truncates the same way"},
+		{"a\rb", "a carriage return truncates the same way"},
+		{" lead", "leading whitespace is consumed before the name"},
+		{"trail ", "trailing whitespace ends the name early"},
+		{"a\x00b", "a NUL cannot appear in the /var/run/netns path"},
+		{"a\x01b", "a control character makes an unusable filename"},
+		{"a/b", "a path separator escapes /var/run/netns"},
+		{`a\b`, "a backslash separator does the same"},
+		{strings.Repeat("n", 256), "one past the accepted length"},
+	}
+	for _, tc := range refused {
+		if err := validateNetns(tc.name); err == nil {
+			t.Errorf("validateNetns(%q) accepted it, want refused: %s", tc.name, tc.why)
+		}
+	}
+}
+
 func TestValidatePCIAddress(t *testing.T) {
 	// VALIDATES: AC-10 -- PCI address validation
 	// PREVENTS: path traversal via malformed PCI address in sysfs writes

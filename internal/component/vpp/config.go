@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/core/naming"
 )
@@ -141,9 +142,23 @@ func validateSocketPath(field, path string) error {
 // empty, and this function then refused the commit, so the advice ze prints could
 // not be followed. The leaf being OMITTED still means "dataplane": ParseConfig
 // above seeds that, matching the YANG default.
+// The accepted set is what VPP can carry through, decided once rather than as a
+// special case per character. lcp_cli.c parses the leaf with
+// unformat(line_input, "netns %s", &ns), and VPP's unformat_string ends a %s at
+// a space, tab, newline or carriage return unless the input is brace-delimited,
+// which this call site does not use. A name with a space is therefore TRUNCATED
+// at the space rather than refused: `netns my ns` reaches VPP as `my`, and
+// lcp.c then builds /var/run/netns/my, which does not exist, so LCP pair
+// creation fails at apply on a config ze accepted. Every other non-printable
+// character reaches the same path as an unusable filename.
 func validateNetns(name string) error {
 	if strings.ContainsAny(name, "/\\") {
 		return fmt.Errorf("vpp lcp: netns must not contain path separators, got %q", name)
+	}
+	for _, r := range name {
+		if unicode.IsSpace(r) || !unicode.IsPrint(r) {
+			return fmt.Errorf("vpp lcp: netns must be printable with no spaces, got %q", name)
+		}
 	}
 	if len(name) > 255 {
 		return fmt.Errorf("vpp lcp: netns too long (%d > 255 chars)", len(name))
