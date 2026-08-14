@@ -184,6 +184,9 @@ DEFAULT_FAMILIES = ((1, 1),)  # IPv4 unicast
 MP_REACH = 14
 MP_UNREACH = 15
 
+CAP_ADDPATH = 69  # RFC 7911 Section 4
+ADDPATH_RECEIVE = 1  # Send/Receive value: able to receive multiple paths
+
 
 def carries_routes(update):
     """True when an UPDATE conveys reachability, in ANY family.
@@ -232,7 +235,7 @@ def parse_families(values):
     return tuple(out)
 
 
-def open_message(asn, hold_time, router_id, families=DEFAULT_FAMILIES):
+def open_message(asn, hold_time, router_id, families=DEFAULT_FAMILIES, add_path=False):
     """Build an OPEN with one MP capability per family + 4-octet-ASN (RFC 4271 Section 4.2).
 
     `families` is a sequence of (afi, safi) pairs and defaults to IPv4 unicast alone, so a
@@ -240,6 +243,12 @@ def open_message(asn, hold_time, router_id, families=DEFAULT_FAMILIES):
     a typed family (l2vpn/evpn is 25/70) names it, because ze gates every announce on the
     NEGOTIATED family set: a family this OPEN does not carry is a family the speaker can
     never be sent, and a check written against it would pass vacuously.
+
+    `add_path` adds the ADD-PATH capability (RFC 7911 Section 4) for every requested family,
+    asking to RECEIVE multiple paths and offering to send none. The engine announces nothing,
+    so offering to send would advertise a framing it never uses. A scenario that must inspect
+    the Path Identifier ze puts on the wire needs this: without the capability ze frames bare
+    prefixes and the identifier is not in the bytes at all.
     """
     my_as = asn if asn <= 0xFFFF else 23456  # AS_TRANS for 4-octet ASNs
     rid = socket.inet_aton(router_id)
@@ -251,6 +260,13 @@ def open_message(asn, hold_time, router_id, families=DEFAULT_FAMILIES):
     )
     cap_as4 = bytes([65, 4]) + struct.pack(">I", asn)  # 4-octet ASN
     caps = cap_mp + cap_as4
+    if add_path:
+        # RFC 7911 Section 4: capability 69, one AFI(2) SAFI(1) Send/Receive(1) triple per
+        # family. Send/Receive 1 is "able to receive multiple paths".
+        value = b"".join(
+            struct.pack(">HBB", afi, safi, ADDPATH_RECEIVE) for afi, safi in families
+        )
+        caps += bytes([CAP_ADDPATH, len(value)]) + value
     # Optional parameter: type 2 (Capabilities), length, value.
     opt = bytes([2, len(caps)]) + caps
 
@@ -327,6 +343,7 @@ def run(
     stop_after=0,
     connect_delay=0.0,
     families=DEFAULT_FAMILIES,
+    add_path=False,
 ):
     """Dial ze, establish an iBGP session, and dispatch every UPDATE to the plugin.
 
@@ -347,7 +364,7 @@ def run(
         time.sleep(connect_delay)
     sock = socket.create_connection((host, port), timeout=10)
     sock.settimeout(1.0)
-    sock.sendall(open_message(asn, hold_time, router_id, families))
+    sock.sendall(open_message(asn, hold_time, router_id, families, add_path))
 
     deadline = time.monotonic() + duration
     next_ka = time.monotonic() + hold_time / 3.0
@@ -442,6 +459,12 @@ def main(argv=None):
         "(default: 1:1, IPv4 unicast). l2vpn/evpn is 25:70",
     )
     ap.add_argument(
+        "--add-path",
+        action="store_true",
+        help="ask to receive multiple paths per prefix (RFC 7911), so ze frames every "
+        "NLRI with its Path Identifier and the identifier is visible in update-hex",
+    )
+    ap.add_argument(
         "--connect-delay",
         type=float,
         default=0.0,
@@ -468,6 +491,7 @@ def main(argv=None):
             stop_after=args.stop_after_updates,
             connect_delay=args.connect_delay,
             families=families,
+            add_path=args.add_path,
         )
     except Exception as exc:  # noqa: BLE001 -- a crash must still emit a FAIL verdict, never a bare traceback
         # A test that dies with no "result:" line would be read as a relay bug, not a speaker

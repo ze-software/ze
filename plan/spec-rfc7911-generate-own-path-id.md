@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 2/6 |
+| Phase | 4/6 |
 | Deferral shard | `-` |
 | Updated | 2026-08-14 |
 
@@ -138,8 +138,8 @@ costs what the bug costs.
 
 | Entry Point | Feature Code | Test |
 |-------------|--------------|------|
-| UPDATE forwarded to an ADD-PATH peer | wire → forward rail → `fwdReencodeNLRIs` → generator | `test/plugin/addpath-regenerates-path-id.ci` |
-| Peer-up replay to an ADD-PATH peer | replay rail → `fwdReencodeNLRIs` → same generator | `test/plugin/addpath-replay-matches-live.ci` |
+| UPDATE forwarded to an ADD-PATH peer | wire → forward rail → `fwdReencodeNLRIs` → generator | `addpath-readvertise-collision-frr` (interop) |
+| Peer-up replay to an ADD-PATH peer | replay rail → `fwdReencodeNLRIs` → same generator | `addpath-rail-agreement-speaker` (interop) |
 | The same path advertised twice | generator → held per path → same identifier | `TestForwardPathIDStableAcrossUpdates` |
 
 ## Acceptance Criteria
@@ -158,8 +158,8 @@ costs what the bug costs.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs ze as a route server between two clients that both use path-id 1 | wire → egress transform → generator → both paths survive at the third client | `addpath-regenerates-path-id.ci` |
-| 2 | A client reconnects and receives the peer-up replay | replay rail → same generator → identical bytes | `addpath-replay-matches-live.ci` |
+| 1 | Runs ze as a route server between two clients whose paths share one received identifier | wire → egress transform → generator → both paths survive at the third client | `addpath-readvertise-collision-frr` |
+| 2 | A client reconnects and receives the peer-up replay | replay rail → same generator → identical bytes | `addpath-rail-agreement-speaker`, and the session-reset half of `addpath-readvertise-collision-frr` |
 
 ## 🧪 TDD Test Plan
 
@@ -186,13 +186,24 @@ costs what the bug costs.
 ### Functional Tests
 | Test | File | Validates |
 |------|------|-----------|
-| colliding identifiers both survive | `test/plugin/addpath-regenerates-path-id.ci` | AC-2 |
-| replay matches live byte for byte | `test/plugin/addpath-replay-matches-live.ci` | AC-7 |
+| colliding identifiers both survive | the interop scenario below, NOT a `.ci` | AC-2 |
+| replay matches live byte for byte | the interop scenario below, NOT a `.ci` | AC-7 |
+
+Neither `.ci` was written, and neither should be. `parseExpectRule`
+(`internal/test/peer/checker.go`) offers `hex`, `prefix`, `contains` and `ordered`
+with no negation and no wildcard, so "two identifiers, values unknown, must differ"
+is not expressible. Pinning literal values is worse than useless here: the generator
+mints from 0 (`fwdPathIDTable.mintLocked`), so the FIRST re-advertised path in a
+process carries identifier 0, which is the same value the defect produces for a
+source that negotiated no ADD-PATH. A `.ci` pinned to it passes with the fix
+reverted. The route loss is a RECEIVER's behaviour (RFC 7911 Section 5), so only a
+daemon holding a RIB can report it.
 
 ### Interop Tests (Scope: protocol)
 | Test | Peer | Validates |
 |------|------|-----------|
-| ADD-PATH re-advertisement accepted | a peer daemon that negotiates ADD-PATH | the receiver keeps both paths, and no NOTIFICATION is raised |
+| `test/interop/scenarios/addpath-readvertise-collision-frr` | FRR 10.3.1, with BIRD and GoBGP as the colliding sources | AC-2: FRR keeps both paths, under identifiers 0 and 1. Reverting the generator leaves FRR holding ONE path |
+| `test/interop/scenarios/addpath-rail-agreement-speaker` | two independent Python speakers, one live and one replayed | AC-7: both UPDATE bodies are byte-identical, Path Identifier included |
 
 ## Files to Modify
 
@@ -211,7 +222,9 @@ costs what the bug costs.
 |------|---------|
 | `internal/component/bgp/reactor/forward_path_id.go` | the generator, keyed by the path at ingress, plus the raw-frame rewriter the same-context branch uses |
 | `internal/component/bgp/reactor/forward_path_id_gen_test.go` | the generator's tests: withdraw matching, replacement, non-ADD-PATH source and destination, boundary values, destination agreement, release |
-| the two `.ci` named above | AC-2 and AC-7. NOT written yet: `parseExpectRule` (`internal/test/peer/checker.go`) has no negation and no wildcard, so "two identifiers, values unknown, must differ" is not expressible today |
+| ~~the two `.ci` named above~~ | Replaced by the two interop scenarios in the TDD Test Plan. The `.ci` harness cannot express either assertion, and the property AC-2 names is a receiver's, so no test inside ze can report it |
+| `test/interop/scenarios/addpath-readvertise-collision-frr/` | AC-2 at FRR: `ze.conf`, `frr.conf`, `bird.conf`, `gobgp.toml`, `check.py` (carries the `RFC7911-2-2 positive` interop tag) |
+| `test/interop/scenarios/addpath-rail-agreement-speaker/` | AC-7 byte identity: `ze.conf`, `gobgp.toml`, `speaker-args`, `speaker2-args`, `check.py` |
 
 ### Integration Checklist
 

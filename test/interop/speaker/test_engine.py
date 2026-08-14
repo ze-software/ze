@@ -260,6 +260,24 @@ def test_decode_update_truncated_does_not_crash():
         assert isinstance(u.attributes, list)
 
 
+def test_open_message_add_path_is_opt_in_and_receive_only():
+    # VALIDATES: --add-path adds RFC 7911 Section 4 capability 69 carrying one
+    # AFI(2) SAFI(1) Send/Receive(1) triple per family, with Send/Receive = 1 (receive).
+    # PREVENTS: a scenario inspecting the Path Identifier passing vacuously. Without the
+    # capability ze frames bare prefixes, so the identifier is not on the wire and a
+    # byte comparison of two UPDATEs compares two payloads that never carried it.
+    # The default stays off, so every earlier scenario keeps the OPEN it always sent.
+    plain = engine.open_message(65001, 90, "1.2.3.4")
+    addpath = engine.open_message(65001, 90, "1.2.3.4", add_path=True)
+    triple = bytes([0, 1, 1, engine.ADDPATH_RECEIVE])  # AFI 1, SAFI 1, receive
+    assert bytes([engine.CAP_ADDPATH, 4]) + triple in addpath
+    assert bytes([engine.CAP_ADDPATH]) not in plain[19:]
+    assert len(addpath) == len(plain) + 6  # code + length + one 4-octet triple
+
+    two = engine.open_message(65001, 90, "1.2.3.4", ((1, 1), (2, 1)), add_path=True)
+    assert bytes([engine.CAP_ADDPATH, 8]) in two, "one triple per requested family"
+
+
 def test_dynamic_load_optional_on_end():
     # AC-1 / AC-6: a plugin with only NAME + on_update loads and runs; on_end is optional.
     plugin = engine.load_plugin(
