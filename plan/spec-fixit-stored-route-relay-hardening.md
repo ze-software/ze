@@ -6,7 +6,7 @@
 | Depends | - |
 | Phase | 1/3 |
 | Deferral shard | `plan/deferrals/fixit-stored-route-relay-hardening.md` |
-| Updated | 2026-08-03 |
+| Updated | 2026-08-14 |
 
 ## Post-Compaction Recovery
 
@@ -119,6 +119,126 @@ part of the same change and is an independent RFC 7911 defect today.
 
 Implementation of this finding is NOT in this session's diff: it changes a plugin
 RPC contract and the stored-route shape, which is its own phase.
+
+#### I-1 FINDING, part 2 (2026-08-14): A-1 confirmed, the legacy framing is worse than recorded, and the refusal's replacement
+
+Written for Implementation Step 1. Every claim below was read at the function
+that produces the behavior. Part 1 above is unchanged and still governs the
+choice; this part supplies A-1, the per-path storage facts, the costed
+comparison, the condition the refusal becomes, and the RFC 7911 position.
+
+**A-1 is CONFIRMED. The legacy ingest path is reachable in a supported
+deployment.** Four producers make the chain, and nothing else selects between
+the two handlers:
+
+| Step | Producer | What it does |
+|------|----------|--------------|
+| The plugin can run as a child process | `register.go` `reg.CLIHandler` into `cli.RunPlugin` (`internal/component/plugin/cli/cli.go`) | ends in Engine Mode: takes the connection from the environment and calls `RunEngine`. bgp-adj-rib-in carries no `IsInternal()` refusal of the kind `internal/plugins/vrrp/register.go` uses, and `docs/guide/graceful-restart.md` documents the external form for a sibling plugin |
+| A child process has no bridge | `Process.HasStructuredHandler` (`internal/component/plugin/process/process.go`) | reports `p.bridge != nil` and the bridge exists only for in-process delivery |
+| The engine then sends text or JSON | `onMessageReceived` (`internal/component/bgp/server/events.go`) | sends a `StructuredEvent` only for a process with a structured handler, and a formatted payload otherwise |
+| The JSON lands on the legacy handler | `runAdjRIBInPlugin` `p.OnEvent` into `dispatch` into `handleReceived` (`adj_rib_in/rib.go`) | the second of the two ingest paths |
+
+**What each path stores, per source kind.** The bare wire prefix means the
+RFC 4271 length byte and the prefix bytes, with no path-id.
+
+| Ingest path | Source without ADD-PATH | Source with ADD-PATH |
+|-------------|-------------------------|----------------------|
+| Structured, `installStructuredNLRIs` | the bare wire prefix | the bare wire prefix. `nlri.NLRIIterator.Next` consumes the 4 bytes and starts the returned window after them, so the value survives only in `compactRouteKey.PathID` |
+| Legacy, `handleReceived`, raw NLRI section present | the bare wire prefix, split correctly by `splitRawNLRIHex` | MISALIGNED BYTES. See below |
+| Legacy, `handleReceived`, raw NLRI section absent | `prefixToWireHex` writes the bare wire prefix | `prefixToWireHex` prepends the path-id, and writes the bare prefix when the path-id is 0 |
+
+**The misaligned row is the new fact, and it is worse than the two-framings
+story the refusal was written for.** `splitRawNLRIHex` takes no add-path
+argument, so it reads the first byte of a 4-byte path-id as a prefix length. An
+announcement of 10.0.0.0/24 with path-id 1 reaches the plugin as the raw section
+`00000001180a0000`, and the split returns five entries beginning with `00`. The
+route is keyed correctly, because the key comes from the parsed `nlri` list
+through `bgp.ParseNLRIValue`, and it is stored with the wire bytes of the
+default route. Key and bytes disagree. The same field is operator-visible:
+`rib_commands.go` publishes it as `nlri-hex` under `show bgp adj-rib-in`.
+
+**Which legacy row is live.** adj-rib-in requests format `full` for itself
+through `SetStartupSubscriptions` (`rib.go`), and `registerSubscriptions`
+(`internal/component/plugin/server/dispatch.go`) is the producer that sets the
+process format from that request. The per-peer `content { format }` binding
+resolves in `GetPeerProcessBindings` (`reactor/reactor_api.go`) into a
+`plugin.PeerProcessBinding` that no non-test caller consumes. So the raw section
+is present, the misaligned row is the live one, and the `pathID != 0` asymmetry
+in `prefixToWireHex` sits on the fallback branch.
+
+**Consequence for the design: the two competing framings are not the shape of
+the problem.** Both paths agree on the framing for a source without ADD-PATH,
+and the legacy path is broken rather than differently framed for a source with
+one. No supported deployment stores a path-id inside the NLRI bytes except on
+the unreached fallback branch. "Normalize the stored framing" is therefore
+already true of the bytes. What is missing is the path-id VALUE, which is what
+part 1 chose to carry as a typed field, and the legacy path's misparse, which
+must be fixed in the same change or a forked adj-rib-in replays the wrong
+prefix.
+
+**Normalization versus context-tagging, costed.**
+
+| Cost | Normalization (part 1's choice) | Context-tagging (`bgpctx.EncodingContextForASN4`) |
+|------|--------------------------------|---------------------------------------------------|
+| Storage shape | `RawRoute` gains a path-id value and an explicit present marker. Roughly 8 bytes per stored route after padding, so about 8 MB on a million-route table. `rpc.StoredRoute` gains the matching JSON fields | unchanged |
+| Migration of already-stored routes | none. The Adj-RIB-In is in-memory only, there is no on-disk stored-route format, and `handleStructuredState` deletes a peer's routes when it goes down, so every stored route is rebuilt by the next session | none |
+| Code touched | `RawRoute`, both install paths (each already holds the path-id), `handleReceived`, `buildReplayRoutes`, `rpc.StoredRoute`, `buildRelayUpdate`, the NLRI length and write helpers in `relay_payload.go`, plus `splitRawNLRIHex` and `prefixToWireHex` | `buildRelayUpdate` only |
+| Correctness | full. Multi-path survives, path-id 0 survives, and both destination kinds receive wire that matches what a live forward would send | BROKEN in three ways: N stored paths for one prefix are each emitted with no path-id, so an ADD-PATH destination receives the prefix N times and keeps one; the reconstruction no longer carries the source's context, so a same-context destination loses the zero-copy forward in `buildFwdBody`; and the replayed copy stops being byte-identical to the live copy for an ADD-PATH destination, which is the one-egress-transform invariant this spec must preserve |
+
+Context-tagging is one line and is not correct. Normalization is the simplest
+FULLY correct answer, which is the test `ai/rules/simplicity.md` sets.
+
+**What the refusal becomes.** Something is still owed, because a producer that
+does not know the path-id must not have one invented for it. The condition
+changes on three axes:
+
+| Axis | Today | After |
+|------|-------|-------|
+| What it keys on | the SOURCE peer's context, so one ADD-PATH source loses every one of its routes to every destination, and the batch also returns an error that costs bgp-rs its delta convergence for the whole peer | the ROUTE: refuse only a route whose stored path-id is absent while its source context declares ADD-PATH for the family |
+| Who it can still fire for | every route of an ADD-PATH source, including the common route-server case of a destination without ADD-PATH | only a producer that did not carry the field, which after this change means a forked adj-rib-in built against the old `rpc.StoredRoute` |
+| What it means | the framing is unknowable, because nothing records it | the producer declared it does not know. Fail closed stays right: emitting a bare prefix under an ADD-PATH context corrupts the destination, and inventing a path-id 0 silently merges paths |
+
+The framing of the reconstruction follows the context it is tagged with, which
+stays the source's receive context: write the path-id when that context declares
+ADD-PATH for the family, and write the bare prefix when it does not.
+`fwdReencodeNLRIs` (`reactor/forward_body.go`) then converts per destination, in
+both directions, exactly as it does for a live forward.
+
+**RFC 7911, and one question that is Thomas's.**
+
+`prefixToWireHex`'s `pathID != 0` branch is a defect, and it is NOT wire-visible
+today. The only producer that writes a path-id onto the wire is
+`fwdReencodeNLRIs`, which prepends 4 bytes for every NLRI whenever the
+destination context declares ADD-PATH, path-id 0 included, so the encoder is
+conformant with Section 3 (RFC7911-3-1, "the NLRI encoding MUST be extended by
+prepending the Path Identifier field"), which is unconditional on the value, and
+with the summary's own note that path-id 0 is a valid identifier with no special
+meaning. `prefixToWireHex` writes storage, and its output reaches the wire only
+through `writeRelayPayload`, which `errRelayAddPath` refuses to reach for an
+ADD-PATH source. It becomes a wire violation on the day Step 2 lifts the
+refusal, so it is release-gating for that reason and is fixed inside the same
+change. The same asymmetry sits in two JSON producers, `appendNLRIJSON`
+(`bgp/format/text_json.go`) and the raw-body walker in `text_update.go`: there
+it is a plugin-API fidelity defect, because a peer's legal path-id 0 is reported
+to a forked plugin as a route with no path-id at all.
+
+RFC7911-2-2 is separate and is NOT settled here. Section 2 states that a speaker
+which re-advertises a route MUST generate its own Path Identifier.
+`rfc/short/rfc7911.md` carries it as a `{gap}` with a public row in
+`docs/features/rfc-status.md`, and the gap re-verified at the producer:
+`fwdReencodeNLRIs` copies the received path-id and nothing in
+`internal/component/bgp/reactor/` mints one. Carrying the stored path-id through
+the relay inherits that gap on a second rail. Minting one in the relay alone
+would diverge from the live forward rail and break the one-egress-transform
+invariant, so the fix belongs at the rail and is not this spec's to make
+unilaterally. The consequence is live on the deployment this replay exists for:
+two route-server clients that each chose path-id 1 for one prefix are advertised
+to a destination as the same (prefix, path-id) twice, so the destination keeps
+one path and the other is lost. Under `ai/rules/rfc-compliance.md` this is a
+choice to do LESS than full compliance, so it is put to Thomas as which way to
+fix it: fix RFC7911-2-2 at the forward rail under its own spec, or keep the
+disclosed gap and let the relay match the rail. Step 2 must not decide it by
+default.
 
 ### I-1b — the ownership claim's ordering is not deterministic, and the naive fix deadlocks
 
@@ -311,8 +431,8 @@ seam is what a filter uses for surgery the text delta cannot express.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The legacy (non-structured) ingest path is still reachable in a supported deployment | `handleReceived` exists for external text/JSON plugins | If dead, storage normalisation is far simpler — one framing only | grep for a config that delivers events as JSON to adj-rib-in | unvalidated |
-| A-2 | Multi-path (several path-ids for one prefix) is representable end to end today | `compactRouteKey` carries a path-id | The old rail's collapse was masking a storage gap, widening I-1 | store two paths for one prefix and inspect the seqmap | **broken (2026-08-03)** — representable in STORAGE (`routeKeyFromWire` keys on `PathID`), NOT across the relay: neither `RawRoute` nor `rpc.StoredRoute` carries the value. See the I-1 FINDING |
+| A-1 | The legacy (non-structured) ingest path is still reachable in a supported deployment | `handleReceived` exists for external text/JSON plugins | If dead, storage normalisation is far simpler — one framing only | grep for a config that delivers events as JSON to adj-rib-in | **confirmed (2026-08-14)**: a forked bgp-adj-rib-in has no bridge, so `Process.HasStructuredHandler` is false and `onMessageReceived` sends JSON, which `p.OnEvent` routes to `handleReceived`. See I-1 FINDING part 2 |
+| A-2 | Multi-path (several path-ids for one prefix) is representable end to end today | `compactRouteKey` carries a path-id | The old rail's collapse was masking a storage gap, widening I-1 | store two paths for one prefix and inspect the seqmap | **broken (2026-08-03, re-verified 2026-08-14)**: representable in STORAGE (`routeKeyFromWire` keys on `PathID`), NOT across the relay: `RawRoute` (`adj_rib_in/rib.go`) and `rpc.StoredRoute` (`pkg/plugin/rpc/types.go`) still carry no path-id field. See the I-1 FINDING |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -498,6 +618,7 @@ existing destination spec.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| The legacy ingest path stores an ADD-PATH route as a path-id followed by the prefix, per `prefixToWireHex`, so the two paths carried two valid framings | The branch that actually runs for a forked adj-rib-in is the raw-section split. `splitRawNLRIHex` takes no add-path argument and reads the first path-id byte as a prefix length, so the stored bytes are misaligned and disagree with the key the same route was stored under. `prefixToWireHex` runs only when the event carries no raw section | Reading both branches of `handleReceived` and the format producer for the I-1 finding, 2026-08-14 | Lifting the refusal needs the legacy split fixed as well as the typed field, or a forked adj-rib-in replays the wrong prefix. The error is also in the `errRelayAddPath` doc comment, which must be corrected with the fix |
 | Multi-path survives storage, so I-1's only question was the reconstruction context | The path-id reaches storage and stops at the RPC: `installStructuredNLRIs` puts it in `compactRouteKey` but neither `RawRoute` nor `rpc.StoredRoute` carries it | Reading the producers for the I-1 finding, 2026-08-03 | Option 2 (context-tagging) would announce one prefix N times with no path-id and lose all but one, so the choice is settled rather than open |
 | R6-2's second half: a `buildModifiedPayload` failure falls through to `accept: true` | It does not. `runEgressPolicyChainASN4` reaches that branch only under `exportMods.Len() > 0 \|\| nlriOverride != nil`, which is exactly the negation of `buildModifiedPayload`'s one legitimate nil, so `modFail.failed()` catches every nil and returns `failed: true` | Re-verifying the finding's citations against today's tree | Half of R6-2 was already fixed; only the raw-override half was live |
 | Refusing add-path was purely a safety improvement | The old rail replayed add-path routes correctly (collapsed to path-id 0) for single-path prefixes, so refusing removed working behaviour | Independent review traced `parseWireNLRISection` defaulting `addPath=false` and the iterator storing bare prefixes | The refusal must be recorded as an accepted interim regression, and lifting it is this spec's headline |
@@ -582,6 +703,10 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 1. **Investigate I-1 first, and write the finding before any code.** Establish what the two
    ingest paths actually store (A-1, A-2), then choose normalisation vs context-tagging with
    evidence. Nothing else in this spec is blocked on it, so it goes first while context is fresh.
+   **DONE 2026-08-14, see the I-1 FINDING and its part 2. A-1 confirmed, A-2 broken and
+   re-verified, normalisation chosen, the refusal's replacement condition stated. One RFC 7911
+   question (RFC7911-2-2, minting a path-id on re-advertisement) is open for Thomas and Step 2
+   must not settle it by default.**
 2. Lift the add-path refusal behind the chosen design; prove with the new `.ci` plus the four
    inherited target tests still green under `scripts/dev/stress-repro.py`.
 3. Byte-budget chunking (I-2), with the `last-index` contract asserted across chunks.
