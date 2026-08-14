@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 1/2 |
 | Deferral shard | - |
-| Updated | 2026-07-27 |
+| Updated | 2026-08-14 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -66,54 +66,91 @@ defect with its own test surface, and it predates that change.
      survive compaction; track reading progress in the session state file. -->
 
 ### Architecture Docs
-- [ ] `docs/architecture/<doc>.md` - [why relevant]
-  → Decision: [specific architectural decision that constrains this spec]
-  → Constraint: [specific rule from the doc that applies here]
+- [ ] `docs/architecture/zefs-format.md` - the `Design:` anchor of both storage files
+  → Decision: the blob is FLAT inside each namespace. `file/active/<basename>` holds
+    every config file, whatever directory the caller's path names.
+  → Constraint: a key is a namespace plus a basename, so the directory part of a
+    caller path carries no information after `resolveKey`.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
-  → Constraint: [specific RFC rule that applies here]
+Not applicable. Scope is config storage, no wire protocol.
 
 **Key insights:** (minimal context to resume after compaction)
-- [insight from docs]
+- A blob key is a FILE key or a DIRECTORY key, and `zefs.BlobStore.ReadDir` accepts
+  only the second. `KeyEntry.Dir()` (`pkg/zefs/registry.go`) is the directory form.
+- `zefs.KeyEntry.Key()` builds the file form and is what `resolveKey` calls.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+- [ ] `internal/component/config/storage/blob.go` - `List` resolved its prefix with
+  `resolveKey`, which builds a FILE key: a directory prefix lost every path element
+  but the last and was looked up under `file/active`. `resolvePathToKey` had two
+  branches returning the same expression, and a doc comment stating the opposite of
+  what both did.
+- [ ] `internal/component/config/storage/storage.go` - `Storage.List(prefix)` takes a
+  DIRECTORY and returns immediate children. `filesystemStorage.List` is `os.ReadDir`.
+- [ ] `pkg/zefs/store.go`, `pkg/zefs/tree.go` - `ReadDir` walks the key as a path and
+  returns `fs.ErrNotExist` when the node is missing or is a leaf.
+- [ ] `internal/component/cli/editor.go` - `listChangeFiles` lists
+  `filepath.Dir(originalPath)` and filters the result by the `<config>.change.` prefix.
+- [ ] `internal/component/cli/editor_commands.go` - `writeThroughDeleteListEntry` and
+  `writeThroughDeleteNamed` record a structural op in the change file ONLY.
 
-**Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+**Behavior to preserve:**
+- `List` returns full namespaced keys, so a result round-trips to `ReadFile`/`Remove`.
+- An already-namespaced prefix (`file/active`, `file/draft`, `meta/ssh`) lists that
+  directory. `cmdLsWithStorage` and `doSelectConfig` depend on it.
+- Filesystem storage is untouched.
 
-**Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+**Behavior to change:**
+- A filesystem directory prefix now lists `file/active` instead of failing.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- An operator deletes a list entry, container, or list in the config editor (web
+  editor, or the TUI over SSH), then opens the pending-change review.
+- The editor is in session mode, so the delete is a structural op.
 
 ### Transformation Path
-1. [Stage 1: e.g. "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `Editor.DeleteListEntry` calls `writeThroughDeleteListEntry`
+   (`internal/component/cli/editor_commands.go`), which appends a `StructuralOp` to
+   the per-user change file `<config>.change.<user>` and removes the entry in memory.
+2. The operator asks for the review. `Editor.PendingChanges`
+   (`internal/component/cli/editor.go`) merges in-memory session entries with what
+   the change files hold.
+3. `listChangeFiles` calls `Storage.List(filepath.Dir(originalPath))` to find those
+   change files.
+4. `blobStorage.List` (`internal/component/config/storage/blob.go`) resolves the
+   prefix to a blob key and calls `zefs.BlobStore.ReadDir`.
+5. `ReadDir` walks the key in the blob tree and returns the immediate children.
+6. `PendingChanges` returns the merged list, which `/config/diff`
+   (`internal/component/web/editor.go`) and `show | changes`
+   (`internal/component/cli/model_commands_session.go`) render.
+
+Stage 4 was the defect: the prefix resolved to a FILE key, stage 5 answered
+`fs.ErrNotExist`, and stages 3 and 2 read that as "no change files".
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Editor ↔ Storage | `Storage.List(prefix)`, a directory path, returning full keys | Yes: `TestBlobStorageListFilesystemDirectory` |
+| Storage ↔ zefs | `BlobStore.ReadDir(key)`, a directory key | Yes: `TestResolveDirKey` |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `zefs.KeyFileActive.Dir()` - the directory form of the namespace helper, already
+  used by `cmdLsWithStorage`. `resolveDirKey` reuses it rather than spelling
+  `"file/active"`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The fix is inside the storage backend that owns the path-to-key mapping. No caller learns a key shape |
+| No unintended coupling (components stay isolated) | Yes | `internal/component/cli` is unchanged. The editor still passes a filesystem directory |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `resolveDirKey` reuses `pathToKey`, `isNamespaced`, and `zefs.KeyFileActive.Dir()` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No buffer or wire path |
+| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | Yes | The namespace comes from the zefs key registry, not a literal |
 
 ## Risks & Assumptions
 
@@ -127,21 +164,25 @@ defect with its own test surface, and it predates that change.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what we believe] | [where the belief comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | Every non-namespaced name written through blob storage lands under `file/active`, so that one directory holds everything a filesystem prefix could list | `resolveKey` and `migrateExistingFiles` in `internal/component/config/storage/blob.go` both build `file/active/<basename>` | Widening `List` would return files from a directory the caller did not ask about | Read both producers; `TestBlobStorageFilePrefix` asserts the written key | confirmed |
+| A-2 | Only three non-test callers reach `Storage.List`, and two already pass a namespaced directory | `gopls references` on the interface method and on `blobStorage.List` | A caller relying on the old base-name reduction would break | `cmdLsWithStorage` passes `zefs.KeyFileActive.Dir()`, `cmdEditWithStorage` passes `file/active` to `selectConfig`, and `Editor.listChangeFiles` passes `filepath.Dir` | confirmed |
+| A-3 | Nothing deletes files from a `List` result, so a wider result cannot destroy operator data | `listChangeFiles` results are read by `SessionChanges` and `PendingChanges` only; `DisconnectSession` rebuilds its path from `ChangePath` | A widened `List` could feed a delete | Read every consumer in `internal/component/cli/editor.go` and `editor_commit.go` | confirmed |
+| A-4 | The `.et` runner could reach the defect | It builds editors with `cli.NewEditor`, which is filesystem-only | No `.et` can prove the fix, and the proof moves to `test/web/` | Read `newHeadlessModel` in `internal/component/cli/testing/headless.go` | broken: the runner needed the blob-storage option this spec adds |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what could bite] | [how we would notice] | [what we would do] |
+| R-1 | `List` returning more entries changes `doSelectConfig`'s prompt for `ze config edit` | The config selection lists unexpected files | Not reached: `cmdEditWithStorage` passes `file/active`, which was already correct and is unchanged |
+| R-2 | A caller lists a FILE path and now gets the whole `file/active` directory instead of an error | A caller treats a config path as a directory | No caller does. The blob discards the directory part on write, so the backend cannot tell the two apart; the behavior is stated in `resolveDirKey`'s comment |
 
 ## Blast Radius
 
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | The pending-change review. A `List` that returns too little hides operator changes (the defect); one that returns too much shows another config's files in the review. Neither reaches a delete path (A-3), so no stored data is at risk |
+| How is it reverted? | Single commit revert. No data is rewritten: the change is read-side only, and the blob layout is untouched |
+| Who else touches this path? | `ze config ls` and `ze config edit`'s config selection are the other two `Storage.List` callers, both already passing a namespaced directory |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -151,7 +192,8 @@ defect with its own test surface, and it predates that change.
      by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| `delete bgp peer <name>` in a session-mode editor on blob storage | → | `Editor.PendingChanges` → `listChangeFiles` → `blobStorage.List` → `resolveDirKey` | `test/editor/session/diff-structural-op-blob.et` |
+| `Storage.List` with a filesystem directory prefix | → | `blobStorage.List` | `TestBlobStorageListFilesystemDirectory` |
 
 ## Acceptance Criteria
 
@@ -159,7 +201,11 @@ defect with its own test surface, and it predates that change.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | An operator deletes a list entry in a session-mode editor backed by blob storage, then reads the pending-change review | The review counts and shows that delete, as filesystem storage does |
+| AC-2 | The same, read through the all-sessions view | The delete is attributed to its session and counted there too |
+| AC-3 | `Storage.List` is called with a filesystem directory prefix on blob storage | It returns the config files, as full namespaced keys that round-trip to `ReadFile` |
+| AC-4 | `Storage.List` is called with an already-namespaced directory prefix | It lists that directory, unchanged from today |
+| AC-5 | An `.et` test asks for blob-backed config storage | The editor under test reads and writes a zefs blob, as the daemon does |
 
 ## End-to-End User Stories
 
@@ -169,19 +215,24 @@ defect with its own test surface, and it predates that change.
      before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [e.g. "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | Deletes a BGP peer in the editor, then reviews pending changes before commit | editor delete -> change file -> `PendingChanges` -> `listChangeFiles` -> `blobStorage.List` -> `ReadDir` -> review | `test/editor/session/diff-structural-op-blob.et` |
+| 2 | Reviews what every session has pending | `ActiveSessions` -> `PendingChanges` -> the same chain | `test/editor/session/diff-structural-op-blob.et`, the `show \| changes all` step |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestBlobStorageListFilesystemDirectory` | `internal/component/config/storage/blob_test.go` | AC-3: a directory prefix lists the config files, returned as full keys | pass |
+| `TestResolveDirKey` | `internal/component/config/storage/blob_test.go` | AC-3, AC-4: directory prefix, bare filename, absolute file path, and the three namespaced forms | pass |
+| `TestResolveKeyIdempotent` | `internal/component/config/storage/storage_test.go` | The file-key mapping is unchanged by this spec | pass |
+| `TestRunnerBlobStorage` | `internal/component/cli/testing/runner_test.go` | AC-5: the option gives the editor a blob-backed store | pass |
+| `TestRunnerUnknownStorageBackendFails` | `internal/component/cli/testing/runner_test.go` | An unrecognized backend name stops the test rather than falling back | pass |
+| `TestRunnerBlobStorageRefusesFileExpectation` | `internal/component/cli/testing/runner_test.go` | `expect=file:` with blob storage stops the test | pass |
 
 ### Boundary Tests (numeric inputs)
-| Field | Range | Last Valid | Invalid Below | Invalid Above |
-|-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+No numeric input. The unit is a key string, and its cases are enumerated in
+`TestResolveDirKey`.
 
 ### Functional Tests
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
@@ -189,43 +240,51 @@ defect with its own test surface, and it predates that change.
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `diff-structural-op-blob` | `test/editor/session/diff-structural-op-blob.et` | AC-1, AC-2, AC-5: the operator deletes a peer on blob storage and the review counts it | pass |
 
 ### Interop Tests (Scope: protocol)
-<!-- REQUIRED when wire-visible behavior changes. See
-     ai/rules/interop-and-goal-validation.md, including the vacuity traps: prove
-     the test FAILS when the behavior under test is reverted. -->
-| Scenario | Directory | Peer Daemon | What It Proves | Status |
-|----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+Not applicable. Nothing wire-visible changes; this is config storage.
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
-- `internal/...` - [feature changes]
+- `internal/component/config/storage/blob.go` - `List` resolves a DIRECTORY key;
+  new `resolveDirKey`; `resolvePathToKey` loses its dead branch, its false comment,
+  and the parameter no branch read; `resolveKey` loses the same parameter
+- `internal/component/config/storage/pointer.go` - one `resolvePathToKey` call site
+- `internal/component/config/storage/storage_test.go` - `resolveKey` call sites
+- `internal/component/cli/testing/headless.go` - both headless constructors take the
+  storage backend and build the editor with `NewEditorWithStorage`
+- `internal/component/cli/testing/headless_test.go` - the constructor call sites
+- `internal/component/cli/testing/runner.go` - `option=storage:value=blob` creates one
+  blob store, shared by every model the test builds
+- `ai/rules/points/testing/editor-tests-et-format/every-et-directive-and-what-it-does.md`
+  and the rendered `ai/rules/testing.md` - the new directive
+- `docs/functional-tests.md` - the same directive in the editor-test table
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `internal/component/config/storage/blob_test.go` - has the two new unit tests
+  (the file already existed)
+- `test/editor/session/diff-structural-op-blob.et` - the operator-altitude test
 
 ### Integration Checklist
 <!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves; dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | No | No config surface changes. The fix is inside a storage backend |
+| YANG validation constraints | N-A | No leaf added |
+| YANG custom validators | N-A | No leaf added |
+| CLI commands/flags | No | No command, flag, or exit code changes |
+| CLI grammar (keyword before value) | N-A | No command added |
+| Editor autocomplete | No | No new value source |
+| Functional test for new RPC/API | Yes | `test/editor/session/diff-structural-op-blob.et` |
+| Pipe completeness | No | `show \| changes` already routes through the pipe machinery, unchanged |
+| Env var registration | N-A | No env var |
+| Doctor check for runtime dependencies | No | No new file path, socket, port, or binary. The blob store and its location are unchanged |
+| Prometheus counters/metrics | No | No new observable state |
+| BGP family surface (new SAFI / capability / attribute) | N-A | Not a BGP change |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
@@ -233,23 +292,23 @@ defect with its own test surface, and it predates that change.
      files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | `docs/features.md` |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | Grep `docs/` for `source: <changed-file>` and update each stale claim |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature? | No | A defect fix: the review surface now shows what it always claimed to show |
+| 2 | Config syntax changed? | No | No syntax change |
+| 3 | CLI command added/changed? | No | `show \| changes` behavior is corrected, not changed |
+| 4 | API/RPC added/changed? | No | No API change |
+| 5 | Plugin added/changed? | No | No plugin involved |
+| 6 | Has a user guide page? | No | The review UI is documented by behavior, and the documented behavior is what now happens |
+| 7 | Wire format changed? | N-A | No wire surface |
+| 8 | Plugin SDK/protocol changed? | No | No SDK change |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC governs config storage |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` and the `.et` directive point file both carry `option=storage:value=blob` |
+| 11 | Affects daemon comparison? | No | No feature claim changes |
+| 12 | Internal architecture changed? | No | `docs/architecture/zefs-format.md` describes the flat namespace, which this fix relies on rather than alters |
+| 13 | Route metadata keys added/changed? | N-A | No route metadata |
+| 14 | Prometheus counters added/changed? | No | None added |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | Nothing registered changes |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/functional-tests.md` anchors `internal/component/cli/testing/parser.go`; the `.et` option table there is updated. No anchor names `blob.go` |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | The `.et` examples in the docs stay valid; the new option is additive |
 
 ## Implementation Steps
 
@@ -259,14 +318,16 @@ defect with its own test surface, and it predates that change.
      (write test -> fail -> implement -> pass) and ends with a self-critical
      review; fix what it finds before starting the next phase. -->
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: entry point exists and is reachable; the wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+1. **Phase: Wiring (MANDATORY FIRST)** -- make the operator's surface reachable from a test
+   - Tests: `test/editor/session/diff-structural-op-blob.et`, `TestBlobStorageListFilesystemDirectory`
+   - Files: `internal/component/cli/testing/headless.go`, `runner.go`, `headless_test.go`,
+     `internal/component/config/storage/blob_test.go`
+   - Verify: the `.et` runs the editor on a real blob store and FAILS on the review
+     count, reproducing what the operator sees
+2. **Phase: Fix the key resolution** -- resolve a List prefix to a directory key
+   - Tests: the two above, plus `TestResolveDirKey`
+   - Files: `internal/component/config/storage/blob.go`, `pointer.go`, `storage_test.go`
+   - Verify: both tests pass; reverting `List` to `resolveKey` returns them to red
 
 ### Critical Review Checklist
 
@@ -275,12 +336,13 @@ defect with its own test surface, and it predates that change.
      is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
-| Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific: e.g. "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific: e.g. "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific: e.g. "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Completeness | Every AC has a named test in the TDD plan, and each one passes |
+| Feature completeness | Both user stories run through the `.et`, no stubbed step |
+| Correctness | `List` returns full namespaced keys that round-trip to `ReadFile`; an already-namespaced prefix still lists that directory and nothing else |
+| No wider result than the write mapping | The directory a filesystem prefix lists is the one `resolveKey` writes into, and nothing else |
+| Data flow | `internal/component/cli` learns no blob key shape. The whole fix lives in the storage backend |
+| Rule: `ai/rules/stale-comments.md` | No comment describes the removed branch or the removed parameter, and `resolveKey`'s comment states what it now does |
+| Rule: `ai/rules/testing.md` | The `.et` goes red when the fix is reverted, and the option it needs is documented where the other `.et` options are |
 
 ### Deliverables Checklist
 
@@ -288,7 +350,10 @@ defect with its own test surface, and it predates that change.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| A List prefix resolves to a directory key | `make ze-test-pkg PKG=./internal/component/config/storage` |
+| The operator's review shows a structural delete on blob storage | `make ze-editor-test` |
+| `.et` tests can ask for blob-backed storage | `grep -n "option=storage" test/editor/session/diff-structural-op-blob.et docs/functional-tests.md ai/rules/testing.md` |
+| No dead branch or false comment survives in the key resolution | Read `resolvePathToKey` and `resolveKey` in `internal/component/config/storage/blob.go` |
 
 ### Security Review Checklist
 
@@ -296,7 +361,9 @@ defect with its own test surface, and it predates that change.
      leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Path traversal through a List prefix | A prefix reaching `ReadDir` is either an already-namespaced key or the fixed `file/active` constant. A caller-supplied `../` never reaches the blob tree, because a non-namespaced prefix is discarded, not joined |
+| Namespace escape | A prefix starting `meta/` still lists metadata, exactly as before this change. `List` is read-only and exposes no value, only key names |
+| Cross-user disclosure | `List` returns every change file, as it does on filesystem storage. `listChangeFiles` filters to this config, and the review already shows other sessions' pending changes by design (`show \| changes all`) |
 
 ### Failure Routing
 
@@ -314,21 +381,41 @@ defect with its own test surface, and it predates that change.
 <!-- LIVE: write immediately when you learn something. At closure these route to
      a subsystem arch doc, a rule, or the learned summary. -->
 
+- A blob key has two shapes, and one function was serving both. `resolveKey` builds a
+  FILE key; `ReadDir` needs a DIRECTORY key. The registry already carried both forms
+  (`KeyEntry.Key` and `KeyEntry.Dir`), so the defect was a missing distinction in the
+  storage backend, not a missing capability in zefs.
+- Every existing test of `blobStorage.List` passed an already-namespaced prefix, which
+  is the one shape the code got right. The defect lived under complete-looking
+  coverage because no test used the shape the production caller uses.
+- The whole `.et` suite ran on filesystem storage while the daemon runs on a blob.
+  A defect reachable only under blob storage was invisible to 164 editor tests.
+
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Fix in `blobStorage.List` | Fix in `Editor.listChangeFiles` by passing a key the blob understands | The editor would have to know blob key shapes. The path-to-key mapping belongs to the storage backend, and the same wrong prefix would still fail for the next caller |
+| Fix in `blobStorage.List` | Change `resolvePathToKey` so a directory survives | Every read and write flows through it. A directory-shaped key under `file/active` would create nested keys the blob layout does not use, and would change where files are stored |
+| A filesystem prefix maps to `file/active` | Reject a non-namespaced prefix with an error | The three callers include one that legitimately passes a filesystem directory, so an error would leave the defect in place |
+| `option=storage:value=blob` in the `.et` runner | A Go test in `internal/component/cli` driving the editor directly | The operator meets this through the editor, and `ai/rules/testing.md` requires the functional test to run through the entry point. The option is also what lets any future blob-only editor defect be tested at all |
+| Both headless constructors take a storage backend | A third constructor for the blob case | Three constructors with the same body is machinery; passing `NewFilesystem()` keeps one shape per model kind |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      needs a row in the deferral shard named in the metadata table. -->
-- [What was deliberately not done and why]
+- A `List` prefix naming a FILE returns the `file/active` directory instead of an
+  error. The blob discards the directory part of a path on write, so the backend
+  cannot tell a file path from a directory path. No caller does this.
+- An `.et` using `option=storage:value=blob` cannot assert with `expect=file:`. The
+  editor writes the blob, so the temp directory keeps its migrated state and such an
+  expectation would assert against content nothing wrote. The runner refuses the pair
+  rather than let a test prove the wrong thing
+  (`TestRunnerBlobStorageRefusesFileExpectation`).
 
 ## RFC Documentation (Scope: protocol)
 
-Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
-MUST document: validation rules, error conditions, state transitions, timer
-constraints, message ordering, and every MUST/MUST NOT.
+Not applicable. No RFC governs ze's config storage.
 
 ## Checklist
 

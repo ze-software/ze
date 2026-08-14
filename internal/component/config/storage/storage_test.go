@@ -735,21 +735,20 @@ func TestResolveKeyIdempotent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := resolveKey(tt.input, "")
+			got := resolveKey(tt.input)
 			if got != tt.want {
-				t.Errorf("resolveKey(%q, \"\"): got %q, want %q", tt.input, got, tt.want)
+				t.Errorf("resolveKey(%q): got %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
 
-	// Test relative path with configDir (#5)
-	// With flat-key storage, resolvePathToKey returns filepath.Base(name),
-	// so relative paths also resolve to just the filename.
-	t.Run("relative with configDir", func(t *testing.T) {
-		got := resolveKey("router.conf", "/etc/ze")
+	// A relative path (#5). With flat-key storage, resolvePathToKey returns
+	// filepath.Base(name), so a relative path resolves to just the filename.
+	t.Run("relative path", func(t *testing.T) {
+		got := resolveKey("router.conf")
 		want := "file/active/router.conf"
 		if got != want {
-			t.Errorf("resolveKey(\"router.conf\", \"/etc/ze\"): got %q, want %q", got, want)
+			t.Errorf("resolveKey(\"router.conf\"): got %q, want %q", got, want)
 		}
 	})
 }

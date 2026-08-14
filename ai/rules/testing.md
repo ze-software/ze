@@ -786,6 +786,7 @@ Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with
 | `option=reload:mode=success\|fail` | Mock reload notifier | `option=reload:mode=success` |
 | `option=monitor:ping=fake` | Deterministic ping monitor + fake PTR/origin resolvers (offline pipe-enrichment tests; see `internal/component/cli/testing/fake_monitor.go`) | `option=monitor:ping=fake` |
 | `option=session:user=X:origin=Y` | Session identity | `option=session:user=alice:origin=ssh` |
+| `option=storage:value=blob` | Config storage is a zefs blob, as in the daemon, instead of the filesystem. The tmpfs `*.conf` files migrate into the blob, so `option=file:path=` still names the config. `expect=file:` is refused with it: the editor writes the blob, so the temp directory keeps its migrated state | `option=storage:value=blob` |
 | `session=<name>` | Switch to named session | `session=bob` |
 | `input=type:text=<string>` | Type text | `input=type:text=show` |
 | `input=<keyname>` | Press key | `input=enter`, `input=tab`, `input=up` |

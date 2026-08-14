@@ -87,3 +87,72 @@ func TestNewBlobOpensValidStoreInPlace(t *testing.T) {
 		t.Fatalf("reopened store read-back = %q, %v; want \"persisted\"", got, err)
 	}
 }
+
+// VALIDATES: List accepts a filesystem directory prefix and returns the config
+// files written from that directory.
+// PREVENTS: the pending-change review UI rendering an empty body under blob
+// storage. Editor.listChangeFiles lists filepath.Dir(originalPath), so a
+// directory prefix that resolves to nothing hides every structural operation an
+// operator is about to commit.
+func TestBlobStorageListFilesystemDirectory(t *testing.T) {
+	dir := t.TempDir()
+	st, err := NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	if err != nil {
+		t.Fatalf("NewBlob: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	for _, name := range []string{
+		"/etc/ze/router.conf",
+		"/etc/ze/router.conf.change.alice",
+		"/etc/ze/router.conf.change.bob",
+	} {
+		if err := st.WriteFile(name, []byte("x"), 0); err != nil {
+			t.Fatalf("WriteFile %s: %v", name, err)
+		}
+	}
+
+	got, err := st.List("/etc/ze")
+	if err != nil {
+		t.Fatalf("List(\"/etc/ze\"): %v", err)
+	}
+	want := []string{
+		"file/active/router.conf",
+		"file/active/router.conf.change.alice",
+		"file/active/router.conf.change.bob",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("List(\"/etc/ze\"): got %d entries %v, want %d %v", len(got), got, len(want), want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("List(\"/etc/ze\")[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+// VALIDATES: every List prefix shape resolves to a blob directory key.
+// PREVENTS: a List prefix resolving to a FILE key, which ReadDir answers with
+// fs.ErrNotExist, so the caller reads an empty directory as "no files".
+func TestResolveDirKey(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"absolute directory", "/etc/ze", "file/active"},
+		{"bare filename", "router.conf", "file/active"},
+		{"absolute file path", "/etc/ze/router.conf", "file/active"},
+		{"namespaced active dir", "file/active", "file/active"},
+		{"namespaced draft dir", "file/draft", "file/draft"},
+		{"namespaced meta dir", "meta/ssh", "meta/ssh"},
+		{"leading slash namespaced", "/file/active", "file/active"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := resolveDirKey(tt.input); got != tt.want {
+				t.Errorf("resolveDirKey(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

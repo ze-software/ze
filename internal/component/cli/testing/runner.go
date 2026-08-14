@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/trace"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -121,6 +122,7 @@ func runTestCase(tc *TestCase) *TestResult {
 	useHistoryStore := false // option=history:store -- persist history to zefs
 	editorMode := "config"   // option=mode:value=operational -- operational-only mode
 	monitorPing := ""        // option=monitor:ping=fake -- deterministic ping factory + resolvers
+	storageMode := ""        // option=storage:value=blob -- zefs-backed config storage
 	sessionUser := ""
 	sessionOrigin := ""
 
@@ -175,7 +177,49 @@ func runTestCase(tc *TestCase) *TestResult {
 			if ping, ok := opt.Values["ping"]; ok {
 				monitorPing = ping
 			}
+		case "storage":
+			if val, ok := opt.Values["value"]; ok {
+				storageMode = val
+			}
 		}
+	}
+
+	// Config storage backend. The daemon runs on a zefs blob, so a test that
+	// must reproduce blob-only behavior asks for it with option=storage:value=blob.
+	// The store is created once and shared by every model the test builds
+	// (sessions, restart=), because one zefs file admits one BlobStore.
+	// NewBlob migrates the tmpfs *.conf files into the blob as it is created, so
+	// option=file:path= still names the config.
+	configStore := storage.NewFilesystem()
+	switch storageMode {
+	case "", "filesystem":
+	case "blob":
+		// expect=file: reads the temp directory, and a blob-backed editor writes
+		// the blob instead. Such an expectation would assert against the copy the
+		// migration left behind and report a pass for content nothing wrote.
+		// Refuse the pair rather than let a test prove the wrong thing.
+		for _, exp := range tc.Expects {
+			if exp.Type == "file" {
+				result.Error = "expect=file: cannot be used with option=storage:value=blob, " +
+					"because the editor writes the blob and leaves the temp directory at its migrated state"
+				return result
+			}
+		}
+		blobStore, blobErr := storage.NewBlob(filepath.Join(tmpDir, "database.zefs"), tmpDir)
+		if blobErr != nil {
+			var tb textbuf.Buffer
+			result.Error = tb.Str("creating blob storage: ").Err(blobErr).String()
+			return result
+		}
+		defer blobStore.Close() //nolint:errcheck // test cleanup
+		configStore = blobStore
+	default:
+		// Fail rather than fall back: a test that asks for a backend it does not
+		// get would assert against the filesystem and report a pass for coverage
+		// it never had.
+		var tb textbuf.Buffer
+		result.Error = tb.Str("unknown option=storage:value=").Str(storageMode).Str(" (want blob or filesystem)").String()
+		return result
 	}
 
 	// Create blob store for history persistence (if requested).
@@ -204,9 +248,9 @@ func runTestCase(tc *TestCase) *TestResult {
 			return nil, fmt.Errorf("config file not found: %s", configPath)
 		}
 		if sessionUser != "" {
-			return newHeadlessModelWithSession(configPath, sessionUser, sessionOrigin)
+			return newHeadlessModelWithSession(configStore, configPath, sessionUser, sessionOrigin)
 		}
-		return newHeadlessModel(configPath)
+		return newHeadlessModel(configStore, configPath)
 	}
 
 	// wireHistory sets up history persistence on the model.
@@ -261,7 +305,7 @@ func runTestCase(tc *TestCase) *TestResult {
 		case StepSession:
 			sa := tc.Sessions[step.SessionIndex]
 			if sa.User != "" {
-				newHM, sessionErr := newHeadlessModelWithSession(configPath, sa.User, sa.Origin)
+				newHM, sessionErr := newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin)
 				result.Steps = append(result.Steps, trace.StepResult{
 					Step: stepNum, Kind: "session", Assert: sa.Name,
 					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),

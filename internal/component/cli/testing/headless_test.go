@@ -8,6 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 const testConfig = `bgp {
@@ -42,7 +44,7 @@ func TestHeadlessModelCreate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 	require.NotNil(t, hm)
 
@@ -60,7 +62,7 @@ func TestHeadlessModelSendKey(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Send some key messages
@@ -84,7 +86,7 @@ func TestHeadlessModelContext(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Initially at root
@@ -108,7 +110,7 @@ func TestHeadlessModelCompletions(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Type "set " to trigger completions
@@ -129,7 +131,7 @@ func TestHeadlessModelGhostText(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Ghost text is available through accessor
@@ -148,7 +150,7 @@ func TestHeadlessModelValidationErrors(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Valid config should have no errors
@@ -165,7 +167,7 @@ func TestHeadlessModelDirty(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Initially not dirty
@@ -182,7 +184,7 @@ func TestHeadlessModelStatusMessage(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Status message accessor should work
@@ -199,7 +201,7 @@ func TestHeadlessModelError(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Initially no error
@@ -224,7 +226,7 @@ func TestHeadlessModelIsTemplate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Initially not in template mode
@@ -241,7 +243,7 @@ func TestHeadlessModelShowDropdown(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Initially dropdown not showing
@@ -258,7 +260,7 @@ func TestHeadlessModelWorkingContent(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Should have the original content
@@ -277,7 +279,7 @@ func TestHeadlessModelTypeAndEnter(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
-	hm, err := newHeadlessModel(configPath)
+	hm, err := newHeadlessModel(storage.NewFilesystem(), configPath)
 	require.NoError(t, err)
 
 	// Type and execute command

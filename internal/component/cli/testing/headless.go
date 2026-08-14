@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // headlessModel wraps the editor Model for headless testing.
@@ -21,9 +22,10 @@ type headlessModel struct {
 	tmpDir  string           // temp directory for file expectations
 }
 
-// newHeadlessModel creates a headless model from a config file path.
-func newHeadlessModel(configPath string) (*headlessModel, error) {
-	ed, err := cli.NewEditor(configPath)
+// newHeadlessModel creates a headless model from a config file path, reading
+// and writing it through store.
+func newHeadlessModel(store storage.Storage, configPath string) (*headlessModel, error) {
+	ed, err := cli.NewEditorWithStorage(store, configPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating editor: %w", err)
 	}
@@ -52,8 +54,8 @@ func newHeadlessModel(configPath string) (*headlessModel, error) {
 }
 
 // newHeadlessModelWithSession creates a headless model with session identity activated.
-func newHeadlessModelWithSession(configPath, user, origin string) (*headlessModel, error) {
-	ed, err := cli.NewEditor(configPath)
+func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin string) (*headlessModel, error) {
+	ed, err := cli.NewEditorWithStorage(store, configPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating editor: %w", err)
 	}

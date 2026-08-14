@@ -119,6 +119,91 @@ expect=context:root
 	assert.Contains(t, result.Error, "nonexistent")
 }
 
+// TestRunnerBlobStorage verifies option=storage:value=blob runs the editor on a
+// zefs blob, as the daemon does, and that the tmpfs config is reachable there.
+//
+// VALIDATES: an .et test can exercise blob-only editor behavior.
+// PREVENTS: a blob-only defect staying invisible to the whole .et suite, which
+// ran every test on filesystem storage while the daemon runs on a blob.
+func TestRunnerBlobStorage(t *testing.T) {
+	etContent := `# Blob-backed editor
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+    asn {
+      local 65000
+    }
+  }
+  router-id 1.2.3.4
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=storage:value=blob
+option=session:user=thomas:origin=local
+
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=dirty:true
+expect=error:none
+`
+
+	result := runETTest(etContent)
+	require.NotNil(t, result)
+	assert.True(t, result.Passed, "test should pass: %s", result.Error)
+}
+
+// TestRunnerBlobStorageRefusesFileExpectation verifies the two options that
+// cannot mean anything together are refused.
+//
+// VALIDATES: expect=file: with blob storage stops the test.
+// PREVENTS: a file expectation asserting against the pre-migration copy in the
+// temp directory and passing for content the editor never wrote there.
+func TestRunnerBlobStorageRefusesFileExpectation(t *testing.T) {
+	etContent := `# Blob storage with a file expectation
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=storage:value=blob
+
+expect=file:path=test.conf:contains=router-id
+`
+
+	result := runETTest(etContent)
+	require.NotNil(t, result)
+	assert.False(t, result.Passed)
+	assert.Contains(t, result.Error, "expect=file:")
+}
+
+// TestRunnerUnknownStorageBackendFails verifies the storage option fails closed.
+//
+// VALIDATES: an unrecognized backend name stops the test.
+// PREVENTS: a typo silently running on the filesystem while the test claims to
+// prove blob behavior.
+func TestRunnerUnknownStorageBackendFails(t *testing.T) {
+	etContent := `# Unknown storage backend
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=storage:value=zefs
+
+expect=context:root
+`
+
+	result := runETTest(etContent)
+	require.NotNil(t, result)
+	assert.False(t, result.Passed)
+	assert.Contains(t, result.Error, "unknown option=storage:value=zefs")
+}
+
 // TestRunnerMultipleExpectations verifies multiple expectations.
 //
 // VALIDATES: All expectations are checked in order.

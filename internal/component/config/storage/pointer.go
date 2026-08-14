@@ -366,7 +366,7 @@ func versionPath(store Storage, configPath, stamp string) (string, error) {
 		return "", fmt.Errorf("config version path: %w", err)
 	}
 	if IsBlobStorage(store) {
-		return zefs.KeyFileVersion.Key(stamp, resolvePathToKey(configPath, "")), nil
+		return zefs.KeyFileVersion.Key(stamp, resolvePathToKey(configPath)), nil
 	}
 	return versionPathFS(configPath, stamp), nil
 }

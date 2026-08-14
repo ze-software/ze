@@ -28,11 +28,10 @@ type fileMeta struct {
 // blobStorage wraps a zefs BlobStore for config file I/O.
 // All paths are absolute filesystem paths; the leading "/" is stripped to form blob keys.
 type blobStorage struct {
-	store     *zefs.BlobStore
-	blobPath  string
-	configDir string
-	mu        sync.RWMutex         // protects metas + writeObserver
-	metas     map[string]*fileMeta // per-key metadata
+	store    *zefs.BlobStore
+	blobPath string
+	mu       sync.RWMutex         // protects metas + writeObserver
+	metas    map[string]*fileMeta // per-key metadata
 	// writeObserver, when set, is called after every successful WriteFile with the
 	// RESOLVED key. Used by the managed-config server to push config-changed when a
 	// per-client config blob is written. Set via SetWriteObserver; nil = no observer.
@@ -78,17 +77,16 @@ func NewBlob(blobPath, configDir string) (Storage, error) {
 	}
 
 	return &blobStorage{
-		store:     store,
-		blobPath:  blobPath,
-		configDir: configDir,
-		metas:     make(map[string]*fileMeta),
+		store:    store,
+		blobPath: blobPath,
+		metas:    make(map[string]*fileMeta),
 	}, nil
 }
 
 // Rename renames a blob key. Reads old data, writes to new key, removes old.
 func (s *blobStorage) Rename(oldName, newName string) error {
-	oldKey := resolveKey(oldName, s.configDir)
-	newKey := resolveKey(newName, s.configDir)
+	oldKey := resolveKey(oldName)
+	newKey := resolveKey(newName)
 	data, err := s.store.ReadFile(oldKey)
 	if err != nil {
 		return fmt.Errorf("storage: rename read %s: %w", oldKey, err)
@@ -115,11 +113,11 @@ func (s *blobStorage) Close() error {
 }
 
 func (s *blobStorage) ReadFile(name string) ([]byte, error) {
-	return s.store.ReadFile(resolveKey(name, s.configDir))
+	return s.store.ReadFile(resolveKey(name))
 }
 
 func (s *blobStorage) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	key := resolveKey(name, s.configDir)
+	key := resolveKey(name)
 	if err := s.store.WriteFile(key, data, 0); err != nil {
 		return err
 	}
@@ -154,7 +152,7 @@ func SetWriteObserver(s Storage, fn func(key string)) bool {
 }
 
 func (s *blobStorage) Remove(name string) error {
-	key := resolveKey(name, s.configDir)
+	key := resolveKey(name)
 	s.mu.Lock()
 	delete(s.metas, key)
 	s.mu.Unlock()
@@ -162,14 +160,14 @@ func (s *blobStorage) Remove(name string) error {
 }
 
 func (s *blobStorage) Exists(name string) bool {
-	return s.store.Has(resolveKey(name, s.configDir))
+	return s.store.Has(resolveKey(name))
 }
 
 // Stat returns per-key metadata tracked in memory.
 // ModTime is set automatically on every WriteFile.
 // ModifiedBy is set via SetModifier on the WriteGuard.
 func (s *blobStorage) Stat(name string) (FileMeta, error) {
-	key := resolveKey(name, s.configDir)
+	key := resolveKey(name)
 	if !s.store.Has(key) {
 		return FileMeta{}, fmt.Errorf("storage: blob key not found: %s", key)
 	}
@@ -184,7 +182,7 @@ func (s *blobStorage) Stat(name string) (FileMeta, error) {
 }
 
 func (s *blobStorage) List(prefix string) ([]string, error) {
-	key := resolveKey(prefix, s.configDir)
+	key := resolveDirKey(prefix)
 	// Use ReadDir for immediate children only (matches filesystem semantics)
 	entries, err := s.store.ReadDir(key)
 	if err != nil {
@@ -204,7 +202,7 @@ func (s *blobStorage) List(prefix string) ([]string, error) {
 }
 
 func (s *blobStorage) WriteVersion(name string, data []byte, stamp time.Time) error {
-	basename := resolvePathToKey(name, s.configDir)
+	basename := resolvePathToKey(name)
 	stampStr := FormatVersionStamp(stamp)
 	key := zefs.KeyFileVersion.Key(stampStr, basename)
 	if err := s.store.WriteFile(key, data, 0); err != nil {
@@ -220,7 +218,7 @@ func (s *blobStorage) WriteVersion(name string, data []byte, stamp time.Time) er
 }
 
 func (s *blobStorage) ListVersions(name string) ([]VersionInfo, error) {
-	basename := resolvePathToKey(name, s.configDir)
+	basename := resolvePathToKey(name)
 
 	entries, err := s.store.ReadDir("file")
 	if err != nil {
@@ -262,25 +260,24 @@ func (s *blobStorage) AcquireLock(_ string) (WriteGuard, error) {
 	if err != nil {
 		return nil, fmt.Errorf("storage: blob lock: %w", err)
 	}
-	return &blobGuard{wl: wl, configDir: s.configDir, parent: s}, nil
+	return &blobGuard{wl: wl, parent: s}, nil
 }
 
 // blobGuard wraps a zefs WriteLock as a WriteGuard.
 // Lock ordering: WriteLock is acquired first (via AcquireLock), then parent.mu
 // for metadata updates in WriteFile/Remove. Nothing acquires them in reverse.
 type blobGuard struct {
-	wl        *zefs.WriteLock
-	configDir string
-	parent    *blobStorage
-	modifier  string // session ID set via SetModifier
+	wl       *zefs.WriteLock
+	parent   *blobStorage
+	modifier string // session ID set via SetModifier
 }
 
 func (g *blobGuard) ReadFile(name string) ([]byte, error) {
-	return g.wl.ReadFile(resolveKey(name, g.configDir))
+	return g.wl.ReadFile(resolveKey(name))
 }
 
 func (g *blobGuard) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	key := resolveKey(name, g.configDir)
+	key := resolveKey(name)
 	if err := g.wl.WriteFile(key, data, 0); err != nil {
 		return err
 	}
@@ -296,7 +293,7 @@ func (g *blobGuard) WriteFile(name string, data []byte, _ fs.FileMode) error {
 }
 
 func (g *blobGuard) Remove(name string) error {
-	key := resolveKey(name, g.configDir)
+	key := resolveKey(name)
 	g.parent.mu.Lock()
 	delete(g.parent.metas, key)
 	g.parent.mu.Unlock()
@@ -308,7 +305,7 @@ func (g *blobGuard) Remove(name string) error {
 // while the guard holds the exclusive lock (unlike blobStorage.Exists, which
 // re-locks and would deadlock).
 func (g *blobGuard) Has(name string) bool {
-	return g.wl.Has(resolveKey(name, g.configDir))
+	return g.wl.Has(resolveKey(name))
 }
 
 func (g *blobGuard) Release() error {
@@ -320,7 +317,7 @@ func (g *blobGuard) SetModifier(sessionID string) {
 }
 
 func (g *blobGuard) WriteVersion(name string, data []byte, stamp time.Time) error {
-	basename := resolvePathToKey(name, g.configDir)
+	basename := resolvePathToKey(name)
 	stampStr := FormatVersionStamp(stamp)
 	key := zefs.KeyFileVersion.Key(stampStr, basename)
 	if err := g.wl.WriteFile(key, data, 0); err != nil {
@@ -347,33 +344,50 @@ func isNamespaced(key string) bool {
 	return strings.HasPrefix(key, "file/") || strings.HasPrefix(key, "meta/")
 }
 
-// resolveKey converts a path to a blob key, resolving relative paths
-// against configDir. Idempotent: already-namespaced keys pass through unchanged.
-// Filesystem paths get the file/active/ prefix.
+// resolveKey converts a path to a blob FILE key. Idempotent: already-namespaced
+// keys pass through unchanged. A filesystem path keeps only its base filename
+// and gets the file/active/ prefix, so "/etc/ze/router.conf" and "router.conf"
+// both resolve to "file/active/router.conf". Use resolveDirKey for a List
+// prefix, which names a directory rather than a file.
 //
 // NOTE: Keys starting with "meta/" or "file/" pass through unchanged.
 // This means Storage callers passing namespaced keys (e.g., from List results)
 // can read/write them without double-prefixing. It also means a caller
 // passing "meta/ssh/password" as a name accesses the raw meta key.
-func resolveKey(name, configDir string) string {
+func resolveKey(name string) string {
 	trimmed := pathToKey(name)
 	if isNamespaced(trimmed) {
 		return trimmed
 	}
 
-	key := resolvePathToKey(name, configDir)
+	key := resolvePathToKey(name)
 
 	return zefs.KeyFileActive.Key(key)
 }
 
-// resolvePathToKey resolves a filesystem path to a bare key (no namespace prefix).
-// Absolute paths are stripped to their base filename.
-// Relative paths are used as-is (typically just a filename like "laptop.conf").
-func resolvePathToKey(name, _ string) string {
-	if filepath.IsAbs(name) {
-		return filepath.Base(name)
-	}
+// resolvePathToKey resolves a filesystem path to a bare key (no namespace
+// prefix). The blob is flat inside each namespace, so the directory part of a
+// path is dropped and only the base filename becomes the key: both
+// "/etc/ze/laptop.conf" and "laptop.conf" resolve to "laptop.conf".
+func resolvePathToKey(name string) string {
 	return filepath.Base(name)
+}
+
+// resolveDirKey converts a List prefix to a blob DIRECTORY key.
+// An already-namespaced prefix ("file/active", "meta/ssh") names a directory in
+// the blob and passes through unchanged. Every other prefix is a filesystem
+// directory, and resolveKey writes every file under such a directory to
+// file/active/<basename>, so file/active is the directory that holds them.
+//
+// resolveKey cannot serve this: it builds a FILE key, so it reduces a directory
+// prefix to its last path component and looks that up under file/active. ReadDir
+// answers such a key with fs.ErrNotExist, which reads back as "no files".
+func resolveDirKey(prefix string) string {
+	trimmed := pathToKey(prefix)
+	if isNamespaced(trimmed) {
+		return trimmed
+	}
+	return zefs.KeyFileActive.Dir()
 }
 
 // migrateExistingFiles imports config files from configDir into a newly created blob.

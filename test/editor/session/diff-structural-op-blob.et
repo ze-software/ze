@@ -1,0 +1,58 @@
+# Test: a structural delete under blob storage appears in the pending-change review
+# VALIDATES: spec-fixit-zefs-diff-structural-ops AC-1 -- delete bgp peer is counted
+#            as a pending change when config storage is a zefs blob
+# VALIDATES: AC-2 -- the cross-session scan (show | changes all) sees the same op
+# PREVENTS: an operator reviewing an empty diff, committing it, and changing the
+#           configuration anyway. Structural ops live only in the per-user change
+#           file, and Editor.listChangeFiles lists filepath.Dir(originalPath), so a
+#           storage backend that cannot list a directory prefix hides every one.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=storage:value=blob
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+expect=dirty:false
+
+# Delete a list entry. This is a structural op: it is recorded in the per-user
+# change file only, never in the in-memory session metadata.
+input=type:text=delete bgp peer peer1
+input=enter
+expect=dirty:true
+expect=error:none
+
+# The review the operator reads before commit must count that delete.
+input=type:text=show | changes
+input=enter
+expect=status:contains=1 pending change
+expect=error:none
+
+# The cross-session view reads the same change files and must agree.
+input=type:text=show | changes all
+input=enter
+expect=status:contains=1 pending change across 1 sessions
+expect=error:none

@@ -2302,6 +2302,7 @@ Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using he
 | `option=file:path=` | `option=file:path=test.conf` | Config file to load |
 | `option=mode:value=` | `option=mode:value=command` | Command-only mode (no editor) |
 | `option=history:store` | `option=history:store` | Enable zefs-backed history persistence |
+| `option=storage:value=` | `option=storage:value=blob` | Run the editor on a zefs blob, as the daemon does, instead of the filesystem |
 | `input=type:text=` | `input=type:text=show` | Type text |
 | `input=enter/up/down/tab` | `input=enter` | Press named key |
 | `expect=input:value=` | `expect=input:value=show` | Assert input buffer content |
