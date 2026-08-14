@@ -225,12 +225,19 @@ func TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing(t *testing.T
 }
 
 // VALIDATES: an unprotected datagram at the cached Message ID draws no cached response.
-// RFC requirement: RFC7296-2.21.4-5 positive -- classifyInbound runs before the message
+// rfc-test-change-approved: the two tags below read RFC7296-2.21.4-5, which governs a
+// peer receiving an unprotected NOTIFY payload. This test drives a forged unprotected
+// IKE_AUTH request through classifyInbound and sends no Notify at all, so the ledger was
+// crediting a Notify obligation with proof from a request test. RFC7296-2.4-12 is the
+// requirement these assertions actually exercise. Ratchet-safe: 2.21.4-5 keeps both
+// polarities at both tiers from notify_error_test.go and
+// test/ipsec/ipsec-error-notify-no-loop.ci. Owner approved 2026-08-14.
+// RFC requirement: RFC7296-2.4-12 positive -- classifyInbound runs before the message
 // is authenticated, so a forged unprotected datagram carrying the cached Message ID
 // used to replay the whole cached response. Both SPIs and the Message ID travel in the
 // clear in every IKE header, so one observed datagram is all the forgery needs. The
 // Encrypted-payload guard in the retransmit branch refuses it without a decrypt.
-// RFC requirement: RFC7296-2.21.4-5 negative -- a genuine duplicate that DOES carry an
+// RFC requirement: RFC7296-2.4-12 negative -- a genuine duplicate that DOES carry an
 // Encrypted payload still draws the cached response byte for byte, so the guard
 // separates a forgery from a retransmission rather than disabling the cache.
 func TestErrUnprotectedMessageDrawsNoCachedResponse(t *testing.T) {
@@ -512,15 +519,21 @@ func TestErrUnrecognizedNotifyHandling(t *testing.T) {
 
 // VALIDATES: the pre-adoption responder window does not replay its cached IKE_AUTH
 // response to an unauthenticated datagram, and the replay it does allow is bounded.
-// RFC requirement: RFC7296-2.21.4-5 positive -- handleResponderInbound's established
+// rfc-test-change-approved: retagged from RFC7296-2.21.4-5, which governs a peer
+// receiving an unprotected NOTIFY payload. This test forges an IKE_AUTH request and
+// sends no Notify, so the ledger was crediting a Notify obligation with proof from a
+// request test. RFC7296-2.4-12 is what these assertions exercise, and the quotation
+// below is corrected to the clause that actually applies. Ratchet-safe: 2.21.4-5 keeps
+// both polarities at both tiers from notify_error_test.go and
+// test/ipsec/ipsec-error-notify-no-loop.ci. Owner approved 2026-08-14.
+// RFC requirement: RFC7296-2.4-12 positive -- handleResponderInbound's established
 // arm sends sa.lastResponse to pkt.RemoteAddr, the OBSERVED source, so an attacker
 // chooses the destination. It ran on an outer-header Message ID nobody authenticated,
 // which made a 28-byte forgery draw a several-hundred-octet IKE_AUTH response at a
 // chosen target. The Encrypted-payload guard refuses the forgery, and the per-SA token
-// bucket bounds what survives it. RFC 7296 Section 2.21.4 requires both: a peer "MUST
-// NOT respond" to an unprotected notify, and "a node needs to limit the rate at which
-// it will send messages in response to unprotected messages".
-// RFC requirement: RFC7296-2.21.4-5 negative -- a genuine retransmission that carries
+// bucket bounds what survives it. RFC 7296 Section 2.4 requires the bound: "a node
+// needs to limit the rate at which it will take actions based on unprotected messages".
+// RFC requirement: RFC7296-2.4-12 negative -- a genuine retransmission that carries
 // an Encrypted payload IS still answered from the cache, so the guard separates a
 // forgery from a retransmission rather than disabling the window.
 func TestErrResponderWindowDoesNotReflectToObservedSource(t *testing.T) {
