@@ -70,48 +70,84 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 		}
 	case StateEAPInProgress:
 		if msg.Header.ExchangeType == wire.ExchangeIKEAuth {
+			// The EAP exchange spans several round trips. It holds this window open
+			// far longer than the direct path does. A lost response there is answered
+			// by a retransmission of the request (RFC 7296 Section 2.1).
+			//
+			// Without this guard the duplicate reaches handleResponderEAP. That
+			// function decrypts it, finds neither an EAP nor an AUTH payload, and
+			// kills the SA.
+			if replayCachedResponse(sa, msg, pkt, tr, log) {
+				return
+			}
 			ps.handleResponderEAP(sa, msg, pkt.Data, tr, pkt.RemoteAddr, log)
 		}
 	case StateEstablished:
 		// Narrow window before runResponder adopts the SA into the owner loop: a
 		// retransmitted final IKE_AUTH is answered from the cached response.
-		//
-		// This send goes to pkt.RemoteAddr, the OBSERVED source.
-		// An attacker therefore chooses its destination.
-		// The cached IKE_AUTH response is several hundred octets, and the request that
-		// draws it is a 28-byte header.
-		// An unguarded replay here is a spoofable amplifier.
-		// Two guards bound it, and both are required.
-		//
-		// RFC 7296 Section 2.21.4 MUST NOT: an unprotected message draws no response.
-		// Each genuine retransmission of the final IKE_AUTH carries an Encrypted
-		// payload. carriesSKPayload therefore separates a real one from a bare forged
-		// header, and it needs no decrypt (notify_error.go).
-		// RFC 7296 Section 2.1 bounds a legitimate retransmission burst.
-		// The token bucket caps what survives the first guard.
-		if !sa.lastResponseSet || msg.Header.MessageID != sa.lastResponseID || tr == nil || pkt.RemoteAddr == nil {
-			return
-		}
-		if !carriesSKPayload(msg) {
-			log.Debug("ike: unprotected message at the cached message id, not answered",
-				"peer", sa.PeerName, "src", pkt.RemoteAddr)
-			countErrorNotifySuppressed("unprotected-retransmit")
-			return
-		}
-		if !sa.cachedReplayAllowed() {
-			log.Debug("ike: cached IKE_AUTH replay rate limited", "peer", sa.PeerName, "src", pkt.RemoteAddr)
-			countErrorNotifySuppressed("replay-rate-limited")
-			return
-		}
-		// sendReply, not tr.Send. RFC 3948 Section 2.2 needs the non-ESP marker when
-		// the request reached the NAT-T socket. A bare replay there is one the peer
-		// reads as ESP, and drops.
-		if err := sendReply(tr, sa.lastResponse, pkt.RemoteAddr); err != nil {
-			log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
-		}
+		replayCachedResponse(sa, msg, pkt, tr, log)
 	case StateAuthSent, StateAuthReceived, StateSAInitSent, StateDead:
 		log.Debug("ike: responder message in unexpected state", "peer", sa.PeerName, "state", sa.State)
 	}
+}
+
+// replayCachedResponse answers a retransmitted request from sa.lastResponse on the
+// pre-adoption dispatch path, before runResponder moves the SA into its owner loop.
+//
+// It reports whether msgID names the cached response. A true result means the caller
+// MUST NOT process the message again. That holds whether or not a datagram goes back.
+// A guard below can refuse to ANSWER a duplicate. No guard makes it safe to REPROCESS
+// one.
+//
+// RFC 7296 Section 2.1: "the responder MUST ignore the retransmitted request except
+// insofar as it causes a retransmission of the response".
+//
+// THE DESTINATION IS THE OBSERVED SOURCE, and that is a decision rather than an
+// oversight. The sibling replay site in handleOwnedInbound (inbound.go) uses sendRaw,
+// which reads sa.remoteUDPAddr. That address is not available here.
+//
+// adoptAuthenticatedEndpoint is the only writer of sa.peerEndpoint. On the EAP path
+// handleAuthRequest returns at its startResponderEAP call and never reaches that line.
+// peerEndpoint therefore stays nil for the whole EAP exchange, and sa.remoteUDPAddr
+// falls back to the CONFIGURED remote address. For a peer behind a NAT that address is
+// never the mapped port the request arrived from.
+//
+// RFC 7296 Section 2.11 states the same answer directly. An implementation
+// "MUST respond to the address and port from which the request was received".
+//
+// An attacker therefore chooses this destination. The cached IKE_AUTH response is
+// several hundred octets, and the request that draws it is a 28-byte header. An
+// unguarded replay is a spoofable amplifier. Two guards bound it, and both are needed.
+//
+// RFC 7296 Section 2.21.4 MUST NOT: an unprotected message draws no response. Every
+// genuine retransmission carries an Encrypted payload. carriesSKPayload therefore
+// separates a real one from a bare forged header, and it needs no decrypt
+// (notify_error.go). The token bucket then caps what survives that first guard.
+func replayCachedResponse(sa *SA, msg *wire.Message, pkt transport.Packet, tr *transport.UDPTransport, log *slog.Logger) bool {
+	if !sa.lastResponseSet || msg.Header.MessageID != sa.lastResponseID {
+		return false
+	}
+	if tr == nil || pkt.RemoteAddr == nil {
+		return true
+	}
+	if !carriesSKPayload(msg) {
+		log.Debug("ike: unprotected message at the cached message id, not answered",
+			"peer", sa.PeerName, "src", pkt.RemoteAddr)
+		countErrorNotifySuppressed("unprotected-retransmit")
+		return true
+	}
+	if !sa.cachedReplayAllowed() {
+		log.Debug("ike: cached IKE_AUTH replay rate limited", "peer", sa.PeerName, "src", pkt.RemoteAddr)
+		countErrorNotifySuppressed("replay-rate-limited")
+		return true
+	}
+	// sendReply, not tr.Send. RFC 3948 Section 2.2 needs the non-ESP marker when the
+	// request reached the NAT-T socket. A bare replay there is one the peer reads as
+	// ESP, and drops.
+	if err := sendReply(tr, sa.lastResponse, pkt.RemoteAddr); err != nil {
+		log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
+	}
+	return true
 }
 
 // handleSAInitRequest processes an inbound IKE_SA_INIT request as the responder:

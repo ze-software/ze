@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 (defect 2 only; defect 1 landed in RFC 7296 pilot WP-8) |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; the spec records no out-of-scope decision. Create `plan/deferrals/fixit-ike-responder-natt-port-float.md` on the first deferral) |
-| Updated | 2026-07-31 |
+| Updated | 2026-08-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -141,6 +141,16 @@ unaffected, which the scenario 03 control shows.
 | A-2 | The silent drop is the peer classifying the reply as ESP | strongSwan logs nothing at all for that datagram | The same capture |
 | R-1 | Fixing the reply form CAN change the non-NAT path, which works today | Both paths share `sendWithNATT` | Scenario 03 must keep passing |
 
+A-1, A-2 and R-1 are all defect 1's, and defect 1 landed in the RFC 7296 pilot WP-8.
+A-1 and A-2 need no capture now. The charon log of scenario 08 carries the whole IKE_AUTH
+exchange on 4500 in both directions, which is the float they describe, and `sendReply`
+(`engine/eap_auth.go`) follows the arrival socket. R-1 is validated: scenario 03 passes.
+
+| Id | Statement | Basis | Status |
+|----|-----------|-------|--------|
+| A-3 | The cached-response machinery is already populated on the EAP path, so only the CONSULT is missing | `cacheResponse` is called by both `startResponderEAP` and `sendResponderEAP` (`engine/responder_eap.go`) | confirmed |
+| A-4 | `sendRaw` cannot serve the mid-EAP replay, because the SA holds no endpoint yet | `adoptAuthenticatedEndpoint` is the only writer of `sa.peerEndpoint` (`engine/sa.go`), and `handleAuthRequest` (`engine/responder.go`) returns at its `startResponderEAP` call before it reaches that write | confirmed |
+
 ## Acceptance Criteria
 
 | Id | Criterion |
@@ -193,6 +203,50 @@ The two `.ci` tests run on every push, because the `ipsec` suite now has a `run_
 4. Write the retransmit test, and record the red.
 5. Replay the cached response.
 6. Run scenarios 08 and 03.
+
+## Evidence (defect 2)
+
+The fix is one call. `handleResponderInbound` (`engine/responder.go`) now runs
+`replayCachedResponse` before `handleResponderEAP` in the `StateEAPInProgress` arm, and
+the `StateEstablished` arm calls the same function instead of its own inline copy.
+
+Unit, with the fix reverted:
+
+```
+--- FAIL: TestEapRtxResponderReplaysCachedResponseMidEAP (0.02s)
+    rfc7296_eap_retransmit_test.go:121: a retransmitted IKE_AUTH killed the IKE SA mid-EAP
+--- FAIL: TestEapRtxMidEAPReplayRefusesUnprotected (0.02s)
+    rfc7296_eap_retransmit_test.go:174: state after the forgery = dead, want EAP in progress
+--- FAIL: TestEapRtxMidEAPReplayIsRateLimited (0.02s)
+    rfc7296_eap_retransmit_test.go:218: a mid-EAP duplicate drew no answer at all, so the bound below proves nothing
+```
+
+Unit, with the fix in place:
+
+```
+ok  	github.com/ze-software/ze/internal/component/ike/engine	24.493s
+```
+
+Interop, scenario 08 with the fix reverted:
+
+```
+✗ FAIL: ze re-processed the retransmitted IKE_AUTH ('EAP round missing EAP payload')
+  instead of replaying its cached response, against RFC 7296 Section 2.1
+```
+
+Interop, scenario 08 with the fix in place:
+
+```
+✓ the IKE SA survived the mid-EAP retransmissions and established (RFC 7296 Section 2.1)
+✓ strongSwan retransmitted its IKE_AUTH into the live EAP exchange (2 retransmitted requests, was 1)
+✓ PASS
+```
+
+Scenario 08 needed a second correction before it could reach the retransmit at all. Its
+`swanctl.conf` set `eap_id` and no `id`, so charon asserted its IP in IDi while ze's
+`remote-id` named `testuser`. `checkRemoteIdentity` (`engine/remote_id.go`) compares
+`remote-id` against the IDi payload, which is what RFC 7296 Section 3.5 governs, so ze was
+right and the fixture was inconsistent. The fixture now sets `id = testuser`.
 
 ## Goal Gates
 
