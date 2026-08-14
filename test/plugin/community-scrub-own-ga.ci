@@ -30,6 +30,16 @@ option=env:var=ze.log.bgp.reactor.session:value=debug
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+# The session must OUTLIVE the observer, because everything this test asserts is
+# per-session state. Without linger, Peer.completed (internal/test/peer/peer.go)
+# returns as soon as the send below is done and the connection closes; the RIB
+# plugin then takes the !isUp && wasUp branch of handleStructuredState
+# (internal/component/bgp/plugins/rib/rib.go), calls peerRIB.Release() and drops
+# the peer from bgpPeers, which is correct for a session with
+# `graceful-restart disable`. The observer was racing that purge and lost 3 to 4
+# times in 40, reporting an emptied Adj-RIB-In as a scrub that ate the
+# keep-list value.
+option=linger:value=true
 # Marker(16) + Len=003E(62) + Type=02 + WdLen=0000 + AttrLen=0023(35)
 #   ORIGIN:    40010100 (IGP)
 #   AS_PATH:   40020602010000FDE9 (AS_SEQ [65001])
@@ -51,14 +61,36 @@ def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
     return resp.get('result', {})
 
-def route_count(api, value):
-    """How many received routes still carry this community?
+def count_of(result, what):
+    """The `count` field of a pipeline answer, or a named failure.
 
-    The `count` terminal answers with a number, so absence is a 0 rather than
-    an empty rendering that a command error would also produce.
+    The count terminal answers with a number, but only on a `done` envelope. A
+    dispatch that fails SOFTLY answers {"status": "error", "error": ...} with no
+    `data` key at all: routeToProcess (internal/component/plugin/server/command.go)
+    returns a nil error on a transport failure, and DispatchCommandOutput.Data is
+    `omitempty`. A numeric default therefore reports a broken pipe as a missing
+    community, which is a zero value passing for an answer (ai/rules/evidence.md).
     """
+    if result.get('status') != 'done':
+        fail(f'{what}: dispatch failed: {result.get("error", result)}')
+    payload = result_json_data(result, {})
+    if 'count' not in payload:
+        fail(f'{what}: the count terminal answered no count: {payload}')
+    return payload['count']
+
+def route_count(api, value):
+    """How many received routes still carry this community?"""
     result = dispatch(api, f'show bgp rib received community {value} count')
-    return result_json_data(result, {}).get('count', -1)
+    return count_of(result, value)
+
+def prefix_count(api, prefix):
+    """How many received routes carry this prefix? The arrival barrier.
+
+    Asked of the SAME store the community assertions read, which is bgp-rib's
+    per-peer table (newInboundSource, internal/component/bgp/plugins/rib/rib_pipeline.go).
+    """
+    result = dispatch(api, f'show bgp rib received prefix {prefix} count')
+    return count_of(result, prefix)
 
 def fail(msg):
     print(f'FAIL: {msg}', file=sys.stderr)
@@ -73,12 +105,27 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until the route lands, rather than sleeping blind.
-    result = api.dispatch_until('show bgp adj-rib-in status',
-                                lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)
-    total = result_json_data(result, {}).get('total-routes', -1)
-    if total < 0:
-        fail(f'adj-rib-in query failed, got total={total}')
+    # Poll the store the three assertions below read, and no other.
+    #
+    # bgp-adj-rib-in and bgp-rib are two plugins holding two separate tables,
+    # and one UPDATE reaches them through two goroutines that nothing orders:
+    # onMessageBatchReceived (internal/component/bgp/server/events.go) enqueues
+    # EventDelivery with NO Result channel, deliberately, so no subscriber
+    # blocks another, and each process then drains its own eventChan. The
+    # observer's command travels a third rail and overtakes both. So
+    # `show bgp adj-rib-in status` reporting the route said nothing about the
+    # store queried below, and bgp-rib is the slower of the two: it interns the
+    # pool and the bundle where adj-rib-in stores hex. Measured 3 reds in 20
+    # runs, always on the FIRST assertion, which has the least slack after the
+    # barrier. The 65000:99 assertion expects 0, so an empty table satisfies it
+    # vacuously and a lost route reads as a correct scrub.
+    #
+    # The barrier waits on the PREFIX rather than on a community, so it stays
+    # independent of what the assertions test: a scrub that wrongly removed
+    # 65000:64 passes this barrier at once and is then reported by name below,
+    # rather than expiring here as a route that never arrived.
+    if not api.wait_until(lambda: prefix_count(api, '10.0.0.0/24') >= 1):
+        fail('10.0.0.0/24 never reached the bgp-rib received table')
 
     # The keep-list survivor. Removing it would be the "scrub removes
     # everything" failure, which deletes what customers and peers signal.
