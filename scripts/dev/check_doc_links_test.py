@@ -938,6 +938,33 @@ class KnownRootTest(unittest.TestCase):
                 )
 
 
+class PytestNodeIdTest(unittest.TestCase):
+    """A pytest node id names a file, and the file is what the gate checks.
+
+    VALIDATES: `candidate_paths` strips `::test_name` the way it strips
+               `:Symbol`, so the target it returns is the file itself.
+    PREVENTS:  a live file reported as a dead citation. The single-colon rule
+               removed the test name and left the second colon on the path, so
+               `test/ipsec-interop/lab_test.py::test_x` became
+               `test/ipsec-interop/lab_test.py:`, which resolves nowhere. The
+               cheapest way out of that finding is a suppression over a
+               reference that is not broken, which is how a gate stops meaning
+               anything.
+    """
+
+    def test_a_node_id_reduces_to_its_file(self) -> None:
+        self.assertEqual(
+            cdl.candidate_paths("test/ipsec-interop/lab_test.py::test_x"),
+            ["test/ipsec-interop/lab_test.py"],
+        )
+
+    def test_a_single_colon_symbol_still_reduces_to_its_file(self) -> None:
+        self.assertEqual(
+            cdl.candidate_paths("internal/x/y.go:Symbol"),
+            ["internal/x/y.go"],
+        )
+
+
 class RealCorpusTest(unittest.TestCase):
     """AC-4: after the fixes, the lint exits 0 against the real tree."""
 

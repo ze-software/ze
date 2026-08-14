@@ -145,7 +145,11 @@ LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
 # LINE_SUFFIX strips `:12` and `:12-14`.
 LINE_RUN_SUFFIX = re.compile(r"(?:,\d+(?:-\d+)?)+$")
 # `file.go:Symbol` / `pkg.Symbol` references: strip the symbol, check the path.
-SYMBOL_COLON = re.compile(r":[A-Za-z_][\w.]*$")
+# The doubled colon is pytest's node id, `lab_test.py::test_name`, and a
+# single-colon rule left the second colon ON the path. `lab_test.py:` resolves
+# nowhere, so a live file was reported as a dead citation and the cheapest way
+# out was a suppression over a reference that is not broken.
+SYMBOL_COLON = re.compile(r"::?[A-Za-z_][\w.]*$")
 SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
 DESIGN = re.compile(r"^// Design:\s*(.+)$")
 # A `// Design:` target under this prefix is refused inside a `_test.go`.

@@ -29,7 +29,6 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 | `test/integration/` | Multi-component | Cross-subsystem behavior |
 | `test/interop/` | Interoperability | Cross-daemon testing |
 | `test/chaos-web/` | Chaos dashboard | Simulator web UI |
-| `test/hub/` | Hub daemon | Hub lifecycle |
 | `test/perf/` | Performance | Benchmarks, timing |
 | `test/exabgp-compat/` | ExaBGP compat | Migration, format compat |
 | `test/firewall/` | Firewall/nftables | Firewall rules, NAT |

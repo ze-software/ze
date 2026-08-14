@@ -222,7 +222,7 @@ Two facts about that justification:
    `REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
    EXIST`. The stall was a harness defect, not an engine defect
    (`spec-fixit-redistribute-establishment-stall`, E6/E9).
-2. **The spec it cites is gone.** `plan/spec-test-coverage-gaps.md` was closed
+2. **The spec it cites is gone.** `plan/spec-test-coverage-gaps.md` was closed <!-- doc-links: ignore (the spec was deleted at closure in f2126f54f, which is what this sentence reports) -->
    and removed (`13940424d`, `f2126f54f`). A reader who follows the pointer finds
    nothing.
 

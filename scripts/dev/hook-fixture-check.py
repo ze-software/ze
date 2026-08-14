@@ -647,7 +647,7 @@ def run_validate_spec(results: Results) -> None:
     rc, err = _run_validate_spec(
         script,
         base.replace(
-            _CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"
+            _CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         ),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     results.check(
@@ -718,7 +718,7 @@ def run_validate_spec(results: Results) -> None:
             "| hook fixtures | `scripts/dev/hook-fixture-check.py` | fixtures drive the hook | |",
         )
         .replace(
-            _CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`"
+            _CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`"  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     )
     rc, err = _run_validate_spec(script, tooling)
@@ -3181,7 +3181,7 @@ def run_design_gate(results: Results) -> None:
     # MUST STILL FIRE: a daemon spec written with NOTHING investigated. This is the
     # refusal the gate exists for (inference-written specs, 2026-07-16).
     r = _design_case(
-        "- `internal/x/y.go` - the daemon", ()
+        "- `internal/x/y.go` - the daemon", ()  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
     )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-daemon-spec-uninvestigated-blocked", _design_blocked(r), repr(r)
@@ -3192,7 +3192,7 @@ def run_design_gate(results: Results) -> None:
     # kind the spec is about would have let this through -- relaxing the gate for
     # every Go spec in the repository.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         (
             "/repo/.claude/hooks/foo.sh",
         ),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
@@ -3203,7 +3203,7 @@ def run_design_gate(results: Results) -> None:
 
     # ...and the control: the same spec with its own Go read is allowed.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",)
+        "- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",)  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
     )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-daemon-spec-reads-its-go", not _design_blocked(r), repr(r)
@@ -3226,14 +3226,14 @@ def run_design_gate(results: Results) -> None:
     # A spec that states no source subject (docs, a `.ci`, a bare directory) keeps
     # the pre-scoping bar: any implementation source, and still not nothing.
     r = _design_case(
-        "- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",)
+        "- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",)  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
     )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-subjectless-spec-any-source", not _design_blocked(r), repr(r)
     )
 
     r = _design_case(
-        "- `docs/guide/x.md` - the page", ()
+        "- `docs/guide/x.md` - the page", ()  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
     )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check(
         "design-gate-subjectless-spec-nothing-blocked", _design_blocked(r), repr(r)
@@ -3246,7 +3246,7 @@ def run_design_gate(results: Results) -> None:
     try:
         _touch_marker(work, f".source-read-{_DESIGN_SID}")
         r = _write_spec(
-            work, "- `internal/x/y.go` - the daemon"
+            work, "- `internal/x/y.go` - the daemon"  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-kindless-marker-not-enough-for-subject",
@@ -3262,7 +3262,7 @@ def run_design_gate(results: Results) -> None:
         _read_source(work, "/repo/.claude/hooks/foo.sh")  # a per-kind marker exists
         _touch_marker(work, f".lsp-invoked-{_DESIGN_SID}")
         r = _write_spec(
-            work, "- `internal/x/y.go` - the daemon"
+            work, "- `internal/x/y.go` - the daemon"  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-lsp-grounds-go-spec", not _design_blocked(r), repr(r)
@@ -3334,7 +3334,7 @@ def run_design_gate(results: Results) -> None:
     # ISSUE 3: a subject the gate cannot read is the one permissive path left, so
     # it must SAY it degraded. Silence is what makes a weakened guard invisible.
     r = _design_case(
-        "- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",)
+        "- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",)  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
     )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
     results.check("design-gate-subjectless-write-warns", _design_degraded(r), repr(r))
 
@@ -3421,7 +3421,7 @@ def run_design_gate(results: Results) -> None:
     for label, files_line, read in (
         (
             "go",
-            "- `internal/x/y.go` - the daemon",
+            "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
             "/repo/.claude/hooks/foo.sh",
         ),  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         (
@@ -3545,7 +3545,7 @@ def run_design_gate(results: Results) -> None:
             work, "/repo/internal/x/y.go", {"file": {"numLines": 1, "totalLines": 900}}
         )
         r = _write_spec(
-            work, "- `internal/x/y.go` - the daemon"
+            work, "- `internal/x/y.go` - the daemon"  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
         results.check(
             "design-gate-keyhole-read-does-not-ground", _design_blocked(r), repr(r)

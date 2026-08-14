@@ -58,7 +58,7 @@ def repo_paths(root: Path) -> list[str]:
     reports an orphan for a file that is already gone.
 
     -z IS LOAD-BEARING TOO. Without it git quotes any path holding a byte
-    outside ASCII (`core.quotePath`), so `internal/a/café_templ.go` arrives as
+    outside ASCII (`core.quotePath`), so `internal/a/café_templ.go` arrives as <!-- doc-links: ignore (illustrative path in a docstring, deliberately absent) -->
     `"internal/a/caf\\303\\251_templ.go"`. The leading quote defeats every
     prefix and suffix test below, and the orphan reads as clean.
     """

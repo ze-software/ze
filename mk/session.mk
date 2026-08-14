@@ -135,16 +135,22 @@ ZE_SESSION_ROOT := tmp/session
 # metacharacter. $(firstword) makes a tree that somehow holds two dated
 # directories for one id resolve deterministically to the older of them.
 #
-# The TRAILING SLASH in the pattern is what restricts the match to DIRECTORIES,
-# which is make's own idiom for it and is the rule the shell copy spells `[ -d ]`
-# and the python copy spells isdir. $(patsubst) takes the slash back off, because
-# every consumer wants the plain directory name. Without it a regular file of the
-# dated shape would be make's answer and nobody else's.
+# The TRAILING `/.` in the pattern is what restricts the match to DIRECTORIES,
+# and it is the rule the shell copy spells `[ -d ]` and the python copy spells
+# isdir. $(patsubst) takes it back off, because every consumer wants the plain
+# directory name. Without it a regular file of the dated shape is make's answer
+# and nobody else's, which splits the three resolvers.
+#
+# A trailing SLASH is not enough, although it reads like make's own idiom for
+# the same thing. It restricts the match on a glob(3) that honours it and not
+# on the one macOS ships: there `$(wildcard tmp/session/????-??-??-<sid>/)`
+# answers with the regular file, slash dropped, so $(patsubst %/,%,...) had
+# nothing to strip and make named a file every other resolver skipped.
 ifeq ($(ZE_SESSION_ID),)
 ZE_SCRATCH_DIR := tmp
 ZE_BIN_DIR := bin
 else
-ZE_SCRATCH_DIR := $(patsubst %/,%,$(firstword $(wildcard $(ZE_SESSION_ROOT)/????-??-??-$(ZE_SESSION_ID)/)))
+ZE_SCRATCH_DIR := $(patsubst %/.,%,$(firstword $(wildcard $(ZE_SESSION_ROOT)/????-??-??-$(ZE_SESSION_ID)/.)))
 ifeq ($(ZE_SCRATCH_DIR),)
 ZE_SCRATCH_DIR := $(ZE_SESSION_ROOT)/$(shell date +%Y-%m-%d)-$(ZE_SESSION_ID)
 endif
