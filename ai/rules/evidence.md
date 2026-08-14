@@ -243,6 +243,43 @@ session.** A stale frame you refuted and left in place will redirect the next
 reader exactly as it redirected you. Leaving it costs more than the correction,
 because you have already paid for the reading and they have not.
 
+## Records You Author
+
+**The section above governs a record you READ. This one governs a record you
+WRITE, and a claim you hand to someone who cannot check it. A record is not
+free-form on the way in and not authoritative on the way out. You MUST check it
+against the thing that produces or consumes it, in both directions.**
+
+**A field another program parses belongs to that program's vocabulary, not to
+yours. You MUST read the parser before you write the field, and you MUST NOT put
+explanation inside it.**
+
+A status, a state, a disposition and a severity are read by machines here. A
+value carrying the right word plus a human explanation is a different string,
+and a parser that matches the whole field reads it as a different value. The
+failure is silent and it inverts the field's meaning: the record says one thing
+and every gate that reads it acts on the opposite. Explanation belongs beside
+the field, in an adjacent column or the prose around the table, never inside it.
+
+**A constraint you state in a delegation brief MUST be traceable, at the moment
+you write it, to a rule file or to source. You MUST NOT state one from
+recollection.**
+
+A delegate cannot audit your reasoning. It treats the brief as given, so an
+unverified constraint becomes its scope silently, and the work it was told not
+to do appears nowhere in its report. This standard is stricter than the one for
+your own reasoning, because you can revise yours mid-task and it cannot. The
+cost lands where nobody is looking for it.
+
+**Readiness MUST be derived from what still points at the work, never from a
+self-reported status or progress field.**
+
+A status field says what its author believed the work needed on the day they
+wrote it. What the work actually needs is what still references it. Reading the
+status and skipping the references produces a confident answer about how much is
+left, and that answer is optimistic in one direction only, because a record is
+updated when work is finished and forgotten when work is added.
+
 ## Fail-Closed Guards
 
 ### Rule

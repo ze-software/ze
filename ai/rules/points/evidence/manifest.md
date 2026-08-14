@@ -48,6 +48,14 @@ claims-about-project-state ## Claims About the State of the Project
   foreign-system-semantics
   never-label-an-assumption-measured
   correct-the-document-where-the-stale-claim-lived
+records-you-author ## Records You Author
+  rule
+  read-the-parser-before-writing-the-field
+  a-decorated-value-is-a-different-value
+  trace-every-constraint-you-put-in-a-brief
+  an-unchecked-brief-becomes-invisible-scope
+  derive-readiness-from-dependencies-not-status
+  a-status-field-is-an-estimate-its-dependencies-are-the-fact
 fail-closed-guards ## Fail-Closed Guards
   rule
   what-counts-as-a-guard
