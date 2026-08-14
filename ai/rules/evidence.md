@@ -41,6 +41,16 @@ A self-consistent story is a hypothesis, not a finding. Coherence is not
 verification, and breadth of research (many files skimmed) does not substitute
 for reading the one function the claim depends on.
 
+**When a claim is about a POPULATION, verifying one member proves nothing about
+it. You MUST derive the population and measure how far the claim reaches across
+it.**
+
+The instance a document names is the one its author already looked at, so it is
+the member most likely to satisfy the claim and the least informative to check.
+Confirming it feels like verification and carries almost no information. Derive
+the set the claim covers, then count how many members hold: the answer is a
+ratio, and a ratio that is not the whole set changes what the work is.
+
 **When a claim's evidence is what a command printed, you MUST write the command or paste
 what it printed. You MUST NOT write a sentence describing the output.** "`git grep -n
 familiesSent -- '*.go'` returns nothing" is evidence: the reader runs it. "The
