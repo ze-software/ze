@@ -249,7 +249,10 @@ class TestDeferralDestination(unittest.TestCase):
     def test_existing_spec_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(
-                tmp, self._row("`plan/spec-rib-deferred-ipv6-coverage.md`")  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                tmp,
+                self._row(
+                    "`plan/spec-rib-deferred-ipv6-coverage.md`"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                ),
             )
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
@@ -275,7 +278,10 @@ class TestDeferralDestination(unittest.TestCase):
     def test_missing_spec_file_flagged(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(
-                tmp, self._row("`plan/spec-rib-deferred-nobody-wrote-it.md`")  # <!-- doc-links: ignore (negative fixture: the destination is deliberately absent) -->
+                tmp,
+                self._row(
+                    "`plan/spec-rib-deferred-nobody-wrote-it.md`"  # <!-- doc-links: ignore (negative fixture: the destination is deliberately absent) -->
+                ),
             )
             problems = ch.deferral_unassigned_problems(root)
             self.assertEqual(len(problems), 1)
@@ -304,7 +310,9 @@ class TestDeferralDestination(unittest.TestCase):
     # plan/learned/1127-x.md and calling a real destination "no file".
     def test_nested_plan_path_destination_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = self._repo(tmp, self._row("`plan/learned/1127-rib-arch-2.md`"))  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+            root = self._repo(
+                tmp, self._row("`plan/learned/1127-rib-arch-2.md`")  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+            )
             (root / "plan" / "learned").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "learned" / "1127-rib-arch-2.md").write_text("# L\n")
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
@@ -633,8 +641,14 @@ class TestDeferralUnassigned(unittest.TestCase):
             _deferral_gate(
                 [
                     ("`plan/spec-finish-l2tp.md` (work item added)", "deferred"),
-                    ("`plan/spec-fixit-x.md` (F4)", "open"),  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
-                    ("`plan/learned/1127-rib-arch-2.md`", "in-progress (spec)"),  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                    (
+                        "`plan/spec-fixit-x.md` (F4)",  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                        "open",
+                    ),
+                    (
+                        "`plan/learned/1127-rib-arch-2.md`",  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                        "in-progress (spec)",
+                    ),
                 ]
             ),
             [],
@@ -746,6 +760,38 @@ class TestDeferralInDiff(unittest.TestCase):
                 "package x\n// out of scope for this change; future work\n"
             )
             self.assertTrue(ch.deferral_in_diff_problems(root, ("internal/x.go",), ()))
+
+    def test_deferral_language_in_vendor_is_exempt(self):
+        """A TODO in a dependency is its author's note, not a Ze deferral.
+
+        github.com/andybalholm/brotli carries a "TODO: Postpone decision"
+        comment, which blocked the commit that vendored templ. No
+        plan/deferrals/ shard could sensibly record another project's comment.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "vendor" / "github.com" / "x").mkdir(parents=True)
+            (root / "vendor" / "github.com" / "x" / "encode.go").write_text(
+                "package x\n/* TODO: Postpone decision until next block arrives? */\n"
+            )
+            self.assertEqual(
+                ch.deferral_in_diff_problems(
+                    root, ("vendor/github.com/x/encode.go",), ()
+                ),
+                [],
+            )
+
+    def test_deferral_language_outside_vendor_still_caught(self):
+        """The exemption keys on the vendor/ prefix and nothing wider."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "internal" / "vendored").mkdir(parents=True)
+            (root / "internal" / "vendored" / "y.go").write_text(
+                "package y\n// TODO: Postpone decision until next block arrives?\n"
+            )
+            self.assertTrue(
+                ch.deferral_in_diff_problems(root, ("internal/vendored/y.go",), ())
+            )
 
     def test_bare_deferral_in_rule_doc_is_exempt(self):
         with tempfile.TemporaryDirectory() as tmp:

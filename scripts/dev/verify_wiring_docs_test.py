@@ -276,5 +276,44 @@ class DockerExecRoutingTest(unittest.TestCase):
         self.assertIn("ze-docker-exec-check", TARGET_ORDER)
 
 
+class TemplRoutingTest(unittest.TestCase):
+    """Changed-file routing for the templ generated-output freshness gate.
+
+    Wiring row: a changed .templ or *_templ.go must select
+    ze-templ-generate-check, so `make ze-verify-changed` runs the gate exactly
+    when the pair could have gone stale.
+    """
+
+    def _root(self) -> Path:
+        d = tempfile.mkdtemp(prefix="templ-routing-")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        return Path(d)
+
+    def test_either_side_of_the_pair_selects_the_target(self):
+        root = self._root()
+        for path in (
+            "internal/component/web/templates/page.templ",
+            "internal/component/web/templates/page_templ.go",
+            "Makefile",
+            # The guard that stops templ deleting a tracked *_templ.go. An edit
+            # to it must run the gate it protects.
+            "scripts/dev/templ_orphan_check.py",
+        ):
+            with self.subTest(path=path):
+                self.assertIn("ze-templ-generate-check", selected_targets(root, [path]))
+
+    def test_an_unrelated_change_does_not_select_it(self):
+        root = self._root()
+        for path in ("internal/component/web/render.go", "docs/guide/docker.md"):
+            with self.subTest(path=path):
+                self.assertNotIn(
+                    "ze-templ-generate-check", selected_targets(root, [path])
+                )
+
+    def test_target_is_runnable_and_ordered(self):
+        self.assertIn("ze-templ-generate-check", MAKE_TARGETS)
+        self.assertIn("ze-templ-generate-check", TARGET_ORDER)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -22,6 +22,50 @@ charm.land/ssh
 charm.land/wish/v2
 charm.land/wish/v2/activeterm
 charm.land/wish/v2/bubbletea
+# github.com/a-h/parse v0.0.0-20250122154542-74294addb73e
+## explicit; go 1.18
+github.com/a-h/parse
+# github.com/a-h/templ v0.3.1020
+## explicit; go 1.25.0
+github.com/a-h/templ
+github.com/a-h/templ/cmd/templ
+github.com/a-h/templ/cmd/templ/fmtcmd
+github.com/a-h/templ/cmd/templ/generatecmd
+github.com/a-h/templ/cmd/templ/generatecmd/modcheck
+github.com/a-h/templ/cmd/templ/generatecmd/proxy
+github.com/a-h/templ/cmd/templ/generatecmd/run
+github.com/a-h/templ/cmd/templ/generatecmd/sse
+github.com/a-h/templ/cmd/templ/generatecmd/watcher
+github.com/a-h/templ/cmd/templ/infocmd
+github.com/a-h/templ/cmd/templ/lspcmd
+github.com/a-h/templ/cmd/templ/lspcmd/httpdebug
+github.com/a-h/templ/cmd/templ/lspcmd/pls
+github.com/a-h/templ/cmd/templ/lspcmd/proxy
+github.com/a-h/templ/cmd/templ/processor
+github.com/a-h/templ/cmd/templ/sloghandler
+github.com/a-h/templ/cmd/templ/visualize
+github.com/a-h/templ/generator
+github.com/a-h/templ/internal/format
+github.com/a-h/templ/internal/htmlfind
+github.com/a-h/templ/internal/imports
+github.com/a-h/templ/internal/lazyloader
+github.com/a-h/templ/internal/prettier
+github.com/a-h/templ/internal/skipdir
+github.com/a-h/templ/internal/syncmap
+github.com/a-h/templ/internal/syncset
+github.com/a-h/templ/lsp/jsonrpc2
+github.com/a-h/templ/lsp/protocol
+github.com/a-h/templ/lsp/uri
+github.com/a-h/templ/lsp/xcontext
+github.com/a-h/templ/parser/v2
+github.com/a-h/templ/parser/v2/goexpression
+github.com/a-h/templ/parser/v2/visitor
+github.com/a-h/templ/runtime
+github.com/a-h/templ/safehtml
+# github.com/andybalholm/brotli v1.1.0
+## explicit; go 1.13
+github.com/andybalholm/brotli
+github.com/andybalholm/brotli/matchfinder
 # github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be
 ## explicit; go 1.13
 github.com/anmitsu/go-shlex
@@ -37,6 +81,9 @@ github.com/beevik/ntp
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
+# github.com/cenkalti/backoff/v4 v4.3.0
+## explicit; go 1.18
+github.com/cenkalti/backoff/v4
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -89,6 +136,9 @@ github.com/cilium/ebpf/internal/tracefs
 github.com/cilium/ebpf/internal/unix
 github.com/cilium/ebpf/link
 github.com/cilium/ebpf/rlimit
+# github.com/cli/browser v1.3.0
+## explicit; go 1.21
+github.com/cli/browser
 # github.com/clipperhouse/displaywidth v0.11.0
 ## explicit; go 1.18
 github.com/clipperhouse/displaywidth
@@ -104,6 +154,9 @@ github.com/davecgh/go-spew/spew
 # github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0
 ## explicit
 github.com/donovanhide/eventsource
+# github.com/fatih/color v1.16.0
+## explicit; go 1.17
+github.com/fatih/color
 # github.com/fsnotify/fsnotify v1.9.0
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify
@@ -211,6 +264,9 @@ github.com/lucasb-eyer/go-colorful
 # github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe
 ## explicit; go 1.12
 github.com/lunixbochs/struc
+# github.com/mattn/go-colorable v0.1.13
+## explicit; go 1.15
+github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.22
 ## explicit; go 1.21
 github.com/mattn/go-isatty
@@ -243,6 +299,9 @@ github.com/muesli/reflow/ansi
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
+# github.com/natefinch/atomic v1.0.1
+## explicit; go 1.12
+github.com/natefinch/atomic
 # github.com/openconfig/gnmi v0.14.1
 ## explicit; go 1.22.0
 github.com/openconfig/gnmi/proto/gnmi
@@ -404,6 +463,8 @@ golang.org/x/mod/semver
 # golang.org/x/net v0.57.0
 ## explicit; go 1.25.0
 golang.org/x/net/bpf
+golang.org/x/net/html
+golang.org/x/net/html/atom
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -454,6 +515,7 @@ golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/packages
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/imports
 golang.org/x/tools/internal/aliases
 golang.org/x/tools/internal/event
 golang.org/x/tools/internal/event/core

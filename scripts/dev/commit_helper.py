@@ -1549,7 +1549,12 @@ DEFERRAL_PATTERNS = (
 # added-prose scan. Specs (plan/spec-*.md) and code stay in scope -- that is where
 # a real deferral gets written and must be homed. See ai/rules/planning.md,
 # ai/rules/repo-maintenance.md, plan/learned/HOOK-FRICTION.md.
-DEFERRAL_SCAN_EXEMPT_DIRS = ("ai/rules/", ".claude/rules/")
+# vendor/ is third-party source. A TODO in a dependency is its author's note,
+# not a Ze deferral, and no plan/deferrals/ shard could sensibly record one.
+# Without this, vendoring almost any large dependency blocks the commit.
+# github.com/andybalholm/brotli carries a "TODO: Postpone decision" comment,
+# which stopped the commit that vendored templ.
+DEFERRAL_SCAN_EXEMPT_DIRS = ("ai/rules/", ".claude/rules/", "vendor/")
 
 
 DEFERRAL_NO_DESTINATION_NEEDED = frozenset({"cancelled", "user-approved-drop"})

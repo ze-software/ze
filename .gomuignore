@@ -9,6 +9,7 @@ cmd/ze/
 *_generated.go
 *_gen.go
 *.pb.go
+*_templ.go
 zz_generated_*.go
 
 # Vendor and module cache

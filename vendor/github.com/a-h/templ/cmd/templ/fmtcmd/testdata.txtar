@@ -1,0 +1,66 @@
+-- a.templ --
+package test
+
+templ a() {
+	<div><p class={templ.Class("mapped")}>A
+</p></div>
+}
+-- a.templ --
+package test
+
+templ a() {
+	<div>
+		<p class={ templ.Class("mapped") }>
+			A
+		</p>
+	</div>
+}
+-- b.templ --
+package test
+
+templ b() {
+	<div><p>B
+</p></div>
+}
+-- b.templ --
+package test
+
+templ b() {
+	<div>
+		<p>
+			B
+		</p>
+	</div>
+}
+-- c.templ --
+package test
+
+templ c() {
+	<div>
+		<p>
+			C
+		</p>
+	</div>
+}
+-- c.templ --
+package test
+
+templ c() {
+	<div>
+		<p>
+			C
+		</p>
+	</div>
+}
+-- d.templ --
+package test
+
+templ c(s string) {
+  <div s= {s}/>
+}
+-- d.templ --
+package test
+
+templ c(s string) {
+  <div s={ s }/>
+}

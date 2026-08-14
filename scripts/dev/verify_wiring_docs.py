@@ -38,6 +38,7 @@ TARGET_ORDER = (
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
+    "ze-templ-generate-check",
     "ze-docker-exec-check",
     "ze-spec-citation-check",
 )
@@ -53,6 +54,7 @@ MAKE_TARGETS = {
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
+    "ze-templ-generate-check",
     "ze-docker-exec-check",
     "ze-spec-citation-check",
 }
@@ -620,11 +622,29 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("ze-plugin-imports-check")
         if is_fuzz_source(root, path):
             selected.add("ze-fuzz-targets-check")
+        if is_templ_source(path):
+            selected.add("ze-templ-generate-check")
         if is_docker_exec_source(path):
             selected.add("ze-docker-exec-check")
         if is_plan_source(path):
             selected.add("ze-spec-citation-check")
     return [target for target in TARGET_ORDER if target in selected]
+
+
+def is_templ_source(path: str) -> bool:
+    """Changed files that must re-run the templ generated-output freshness gate.
+
+    A .templ is the source and a *_templ.go is the output, so either side moving
+    can leave the pair stale. The Makefile is routed too, because the generate
+    recipe and the check share one scope, and a scope edit is the change that
+    would leave a whole directory ungenerated. The orphan check is routed
+    because it runs inside the gate: with -keep-orphaned-files, templ reports no
+    orphan, so that script is the only report of one.
+    """
+    return path in {
+        "Makefile",
+        "scripts/dev/templ_orphan_check.py",
+    } or path.endswith((".templ", "_templ.go"))
 
 
 def is_plan_source(path: str) -> bool:

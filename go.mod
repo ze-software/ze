@@ -2,6 +2,17 @@ module github.com/ze-software/ze
 
 go 1.26
 
+// The stdlib patch floor, not a language floor. go1.26.5 carries eight
+// vulnerabilities govulncheck reports as reachable from ze code: GO-2026-6218
+// (net/url), GO-2026-6091 (html/template), GO-2026-6090 (crypto/tls),
+// GO-2026-6089 and GO-2026-5026 (net/http), GO-2026-6088 (encoding/xml),
+// GO-2026-5972 (encoding/asn1), GO-2026-5942 (net). All eight are fixed in
+// go1.26.6. Every workflow builds with `go-version-file: go.mod` and
+// actions/setup-go defaults to `check-latest: false`, so a bare `go 1.26` let
+// the runner reuse its cached go1.26.5 and the scheduled govulncheck job went
+// red. This line is what makes the patched stdlib the floor.
+toolchain go1.26.6
+
 require (
 	charm.land/bubbles/v2 v2.1.1
 	charm.land/bubbletea/v2 v2.0.8
@@ -34,6 +45,7 @@ require (
 
 require (
 	charm.land/ssh v0.4.2
+	github.com/a-h/templ v0.3.1020
 	github.com/cilium/ebpf v0.22.0
 	github.com/gokrazy/tools v0.0.0-20260703063348-3fe400c13246
 	github.com/gokrazy/updater v0.0.0-20260620140544-0a84d8ab3878
@@ -42,15 +54,22 @@ require (
 )
 
 require (
+	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
+	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/antihax/optional v1.0.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/charmbracelet/x/xpty v0.1.4 // indirect
+	github.com/cli/browser v1.3.0 // indirect
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0 // indirect
+	github.com/fatih/color v1.16.0 // indirect
 	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4 // indirect
 	github.com/gokrazy/internal v0.0.0-20260625065634-6994f9152c44 // indirect
 	github.com/google/renameio/v2 v2.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/pires/go-proxyproto v0.12.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect

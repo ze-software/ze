@@ -160,7 +160,7 @@ route and no plugin emits HTML.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Marginal vendor cost is about 5 to 6M | measured 2026-08-09: templ v0.3.1020 runtime 3.2M, generator 2.1M, `a-h/parse` 240K; its `x/tools`, `x/net`, `x/mod`, `x/sync` deps are already vendored here | the x/vuln precedent (`Makefile:370`) applies and the dependency is refused | `go mod vendor` on a real branch, `du -sh vendor` before and after, in phase 1 | unvalidated |
+| A-1 | Marginal vendor cost is about 5 to 6M | measured 2026-08-09: templ v0.3.1020 runtime 3.2M, generator 2.1M, `a-h/parse` 240K; its `x/tools`, `x/net`, `x/mod`, `x/sync` deps are already vendored here | the x/vuln precedent (`Makefile:370`) applies and the dependency is refused | `go mod vendor` on a real branch, `du -sh vendor` before and after, in phase 1 | **confirmed 2026-08-14.** `du -sk vendor` reads 46688 before and 51672 after, so the delta is 4984K, or 4.9M. That is a 10.7% rise and it clears the 8M stop condition. Largest single addition is `andybalholm/brotli` at 2560K, which templ's dev proxy needs. Then `a-h/templ` itself at 1776K, `a-h/parse` at 128K, and `cenkalti/backoff`, `cli/browser`, `fatih/color`, `mattn/go-colorable` and `natefinch/atomic` at under 50K each. `golang.org/x/net` and `golang.org/x/tools` gained packages and neither is new |
 | A-2 | Escaping is safe at every call site today | traced every dynamic `.Str(` in the 18 markup files, including `writeKV`, `capitalizeFirst`, `smartHealthLabel`, `formatBytes` | a value gets double-escaped or under-escaped on port | `TestDecorationHTMLEscaped` plus a rendered-output diff per page | unvalidated |
 | A-3 | A faithful port keeps the existing tests green | the tests assert rendered HTML, not the engine | the test suite must be rewritten, which removes the safety net and changes the cost by an order of magnitude | phase 2 (`lg`) measures it before phase 3 commits to `web` | unvalidated |
 | A-4 | templ can express `fieldFor`'s dynamic dispatch | templ components are ordinary Go functions, so a map of constructors replaces a map of template names | the input-type dispatch needs a different shape | phase 3, proven by `TestRenderFieldResolvesDecoration` staying green | unvalidated |
@@ -168,9 +168,9 @@ route and no plugin emits HTML.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Generated `*_templ.go` drifts from its `.templ` source | `ze-tracked-build-check` goes red, or worse stays green with stale output | `make ze-templ-generate-check`, modelled on `ze-plugin-imports-check` (`Makefile:214`); the generated file is committed with its consumer |
+| R-1 | Generated `*_templ.go` drifts from its `.templ` source | `ze-tracked-build-check` goes red, or worse stays green with stale output | CLOSED 2026-08-14 by `make ze-templ-generate-check`, modelled on `ze-plugin-imports-check`. It runs `templ generate -check -keep-orphaned-files`, and that flag is what makes the run write nothing and delete nothing. Measured both ways in a scratch tree: without it, `-check` removes an orphaned `*_templ.go` and exits 0. Two checks keep the scope complete, both in `scripts/dev/templ_orphan_check.py`: a `.templ` outside `internal/` fails, and so does a `*_templ.go` whose `.templ` is gone, which templ itself no longer reports once the flag is set. It is a prerequisite of `ze-regen-check-readonly`, so `make ze-verify` runs it |
 | R-2 | Doc prose goes stale silently | RESOLVED 2026-08-14, and the mitigation inverts. `scripts/dev/code_to_docs.py` gained `check_anchor_symbols` on 2026-08-10 (commit `1307a1170`), so it now verifies the SYMBOL an anchor names, not just the path | the implementer meets a RED `make ze-doc-test`, not silent drift. Budget for it in each phase instead of hand-auditing. The anchors sit in `web-components.md` and `web-interface.md`; `web-workbench-pages.md` carries none |
-| R-3 | Mutation testing scans generated code | `gomu` runtime rises, noise in results | add a `_templ.go` pattern to `.gomuignore` (`mk/test-mutation.mk`) |
+| R-3 | Mutation testing scans generated code | `gomu` runtime rises, noise in results | CLOSED 2026-08-14. `.gomuignore` carries `*_templ.go` beside `*.pb.go`, under its "Generated code" heading |
 | R-4 | Big-bang scope collides with no-layering | a phase cannot be committed without two engines live at once | phase per RENDERER, not per page: `lg` complete in one commit, `web` complete in another |
 | R-5 | Double-escaping ships unnoticed | an operator sees `&lt;` in a field value | delete every `template.HTMLEscapeString` at each ported call site; `TestDecorationHTMLEscaped` covers the decorated path |
 
@@ -232,7 +232,7 @@ route and no plugin emits HTML.
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/component/web/render_test.go` | AC-6 over the ported set | existing, MUST BE EDITED. Its `fs.WalkDir` skips any path without a `.html` suffix, so after the port it walks zero files and passes vacuously. Change the suffix to `.templ` in the SAME commit that renames the templates, and confirm it still counts the files it visited |
 | `TestRenderSVG`, `TestRenderSVGWithNames` | `internal/component/lg/layout_test.go` | `lg` output unchanged; AC-2 | existing, must stay green |
 | `TestRouteTableData_Build`, `TestInterfaceTableData_Build` | `internal/component/web/page_*_test.go` | view models untouched by the port | existing, must stay green |
-| `TestTemplComponentTypeSafety` | NOT `render_test.go` -- see next column | AC-1: a renamed field fails the build | new, and the spec MUST name its mechanism before phase 4 starts. A test that observes a compile failure cannot live in the package under test: a non-compiling file takes its whole package down, so the suite would not run to report the result. The repo has no compile-failure harness today. Options: a `testdata/` fixture package compiled by `go/packages` from a normal test, or a `.ci` shell test asserting a non-zero build exit. Pick one in phase 1, not phase 4 |
+| `TestTemplComponentTypeSafety` | `internal/component/web/templ_typesafety_test.go` | AC-1: a renamed field fails the build | WRITTEN 2026-08-14 in phase 1, because phase 4 needs the mechanism settled. The `go/packages` route was chosen over the `.ci` one: it needs no test runner and it reads structured type errors rather than compiler stderr. The fixture is `testdata/templtypesafety/`, one `.templ` plus its view model. The rename is an OVERLAY, so nothing broken reaches disk and two sessions can run it at once. Proven both ways: `go vet` on the fixture passes, and with `Title` renamed it fails inside `page_templ.go` on the generated read of `v.Title`. Proven to discriminate: markup that stops reading the field reds the test with "renaming the view-model field left the build clean". Phase 4 must repoint it at a real ported component |
 | `TestLGViewDataIsTyped` | `internal/component/lg/render_test.go` | AC-8: no `map[string]any` reaches a templ component | new |
 | golden-output capture and diff | `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go` | AC-2, the only evidence for it | new, phase 1, BEFORE any page is ported |
 
@@ -254,10 +254,15 @@ N-A. No numeric input is introduced or changed.
 N-A. Scope is tooling; no wire-visible behavior changes.
 
 ## Files to Modify
-- `tools.go` - add the templ generator import
-- `go.mod`, `go.sum`, `vendor/` - add `github.com/a-h/templ`
+- `tools.go` - add the templ generator import (DONE)
+- `go.mod`, `go.sum`, `vendor/` - add `github.com/a-h/templ` (DONE)
 - `Makefile` - add the templ call to `generate`, plus `ze-templ-generate-check`
-- `mk/test-mutation.mk` or `.gomuignore` - exclude `*_templ.go`
+  (DONE, and the check is a prerequisite of `ze-regen-check-readonly`)
+- `.gomuignore` - exclude `*_templ.go` (DONE)
+- `scripts/status/verify_run_test.go` - the `generate` recipe now holds five
+  generators, and `generatorChecks` says which target guards the fifth (DONE)
+- `scripts/dev/verify_wiring_docs.py` and its test - route a changed `.templ`
+  or `*_templ.go` to the new gate (DONE)
 - `internal/component/lg/render.go` - phase 2
 - `internal/component/lg/layout.go` - `renderGraphSVG` string building
 - `internal/component/web/render.go` - phase 3
@@ -275,6 +280,8 @@ N-A. Scope is tooling; no wire-visible behavior changes.
 ## Files to Create
 - `internal/component/lg/templates/*.templ` and generated `*_templ.go`
 - `internal/component/web/templates/*.templ` and generated `*_templ.go`
+- `internal/component/web/testdata/templtypesafety/` - the AC-1 fixture, and
+  `internal/component/web/templ_typesafety_test.go`, its test (DONE)
 - a new `lg` file holding one named view-model struct per page (AC-8), replacing
   the `map[string]any` that `renderPage` takes today
 - `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go`
@@ -356,8 +363,20 @@ renderer.
      finds on the machine. Proven to discriminate: one byte changed inside the
      builder's markup reds `TestWebMarkupGoldenOutput/host-hardware` and
      `TestWebHandlerGoldenOutput/nav-show-system-hardware`.
-   - Also settle in this phase, because each blocks a later phase and each is
-     cheap now: the compile-failure mechanism for AC-1, and the A-1 number.
+   - **DONE 2026-08-14: the TOOLCHAIN.** `github.com/a-h/templ` v0.3.1020 is in
+     `go.mod` and vendored. `tools.go` imports `github.com/a-h/templ/cmd/templ`
+     under the existing `//go:build tools` pattern, which is what carries the
+     generator and the runtime into `vendor/`. `make generate` gained one
+     `go run` from vendor, so it still needs no network and nothing on PATH.
+     `make ze-templ-generate-check` is the freshness gate and is a prerequisite
+     of `ze-regen-check-readonly`. `.gomuignore` excludes `*_templ.go`.
+   - **DONE 2026-08-14: the AC-1 mechanism.** A fixture package under
+     `internal/component/web/testdata/templtypesafety/`, loaded by
+     `go/packages` from `TestTemplComponentTypeSafety`. The rename is applied as
+     an OVERLAY, so no broken file is ever written. A file that must not compile
+     takes its whole package down, and a package that does not build reports no
+     test result, which is why the fixture cannot live in the package under
+     test. `testdata` keeps it out of every build and every lint run.
    - Verify: the check targets fail while nothing is generated, then pass.
      `make ze-tracked-build-check` stays green.
    - **A-1 stop condition, stated as a number so it is decidable:** `vendor/`
@@ -421,11 +440,11 @@ renderer.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| templ vendored, generator runs from vendor | `make generate` with no network access |
+| templ vendored, generator runs from vendor | `make generate` with no network access. DONE 2026-08-14: `GOPROXY=off make generate` completes, and the templ step reports `Complete [ updates=1 duration=99ms ]` |
 | No engine coexistence | `grep -rn 'html/template' internal/component/web internal/component/lg` returns nothing after phase 3 |
-| Generated output in sync | `make ze-templ-generate-check` |
-| Vendor delta measured | `du -sh vendor` before and after, recorded against A-1 |
-| Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed, through the mechanism chosen in phase 1 |
+| Generated output in sync | `make ze-templ-generate-check`. DONE 2026-08-14, and proven both ways: a one-tag edit to a `.templ` with no regeneration reds it by file name, and the restored pair is green |
+| Vendor delta measured | `du -sh vendor` before and after, recorded against A-1. DONE 2026-08-14: 46688K to 51672K, a 4984K delta |
+| Type safety proven | `TestTemplComponentTypeSafety` fails when a field is renamed, through the mechanism chosen in phase 1. The mechanism is DONE 2026-08-14 and green over a fixture. Phase 4 must repoint it at a ported component |
 | `lg` view data typed (AC-8) | No `map[string]any` in the `lg` render path; `TestLGViewDataIsTyped` green |
 | Rendered bytes unchanged (AC-2), markup layer | `make ze-web-golden-check` against the phase-1 template capture |
 | Rendered bytes unchanged (AC-2), composition and handler layers | `make ze-web-golden-check`, the handler half. The template capture cannot stand in for it: it bypasses every wrapper phase 3 rewrites |

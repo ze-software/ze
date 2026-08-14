@@ -243,3 +243,4 @@ fuzz corpus entry becomes a regression test automatically.
 | Prove a web or looking-glass ROUTE answers the same bytes | `make ze-web-golden-check` (the handler capture runs in the same target) |
 | Prove an HTML builder that no template holds renders the same bytes | `make ze-web-golden-check` (the markup capture runs in the same target) |
 | Recapture those bytes after a deliberate markup change | `make ze-web-golden-update`, then read the diff |
+| Check that every `*_templ.go` matches its `.templ` source | `make ze-templ-generate-check`, and `make generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |

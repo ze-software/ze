@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -851,6 +852,7 @@ var regenCheckPrereqs = map[string]string{
 	"ze-plugin-imports-check":  "plugin_imports.go -> internal/component/plugin/all/all.go",
 	"ze-yang-glue-check":       "yang_glue.go -> yang/*/register.go, embed.go",
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
+	"ze-templ-generate-check":  "templ generate -> internal/**/*_templ.go",
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
 	"ze-doc-check-stale":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
 	"ze-rules-render-check":    "rules_points.py -> ai/rules/<rule>.md, rendered from ai/rules/points/",
@@ -875,6 +877,7 @@ var generatorChecks = map[string]string{
 	"scripts/codegen/yang_glue.go":      "ze-yang-glue-check",
 	"scripts/codegen/plugin_imports.go": "ze-plugin-imports-check",
 	"scripts/codegen/feature_tags.go":   "ze-feature-tags-check",
+	"github.com/a-h/templ/cmd/templ":    "ze-templ-generate-check",
 	"scripts/dev/fuzz-targets.py":       "ze-fuzz-targets-check",
 	// `ze-regen:` prerequisite targets
 	"ze-ai-instructions": "ze-arch-map-check",
@@ -1120,8 +1123,8 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	var producers []string
 	_, genBody := recipeBody(t, corpus, "generate")
 	producers = append(producers, producerScripts(strings.Join(genBody, "\n"))...)
-	if len(producers) != 4 {
-		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 4; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
+	if len(producers) != 5 {
+		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 5; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
 	}
 
 	regenHead, _ := recipeBody(t, corpus, "ze-regen")
@@ -1161,6 +1164,89 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 		if !got[target] {
 			t.Errorf("%q is guarded by %q, but that is not a prerequisite of ze-regen-check-readonly, so it never runs under `make ze-verify`", producer, target)
 		}
+	}
+}
+
+// templCallerTargets are the make targets allowed to run the templ CLI. The
+// write path (generate) and the read-only path (ze-templ-generate-check) hold
+// different obligations, so a third caller must be judged here before it runs.
+var templCallerTargets = []string{"generate", "ze-templ-generate-check"}
+
+// makeRuleHead matches a rule head at column 0 and captures its prerequisites.
+// The negative lookahead-free `[^=]` on the tail is what keeps `FOO := bar` and
+// `FOO: = bar` out: a variable assignment is not a rule.
+var makeRuleHead = regexp.MustCompile(`^([A-Za-z0-9_./%-]+):(?:([^=].*)?)$`)
+
+// TestTemplCheckIsReadOnlyAndReportsOrphans pins the two properties that let a
+// check-mode gate run over a working tree.
+//
+// VALIDATES: every `templ generate -check` recipe line also passes
+// -keep-orphaned-files, and ze-templ-generate-check keeps the
+// ze-templ-orphan-check prerequisite that runs
+// scripts/dev/templ_orphan_check.py.
+// PREVENTS: two opposite failures from one flag. Without it templ DELETES an
+// orphaned *_templ.go in -check mode, because HandleEvent
+// (vendor/github.com/a-h/templ/cmd/templ/generatecmd/eventhandler.go) calls
+// os.Remove before any writer is consulted, and only keepOrphanedFiles gates
+// that call. With it templ says NOTHING about the orphan, because the same
+// branch returns before the check writer sees the file. So the flag makes the
+// gate read-only, and the python check is then the only report of a generated
+// file whose source is gone.
+//
+// The caller set is DERIVED, but only from LITERAL recipe lines. A templ run
+// reached through a make variable, a shell script or a recursive $(MAKE) is
+// invisible here. What this test does catch is a second call site added to any
+// Makefile or mk/*.mk that spells the vendored package path. A literal `templ`
+// against a PATH binary is invisible too, and nothing installs one today. The
+// check's own logic is tested in
+// scripts/dev/templ_orphan_check_test.py.
+func TestTemplCheckIsReadOnlyAndReportsOrphans(t *testing.T) {
+	corpus := makefileCorpus(t)
+	const detector = "ze-templ-orphan-check"
+
+	prereqs := map[string]string{}
+	templLines := map[string][]string{}
+	var callers []string
+	target := ""
+	for ln := range strings.SplitSeq(corpus, "\n") {
+		if strings.HasPrefix(ln, "\t") {
+			if cmd := stripShellComment(ln); strings.Contains(cmd, "a-h/templ/cmd/templ") {
+				if !slices.Contains(callers, target) {
+					callers = append(callers, target)
+				}
+				templLines[target] = append(templLines[target], strings.TrimSpace(cmd))
+			}
+			continue
+		}
+		m := makeRuleHead.FindStringSubmatch(ln)
+		if m == nil {
+			continue
+		}
+		target = m[1]
+		prereqs[target] = m[2]
+	}
+
+	slices.Sort(callers)
+	if !slices.Equal(callers, templCallerTargets) {
+		t.Fatalf("targets running the templ CLI are %v, expected %v; a new caller must be judged read-only or write before it is added here", callers, templCallerTargets)
+	}
+	for _, caller := range callers {
+		for _, cmd := range templLines[caller] {
+			if strings.Contains(cmd, "-check") && !strings.Contains(cmd, "-keep-orphaned-files") {
+				t.Errorf("`make %s` runs templ in check mode without -keep-orphaned-files (%q), so the check deletes an orphaned *_templ.go instead of leaving the tree alone", caller, cmd)
+			}
+		}
+	}
+
+	if !slices.Contains(strings.Fields(prereqs["ze-templ-generate-check"]), detector) {
+		t.Errorf("ze-templ-generate-check lost the %q prerequisite (its prerequisites are %q); with -keep-orphaned-files templ reports no orphan, so nothing would", detector, strings.TrimSpace(prereqs["ze-templ-generate-check"]))
+	}
+	if _, ok := prereqs[detector]; !ok {
+		t.Fatalf("%q is not a target in the Makefile: the prerequisite above resolves to nothing and no orphan is reported", detector)
+	}
+	_, detectorBody := recipeBody(t, corpus, detector)
+	if !strings.Contains(strings.Join(detectorBody, "\n"), "scripts/dev/templ_orphan_check.py") {
+		t.Errorf("%q does not run scripts/dev/templ_orphan_check.py; its recipe is %q", detector, strings.Join(detectorBody, "\n"))
 	}
 }
 
