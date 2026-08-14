@@ -81,4 +81,58 @@
 # mechanical improvement that consolidates processes reads as a weakening. The
 # remedy is to fix that arm, not to keep buying passes. Until then a raise here
 # costs one reviewed line, which is the design.
-755
+
+# raised-for: rib TestCarriesBlackholeCommunity, 2026-08-14, 755 -> 756.
+# NOTHING LEFT THE SUITE. This is the same false positive one file type along:
+# the Go arm of c_test_weakening, not the `.ci` arm the prose above describes.
+# 1d2af98ab moved the per-peer blackhole config parse out of
+# internal/component/bgp/plugins/rib into internal/component/bgp/blackholecfg,
+# because three plugins now need one answer about one session. The COMMUNITIES
+# scan went with it: carriesBlackholeCommunity (rib_blackhole.go) is now
+# blackholecfg.Carries, the same four-byte loop over binary.BigEndian.Uint32 and
+# slices.Contains, unchanged.
+#
+# WHAT MOVED, verified by diffing the two tables. All 13 cases of
+# TestCarriesBlackholeCommunity and the concat helper are carried over verbatim
+# into TestCarries (internal/component/bgp/blackholecfg/blackholecfg_test.go):
+# identical case names, identical inputs, identical expectations, only the call
+# target renamed. WHAT DID NOT MOVE: nothing. The rib package keeps its own
+# honoring coverage, which now reads blackholecfg through a one-line delegate.
+#
+# WHY THE TOKEN EXISTS. The hook sees one file per edit, so it read the deleted
+# test function as removed coverage and could not see the table land in another
+# package of the same commit. That is a cross-file signal, which is what this
+# arm is missing, and it is NOT the `cmd=` line count that the 2026-08-12 row in
+# plan/journal/hook-existing-patterns-false-positive.md refuses another raise
+# for. Restoring the test in rib is not available either: the symbol it called
+# does not exist there any more, and a copy against a one-line delegate is the
+# drift the extraction removes.
+#
+# This token is the whole of the increase. Over 19446418c..HEAD it is the only
+# token added to the corpus and none was removed.
+
+# raised-for: test/plugin/mup4.ci, 2026-08-14, 756 -> 757.
+# NO ASSERTION WAS DROPPED. The deleted line is `cmd=api:seq=2:text=peer *
+# update text nlri ipv4/unicast eor`, the ANNOTATION that names the command
+# behind an expectation. It named a command no plugin ever ran: mup4's script
+# has always sent the announce and the withdraw only. The marker it annotated is
+# ze's own initial-sync End-of-RIB, and RFC 4724 Section 2 allows exactly one per
+# family per session, which ClaimInitialSyncEOR
+# (internal/component/bgp/reactor/reactor_api_forward.go) enforces by dropping a
+# plugin's second one. So the annotation could never become true by making the
+# plugin send it, and the count fell 8 to 7 because a false line went.
+#
+# WHAT THE EDIT FIXES. The marker was declared BETWEEN the two route frames,
+# which holds only while the plugin's first send beats sendInitialRoutes to the
+# wire. CI lost that race on 2026-08-14 (run 31782226972) and the fixture failed
+# with the marker and the announce transposed. The marker is now declared first
+# and the plugin holds wait_peer_eor_sent() before it announces, so the ordering
+# is a barrier rather than a bet. Measured on this tree: before the edit, 30/30
+# green as-is and 0/3 with a 1s delay before the first send, which reproduces the
+# CI signature byte for byte; after it, 20/20 green as-is and 5/5 with the same
+# delay.
+#
+# THE HOOK ARM. Same one-file-per-edit blindness as the row above, one file type
+# along: the `.ci` arm counts cmd=/expect= LINES, so deleting a false annotation
+# reads as removing an expectation.
+757

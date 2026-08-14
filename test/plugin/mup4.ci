@@ -2,12 +2,27 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
+# The marker below is ZE's own initial-sync End-of-RIB, not a plugin command.
+# RFC 4724 Section 2 allows one per family per session and ClaimInitialSyncEOR
+# (internal/component/bgp/reactor/reactor_api_forward.go) enforces it, so a
+# plugin cannot put a second one on the wire. It is declared FIRST because the
+# plugin now holds wait_peer_eor_sent() before it announces: the marker reaches
+# the wire before the first route in every timing. It used to sit between the
+# two route frames, which held only while the plugin's first send won a race
+# against sendInitialRoutes, and CI lost that race on 2026-08-14 (run
+# 31782226972: the marker arrived first and the withdraw was diffed against it).
+#
+# test-relax: the line deleted here is `cmd=api:seq=2:text=... eor`, the
+# ANNOTATION naming the command that produced the marker, and it named one no
+# plugin ever ran: this script's message list has carried the announce and the
+# withdraw only. It is deleted because it is false, not because the fixture
+# stopped asking for the marker. NO assertion is dropped. The marker expectation
+# survives at seq=1, and both route frames keep their hex and their json check.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # Test IPv4 unicast functionality
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/unicast eor
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=2:text=peer * update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
+expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
 cmd=api:conn=1:seq=3:text=peer * update text nlri ipv4/unicast del 10.0.1.0/24
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00010000
 expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.1.0/24"]}]}
@@ -21,12 +36,29 @@ EOF_PEER
 tmpfs=mup4.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-from ze_api import quiesce, ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import API, runtime_fail
 # // test-relax: removed unused 'import time'; per-send sleep -> outbound quiesce barrier
 
 
 def main() -> None:
-    ready()
+    # The five startup stages by hand, as the sibling fixtures do it. The
+    # module-level ze_api.ready() runs the same five on its own singleton, and
+    # this script needs the object itself for the barrier below.
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # The barrier the peer block's first expectation needs. ready() releases the
+    # peer's API-sync barrier, so sendInitialRoutes can drain the opQueue and
+    # write ze's one End-of-RIB for the family (RFC 4724 Section 2) before the
+    # first send() below arrives. Waiting for the marker makes every frame this
+    # plugin sends a post-EOR incremental update, in send order, rather than
+    # betting on which side of the marker the announce lands.
+    if not api.wait_peer_eor_sent('peer1', attempts=40):
+        runtime_fail('peer1 initial-sync EOR never reached the wire')
 
     # Test unicast functionality using update text syntax
     announce_unicast = 'peer * update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24'
@@ -42,11 +74,11 @@ def main() -> None:
     ]
 
     for message in messages:
-        send(message)
-        quiesce()  # // test-relax: blind sleep between sends -> outbound quiesce barrier
+        api.send(message)
+        api.quiesce()  # // test-relax: blind sleep between sends -> outbound quiesce barrier
 
-    wait_for_ack(expected_count=2)
-    wait_for_shutdown()
+    api.wait_for_ack(expected_count=2)
+    api.wait_for_shutdown()
 
 
 if __name__ == '__main__':
