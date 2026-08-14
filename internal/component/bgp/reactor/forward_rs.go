@@ -244,6 +244,13 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// (forward_local_pref.go) for why the answer gates the operation.
 	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
 
+	// RFC 4271 Section 5.1.4 needs one read per UPDATE, not one per client:
+	// which MULTI_EXIT_DISC the source sent. See applyFactsMED (forward_med.go)
+	// for why RFC 7947 Section 2.2.3 leaves an RS client's metric alone, and why
+	// this rail still asks: reactorForwardRS also serves the non-client
+	// destinations a route server peers with.
+	srcMED := payloadMED(update.WireUpdate.Payload())
+
 	// RFC 1997 needs one scan per UPDATE, not one per client; see the identical
 	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay
 	// behaviorally identical: honoring the well-known communities on one only
@@ -391,6 +398,16 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			baseHasLocalPref = payloadHasLocalPref(destBaseWire.Payload())
 		}
 		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
+
+		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
+		// reaches another, and RFC 7947 Section 2.2.3 exempts a route server
+		// client. Same two payloads as the sibling above, and the same base for
+		// a destination RFC 1997 refuses (applyFactsMED, forward_med.go).
+		baseMED := srcMED
+		if destBaseWire != update.WireUpdate {
+			baseMED = payloadMED(destBaseWire.Payload())
+		}
+		applyFactsMED(facts, srcMED, baseMED, &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer

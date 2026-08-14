@@ -1,0 +1,159 @@
+# rfc4271-partial-unknown-transitive -- an UPDATE carrying an attribute ze does
+# not recognize, sent optional transitive with the Partial bit clear, is passed
+# along to another peer with the Partial bit set to 1.
+#
+# VALIDATES: RFC 4271 Section 5 -- "If a path with an unrecognized transitive
+# optional attribute is accepted and passed to other BGP peers, then the
+# unrecognized transitive optional attribute of that path MUST be passed, along
+# with the path, to other BGP peers with the Partial bit in the Attribute Flags
+# octet set to 1." Section 9 states where: the bit is set on receipt, and the
+# attribute is retained for propagation.
+#
+# PREVENTS: relaying an unrecognized attribute as though ze had read it. Every
+# AS downstream of ze would then be told the information is complete, when the
+# speaker that forwarded it never parsed a byte of the value.
+#
+# WHY A FUNCTIONAL TEST: the unit tests in
+# internal/component/bgp/reactor/rfc4271_test.go prove the producer stamps the
+# bit. Only a running daemon with two sessions proves ze PASSES IT ALONG, which
+# is what the requirement says. The stamp is applied once at receipt
+# (reactor.Session.publishBase) and the forward rail relays those bytes, so this
+# is the test that would catch a rail that rebuilt the attribute section from
+# anything other than the published base.
+#
+# SHAPE: taken from bgp-rs-community-strip-multi.ci -- two peers, conn mapped by
+# remote IP, the general forwarding rail (no rs-fast-path on the source).
+#
+# RFC requirement: RFC4271-5-3 positive -- "the unrecognized transitive optional
+# attribute of that path MUST be passed, along with the path, to other BGP peers
+# with the Partial bit in the Attribute Flags octet set to 1". A running ze with
+# two sessions forwards attribute type 250 to the second peer with flags E0,
+# stamped on receipt by reactor.Session.publishBase through
+# attribute.SetPartialOnUnrecognizedTransitive.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+option=bind:value=0.0.0.0
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001) announces 10.0.0.0/24 carrying attribute type
+# code 250, which is unassigned and which ze has no parser or name for:
+#
+#   40 01 01 00                 ORIGIN = IGP
+#   40 02 06 02 01 0000FDE9     AS_PATH = [65001]
+#   40 03 04 01010101           NEXT_HOP = 1.1.1.1
+#   40 05 04 00000064           LOCAL_PREF = 100
+#   C0 FA 04 DEADBEEF           type 250, Optional+Transitive, Partial CLEAR
+#
+# 34 octets of attributes (0x0022), then NLRI 10.0.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010140050400000064C0FA04DEADBEEF180A0000
+
+# The source peer's own End-of-RIB, sent by its initial sync at establishment.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Receiver peer (conn=2, AS 65002): the forwarded UPDATE carries the same
+# attribute with the same value and the same length, and flags E0 rather than
+# the C0 that arrived -- Optional and Transitive kept, Partial now 1.
+#
+# This one positive assertion is also the negative one. Before the stamp existed
+# the octet forwarded here was C0, so this byte string was absent, and it cannot
+# be satisfied by a withdrawal (which carries no path attributes) nor by the
+# source's own echo (those bytes exist only after the rewrite).
+#
+# NO End-of-RIB rule for conn=2, deliberately: bgp-rs-reactor-fastpath.ci
+# measured the forward beating the receiver's EOR onto the wire.
+#
+# The forwarded UPDATE also differs from the sent one in a second, unrelated way,
+# and that is deliberate: the sessions are external (AS 65000 to AS 65001), so
+# LOCAL_PREF is discarded on receipt and replaced by an ATTR_TOMBSTONE marker
+# (RFC 7606 attribute-discard, draft-mangin-idr-attr-tombstone-00). That routes
+# this UPDATE through the REBUILD branch of enforceRFC7606 rather than the plain
+# one, which is what makes this test prove the Partial stamp survives a rebuilt
+# attribute section as well as an untouched one. Nothing here asserts LOCAL_PREF.
+expect=bgp:conn=2:seq=1:contains=E0FA04DEADBEEF
+EOF_PEER
+
+# Observer: wait until the route server has replayed to every peer, then stop.
+tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+from ze_api import API
+
+API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external shutdown-after-up {
+		run ./shutdown-after-up.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

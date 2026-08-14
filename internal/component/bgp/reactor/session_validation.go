@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -298,8 +299,9 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	return s.publishBase(wu), message.RFC7606ActionNone, nil
 }
 
-// publishBase builds the attribute span index over the bytes this UPDATE will be
-// published with, on the receive goroutine, and returns the same WireUpdate.
+// publishBase stamps RFC 4271 Section 9's Partial bit and builds the attribute span index
+// over the bytes this UPDATE will be published with, on the receive goroutine, and returns
+// the same WireUpdate.
 //
 // It is deliberately the last thing enforceRFC7606 does on every path that PUBLISHES an
 // UPDATE. Two branches above change the bytes after the RFC 7606 walk has read them, and an
@@ -324,6 +326,28 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 // so no verdict changes. It is logged here because this is the one place that knows which
 // peer sent the bytes.
 func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
+	// RFC 4271 Section 9: "If an optional transitive attribute is unrecognized, the
+	// Partial bit (the third high-order bit) in the attribute flags octet is set to 1,
+	// and the attribute is retained for propagation to other BGP speakers." Section 5
+	// states the same obligation from the sending side, and this is the one place that
+	// satisfies both: the bytes stamped here are the bytes the RIB retains, the bytes a
+	// route server relays zero-copy, and the bytes every rebuild copies the untouched
+	// attributes out of. Stamping per destination instead would cost a rebuild on a
+	// forward rail that otherwise sends the received buffer unchanged.
+	//
+	// It runs only on the paths that PUBLISH, which is why it lives here rather than
+	// beside the RFC 7606 walk: an UPDATE ze session-resets or turns into withdrawals
+	// propagates nothing, and RFC 7606 Section 6 requires its diagnostics to dump the
+	// message the PEER sent.
+	//
+	// The section comes from the payload rather than from wu.Attrs(), because that call
+	// FREEZES the index and the index must describe the bytes ze publishes. A payload
+	// that does not parse into sections stamps nothing and is reported by the wu.Attrs()
+	// call below, which fails on the same input.
+	if sections, secErr := wire.ParseUpdateSections(wu.Payload()); secErr == nil {
+		attribute.SetPartialOnUnrecognizedTransitive(sections.Attrs(wu.Payload()))
+	}
+
 	attrs, err := wu.Attrs()
 	if err != nil {
 		sessionLogger().Debug("attribute index not built",

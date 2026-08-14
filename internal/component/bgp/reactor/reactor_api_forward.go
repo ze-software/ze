@@ -493,6 +493,13 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// below, because the override is the base its rebuild runs over.
 	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
 
+	// RFC 4271 Section 5.1.4 needs one read per UPDATE for the same reason:
+	// which MULTI_EXIT_DISC the source sent, which is the only received value
+	// there is. A destination whose policy chain returned a full wire override
+	// re-asks over THAT payload below, because a metric the override carries and
+	// the source did not is the operator originating one (applyFactsMED).
+	srcMED := payloadMED(update.WireUpdate.Payload())
+
 	// RFC 1997 needs one scan per UPDATE, not one per destination: which
 	// well-known communities the RECEIVED route carries. Scanned over the SOURCE
 	// payload, never over a policy chain's wire override -- an export policy that
@@ -672,6 +679,18 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			baseHasLocalPref = payloadHasLocalPref(peerBaseWire.Payload())
 		}
 		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
+
+		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
+		// reaches another. Asked over the same two payloads, and for the same
+		// reason, as the sibling above. The PRECEDENCE differs: this Suppress
+		// stands aside for a filter that originated a metric, because 5.1.4
+		// forbids relaying somebody else's value rather than the attribute
+		// itself (applyFactsMED, forward_med.go).
+		baseMED := srcMED
+		if peerBaseWire != update.WireUpdate {
+			baseMED = payloadMED(peerBaseWire.Payload())
+		}
+		applyFactsMED(facts, srcMED, baseMED, &mods)
 
 		// The AS-path family is recorded as INTENT, so the exactly-sized one-pass
 		// writer emits it into the destination buffer alongside every other edit.

@@ -91,10 +91,44 @@ var attrCodeNames = map[AttributeCode]string{
 	AttrTombstone:        "ATTR_TOMBSTONE",
 }
 
+// recognizedCodes is attrCodeNames in bit-set form: bit N is set when ze holds a
+// meaning for attribute type code N. It is DERIVED from that map, never authored,
+// so the map stays the one place a recognized attribute is declared.
+//
+// A bit set rather than the map itself because the receive path asks this question
+// once per attribute per UPDATE (ai/rules/performance.md): the answer is a shift
+// and a mask over 32 bytes, with no hash and no pointer chase. SpanIndex.presence
+// carries the same 256-bit-set idiom for the same reason.
+var recognizedCodes [4]uint64
+
+func init() {
+	for code := range attrCodeNames {
+		markRecognized(code)
+	}
+}
+
+func markRecognized(c AttributeCode) { recognizedCodes[c>>6] |= 1 << (c & 63) }
+
 // RegisterName registers an attribute code and display name.
 // MUST only be called from init() functions. Not safe for concurrent use.
+//
+// Registering a name is also what makes the code RECOGNIZED (see Recognized), so
+// a plugin that stops being built takes its attribute's recognition with it and
+// ze passes that attribute along as an unknown one again.
 func RegisterName(code AttributeCode, name string) {
 	attrCodeNames[code] = name
+	markRecognized(code)
+}
+
+// Recognized reports whether ze holds a meaning for this attribute type code.
+//
+// RFC 4271 Section 5 hangs two obligations on the answer: an UNRECOGNIZED
+// transitive optional attribute must be passed along with the Partial bit set,
+// and an unrecognized non-transitive one must not be passed along at all. The set
+// is the names registry, which every attribute ze implements joins -- the core
+// codes in attrCodeNames, and a plugin's own code through RegisterName.
+func (c AttributeCode) Recognized() bool {
+	return recognizedCodes[c>>6]&(1<<(c&63)) != 0
 }
 
 // String returns the attribute name.
