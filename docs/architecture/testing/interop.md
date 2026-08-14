@@ -153,7 +153,7 @@ for the IPsec lab.
 field, because 0 is a legitimate RIB size and a failed query is not
 (`ai/rules/evidence.md`). It returned 0 on failure until 2026-08-07 and three
 separate faults hid behind that one number for three days
-(`plan/spec-fixit-test-harness-fail-open-guards.md`, guard 3). Write new Ze
+(`spec-fixit-test-harness-fail-open-guards`, guard 3). Write new Ze
 helpers the same way.
 
 All session waiters poll with a configurable timeout (default 90s, override via `SESSION_TIMEOUT` env var).

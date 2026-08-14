@@ -484,3 +484,255 @@ does not survive is the attribution a reader derives from it. A test author
 reasoning "eor-sent can only come from the initial sync" will mis-derive on any
 peer whose route server or batch path also sends End-of-RIB. The same docstring
 also carries a line-number citation, which `ai/rules/writing.md` no longer allows.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **Guard 1.** `acceptConnMapBatch` (`internal/test/peer/peer_connmap.go`)
+  consults `(*Checker).Completed` (`internal/test/peer/checker.go`) on the
+  context-cancelled accept. An outstanding expectation now answers
+  `Result{Success: false}` with an error naming cancellation before completion.
+  A settled checker still answers success.
+- **Guard 2.** `(*Runner).testBudgetEnv` (`internal/test/runner/runner_exec_util.go`)
+  publishes `ze_test_budget`, the headroom-scaled wall clock the child races.
+  `run_rs_observer` (`test/scripts/ze_api.py`) derives `eor_timeout` as 60% of
+  it and `shutdown_timeout` as 25%. A share below 1.0 is reachable at every
+  budget, which no constant can be.
+- **Guard 3.** `Ze.rib_count` (`test/interop/interop.py`) raises on a failed
+  command and on a response with no `routes-in` field, naming the container and
+  the command. `ResolveCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`) and
+  `AbsoluteVerbPath` (`internal/component/cli/client/verb_tree.go`) repair the
+  verb resolution that guard 3 uncovered.
+- **Guard 4.** `scripts/dev/docker_exec_checked.py` derives the fail-open
+  function set to a fixpoint and classifies every call site of any member.
+  `make ze-docker-exec-check` runs it, `test/health/docker-exec-baseline.json`
+  holds the floor at 171, and `is_docker_exec_source`
+  (`scripts/dev/verify_wiring_docs.py`) routes it onto the changed-file path.
+
+### Bugs Found/Fixed
+
+- A cancelled run reported a pass it never earned. Covered by
+  `TestCanceledAcceptReportsFailureUntilCheckerCompletes`
+  (`internal/test/peer/peer_connmap_test.go`).
+- `ZE-OBSERVER-FAIL` was unreachable at all 17 `.ci` call sites. Covered by
+  `TestObserverBudget` (`test/scripts/ze_api_test.py`).
+- `ze <verb> ...` resolved almost nothing from a shell argv. Covered by
+  `TestDeclaredCommandsResolveFromArgv` (`cmd/ze/internal/cmdutil/cmdutil_test.go`).
+- `_emptiness_tested` (`scripts/dev/docker_exec_checked.py`) matched a
+  same-named variable anywhere in the function, so three live sites rode out on
+  a guard belonging to an earlier call. The rule is positional now, and the
+  floor rose from 168 to 171 because the detector got more correct.
+- Guard 2's own proof was vacuous, found at the closure review. `TestObserverBudget`
+  (`test/scripts/ze_api_test.py`) recomputed `budget * _EOR_BUDGET_SHARE` itself
+  and never called `run_rs_observer`, so restoring the 30.0 constant inside the
+  producer left every assertion green. That is the shape guard 2 exists to
+  refuse, one level up. Covered by `TestObserverBudgetReachesTheWaits`.
+
+### Documentation Updates
+
+- `docs/architecture/testing/interop.md` already carries guard 3's contract for
+  `Ze.rib_count`. Its citation of this spec is restated as the bare stem, because
+  the committed tree no longer holds the file.
+- `ai/rules/repo-maintenance.md` carries the `ze-docker-exec-check` gate row and
+  `ai/INDEX.md` carries the tool entry. Both landed with the other session's
+  regenerated points.
+- `docs/functional-tests.md` needed no edit: it documents the `.ci` format and
+  the observer's public arguments, and neither changed. The derivation replaced
+  two defaults inside `run_rs_observer` and added no argument.
+- `make ze-doc-test` result is in Pre-Commit Verification below.
+
+### Deviations from Plan
+
+| Planned | What landed | Why |
+|---------|-------------|-----|
+| `TestCancelledAcceptDoesNotReportSuccess` and `TestCancelledAcceptAfterCompletionStillPasses` | One table-driven `TestCanceledAcceptReportsFailureUntilCheckerCompletes` with subtests `expectation_outstanding` and `expectations_satisfied` | Both cases share one listener setup and one cancelled context. Two functions would have duplicated it |
+| A functional `.ci` under `test/draft/plugin/`, promoted once green | None written; `TestObserverBudgetReachesTheWaits` (`test/scripts/ze_api_test.py`) written instead | AC-3 was met by derivation rather than by a second constant, so all 17 existing call sites became reachable at once and no `.ci` needed editing or adding. A `.ci` proves the diagnosis fires; this test proves the number that makes it fire reaches the wait, which is what the derivation changed |
+| Guard 4 as a ruling to take | Guard 4 implemented in full | Thomas ruled on 2026-08-09 for the wider lint: every fail-open return value is checked, and `docker_exec_quiet` keeps its contract |
+| AC-5 names 15 `connmap` `.ci` files | 17 | A miscount in the spec prose. `grep -rl connmap test/plugin/` answers 17 |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Guard 2 was to be fixed by picking a shorter `eor_timeout` constant | Any constant is either unreachable or larger than the run. The budget must be DERIVED from the deadline the runner enforces | The AC-4 survey: all 17 call sites sat under the 30.0s default, so no single constant could serve them | `(*Runner).testBudgetEnv` publishes the budget and the observer takes a share of it |
+| approach | Guard 4's detector treated a membership test as a check | `if prefix in out` is False on `""`, so it is the fail-open shape rather than a guard against it | The survey's own worked true positive, `FRR.is_dis` (`test/interop/interop.py`), which reads `"DIS" in out` | The rule flags membership tests, and the floor moved from 114 to 168 |
+| escalation | The guard 4 checker's own emptiness rule was position-blind | An emptiness test on a same-named variable marked EVERY assignment of that name checked, `FRR.route_count` among them | Review round 1 | The rule is positional, two tests pin it, and the floor rose to 171 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A cancelled accept must not report success | Done | `acceptConnMapBatch` (`internal/test/peer/peer_connmap.go`) | Consults `(*Checker).Completed` |
+| A harness timeout must be reachable | Done | `(*Runner).testBudgetEnv` (`internal/test/runner/runner_exec_util.go`), `run_rs_observer` (`test/scripts/ze_api.py`) | Shares of the published budget |
+| A failed RIB query must not answer 0 | Done | `Ze.rib_count` (`test/interop/interop.py`) | Raises on both failure modes |
+| A mechanical guard against the swallowed call | Done | `scripts/dev/docker_exec_checked.py` | `make ze-docker-exec-check`, floor 171 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCanceledAcceptReportsFailureUntilCheckerCompletes/expectation_outstanding` | `acceptConnMapBatch` returns the named error |
+| AC-2 | Done | same test, `/expectations_satisfied` | Success preserved |
+| AC-3 | Done | `TestObserverBudgetReachesTheWaits` (`test/scripts/ze_api_test.py`), `(*Runner).testBudgetEnv` | Met by derivation, proven at the producer |
+| AC-4 | Done | Survey of 17 call sites | The derivation fixes all 17 at once |
+| AC-5 | Done | `make ze-plugin-test` 602/602 PASS, 2026-08-09 | The 17 `connmap` `.ci` are that suite |
+| AC-6 | Done | Mutation run 2026-08-09: `result.Success = true, want false` | Test discriminates |
+| AC-7 | Done | `Ze.rib_count` (`test/interop/interop.py`) | Two raise paths, both name container and command |
+| AC-8 | Done | `TestDeclaredCommandsResolveFromArgv` (`cmd/ze/internal/cmdutil/cmdutil_test.go`) | |
+| AC-9 | Done | Mutation: 305 paths red | Test discriminates |
+| AC-10 | Done | `make ze-interop-test INTEROP_SCENARIO=05-routes-from-frr`, 2026-08-07 | 3 routes; `06` 3, `13` 1 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCancelledAcceptDoesNotReportSuccess` | Changed | `internal/test/peer/peer_connmap_test.go` | Landed as `TestCanceledAcceptReportsFailureUntilCheckerCompletes/expectation_outstanding` |
+| `TestCancelledAcceptAfterCompletionStillPasses` | Changed | same file | Landed as the `/expectations_satisfied` subtest |
+| An RS observer test with a reachable diagnostic | Changed | `test/scripts/ze_api_test.py` | `TestObserverBudgetReachesTheWaits` drives `run_rs_observer` and reads back each wait's timeout; no `.ci` was needed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/peer/peer_connmap.go` | Done | Guard 1 |
+| `test/scripts/ze_api.py` | Done | Guard 2 |
+| `docs/functional-tests.md` | Changed | No edit needed: no public argument and no `.ci` directive changed |
+| Any `.ci` the AC-4 survey names | Changed | None needed editing; the derivation covers all 17 |
+| `internal/test/peer/peer_connmap_test.go` | Done | Created |
+| One `.ci` under `test/draft/plugin/` | Skipped | Superseded by the derivation, recorded in Deviations |
+| `test/interop/interop.py`, `cmd/ze/internal/cmdutil/cmdutil.go`, `internal/component/cli/client/verb_tree.go`, `cmd/ze/internal/cmdutil/cmdutil_test.go`, `test/interop/scenarios/13-graceful-restart-frr/frr.conf` | Done | Guard 3 |
+
+### Audit Summary
+- **Total items:** 24
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 1 (the draft `.ci`, superseded by AC-3's derivation)
+- **Changed:** 4 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A cancelled run must not report success | functional (unit over the harness) | `TestCanceledAcceptReportsFailureUntilCheckerCompletes`. Mutating the guard to return success unconditionally turns it red: `result.Success = true, want false`. The test refuses to run at all if the two fixture checkers do not differ, so it cannot pass vacuously |
+| The observer diagnostic must be reachable | functional (unit over the harness) | `TestObserverBudgetReachesTheWaits.test_the_waits_take_shares_of_the_published_budget` (`test/scripts/ze_api_test.py`) runs `run_rs_observer` over a stubbed session and asserts the number it hands `wait_rs_replayed` and `wait_for_shutdown`. Reverting either default to its old constant turns it red at `30.0 != 12.0`, measured 2026-08-14. `TestObserverBudget.test_an_unreadable_duration_raises_rather_than_reading_zero` refuses the zero that would make every derived wait expire at once |
+| A failed RIB query must not answer 0 | interop | `make ze-interop-test INTEROP_SCENARIO=05-routes-from-frr` passes on 3 real received routes, and `06` on 3, `13` on 1. Before the fix, scenario 05 was red on `Ze RIB has 0 received routes` with three distinct faults behind that 0 |
+| Nothing may write the swallowed call again | tooling gate | `make ze-docker-exec-check` refuses a rise over the 171 floor in `test/health/docker-exec-baseline.json`. `TestRepoRatchet` re-runs the real scan under `make ze-unit-test`, so the floor holds without the changed-file routing |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Changed-file routing for `ze-docker-exec-check` | done | Both are in HEAD. `is_docker_exec_source` is in `scripts/dev/verify_wiring_docs.py` and `DockerExecRoutingTest` is in its sibling test. The interleaving cleared when the other session committed its refactor. Verified by reading both files, not by a commit message |
+| The `ze-docker-exec-check` gate row and its `ai/INDEX.md` entry | done | The gate row is in `ai/rules/repo-maintenance.md` and the tool entry is in `ai/INDEX.md`, both naming `make ze-docker-exec-check` |
+| 171 unchecked fail-open call sites across 67 files | resolved | Homed at `plan/future/spec-fail-open-call-site-drain.md`. Not commissioned: the row has a destination so this shard can close, not a schedule. The floor may only go DOWN, so the count cannot grow while it waits |
+| `plan/deferrals/fixit-interop-bare-verb-guard.md`, its one row | done | That row IS guard 4, and guard 4 shipped. The shard is now all-terminal residue, and this closure removes it (`ai/rules/planning.md`: the actor is the closer of the last spec that homed one of its rows) |
+
+**Nine live rows in FOUR FOREIGN shards named this spec as their Destination,
+and all nine are re-homed in commit A.** `ai/rules/planning.md` ("Closure
+resolves the spec's deferral rows") makes this BLOCKING: "Every row naming it as
+**Destination** MUST be resolved inside commit A", and its Banned table names
+the alternative outright, "`git rm` a spec while a deferral row still names it
+as Destination -- The row dangles forever."
+
+| Shard | Rows | New Destination |
+|-------|------|-----------------|
+| `plan/deferrals/wire-edit-4-api-origin-deferred-bird-interop.md` | 2 | `plan/future/spec-harness-fail-open-guard-backlog.md` |
+| `plan/deferrals/fixit-ospf-sr-missing-label-passes.md` | 1 | same |
+| `plan/deferrals/fixit-firewall-concurrency-deadlock.md` | 1 | same |
+| `plan/deferrals/rules-as-points.md` | 5 | same |
+
+Each row keeps Status `deferred`, because the rule forbids closing a row on
+filing: "a `done` row is never destination-checked again, so closing it on
+filing is precisely how the work stops being watched."
+
+**Why one destination rather than nine.** A survey on 2026-08-14 found a better
+per-row home for each: two journal-class rows, three existing live specs, and
+two new skeletons. Applying it would add Task items to
+`plan/spec-interop-suite-red.md`,
+`plan/spec-fixit-relax-audit-reports-the-wrong-token.md` and
+`plan/spec-rules-situation-index.md`, which changes THEIR scope, and would
+create two specs Thomas has not commissioned. A closure may not take that
+decision. The survey is recorded in full in the backlog spec's own table, so the
+routing work is preserved rather than repeated, and none of it is applied.
+
+One more citation, in a row that was already terminal:
+`plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` names this spec as
+the Destination of guard 3's `done` row. It is restated as the bare stem, because
+`check_tracked_citations` (`scripts/dev/check_doc_links.py`) sweeps every tracked
+file and the path form goes dead when commit B lands.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-test-harness-fail-open-guards-ca112cd4-8337-4992-b4e1-e0d7bbff5820.md` |
+| `review_gate.py check` | `review_gate: OK (3 code files, clean, hashes match)` |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1, two parallel independent lenses: logic+wiring+evidence over the closure diff, and gate-correctness+bookkeeping-integrity over the deferral and citation moves. Round 2 re-reviewed the fixes |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Nine LIVE rows in four foreign shards named this spec as Destination. `ai/rules/planning.md` requires every one to be resolved inside commit A, and its Banned table names `git rm` of a spec a live row still points at | `plan/deferrals/` (wire-edit-4 ×2, ospf-sr ×1, firewall ×1, rules-as-points ×5) | All nine re-pointed at `plan/future/spec-harness-fail-open-guard-backlog.md`, Status kept `deferred`. The per-row survey is recorded in that file rather than applied, because applying it would expand three live specs' scope |
+| 2 | ISSUE | AC-3's proof was vacuous. `TestObserverBudget` recomputed `budget * _EOR_BUDGET_SHARE` itself and never called `run_rs_observer`, so restoring the 30.0 constant in the producer left every assertion green. The Wiring Test table is marked NOT deferrable | `test/scripts/ze_api_test.py` | `TestObserverBudgetReachesTheWaits` drives `run_rs_observer` over a stubbed session and reads back the timeout each wait receives. Mutation measured 2026-08-14: the reverted constant fails it at `30.0 != 12.0` |
+| 3 | ISSUE | The shard's Status cells carried prose (`done 2026-08-14: ...`, `homed ...`). `DEFERRAL_TERMINAL_STATUSES` (`scripts/dev/commit_helper.py`) matches the WHOLE cell, so all three read as live and the shard removal would have been refused | `plan/deferrals/fixit-test-harness-fail-open-guards.md` | Status cells reduced to `done`, `done`, `resolved`; the evidence moved to the Deferrals Resolved table above |
+| 4 | ISSUE | Removing the spec would leave twelve dead path citations in tracked files, which `check_tracked_citations` (`scripts/dev/check_doc_links.py`) sweeps repo-wide. The first count of five missed every backticked Destination cell in `plan/deferrals/` | five source and doc files, plus seven Destination cells across three shards | The five restated as the bare stem; the seven fixed by finding 1's re-point, and the two terminal ones restated. `git ls-files | xargs grep` now finds the path form only in `scripts/dev/doc_citation_baseline.txt` |
+| 5 | ISSUE | `plan/deferrals/fixit-interop-bare-verb-guard.md` held guard 4 as `deferred` after guard 4 shipped, so the shard asserted a defect the tree no longer has | that shard | Row set to `done`, header records the ruling, shard removed as residue |
+| 6 | NOTE | The closure sections were appended between `## Provenance` and its own subsection, so `### Homed here 2026-08-07` came to sit under `## Core Insight` | this spec | The subsection moved back under `## Provenance` |
+| 7 | NOTE | "171 unchecked sites across 66 files" is not reproducible from the tool | this spec, its shard, `plan/future/spec-fail-open-call-site-drain.md` | Re-derived from `docker_exec_checked.scan`: 171 sites across **67** files. Corrected in all three |
+| 8 | NOTE | Guard 2 is inert on the non-orchestrated path: `runTest` (`internal/test/runner/runner_exec.go`) builds `clientEnv` without `testBudgetEnv`, so only `runOrchestrated` publishes the budget | `internal/test/runner/runner_exec.go` | Not fixed. All 17 observer callers carry `cmd=foreground` and so take `runOrchestrated`, so the claim holds today. A future observer `.ci` with no `cmd=` line would silently return to the 30.0s constant. Recorded here and in the journal row |
+| 9 | ISSUE | `plan/future/spec-harness-fail-open-guard-backlog.md` holds nine subtasks in one file, and "Deferral Spec Naming (BLOCKING)" (`ai/rules/planning.md`) says "MUST use one subtask per file" under `plan/spec-<source>-deferred-<subtask>.md` | the new backlog spec | **Not fixed; a reading is taken and declared, per `ai/rules/rule-precedence.md`.** That naming rule governs a spec created to hold work deferred OUT of one source spec, and derives the filename from that single `<source>`. These nine rows were homed AT the closing spec by FOUR different sources, so there is no `<source>` to name. Nine skeletons would also contradict "Choosing the Destination Spec", whose step 1 prefers an existing spec and whose survey found one for five of the nine. The consequence is bookkeeping only: every row resolves, `deferral_destination_problem` (`scripts/dev/commit_helper.py`) answers `None`, and nothing dangles. Flagged for Thomas in the closure report |
+| 10 | NOTE | `scripts/dev/doc_citation_baseline.txt` held a grandfathered dead-citation entry for this spec, which becomes residue once the spec is gone | that file | The one line removed. The file shrank 1338 to 1337, and the banned `--write-baseline` regeneration was not used |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/peer/peer_connmap_test.go` | Yes | Holds `TestCanceledAcceptReportsFailureUntilCheckerCompletes` |
+| `scripts/dev/docker_exec_checked.py` | Yes | 22K, with sibling `docker_exec_checked_test.py` at 15K |
+| `test/health/docker-exec-baseline.json` | Yes | `{"unchecked": 171}` |
+| `plan/future/spec-fail-open-call-site-drain.md` | Yes | Created 2026-08-14, the destination of the third shard row |
+| One `.ci` under `test/draft/plugin/` | No | Not created. Superseded by AC-3's derivation, recorded in Deviations |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | The guard consults the checker | Read in `acceptConnMapBatch` (`internal/test/peer/peer_connmap.go`): `if !p.checker.Completed()` returns `Success: false` with `errors.New("accept canceled before the checker completed its expectations")`, else `Success: true` |
+| AC-3 | The budget is derived, not a constant | `(*Runner).testBudgetEnv` (`internal/test/runner/runner_exec_util.go`) emits `ze_test_budget`; `run_rs_observer` (`test/scripts/ze_api.py`) takes `_EOR_BUDGET_SHARE` 0.60 and `_SHUTDOWN_BUDGET_SHARE` 0.25. `TestObserverBudgetReachesTheWaits` proves the producer hands those values on, and goes red on the reverted constant |
+| AC-4 | Every call site is covered | `grep -rl run_rs_observer test/plugin/` answers 16 `.ci`, 17 across `test/`, and none is edited: the derivation is inside the helper |
+| AC-6, AC-9 | The tests discriminate | Mutation runs recorded 2026-08-09. Guard 1: `result.Success = true, want false`. `ResolveCommand`: 305 paths red |
+| AC-7 | A failed RIB query raises | Read in `Ze.rib_count` (`test/interop/interop.py`): both the `RuntimeError` path and the missing-`routes-in` path raise, each naming `self.container` and the command |
+| AC-8 | Declared commands resolve from argv | `TestDeclaredCommandsResolveFromArgv` (`cmd/ze/internal/cmdutil/cmdutil_test.go`) |
+| AC-5, AC-10 | Suite and interop results | Recorded from the 2026-08-09 and 2026-08-07 runs. Not re-run in this closure: the interop scenarios need Docker, which this host does not run |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A batch accept cancelled before the checker completes | none; `internal/test/peer/peer_connmap_test.go` | Yes. The test drives `acceptConnMapBatch` with a closed listener and a cancelled context, which is the exact branch, and fails the run if the two fixture checkers do not differ |
+| A batch accept cancelled after the checker completes | same file | Yes. The `/expectations_satisfied` subtest asserts success is preserved |
+| An observer whose replay exceeds its budget | none; `test/scripts/ze_api_test.py` | Yes, over the producer rather than by a `.ci`. `TestObserverBudgetReachesTheWaits` drives `run_rs_observer` itself and reads back the timeout it gives each wait, so the assertion sits on the path the change altered. No `.ci` can hold the old defect, because the value is derived inside `run_rs_observer` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `make ze-plugin-test` 602/602 PASS, exit 0, 2026-08-09. That suite holds every `connmap` `.ci`, so it is the population `acceptConnMapBatch` can affect |
+| A-2 | confirmed | `(*Checker).Completed` (`internal/test/peer/checker.go`) exists and `acceptConnMapBatch` calls it as `p.checker.Completed()` |
+| A-3 | broken, in the direction that widened the fix | The mismatch was not one `.ci`: all 17 call sites ran 10s, 15s or 20s against a 30.0s default, so the diagnostic had never been reachable anywhere. Recorded in the Mistake Log |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Test infrastructure changed (checklist row 2) | `docs/architecture/testing/interop.md` states `Ze.rib_count` raises on failure, which matches `Ze.rib_count` (`test/interop/interop.py`) | Yes |
+| `docs/functional-tests.md` needs no edit | `grep -n "eor_timeout\|run_rs_observer\|ZE-OBSERVER-FAIL\|shutdown_timeout" docs/functional-tests.md` matches nothing, so the page states no claim the derivation could make stale. The `.ci` format and `run_rs_observer`'s public arguments are unchanged | Yes |
+| New user-facing feature, wire format, internal architecture (rows 1, 3, 4) | Harness only. No YANG leaf, no CLI verb and no wire byte changed | No for each |
+
+## Core Insight
+
+Two budgets chosen independently in two files will drift, and no third constant
+repairs that. The fix is to publish the one the runner ENFORCES and let every
+inner wait take a share below 1.0 of it. A share is reachable at every budget;
+a constant is reachable at none or at all, and which one is an accident of the
+`.ci` that happens to call it.
+

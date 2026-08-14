@@ -155,7 +155,7 @@ func TestAcceptConnMapBatchUnblocksOnCancel(t *testing.T) {
 }
 
 // TestCanceledAcceptReportsFailureUntilCheckerCompletes pins guard 1 of
-// plan/spec-fixit-test-harness-fail-open-guards.md (AC-1, AC-2, AC-6).
+// spec-fixit-test-harness-fail-open-guards (AC-1, AC-2, AC-6).
 //
 // VALIDATES: an accept that fails with the context already done reports
 // success only when the checker finished its expectations.

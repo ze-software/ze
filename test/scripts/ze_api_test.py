@@ -664,7 +664,7 @@ class TestWaitForOutput(unittest.TestCase):
 
 
 class TestObserverBudget(unittest.TestCase):
-    """Guard 2 of plan/spec-fixit-test-harness-fail-open-guards.md.
+    """Guard 2 of spec-fixit-test-harness-fail-open-guards.
 
     VALIDATES: the observer sizes its waits from the runner's deadline, so both
     stay reachable inside it.
@@ -724,6 +724,78 @@ class TestObserverBudget(unittest.TestCase):
                 # And large enough to be useful: the measured replay for these
                 # tests is 1.1s to 1.6s, so the smallest window keeps ~4x margin.
                 self.assertGreater(eor, 3.0)
+
+
+class TestObserverBudgetReachesTheWaits(unittest.TestCase):
+    """The producer hands the DERIVED value to the waits, not a constant.
+
+    VALIDATES: `run_rs_observer` passes `budget * _EOR_BUDGET_SHARE` to
+    `wait_rs_replayed` and `budget * _SHUTDOWN_BUDGET_SHARE` to
+    `wait_for_shutdown`.
+    PREVENTS: the sibling class above asserts arithmetic over the two module
+    constants and never calls `run_rs_observer`, so restoring `eor_timeout =
+    30.0` inside the producer leaves every one of its assertions green. That is
+    the "data reaches by a different path than the one changed" trap in
+    `ai/rules/interop-and-goal-validation.md`, and it left guard 2 with a proof
+    that could not fail.
+    DISCRIMINATES: revert either default in `run_rs_observer` to its old
+    constant and `test_the_waits_take_shares_of_the_published_budget` goes red
+    at 30.0 against 12.0, and at 15.0 against 5.0.
+    """
+
+    def _observe(self, **kwargs):
+        """Run the observer over a stubbed session, returning the waits it made.
+
+        Every call `run_rs_observer` makes to the daemon is replaced, so the
+        only thing left to observe is the number it hands each wait.
+        """
+        api = _bare_api()
+        seen = {}
+        for noop in (
+            "declare_done",
+            "wait_for_config",
+            "capability_done",
+            "wait_for_registry",
+            "subscribe",
+            "ready",
+            "shutdown_fire_and_forget",
+        ):
+            setattr(api, noop, lambda *a, **k: None)
+        api.wait_rs_replayed = lambda peers, forward_prefix=None, timeout=None: (
+            seen.__setitem__("eor", timeout) or True
+        )
+        api.wait_for_shutdown = lambda timeout=None: seen.__setitem__(
+            "shutdown", timeout
+        )
+        self.assertTrue(api.run_rs_observer(expected_peers=2, **kwargs))
+        return seen
+
+    def test_the_waits_take_shares_of_the_published_budget(self):
+        os.environ["ze_test_budget"] = "20s"
+        self.addCleanup(os.environ.pop, "ze_test_budget", None)
+        seen = self._observe()
+        self.assertAlmostEqual(seen["eor"], 20.0 * ze_api._EOR_BUDGET_SHARE)
+        self.assertAlmostEqual(seen["shutdown"], 20.0 * ze_api._SHUTDOWN_BUDGET_SHARE)
+        # The property the shares exist for: both finish before the runner kills
+        # the process, which is what makes ZE-OBSERVER-FAIL reachable at all.
+        self.assertLess(seen["eor"], 20.0)
+        self.assertLess(seen["shutdown"], 20.0)
+
+    def test_outside_the_runner_the_documented_constants_still_apply(self):
+        for key in ("ze.test.budget", "ze_test_budget", "ZE_TEST_BUDGET"):
+            old = os.environ.pop(key, None)
+            if old is not None:
+                self.addCleanup(os.environ.__setitem__, key, old)
+        seen = self._observe()
+        self.assertAlmostEqual(seen["eor"], 30.0)
+        self.assertAlmostEqual(seen["shutdown"], 15.0)
+
+    def test_an_explicit_argument_beats_the_derived_share(self):
+        os.environ["ze_test_budget"] = "20s"
+        self.addCleanup(os.environ.pop, "ze_test_budget", None)
+        seen = self._observe(eor_timeout=1.5, shutdown_timeout=0.5)
+        self.assertAlmostEqual(seen["eor"], 1.5)
+        self.assertAlmostEqual(seen["shutdown"], 0.5)
 
 
 if __name__ == "__main__":

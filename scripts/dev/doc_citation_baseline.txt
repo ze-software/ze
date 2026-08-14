@@ -684,7 +684,6 @@ plan/spec-fixit-stored-route-relay-hardening.md	ai/rules/no-partial-completion.m
 plan/spec-fixit-strongswan-tls13-certreq-authorities.md	docs/labs/ipsec-interop.md
 plan/spec-fixit-strongswan-tls13-certreq-authorities.md	plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md
 plan/spec-fixit-strongswan-tls13-certreq-authorities.md	rfc/short/rfc8446.md
-plan/spec-fixit-test-harness-fail-open-guards.md	.claude/worktrees/
 plan/spec-fixit-vpp-ipsec-inoperable.md	plan/deferrals/fixit-vpp-ipsec-inoperable.md
 plan/spec-fixit-vpp-lcp-reachability.md	api/api.go
 plan/spec-fixit-vpp-lcp-reachability.md	internal/component/bgp/wire

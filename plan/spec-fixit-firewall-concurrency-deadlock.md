@@ -877,7 +877,9 @@ diagnostic never describes an earlier successful scrape.
   `git diff` against HEAD, so a `test-relax:` token in an UNTRACKED test file feeds
   nothing. Measured on this work: the audit reported `1 finding(s)`, another session's
   file, and never mentioned `test/plugin/firewall-metrics-registered.ci` despite its two
-  tokens. Row destination `plan/spec-fixit-test-harness-fail-open-guards.md`.
+  tokens. Row destination `spec-fixit-test-harness-fail-open-guards`, closed
+  2026-08-14; the row stays live in
+  `plan/deferrals/fixit-firewall-concurrency-deadlock.md`.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (achieved on Run 1; scope = firewall slice)
