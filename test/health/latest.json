@@ -3,23 +3,23 @@
     {
       "action": "Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.",
       "annotations": {
-        "gap": 528,
+        "gap": 524,
         "not-applicable": 841,
         "single-polarity": 371
       },
-      "detail": "41.1% carry both polarities. Of the remaining 1740: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
+      "detail": "41.5% carry both polarities. Of the remaining 1736: 841 not-applicable (ze deliberately does not do it, so no test is owed), 524 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by a positive+negative test pair",
       "proof_density": {
-        "denominator": 2954,
-        "numerator": 1214,
-        "percent": 41.1
+        "denominator": 2967,
+        "numerator": 1231,
+        "percent": 41.5
       },
       "question": "Q2",
-      "rfcs_total": 168,
+      "rfcs_total": 170,
       "rfcs_without_any_proof": 36,
       "status": "ok",
-      "value": "1214 / 2954",
+      "value": "1231 / 2967",
       "worst": [
         {
           "gated": 38,
@@ -71,9 +71,9 @@
       "question": "Q2",
       "status": "warn",
       "unproven": {
-        "denominator": 168,
+        "denominator": 170,
         "numerator": 36,
-        "percent": 21.4
+        "percent": 21.2
       },
       "unproven_rfcs": [
         "rfc2003",
@@ -113,13 +113,13 @@
         "rfc9319",
         "rfc9514"
       ],
-      "value": "36 / 168"
+      "value": "36 / 170"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 22209,
+        "denominator": 22695,
         "numerator": 135,
         "percent": 0.6
       },
@@ -127,7 +127,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "135 / 22209 (floor 135)",
+      "value": "135 / 22695 (floor 135)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -219,18 +219,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 137,
-        "ci_files": 1597,
+        "ci_files": 1639,
         "et_files": 164,
         "fuzz_funcs": 78,
-        "test_files": 3009,
-        "test_funcs": 22240
+        "test_files": 3108,
+        "test_funcs": 22726
       },
-      "detail": "3009 Go test files, 78 fuzz targets, 137 benchmarks, 1597 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "3108 Go test files, 78 fuzz targets, 137 benchmarks, 1639 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "22240 test functions"
+      "value": "22726 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -292,15 +292,15 @@
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
-      "actual": 79,
-      "baseline": 79,
+      "actual": 76,
+      "baseline": 76,
       "detail": "A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.",
       "headroom": 0,
       "key": "ci-sleeps",
       "label": "time.sleep() calls in .ci tests",
       "question": "Q1",
       "status": "ok",
-      "value": "79 (floor 79)"
+      "value": "76 (floor 76)"
     },
     {
       "action": "Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.",
@@ -308,13 +308,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 3009,
-        "numerator": 1030,
-        "percent": 34.2
+        "denominator": 3108,
+        "numerator": 1056,
+        "percent": 34.0
       },
       "question": "Q2",
-      "status": "ok",
-      "value": "1030 / 3009",
+      "status": "warn",
+      "value": "1056 / 3108",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -330,7 +330,7 @@
         },
         {
           "area": "internal/core/rib",
-          "files": 9,
+          "files": 11,
           "negative": 0,
           "percent": 0.0
         },
@@ -359,22 +359,22 @@
           "percent": 5.9
         },
         {
+          "area": "internal/component/lg",
+          "files": 12,
+          "negative": 1,
+          "percent": 8.3
+        },
+        {
+          "area": "internal/component/sysrib",
+          "files": 12,
+          "negative": 1,
+          "percent": 8.3
+        },
+        {
           "area": "internal/chaos/peer",
           "files": 11,
           "negative": 1,
           "percent": 9.1
-        },
-        {
-          "area": "internal/component/sysrib",
-          "files": 11,
-          "negative": 1,
-          "percent": 9.1
-        },
-        {
-          "area": "internal/component/lg",
-          "files": 10,
-          "negative": 1,
-          "percent": 10.0
         }
       ]
     },
@@ -388,10 +388,10 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 495,
+          "packages": 498,
           "with_ci": 31,
           "with_fuzz": 31,
-          "with_rfc_tag": 94
+          "with_rfc_tag": 98
         }
       },
       "detail": "A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.",

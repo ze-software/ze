@@ -10,10 +10,11 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 168** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 170** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Test files that expect a specific error | Q2 | **1056 / 3108** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **1** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-8 further metric(s) are within threshold and are listed in full below.
+7 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -21,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**135 / 22209 (floor 135)** (ok)
+**135 / 22695 (floor 135)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -63,7 +64,7 @@ These execute code and pass unconditionally. Breaking the code under test would 
 
 ### time.sleep() calls in .ci tests
 
-**79 (floor 79)** (ok)
+**76 (floor 76)** (ok)
 
 A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
 
@@ -75,17 +76,38 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**36 / 168** (attention)
+**36 / 170** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
 *Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
+### Test files that expect a specific error
+
+**1056 / 3108** (attention)
+
+Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
+
+*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
+
+| area | negative | files | percent |
+|---|---|---|---|
+| internal/chaos/report | 0 | 6 | 0.0 |
+| internal/chaos/web | 0 | 7 | 0.0 |
+| internal/core/rib | 0 | 11 | 0.0 |
+| internal/core/stats | 0 | 5 | 0.0 |
+| internal/plugins/completion | 0 | 5 | 0.0 |
+| internal/test/mock | 0 | 7 | 0.0 |
+| internal/component/doctor | 1 | 17 | 5.9 |
+| internal/component/lg | 1 | 12 | 8.3 |
+| internal/component/sysrib | 1 | 12 | 8.3 |
+| internal/chaos/peer | 1 | 11 | 9.1 |
+
 ### RFC MUST requirements proven by a positive+negative test pair
 
-**1214 / 2954** (ok)
+**1231 / 2967** (ok)
 
-41.1% carry both polarities. Of the remaining 1740: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
+41.5% carry both polarities. Of the remaining 1736: 841 not-applicable (ze deliberately does not do it, so no test is owed), 524 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
 
 *Action if this degrades:* Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.
 
@@ -104,32 +126,11 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**22240 test functions** (ok)
+**22726 test functions** (ok)
 
-3009 Go test files, 78 fuzz targets, 137 benchmarks, 1597 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3108 Go test files, 78 fuzz targets, 137 benchmarks, 1639 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
-
-### Test files that expect a specific error
-
-**1030 / 3009** (ok)
-
-Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
-
-*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
-
-| area | negative | files | percent |
-|---|---|---|---|
-| internal/chaos/report | 0 | 6 | 0.0 |
-| internal/chaos/web | 0 | 7 | 0.0 |
-| internal/core/rib | 0 | 9 | 0.0 |
-| internal/core/stats | 0 | 5 | 0.0 |
-| internal/plugins/completion | 0 | 5 | 0.0 |
-| internal/test/mock | 0 | 7 | 0.0 |
-| internal/component/doctor | 1 | 17 | 5.9 |
-| internal/chaos/peer | 1 | 11 | 9.1 |
-| internal/component/sysrib | 1 | 11 | 9.1 |
-| internal/component/lg | 1 | 10 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -142,7 +143,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 495 | 31 | 94 | 31 |
+| 2026 | 498 | 31 | 98 | 31 |
 
 ## Integrity
 
