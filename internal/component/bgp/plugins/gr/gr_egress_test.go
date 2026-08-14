@@ -557,6 +557,13 @@ func TestLLGREgressFilter_NilMeta(t *testing.T) {
 //
 // Reverting the fix (indexing s.peerLLGRCaps directly instead of s.hasLLGR)
 // makes `go test -race` report the read/write pair here.
+//
+// The concurrent phase answers to the race detector, which leaves no value to
+// compare, so the same two writers run once more SERIALLY at the end and the
+// filter's answer is asserted both ways. That tail is what lets this test go red
+// without -race, and it is not decoration: it proves the writers really write.
+// If decodeLLGR rejected llgrCapBytes, or the filter stopped reading the
+// writers' map, the concurrent phase would still pass while exercising nothing.
 func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 	gp := &grPlugin{
 		peerCaps:     make(map[string]*grPeerCap),
@@ -592,6 +599,21 @@ func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 		})
 	}
 	wg.Wait()
+
+	// Serial tail. The state holds gp.peerLLGRCaps by reference, so the map the
+	// flapping wrote is the map the filter reads, and each writer's effect on the
+	// filter's answer is now checkable with nothing else running.
+	gp.extractGRCaps(peerAddr, llgrCapBytes, false)
+	var capable filterapi.ModAccumulator
+	LLGREgressFilter(src, dest, nil, meta, &capable)
+	assert.False(t, capable.IsWithdraw(), "RFC 9494 Section 4.3: an LLGR-capable EBGP peer keeps the stale route")
+	assert.Equal(t, 0, capable.Len(), "the EBGP path adds no attribute op")
+
+	gp.onPeerRemoved(peerAddr)
+	var incapable filterapi.ModAccumulator
+	LLGREgressFilter(src, dest, nil, meta, &incapable)
+	assert.True(t, incapable.IsWithdraw(), "RFC 9494 Section 4.3: a stale route is withdrawn from an EBGP peer that sent no LLGR Capability")
+	assert.Equal(t, 0, incapable.Len(), "the EBGP path withdraws rather than depreferencing, which is the IBGP treatment in Section 4.6")
 }
 
 // TestLLGREgressFilter_ConcurrentAccess verifies thread safety of egress state access.
