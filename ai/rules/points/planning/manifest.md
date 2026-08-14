@@ -141,6 +141,10 @@ verify-specs-against-code-blocking ## Verify Specs Against Code (BLOCKING)
 deferred-work-blocking ## Deferred Work (BLOCKING)
   where-the-full-deferral-process-lives
   verify-every-deferral-before-marking-a-spec-done
+spec-triage ## Spec Triage
+  rule
+  judge-the-tree-not-the-spec
+  an-improvement-leaves-the-release-backlog
 deferral-tracking ## Deferral Tracking
   record-and-home-every-scope-reduction
   a-dedicated-spec-replaces-the-row

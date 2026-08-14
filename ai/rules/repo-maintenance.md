@@ -497,6 +497,27 @@ One-line lesson + rule pointer. Full root-cause in the linked journal row's Fix 
 - **CLI grammar from container nesting, not wire method** (as112-cli-audit). Operator-facing command words come from the YANG `container` tree; `ze:command "ze-X:Y"` is the INTERNAL RPC name and is deliberately different (e.g. `ze-bgp:peer-teardown` = command `request peer teardown`). Command syntax MUST NOT be inferred from wire-method names. Top-level operational verb is `request` (`request <object> <action>`); reads are `show`/`monitor`. `ai/rules/writing.md`.
 - **ExaBGP migration sync** (exabgp-compat-sync). When ExaBGP adds a new SAFI or route type, three things MUST be updated: (1) `exabgp.yang` schema container, (2) `flexSafis` list or a dedicated `convert*ToUpdate` in `migrate_routes.go`, (3) compat test files (`.ci` + `.conf`). `ai/patterns/bgp-family.md` Section 5b.
 
+## Your Own Mistakes
+
+**When you find that you made a mistake, you MUST fix the SYSTEM that let it
+through, not only the instance. Correcting the instance and moving on leaves the
+next session to make the same mistake.**
+
+**The rule you write MUST state the root cause and the general practice that
+prevents it. It MUST NOT carry the example, the file, or the specifics of the
+occurrence that produced it.**
+
+A rule carrying its originating case is read as being about that case. The next
+reader checks whether their situation matches the example, decides it does not,
+and moves on. The shape recurs in surfaces the original occurrence never
+touched, so the example is the part of the rule that ages fastest and costs the
+most: it converts a general obligation into a specific one nobody thinks applies
+to them.
+
+**When preventing the recurrence needs code rather than prose, you MUST home
+that work as a spec under `plan/future/` in the same session. A rule binds
+whoever reads it; a gate binds everyone.**
+
 ## Friction Reporting
 
 ### Report immediately when

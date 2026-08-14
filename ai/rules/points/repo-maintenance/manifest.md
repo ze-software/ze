@@ -111,6 +111,11 @@ ze-project-knowledge ## Ze Project Knowledge
   mistake-log
   how-to-write-a-mistake-log-entry
   the-recurring-mistakes-and-their-corrections
+own-mistakes ## Your Own Mistakes
+  rule
+  state-the-root-cause-never-the-instance
+  an-example-narrows-the-rule-to-itself
+  route-the-half-a-rule-cannot-reach-to-a-spec
 friction-reporting ## Friction Reporting
   report-immediately-when
   the-friction-categories-worth-reporting

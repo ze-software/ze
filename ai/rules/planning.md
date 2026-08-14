@@ -681,6 +681,21 @@ See "Deferral Tracking" below for the full deferral process and log format.
 
 Before marking a spec done, for every deferral: verify the receiving spec exists, has the deferred item listed, and the deferral is recorded in the current spec's Deviations section.
 
+## Spec Triage
+
+**Before working a backlog spec, you MUST decide what it is: a defect in the
+shipped product, a gap in the evidence that the product is correct, or an
+improvement. The three carry different urgency and only the first two can hold a
+release.**
+
+**The triage verdict MUST be derived from the tree, never from the spec's own
+Task or Status. A spec states what its author believed on one day, and a
+backlog accumulates specs whose defect another change already fixed.**
+
+**A spec judged an improvement MUST move out of the release backlog, and a spec
+whose subject no longer exists MUST be raised for deletion rather than filed.
+Filing work nobody can start costs every later reader who picks it up.**
+
 ## Deferral Tracking
 
 **Obligation on you (not a hard gate):** Every decision to not perform in-scope work MUST be recorded AND land in a destination spec.
