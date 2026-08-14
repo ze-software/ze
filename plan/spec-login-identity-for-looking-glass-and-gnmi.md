@@ -153,10 +153,10 @@ identity the other two lack.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A looking-glass request against a server configured for per-user auth | → | `bearerAuth` and its per-user successor (`internal/component/lg/auth.go`) | `test/plugin/lg-per-user-login.ci` |
-| A looking-glass request against a server explicitly configured open | → | the resolved mode in the looking-glass config extractor | `test/plugin/lg-open-mode-stays-public.ci` |
-| A gNMI call carrying a per-user credential | → | `(*Server).checkAuth` (`internal/component/gnmi/server.go`) | `test/plugin/gnmi-per-user-login.ci` |
-| A gNMI listener configured with neither token nor users | → | `checkMgmtListeners` (`cmd/ze/hub/mgmt_guard.go`) | `test/plugin/gnmi-unconfigured-refuses.ci` |
+| A looking-glass request against a server configured for per-user auth | → | `bearerAuth` and its per-user successor (`internal/component/lg/auth.go`) | `test/plugin/lg-per-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A looking-glass request against a server explicitly configured open | → | the resolved mode in the looking-glass config extractor | `test/plugin/lg-open-mode-stays-public.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A gNMI call carrying a per-user credential | → | `(*Server).checkAuth` (`internal/component/gnmi/server.go`) | `test/plugin/gnmi-per-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A gNMI listener configured with neither token nor users | → | `checkMgmtListeners` (`cmd/ze/hub/mgmt_guard.go`) | `test/plugin/gnmi-unconfigured-refuses.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## Acceptance Criteria
 
@@ -177,10 +177,10 @@ identity the other two lack.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | runs a public route viewer and says so in the config | config → resolved open mode → unauthenticated routes | `test/plugin/lg-open-mode-stays-public.ci` |
-| 2 | puts the looking glass behind named accounts | config → per-user mode → credential source → served request | `test/plugin/lg-per-user-login.ci` |
-| 3 | points a gNMI collector at the router with a named account | config → per-user mode → metadata credential → authorised operation | `test/plugin/gnmi-per-user-login.ci` |
-| 4 | forgets to configure gNMI auth at all | config → no mode resolvable → listener refused at boot | `test/plugin/gnmi-unconfigured-refuses.ci` |
+| 1 | runs a public route viewer and says so in the config | config → resolved open mode → unauthenticated routes | `test/plugin/lg-open-mode-stays-public.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 2 | puts the looking glass behind named accounts | config → per-user mode → credential source → served request | `test/plugin/lg-per-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 3 | points a gNMI collector at the router with a named account | config → per-user mode → metadata credential → authorised operation | `test/plugin/gnmi-per-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 4 | forgets to configure gNMI auth at all | config → no mode resolvable → listener refused at boot | `test/plugin/gnmi-unconfigured-refuses.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## 🧪 TDD Test Plan
 
@@ -192,7 +192,7 @@ identity the other two lack.
 | `TestGNMIPerUserLogin` | `internal/component/gnmi/server_test.go` | AC-4: a username is resolved from metadata and reaches authorisation | |
 | `TestGNMITokenModeUnchanged` | `internal/component/gnmi/server_test.go` | AC-6: the existing token path is untouched | |
 | `TestGNMIUnconfiguredDoesNotAuthenticateNobody` | `internal/component/gnmi/server_test.go` | AC-7: an empty configuration stops meaning "no gate" | |
-| `TestBothSurfacesRegisterTheirLoginName` | `internal/component/config/loginservice/registry_test.go` | AC-9 | |
+| `TestBothSurfacesRegisterTheirLoginName` | `internal/component/config/loginservice/registry_test.go` | AC-9 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | `TestDeletedUserLosesBothSurfaces` | `cmd/ze/hub/auth_e2e_test.go` | AC-10: the live credential source reaches both | |
 
 ### Boundary Tests (numeric inputs)
@@ -203,10 +203,10 @@ identity the other two lack.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `lg-open-mode-stays-public` | `test/plugin/lg-open-mode-stays-public.ci` | A deliberately public looking glass serves with no credential | |
-| `lg-per-user-login` | `test/plugin/lg-per-user-login.ci` | A named account is served and a wrong credential is refused, on one running daemon | |
-| `gnmi-per-user-login` | `test/plugin/gnmi-per-user-login.ci` | A named account drives a gNMI operation, and an excluded account is refused | |
-| `gnmi-unconfigured-refuses` | `test/plugin/gnmi-unconfigured-refuses.ci` | An unconfigured non-loopback gNMI listener stops the daemon at boot with a named remedy | |
+| `lg-open-mode-stays-public` | `test/plugin/lg-open-mode-stays-public.ci` | A deliberately public looking glass serves with no credential | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-per-user-login` | `test/plugin/lg-per-user-login.ci` | A named account is served and a wrong credential is refused, on one running daemon | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-per-user-login` | `test/plugin/gnmi-per-user-login.ci` | A named account drives a gNMI operation, and an excluded account is refused | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-unconfigured-refuses` | `test/plugin/gnmi-unconfigured-refuses.ci` | An unconfigured non-loopback gNMI listener stops the daemon at boot with a named remedy | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ### Interop Tests (Scope: protocol)
 gNMI is exercised against a real client in the existing gNMI suite. A per-user

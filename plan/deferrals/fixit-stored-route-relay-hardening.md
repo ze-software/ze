@@ -18,7 +18,7 @@ owner, and no fourth state).
 
 The `filterapi.EgressFilterFunc` signature change is therefore owed by nobody, and
 neither are the `otc_test.go` / `config_test.go` edits it would have dragged in.
-`plan/spec-fixit-egress-filter-non-decision-channel.md` survives for ROW 1 ALONE:
+`plan/spec-fixit-egress-filter-non-decision-channel.md` survives for ROW 1 ALONE: <!-- doc-links: ignore (the spec was deleted at closure in 8b85ada76) -->
 the `LLGREgressFilter` nil-state answer, an RFC 9494 fail-open decision plus a
 GR-plugin startup-ordering question, which this work did not touch. Rows 2 and 3
 both landed here instead. That is the whole of its remaining scope.

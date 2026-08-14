@@ -253,7 +253,7 @@ self-contained review slice.
 - `internal/component/resolve/cmd/resolve.go`
 - `internal/component/iface/config.go`
 - `internal/component/firewall/config.go`
-- `internal/component/hub/{hub.go,reload.go}`
+- `internal/component/hub/{hub.go,reload.go}` <!-- doc-links: ignore (internal/component/hub was deleted with the orchestrator runtime in 8d92e9fab; this audit records the April 2026 tree) -->
 
 **Expected deliverable**
 

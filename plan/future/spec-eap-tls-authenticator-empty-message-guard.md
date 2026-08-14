@@ -139,7 +139,7 @@ the operator through the existing IKE path.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | an EAP-Response with `Type=EAP-TLS` and no data, in answer to the Start | → | the last branch of `tlsMethod.Process` | `TestEAPTLSProcessRefusesUnsanctionedEmptyMessage` |
-| the same message through two daemons | → | `Session.handleMethod` turning the error into an EAP-Failure | `test/ipsec/ipsec-eap-tls-empty-answer.ci` |
+| the same message through two daemons | → | `Session.handleMethod` turning the error into an EAP-Failure | `test/ipsec/ipsec-eap-tls-empty-answer.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## Acceptance Criteria
 
@@ -155,7 +155,7 @@ the operator through the existing IKE path.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs an IKEv2 responder with EAP-TLS and meets a peer that never sends a ClientHello | IKE -> `Session.handleMethod` -> `tlsMethod.Process` -> EAP-Failure | `test/ipsec/ipsec-eap-tls-empty-answer.ci` |
+| 1 | Runs an IKEv2 responder with EAP-TLS and meets a peer that never sends a ClientHello | IKE -> `Session.handleMethod` -> `tlsMethod.Process` -> EAP-Failure | `test/ipsec/ipsec-eap-tls-empty-answer.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | 2 | Runs the same responder with a conforming peer | the unchanged branches of `Process` | `test/ipsec/ipsec-eap-tls-clienthello.ci` and scenario 04 |
 
 ## 🧪 TDD Test Plan
@@ -164,8 +164,8 @@ the operator through the existing IKE path.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEAPTLSProcessRefusesUnsanctionedEmptyMessage` | `internal/component/ike/eap/eap_tls_empty_message_test.go` | AC-1 | |
-| `TestEAPTLSProcessStillAcknowledgesAnMFlaggedMessage` | `internal/component/ike/eap/eap_tls_empty_message_test.go` | AC-2 | |
+| `TestEAPTLSProcessRefusesUnsanctionedEmptyMessage` | `internal/component/ike/eap/eap_tls_empty_message_test.go` | AC-1 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestEAPTLSProcessStillAcknowledgesAnMFlaggedMessage` | `internal/component/ike/eap/eap_tls_empty_message_test.go` | AC-2 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | `TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess` | existing | AC-3, unchanged | |
 | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` | existing | AC-5, unchanged | |
 
@@ -179,7 +179,7 @@ the operator through the existing IKE path.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-eap-tls-empty-answer` | `test/ipsec/ipsec-eap-tls-empty-answer.ci` | A peer that answers the Start with an empty message is refused, and the operator sees a failed method rather than a hung exchange | |
+| `ipsec-eap-tls-empty-answer` | `test/ipsec/ipsec-eap-tls-empty-answer.ci` | A peer that answers the Start with an empty message is refused, and the operator sees a failed method rather than a hung exchange | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 The peer half no longer produces this message, so the `.ci` needs a peer that does. The
 cheapest seam is a private test env var on the peer half, in the shape
@@ -206,8 +206,8 @@ ze-to-ze test cannot replace it for a wire-form claim.
 
 ## Files to Create
 
-- `internal/component/ike/eap/eap_tls_empty_message_test.go` - the unit tests above
-- `test/ipsec/ipsec-eap-tls-empty-answer.ci` - the functional test above
+- `internal/component/ike/eap/eap_tls_empty_message_test.go` - the unit tests above <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `test/ipsec/ipsec-eap-tls-empty-answer.ci` - the functional test above <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 
 ### Integration Checklist
 
@@ -219,7 +219,7 @@ ze-to-ze test cannot replace it for a wire-form claim.
 | CLI commands/flags | No | The failure is reported through the existing IKE surface |
 | CLI grammar | N-A | No command |
 | Editor autocomplete | N-A | No leaf |
-| Functional test for new RPC/API | Yes | `test/ipsec/ipsec-eap-tls-empty-answer.ci` |
+| Functional test for new RPC/API | Yes | `test/ipsec/ipsec-eap-tls-empty-answer.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | Pipe completeness | N-A | No new output |
 | Env var registration | Yes, if the test seam is an env var | `env.MustRegister` beside the existing IKE test keys, marked private |
 | Doctor check for runtime dependencies | No | No new file, socket, port or binary |

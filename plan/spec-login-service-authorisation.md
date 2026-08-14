@@ -176,10 +176,10 @@ username at all, so they cannot answer the question yet; giving them identity is
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | A config declaring a login set and a user referencing it, validated at load | → | the new `ze:validate` validator wired in `RegisterValidators` (`internal/component/config/validators_register.go`) | `TestLoginServiceValidatorRejectsUnregisteredName` (`internal/component/config/validators_test.go`) |
-| An SSH password login by a user whose set excludes ssh | → | `(*Server).authenticatePassword` (`internal/component/ssh/passwordauth.go`) | `test/plugin/login-service-scope-ssh-refused.ci` |
-| A REST request by a user whose set excludes rest | → | `(*RESTServer).withAuth` (`internal/component/api/rest/auth.go`) | `test/plugin/login-service-scope-rest-refused.ci` |
-| A web login by a user whose set excludes web | → | `(*SessionStore).CreateSession` (`internal/component/web/auth.go`) | `test/ui/login-service-scope-web-refused.ci` |
-| A gRPC call by a user whose set excludes grpc | → | `(*GRPCServer).checkAuth` (`internal/component/api/grpc/server.go`) | `test/plugin/login-service-scope-grpc-refused.ci` |
+| An SSH password login by a user whose set excludes ssh | → | `(*Server).authenticatePassword` (`internal/component/ssh/passwordauth.go`) | `test/plugin/login-service-scope-ssh-refused.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A REST request by a user whose set excludes rest | → | `(*RESTServer).withAuth` (`internal/component/api/rest/auth.go`) | `test/plugin/login-service-scope-rest-refused.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A web login by a user whose set excludes web | → | `(*SessionStore).CreateSession` (`internal/component/web/auth.go`) | `test/ui/login-service-scope-web-refused.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A gRPC call by a user whose set excludes grpc | → | `(*GRPCServer).checkAuth` (`internal/component/api/grpc/server.go`) | `test/plugin/login-service-scope-grpc-refused.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## Acceptance Criteria
 
@@ -201,17 +201,17 @@ username at all, so they cannot answer the question yet; giving them identity is
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | creates a monitoring account allowed on the API only, and tries to SSH in with it | config → credential with a login set → SSH login decision | `test/plugin/login-service-scope-ssh-refused.ci` |
-| 2 | uses that same account against the REST API | config → credential → REST login decision → dispatcher | `test/plugin/login-service-scope-rest-refused.ci` |
+| 1 | creates a monitoring account allowed on the API only, and tries to SSH in with it | config → credential with a login set → SSH login decision | `test/plugin/login-service-scope-ssh-refused.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 2 | uses that same account against the REST API | config → credential → REST login decision → dispatcher | `test/plugin/login-service-scope-rest-refused.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | 3 | mistypes a service name in the config | config load → the new validator → rejection naming the value | `TestLoginServiceValidatorRejectsUnregisteredName` |
-| 4 | removes a service from an account's set on a running router | reload → live credential source → next login refused | `test/plugin/login-service-scope-reload-tightens.ci` |
+| 4 | removes a service from an account's set on a running router | reload → live credential source → next login refused | `test/plugin/login-service-scope-reload-tightens.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLoginServiceRegistryRejectsConflictingRegistration` | `internal/component/config/loginservice/registry_test.go` | AC-1: a second registration that disagrees is an error, not an overwrite | |
+| `TestLoginServiceRegistryRejectsConflictingRegistration` | `internal/component/config/loginservice/registry_test.go` | AC-1: a second registration that disagrees is an error, not an overwrite | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | `TestLoginServiceValidatorRejectsUnregisteredName` | `internal/component/config/validators_test.go` | AC-9: an unregistered name fails validation and completion lists only registered names | |
 | `TestLoginSetReferenceMustExist` | `internal/component/config/infra/authz_test.go` | AC-10: an undefined login-set reference is rejected beside the existing undefined-profile check | |
 | `TestLoginSetAbsentAdmitsEveryService` | `internal/component/authz/authz_test.go` | AC-7: the default in Assumptions | |
@@ -227,11 +227,11 @@ username at all, so they cannot answer the question yet; giving them identity is
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `login-service-scope-ssh-refused` | `test/plugin/login-service-scope-ssh-refused.ci` | A correct password on a surface the account is not allowed on is refused, and the same password succeeds on a surface it is allowed on | |
-| `login-service-scope-rest-refused` | `test/plugin/login-service-scope-rest-refused.ci` | The REST half of AC-2 and AC-4 on one running daemon | |
-| `login-service-scope-grpc-refused` | `test/plugin/login-service-scope-grpc-refused.ci` | The gRPC half of AC-2 and AC-4 | |
-| `login-service-scope-web-refused` | `test/ui/login-service-scope-web-refused.ci` | The web half, driven through the editor suite that already exercises web login | |
-| `login-service-scope-reload-tightens` | `test/plugin/login-service-scope-reload-tightens.ci` | AC-5: a reload closes a door on a running daemon | |
+| `login-service-scope-ssh-refused` | `test/plugin/login-service-scope-ssh-refused.ci` | A correct password on a surface the account is not allowed on is refused, and the same password succeeds on a surface it is allowed on | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `login-service-scope-rest-refused` | `test/plugin/login-service-scope-rest-refused.ci` | The REST half of AC-2 and AC-4 on one running daemon | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `login-service-scope-grpc-refused` | `test/plugin/login-service-scope-grpc-refused.ci` | The gRPC half of AC-2 and AC-4 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `login-service-scope-web-refused` | `test/ui/login-service-scope-web-refused.ci` | The web half, driven through the editor suite that already exercises web login | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `login-service-scope-reload-tightens` | `test/plugin/login-service-scope-reload-tightens.ci` | AC-5: a reload closes a door on a running daemon | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ### Interop Tests (Scope: protocol)
 N-A. Scope is config and local credential policy. No wire format, no peer
@@ -253,7 +253,7 @@ daemon, and no RFC obligation is touched.
 - `docs/guide/configuration.md` - the new config section
 
 ## Files to Create
-- `internal/component/config/loginservice/registry.go` - the name registry, copying `internal/component/config/redistribute/registry.go`
+- `internal/component/config/loginservice/registry.go` - the name registry, copying `internal/component/config/redistribute/registry.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 - the five `.ci` files named in Functional Tests
 
 ### Integration Checklist
@@ -301,7 +301,7 @@ daemon, and no RFC obligation is touched.
    - Verify: each fails because the login SUCCEEDS today, not on a setup error
 2. **Phase: The registry** -- names register, and nothing central lists them
    - Tests: `TestLoginServiceRegistryRejectsConflictingRegistration`
-   - Files: `internal/component/config/loginservice/registry.go`
+   - Files: `internal/component/config/loginservice/registry.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Verify: AC-1. No file outside the registry enumerates the service names
 3. **Phase: Config surface** -- the section, the reference, and their validation
    - Tests: `TestLoginServiceValidatorRejectsUnregisteredName`, `TestLoginSetReferenceMustExist`

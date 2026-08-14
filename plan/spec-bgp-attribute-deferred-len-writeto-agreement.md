@@ -283,9 +283,9 @@ reached from the same rail.
 | `TestAttributeWriteToAllocatesNothing` | `internal/core/bgp/attribute/simple_test.go` | AC-7: `testing.AllocsPerRun` is 0 for each changed method. Follow the shape already in `internal/core/bgp/attribute/span_test.go` | |
 | `TestLenMatchesWriteTo` (extend the existing table) | `internal/core/bgp/attribute/len_writeto_test.go` | AC-1, AC-3, AC-4, AC-5: add the IPv6, IPv4-in-IPv6 and zero-`Addr` fixtures for `NextHop`, `Aggregator`, `AS4Aggregator` and `OriginatorID`, so the package-wide invariant covers the forms it never covered | |
 | `TestLenMatchesWriteToWithContext` (extend the existing table) | `internal/core/bgp/attribute/len_writeto_test.go` | AC-2: the same three extra address forms for the context-dependent AGGREGATOR rows | |
-| `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Wiring: the plan's reserved region is intact after an AGGREGATOR with an IPv6 address | |
-| `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6: the refusal cause is `attribute.ErrUnencodableNextHop`, not a count mismatch | |
-| `TestAnnouncePlanKeepsValidNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6 negative half and A-4: a valid IPv4 NEXT_HOP is still planned, with a four-octet value | |
+| `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Wiring: the plan's reserved region is intact after an AGGREGATOR with an IPv6 address | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6: the refusal cause is `attribute.ErrUnencodableNextHop`, not a count mismatch | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestAnnouncePlanKeepsValidNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6 negative half and A-4: a valid IPv4 NEXT_HOP is still planned, with a four-octet value | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 **Canary rule for every new codec test:** fill the destination buffer with a non-zero
 pattern, write at a non-zero offset, then assert three things: the returned count, the
@@ -348,7 +348,7 @@ address FORM, because the form is what changes the count.
   fix. Read Sections 3, 7, 9 and 18 and record the check either way.
 
 ## Files to Create
-- `internal/component/bgp/reactor/announce_build_attr_region_test.go` - the three
+- `internal/component/bgp/reactor/announce_build_attr_region_test.go` - the three <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
   wiring tests. Copy the plan construction from the existing
   `internal/component/bgp/reactor/announce_build_cause_test.go`, which already builds a
   plan and reads its refusal cause.
@@ -399,7 +399,7 @@ address FORM, because the form is what changes the count.
      `TestAnnouncePlanAggregatorStaysInsideReservedRegion`
    - Files: `internal/core/bgp/attribute/simple.go` (`(*NextHop).ValidateNextHops`),
      `internal/core/bgp/attribute/mpnlri.go` (sentinel message and both doc comments),
-     `internal/component/bgp/reactor/announce_build_attr_region_test.go`
+     `internal/component/bgp/reactor/announce_build_attr_region_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Verify: the refusal test fails first because the plan reports a count mismatch
      with a nil cause, and passes once `(*NextHop)` satisfies `announceNextHopValidator`.
      The AGGREGATOR region test still fails: it is Phase 2's job

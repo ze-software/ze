@@ -265,8 +265,8 @@ already return.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm` | `internal/component/bgp/rib/commit_nexthop_test.go` (new) | AC-1, AC-2, AC-5. Table with four rows: grouped IPv6, ungrouped IPv6, grouped VPNv4, ungrouped VPNv4. Each drives `(*CommitService).Commit`, asserts `errors.Is(err, attribute.ErrUnencodableNextHop)`, and asserts the mock sender captured zero updates | |
-| `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` | `internal/component/bgp/rib/commit_nexthop_test.go` (new) | AC-3. Pins the complete MP_REACH_NLRI value of a VPNv4 announce field by field, so the deletion of `vpnMPReachNLRI` cannot change one octet | |
+| `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm` | `internal/component/bgp/rib/commit_nexthop_test.go` (new) | AC-1, AC-2, AC-5. Table with four rows: grouped IPv6, ungrouped IPv6, grouped VPNv4, ungrouped VPNv4. Each drives `(*CommitService).Commit`, asserts `errors.Is(err, attribute.ErrUnencodableNextHop)`, and asserts the mock sender captured zero updates | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` | `internal/component/bgp/rib/commit_nexthop_test.go` (new) | AC-3. Pins the complete MP_REACH_NLRI value of a VPNv4 announce field by field, so the deletion of `vpnMPReachNLRI` cannot change one octet | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | `TestCommitService_VPNNextHopHasRD` | `internal/component/bgp/rib/commit_edge_test.go` (existing) | AC-3, AC-4. Must stay green with no assertion changed | |
 | `TestCommitService_IPv4WithIPv6NextHop` | `internal/component/bgp/rib/commit_edge_test.go` (existing) | AC-4. RFC 5549 extended next hop is unaffected | |
 | `TestCommitService_IPv6_UsesMPReachNLRI`, `TestCommitService_EVPN_UsesMPReachNLRI`, `TestCommitService_IPv4_HasNextHop` | `internal/component/bgp/rib/commit_wire_test.go` (existing) | AC-4. The three families that reach `buildMPReachNLRI` or bypass it | |
@@ -309,7 +309,7 @@ proving the same requirement, so it adds proof and removes none
   rails ask (`ai/rules/stale-comments.md`).
 
 ## Files to Create
-- `internal/component/bgp/rib/commit_nexthop_test.go` - the refusal test and the VPN
+- `internal/component/bgp/rib/commit_nexthop_test.go` - the refusal test and the VPN <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
   byte-exact test.
 
 ### Integration Checklist
@@ -355,7 +355,7 @@ proving the same requirement, so it adds proof and removes none
    - Tests: write `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm` with all four
      rows, and `TestCommitVPNAnnounceCarriesTheRFC4364NextHop`, before touching
      `commit.go`.
-   - Files: `internal/component/bgp/rib/commit_nexthop_test.go`.
+   - Files: `internal/component/bgp/rib/commit_nexthop_test.go`. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Verify: run `make ze-test-pkg PKG=./internal/component/bgp/rib`. The refusal test
      MUST fail, and it MUST fail for the stated reason: `Commit` returns a nil error and
      the mock sender holds one UPDATE. Record what the captured MP_REACH shows in each

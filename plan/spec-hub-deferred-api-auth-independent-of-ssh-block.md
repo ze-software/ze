@@ -157,8 +157,8 @@ decides only whether an SSH server runs, which is what it names.
 |-------------|---|--------------|------|
 | A config tree with `system/authentication/user` and no `environment` block, read at boot | → | the API user resolution in `runYANGConfig` (`cmd/ze/hub/main.go`) | `TestAPIUsersResolveWithoutSSHBlock` (`cmd/ze/hub/mgmt_auth_reload_test.go`) |
 | The same tree delivered by a SIGHUP reload | → | `apiAuthReloader` (`cmd/ze/hub/mgmt_auth_reload.go`) | `TestAPIAuthReloaderResolvesUsersWithoutSSHBlock` (`cmd/ze/hub/mgmt_auth_reload_test.go`) |
-| `ze -` started on that config with a non-loopback REST listener | → | `checkMgmtListeners` (`cmd/ze/hub/mgmt_guard.go`) reading `apiAuthed` | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` |
-| A REST request carrying a config user's bearer credential against that daemon | → | the authenticator from `buildUserAuthenticator` (`cmd/ze/hub/api.go`) | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` |
+| `ze -` started on that config with a non-loopback REST listener | → | `checkMgmtListeners` (`cmd/ze/hub/mgmt_guard.go`) reading `apiAuthed` | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| A REST request carrying a config user's bearer credential against that daemon | → | the authenticator from `buildUserAuthenticator` (`cmd/ze/hub/api.go`) | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## Acceptance Criteria
 
@@ -181,9 +181,9 @@ decides only whether an SSH server runs, which is what it names.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | declares an operator under `system.authentication.user`, enables the REST API, writes no `environment/ssh` block, and dispatches a command with that credential | config tree → API user resolution in `runYANGConfig` → `buildUserAuthenticator` → REST transport → dispatcher | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` |
+| 1 | declares an operator under `system.authentication.user`, enables the REST API, writes no `environment/ssh` block, and dispatches a command with that credential | config tree → API user resolution in `runYANGConfig` → `buildUserAuthenticator` → REST transport → dispatcher | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | 2 | removes that operator and sends SIGHUP | reloaded tree → `apiAuthReloader` → `UpdateAuth` on the running REST server | `test/ui/api-user-removed-by-reload.ci` (existing, must stay green) |
-| 3 | starts the daemon with users configured and a non-loopback API listener | config tree → `apiAuthed` → `checkMgmtListeners` | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` |
+| 3 | starts the daemon with users configured and a non-loopback API listener | config tree → `apiAuthed` → `checkMgmtListeners` | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## 🧪 TDD Test Plan
 
@@ -207,7 +207,7 @@ decides only whether an SSH server runs, which is what it names.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `mgmt-guard-api-users-without-ssh-block` | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` | An operator declares a user under `system.authentication.user`, enables REST on a non-loopback address, writes no ssh block and no token, and expects the daemon to serve that user and refuse a wrong password. Under Way 1 the daemon starts and stderr reads the per-user auth mode. Under Way 2 the same config still exits 1 and a second run carrying the opt-in starts. Follows the sibling `test/plugin/mgmt-guard-api-env-started-settings-survive.ci`, including its exclusive `mgmt-guard` group | |
+| `mgmt-guard-api-users-without-ssh-block` | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` | An operator declares a user under `system.authentication.user`, enables REST on a non-loopback address, writes no ssh block and no token, and expects the daemon to serve that user and refuse a wrong password. Under Way 1 the daemon starts and stderr reads the per-user auth mode. Under Way 2 the same config still exits 1 and a second run carrying the opt-in starts. Follows the sibling `test/plugin/mgmt-guard-api-env-started-settings-survive.ci`, including its exclusive `mgmt-guard` group | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | `api-user-removed-by-reload` | `test/ui/api-user-removed-by-reload.ci` | Existing test. A deleted user loses REST access at the next reload. AC-12: it must stay green, because it is what proves the live source survived this change | |
 
 ### Interop Tests (Scope: protocol)
@@ -225,7 +225,7 @@ change does not alter.
 - `internal/component/config/infra/ssh.go` - only if the implementation extracts a shared helper. `ExtractAuthUsers` already exists, so no change is expected here
 
 ## Files to Create
-- `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` - the functional test for the whole chain, driven from `ze -` with a config on stdin
+- `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` - the functional test for the whole chain, driven from `ze -` with a config on stdin <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -236,7 +236,7 @@ change does not alter.
 | CLI commands/flags | No | No new verb. The daemon boot path is the only surface |
 | CLI grammar (keyword before value) | No | No new command |
 | Editor autocomplete | Way 2 only | Automatic for a YANG boolean leaf; no `CompleteFn` needed |
-| Functional test for new RPC/API | Yes | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` |
+| Functional test for new RPC/API | Yes | `test/plugin/mgmt-guard-api-users-without-ssh-block.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | Pipe completeness | No | No new command output |
 | Env var registration | Way 2 only | An `environment/` leaf needs a matching `ze.api-server.<leaf>` through `env.MustRegister()`, as `ze.api-server.token` has |
 | Doctor check for runtime dependencies | No | No new file path, socket, port, module, or binary. The listen addresses and their doctor coverage are unchanged |
@@ -287,7 +287,7 @@ change does not alter.
    - Files: `cmd/ze/hub/main.go`, plus the YANG leaf and its env registration under Way 2
    - Verify: the guard's verdict for the affected config set matches the recorded answer, and nothing else changed
 6. **Phase: Functional proof and docs**
-   - Tests: `test/plugin/mgmt-guard-api-users-without-ssh-block.ci`, and `test/ui/api-user-removed-by-reload.ci` kept green
+   - Tests: `test/plugin/mgmt-guard-api-users-without-ssh-block.ci`, and `test/ui/api-user-removed-by-reload.ci` kept green <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Files: the new `.ci`, `docs/guide/authentication.md`
    - Verify: `make ze-plugin-test` passes, and reverting the resolution change alone turns the new `.ci` red
 

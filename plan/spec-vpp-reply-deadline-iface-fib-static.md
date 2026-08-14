@@ -201,9 +201,9 @@ for does not exist.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | commits an interface change while VPP is wedged | config commit → iface reconcile → VPP backend → deadline → reported failure | `test/plugin/vpp-wedged-iface-commit-reports.ci` |
-| 2 | watches routes fail to install while VPP is wedged | best-change event → fib → deadline → operator-visible report | `test/plugin/vpp-wedged-fib-reports.ci` |
-| 3 | applies static routes while VPP is wedged | static apply → deadline → report, other routes intact | `test/plugin/vpp-wedged-static-reports.ci` |
+| 1 | commits an interface change while VPP is wedged | config commit → iface reconcile → VPP backend → deadline → reported failure | `test/plugin/vpp-wedged-iface-commit-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 2 | watches routes fail to install while VPP is wedged | best-change event → fib → deadline → operator-visible report | `test/plugin/vpp-wedged-fib-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 3 | applies static routes while VPP is wedged | static apply → deadline → report, other routes intact | `test/plugin/vpp-wedged-static-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | 4 | tunes the deadline for a slow lab dataplane | env var → clamp → effective deadline | `TestReplyDeadlineClamps` |
 
 ## 🧪 TDD Test Plan
@@ -228,9 +228,9 @@ for does not exist.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpp-wedged-iface-commit-reports` | `test/plugin/vpp-wedged-iface-commit-reports.ci` | A commit against a wedged dataplane fails inside the deadline and says why | |
-| `vpp-wedged-fib-reports` | `test/plugin/vpp-wedged-fib-reports.ci` | A route that cannot be installed is visible to the operator | |
-| `vpp-wedged-static-reports` | `test/plugin/vpp-wedged-static-reports.ci` | The bad route is reported, the good ones stay programmed | |
+| `vpp-wedged-iface-commit-reports` | `test/plugin/vpp-wedged-iface-commit-reports.ci` | A commit against a wedged dataplane fails inside the deadline and says why | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `vpp-wedged-fib-reports` | `test/plugin/vpp-wedged-fib-reports.ci` | A route that cannot be installed is visible to the operator | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `vpp-wedged-static-reports` | `test/plugin/vpp-wedged-static-reports.ci` | The bad route is reported, the good ones stay programmed | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ### Interop Tests (Scope: protocol)
 N-A. The govpp binary API is a vendor interface with no second implementation

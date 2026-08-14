@@ -189,8 +189,8 @@ This work was homed from the 2026-08-07 row of
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `(*backend).Apply` obtains a pooled channel and builds the ops facade | → | `newGovppOps` calls `SetReplyTimeout` before it returns | `TestNewGovppOpsBindsReplyTimeout` in `internal/plugins/traffic/vpp/timeout_linux_test.go` |
-| The operator sets `ze.traffic.vpp.reply-timeout` in the process environment | → | `vppReplyTimeout` reads and clamps it | `TestVppReplyTimeoutBounds` in `internal/plugins/traffic/vpp/timeout_linux_test.go` |
+| `(*backend).Apply` obtains a pooled channel and builds the ops facade | → | `newGovppOps` calls `SetReplyTimeout` before it returns | `TestNewGovppOpsBindsReplyTimeout` in `internal/plugins/traffic/vpp/timeout_linux_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| The operator sets `ze.traffic.vpp.reply-timeout` in the process environment | → | `vppReplyTimeout` reads and clamps it | `TestVppReplyTimeoutBounds` in `internal/plugins/traffic/vpp/timeout_linux_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | A darwin checkout runs the Linux-only suite | → | `ze-qemu-integration-test` names this package | `TestNewGovppOpsBindsReplyTimeout` runs inside the QEMU VM; the run output names `internal/plugins/traffic/vpp` |
 
 N/A for a `.ci` row: the apply tier of the traffic VPP backend has no functional
@@ -221,8 +221,8 @@ dependency.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestNewGovppOpsBindsReplyTimeout` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-1: the constructor calls `SetReplyTimeout` with the clamped value on the channel it was given, and returns an ops value wired to that same channel. Uses a recording fake that implements `api.Channel`, records the duration, and panics on every other method | |
-| `TestVppReplyTimeoutBounds` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-2 and AC-3: the default with the key unset, and the clamp for every out-of-range and unparseable input. Table-driven, one row per boundary below | |
+| `TestNewGovppOpsBindsReplyTimeout` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-1: the constructor calls `SetReplyTimeout` with the clamped value on the channel it was given, and returns an ops value wired to that same channel. Uses a recording fake that implements `api.Channel`, records the duration, and panics on every other method | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestVppReplyTimeoutBounds` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-2 and AC-3: the default with the key unset, and the clamp for every out-of-range and unparseable input. Table-driven, one row per boundary below | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ### Boundary Tests (numeric inputs)
 
@@ -235,7 +235,7 @@ dependency.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Not applicable | - | No `.ci` can reach this code path today. The VPP tests in `test/traffic/` stop at the verify tier: `012-vpp-not-connected.ci` and the `020` and `026` accept tests prove their point through the ABSENCE of VPP, and `020-vpp-accept-dscp-filter.ci` records the reason in its own body, naming `plan/spec-finish-vpp-stub.md` as the blocker. Apply-tier traffic coverage against the VPP stub is that spec's AC-11 and its planned `test/vpp/016-traffic-apply.ci`. Producing a stub that accepts a request and stays silent is stub work, which belongs to that spec and not to a two-line deadline fix. The observable proof here is the unit test above, run inside the QEMU VM (AC-5), which is the same proof the firewall sibling shipped | |
+| Not applicable | - | No `.ci` can reach this code path today. The VPP tests in `test/traffic/` stop at the verify tier: `012-vpp-not-connected.ci` and the `020` and `026` accept tests prove their point through the ABSENCE of VPP, and `020-vpp-accept-dscp-filter.ci` records the reason in its own body, naming `plan/spec-finish-vpp-stub.md` as the blocker. Apply-tier traffic coverage against the VPP stub is that spec's AC-11 and its planned `test/vpp/016-traffic-apply.ci`. Producing a stub that accepts a request and stays silent is stub work, which belongs to that spec and not to a two-line deadline fix. The observable proof here is the unit test above, run inside the QEMU VM (AC-5), which is the same proof the firewall sibling shipped | <!-- doc-links: ignore (planned by plan/spec-finish-vpp-stub.md as its AC-11, which the cell says) --> |
 
 ### Interop Tests (Scope: protocol)
 
@@ -252,8 +252,8 @@ any wire; it installs a client-side deadline.
 
 ## Files to Create
 
-- `internal/plugins/traffic/vpp/timeout_linux.go` - the three constants, the `env.MustRegister` entry, the clamping reader, and the constructor.
-- `internal/plugins/traffic/vpp/timeout_linux_test.go` - the recording channel fake and the two tests.
+- `internal/plugins/traffic/vpp/timeout_linux.go` - the three constants, the `env.MustRegister` entry, the clamping reader, and the constructor. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/plugins/traffic/vpp/timeout_linux_test.go` - the recording channel fake and the two tests. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 
 ### Integration Checklist
 
@@ -266,7 +266,7 @@ any wire; it installs a client-side deadline.
 | CLI grammar (keyword before value) | N-A | No CLI command is added |
 | Editor autocomplete | Yes, automatic | `internal/core/envcatalog` merges `env.Entries()`, so a registered non-private key reaches shell and CLI completion with no per-key wiring |
 | Functional test for new RPC/API | No | No RPC or API is added. See Functional Tests for why no `.ci` can reach this path today |
-| Env var registration | Yes | `env.MustRegister` for `ze.traffic.vpp.reply-timeout` in `internal/plugins/traffic/vpp/timeout_linux.go`, type `duration`, default `10s`. There is no YANG leaf to match, so the "YANG leaf under `environment/`" half of the rule does not apply |
+| Env var registration | Yes | `env.MustRegister` for `ze.traffic.vpp.reply-timeout` in `internal/plugins/traffic/vpp/timeout_linux.go`, type `duration`, default `10s`. There is no YANG leaf to match, so the "YANG leaf under `environment/`" half of the rule does not apply <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | Pipe completeness | N-A | No command output is added |
 | Doctor check for runtime dependencies | No | No new file path, socket, service, module, port or certificate. The VPP connection itself already has its doctor coverage |
 | Prometheus counters/metrics | No | The firewall counter `ze_firewall_apply_timeout_total` exists because `firewall.ErrKernelTimeout` classifies the failure for `observeApply`. The traffic component has no apply metric and no error classifier, so a counter here would need a sentinel, a classifier and a histogram that nothing reads. That is a separate change with its own justification, not a rider on a deadline fix |
@@ -298,11 +298,11 @@ any wire; it installs a client-side deadline.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- create the timeout file and its test, and prove the test fails.
    - Tests: `TestNewGovppOpsBindsReplyTimeout`, `TestVppReplyTimeoutBounds`
-   - Files: `internal/plugins/traffic/vpp/timeout_linux.go`, `internal/plugins/traffic/vpp/timeout_linux_test.go`
+   - Files: `internal/plugins/traffic/vpp/timeout_linux.go`, `internal/plugins/traffic/vpp/timeout_linux_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Verify: the tests exist and fail because the constructor does not yet bind the deadline. Paste the RED output. This is also the AC-6 discrimination evidence, so capture it before the fix rather than reconstructing it after.
 2. **Phase: bind the deadline** -- write the constants, the env entry, the clamping reader and the constructor.
    - Tests: the two above turn green
-   - Files: `internal/plugins/traffic/vpp/timeout_linux.go`
+   - Files: `internal/plugins/traffic/vpp/timeout_linux.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Verify: `make ze-test-pkg PKG=./internal/plugins/traffic/vpp`
 3. **Phase: use the constructor** -- replace the inline literal in `(*backend).Apply`.
    - Tests: every test in `apply_test.go` stays green and unedited

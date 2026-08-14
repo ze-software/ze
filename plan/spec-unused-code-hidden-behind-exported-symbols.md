@@ -111,9 +111,9 @@ nor a deletion is in scope for that spec.
 |------|--------|---------|
 | `cmd/ze/hub/listener_migrate.go` | `newListenerMigrator` | `unparam`: parameter `web` always receives nil |
 | `cmd/ze/internal/cmdutil/cmdutil.go` | `printCommandList` | `unused` |
-| `internal/component/hub/schema.go` | `(*ConfigStore).setLive` | `unused` |
-| `internal/component/hub/schema.go` | `(*ConfigStore).getLive` | `unused` |
-| `internal/component/hub/schema.go` | `(*ConfigStore).getEdit` | `unused` |
+| `internal/component/hub/schema.go` | `(*ConfigStore).setLive` | `unused` <!-- doc-links: ignore (internal/component/hub/schema.go was deleted with the orchestrator runtime in 8d92e9fab, so the symbol this row names is already gone) --> |
+| `internal/component/hub/schema.go` | `(*ConfigStore).getLive` | `unused` <!-- doc-links: ignore (internal/component/hub/schema.go was deleted with the orchestrator runtime in 8d92e9fab, so the symbol this row names is already gone) --> |
+| `internal/component/hub/schema.go` | `(*ConfigStore).getEdit` | `unused` <!-- doc-links: ignore (internal/component/hub/schema.go was deleted with the orchestrator runtime in 8d92e9fab, so the symbol this row names is already gone) --> |
 | `internal/component/web/testing/runner.go` | `(*Browser).getText` | `unused` |
 | `internal/plugins/debug/profile.go` | `(*Profile).toggleModule` | `unparam`: bool return value never used |
 | `internal/core/bgp/attribute/builder.go` | `(*Builder).setAIGP` | `unparam`: `*Builder` return value never used |

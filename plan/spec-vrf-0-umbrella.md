@@ -147,7 +147,7 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 - [ ] `internal/component/bgp/plugins/rib/register.go` -- RIB plugin registration
 - [ ] `internal/component/plugin/server/hub.go` -- Hub, SchemaRegistry, command routing
 - [ ] `internal/component/plugin/process/manager.go` -- ProcessManager, `map[string]*Process`
-- [ ] `internal/component/hub/hub.go` -- Orchestrator, `NewOrchestrator()`
+- [ ] `internal/component/hub/hub.go` -- Orchestrator, `NewOrchestrator()` <!-- doc-links: ignore (the orchestrator runtime was deleted in 8d92e9fab; the daemon entry point is runYANGConfig in cmd/ze/hub/main.go) -->
 
 **Behavior to preserve:**
 - Single-instance Ze works exactly as today (unnamed default VRF)
@@ -483,7 +483,7 @@ Umbrella scope; the detailed per-file lists live in the child specs.
 
 - `internal/component/plugin/server/hub.go` - hub instantiable as independent instances (vrf-1)
 - `internal/component/plugin/process/manager.go` - derived plugin names (`bgp:vrf-red`) and multiple instances (vrf-1)
-- `internal/component/hub/hub.go` - orchestrator support for per-VRF hubs (vrf-1, vrf-3)
+- `internal/component/hub/hub.go` - orchestrator support for per-VRF hubs (vrf-1, vrf-3) <!-- doc-links: ignore (the orchestrator runtime was deleted in 8d92e9fab; the daemon entry point is runYANGConfig in cmd/ze/hub/main.go) -->
 - `internal/component/iface/register.go` - VRF device creation and interface master binding entry (vrf-2)
 - `internal/plugins/fib/kernel/backend_linux.go` - `Route.Table = vrf.table` in netlink calls (vrf-2)
 - `internal/component/bgp/reactor/reactor.go` - constructor accepts a hub reference (vrf-3; the global-state analysis above shows no other reactor change is needed)
