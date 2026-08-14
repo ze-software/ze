@@ -68,6 +68,7 @@ DOCS_MANIFEST = {
     "guide/ospf.md": "routing",
     "guide/monitoring.md": "observe",
     "guide/mrt-analysis.md": "observe",
+    "guide/netlab.md": "observe",
     "guide/policy-routing.md": "services",
     "guide/plugins.md": "automate",
     "guide/pppoe.md": "services",

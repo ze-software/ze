@@ -100,7 +100,8 @@
                     {"href": "labs/bgp-interop/", "icon": "🌐", "title": "BGP interop", "desc": "FRR, BIRD, and GoBGP sessions"},
                     {"href": "labs/l2tp-interop/", "icon": "🔌", "title": "L2TP access", "desc": "Ze LNS against real xl2tpd"},
                     {"href": "labs/pppoe-interop/", "icon": "📡", "title": "PPPoE access", "desc": "Ze against real accel-ppp"},
-                    {"href": "labs/ipsec-interop/", "icon": "🔒", "title": "IPsec / IKEv2", "desc": "Ze IKE initiator against strongSwan"}
+                    {"href": "labs/ipsec-interop/", "icon": "🔒", "title": "IPsec / IKEv2", "desc": "Ze IKE initiator against strongSwan"},
+                    {"href": "docs/guide/netlab/", "icon": "🐳", "title": "netlab topology", "desc": "Ze as a netlab daemon node, with templates and a three-node topology"}
                 ],
                 [
                     {"label_only": "Systems"},
