@@ -1,16 +1,14 @@
-// Design: docs/features/interfaces.md -- Sysctl and mirror application for interfaces
-// Related: config.go -- parsing, config_apply.go -- reconciliation
+// Design: docs/features/interfaces.md -- Sysctl application for interfaces
+// Related: config.go -- parsing, config_apply.go -- reconciliation, config_mirror.go -- mirroring
 
 package iface
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
-	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // applySysctl emits per-interface sysctl defaults on the EventBus.
@@ -126,59 +124,4 @@ func applySysctlProfiles(osName string, profiles []string) {
 			}
 		}
 	}
-}
-
-// applyMirror configures traffic mirroring on an interface from unit config.
-// Only applied when at least one of ingress/egress destination is configured.
-// Returns errors for mirror operations that failed.
-func applyMirror(b Backend, osName string, u unitEntry, journal *sdk.Journal) []error {
-	if u.MirrorIngress == "" && u.MirrorEgress == "" {
-		return nil
-	}
-
-	var errs []error
-	fail := func(what string, err error) {
-		loggerPtr.Load().Warn("iface config: "+what, "iface", osName, "err", err)
-		errs = append(errs, fmt.Errorf("%s %s: %w", osName, what, err))
-	}
-
-	ingress := u.MirrorIngress != ""
-	egress := u.MirrorEgress != ""
-
-	if ingress && egress && u.MirrorIngress == u.MirrorEgress {
-		if err := applyBackendStep(journal, func() error {
-			return b.SetupMirror(osName, u.MirrorIngress, true, true)
-		}, func() error {
-			return b.RemoveMirror(osName)
-		}); err != nil {
-			fail("mirror", err)
-		}
-		return errs
-	}
-	if ingress {
-		if err := applyBackendStep(journal, func() error {
-			return b.SetupMirror(osName, u.MirrorIngress, true, false)
-		}, func() error {
-			return b.RemoveMirror(osName)
-		}); err != nil {
-			fail("mirror ingress", err)
-			return errs
-		}
-	}
-	if egress {
-		hadIngress := ingress
-		ingressDst := u.MirrorIngress
-		if err := applyBackendStep(journal, func() error {
-			return b.SetupMirror(osName, u.MirrorEgress, false, true)
-		}, func() error {
-			if hadIngress {
-				return b.SetupMirror(osName, ingressDst, true, false)
-			}
-			return b.RemoveMirror(osName)
-		}); err != nil {
-			fail("mirror egress", err)
-			return errs
-		}
-	}
-	return errs
 }

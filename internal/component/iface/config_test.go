@@ -2149,6 +2149,26 @@ type fakeBackend struct {
 	macvlans         map[string]MacvlanSpec // name -> spec recorded by CreateMacvlanDevice
 	callOrder        []string               // ordered log of macvlan-create + add-address calls
 	createMacvlanErr map[string]error       // per-name CreateMacvlanDevice error injection
+	mirrorCalls      []mirrorCall           // ordered log of SetupMirror + RemoveMirror calls
+	setupMirrorErr   map[string]error       // per-source-interface SetupMirror error injection
+	removeMirrorErr  map[string]error       // per-source-interface RemoveMirror error injection
+}
+
+// The two mirror operations a backend can be asked for.
+const (
+	mirrorOpSetup  = "setup"
+	mirrorOpRemove = "remove"
+)
+
+// mirrorCall records one mirror operation the apply path asked the backend
+// for. The order matters: a changed mirror must be retired before the new one
+// is installed, because tc filters are additive.
+type mirrorCall struct {
+	op      string
+	iface   string
+	dst     string
+	ingress bool
+	egress  bool
 }
 
 type fakeIface struct {
@@ -2458,8 +2478,20 @@ func (b *fakeBackend) BridgeAddPort(_, _ string) error     { return nil }
 func (b *fakeBackend) BridgeDelPort(_ string) error        { return nil }
 func (b *fakeBackend) BridgeSetSTP(_ string, _ bool) error { return nil }
 
-func (b *fakeBackend) SetupMirror(_, _ string, _, _ bool) error { return nil }
-func (b *fakeBackend) RemoveMirror(_ string) error              { return nil }
+func (b *fakeBackend) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
+	b.mirrorCalls = append(b.mirrorCalls, mirrorCall{
+		op: mirrorOpSetup, iface: srcIface, dst: dstIface, ingress: ingress, egress: egress,
+	})
+	if err := b.setupMirrorErr[srcIface]; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *fakeBackend) RemoveMirror(srcIface string) error {
+	b.mirrorCalls = append(b.mirrorCalls, mirrorCall{op: mirrorOpRemove, iface: srcIface})
+	return b.removeMirrorErr[srcIface]
+}
 func (b *fakeBackend) SetupLCPPair(vppIface, hostName string) error {
 	if b.lcpPairs == nil {
 		b.lcpPairs = make(map[string]string)

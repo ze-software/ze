@@ -32,10 +32,8 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 			if u.Disable {
 				continue
 			}
-			osName := name
+			osName := unitOSName(name, u)
 			if u.VLANID > 0 {
-				var bName textbuf.Buffer
-				osName = bName.Reset().Str(name).Byte('.').Int(int64(u.VLANID)).String()
 				managed[osName] = true
 			}
 			if addrs[osName] == nil {
@@ -194,6 +192,44 @@ func removedManagedNames(previousManaged, currentManaged map[string]bool) map[st
 		removed[name] = true
 	}
 	return removed
+}
+
+// unitOSName returns the OS device name a unit configures: the interface
+// itself for an untagged unit, "<name>.<vlan>" for a VLAN unit.
+func unitOSName(name string, u *unitEntry) string {
+	if u.VLANID <= 0 {
+		return name
+	}
+	var b textbuf.Buffer
+	return b.Reset().Str(name).Byte('.').Int(int64(u.VLANID)).String()
+}
+
+// allIfaceEntries returns every interface entry in the config, across the
+// families that carry per-unit settings. Order follows the apply phases:
+// ethernet and dummy first, then the created kinds.
+func allIfaceEntries(cfg *ifaceConfig) []ifaceEntry {
+	if cfg == nil {
+		return nil
+	}
+	entries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel)+len(cfg.Wireguard)+len(cfg.XFRM))
+	entries = append(entries, cfg.Ethernet...)
+	entries = append(entries, cfg.Dummy...)
+	for _, e := range cfg.Veth {
+		entries = append(entries, e.ifaceEntry)
+	}
+	for _, e := range cfg.Bridge {
+		entries = append(entries, e.ifaceEntry)
+	}
+	for i := range cfg.Tunnel {
+		entries = append(entries, cfg.Tunnel[i].ifaceEntry)
+	}
+	for i := range cfg.Wireguard {
+		entries = append(entries, cfg.Wireguard[i].ifaceEntry)
+	}
+	for i := range cfg.XFRM {
+		entries = append(entries, cfg.XFRM[i].ifaceEntry)
+	}
+	return entries
 }
 
 // indexTunnelSpecs returns a name -> Spec map for the previous config's
@@ -665,23 +701,14 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 
 	// Phase 2: Set properties and create VLANs.
-	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel)+len(cfg.Wireguard)+len(cfg.XFRM))
-	allEntries = append(allEntries, cfg.Ethernet...)
-	allEntries = append(allEntries, cfg.Dummy...)
-	for _, e := range cfg.Veth {
-		allEntries = append(allEntries, e.ifaceEntry)
-	}
-	for _, e := range cfg.Bridge {
-		allEntries = append(allEntries, e.ifaceEntry)
-	}
-	for i := range cfg.Tunnel {
-		allEntries = append(allEntries, cfg.Tunnel[i].ifaceEntry)
-	}
-	for i := range cfg.Wireguard {
-		allEntries = append(allEntries, cfg.Wireguard[i].ifaceEntry)
-	}
-	for i := range cfg.XFRM {
-		allEntries = append(allEntries, cfg.XFRM[i].ifaceEntry)
+	allEntries := allIfaceEntries(cfg)
+
+	// Retire the mirrors the new config no longer asks for, before the loop
+	// below installs the ones it does ask for. tc filters are additive, so a
+	// changed destination has to be removed rather than overwritten.
+	if mirrorErrs := removeStaleMirrors(cfg, previous, b, journal); len(mirrorErrs) > 0 {
+		errs = append(errs, mirrorErrs...)
+		return rollbackPartial()
 	}
 
 	// Physical (Ethernet) interfaces named in the config but absent from the
@@ -759,8 +786,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			osName := e.Name
 			if u.VLANID > 0 {
-				var bVlan textbuf.Buffer
-				vlanName := bVlan.Reset().Str(e.Name).Byte('.').Int(int64(u.VLANID)).String()
+				vlanName := unitOSName(e.Name, u)
 				created := false
 				if err := applyBackendStep(journal, func() error {
 					if err := b.CreateVLAN(VLANSpec{
@@ -1285,8 +1311,7 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 		if u.Disable || u.VLANID <= 0 {
 			continue
 		}
-		var bCheck textbuf.Buffer
-		if bCheck.Reset().Str(parent).Byte('.').Int(int64(u.VLANID)).String() != name {
+		if unitOSName(parent, u) != name {
 			continue
 		}
 		return b.CreateVLAN(VLANSpec{

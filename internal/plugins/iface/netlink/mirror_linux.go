@@ -18,6 +18,23 @@ import (
 
 var errIfaceMirrorAtLeastOneOf = errors.New("iface: mirror: at least one of ingress or egress must be true")
 
+// The qdisc at handle ffff: is a SHARED attachment point. Ze installs the
+// mirror's mirred filters on it at priority 1, and flow-export sampling
+// installs its own filter at priority 100 (SampleFilterPriority in
+// internal/plugins/flowexport/sampling). Both hooks, ingress and egress, hang
+// off that one qdisc object, so deleting the qdisc deletes every filter of
+// every subsystem. Mirror teardown therefore removes its own filters and leaves
+// the qdisc: a teardown cannot know who created it, and the set of attached
+// filters can change between reading it and acting on it. Only a rollback
+// deletes, because it created the qdisc moments earlier and knows so.
+const (
+	// mirrorFilterPriority is the tc filter priority the mirror owns.
+	mirrorFilterPriority uint16 = 1
+	// mirrorQdiscHandleMajor is the major number of the ingress-side qdisc
+	// handle, ffff:0.
+	mirrorQdiscHandleMajor uint16 = 0xffff
+)
+
 func isNotFound(err error) bool {
 	return err != nil && (errors.Is(err, unix.ENOENT) || errors.Is(err, unix.EINVAL) || strings.Contains(err.Error(), "no such"))
 }
@@ -42,67 +59,30 @@ func (b *netlinkBackend) SetupMirror(srcIface, dstIface string, ingress, egress 
 		return fmt.Errorf("iface: mirror: dst %q not found: %w", dstIface, err)
 	}
 
-	dstIndex := dst.Attrs().Index
-	srcIndex := src.Attrs().Index
-
-	if egress {
-		return setupClsactMirror(srcIndex, dstIndex, ingress, egress)
-	}
-	return setupIngressMirror(srcIndex, dstIndex)
+	return setupClsactMirror(src, dst.Attrs().Index, ingress, egress)
 }
 
-func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
-	qdisc := &netlink.Clsact{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: srcIndex,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_CLSACT,
-		},
-	}
-	if err := netlink.QdiscAdd(qdisc); err != nil {
-		return fmt.Errorf("iface: mirror: add clsact qdisc: %w", err)
+// setupClsactMirror installs a mirred filter on the clsact hooks the caller
+// asks for. clsact carries both hooks, so one qdisc kind serves ingress-only,
+// egress-only, and two destinations at once, which the plain ingress qdisc
+// cannot: it has no egress hook.
+func setupClsactMirror(src netlink.Link, dstIndex int, ingress, egress bool) error {
+	srcIndex := src.Attrs().Index
+	created, err := ensureClsactQdisc(srcIndex)
+	if err != nil {
+		return err
 	}
 
 	if ingress {
-		filter := &netlink.MatchAll{
-			FilterAttrs: netlink.FilterAttrs{
-				LinkIndex: srcIndex,
-				Parent:    netlink.HANDLE_MIN_INGRESS,
-				Priority:  1,
-				Protocol:  unix.ETH_P_ALL,
-			},
-			Actions: []netlink.Action{
-				&netlink.MirredAction{
-					ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
-					MirredAction: netlink.TCA_EGRESS_MIRROR,
-					Ifindex:      dstIndex,
-				},
-			},
-		}
-		if err := netlink.FilterAdd(filter); err != nil {
-			_ = netlink.QdiscDel(qdisc)
+		if err := addMirrorFilter(srcIndex, netlink.HANDLE_MIN_INGRESS, dstIndex); err != nil {
+			undoMirrorSetup(src, created)
 			return fmt.Errorf("iface: mirror: add ingress filter: %w", err)
 		}
 	}
 
 	if egress {
-		filter := &netlink.MatchAll{
-			FilterAttrs: netlink.FilterAttrs{
-				LinkIndex: srcIndex,
-				Parent:    netlink.HANDLE_MIN_EGRESS,
-				Priority:  1,
-				Protocol:  unix.ETH_P_ALL,
-			},
-			Actions: []netlink.Action{
-				&netlink.MirredAction{
-					ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
-					MirredAction: netlink.TCA_EGRESS_MIRROR,
-					Ifindex:      dstIndex,
-				},
-			},
-		}
-		if err := netlink.FilterAdd(filter); err != nil {
-			_ = netlink.QdiscDel(qdisc)
+		if err := addMirrorFilter(srcIndex, netlink.HANDLE_MIN_EGRESS, dstIndex); err != nil {
+			undoMirrorSetup(src, created)
 			return fmt.Errorf("iface: mirror: add egress filter: %w", err)
 		}
 	}
@@ -110,39 +90,47 @@ func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 	return nil
 }
 
-func setupIngressMirror(srcIndex, dstIndex int) error {
-	qdisc := &netlink.Ingress{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: srcIndex,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_INGRESS,
-		},
+// ensureClsactQdisc adds the clsact qdisc and reports whether this call
+// created it. EEXIST means another subsystem got there first, and the hooks
+// the mirror needs are already present, so it is not an error.
+func ensureClsactQdisc(linkIndex int) (bool, error) {
+	if err := netlink.QdiscAdd(clsactQdisc(linkIndex)); err != nil {
+		if !errors.Is(err, unix.EEXIST) {
+			return false, fmt.Errorf("iface: mirror: add clsact qdisc: %w", err)
+		}
+		return false, nil
 	}
-	if err := netlink.QdiscAdd(qdisc); err != nil {
-		return fmt.Errorf("iface: mirror: add ingress qdisc: %w", err)
-	}
+	return true, nil
+}
 
-	filter := &netlink.MatchAll{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: srcIndex,
-			Parent:    netlink.HANDLE_MIN_INGRESS,
-			Priority:  1,
-			Protocol:  unix.ETH_P_ALL,
-		},
-		Actions: []netlink.Action{
-			&netlink.MirredAction{
-				ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
-				MirredAction: netlink.TCA_EGRESS_MIRROR,
-				Ifindex:      dstIndex,
-			},
-		},
+// addMirrorFilter installs the mirred filter on one clsact hook. An existing
+// filter at the mirror's priority is replaced, so applying an unchanged config
+// twice leaves one filter per hook instead of failing.
+func addMirrorFilter(linkIndex int, parent uint32, dstIndex int) error {
+	filter := mirrorFilter(linkIndex, parent, dstIndex)
+	err := netlink.FilterAdd(filter)
+	if errors.Is(err, unix.EEXIST) {
+		_ = netlink.FilterDel(filter)
+		err = netlink.FilterAdd(filter)
 	}
-	if err := netlink.FilterAdd(filter); err != nil {
-		_ = netlink.QdiscDel(qdisc)
-		return fmt.Errorf("iface: mirror: add ingress filter: %w", err)
-	}
+	return err
+}
 
-	return nil
+// undoMirrorSetup returns the interface to its pre-setup state after a failed
+// filter add: the filters this call installed go, and the qdisc goes only if
+// this call created it and nothing else has attached to it since.
+func undoMirrorSetup(src netlink.Link, createdQdisc bool) {
+	if _, err := removeMirrorFilters(src.Attrs().Index); err != nil {
+		logger().Warn("iface: mirror: rollback could not remove mirror filters",
+			"iface", src.Attrs().Name, "err", err)
+	}
+	if !createdQdisc {
+		return
+	}
+	if err := removeUnusedIngressQdisc(src); err != nil {
+		logger().Warn("iface: mirror: rollback could not remove the clsact qdisc",
+			"iface", src.Attrs().Name, "err", err)
+	}
 }
 
 func (b *netlinkBackend) RemoveMirror(srcIface string) error {
@@ -155,32 +143,134 @@ func (b *netlinkBackend) RemoveMirror(srcIface string) error {
 		return fmt.Errorf("iface: mirror: %q not found: %w", srcIface, err)
 	}
 
-	linkIndex := link.Attrs().Index
+	if _, err := removeMirrorFilters(link.Attrs().Index); err != nil {
+		return fmt.Errorf("iface: mirror: remove mirror filter on %q: %w", srcIface, err)
+	}
 
-	clsact := &netlink.Clsact{
+	// The qdisc at ffff: is deliberately LEFT, whether or not a mirror filter
+	// was found. This is the implementer's reasoning rather than a ruling, so a
+	// later reader should feel free to overturn it on better evidence.
+	// RemoveMirror knows only that its own filters are gone; it does
+	// not know who created the qdisc, and a teardown is not the moment to guess.
+	//
+	// Listing the remaining filters and deleting on an empty answer looks safe
+	// and is not. RemoveSampling (internal/plugins/flowexport/sampling/tc_linux.go)
+	// deletes its filter and deliberately leaves the qdisc, so an interface with
+	// sampling configured presents both hooks empty for the length of a
+	// reconfigure. Deleting there takes a qdisc SetupSampling created: its own
+	// EEXIST-tolerant QdiscAdd then succeeds against nothing, its FilterAdd
+	// fails, and flow export stops on that interface until it is reconfigured.
+	// No ordering of the list and the delete closes that window, because the
+	// answer can change between them.
+	//
+	// An empty clsact qdisc costs nothing. It carries no filter, forwards no
+	// packet, and the next SetupMirror or SetupSampling adopts it through the
+	// same EEXIST branch that already exists. undoMirrorSetup still removes one,
+	// because a rollback DOES know it created the qdisc moments earlier.
+	return nil
+}
+
+// removeMirrorFilters deletes the mirror's own filters from both clsact hooks
+// and reports whether either was present. A filter that is already gone is not
+// an error: the desired state is reached either way.
+func removeMirrorFilters(linkIndex int) (bool, error) {
+	removed := false
+	for _, parent := range []uint32{netlink.HANDLE_MIN_INGRESS, netlink.HANDLE_MIN_EGRESS} {
+		err := netlink.FilterDel(mirrorFilter(linkIndex, parent, 0))
+		switch {
+		case err == nil:
+			removed = true
+		case isNotFound(err):
+		default:
+			return removed, err
+		}
+	}
+	return removed, nil
+}
+
+// removeUnusedIngressQdisc deletes the qdisc at handle ffff: when no filter is
+// left on either hook. It fails closed: when the remaining filters cannot be
+// listed, the qdisc stays. An empty qdisc costs nothing, and deleting a shared
+// one costs another subsystem every filter it installed.
+func removeUnusedIngressQdisc(link netlink.Link) error {
+	for _, parent := range []uint32{netlink.HANDLE_MIN_INGRESS, netlink.HANDLE_MIN_EGRESS} {
+		filters, err := netlink.FilterList(link, parent)
+		if err != nil {
+			if isNotFound(err) {
+				continue
+			}
+			logger().Warn("iface: mirror: cannot list remaining filters, leaving the qdisc in place",
+				"iface", link.Attrs().Name, "err", err)
+			return nil
+		}
+		if len(filters) > 0 {
+			return nil
+		}
+	}
+
+	qdisc := ingressSideQdisc(link)
+	if qdisc == nil {
+		return nil
+	}
+	if err := netlink.QdiscDel(qdisc); err != nil && !isNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// ingressSideQdisc returns the qdisc installed at handle ffff:, clsact or the
+// older ingress kind, or nil when the link has none. netlink spells the parent
+// of both as HANDLE_CLSACT, which is HANDLE_INGRESS.
+func ingressSideQdisc(link netlink.Link) netlink.Qdisc {
+	qdiscs, err := netlink.QdiscList(link)
+	if err != nil {
+		logger().Warn("iface: mirror: cannot list qdiscs, leaving the qdisc in place",
+			"iface", link.Attrs().Name, "err", err)
+		return nil
+	}
+	for _, q := range qdiscs {
+		attrs := q.Attrs()
+		if attrs == nil {
+			continue
+		}
+		if attrs.Handle == netlink.MakeHandle(mirrorQdiscHandleMajor, 0) && attrs.Parent == netlink.HANDLE_CLSACT {
+			return q
+		}
+	}
+	return nil
+}
+
+// clsactQdisc describes the shared ingress-side qdisc of a link.
+func clsactQdisc(linkIndex int) *netlink.Clsact {
+	return &netlink.Clsact{
 		QdiscAttrs: netlink.QdiscAttrs{
 			LinkIndex: linkIndex,
-			Handle:    netlink.MakeHandle(0xffff, 0),
+			Handle:    netlink.MakeHandle(mirrorQdiscHandleMajor, 0),
 			Parent:    netlink.HANDLE_CLSACT,
 		},
 	}
-	clsactErr := netlink.QdiscDel(clsact)
+}
 
-	ingress := &netlink.Ingress{
-		QdiscAttrs: netlink.QdiscAttrs{
+// mirrorFilter describes the mirror's filter on one clsact hook. A dstIndex of
+// 0 carries no action and identifies the filter for deletion, which the kernel
+// matches on link, parent, priority and protocol.
+func mirrorFilter(linkIndex int, parent uint32, dstIndex int) *netlink.MatchAll {
+	filter := &netlink.MatchAll{
+		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: linkIndex,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_INGRESS,
+			Parent:    parent,
+			Priority:  mirrorFilterPriority,
+			Protocol:  unix.ETH_P_ALL,
 		},
 	}
-	ingressErr := netlink.QdiscDel(ingress)
-
-	if clsactErr != nil && !isNotFound(clsactErr) {
-		return fmt.Errorf("iface: mirror: remove clsact qdisc: %w", clsactErr)
+	if dstIndex != 0 {
+		filter.Actions = []netlink.Action{
+			&netlink.MirredAction{
+				ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
+				MirredAction: netlink.TCA_EGRESS_MIRROR,
+				Ifindex:      dstIndex,
+			},
+		}
 	}
-	if ingressErr != nil && !isNotFound(ingressErr) {
-		return fmt.Errorf("iface: mirror: remove ingress qdisc: %w", ingressErr)
-	}
-
-	return nil
+	return filter
 }
