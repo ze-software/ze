@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/rfc4271-med-across-as.md` |
-| Updated | 2026-08-14 |
+| Updated | 2026-08-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -361,9 +361,239 @@ The two rows above are the filled set.
 ### Closure
 - [ ] Review Gate 0 BLOCKER / 0 ISSUE
 
+## Implementation Summary
+
+### What Was Implemented
+
+Two mechanisms, one suppression point.
+
+The propagation rule, RFC 4271 Section 5.1.4's MUST NOT, landed in commit
+`f9b42734e`. `applyFactsMED` (`internal/component/bgp/reactor/forward_med.go`)
+records one `filterapi.AttrModSuppress` on attribute 4 when the source payload
+carried a metric and the destination is a different neighboring AS. It turns on
+provenance: a metric ze sets, and a metric an egress filter sets, both reach the
+peer. `medPropagationAllowedTo` reads `facts.rsClient`, so RFC 7947 Section 2.2.3
+keeps a route-server client's metric. Both forward rails call it
+(`reactor_api_forward.go`, `forward_rs.go`).
+
+The configured removal, Section 5.1.4's MUST, is this closure's work.
+`ExtractMEDRemoveOps` (`internal/component/bgp/reactor/filter_delta.go`) converts
+the `med-remove` directive into the SAME suppression, so the two triggers cannot
+disagree about what a removal does to the wire. It is called from ONE site, the
+ingress chain (`runIngressPolicyChain`, `filter_ordered.go`), and that omission
+on the export side is the conformance boundary: Section 5.1.4 requires the
+removal before Decision Process phases 1 and 2, and Section 9.1.2.2 states that
+comparing on a metric and then advertising the route without it causes route
+loops. The operator surface is the `med-remove` boolean leaf of a modify policy's
+set block (`yang/ze-filter-modify.yang`), parsed by `parseModifyDefs`
+(`filter_modify/config.go`) and emitted by `appendMEDRemove`
+(`filter_modify/filter_modify.go`), which refuses the directive on an export
+chain and logs the RFC reason. `validateNoConflict` refuses `med-remove` beside
+`set med`, `increment med` and `decrement med`.
+
+`faMEDRemove` joins the filter-attribute enum (`filter_chain.go`) as a valueless
+token beside `atomic-aggregate`, so it survives `applyFilterDelta` and
+`formatFilterAttrs` without consuming the token after it.
+
+The Review Gate added three things the first implementation did not have.
+`medPresentOnWire` (`filter_delta.go`) keeps a route with no metric off the
+payload-rebuild path, reading the WIRE because the filter text never names
+MULTI_EXIT_DISC (Mistake Log). `filterAttrs.merge` (`filter_chain.go`) makes the
+CHAIN's order decide between `med` and `med-remove`, so a later filter that sets
+the metric cancels an earlier removal. `computeWireChanges` (`policy_dryrun.go`)
+takes the direction, so `ze bgp policy dry-run` reports the removal on an import
+chain and does not promise one on an export chain.
+
+### Bugs Found/Fixed
+- None in the product beyond the two RFC gaps this spec exists to close. Three
+  defects were FOUND and journalled rather than fixed here, because none blocks
+  this spec's goal: two in `plan/journal/test-against-broken-path.md` (a
+  `ze-test peer` `conn_map` delivery defect, and `relay-withdraw-nexthop-self.ci`
+  going red under another session's commit `480897faf`), and one in
+  `plan/journal/reference-checked-claim-unchecked.md` (a stale anchor in
+  `ai/digests/web.md` left by the templ migration `aa43dd4cc`, fixed here because
+  it reddened `make ze-doc-test`).
+
+### Documentation Updates
+- `docs/architecture/bgp/egress-attribute-rules.md` -- the third trigger, why it
+  is not on the egress rail, and a Proof table that gained an Interop column.
+- `docs/guide/plugins.md` -- the `med-remove` paragraph, plus source anchors for
+  `appendMEDRemove` and `ExtractMEDRemoveOps`.
+- `docs/guide/configuration.md` -- the `med-remove` row in the modify set-leaf
+  table, the import-only constraint, the mutual exclusion, and two source anchors.
+- `docs/features/rfc-status.md` -- the RFC 4271 row already carries the MED
+  coverage prose (committed with `f9b42734e`).
+- `make ze-doc-test` exit 0.
+
+### Deviations from Plan
+- The spec's "Files to Modify" table named `peer_rib_routes.go` and
+  `reactor_wire.go`, the two readvertisement encoders. Neither changed. They write
+  a metric ze itself set, which Section 5.1.4 permits; the received-metric case
+  reaches the wire through the forward rails, and one suppression there covers
+  both. Recorded as a deviation rather than a gap: the encoders were read, and
+  the rule they would have needed does not apply to what they emit.
+- The removal mechanism landed on the modify policy's set block rather than on a
+  per-peer leaf. A modify policy is already the operator's route-attribute
+  surface, and a second surface would have been a second suppression point (R-4).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed the source AS must be threaded to egress | The rule needs no source AS. Refusing an OPTIONAL attribute toward the AS it came from is conformant, so the test is "external and not an RS client" | reading `forwardSourceInfo`, which carries `isIBGP` and no AS | A-2 recorded `not needed`; no provenance plumbing was written |
+| approach | The review's "gate the removal on the route carrying a metric" fix first read the metric from the parsed filter TEXT (`modAttrs.has(faMED)`), on the reasoning that `AppendUpdateForFilter` renders every attribute it is given | The filter text never names MULTI_EXIT_DISC. `appendSingleAttr` (`internal/component/bgp/reactor/filter_format.go`) switches on `*attribute.MED` while `knownAttrParsers` builds the value form `attribute.MED`, so the case cannot match. The text gate refused EVERY configured removal | the new interop scenario, `test/interop/scenarios/61-med-remove-configured-gobgp`, which went red while every unit test stayed green: each one writes its update text by hand with `med N` in it | the gate moved to the wire (`medPresentOnWire`, `internal/component/bgp/reactor/filter_delta.go`), the unit test now asserts the text does NOT carry the metric, and the renderer defect is journalled in `plan/journal/silent-fall-through.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `RFC4271-5.1.4-1` MUST NOT propagate a received MED to another AS | Done | `applyFactsMED`, `internal/component/bgp/reactor/forward_med.go` | `{gap}` retired in `rfc/short/rfc4271.md`; both polarities tagged |
+| `RFC4271-5.1.4-4` MUST implement a configuration-driven removal | Done | `ExtractMEDRemoveOps`, `internal/component/bgp/reactor/filter_delta.go`; `appendMEDRemove`, `internal/component/bgp/plugins/filter_modify/filter_modify.go` | `{gap}` retired; the leaf is `med-remove` |
+| `RFC4271-5.1.4-2` removal MUST precede Decision Process phases 1 and 2 | Done | the ingress call site, `runIngressPolicyChain`, `internal/component/bgp/reactor/filter_ordered.go` | `{not-applicable}` retired; the rewritten payload replaces the WireUpdate before dispatch |
+| `RFC4271-9.1.2.2-2` restricted MED comparison when MED is removed before IBGP readvertisement | Changed | `rfc/short/rfc4271.md`, the disposition text | Still `{not-applicable}`, on a NEW ground: the condition never holds because every removal ze performs happens BEFORE the comparison. **This classification is an OPEN QUESTION for the owner** (`ai/rules/rfc-compliance.md`): a classification that lowers what Ze owes is his to make. It was not changed by this closure and it is not settled by it |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestForwardSuppressesReceivedMEDToAnotherAS`, `test/plugin/med-not-propagated-across-as.ci`, `test/interop/scenarios/60-med-across-as-gobgp/` | |
+| AC-2 | Done | `TestForwardWritesLocallySetMED`, `test/plugin/med-locally-set-reaches-peer.ci` | |
+| AC-3 | Done | `TestForwardKeepsFilterSetMED` | accumulator Set and policy-chain override |
+| AC-4 | Done | `TestForwardSuppressesReceivedMEDToAnotherAS`, subtest `internal-destination-keeps-it` | |
+| AC-5 | Done | `TestMEDRemovalMechanismIsConfigurable`, `TestParseModifyDefsMEDRemove`, `TestMEDRemoveNeedsAMetricToRemove`, `TestMEDRemoveObeysTheChainOrder`, `test/plugin/med-removal-configured.ci`, `test/parse/modify-config.ci`, `test/interop/scenarios/61-med-remove-configured-gobgp/` | |
+| AC-6 | Done | `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci`, `TestHandleFilterUpdateMEDRemoveIsImportOnly` | |
+| AC-7 | Changed | the re-derived `RFC4271-9.1.2.2-2` disposition | see the Requirements row above: the classification is open with the owner |
+| AC-8 | Done | one rule, both rails; the peer-up replay reaches `forwardUpdateCore` through `RelayStoredRoute` (`TestRelayStoredRouteForwardsThroughForwardRail`) | |
+| AC-9 | Done | `TestForwardMEDStaysOffRebuildPathWhenUnchanged` | |
+| AC-10 | Done | `forward_local_pref_test.go` and `test/plugin/local-pref-strip-ebgp.ci` still green | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestForwardSuppressesReceivedMEDToAnotherAS` | Done | `internal/component/bgp/reactor/forward_med_test.go` | boundary cases 0 and 2^32-1 |
+| `TestForwardWritesLocallySetMED` | Done | same | |
+| `TestForwardKeepsFilterSetMED` | Done | same | |
+| `TestForwardKeepsMEDWithinAS` | Changed | same | folded into `TestForwardSuppressesReceivedMEDToAnotherAS`'s `internal-destination-keeps-it` subtest, so one UPDATE carries both polarities |
+| `TestMEDRemovalMechanismIsConfigurable` | Done | same | |
+| `TestForwardMEDStaysOffRebuildPathWhenUnchanged` | Done | same | |
+| `TestLocalPrefSuppressionUnchanged` | Done | `forward_local_pref_test.go` | pre-existing, still green |
+| the three `.ci` | Done | `test/plugin/med-not-propagated-across-as.ci`, `med-locally-set-reaches-peer.ci`, `med-removal-configured.ci` | plus `med-removal-before-decision.ci`, which the plan did not name |
+| interop | Done | `test/interop/scenarios/60-med-across-as-gobgp/` | GoBGP as the witness, FRR as the second receiver |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| a sibling beside `forward_local_pref.go` | Done | `internal/component/bgp/reactor/forward_med.go` |
+| `internal/component/bgp/reactor/peer_rib_routes.go` | Changed | not modified; see Deviations |
+| `internal/component/bgp/reactor/reactor_wire.go` | Changed | not modified; see Deviations |
+| `rfc/short/rfc4271.md` | Done | committed with `f9b42734e` |
+| `docs/features/rfc-status.md` | Done | committed with `f9b42734e` |
+
+### Audit Summary
+- **Total items:** 28
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 (two encoders not needed, one unit test folded, one AC and one
+  requirement whose disposition is open with the owner)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A MULTI_EXIT_DISC received from one neighboring AS does not reach another | interop | `test/interop/scenarios/60-med-across-as-gobgp/` PASS: GoBGP shows no Med on the three relayed prefixes. Discrimination measured: with `applyFactsMED`'s `mods.Op` removed, GoBGP printed `{Med: 100}` on all three and FRR printed Metric 100 |
+| A metric ze itself sets still reaches the peer | interop + functional | the same scenario shows `{Med: 42}` on the prefix ze originates; `test/plugin/med-locally-set-reaches-peer.ci` |
+| The RS-client exemption survives the strip | functional | `test/plugin/med-not-propagated-across-as.ci`: one UPDATE, an rs-client receiver keeping the metric byte-identical and a plain eBGP receiver losing it |
+| An operator can remove MULTI_EXIT_DISC from a route by configuration | functional + interop | `test/plugin/med-removal-configured.ci`, byte-exact: the receiver is an RS CLIENT, which the automatic strip deliberately spares, so only the configured removal can explain the absence. `test/interop/scenarios/61-med-remove-configured-gobgp/` PASS: GoBGP is an INTERNAL peer, where the automatic rule never fires, and of two routes on one session the one the policy names arrives with no Med while the one it does not keeps Med 100 |
+| The mechanism is refused where the RFC forbids it | functional | `test/plugin/med-removal-export-refused.ci`: the same definition on an EXPORT chain leaves the metric on the wire and logs why. Mutation-measured: with the direction guard removed from `appendMEDRemove`, `TestHandleFilterUpdateMEDRemoveIsImportOnly/export_refused` and `/export_keeps_the_rest` both go red, which is the same producer the `.ci` rejects `delta=med-remove` for |
+| The removal happens before the decision process weighs the route | functional | `test/plugin/med-removal-before-decision.ci`: the stored Adj-RIB-In `attr-hex` holds no MULTI_EXIT_DISC attribute |
+| The fast path is preserved | unit | `TestForwardMEDStaysOffRebuildPathWhenUnchanged`: `buildModifiedPayload` returns nil, so the route stays zero-copy |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| MED comparison rules of the decision process beyond `RFC4271-9.1.2.2-2` (Known Limitations) | cancelled | The spec's own Known Limitations put this outside what it governs, and no obligation is left unproven by it: `RFC4271-9.1.2.2-1` and `RFC4271-9.1.2.2-3` both carry real dispositions in `rfc/short/rfc4271.md`. The row's destination named this spec, which closes here, so it is cancelled rather than re-homed |
+| `RFC4271-5.1.4-4` plus `5.1.4-2` and `9.1.2.2-2`, `med-removal-configured.ci` and the interop scenario (phases 4 to 7) | done | 5.1.4-4 and 5.1.4-2 carry tagged proof; `test/plugin/med-removal-configured.ci` and `test/interop/scenarios/60-med-across-as-gobgp/` exist and pass. `9.1.2.2-2` keeps a `{not-applicable}` on a re-derived ground, which is the open question carried to the owner |
+
+The shard holds no live row after this closure. It is COMMITTED rather than removed: `deferral_shard_removal_problems` reads the shard as HEAD holds it, so a removal in the same commit that resolves the rows is refused, and a shard outliving its source spec with terminal rows is the recorded end state.
+
 ## Review Gate
 
-### Run 1
-| Severity | Finding | Location | Fixed by |
-|----------|---------|----------|----------|
-| | | | |
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc4271-med-across-as-ca112cd4-8337-4992-b4e1-e0d7bbff5820.md`, 29 files hash-pinned |
+| `review_gate.py check` | clean |
+| Rounds | 3. Round 1 ran two lenses in parallel and found five ISSUEs; round 2 judged the fixes and found one more, a real product defect; round 3 judged that fix and found none |
+| Reviewer lenses used | wiring + logic + removed-behaviour + RFC conformance (lens A); test discrimination + functional coverage + security/allocation + doc drift (lens B); round 2 and round 3 over the fixes only |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The configured removal recorded a suppression for a route carrying no metric, so every such route on a `med-remove` import chain took the payload-rebuild path for a byte that is not there. Its sibling `applyFactsMED` refuses the same cost | `ExtractMEDRemoveOps`, `internal/component/bgp/reactor/filter_delta.go` | `medRemoveHasWork` in the same file, asked by both call sites. Mutation-measured: removing either arm turns `TestMEDRemoveNeedsAMetricToRemove` red |
+| 2 | ISSUE | A `med-remove` from any filter beat a `med N` from a LATER filter in the same chain: the directive was converted after `textDeltaToModOps` and `filterapi.LastSetOrSuppress` is last-wins, so the operator's second filter was silently discarded | `runIngressPolicyChain`, `internal/component/bgp/reactor/filter_ordered.go` | `filterAttrs.clear` and the trailing rule in `filterAttrs.merge` (`filter_chain.go`): a delta that SETS the metric cancels an earlier removal, so the CHAIN's order decides. `TestMEDRemoveObeysTheChainOrder` covers both orders |
+| 3 | ISSUE | `ze bgp policy dry-run` told the operator the metric survives an import policy that removes it, and would have promised a removal on an export chain | `computeWireChanges`, `internal/component/bgp/reactor/policy_dryrun.go` | the function takes the validated `direction` and converts the directive on import alone. `TestComputeWireChangesAS4Path/med_remove_is_reported_on_import_and_not_on_export` |
+| 4 | ISSUE | No interop scenario covered the configured mechanism. `ai/rules/interop-and-goal-validation.md` puts policy in the required set, and scenario 60 proves the automatic rule only | `test/interop/scenarios/` | `test/interop/scenarios/61-med-remove-configured-gobgp/`: GoBGP as an INTERNAL peer, where the automatic rule never fires, and two routes on one session told apart by the policy's match container |
+| 5 | ISSUE | The export refusal was user-visible behaviour proven only by a unit row | `appendMEDRemove`, `internal/component/bgp/plugins/filter_modify/filter_modify.go` | `test/plugin/med-removal-export-refused.ci`. Mutation-measured on the same producer: dropping the direction guard turns `TestHandleFilterUpdateMEDRemoveIsImportOnly/export_refused` and `/export_keeps_the_rest` red, which is the `delta=med-remove` line the `.ci` rejects |
+| 6 | ISSUE | The first fix for finding 1 read the metric from the filter TEXT, and the text never names MULTI_EXIT_DISC, so it refused every removal. Its replacement then read the wire ALONE, which misses a metric a filter earlier in the same chain set | `medRemoveHasWork`, `internal/component/bgp/reactor/filter_delta.go` | the gate reads both. The text half was caught by scenario 61 going red while every unit test stayed green (Mistake Log); the wire-only half by round 2, and it has a subtest that drives the ordered chain on a metric-less payload |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/forward_med.go` | Yes | `ls -la` 7.7K |
+| `internal/component/bgp/reactor/forward_med_test.go` | Yes | `ls -la` 20K |
+| `test/plugin/med-not-propagated-across-as.ci` | Yes | `ls -la` 6.1K |
+| `test/plugin/med-locally-set-reaches-peer.ci` | Yes | `ls -la` 2.9K |
+| `test/plugin/med-removal-configured.ci` | Yes | `ls -la` 5.6K |
+| `test/plugin/med-removal-before-decision.ci` | Yes | `ls -la` 6.4K |
+| `test/plugin/med-removal-export-refused.ci` | Yes | `make ze-plugin-test` ran it as index 326, PASS |
+| `test/interop/scenarios/60-med-across-as-gobgp/` | Yes | `ls -la` 7 files: ze.conf, inject.msg, inject-args, gobgp.toml, frr.conf, announce.py, check.py |
+| `test/interop/scenarios/61-med-remove-configured-gobgp/` | Yes | 5 files: ze.conf, gobgp.toml, inject.msg, inject-args, check.py. `make ze-interop-test INTEROP_SCENARIO=61-med-remove-configured-gobgp` PASS |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | a received MED is suppressed toward another AS | `grep -rn "RFC4271-5.1.4-1" internal test` names `forward_med_test.go` five times and `test/plugin/med-not-propagated-across-as.ci` twice, both polarities |
+| AC-5 | the removal is configurable | the same grep for `RFC4271-5.1.4-4` names `filter_modify/modify_test.go` (`TestParseModifyDefsMEDRemove`), `forward_med_test.go` (`TestMEDRemovalMechanismIsConfigurable`) and `test/plugin/med-removal-configured.ci` |
+| AC-6 | the removal precedes phases 1 and 2 | the same grep for `RFC4271-5.1.4-2` names `forward_med_test.go`, `filter_modify/modify_test.go` (`TestHandleFilterUpdateMEDRemoveIsImportOnly`) and `test/plugin/med-removal-before-decision.ci` |
+| AC-9 | the fast path is preserved | `TestForwardMEDStaysOffRebuildPathWhenUnchanged` asserts `buildModifiedPayload` returns nil |
+| AC-10 | LOCAL_PREF unchanged | `git diff --stat -- internal/component/bgp/reactor/forward_local_pref.go` is empty |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Route from AS X readvertised to AS Y | `test/plugin/med-not-propagated-across-as.ci` | Yes. One source frame, two external receivers told apart by `rs-client`, byte-exact expectations on both |
+| Ze's own MED toward a peer | `test/plugin/med-locally-set-reaches-peer.ci` | Yes. The announce rail, byte-exact |
+| Operator configures MED removal | `test/plugin/med-removal-configured.ci` | Yes. `modify DROP-MED { set { med-remove true } }` on the source peer's IMPORT chain; the receiver is an rs-client, so the automatic strip cannot explain the absence |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | both rails relay another speaker's UPDATE, so a MED in the source payload is received by construction; a locally-set one arrives as an accumulator Set or as the export chain's wire override |
+| A-2 | broken (not needed) | `forwardSourceInfo` carries `isIBGP` and no source AS. The destination test is "external and not an RS client", which is conformant, so nothing was threaded upstream. Mistake Log row above |
+| A-3 | confirmed | `mods.Op(4, filterapi.AttrModSuppress, nil)`, applied by `genericAttrSetHandler` |
+| A-4 | confirmed | `forward_dedup_test.go` uses MED as its base-identity needle, and its destinations are iBGP (`LocalAS == PeerAS == 65000`), so no fixture pinned the leak |
+| A-5 | confirmed | `medPropagationAllowedTo` gates on `facts.rsClient`; `RFC7947-x-3` keeps both polarities |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax (`docs/guide/configuration.md`, the `med-remove` row) | the leaf exists in `yang/ze-filter-modify.yang` as `type boolean; default "false"`, and `setBlockAllowedKeys` accepts it (`filter_modify/config.go`) | Yes |
+| Plugin guide (`docs/guide/plugins.md`, the `med-remove` paragraph) | the import-only claim is produced by `appendMEDRemove` (`filter_modify/filter_modify.go`) and by the single ingress call site (`filter_ordered.go`); the mutual exclusion is produced by `validateNoConflict` (`filter_modify/config.go`) | Yes |
+| Internal architecture (`docs/architecture/bgp/egress-attribute-rules.md`) | the "not on this rail" claim is produced by the absence of an export-side `ExtractMEDRemoveOps` call; `grep -rn "ExtractMEDRemoveOps" internal` returns the definition and one call site | Yes |
+| RFC compliance (`docs/features/rfc-status.md`) | already committed with `f9b42734e`; the row's MED prose cites `applyFactsMED`, `ExtractMEDRemoveOps` and `appendMEDRemove`, and this commit is what puts the last two in the tree | Yes |
+| CLI / API / plugin SDK / wire format / comparison table | no handler, RPC, SDK type or wire encoding changed; the directive travels in the existing filter text | N-A |
+
+## Core Insight
+
+A conformance boundary can live in an OMISSION. What keeps ze on the right side
+of RFC 4271 Section 9.1.2.2 is not a guard that rejects: it is that
+`ExtractMEDRemoveOps` has one call site and the export converter does not know
+the directive. `appendMEDRemove`'s refusal is the operator-facing half and can be
+deleted without changing a byte on the wire. A future change that unifies the
+ingress and egress converters would remove the obligation without touching
+anything that looks like a check, and the tests that would catch it are
+`TestHandleFilterUpdateMEDRemoveIsImportOnly` and the zero-op assertion inside
+`TestMEDRemovalMechanismIsConfigurable`.

@@ -58,13 +58,53 @@ route-server fast path exists to avoid. Both predicates also read the attribute
 SECTION rather than the payload bytes, so a prefix holding the byte 0x04 or
 0x05 in its NLRI is never mistaken for an attribute.
 
+## The third trigger, and why it is not on this rail
+
+RFC 4271 Section 5.1.4 asks for one more thing: "A BGP speaker MUST implement a
+mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
+attribute to be removed from a route." That mechanism is the `med-remove`
+directive of a modify policy (`docs/guide/plugins.md`), and it emits the SAME
+`filterapi.AttrModSuppress` on attribute 4 that `applyFactsMED` emits. One
+suppression, two reasons to trigger it: a rule ze derives, and a removal an
+operator asked for.
+
+It does not run on this rail. `ExtractMEDRemoveOps`
+(`internal/component/bgp/reactor/filter_delta.go`) is called from the INGRESS
+site alone (`filter_ordered.go`), because the same section requires the removal
+to happen "prior to determining the degree of preference of the route and prior
+to performing route selection (Decision Process phases 1 and 2)". The import
+chain's rewritten payload replaces the WireUpdate before the UPDATE is cached
+and dispatched (`reactor_notify.go`), so the route reaches the RIB plugin with
+no metric at all, and every egress rail then has nothing to suppress.
+
+An export-side removal would be a different defect rather than a second option.
+RFC 4271 Section 9.1.2.2: "Including the MULTI_EXIT_DISC of an EBGP-learned
+route in the comparison with an IBGP-learned route, then removing the
+MULTI_EXIT_DISC attribute, and advertising the route has been proven to cause
+route loops."
+
 ## Proof
 
-| Rule | Unit | Functional |
-|------|------|-----------|
-| LOCAL_PREF | `forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` |
-| MULTI_EXIT_DISC | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` |
+| Rule | Unit | Functional | Interop |
+|------|------|-----------|---------|
+| LOCAL_PREF | `forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` | `test/interop/scenarios/54-local-pref-strip-gobgp/` |
+| MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/60-med-across-as-gobgp/` |
+| MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_delta_test.go`, `filter_modify/modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/61-med-remove-configured-gobgp/` |
 
 Each functional test carries its confining negative in the same run: one
 UPDATE, several destinations, opposite transforms, so neither half can pass by
-accident.
+accident. Both interop scenarios carry the same pair against a foreign RIB.
+Scenario 60: the relayed metric is gone from GoBGP's view and ze's own metric is
+in it. Scenario 61: the destination is INTERNAL, so the automatic rule never
+fires there, and of two routes on one session the one the policy names arrives
+with no metric while the one it does not keeps 100.
+
+The configured removal's gate reads the WIRE rather than the filter text.
+`appendSingleAttr` (`internal/component/bgp/reactor/filter_format.go`) switches
+on `*attribute.MED` while the parser builds the value form `attribute.MED`, so
+`med` never reaches the text a filter is handed. `medPresentOnWire`
+(`internal/component/bgp/reactor/filter_delta.go`) is where that is answered, and
+scenario 61 is what measured it.
+
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- medPresentOnWire, ExtractMEDRemoveOps -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs.merge, the chain order between med and med-remove -->

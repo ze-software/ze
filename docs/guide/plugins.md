@@ -76,7 +76,7 @@ plugin {
     internal rib { ... }       # <-- this name
 }
 peer transit-a {
-    process rib { ... }        # <-- must match
+    attach process rib { ... }        # <-- must match
 }
 ```
 
@@ -85,12 +85,12 @@ Plugins receive BGP events through process bindings on each peer:
 ```
 peer transit-a {
     ...
-    process rib {
-        receive [ state ]
+    attach process rib {
+        receive [ update state refresh ]
         send [ update ]
     }
-    process adj-rib-in {
-        receive [ update state ]
+    attach process adj-rib-in {
+        receive [ update-received state ]
     }
 }
 ```
@@ -150,11 +150,33 @@ byte-compatible with earlier releases.
 ### Directions
 
 ```
-process my-plugin {
-    receive [ update ]        # events FROM the peer
-    send [ update ]           # ability to send TO the peer
+attach process my-plugin {
+    receive [ update-received ]   # UPDATEs the peer sends to ze
+    send [ update ]               # permission to announce toward the peer
 }
 ```
+
+`receive` names an event type and the direction it is fed in. A plain type means
+both directions, so `receive [ update ]` feeds the program the UPDATEs ze sends
+as well as the ones it gets. `send` carries no direction, because every send type
+is sent.
+
+### Reading the delivery graph
+
+`show event delivery` prints the peer-to-process edges the running config
+produces: one block per peer, one row per `attach process` block on it, with the
+event types that process is fed and the message types it may send toward that
+peer. A peer with no `attach process` block shows no process.
+
+The daemon builds this from the RESOLVED settings of each peer, so a block a
+peer inherits from its group is shown on the peer. A token the event registry
+does not know is listed under `unresolved` and carries no edge, which is what an
+operator sees when a custom event type names a plugin that did not load.
+
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
+
 
 ## Invocation Modes
 
@@ -178,11 +200,11 @@ ze --plugins
 
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
-| `bgp-rib` | Route Information Base | `receive [ state ] send [ update ]` |
-| `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update state ]` |
-| `bgp-persist` | Route persistence across restarts | `receive [ update state ] send [ update ]` |
-| `bgp-rs` | Route server (forward-all) | `receive [ update ] send [ update ]` |
-| `bgp-watchdog` | Deferred route announcement | `receive [ update ]` |
+| `bgp-rib` | Route Information Base | `receive [ update state refresh ] send [ update ]` |
+| `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update-received state ]` |
+| `bgp-persist` | Route persistence across restarts | `receive [ update-sent state open-received ] send [ update ]` |
+| `bgp-rs` | Route server (forward-all) | `receive [ update-received state open-received refresh ] send [ update ]` |
+| `bgp-watchdog` | Deferred route announcement | `receive [ state ] send [ update ]` |
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in registration -->
 <!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist registration -->
@@ -193,15 +215,15 @@ ze --plugins
 
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
-| `bgp-gr` | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) | `receive [ state eor ]` |
-| `bgp-rpki` | RPKI origin validation (RFC 6811) | `receive [ update ]` |
-| `bgp-rpki-decorator` | Merged UPDATE+RPKI events | `receive [ update rpki ]` |
-| `bgp-route-refresh` | Route Refresh (RFC 2918) | `receive [ refresh ]` |
+| `bgp-gr` | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) | `receive [ open-received state eor ] send [ update ]` |
+| `bgp-rpki` | RPKI origin validation (RFC 6811) | `receive [ update-received ]` |
+| `bgp-rpki-decorator` | Merged UPDATE+RPKI events | `receive [ update-received rpki ]` |
+| `bgp-route-refresh` | Route Refresh (RFC 2918) | `send [ refresh ]` |
 | `bgp-role` | BGP Role (RFC 9234) | -- |
 | `bgp-hostname` | FQDN capability | -- |
 | `bgp-softver` | Software version capability | -- |
 | `bgp-llnh` | Link-local next-hop (RFC 2545) | -- |
-| `bgp-bmp` | BMP receiver + sender (RFC 7854) | `receive [ state update ]` |
+| `bgp-bmp` | BMP receiver + sender (RFC 7854) | `receive [ state update open notification keepalive refresh ]` |
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
 <!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
@@ -490,6 +512,19 @@ Set and increment/decrement for the same attribute are mutually exclusive.
 individual community values (standard, large, extended) without replacing the
 entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.
 
+**MED removal**: `set { med-remove true; }`. Removes MULTI_EXIT_DISC (RFC 4271
+type 4) from the route. This is the mechanism RFC 4271 Section 5.1.4 requires a
+speaker to implement, so it is honored on an **import** chain only: that section
+also requires the removal to happen before the route reaches Decision Process
+phases 1 and 2, and the import chain is the only chain that runs there. On an
+export chain the directive is refused and logged, because RFC 4271 Section
+9.1.2.2 states that comparing on a MULTI_EXIT_DISC and then advertising the
+route without it causes route loops. Mutually exclusive with `set med`,
+`increment med` and `decrement med`. A metric received from one neighboring AS
+is already kept off a session toward another with no configuration at all
+(Section 5.1.4); this leaf is for the operator who wants the metric gone from
+the route itself.
+
 **Match** (the condition the operations apply under): `match { community [
 65535:666 ]; large-community [ 65001:100:200 ]; extended-community [
 target:65001:1 ]; }`. The three leaf-lists hold alternatives, so any one value
@@ -511,7 +546,9 @@ Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
 
 ### AS-Path Length Filter (`bgp-filter-aspath-length`)
 

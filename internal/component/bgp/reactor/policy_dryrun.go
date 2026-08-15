@@ -3,6 +3,7 @@
 // Related: filter_chain.go -- PolicyFilterChain (runtime execution)
 // Related: filter_format.go -- AppendUpdateForFilter (text rendering)
 // Related: filter_delta.go -- textDeltaToModOps (wire diff extraction)
+// RFC: rfc/short/rfc4271.md -- Section 5.1.4, the direction the med-remove directive is honored on
 
 package reactor
 
@@ -195,7 +196,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		beforeAttrs := parseFilterAttrs(textBefore)
 		afterAttrs := parseFilterAttrs(textAfter)
 		changedAttrs = computeChangedAttrs(beforeAttrs, afterAttrs)
-		wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, asn4, peerAS, localAS)
+		wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, direction, asn4, peerAS, localAS)
 	}
 
 	return &plugin.PolicyDryRunResult{
@@ -222,11 +223,20 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 // reports the operations as "<ATTRIBUTE> <verb>" strings. beforeAttrs and
 // afterAttrs are the caller's single parseFilterAttrs results, shared
 // read-only with computeChangedAttrs.
-func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
+//
+// direction is here because one of those operations is direction-dependent:
+// RFC 4271 Section 5.1.4's med-remove directive is converted on the import
+// chain alone (ExtractMEDRemoveOps, filter_delta.go). Reporting it on an export
+// dry-run would promise a removal the runtime does not perform, and omitting it
+// on an import one tells the operator the metric survives.
+func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, direction string, asn4 bool, peerAS, localAS uint32) []string {
 	var mods filterapi.ModAccumulator
 	textDeltaToModOps(beforeAttrs, afterAttrs, &mods)
 	ExtractRemovePrivateASOps(afterAttrs, attrs, asn4, peerAS, &mods)
 	ExtractASPathPrependOps(afterAttrs, localAS, &mods)
+	if direction == directionImport && medRemoveHasWork(afterAttrs, attrs) {
+		ExtractMEDRemoveOps(afterAttrs, &mods)
+	}
 
 	ops := mods.Ops()
 	if len(ops) == 0 {

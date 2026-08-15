@@ -47,6 +47,7 @@ const (
 	faLargeCommunityRemove
 	faExtendedCommunityAdd
 	faExtendedCommunityRemove
+	faMEDRemove
 	faASPathPrepend
 	faRemovePrivate
 	faNLRI
@@ -63,6 +64,7 @@ var filterAttrNames = [faCount]string{
 	faCommunityAdd: "community-add", faCommunityRemove: "community-remove",
 	faLargeCommunityAdd: "large-community-add", faLargeCommunityRemove: "large-community-remove",
 	faExtendedCommunityAdd: "extended-community-add", faExtendedCommunityRemove: "extended-community-remove",
+	faMEDRemove:     policyAttrMEDRemove,
 	faASPathPrepend: "as-path-prepend", faRemovePrivate: policyAttrRemovePrivate,
 	faNLRI: "nlri",
 }
@@ -98,11 +100,34 @@ func (a *filterAttrs) has(id filterAttrID) bool {
 	return a.present&(1<<id) != 0
 }
 
+func (a *filterAttrs) clear(id filterAttrID) {
+	a.present &^= 1 << id
+	a.values[id] = ""
+}
+
 func (a *filterAttrs) merge(delta *filterAttrs) {
 	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
 		if delta.has(id) {
 			a.set(id, delta.values[id])
 		}
+	}
+	// med-remove and med are opposite instructions about attribute 4, and the
+	// ORDER of the chain is what decides between them. The merged text holds one
+	// slot per attribute and cannot carry that order, so a filter that SETS the
+	// metric cancels a removal an earlier filter in the same chain asked for.
+	//
+	// The reverse needs no clearing and must not have any: a med-remove AFTER a
+	// set already wins, because ExtractMEDRemoveOps records its Suppress after
+	// textDeltaToModOps has recorded the Set and filterapi.LastSetOrSuppress is
+	// last-wins. That is why medRemoveHasWork (filter_delta.go) counts a metric
+	// this map holds as work to do: on a route that arrived without one, the
+	// Set is the only reason there is anything to suppress. Clearing the med
+	// slot here would silently lose that Set instead, because
+	// textDeltaToModOps records nothing for an attribute absent from BOTH maps
+	// and the original text never carries med (appendSingleAttr,
+	// filter_format.go).
+	if delta.has(faMED) {
+		a.clear(faMEDRemove)
 	}
 }
 
@@ -289,7 +314,11 @@ func parseFilterAttrs(text string) *filterAttrs {
 			continue
 		}
 
-		if name == policyAttrAtomicAggregate {
+		// Valueless tokens. ATOMIC_AGGREGATE is an attribute whose wire value is
+		// zero-length; med-remove is a directive that names an action and needs
+		// no operand. Both are recorded as present with an empty value, so the
+		// loop below does not consume the token that follows them.
+		if name == policyAttrAtomicAggregate || name == policyAttrMEDRemove {
 			attrs.set(id, "")
 			continue
 		}
@@ -319,7 +348,7 @@ func isPolicyAttrName(s string) bool {
 	case "origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
 		"cluster-list", "extended-community", "aigp", "large-community", "nlri",
-		"as-path-prepend", policyAttrRemovePrivate,
+		"as-path-prepend", policyAttrRemovePrivate, policyAttrMEDRemove,
 		"community-add", "community-remove",
 		"large-community-add", "large-community-remove",
 		"extended-community-add", "extended-community-remove":
@@ -337,6 +366,7 @@ var formatFilterAttrsOrder = [...]filterAttrID{
 	faCommunityAdd, faCommunityRemove,
 	faLargeCommunityAdd, faLargeCommunityRemove,
 	faExtendedCommunityAdd, faExtendedCommunityRemove,
+	faMEDRemove,
 	faASPathPrepend, faRemovePrivate, faNLRI,
 }
 
@@ -356,7 +386,7 @@ func formatFilterAttrs(attrs *filterAttrs) string {
 		switch id {
 		case faNLRI:
 			buf = append(buf, val...)
-		case faAtomicAggregate:
+		case faAtomicAggregate, faMEDRemove:
 			buf = append(buf, name...)
 		default:
 			buf = append(buf, name...)

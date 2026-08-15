@@ -200,7 +200,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	}
 	if res.Text != updateText {
 		// Wire-level dirty tracking: convert text delta to wire attribute
-		// modifications. Parse each filter text exactly once; the three extractors
+		// modifications. Parse each filter text exactly once; the extractors
 		// share the maps read-only (spec filter-delta-parse-once).
 		var importMods filterapi.ModAccumulator
 		origAttrs := parseFilterAttrs(updateText)
@@ -210,6 +210,13 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		srcASN4 := srcCtx != nil && srcCtx.ASN4()
 		ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, peerAS, &importMods)
 		ExtractASPathPrependOps(modAttrs, peer.settings.LocalAS, &importMods)
+		// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
+		// converts the directive. The rewritten payload below replaces the
+		// WireUpdate before the RIB plugin runs Decision Process phases 1 and 2,
+		// which is the ordering that section requires of a removal.
+		if medRemoveHasWork(modAttrs, attrsWire) {
+			ExtractMEDRemoveOps(modAttrs, &importMods)
+		}
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 		if importMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)

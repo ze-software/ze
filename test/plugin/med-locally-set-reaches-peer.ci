@@ -1,0 +1,88 @@
+# med-locally-set-reaches-peer -- a MULTI_EXIT_DISC ze originates reaches an
+# EXTERNAL peer. Section 5.1.4 governs a received value, and nothing else.
+#
+# RFC requirement: RFC4271-5.1.4-1 negative -- the MUST NOT covers "the MULTI_EXIT_DISC
+# attribute received from a neighboring AS", so a metric ze sets toward a peer in AS 65001 is
+# written to that peer's wire under an 80 04 04 header. Discriminating a received metric from an
+# originated one is what makes the positive in med-not-propagated-across-as.ci a rule rather
+# than a blanket strip: a suppression of attribute 4 on every external session would satisfy
+# that file and fail this one.
+#
+# The route is ORIGINATED here, so it takes the announce rail (writeAnnounceUpdate,
+# reactor/reactor_wire.go) rather than the forward transform. That is the point: the two rails
+# must disagree about a received metric and agree about an originated one, and no functional
+# test pinned the originated half toward an external peer. attributes.ci carries the same
+# announce over an INTERNAL session (local 1, remote 1), where Section 5.1.4 asks nothing.
+#
+# No local-preference in the announce: this session is external and RFC 4271 Section 5.1.5 keeps
+# LOCAL_PREF off it, so asking for one would pin the sibling's behavior rather than this one's.
+
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32
+#   ORIGIN:    40010100            IGP
+#   AS_PATH:   40020602010000FDE8  AS_SEQUENCE[65000], the local AS prepended (Section 5.1.2)
+#   NEXT_HOP:  40030465016501      101.1.101.1
+#   MED:       80040400000064      100 -- the attribute this file exists for
+#   NLRI:      2001000001          1.0.0.1/32
+# attr len = 4+9+7+7 = 27 = 0x1B; total = 19+2+2+27+5 = 55 = 0x37.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE840030465016501800404000000642001000001
+EOF_PEER
+
+tmpfs=med-local.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+    send('peer * update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32')
+    wait_for_ack(expected_count=1)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external med-local {
+		run ./med-local.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process med-local {
+			send update
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

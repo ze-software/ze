@@ -22,6 +22,7 @@ const (
 	policyAttrASPath        = "as-path"
 	policyAttrASPathPrepend = "as-path-prepend"
 	policyAttrRemovePrivate = "remove-private"
+	policyAttrMEDRemove     = "med-remove"
 	removePrivateASStrip    = "strip"
 	removePrivateASPeerAS   = "peer-as"
 )
@@ -203,7 +204,11 @@ func textDeltaToModOps(origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccu
 	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
 		name := filterAttrNames[id]
 
-		if id == faNLRI || id == faASPath || id == faASPathPrepend || id == faRemovePrivate {
+		// Directives with their own extractor, and the two attributes the wire
+		// layer owns. med-remove is here rather than in the loop because it is
+		// honored on the INGRESS chain alone: see ExtractMEDRemoveOps.
+		if id == faNLRI || id == faASPath || id == faASPathPrepend ||
+			id == faRemovePrivate || id == faMEDRemove {
 			continue
 		}
 
@@ -256,6 +261,87 @@ func textDeltaToModOps(origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccu
 			mods.Op(byte(code), filterapi.AttrModSet, nil)
 		}
 	}
+}
+
+// ExtractMEDRemoveOps converts the `med-remove` directive an import filter
+// wrote into its delta text, and it is the mechanism RFC 4271 Section 5.1.4
+// requires: "A BGP speaker MUST implement a mechanism (based on local
+// configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a
+// route."
+//
+// ONE SUPPRESSION, TWO REASONS TO TRIGGER IT. The op is the same
+// filterapi.AttrModSuppress on attribute 4 that applyFactsMED
+// (forward_med.go) records for the propagation rule, applied by the same
+// handler (genericAttrSetHandler, filter_delta_handlers.go), so the configured
+// mechanism and the propagation rule cannot disagree about what a suppression
+// of MULTI_EXIT_DISC does to the wire.
+//
+// INGRESS ONLY, AND THAT IS A CONFORMANCE BOUNDARY RATHER THAN A LIMITATION.
+// Section 5.1.4 continues: "If a BGP speaker is configured to remove the
+// MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior
+// to determining the degree of preference of the route and prior to performing
+// route selection (Decision Process phases 1 and 2)." The import chain's
+// rewritten payload replaces the WireUpdate before the UPDATE is dispatched to
+// the RIB plugin that runs those phases (filter_ordered.go), so removing here
+// satisfies that ordering for every route.
+//
+// An EXPORT-side removal would break a different requirement. RFC 4271 Section
+// 9.1.2.2: "If an implementation chooses to remove MULTI_EXIT_DISC, then the
+// optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only
+// among EBGP-learned routes ... Including the MULTI_EXIT_DISC of an EBGP-learned
+// route in the comparison with an IBGP-learned route, then removing the
+// MULTI_EXIT_DISC attribute, and advertising the route has been proven to cause
+// route loops." A removal on the way out to an internal peer is exactly that
+// shape, because the decision process has already compared the value. Removing
+// on the way in cannot be: there is no value left to compare.
+//
+// So this extractor is called from the import site alone (filter_ordered.go),
+// and the export site never converts the directive. bgp-filter-modify refuses
+// to emit it on an export chain and says so (filter_modify/filter_modify.go),
+// which is the operator-facing half; this omission is the half that binds.
+//
+// A ROUTE WITH NOTHING TO REMOVE IS LEFT ALONE, and both callers ask
+// medRemoveHasWork before calling this. Recording the suppression anyway would
+// send every such route through buildModifiedPayload for a byte that is not
+// there, which is the cost applyFactsMED (forward_med.go) refuses in the same
+// words.
+func ExtractMEDRemoveOps(modAttrs *filterAttrs, mods *filterapi.ModAccumulator) {
+	if !modAttrs.has(faMEDRemove) {
+		return
+	}
+	mods.Op(byte(attribute.AttrMED), filterapi.AttrModSuppress, nil)
+}
+
+// medRemoveHasWork reports whether a med-remove directive has a metric to take
+// off the route. There are two ways one can be there, and both count.
+//
+// THE ROUTE ARRIVED WITH IT, which only the WIRE can answer. appendSingleAttr
+// (filter_format.go) switches on *attribute.MED while knownAttrParsers builds
+// the value form attribute.MED (core/bgp/attribute/wire.go, simple.go), so the
+// case never matches and `med` never reaches the text a filter is given.
+// Reading modAttrs alone makes the removal silently do nothing, measured
+// against GoBGP on 2026-08-15
+// (test/interop/scenarios/61-med-remove-configured-gobgp).
+//
+// A FILTER EARLIER IN THE SAME CHAIN SET IT, which only the TEXT can answer.
+// `filter import [ modify:SET-MED modify:DROP-MED ]` is legal config --
+// validateNoConflict (filter_modify/config.go) refuses the pair inside ONE
+// definition, not across a chain -- and textDeltaToModOps records that Set, so
+// without this arm the operator's second filter is ignored on a route that
+// arrived with no metric.
+//
+// A nil or unreadable attribute section answers TRUE: the operator asked for a
+// removal, and a rebuild that changes no byte is a cheaper mistake than a
+// configured removal that silently does not happen.
+func medRemoveHasWork(modAttrs *filterAttrs, attrs *attribute.AttributesWire) bool {
+	if modAttrs.has(faMED) {
+		return true
+	}
+	if attrs == nil {
+		return true
+	}
+	present, err := attrs.Has(attribute.AttrMED)
+	return err != nil || present
 }
 
 type communityDirective struct {

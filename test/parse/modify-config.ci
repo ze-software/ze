@@ -28,6 +28,15 @@ bgp {
 				next-hop 10.0.0.1
 			}
 		}
+		# RFC 4271 Section 5.1.4's configured MULTI_EXIT_DISC removal. A
+		# definition whose only operation is the removal is complete: the leaf
+		# is a boolean, and the schema must accept it beside the med SETTER it
+		# is mutually exclusive with.
+		modify DROP-MED {
+			set {
+				med-remove true
+			}
+		}
 	}
 
 	peer peer1 {

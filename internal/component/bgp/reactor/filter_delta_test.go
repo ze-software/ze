@@ -1312,3 +1312,108 @@ func BenchmarkFilterModifyEgress(b *testing.B) {
 		ExtractASPathPrependOps(modAttrs, 65000, &mods)
 	}
 }
+
+// TestMEDRemoveNeedsAMetricToRemove covers the gate the two call sites of
+// ExtractMEDRemoveOps ask first: a configured removal on a route that carries no
+// metric changes no byte, so it must not force the payload rebuild. Its sibling
+// applyFactsMED (forward_med.go) refuses the same cost in the same words, and
+// the route-server fast path is what both are protecting.
+//
+// THE GATE READS BOTH THE WIRE AND THE TEXT, and this is where each half is
+// pinned. appendSingleAttr (filter_format.go) switches on *attribute.MED while
+// knownAttrParsers builds the value form attribute.MED, so `med` never reaches
+// the text a filter is given: a text-only gate reads every route as metric-less
+// and the configured removal silently stops happening, measured against GoBGP
+// on 2026-08-15. A wire-only gate fails the other way: `import [ modify:SET-MED
+// modify:DROP-MED ]` on a route that arrived WITHOUT a metric leaves the Set
+// standing, because the only metric in play is the one the chain just added.
+func TestMEDRemoveNeedsAMetricToRemove(t *testing.T) {
+	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
+	bare := buildModTestPayload(slices.Concat(s.origin, s.community), s.nlri)
+	noAttrs := parseFilterAttrs("origin igp")
+
+	require.True(t, medRemoveHasWork(noAttrs, medAttrsWire(t, s.payload)),
+		"the metric fixture carries attribute 4 on the wire")
+	require.False(t, medRemoveHasWork(noAttrs, medAttrsWire(t, bare)),
+		"the bare fixture does not")
+	assert.True(t, medRemoveHasWork(noAttrs, nil),
+		"an unreadable attribute section records the removal the operator asked for")
+	assert.True(t, medRemoveHasWork(parseFilterAttrs("origin igp med 50 med-remove"), medAttrsWire(t, bare)),
+		"a metric an earlier filter in the chain set is a metric to remove")
+
+	// The text a filter is actually handed for the metric-carrying route. It
+	// names no metric, which is why the wire half of the gate exists.
+	text := string(AppendUpdateForFilter(nil, medAttrsWire(t, s.payload), wireu.NewWireUpdate(s.payload, 0), nil))
+	assert.NotContains(t, text, "med ",
+		"the filter text omits MULTI_EXIT_DISC, so a text-only gate would refuse every removal")
+
+	var mods filterapi.ModAccumulator
+	ExtractMEDRemoveOps(parseFilterAttrs(applyFilterDelta(text, "med-remove")), &mods)
+	require.Equal(t, 1, mods.Len(), "the directive records one suppression")
+
+	var none filterapi.ModAccumulator
+	ExtractMEDRemoveOps(parseFilterAttrs(text), &none)
+	assert.Zero(t, none.Len(), "no directive, no removal")
+
+	result, _, fail := buildModifiedPayload(bare, &none, attrModHandlersWithDefaults(), nil, nil)
+	assert.Equal(t, modifyFailureNone, fail)
+	assert.Nil(t, result, "no operation means the route stays on the zero-copy path")
+}
+
+// TestMEDRemoveObeysTheChainOrder covers the two opposite instructions about
+// attribute 4 meeting in one ordered chain. The merged filter text holds one
+// slot per attribute and cannot carry which filter came last, so
+// filterAttrs.merge cancels a removal when a LATER filter sets the metric. The
+// reverse order needs no such clearing: filterapi.LastSetOrSuppress is last-wins
+// and ExtractMEDRemoveOps records its Suppress after textDeltaToModOps has
+// recorded the Set.
+func TestMEDRemoveObeysTheChainOrder(t *testing.T) {
+	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
+	updateText := "origin igp med 100 community 65000:100"
+
+	ops := func(t *testing.T, first, second string) []byte {
+		t.Helper()
+		modAttrs := parseFilterAttrs(applyFilterDelta(applyFilterDelta(updateText, first), second))
+		var mods filterapi.ModAccumulator
+		textDeltaToModOps(parseFilterAttrs(updateText), modAttrs, &mods)
+		ExtractMEDRemoveOps(modAttrs, &mods)
+		result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+		require.Equal(t, modifyFailureNone, fail)
+		require.NotNil(t, result)
+		return result
+	}
+
+	t.Run("a_later_set_wins", func(t *testing.T) {
+		want := buildModTestPayload(
+			slices.Concat(s.origin, makeAttr(0x80, 4, []byte{0x00, 0x00, 0x00, 0xC8}), s.community), s.nlri)
+		assert.Equal(t, want, ops(t, "med-remove", "med 200"),
+			"the operator's second filter set the metric, so it reaches the wire")
+	})
+
+	t.Run("a_later_removal_wins", func(t *testing.T) {
+		assert.NotContains(t, rebuiltAttrs(t, ops(t, "med 200", "med-remove")), byte(attribute.AttrMED),
+			"the operator's second filter removed the metric, so nothing reaches the wire")
+	})
+
+	// The same chain on a route that arrived with NO metric, driven through the
+	// gate the production call sites ask. The only metric in play is the one the
+	// first filter added, so a gate that read the wire alone would skip the
+	// removal and leave the Set standing.
+	t.Run("a_later_removal_wins_on_a_metric_less_route", func(t *testing.T) {
+		bare := buildModTestPayload(slices.Concat(s.origin, s.community), s.nlri)
+		bareText := string(AppendUpdateForFilter(nil, medAttrsWire(t, bare), wireu.NewWireUpdate(bare, 0), nil))
+
+		modAttrs := parseFilterAttrs(applyFilterDelta(applyFilterDelta(bareText, "med 200"), "med-remove"))
+		var mods filterapi.ModAccumulator
+		textDeltaToModOps(parseFilterAttrs(bareText), modAttrs, &mods)
+		require.True(t, medRemoveHasWork(modAttrs, medAttrsWire(t, bare)),
+			"the metric the chain added is the work the removal has to do")
+		ExtractMEDRemoveOps(modAttrs, &mods)
+
+		result, _, fail := buildModifiedPayload(bare, &mods, attrModHandlersWithDefaults(), nil, nil)
+		require.Equal(t, modifyFailureNone, fail)
+		require.NotNil(t, result)
+		assert.NotContains(t, rebuiltAttrs(t, result), byte(attribute.AttrMED),
+			"the metric the chain added is the metric the chain removed, so none reaches the wire")
+	})
+}

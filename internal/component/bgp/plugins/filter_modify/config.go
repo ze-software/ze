@@ -31,6 +31,7 @@ const (
 var setBlockAllowedKeys = map[string]bool{
 	"local-preference":          true,
 	"med":                       true,
+	"med-remove":                true,
 	"origin":                    true,
 	"next-hop":                  true,
 	"as-path-prepend":           true,
@@ -97,6 +98,7 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 			if err := parseCommOps(setBlock, def); err != nil {
 				return nil, fmt.Errorf("modify %q: %w", name, err)
 			}
+			def.medRemove = readBool(setBlock["med-remove"])
 		}
 
 		if incBlock, ok := defMap["increment"].(map[string]any); ok {
@@ -119,7 +121,8 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 			return nil, fmt.Errorf("modify %q: %w", name, err)
 		}
 
-		if def.delta == "" && len(def.increments) == 0 && len(def.decrements) == 0 && len(def.commOps) == 0 {
+		if def.delta == "" && len(def.increments) == 0 && len(def.decrements) == 0 &&
+			len(def.commOps) == 0 && !def.medRemove {
 			return nil, fmt.Errorf("modify %q: no operations defined", name)
 		}
 
@@ -277,6 +280,23 @@ func joinValues(values []string) string {
 
 // validateNoConflict checks that set and increment/decrement don't target the same attribute.
 func validateNoConflict(def *modifyDef) error {
+	// Removing MULTI_EXIT_DISC and writing one are opposite instructions about
+	// the same attribute, and nothing in the delta text records which the
+	// operator meant. Refuse the pair rather than let the order of two map reads
+	// decide what reaches the wire.
+	if def.medRemove {
+		if containsAttrName(def.delta, "med") {
+			return fmt.Errorf("set med-remove conflicts with set med (mutually exclusive)")
+		}
+		for _, ops := range [][]incdec{def.increments, def.decrements} {
+			for _, op := range ops {
+				if op.attr == "med" {
+					return fmt.Errorf("set med-remove conflicts with increment/decrement med (mutually exclusive)")
+				}
+			}
+		}
+	}
+
 	setAttrs := map[string]bool{}
 	if def.delta != "" {
 		for _, attr := range []string{"local-preference", "med", "aigp"} {

@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- route attribute modifier plugin
 // Detail: modify.go -- delta building and attribute encoding
 // Detail: config.go -- bgp/policy/modify config parsing
+// RFC: rfc/short/rfc4271.md -- Sections 5.1.4 and 9.1.2.2 govern the med-remove directive
 //
 // Package filter_modify implements the bgp-filter-modify plugin.
 //
@@ -30,6 +31,16 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+const (
+	// directionImport is the wire form the engine passes on an ingress chain
+	// (rpc.FilterUpdateInput.Direction, "import" or "export").
+	directionImport = "import"
+	// medRemoveDirective is the delta token the engine converts into one
+	// filterapi.AttrModSuppress on attribute 4 (ExtractMEDRemoveOps,
+	// reactor/filter_delta.go). It carries no operand.
+	medRemoveDirective = "med-remove"
 )
 
 var errFilterModifyInvalidBgpConfigJson = errors.New("filter-modify: invalid bgp config JSON")
@@ -111,7 +122,38 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	} else {
 		delta = def.delta
 	}
+	if def.medRemove {
+		delta = appendMEDRemove(delta, in.Filter, in.Direction)
+	}
 
 	logger().Info("modify apply", "filter", in.Filter, "peer", in.Peer, "delta", delta)
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
+}
+
+// appendMEDRemove adds RFC 4271 Section 5.1.4's removal directive to the delta,
+// and only on an import chain.
+//
+// Section 5.1.4 requires the removal to happen "prior to determining the degree
+// of preference of the route and prior to performing route selection (Decision
+// Process phases 1 and 2)", which the import chain satisfies and the export
+// chain cannot: on export the decision process has already run. Section 9.1.2.2
+// then makes an export-side removal actively wrong, because comparing on a
+// MULTI_EXIT_DISC and afterwards advertising the route without it "has been
+// proven to cause route loops".
+//
+// The engine enforces this by converting the directive at the import site alone
+// (ExtractMEDRemoveOps, reactor/filter_delta.go). This function is the half the
+// operator can see: silence would leave a configured removal that never happens
+// and never says why.
+func appendMEDRemove(delta, filter, direction string) string {
+	if direction != directionImport {
+		logger().Warn("med-remove is an import-chain mechanism and is ignored here",
+			"filter", filter, "direction", direction,
+			"rfc", "RFC 4271 Section 5.1.4 requires removal before decision process phases 1 and 2")
+		return delta
+	}
+	if delta == "" {
+		return medRemoveDirective
+	}
+	return joinValues([]string{delta, medRemoveDirective})
 }

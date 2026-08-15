@@ -33,6 +33,11 @@ type modifyDef struct {
 	increments []incdec  // runtime: increment operations
 	decrements []incdec  // runtime: decrement operations
 	commOps    []commOp  // runtime: community add/remove directives
+	// medRemove emits the med-remove directive, which is RFC 4271 Section
+	// 5.1.4's configured MULTI_EXIT_DISC removal. It is not part of delta
+	// because the engine honors it on an import chain only, and the direction
+	// is known per call rather than at config time (handleFilterUpdate).
+	medRemove bool
 }
 
 // isDynamic returns true if this modifier needs the update text at runtime.
@@ -131,6 +136,21 @@ func extractUint32Attr(updateText, attrName string) uint32 {
 		return 0
 	}
 	return uint32(v) //nolint:gosec // G115: bounded by ParseUint 32-bit
+}
+
+// readBool coerces a config value to a boolean. The config parser hands a YANG
+// boolean leaf over as a Go bool, and a hand-written or migrated tree can carry
+// it as the text the operator typed, so "true" is read in both forms. A YANG
+// boolean has no other spelling, so nothing else is accepted: a leaf nobody set
+// must not remove an attribute.
+func readBool(v any) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		return b == "true"
+	}
+	return false
 }
 
 // readOptionalUint32 coerces config values (float64, int, string) to uint32.

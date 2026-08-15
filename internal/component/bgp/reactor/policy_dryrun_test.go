@@ -254,9 +254,29 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 		before := "origin igp as-path [64500 23456]"
 		after := "origin igp as-path [64500 23456] remove-private strip"
 
-		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, false, 65001, 65000)
+		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, directionExport, false, 65001, 65000)
 		if !slices.Contains(changes, "AS4_PATH suppressed") {
 			t.Errorf("wire changes = %v, want to contain %q", changes, "AS4_PATH suppressed")
+		}
+	})
+
+	// The med-remove directive of RFC 4271 Section 5.1.4 is converted on the
+	// import chain alone, so the dry-run must report it on the direction the
+	// runtime honors and on no other. Without this the operator is told the
+	// metric survives an import policy that removes it.
+	t.Run("med_remove_is_reported_on_import_and_not_on_export", func(t *testing.T) {
+		attrs := attribute.NewAttributesWire(makeAttr(0x80, byte(attribute.AttrMED), []byte{0, 0, 0, 100}), 0)
+		before := "origin igp med 100"
+		after := "origin igp med 100 med-remove"
+
+		onImport := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, directionImport, false, 65001, 65000)
+		if !slices.Contains(onImport, "MULTI_EXIT_DISC suppressed") {
+			t.Errorf("import wire changes = %v, want to contain %q", onImport, "MULTI_EXIT_DISC suppressed")
+		}
+
+		onExport := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, directionExport, false, 65001, 65000)
+		if slices.Contains(onExport, "MULTI_EXIT_DISC suppressed") {
+			t.Errorf("export wire changes = %v, must not promise a removal the export rail does not perform", onExport)
 		}
 	})
 
@@ -275,7 +295,7 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 		before := "origin igp as-path [64500 23456]"
 		after := "origin igp as-path [64500 23456] remove-private strip"
 
-		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, false, 65001, 65000)
+		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, directionExport, false, 65001, 65000)
 		if !slices.Contains(changes, "AS4_PATH set") {
 			t.Errorf("wire changes = %v, want to contain %q", changes, "AS4_PATH set")
 		}
@@ -295,7 +315,7 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 		before := "origin igp as-path [64500 23456] med 100"
 		after := "origin igp as-path [64500 23456] med 200"
 
-		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, false, 65001, 65000)
+		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, directionExport, false, 65001, 65000)
 		for _, c := range changes {
 			if c == "AS4_PATH suppressed" || c == "AS4_PATH set" {
 				t.Errorf("unexpected AS4_PATH wire change %q in %v", c, changes)

@@ -14,6 +14,15 @@ module ze-filter-modify {
                  through unchanged.
                  Referenced from peer filter chains as modify:NAME.";
 
+    revision 2026-08-15 {
+        description
+          "Add set med-remove. RFC 4271 Section 5.1.4 requires a speaker to
+           implement a mechanism, based on local configuration, that allows
+           MULTI_EXIT_DISC to be removed from a route. Nothing here could
+           express a removal: med was a set target only, and the removal verbs
+           reached the three community attributes alone.";
+    }
+
     revision 2026-08-13 {
         description
           "Add the match container. A filter chain is a pipe in which a reject
@@ -99,6 +108,32 @@ module ze-filter-modify {
                 leaf med {
                     type uint32;
                     description "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).";
+                }
+
+                leaf med-remove {
+                    type boolean;
+                    default "false";
+                    description "Remove the MULTI_EXIT_DISC attribute (RFC 4271
+                                 type 4) from the route.
+                                 RFC 4271 Section 5.1.4 requires a mechanism,
+                                 based on local configuration, that removes
+                                 MULTI_EXIT_DISC from a route, and requires the
+                                 removal to happen before the route reaches
+                                 Decision Process phases 1 and 2. This leaf is
+                                 that mechanism, so it applies on an IMPORT
+                                 chain only: the route enters the decision
+                                 process with no metric. On an export chain it
+                                 is refused with a log line, because Section
+                                 9.1.2.2 states that a comparison on
+                                 MULTI_EXIT_DISC followed by advertisement
+                                 without it causes route loops.
+                                 Mutually exclusive with set med, increment med
+                                 and decrement med.
+                                 A metric received from one neighboring AS is
+                                 already kept off another one without any
+                                 configuration (RFC 4271 Section 5.1.4), so this
+                                 leaf is for the operator who wants the metric
+                                 gone from the route itself.";
                 }
 
                 leaf origin {

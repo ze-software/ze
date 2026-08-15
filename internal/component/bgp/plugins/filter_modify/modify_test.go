@@ -539,3 +539,110 @@ func TestExtractUint32Attr(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: spec-rfc4271-med-across-as AC-5 -- the operator surface for RFC
+// 4271 Section 5.1.4's configured removal parses, and refuses to be combined
+// with the opposite instruction about the same attribute.
+//
+// RFC requirement: RFC4271-5.1.4-4 positive -- "A BGP speaker MUST implement a
+// mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
+// attribute to be removed from a route" (Section 5.1.4). The configuration is
+// bgp { policy { modify NAME { set { med-remove true; } } } }, and a definition
+// that states nothing else is a complete definition.
+// RFC requirement: RFC4271-5.1.4-4 negative -- the mechanism is opt-in. A set
+// block that does not name med-remove leaves the metric alone, and false is the
+// same as absent.
+func TestParseModifyDefsMEDRemove(t *testing.T) {
+	def := func(t *testing.T, set map[string]any) *modifyDef {
+		t.Helper()
+		defs, err := parseModifyDefs(map[string]any{
+			"policy": map[string]any{"modify": map[string]any{"DROP-MED": map[string]any{"set": set}}},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return defs["DROP-MED"]
+	}
+
+	if got := def(t, map[string]any{"med-remove": true}); !got.medRemove {
+		t.Error("med-remove true must set the removal")
+	}
+	if got := def(t, map[string]any{"med-remove": "true"}); !got.medRemove {
+		t.Error("the text form the config parser can hand over must set the removal too")
+	}
+	if got := def(t, map[string]any{"med-remove": false, "local-preference": float64(200)}); got.medRemove {
+		t.Error("med-remove false must not remove anything")
+	}
+	if got := def(t, map[string]any{"local-preference": float64(200)}); got.medRemove {
+		t.Error("a set block that never names med-remove must not remove anything")
+	}
+
+	// Removing the attribute and writing one are opposite instructions, and the
+	// delta text records neither's precedence over the other.
+	for _, conflict := range []map[string]any{
+		{"set": map[string]any{"med-remove": true, "med": float64(50)}},
+		{"set": map[string]any{"med-remove": true}, "increment": map[string]any{"med": float64(10)}},
+		{"set": map[string]any{"med-remove": true}, "decrement": map[string]any{"med": float64(10)}},
+	} {
+		_, err := parseModifyDefs(map[string]any{
+			"policy": map[string]any{"modify": map[string]any{"BAD": conflict}},
+		})
+		if err == nil {
+			t.Fatalf("expected a conflict error for %v", conflict)
+		}
+		if !strings.Contains(err.Error(), "conflicts") {
+			t.Errorf("error %q does not mention conflicts", err.Error())
+		}
+	}
+}
+
+// VALIDATES: spec-rfc4271-med-across-as AC-6 -- the configured removal is
+// emitted on an import chain and refused on an export chain.
+//
+// RFC requirement: RFC4271-5.1.4-2 positive -- "If a BGP speaker is configured
+// to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST
+// be done prior to determining the degree of preference of the route and prior
+// to performing route selection (Decision Process phases 1 and 2)" (Section
+// 5.1.4). The import chain runs before those phases; the export chain runs
+// after them, so the directive is emitted for the first and withheld from the
+// second.
+// RFC requirement: RFC4271-5.1.4-2 negative -- withholding it is what keeps RFC
+// 4271 Section 9.1.2.2 answerable, which says that including the
+// MULTI_EXIT_DISC of an EBGP-learned route in the comparison with an
+// IBGP-learned route, then removing the attribute and advertising the route,
+// has been proven to cause route loops.
+func TestHandleFilterUpdateMEDRemoveIsImportOnly(t *testing.T) {
+	defs := map[string]*modifyDef{
+		"DROP-MED":    {name: "DROP-MED", medRemove: true},
+		"DROP-AND-LP": {name: "DROP-AND-LP", delta: "local-preference 200", medRemove: true},
+	}
+	defsByName.Store(&defs)
+	defer defsByName.Store(nil)
+
+	for _, tt := range []struct {
+		name      string
+		filter    string
+		direction string
+		want      string
+	}{
+		{"import_alone", "DROP-MED", "import", "med-remove"},
+		{"import_with_a_set", "DROP-AND-LP", "import", "local-preference 200 med-remove"},
+		{"export_refused", "DROP-MED", "export", ""},
+		{"export_keeps_the_rest", "DROP-AND-LP", "export", "local-preference 200"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			out := handleFilterUpdate(&sdk.FilterUpdateInput{
+				Filter:    tt.filter,
+				Direction: tt.direction,
+				Peer:      "127.0.0.1",
+				Update:    "origin igp med 100 as-path 65001 nlri ipv4/unicast add 10.0.0.0/24",
+			})
+			if out.Action != sdk.FilterModify {
+				t.Fatalf("action = %s, want %s", out.Action, sdk.FilterModify)
+			}
+			if out.Update != tt.want {
+				t.Errorf("delta = %q, want %q", out.Update, tt.want)
+			}
+		})
+	}
+}

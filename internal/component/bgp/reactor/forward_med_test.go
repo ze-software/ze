@@ -10,6 +10,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // medSource is one relayed UPDATE as a neighboring AS sends it: ORIGIN, MED and
@@ -32,6 +34,16 @@ func newMEDSource(metric []byte) medSource {
 	}
 	s.payload = buildModTestPayload(slices.Concat(s.origin, s.med, s.community), s.nlri)
 	return s
+}
+
+// medAttrsWire is the attribute section of an UPDATE body, in the form the
+// ingress call site hands ExtractMEDRemoveOps (filter_ordered.go reads it from
+// WireUpdate.Attrs).
+func medAttrsWire(t *testing.T, payload []byte) *attribute.AttributesWire {
+	t.Helper()
+	sections, err := wire.ParseUpdateSections(payload)
+	require.NoError(t, err)
+	return attribute.NewAttributesWire(sections.Attrs(payload), bgpctx.ContextID(0))
 }
 
 // VALIDATES: spec-rfc4271-med-across-as AC-1, AC-4 -- a MULTI_EXIT_DISC received
@@ -276,4 +288,126 @@ func TestPayloadMED(t *testing.T) {
 	require.True(t, zero.present)
 	assert.False(t, zero.sameAs(medValue{}), "zero is not absent")
 	assert.False(t, zero.sameAs(found), "zero is not one hundred")
+}
+
+// VALIDATES: spec-rfc4271-med-across-as AC-5, AC-6 -- an operator configures the
+// removal of MULTI_EXIT_DISC, and the removal reaches the wire through the same
+// suppression the propagation rule uses.
+//
+// RFC requirement: RFC4271-5.1.4-4 positive -- "A BGP speaker MUST implement a
+// mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
+// attribute to be removed from a route" (Section 5.1.4). The mechanism is the
+// med-remove directive an import filter writes into its delta:
+// ExtractMEDRemoveOps (filter_delta.go) converts it into the ONE
+// filterapi.AttrModSuppress on attribute 4 that applyFactsMED also emits, and
+// genericAttrSetHandler drops the attribute.
+// RFC requirement: RFC4271-5.1.4-4 negative -- the mechanism is what an operator
+// ASKS for, never a default. The same route through the same converter with no
+// directive keeps its metric, and keeps it byte-identical. That half is what
+// makes the positive non-vacuous: a blanket strip of attribute 4 on the import
+// chain would pass the positive.
+// RFC requirement: RFC4271-5.1.4-2 positive -- "If a BGP speaker is configured
+// to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST
+// be done prior to determining the degree of preference of the route and prior
+// to performing route selection (Decision Process phases 1 and 2)." The
+// directive is converted at the import site alone (filter_ordered.go), whose
+// rewritten payload replaces the WireUpdate before the UPDATE is dispatched to
+// the RIB plugin that runs those phases (reactor_notify.go). The payload
+// asserted here is that replacement.
+// RFC requirement: RFC4271-5.1.4-2 negative -- the ordering holds because the
+// EXPORT converter does not know the directive. textDeltaToModOps skips it, so
+// a med-remove that reached an export chain changes no byte there; a removal on
+// the way out would sit after phases 1 and 2, which is the ordering the MUST
+// forbids and the loop RFC 4271 Section 9.1.2.2 describes.
+//
+// PREVENTS: the gap RFC4271-5.1.4-4 recorded. Ze removed MULTI_EXIT_DISC on one
+// condition it derived itself and on no condition an operator could state: the
+// filter language offered a removal verb for the three community attributes and
+// named med as a SET target only.
+func TestMEDRemovalMechanismIsConfigurable(t *testing.T) {
+	// Boundary: 0 is a value and 2^32-1 is the other end. Both are removed, and
+	// neither is confused with an absence.
+	for _, tc := range []struct {
+		name   string
+		metric []byte
+		text   string
+	}{
+		{"metric-100", []byte{0x00, 0x00, 0x00, 0x64}, "med 100"},
+		{"metric-zero", []byte{0x00, 0x00, 0x00, 0x00}, "med 0"},
+		{"metric-max", []byte{0xFF, 0xFF, 0xFF, 0xFF}, "med 4294967295"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newMEDSource(tc.metric)
+			// The update text the import chain hands a filter, and the text the
+			// chain holds after bgp-filter-modify answers with its delta.
+			updateText := "origin igp " + tc.text + " community 65000:100"
+
+			t.Run("configured-removal-drops-it", func(t *testing.T) {
+				modified := applyFilterDelta(updateText, "med-remove")
+				require.Contains(t, modified, "med-remove",
+					"the directive must survive the text overlay the chain runs")
+
+				origAttrs := parseFilterAttrs(updateText)
+				modAttrs := parseFilterAttrs(modified)
+
+				var mods filterapi.ModAccumulator
+				textDeltaToModOps(origAttrs, modAttrs, &mods)
+				require.Zero(t, mods.Len(),
+					"the generic converter must not act on the directive: the export chain runs it too")
+
+				ExtractMEDRemoveOps(modAttrs, &mods)
+				require.Equal(t, 1, mods.Len(), "the configured removal records one suppression")
+				assert.Equal(t, uint8(attribute.AttrMED), mods.Ops()[0].Code)
+				assert.Equal(t, filterapi.AttrModSuppress, mods.Ops()[0].Action,
+					"the same op applyFactsMED records: one suppression, two reasons to trigger it")
+
+				result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+				require.Equal(t, modifyFailureNone, fail)
+				require.NotNil(t, result, "the removal requires a rebuild")
+
+				want := buildModTestPayload(slices.Concat(s.origin, s.community), s.nlri)
+				assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(result),
+					"RFC 4271 Section 5.1.4: the configured mechanism removes the attribute")
+
+				got := rebuiltAttrs(t, result)
+				assert.NotContains(t, got, byte(attribute.AttrMED))
+				assert.Contains(t, got, byte(8), "only MED was removed")
+			})
+
+			t.Run("unconfigured-keeps-it", func(t *testing.T) {
+				modified := applyFilterDelta(updateText, "local-preference 200")
+
+				var mods filterapi.ModAccumulator
+				modAttrs := parseFilterAttrs(modified)
+				ExtractMEDRemoveOps(modAttrs, &mods)
+				assert.Zero(t, mods.Len(), "no directive, no removal")
+
+				result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+				assert.Equal(t, modifyFailureNone, fail)
+				assert.Nil(t, result, "no operation means the route stays on the zero-copy path")
+				assert.True(t, payloadMED(s.payload).present, "the metric is still there to be read")
+			})
+		})
+	}
+}
+
+// VALIDATES: the directive round-trips through the chain's text overlay without
+// consuming the token that follows it, and without being read as an attribute.
+//
+// RFC requirement: RFC4271-5.1.4-4 negative -- the mechanism is one directive
+// with no operand. A parser that read the next token as its value would swallow
+// a following attribute name and silently drop that operation.
+func TestMEDRemoveDirectiveIsValueless(t *testing.T) {
+	attrs := parseFilterAttrs("med-remove local-preference 200 community 65000:100")
+
+	val, ok := attrs.get(faMEDRemove)
+	require.True(t, ok, "the directive is present")
+	assert.Empty(t, val, "and carries no operand")
+
+	lp, ok := attrs.get(faLocalPreference)
+	require.True(t, ok, "the attribute after the directive survives")
+	assert.Equal(t, "200", lp)
+
+	assert.Equal(t, "local-preference 200 community 65000:100 med-remove", formatFilterAttrs(attrs),
+		"the directive is re-emitted for the next filter in the chain")
 }

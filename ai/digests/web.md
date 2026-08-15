@@ -96,7 +96,7 @@ unmarshal it back into a `map[string]any` for template rendering.
    (`handler_config_form.go`); no breadcrumb/detail OOB, unlike step 6.
    Validation failures use `WriteOOBError`
    (`internal/component/web/fragment.go`), OOB-appending into `#error-list`
-   (`templates/component/oob_error.html:2-3`).
+   (`component_oob_error.templ:6-7`).
 8. **Commit.** `POST /config/commit` →
    `HandleConfigCommitWithAuthorizerAndAudit`
    (`internal/component/web/handler_config_commit.go`) →

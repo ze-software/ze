@@ -1,0 +1,179 @@
+# med-removal-before-decision -- the configured removal happens BEFORE the route is weighed,
+# observed in the store the decision process reads rather than argued from the code path.
+#
+# RFC requirement: RFC4271-5.1.4-2 positive -- "If a BGP speaker is configured to remove the
+# MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the
+# degree of preference of the route and prior to performing route selection (Decision Process
+# phases 1 and 2)" (Section 5.1.4). RFC 4271 Section 9.1.1 computes the degree of preference for
+# each route in the Adj-RIB-In, so the Adj-RIB-In IS the input to phase 1. The stored attribute
+# bytes below carry no attribute 4 at all.
+# RFC requirement: RFC4271-5.1.4-2 negative -- the removal reaches ONE attribute. The same stored
+# bytes keep ORIGIN, AS_PATH and the COMMUNITIES the peer sent, byte for byte. Without that half,
+# a ze that stored an empty attribute block, or none, would satisfy the absence for a reason that
+# has nothing to do with Section 5.1.4.
+#
+# WHY THE ADJ-RIB-IN AND NOT THE WIRE. med-removal-configured.ci watches what a peer receives,
+# which is downstream of the store and cannot tell a removal made before phase 1 from one made on
+# the way out. This file reads the stored attribute bytes, which is where the ordering claim
+# actually lives: the import chain's rewritten payload replaces the WireUpdate before the UPDATE
+# is cached and dispatched (reactor_notify.go), so what a decision process later weighs is what is
+# asserted here.
+#
+# ONE PEER. `ze-test peer` delivers `action=send:conn=2` to the first session under
+# `option=conn_map:value=remote-ip` (plan/journal/test-against-broken-path.md, 2026-08-15), so a
+# second live source would assert against whichever session actually received the bytes. The
+# confining negative is carried by the surviving attributes instead, and the unfiltered half is
+# proven where no second session is needed: TestMEDRemovalMechanismIsConfigurable
+# (reactor/forward_med_test.go) runs the same converter over the same delta with no directive.
+
+option=env:var=ze.log.bgp.filter.modify:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+
+# Announce 10.1.0.0/24 with a metric AND a community, so the stored block has a neighbour on both
+# sides of attribute 4 and a removal that took the wrong span would move them.
+#   ORIGIN:    40010100                  IGP
+#   AS_PATH:   40020602010000FDE9        AS_SEQUENCE[65001]
+#   NEXT_HOP:  40030401010101            1.1.1.1
+#   MED:       80040400000064            100 -- the attribute the operator asked to remove
+#   COMMUNITY: C008040000FDE9            65001:0
+#   NLRI:      180A0100                  10.1.0.0/24
+# attr len = 4+9+7+7+7 = 34 = 0x22; total = 19+2+2+34+4 = 61 = 0x3D.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000064C008040000FDE9180A0100
+EOF_PEER
+
+tmpfs=med-store-check.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Read the Adj-RIB-In and judge what a decision process would weigh."""
+
+import sys
+
+from ze_api import API, result_json_data, result_text_data, runtime_fail
+
+# The MULTI_EXIT_DISC attribute as the peer sent it: flags 0x80, code 0x04,
+# length 4, value 100. Searched for in the STORED attribute bytes.
+MED_ATTR = '80040400000064'
+
+# What must survive: ORIGIN, AS_PATH and COMMUNITIES, exactly as they arrived.
+SURVIVORS = ('40010100', '40020602010000FDE9', 'C008040000FDE9')
+
+PEER = '127.0.0.1'
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Poll until the UPDATE has been stored. A blind sleep would read an empty
+    # store under load and call it a removal.
+    stored = api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: '"total-routes":1' in result_text_data(r, ''),
+        attempts=80,
+    )
+    if '"total-routes":1' not in result_text_data(stored, ''):
+        runtime_fail('adj-rib-in never stored the route: %s' % result_text_data(stored, '<none>'))
+
+    rib = result_json_data(dispatch(api, 'show bgp adj-rib-in'), {}).get('adj-rib-in', {})
+    routes = rib.get(PEER, [])
+    if len(routes) != 1:
+        runtime_fail('%s stored %d routes, expected 1: %r' % (PEER, len(routes), routes))
+    attrs = (routes[0].get('attr-hex') or '').upper()
+
+    if MED_ATTR in attrs:
+        runtime_fail(
+            'RFC 4271 Section 5.1.4: the configured removal did not happen before the route '
+            'reached the store a decision process reads: %s' % attrs
+        )
+    for survivor in SURVIVORS:
+        if survivor not in attrs:
+            runtime_fail(
+                'the removal took more than attribute 4, so the absence above proves nothing: '
+                '%s is gone from %s' % (survivor, attrs)
+            )
+    print('OK: stored attributes without a metric: %s' % attrs, file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external med-store-check {
+		run ./med-store-check.run
+		encoder json
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	policy {
+		# RFC 4271 Section 5.1.4's configured removal, on the IMPORT chain: that section
+		# requires the removal to precede Decision Process phases 1 and 2, and the import
+		# chain is the only chain that runs there.
+		modify DROP-MED {
+			set {
+				med-remove true
+			}
+		}
+	}
+
+	peer filtered-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			import [ modify:DROP-MED ]
+		}
+
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+expect=stderr:pattern=filter=DROP-MED
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
