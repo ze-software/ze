@@ -116,8 +116,19 @@ func TestApplyConfigRetiresMirrorDirectionDropped(t *testing.T) {
 }
 
 func TestApplyConfigKeepsUnchangedMirror(t *testing.T) {
-	// VALIDATES: AC-7 -- an unchanged mirror is not torn down on re-apply.
-	// PREVENTS: every unrelated commit interrupting mirrored traffic.
+	// VALIDATES: AC-7 -- an unchanged mirror is not TORN DOWN on re-apply, so
+	// the apply carries one setup and no teardown.
+	// PREVENTS: removeStaleMirrors treating an unchanged spec as a changed one,
+	// which would retire the mirror and re-install it on every commit.
+	//
+	// It does NOT prove mirrored traffic is uninterrupted, and it must not be
+	// read that way. The setup below re-runs on every commit by design: config
+	// apply converges kernel state onto the config, so a filter an operator
+	// deleted by hand comes back. addMirrorFilter
+	// (internal/plugins/iface/netlink/mirror_linux.go) reaches its EEXIST branch
+	// on that re-run and does FilterDel then FilterAdd, because cls_matchall
+	// refuses a replace, so packets are unmirrored for that window. Self-healing
+	// is worth it; the window is real and belongs in the record.
 	b := &fakeBackend{}
 	previous := mirrorCfg("cap0", "cap0")
 	if errs := applyConfig(previous, nil, b); len(errs) > 0 {

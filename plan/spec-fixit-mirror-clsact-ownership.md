@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 3/3 |
 | Deferral shard | `plan/deferrals/fixit-mirror-clsact-ownership.md` |
-| Updated | 2026-08-14 |
+| Updated | 2026-08-15 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -95,11 +95,11 @@ RFC governs qdisc ownership.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - `RemoveMirror` on an interface with no mirror stays a no-op that returns nil (`TestIntegrationMirrorRemoveIdempotent`).
-- `RemoveMirror` leaves no qdisc behind when the mirror was the only user (`TestIntegrationMirrorRemove`).
+- ~~`RemoveMirror` leaves no qdisc behind when the mirror was the only user (`TestIntegrationMirrorRemove`).~~ NOT preserved. AC-3 was relaxed on 2026-08-14 and `RemoveMirror` now leaves the shared qdisc in every case. `TestIntegrationMirrorRemove` asserts the qdisc REMAINS.
 - The `SetupMirror` and `RemoveMirror` signatures on `Backend` (`internal/component/iface/backend.go`), which the vpp backend also implements.
 
 **Behavior to change:** (only what the user asked for)
-- Mirror teardown becomes filter-scoped: the priority-1 mirred filters go, and the qdisc goes only when no filter remains on either hook.
+- Mirror teardown becomes filter-scoped: the priority-1 mirred filters go, and the shared qdisc stays. Only the rollback of a failed setup deletes a qdisc, and only one it created itself with no filter left on either hook.
 - Mirror setup tolerates a clsact or ingress qdisc another subsystem already created.
 - Setup rollback removes the filters it added, not the qdisc it found.
 - `applyConfig` tears down a mirror the new config no longer asks for, or asks for differently.
@@ -386,11 +386,14 @@ Linux kernel, and the QEMU integration tests above exercise it directly.
 <!-- LIVE: write immediately when you learn something. At closure these route to
      a subsystem arch doc, a rule, or the learned summary. -->
 
-- **The kernel already holds the refcount.** Ownership of a shared qdisc looked
-  like it needed bookkeeping across two plugins in two processes. It does not:
-  "does any filter remain on either hook" is the same question, and the kernel
-  answers it. `netlink.FilterList` on both hooks after the mirror's own filters
-  are gone is the whole mechanism.
+- **The kernel holds a refcount, and reading it is still not enough.** Ownership
+  of a shared qdisc looked like it needed bookkeeping across two plugins in two
+  processes, and "does any filter remain on either hook" looked like the same
+  question with the kernel already answering it. `netlink.FilterList` gives that
+  answer, and it is stale the moment it returns: `RemoveSampling` leaves an empty
+  qdisc, so "no filter" is a state a live sampling interface passes through. The
+  rollback can act on the answer because it also knows it created the qdisc.
+  `RemoveMirror` knows only that its own filters are gone, so it acts on nothing.
 - **A defect hid behind the one under investigation.** `applyMirror` calls
   `SetupMirror` twice when the two directions have different destinations. The
   first call installed the older `ingress` qdisc, which has no egress hook, so
@@ -405,8 +408,8 @@ Linux kernel, and the QEMU integration tests above exercise it directly.
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| The last-user test is "no filter remains on either hook", read from the kernel | A refcount shared by the mirror and flow-export; a ze-owned registry of qdisc users | Both alternatives add cross-plugin state that can go stale, and neither is more accurate than the kernel's own answer. The kernel is the one authority both subsystems already share |
-| Delete the qdisc only when the mirror actually had a filter there | Always run the last-user test | A mirror that installed nothing owns nothing. Without this, `RemoveMirror` on an interface ze never mirrored could delete an empty qdisc another subsystem created and was about to use |
+| `RemoveMirror` deletes no qdisc at all, in any case | Delete when the kernel reports no filter left on either hook; a refcount shared by the mirror and flow-export; a ze-owned registry of qdisc users | The last two add cross-plugin state that can go stale. The first looks safe and is not: `RemoveSampling` leaves an empty qdisc too, so an interface that samples presents both hooks empty for the length of a reconfigure, and deleting there takes a qdisc `SetupSampling` created between its `QdiscAdd` and its `FilterAdd`. No ordering of the list and the delete closes that window. An empty clsact qdisc carries no filter and forwards no packet, and the next setup adopts it through the `EEXIST` branch |
+| The rollback of a failed setup is the one place that deletes, and it runs the last-user test first | Have the rollback delete unconditionally | A rollback knows it created the qdisc moments earlier, which is the knowledge `RemoveMirror` lacks. It still checks that no filter arrived in between, so it fails closed on a `FilterList` error |
 | Every mirror uses clsact, and `setupIngressMirror` is deleted | Keep both qdisc kinds and pick per direction | clsact carries both hooks. Keeping the ingress qdisc kept a case that cannot work (two destinations) and doubled every teardown path. `ai/rules/no-layering.md`: the old path is deleted, not left beside the new one |
 | Teardown is a delta pass over the previous config, before the install loop | Give `applyMirror` the previous unit and let it decide | A unit removed from the config is never visited by the install loop, so the pass has to walk the previous config anyway. Once it does, splitting teardown between two places buys nothing |
 | A changed mirror is removed and re-installed | Install the new destination over the old one | tc filters are additive. `FilterAdd` at the same priority does not retire the previous destination, it fails or stacks. Delete-then-create is what the tunnel path already does for a changed spec |
@@ -461,3 +464,181 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+
+## Implementation Summary
+
+### What Was Implemented
+- `RemoveMirror` (`internal/plugins/iface/netlink/mirror_linux.go`) deletes only the mirror's own priority-1 filters, on both clsact hooks, and leaves the shared qdisc at `ffff:` standing.
+- `ensureClsactQdisc` tolerates `EEXIST` and reports whether THIS call created the qdisc. `undoMirrorSetup` deletes the qdisc only when that flag is set and `removeUnusedIngressQdisc` finds no filter left on either hook; it fails closed on a listing error.
+- Every mirror uses clsact. `setupIngressMirror` is deleted, which makes a mirror with a different destination per direction work at all (`ai/rules/no-layering.md`).
+- The config-delete path is new: `indexMirrorSpecs` and `removeStaleMirrors` (`internal/component/iface/config_mirror.go`) follow the `indexTunnelSpecs` delta pattern and run before the install loop, so a dropped or changed mirror is retired first.
+- `isNotFound` tolerates ENOENT and EINVAL only. The substring match on `"no such"` is gone.
+
+### Bugs Found/Fixed
+- Three QEMU assertions still pinned the pre-relaxation contract and were red on a real kernel. Covered by `TestIntegrationMirrorRemove`, `TestIntegrationApplyConfigMirrorRemovedOnConfigDelete` and `TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem`, each now asserting the qdisc REMAINS.
+- `isNotFound` was the only error gate on the teardown path and matched any error whose text contained `"no such"`, so a real failure reported success. `TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter` pins the two errnos and refuses ENODEV.
+- `removeStaleMirrors` skipped a teardown silently on any `GetInterface` error. It logs the skip now.
+- `TestIntegrationMirrorEgress` had gone vacuous: it asserted only that clsact exists, which every mirror creates before either hook is touched. It asserts the egress filter and its mirred destination now.
+- The netlink co-attachment tests asserted survival by filter COUNT, which cannot tell the mirror filter from the foreign one. They assert priority and mirred destination now.
+
+### Documentation Updates
+- `docs/features/interfaces.md`: two bullets, the shared-qdisc ownership rule and the config-delete path, each with a source anchor. Both were rewritten at closure because the committed text still said teardown deletes the qdisc "only when no filter is left on either hook", which `RemoveMirror` does not do.
+- `make ze-doc-test` was NOT run (see Pre-Commit Verification: the shared tree makes it unattributable). `make ze-validate` reports 33 unwired-export issues, none in these paths.
+
+### Deviations from Plan
+- AC-3 was relaxed during implementation: the qdisc is no longer deleted when the mirror is its last user. The Key Design Decisions table records the rejected alternatives.
+- The spec's own "Behavior to preserve" line for `TestIntegrationMirrorRemove` was broken by that relaxation and is struck through rather than quietly edited.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The AC-3 relaxation was applied to the code, the commit message and the spec's AC row, and treated as complete | Three test assertions, the journal Fix cell and the public doc still stated the old contract, so the QEMU gate for this spec was red | Closure ran the two mirror packages in QEMU and got exactly three failures | Inverted the assertions, corrected the doc and the journal row, and wrote `plan/journal/stale-spec-claims-done.md` |
+| assumption | The spec's Functional Tests table marked ten tests `pass` | Three of them could not have passed after the relaxation; the run they cited predated it | Same QEMU run | A cited test result is a claim about the tree it ran on. Re-ran everything at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A removed mirror is actually removed | Done | `removeStaleMirrors`, `internal/component/iface/config_mirror.go` | Called from `applyConfig` before the install loop |
+| Teardown is filter-scoped, not qdisc-scoped | Done | `removeMirrorFilters`, `mirror_linux.go` | The qdisc is left in every teardown |
+| The shared qdisc has a defined owner | Changed | `RemoveMirror` doc comment, `mirror_linux.go` | No owner and no refcount. Nobody deletes it except the rollback that created it |
+| Setup tolerates a qdisc another subsystem created | Done | `ensureClsactQdisc`, `mirror_linux.go` | EEXIST is not an error |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestIntegrationApplyConfigMirrorRemovedOnConfigDelete`, `TestApplyConfigRemovesMirrorDroppedFromConfig` | Filters gone from both hooks after the commit |
+| AC-2 | Done | `TestIntegrationMirrorRemoveKeepsForeignFilter` | Foreign filter identified by mirred destination, not by count |
+| AC-3 | Changed | `TestIntegrationMirrorRemove`, `TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem` | Relaxed 2026-08-14: the qdisc REMAINS. Both tests assert that now |
+| AC-4 | Done | `TestIntegrationMirrorSetupOnExistingClsact` | |
+| AC-5 | Done | `TestIntegrationMirrorSetupRollbackKeepsForeignFilter`, `...RollbackRemovesTheQdiscItCreated` | Both rollback directions |
+| AC-6 | Done | `TestApplyConfigRetiresChangedMirrorBeforeSetup`, `TestIntegrationMirrorTwoDestinations` | |
+| AC-7 | Done | `TestIntegrationMirrorSetupIsIdempotent`, `TestApplyConfigKeepsUnchangedMirror` | The re-install is deliberate; its del/add window is recorded in the test comment |
+| AC-8 | Done | `TestIntegrationMirrorRemoveLeavesForeignQdiscUntouched`, `TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The ten unit tests | pass | `internal/component/iface/config_mirror_test.go` | Eight drive `applyConfig` from its entry point |
+| The ten integration tests | pass | the two `mirror_integration_linux_test.go` files | Plus `TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter`, added at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/iface/netlink/mirror_linux.go` | Done | |
+| `internal/component/iface/config_apply.go` | Done | |
+| `internal/component/iface/config_sysctl.go` | Done | |
+| `internal/component/iface/config_mirror.go` | Changed | Created rather than folded into `config_apply.go` |
+| `docs/features/interfaces.md` | Done | Rewritten at closure |
+| `internal/component/iface/config_mirror_test.go` | Done | |
+
+### Audit Summary
+- **Total items:** 26
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (AC-3's relaxation, the shared-qdisc ownership answer, `config_mirror.go` as a new file)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A mirror removed from the config stops duplicating traffic | functional, real kernel | `TestIntegrationApplyConfigMirrorRemovedOnConfigDelete` PASS in QEMU. The defect it closes was total: `applyMirror` had no teardown path at all |
+| Removing a mirror never takes flow-export sampling down | functional, real kernel | `TestIntegrationMirrorRemoveKeepsForeignFilter` and `TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem` PASS. Both attach a real filter at sampling's priority 100 and assert the survivor by its mirred destination |
+| A mirror can be added to an interface that already samples | functional, real kernel | `TestIntegrationMirrorSetupOnExistingClsact` PASS |
+| A failed setup destroys nothing it did not create | functional, real kernel | `TestIntegrationMirrorSetupRollbackKeepsForeignFilter` PASS, and its complement `...RollbackRemovesTheQdiscItCreated` PASS |
+| The tests DISCRIMINATE | reverted-half run | The pre-fix QEMU run is the reverted half for the three qdisc assertions: with the code shipping "leave the qdisc" and the tests asserting "delete it", exactly those three went red and nothing else did. Log: `qemu-mirror-before.log`, three FAILs at `mirror_integration_linux_test.go:260`, `:502` and `:237` |
+| Kernel behaviour is proven, not asserted | QEMU run | 17 PASS / 0 FAIL across both packages on Linux 6.12 aarch64. The errno tolerance was measured on that kernel, not assumed |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Reconcile kernel tc state against the configuration at startup (R-2) | deferred | Still live and still unassigned, so `plan/deferrals/fixit-mirror-clsact-ownership.md` is NOT removed. Closure widened it: a transient `GetInterface` failure strands a mirror the same way a restart does, and only a reconcile retries either. Needs an owner decision before it can be homed |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-mirror-clsact-ownership-ca112cd4-8337-4992-b4e1-e0d7bbff5820.md` (hash-pinned over the six changed files; `tmp/` is ignored, so the artifact is checked and not committed) |
+| `review_gate.py check` | `review_gate: OK (0 code files, clean, hashes match)` |
+| Rounds | 3 |
+| Reviewer lenses used | Round 1: logic+wiring+removed-behaviour+simplicity, and security+resources+edge-cases+test-discrimination, in parallel. Round 2: the eight fixes only. Round 3: the two comment corrections round 2 drove |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `isNotFound` was the only error gate on the teardown path and matched any error text containing `"no such"`, so a real failure reported success | `isNotFound`, `internal/plugins/iface/netlink/mirror_linux.go` | Substring match removed; ENOENT and EINVAL kept, both measured on a real kernel. `TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter` pins them and refuses ENODEV |
+| 2 | ISSUE | A teardown skipped because the backend could not read the interface was skipped silently, and `interfaceExists` cannot tell a deleted device from a failed read | `removeStaleMirrors`, `internal/component/iface/config_mirror.go` | The skip logs the interface and the error. The no-retry half is the R-2 deferral, widened to say so |
+| 3 | ISSUE | The netlink co-attachment tests asserted survival by filter COUNT, which cannot tell "mirror removed, foreign kept" from the reverse | `internal/plugins/iface/netlink/mirror_integration_linux_test.go` | New `mirrorTestFilterAt` / `mirrorTestMirredDst`; the survivor is identified by priority and mirred destination |
+| 4 | ISSUE | `TestIntegrationMirrorEgress` had become vacuous: clsact now exists before either hook is touched, so deleting the egress branch left it green | `internal/component/iface/mirror_integration_linux_test.go` | Asserts the egress filter, its destination, and that the ingress hook is untouched |
+| 5 | ISSUE | `TestApplyConfigKeepsUnchangedMirror` claimed to prevent "every unrelated commit interrupting mirrored traffic", which is false: `addMirrorFilter`'s EEXIST branch does FilterDel then FilterAdd on every re-apply | `internal/component/iface/config_mirror_test.go` | The comment states the window and why the re-install is deliberate. The behaviour is unchanged: convergence onto the config is worth it |
+| 6 | NOTE | `removeMirrorFilters` returned a `bool` both callers discarded | `mirror_linux.go` | Signature is `error` |
+| 7 | NOTE | `undoMirrorSetup`'s comment overstated its scope; "an empty qdisc costs nothing" was unverifiable | `mirror_linux.go`, `docs/features/interfaces.md` | Both rewritten; the qdisc's real cost (a miniq and the ingress static key) is stated |
+| 8 | NOTE | `countQdiscs` was a dead helper | `internal/component/iface/mirror_integration_linux_test.go` | Removed under a `test-relax:` token. Round 2 found the token's first reason FALSE (it named a last caller that never existed) and it now records a deletion instead: `git log -S countQdiscs` returns only `ad18e8dd9`, the commit that added it |
+| 9 | ISSUE | Round 2: the "an empty qdisc costs nothing" rewording was applied in two places out of three. `removeUnusedIngressQdisc`'s doc comment still carried the exact claim round 1 refused | `removeUnusedIngressQdisc`, `internal/plugins/iface/netlink/mirror_linux.go` | Rewritten: it states the real asymmetry (a miniq against another subsystem's whole filter set) and names its one caller and that caller's precondition |
+
+Round 1 also raised, and closure did NOT fix: an absent mirror DESTINATION aborts and unwinds the whole commit, while `absentPhysical` deliberately refuses to brick on an absent SOURCE NIC one screen away. It predates this spec and the goal does not depend on it, so it has a row in `plan/journal/transient-failure-treated-as-fatal.md`.
+
+### Limits of the proof (recorded, not fixed)
+- `isNotFound`'s REFUSAL half is proven on the helper, not driven from `RemoveMirror`. `TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter` drives both tolerated errnos through `RemoveMirror` and asserts the refusal as `isNotFound(unix.ENODEV)`. Nothing makes a real `FilterDel` failure happen at the entry point: `RemoveMirror` resolves the link by name first, so the link is present by the time `FilterDel` runs. Round 2 raised it and could not construct the drive either.
+- `removeUnusedIngressQdisc`'s non-empty branch is not exercised. Reaching it needs a foreign filter to arrive between `ensureClsactQdisc` and the failing `FilterAdd`, inside one call. `TestIntegrationMirrorSetupRollbackKeepsForeignFilter` reaches the early return instead (the qdisc was pre-created, so `createdQdisc` is false), and `...RollbackRemovesTheQdiscItCreated` reaches the loop with both hooks empty. The branch is a fail-closed guard on a race, and it is untested rather than proven.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/iface/config_mirror.go` | Yes | committed in `946d52f18`, 133 lines in its diffstat |
+| `internal/component/iface/config_mirror_test.go` | Yes | same commit, 278 lines |
+| `internal/plugins/iface/netlink/mirror_integration_linux_test.go` | Yes | same commit, 240 lines, extended at closure |
+| `plan/deferrals/fixit-mirror-clsact-ownership.md` | Yes | one live row, so it is NOT removed |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A dropped mirror is torn down | `--- PASS: TestIntegrationApplyConfigMirrorRemovedOnConfigDelete (0.29s)` in QEMU |
+| AC-2 | A co-attached foreign filter survives | `--- PASS: TestIntegrationMirrorRemoveKeepsForeignFilter (0.39s)` |
+| AC-3 | The qdisc REMAINS | `--- PASS: TestIntegrationMirrorRemove (0.25s)`; the same assertion was FAIL before the fix |
+| AC-4 | Setup on an existing clsact | `--- PASS: TestIntegrationMirrorSetupOnExistingClsact (0.34s)` |
+| AC-5 | Rollback keeps what it found, removes what it made | `--- PASS` on both rollback tests |
+| AC-6 | A changed destination is retired first | `--- PASS: TestIntegrationMirrorTwoDestinations (0.38s)` |
+| AC-7 | Two applies leave one filter per direction | `--- PASS: TestIntegrationMirrorSetupIsIdempotent (0.22s)` |
+| AC-8 | A teardown with nothing to remove takes nothing | `--- PASS: TestIntegrationMirrorRemoveLeavesForeignQdiscUntouched (0.18s)` and `...ToleratesOnlyAnAbsentFilter (0.01s)` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config commit dropping the mirror leaves | `TestIntegrationApplyConfigMirrorRemovedOnConfigDelete` (no `.ci`: this is kernel state, which a `.ci` cannot observe) | Yes, it calls `applyConfig(current, previous, b)` against the real netlink backend and reads the kernel with `filterAt` |
+| Config commit changing a destination | `TestApplyConfigRetiresChangedMirrorBeforeSetup` | Yes, it asserts the teardown precedes the setup in the recorded op order |
+| Config commit repeating an unchanged mirror | `TestApplyConfigKeepsUnchangedMirror` | Yes, one setup op and no teardown op |
+| `OnApply` passes the previous config | `internal/component/iface/register.go` | Yes, read at closure: the reload call passes `previousCfg`, the startup call passes nil by design |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Only mirror and flow-export address `ffff:`. Re-checked at closure: `trafficnetlink`'s `rootQdisc` selects `Parent == HANDLE_ROOT`, so a clsact is filtered out before any snapshot decision |
+| A-2 | confirmed | `TestIntegrationMirrorRemoveKeepsForeignFilter` deletes a filter and leaves the qdisc, on a real kernel |
+| A-3 | confirmed | `register.go` passes `previousCfg` on reload; the ten unit tests drive `applyConfig(cfg, previous, b)` |
+| A-4 | broken | "No filter remains on either hook" is NOT a sound last-user test for a teardown. `RemoveSampling` leaves empty qdiscs, so a live sampling interface passes through that state, and the answer can change between the list and the delete. It survives only in `undoMirrorSetup`, where the caller also knows it created the qdisc. See the Mistake Log and Key Design Decisions |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "mirror teardown deletes its own filters and leaves the qdisc" | `RemoveMirror` and `removeMirrorFilters`, read at closure | Yes, and the committed text said otherwise until this commit |
+| "a mirror the config drops is torn down", and the restart limit | `removeStaleMirrors`; the restart path is `register.go`'s nil-previous call | Yes |
+| Both source anchors on `mirror_linux.go` | Anchor now names `RemoveMirror, removeMirrorFilters, undoMirrorSetup, ensureClsactQdisc`; `removeUnusedIngressQdisc` dropped from the anchor because the claim beside it no longer describes it | Yes |
+| No other doc references these files | `grep -rn "mirror_linux.go\|config_mirror.go" docs/` returns only `docs/features/interfaces.md` | Yes |
+
+## Core Insight
+
+The kernel holds a refcount, and reading it is still not enough. "Does any filter
+remain on either hook" is the right question and the kernel answers it truthfully,
+but the answer is stale the moment it returns, because the sibling subsystem
+deliberately passes through the empty state on every reconfigure. What made the
+rollback allowed to act on that answer was never the answer: it was knowing it had
+created the qdisc itself, seconds earlier. Shared-resource ownership was not a
+question about the resource's current state at all.

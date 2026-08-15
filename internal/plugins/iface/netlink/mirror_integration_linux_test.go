@@ -9,6 +9,7 @@
 package ifacenetlink
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -126,6 +127,40 @@ func mirrorTestFilterCount(t *testing.T, link netlink.Link, parent uint32) int {
 	return len(filters)
 }
 
+// mirrorTestFilterAt returns the filter at one priority on one hook, or nil.
+// A count alone cannot tell "the mirror filter went and the foreign one stayed"
+// from the reverse, which is the defect these tests exist to refuse, so the
+// assertions below identify the survivor rather than counting it.
+func mirrorTestFilterAt(t *testing.T, link netlink.Link, parent uint32, priority uint16) netlink.Filter {
+	t.Helper()
+
+	filters, err := netlink.FilterList(link, parent)
+	if err != nil {
+		t.Fatalf("FilterList(%q): %v", link.Attrs().Name, err)
+	}
+	for _, f := range filters {
+		if f.Attrs() != nil && f.Attrs().Priority == priority {
+			return f
+		}
+	}
+	return nil
+}
+
+// mirrorTestMirredDst returns the ifindex a filter's mirred action points at,
+// or 0 when it carries none.
+func mirrorTestMirredDst(f netlink.Filter) int {
+	matchall, ok := f.(*netlink.MatchAll)
+	if !ok {
+		return 0
+	}
+	for _, a := range matchall.Actions {
+		if mirred, ok := a.(*netlink.MirredAction); ok {
+			return mirred.Ifindex
+		}
+	}
+	return 0
+}
+
 func mirrorTestHasQdisc(t *testing.T, link netlink.Link, qdiscType string) bool {
 	t.Helper()
 
@@ -162,6 +197,17 @@ func TestIntegrationMirrorSetupRollbackKeepsForeignFilter(t *testing.T) {
 		if !mirrorTestHasQdisc(t, src, "clsact") {
 			t.Error("the rollback deleted a clsact qdisc the mirror did not create")
 		}
+		foreign := mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorTestForeignPriority)
+		if foreign == nil {
+			t.Fatal("the rollback removed the foreign filter")
+		}
+		if got := mirrorTestMirredDst(foreign); got != smp.Attrs().Index {
+			t.Errorf("the surviving filter mirrors to ifindex %d, want %d: it is not the foreign one",
+				got, smp.Attrs().Index)
+		}
+		if mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorFilterPriority) != nil {
+			t.Error("the rollback left its own ingress filter behind")
+		}
 		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_INGRESS); got != 1 {
 			t.Errorf("ingress hook carries %d filters after the rollback, want 1 (the foreign one)", got)
 		}
@@ -188,12 +234,67 @@ func TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated(t *testing.T) {
 	})
 }
 
+func TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter(t *testing.T) {
+	// VALIDATES: AC-8 -- a teardown with nothing to remove reports success, and
+	// it does so for exactly the two errnos that mean "nothing to remove".
+	// PREVENTS: isNotFound widening back out. It is the only error gate on the
+	// teardown path, so anything it tolerates beyond these two makes a real
+	// failure report success, and applyBackendStep then journals a mirror that
+	// is still installed as removed.
+	withMirrorNetNS(t, func() {
+		src := addMirrorTestDummy(t, "msrc0")
+		idx := src.Attrs().Index
+		b := &netlinkBackend{}
+
+		// The kernel answers a FilterDel with no qdisc at ffff: with EINVAL, and
+		// a FilterDel on a present qdisc whose hook holds no filter at that
+		// priority with ENOENT. Both must be tolerated, which is why ENOENT
+		// alone (what RemoveSampling gates on) is not enough here.
+		sel := &netlink.MatchAll{FilterAttrs: netlink.FilterAttrs{
+			LinkIndex: idx, Parent: netlink.HANDLE_MIN_INGRESS,
+			Priority: mirrorFilterPriority, Protocol: unix.ETH_P_ALL,
+		}}
+
+		err := netlink.FilterDel(sel)
+		if !errors.Is(err, unix.EINVAL) {
+			t.Errorf("FilterDel with no qdisc = %v, want EINVAL; isNotFound's EINVAL arm may be unnecessary or the kernel changed", err)
+		}
+		if !isNotFound(err) {
+			t.Error("isNotFound refuses the no-qdisc errno, so an idempotent teardown reports failure")
+		}
+		if err := b.RemoveMirror("msrc0"); err != nil {
+			t.Errorf("RemoveMirror with no qdisc at all: %v", err)
+		}
+
+		if _, err := ensureClsactQdisc(idx); err != nil {
+			t.Fatalf("ensureClsactQdisc: %v", err)
+		}
+		err = netlink.FilterDel(sel)
+		if !errors.Is(err, unix.ENOENT) {
+			t.Errorf("FilterDel on an empty hook = %v, want ENOENT", err)
+		}
+		if !isNotFound(err) {
+			t.Error("isNotFound refuses the empty-hook errno, so a second teardown reports failure")
+		}
+		if err := b.RemoveMirror("msrc0"); err != nil {
+			t.Errorf("RemoveMirror with a qdisc but no mirror filter: %v", err)
+		}
+
+		// A failure that is neither is not tolerated: a link that has gone away
+		// answers ENODEV, and the teardown must report it rather than swallow it.
+		if isNotFound(unix.ENODEV) {
+			t.Error("isNotFound tolerates ENODEV, so a vanished link reads as a successful teardown")
+		}
+	})
+}
+
 func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
-	// VALIDATES: AC-2 and AC-3 -- teardown removes the qdisc when the mirror
-	// was its last user, and keeps it when another subsystem still holds a
-	// filter on it.
-	// PREVENTS: both halves of the ownership rule regressing to "always delete"
-	// or to "never delete".
+	// VALIDATES: AC-2 and AC-3 -- teardown keeps the shared qdisc when another
+	// subsystem still holds a filter on it, and keeps it when the mirror was
+	// its last user too. RemoveMirror owns its filters and nothing else.
+	// PREVENTS: teardown regressing to "delete the qdisc", in either the
+	// unconditional form it had before this spec or the last-user form that
+	// races SetupSampling between its QdiscAdd and its FilterAdd.
 	withMirrorNetNS(t, func() {
 		src := addMirrorTestDummy(t, "msrc0")
 		dst := addMirrorTestDummy(t, "mdst0")
@@ -211,12 +312,25 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 		if !mirrorTestHasQdisc(t, src, "clsact") {
 			t.Fatal("the shared qdisc was deleted while a foreign filter was attached")
 		}
+		foreign := mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorTestForeignPriority)
+		if foreign == nil {
+			t.Fatal("the foreign filter was removed with the mirror")
+		}
+		if got := mirrorTestMirredDst(foreign); got != smp.Attrs().Index {
+			t.Errorf("the surviving filter mirrors to ifindex %d, want %d: the wrong filter survived",
+				got, smp.Attrs().Index)
+		}
+		if mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorFilterPriority) != nil {
+			t.Error("the mirror's own ingress filter survived RemoveMirror")
+		}
 		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_INGRESS); got != 1 {
 			t.Errorf("ingress hook carries %d filters, want 1 (the foreign one)", got)
 		}
 
 		// Remove the foreign filter, install and remove the mirror again: the
-		// mirror is now the last user, so the qdisc goes with it.
+		// mirror is now the last user, and the qdisc still stays. Only
+		// undoMirrorSetup deletes, because a rollback knows it created the
+		// qdisc moments earlier (TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated).
 		if err := netlink.FilterDel(&netlink.MatchAll{
 			FilterAttrs: netlink.FilterAttrs{
 				LinkIndex: src.Attrs().Index,
@@ -233,8 +347,17 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 		if err := b.RemoveMirror("msrc0"); err != nil {
 			t.Fatalf("RemoveMirror as the last user: %v", err)
 		}
-		if mirrorTestHasQdisc(t, src, "clsact") {
-			t.Error("the qdisc survived the removal of its last user")
+		// test-relax: this asserted the qdisc was gone once its last user left.
+		// AC-3 was relaxed on 2026-08-14 and the assertion is inverted rather
+		// than dropped, so a teardown that starts deleting again reds here.
+		if !mirrorTestHasQdisc(t, src, "clsact") {
+			t.Error("the last user's teardown deleted a qdisc it may not have created")
+		}
+		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_INGRESS); got != 0 {
+			t.Errorf("ingress hook carries %d filters after teardown, want 0", got)
+		}
+		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_EGRESS); got != 0 {
+			t.Errorf("egress hook carries %d filters after teardown, want 0", got)
 		}
 	})
 }

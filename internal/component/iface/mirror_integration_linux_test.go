@@ -127,19 +127,12 @@ func hasQdisc(t *testing.T, linkName, qdiscType string) bool {
 	return false
 }
 
-// countQdiscs returns the number of qdiscs on a link (excluding the default).
-func countQdiscs(t *testing.T, linkName string) int {
-	t.Helper()
-	link, err := netlink.LinkByName(linkName)
-	if err != nil {
-		t.Fatalf("LinkByName(%q): %v", linkName, err)
-	}
-	qdiscs, err := netlink.QdiscList(link)
-	if err != nil {
-		t.Fatalf("QdiscList(%q): %v", linkName, err)
-	}
-	return len(qdiscs)
-}
+// test-relax: countQdiscs is gone. It was a HELPER and it never had a caller:
+// `git log -S countQdiscs` returns only ad18e8dd9, the commit that added it.
+// Deleting never-called test code drops no coverage, so this token records a
+// deletion rather than excusing a relaxation. It is here because the helper
+// carried two fatal-on-failure calls of its own, which the edit hook counts as
+// assertions going to zero. Nothing was given up.
 
 func TestIntegrationMirrorIngress(t *testing.T) {
 	// VALIDATES: SetupMirror with ingress=true installs a filter on the
@@ -168,8 +161,12 @@ func TestIntegrationMirrorIngress(t *testing.T) {
 }
 
 func TestIntegrationMirrorEgress(t *testing.T) {
-	// VALIDATES: SetupMirror with egress=true installs a clsact qdisc.
-	// PREVENTS: Egress mirroring silently fails to configure tc.
+	// VALIDATES: SetupMirror with egress=true installs a filter on the EGRESS
+	// hook, and leaves the ingress hook alone.
+	// PREVENTS: egress mirroring silently failing to configure tc. Asserting the
+	// qdisc alone stopped proving that once every mirror began creating clsact
+	// in ensureClsactQdisc before either hook is touched: the qdisc appears even
+	// if the egress branch of setupClsactMirror does nothing.
 	withNetNS(t, func() {
 		createDummyForTest(t, "src0")
 		createDummyForTest(t, "dst0")
@@ -181,6 +178,20 @@ func TestIntegrationMirrorEgress(t *testing.T) {
 
 		if !hasQdisc(t, "src0", "clsact") {
 			t.Error("expected clsact qdisc on src0, not found")
+		}
+		egress := filterAt(t, "src0", netlink.HANDLE_MIN_EGRESS, testMirrorPriority)
+		if egress == nil {
+			t.Fatal("expected a mirror filter on the egress hook, not found")
+		}
+		dst, err := netlink.LinkByName("dst0")
+		if err != nil {
+			t.Fatalf("LinkByName(dst0): %v", err)
+		}
+		if got := mirredDst(egress); got != dst.Attrs().Index {
+			t.Errorf("egress filter mirrors to ifindex %d, want %d", got, dst.Attrs().Index)
+		}
+		if filterAt(t, "src0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) != nil {
+			t.Error("an egress-only mirror installed a filter on the ingress hook")
 		}
 	})
 }
@@ -228,9 +239,12 @@ func TestIntegrationMirrorBoth(t *testing.T) {
 }
 
 func TestIntegrationMirrorRemove(t *testing.T) {
-	// VALIDATES: AC-3 -- RemoveMirror removes the mirror filter, and the qdisc
-	// with it when the mirror was its last user.
-	// PREVENTS: Stale mirroring configuration after removal.
+	// VALIDATES: AC-3 -- RemoveMirror removes the mirror's own filter from both
+	// hooks and LEAVES the shared qdisc standing, even when the mirror was its
+	// only user.
+	// PREVENTS: teardown reaching for QdiscDel again. The qdisc at ffff: is
+	// shared with flow-export sampling, and RemoveMirror cannot know who
+	// created it (RemoveMirror, internal/plugins/iface/netlink/mirror_linux.go).
 	withNetNS(t, func() {
 		createDummyForTest(t, "src0")
 		createDummyForTest(t, "dst0")
@@ -243,7 +257,7 @@ func TestIntegrationMirrorRemove(t *testing.T) {
 		// the mechanism an ingress-only mirror used before this spec. Ze now
 		// installs clsact for every mirror, so the qdisc kind no longer says
 		// whether a mirror is installed. The filter does, and that is what
-		// this now asserts. The post-conditions below are unchanged.
+		// this now asserts.
 		if filterAt(t, "src0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
 			t.Fatal("mirror filter should exist before removal")
 		}
@@ -252,12 +266,24 @@ func TestIntegrationMirrorRemove(t *testing.T) {
 			t.Fatalf("RemoveMirror: %v", err)
 		}
 
-		// After removal, no ingress or clsact qdisc should remain.
+		// The mirror's filters go from both hooks.
+		if filterAt(t, "src0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) != nil {
+			t.Error("the mirror ingress filter survived RemoveMirror")
+		}
+		if filterAt(t, "src0", netlink.HANDLE_MIN_EGRESS, testMirrorPriority) != nil {
+			t.Error("the mirror egress filter survived RemoveMirror")
+		}
+		// The older ingress qdisc is never installed now that every mirror uses
+		// clsact, so it must not appear at any point.
 		if hasQdisc(t, "src0", "ingress") {
 			t.Error("ingress qdisc still present after RemoveMirror")
 		}
-		if hasQdisc(t, "src0", "clsact") {
-			t.Error("clsact qdisc still present after RemoveMirror")
+		// test-relax: this asserted the clsact qdisc was GONE, which is the
+		// contract AC-3 carried until 2026-08-14. Teardown is filter-scoped
+		// now and deliberately leaves the qdisc, so the assertion is inverted
+		// rather than dropped: deleting the shared qdisc here reds this test.
+		if !hasQdisc(t, "src0", "clsact") {
+			t.Error("RemoveMirror deleted the shared clsact qdisc it does not own")
 		}
 	})
 }
@@ -498,8 +524,13 @@ func TestIntegrationApplyConfigMirrorRemovedOnConfigDelete(t *testing.T) {
 		if filterAt(t, "mir0", netlink.HANDLE_MIN_EGRESS, testMirrorPriority) != nil {
 			t.Error("the mirror egress filter survived a config that no longer asks for it")
 		}
-		if hasQdisc(t, "mir0", "clsact") {
-			t.Error("the clsact qdisc was left behind although nothing else uses it")
+		// test-relax: this asserted the qdisc was gone. A config delete is a
+		// RemoveMirror, so it leaves the shared qdisc for the same reason
+		// RemoveMirror does. What the operator asked to stop is the
+		// duplication, and the two filter assertions above are what prove it
+		// stopped.
+		if !hasQdisc(t, "mir0", "clsact") {
+			t.Error("the config delete took the shared clsact qdisc with the mirror")
 		}
 	})
 }

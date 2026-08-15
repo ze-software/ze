@@ -47,6 +47,12 @@ func indexMirrorSpecs(cfg *ifaceConfig) map[string]mirrorSpec {
 //
 // A mirror on a device that is gone needs no teardown: the kernel dropped the
 // tc state with the device, and the backend would fail to resolve the name.
+// That skip is decided by whether the backend can read the device, which cannot
+// tell a deleted device from a device it failed to read, so the skip is logged.
+// A read that failed for another reason leaves the mirror installed, and the
+// next apply carries the new config as its previous, so nothing retries it.
+// Reconciling live kernel state instead of a config delta is the fix, and it is
+// the same fix a restart needs (R-2 in spec-fixit-mirror-clsact-ownership).
 //
 // Each removal is journalled with the previous mirror as its undo, so a later
 // failure in the same apply puts the mirror back.
@@ -68,7 +74,9 @@ func removeStaleMirrors(cfg, previous *ifaceConfig, b Backend, journal *sdk.Jour
 				continue
 			}
 			delete(previousSpecs, osName)
-			if !interfaceExists(b, osName) {
+			if _, err := b.GetInterface(osName); err != nil {
+				loggerPtr.Load().Warn("iface config: mirror teardown skipped, cannot read the interface",
+					"iface", osName, "err", err)
 				continue
 			}
 			if err := applyBackendStep(journal, func() error {

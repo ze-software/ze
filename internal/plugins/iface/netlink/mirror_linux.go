@@ -8,7 +8,6 @@ package ifacenetlink
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -35,8 +34,15 @@ const (
 	mirrorQdiscHandleMajor uint16 = 0xffff
 )
 
+// isNotFound reports whether an error means "there was nothing to delete", so
+// the desired state is already reached. The kernel answers a FilterDel that
+// matches nothing with one of exactly two errnos, measured against Linux 6.12
+// in the QEMU VM: EINVAL when the link carries no qdisc at handle ffff: at all,
+// and ENOENT when the qdisc is there but the hook holds no filter at that
+// priority. Both are tolerated and nothing else is: this is the only error gate
+// on the teardown path, so a wider one lets a real failure report success.
 func isNotFound(err error) bool {
-	return err != nil && (errors.Is(err, unix.ENOENT) || errors.Is(err, unix.EINVAL) || strings.Contains(err.Error(), "no such"))
+	return err != nil && (errors.Is(err, unix.ENOENT) || errors.Is(err, unix.EINVAL))
 }
 
 func (b *netlinkBackend) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
@@ -116,11 +122,16 @@ func addMirrorFilter(linkIndex int, parent uint32, dstIndex int) error {
 	return err
 }
 
-// undoMirrorSetup returns the interface to its pre-setup state after a failed
-// filter add: the filters this call installed go, and the qdisc goes only if
-// this call created it and nothing else has attached to it since.
+// undoMirrorSetup returns the interface to the state it was in before a failed
+// filter add. It clears the mirror's priority on both hooks, which covers every
+// filter this call can have installed. The qdisc goes only if this call created
+// it and nothing else has attached to it since.
+//
+// Clearing a priority CAN remove a mirror filter an earlier call installed
+// rather than this one. Through the config path it cannot: removeStaleMirrors
+// retires a changed mirror before the new one is installed.
 func undoMirrorSetup(src netlink.Link, createdQdisc bool) {
-	if _, err := removeMirrorFilters(src.Attrs().Index); err != nil {
+	if err := removeMirrorFilters(src.Attrs().Index); err != nil {
 		logger().Warn("iface: mirror: rollback could not remove mirror filters",
 			"iface", src.Attrs().Name, "err", err)
 	}
@@ -143,7 +154,7 @@ func (b *netlinkBackend) RemoveMirror(srcIface string) error {
 		return fmt.Errorf("iface: mirror: %q not found: %w", srcIface, err)
 	}
 
-	if _, err := removeMirrorFilters(link.Attrs().Index); err != nil {
+	if err := removeMirrorFilters(link.Attrs().Index); err != nil {
 		return fmt.Errorf("iface: mirror: remove mirror filter on %q: %w", srcIface, err)
 	}
 
@@ -163,35 +174,39 @@ func (b *netlinkBackend) RemoveMirror(srcIface string) error {
 	// No ordering of the list and the delete closes that window, because the
 	// answer can change between them.
 	//
-	// An empty clsact qdisc costs nothing. It carries no filter, forwards no
-	// packet, and the next SetupMirror or SetupSampling adopts it through the
-	// same EEXIST branch that already exists. undoMirrorSetup still removes one,
-	// because a rollback DOES know it created the qdisc moments earlier.
+	// An empty clsact qdisc carries no filter and classifies no packet, and the
+	// next SetupMirror or SetupSampling adopts it through the same EEXIST branch
+	// that already exists. It is not free: the device keeps a miniq and the
+	// ingress static key stays referenced for the life of the namespace. That is
+	// the price of not deleting another subsystem's attachment point.
+	// undoMirrorSetup still removes one, because a rollback DOES know it created
+	// the qdisc moments earlier.
 	return nil
 }
 
-// removeMirrorFilters deletes the mirror's own filters from both clsact hooks
-// and reports whether either was present. A filter that is already gone is not
-// an error: the desired state is reached either way.
-func removeMirrorFilters(linkIndex int) (bool, error) {
-	removed := false
+// removeMirrorFilters deletes the mirror's own filters from both clsact hooks.
+// A filter that is already gone is not an error: the desired state is reached
+// either way.
+func removeMirrorFilters(linkIndex int) error {
 	for _, parent := range []uint32{netlink.HANDLE_MIN_INGRESS, netlink.HANDLE_MIN_EGRESS} {
 		err := netlink.FilterDel(mirrorFilter(linkIndex, parent, 0))
-		switch {
-		case err == nil:
-			removed = true
-		case isNotFound(err):
-		default:
-			return removed, err
+		if err != nil && !isNotFound(err) {
+			return err
 		}
 	}
-	return removed, nil
+	return nil
 }
 
 // removeUnusedIngressQdisc deletes the qdisc at handle ffff: when no filter is
 // left on either hook. It fails closed: when the remaining filters cannot be
-// listed, the qdisc stays. An empty qdisc costs nothing, and deleting a shared
-// one costs another subsystem every filter it installed.
+// listed, the qdisc stays. Leaving an empty qdisc costs a miniq on the device;
+// deleting a shared one costs another subsystem every filter it installed, so
+// the asymmetry decides every uncertain case in favour of leaving it.
+//
+// Only undoMirrorSetup calls this, and only when it created the qdisc itself.
+// The filter check is what stops a rollback taking a filter that arrived in
+// between; the "no filter left" answer alone is NOT a safe last-user test,
+// which is why RemoveMirror does not use one.
 func removeUnusedIngressQdisc(link netlink.Link) error {
 	for _, parent := range []uint32{netlink.HANDLE_MIN_INGRESS, netlink.HANDLE_MIN_EGRESS} {
 		filters, err := netlink.FilterList(link, parent)
