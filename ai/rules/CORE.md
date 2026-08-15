@@ -339,6 +339,10 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
 **Before claiming a protocol behaviour is correct, the RFC text MUST be read**, not only the summary and not only the surrounding code. The section relied on MUST be cited.
+**An RFC that the current one OBSOLETES MUST NOT be read as evidence about what Ze
+**The lineage that matters runs FORWARD: the documents that UPDATE the current one,
+**A predecessor MAY be opened for one purpose alone: to see why a clause is worded
+**An obsoleted RFC quoted by a document Ze summarises stays as it is.** A
 ## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
 **When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. It MUST be implemented and proven. Thomas has already chosen, so there is nothing to put to him.**
 **Asking MUST happen only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: it MUST be done, then reported (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.

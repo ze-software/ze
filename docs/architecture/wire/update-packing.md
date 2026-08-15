@@ -2,7 +2,7 @@
 
 ## Historical Context
 
-Original BGP (RFC 1771/4271) was designed for parsing efficiency:
+BGP-4 (RFC 4271) was designed for parsing efficiency:
 
 ```
 +------------------+
