@@ -96,10 +96,19 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     ("internal/test/golden/response.go", "VersionHeader"),
     ("internal/test/golden/routes.go", "RoutePatterns"),
     ("internal/test/golden/routes.go", "RepoFile"),
+    ("internal/test/golden/response.go", "AssertResponseHasBody"),
     # NormalizeHTML is the same package and the same shape. It is the AC-2
     # instrument of plan/spec-web-templ-migration.md: a port to templ is proven
     # by comparing normalized renders, and only a _test.go renders anything.
+    # portcheck.go calls it, which is the same package and not production code.
     ("internal/test/golden/normalize.go", "NormalizeHTML"),
+    # portcheck.go runs that comparison. `make ze-templ-port-check REF=<sha>`
+    # reads the pre-port fixtures out of git at REF and compares them against
+    # the ones on disk. Its callers are TestWebTemplPortFidelity and
+    # TestLGTemplPortFidelity, one in each ported package.
+    ("internal/test/golden/portcheck.go", "AssertPortFidelity"),
+    ("internal/test/golden/portcheck.go", "PortRef"),
+    ("internal/test/golden/portcheck.go", "PortResponse"),
     # internal/test/templcheck is the AC-8 guard of the same spec. It reads the
     # generated templ components of a package and refuses a parameter the
     # compiler cannot check a field name against. internal/component/lg calls it

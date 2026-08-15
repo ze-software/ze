@@ -1,0 +1,14 @@
+package web
+
+// commitBar is the pending-change bar at the foot of an editable page. A
+// read-only session renders nothing at all, which is what hides every edit
+// control from a user the authorizer denies.
+templ commitBar(v LayoutData) {
+	if !v.ReadOnly {
+		<div id="commit-bar" class={ commitBarClass(v.ChangeCount) }>
+			<span id="commit-count" class="commit-count">{ pendingChangeLabel(v.ChangeCount) }</span>
+			<button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+			<button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+		</div>
+	}
+}

@@ -9,7 +9,7 @@
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-templ-orphan-check ze-templ-generate-check ze-regen ze-regen-check ze-regen-check-readonly ze-arch-map ze-arch-map-check
-.PHONY: ze-web-golden-check ze-web-golden-update
+.PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -317,6 +317,32 @@ ze-web-golden-check:
 	@$(GO_TEST) -run 'TestLGHandlerGoldenOutput' ./internal/component/lg/
 	@$(call require-go-test,TestWebMarkupGoldenOutput,./internal/component/web/)
 	@$(GO_TEST) -run 'TestWebMarkupGoldenOutput' ./internal/component/web/
+
+# Compare every captured unit against the bytes it held BEFORE the templ port,
+# read out of git at REF, through golden.NormalizeHTML. It is the evidence for
+# AC-2 of plan/spec-web-templ-migration.md.
+#
+#   make ze-templ-port-check REF=80f0b8b57
+#
+# REF is empty by default, and an empty REF means golden.PrePortRef, which is
+# the commit the wiring phase captured every fixture at. Passing it is how the
+# instrument outlives this port: a later port names its own commit.
+#
+# The two tests also run under ze-unit-test, because neither is gated and
+# neither skips. This target names them so the comparison can be run against
+# another ref on its own.
+#
+# It answers a different question from ze-web-golden-check. That target proves
+# the fixtures ARE the current render. This one proves the current render says
+# what the pre-port render said. Once a fixture is recaptured, the golden check
+# compares the port against itself, and only this one still reads the bytes the
+# port was supposed to preserve.
+REF ?=
+ze-templ-port-check:
+	@$(call require-go-test,TestWebTemplPortFidelity,./internal/component/web/)
+	@$(GO_TEST) -run 'TestWebTemplPortFidelity' ./internal/component/web/ -port-ref='$(REF)'
+	@$(call require-go-test,TestLGTemplPortFidelity,./internal/component/lg/)
+	@$(GO_TEST) -run 'TestLGTemplPortFidelity' ./internal/component/lg/ -port-ref='$(REF)'
 
 # Recapture the golden fixtures after a DELIBERATE markup change. Read the diff
 # before committing it: every byte this rewrites is a byte an operator receives.

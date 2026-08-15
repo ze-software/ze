@@ -138,5 +138,5 @@ func buildBGPFamiliesTableData(entries []familyEntry) WorkbenchTableData {
 func handleBGPFamiliesPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	entries := collectFamilies(viewTree)
 	tableData := buildBGPFamiliesTableData(entries)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

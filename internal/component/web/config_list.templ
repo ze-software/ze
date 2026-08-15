@@ -1,0 +1,58 @@
+package web
+
+// configList is the config view of a YANG list: the entry keys on the left and
+// the selected entry's detail on the right.
+templ configList(v *ConfigViewData) {
+	<div class="config-list-layout">
+		<div class="config-key-panel">
+			<h3 class="config-section-title">Entries</h3>
+			<ul class="config-key-list">
+				for _, k := range v.Keys {
+					<li>
+						<a
+							class={ configKeyItemClass(k == v.SelectedKey) }
+							href={ v.BasePath + k + "/" }
+						>{ k }</a>
+					</li>
+				}
+			</ul>
+			<button class="sidebar-flyout-add" data-action="add-entry" data-base-url={ v.BasePath }>+ new</button>
+		</div>
+		// The detail panel and the key panel are both block, so the newline
+		// between them reaches no reader.
+		<div class="config-detail-panel" id="detail-panel">
+			if v.SelectedDetail != nil {
+				<div class="config-container">
+					if len(v.SelectedDetail.LeafFields) > 0 {
+						<section class="config-section">
+							<h3 class="config-section-title">Fields</h3>
+							<div class="config-fields">
+								for _, f := range v.SelectedDetail.LeafFields {
+									<form class="config-set-form" method="POST" action={ "/config/set/" + v.DetailPath }>
+										@leafInput(f)
+										<button type="submit" class="config-btn-set">Set</button>
+									</form>
+								}
+							</div>
+						</section>
+					}
+					if len(v.SelectedDetail.Children) > 0 {
+						<section class="config-section">
+							<ul class="config-nav-list">
+								for _, c := range v.SelectedDetail.Children {
+									<li>
+										<a class={ "config-nav-link config-nav-" + c.Kind } href={ c.URL }>{ c.Name }</a>
+									</li>
+								}
+							</ul>
+						</section>
+					}
+				</div>
+			} else {
+				<div class="config-empty-detail">
+					<p class="config-hint">Select an entry or add a new one.</p>
+				</div>
+			}
+		</div>
+	</div>
+}

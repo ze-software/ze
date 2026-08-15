@@ -1,0 +1,37 @@
+package web
+
+// oobResponse is the HTMX answer to a navigation: the main split in place,
+// then the breadcrumb, the prompt, the path bar and the context path as
+// out-of-band swaps.
+templ oobResponse(v *FragmentData) {
+	@mainSplit(v)
+	<nav id="breadcrumb" hx-swap-oob="innerHTML">@breadcrumbInner(v.chrome())</nav>
+	<span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">{ v.CLIPrompt }</span>
+	<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">@pathBarInner(v)</div>
+	<span id="cli-context-path" class="is-hidden" hx-swap-oob="true">{ v.CLIContextPath }</span>
+}
+
+// fullContent is the same main split for a full page load, where the chrome
+// around it is rendered by the layout rather than swapped in.
+templ fullContent(v *FragmentData) {
+	@mainSplit(v)
+}
+
+// mainSplit is the finder beside the detail panel. A monitored view refreshes
+// itself every five seconds and swaps only this split back in.
+templ mainSplit(v *FragmentData) {
+	<div class="main-split">
+		@finder(v)
+		<div
+			class="detail-panel"
+			id="detail"
+			if v.Monitor {
+				hx-get={ "/monitor/" + v.CurrentPath }
+				hx-trigger="every 5s"
+				hx-target="#content-area"
+				hx-swap="innerHTML"
+				hx-select=".main-split"
+			}
+		>@detail(v)</div>
+	</div>
+}

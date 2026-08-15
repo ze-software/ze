@@ -143,7 +143,7 @@ func buildSSHFormData(tree *config.Tree) WorkbenchFormData {
 // handleSSHPage renders the SSH service configuration form.
 func handleSSHPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildSSHFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Services > Web ---
@@ -184,7 +184,7 @@ func buildWebFormData(tree *config.Tree) WorkbenchFormData {
 // handleWebServicePage renders the Web service configuration form.
 func handleWebServicePage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildWebFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Services > Telemetry ---
@@ -288,7 +288,7 @@ func buildTelemetryFormData(tree *config.Tree) WorkbenchFormData {
 // handleTelemetryPage renders the Telemetry service configuration form.
 func handleTelemetryPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildTelemetryFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Services > TACACS ---
@@ -343,7 +343,7 @@ func buildTACACSFormData(tree *config.Tree) WorkbenchFormData {
 // handleTACACSPage renders the TACACS+ service configuration form.
 func handleTACACSPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildTACACSFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Services > MCP ---
@@ -435,7 +435,7 @@ func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
 // handleMCPPage renders the MCP service configuration form.
 func handleMCPPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildMCPFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Services > Looking Glass ---
@@ -490,7 +490,7 @@ func buildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 // handleLookingGlassPage renders the Looking Glass service configuration form.
 func handleLookingGlassPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildLookingGlassFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Services > API ---
@@ -567,5 +567,5 @@ func buildAPIFormData(tree *config.Tree) WorkbenchFormData {
 // handleAPIPage renders the API service configuration form.
 func handleAPIPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildAPIFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }

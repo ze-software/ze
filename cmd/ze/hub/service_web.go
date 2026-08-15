@@ -484,11 +484,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		}
 		diff, _ := editorMgr.Diff(username)
 		count := editorMgr.ChangeCount(username)
-		type diffData struct {
-			Diff        string
-			ChangeCount int
+		html, renderErr := renderer.RenderDiffModalOpen(diff, count)
+		if renderErr != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+			return
 		}
-		html := renderer.RenderFragment("diff_modal_open", diffData{Diff: diff, ChangeCount: count})
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return
@@ -497,7 +497,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Diff close: returns the closed modal HTML.
 	diffCloseHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		html := renderer.RenderFragment("diff_modal", nil)
+		html, renderErr := renderer.RenderDiffModal()
+		if renderErr != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return

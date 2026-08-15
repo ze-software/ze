@@ -89,7 +89,7 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 // The outer div polls every 5 seconds so session state updates automatically.
 func handleL2TPSessionsPage(renderer *Renderer) template.HTML {
 	tableData := buildL2TPSessionsTableData()
-	table := renderer.RenderFragment("workbench_table", tableData)
+	table := renderer.renderComponent("workbench_table", workbenchTable(tableData))
 	return template.HTML(`<div hx-get="/show/l2tp/sessions/" hx-trigger="every 5s" hx-swap="innerHTML">`) + //nolint:gosec // trusted builder output
 		table +
 		template.HTML(`</div>`) //nolint:gosec // trusted builder output
@@ -176,7 +176,7 @@ func buildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 // handleL2TPConfigPage renders the L2TP Configuration form for the workbench.
 func handleL2TPConfigPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildL2TPConfigFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- L2TP > Health ---
@@ -236,7 +236,7 @@ func buildL2TPHealthTableData() WorkbenchTableData {
 // handleL2TPHealthPage renders the L2TP Health table for the workbench.
 func handleL2TPHealthPage(renderer *Renderer) template.HTML {
 	tableData := buildL2TPHealthTableData()
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- Dispatch ---

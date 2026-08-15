@@ -143,7 +143,20 @@ func (s Set) Files(t *testing.T) []string {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && (s.Ext == "" || strings.HasSuffix(p, s.Ext)) {
+
+		// A directory named testdata holds fixtures, and the go tool excludes it
+		// from every walk of its own. A template in there belongs to a test, not
+		// to the package's rendered surface, and the captured fixtures live
+		// under it too.
+		if d.IsDir() {
+			if d.Name() == "testdata" {
+				return fs.SkipDir
+			}
+
+			return nil
+		}
+
+		if s.Ext == "" || strings.HasSuffix(p, s.Ext) {
 			files = append(files, p)
 		}
 

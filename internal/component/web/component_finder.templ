@@ -1,0 +1,75 @@
+package web
+
+// finder is the column navigation of the Finder shell: one column per level,
+// named entries first and unnamed ones after a separator.
+//
+// templ writes no whitespace between two turns of a loop, and none around a
+// component call. Each loop carries a space expression to keep two items apart.
+templ finder(v *FragmentData) {
+	<div class="finder-columns" id="finder">
+		for _, col := range v.Columns {
+			<div class="finder-col">
+				for _, it := range col.NamedItems {
+					if it.IsList && it.Name == finderAddItemName {
+						<button class="finder-item finder-add" id="btn-add-entry" data-action="add-entry" data-base-url={ it.AddURL }>+ new</button>
+					} else {
+						@finderItem(it)
+					}
+					{ " " }
+				}
+				if len(col.NamedItems) > 0 && len(col.UnnamedItems) > 0 {
+					<hr class="finder-separator">
+				}
+				for _, it := range col.UnnamedItems {
+					@finderItem(it)
+					{ " " }
+				}
+			</div>
+		}
+	</div>
+}
+
+// finderOOB is the same column navigation delivered as an out-of-band swap,
+// which is how an add or a delete refreshes it without a page load. Its add
+// button carries no id, because the one in the swapped-in page already holds
+// it.
+templ finderOOB(v *FragmentData) {
+	<div class="finder-columns" id="finder" hx-swap-oob="outerHTML">
+		for _, col := range v.Columns {
+			<div class="finder-col">
+				for _, it := range col.NamedItems {
+					if it.IsList && it.Name == finderAddItemName {
+						<button class="finder-item finder-add" data-action="add-entry" data-base-url={ it.AddURL }>+ new</button>
+					} else {
+						@finderItem(it)
+					}
+					{ " " }
+				}
+				if len(col.NamedItems) > 0 && len(col.UnnamedItems) > 0 {
+					<hr class="finder-separator">
+				}
+				for _, it := range col.UnnamedItems {
+					@finderItem(it)
+					{ " " }
+				}
+			</div>
+		}
+	</div>
+}
+
+// finderItem is one navigable entry in a finder column.
+templ finderItem(it ColumnItem) {
+	<a
+		class={ finderItemClass(it) }
+		href={ it.URL }
+		hx-get={ "/fragment/detail?path=" + it.HxPath }
+		hx-target="#content-area"
+		hx-swap="innerHTML"
+		hx-push-url={ it.URL }
+	>
+		{ it.Name }
+		if it.IsList {
+			<span class="finder-count">{ intText(it.Count) }</span>
+		}
+	</a>
+}

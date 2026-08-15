@@ -1,0 +1,133 @@
+package web
+
+// workbenchForm is the workbench's singleton configuration form. The editor
+// shape follows WorkbenchFormField.Type.
+templ workbenchForm(v WorkbenchFormData) {
+	<div class="wb-form">
+		if v.Title != "" {
+			<h2 class="wb-form-title">{ v.Title }</h2>
+		}
+		<form class="wb-form-post" method="post" action={ v.SaveURL } hx-post={ v.SaveURL } hx-swap="none">
+			for _, f := range v.Fields {
+				<div class="wb-form-field">
+					if f.Type == "toggle" {
+						<div class="wb-form-toggle">
+							<input type="hidden" name={ formFieldName(f) } value="false">
+							<input
+								type="checkbox"
+								id={ "field-" + f.Name }
+								name={ formFieldName(f) }
+								value="true"
+								if formFieldChecked(f) {
+									checked
+								}
+								if f.Disabled {
+									disabled
+								}
+							>
+							<label for={ "field-" + f.Name } class={ wbFormLabelClass(f.Required) }>{ f.Label }</label>
+						</div>
+					} else {
+						<label for={ "field-" + f.Name } class={ wbFormLabelClass(f.Required) }>{ f.Label }</label>
+						switch f.Type {
+							case "dropdown":
+								<select
+									id={ "field-" + f.Name }
+									name={ formFieldName(f) }
+									class="wb-form-input"
+									if f.Disabled {
+										disabled
+									}
+								>
+									for _, opt := range f.Options {
+										<option
+											value={ opt }
+											if opt == f.Value {
+												selected
+											}
+										>{ opt }</option>
+									}
+								</select>
+							case "number":
+								<input
+									type="number"
+									id={ "field-" + f.Name }
+									name={ formFieldName(f) }
+									value={ f.Value }
+									class="wb-form-input"
+									if f.Required {
+										required
+									}
+									if f.Disabled {
+										disabled
+									}
+								>
+							case "password":
+								<input
+									type="password"
+									id={ "field-" + f.Name }
+									name={ formFieldName(f) }
+									value={ f.Value }
+									class="wb-form-input"
+									if f.Required {
+										required
+									}
+									if f.Disabled {
+										disabled
+									}
+								>
+							case "ip":
+								<input
+									type="text"
+									id={ "field-" + f.Name }
+									name={ formFieldName(f) }
+									value={ f.Value }
+									class="wb-form-input"
+									placeholder="0.0.0.0"
+									if f.Required {
+										required
+									}
+									if f.Disabled {
+										disabled
+									}
+								>
+							case "list":
+								<div class="wb-form-list">
+									for _, item := range f.Items {
+										<div class="wb-form-list-item">
+											<input type="text" name={ f.Name + "[]" } value={ item } readonly>
+											<button type="button" class="wb-form-list-remove" aria-label="Remove">x</button>
+										</div>
+									}
+									<button type="button" class="wb-form-list-add">+ Add item</button>
+								</div>
+							default:
+								<input
+									type="text"
+									id={ "field-" + f.Name }
+									name={ formFieldName(f) }
+									value={ f.Value }
+									class="wb-form-input"
+									if f.Required {
+										required
+									}
+									if f.Disabled {
+										disabled
+									}
+								>
+						}
+					}
+					if f.Description != "" {
+						<span class="wb-form-description">{ f.Description }</span>
+					}
+				</div>
+			}
+			<div class="wb-form-actions">
+				<button type="button" id="workbench-form-save" class="wb-form-save" hx-post={ v.SaveURL } hx-include="closest form" hx-swap="none">Save</button>
+				if v.DiscardURL != "" {
+					<a href={ v.DiscardURL } class="wb-form-discard">Discard</a>
+				}
+			</div>
+		</form>
+	</div>
+}

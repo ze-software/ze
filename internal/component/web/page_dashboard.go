@@ -96,7 +96,7 @@ func handleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *htt
 		})
 	}
 
-	return renderer.RenderFragment("dashboard_health", data)
+	return renderer.renderComponent("dashboard_health", dashboardHealth(data))
 }
 
 // componentHealthRow resolves one component's status, flag color, and summary:
@@ -189,7 +189,7 @@ func handleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		}
 	}
 
-	return renderer.RenderFragment("dashboard_events", data)
+	return renderer.renderComponent("dashboard_events", dashboardEvents(data))
 }
 
 // parseNamespaces parses show event namespaces JSON output into namespace names.
@@ -233,11 +233,7 @@ func parseEventOutput(output string) []WorkbenchTableRow {
 		rows := make([]WorkbenchTableRow, 0, len(envelope.Events))
 		for _, ev := range envelope.Events {
 			rows = append(rows, WorkbenchTableRow{
-				Cells: []string{
-					template.HTMLEscapeString(ev.Timestamp),
-					template.HTMLEscapeString(ev.Namespace),
-					template.HTMLEscapeString(ev.EventType),
-				},
+				Cells: []string{ev.Timestamp, ev.Namespace, ev.EventType},
 			})
 		}
 		return rows
@@ -254,7 +250,7 @@ func parseEventOutput(output string) []WorkbenchTableRow {
 			continue
 		}
 		rows = append(rows, WorkbenchTableRow{
-			Cells: []string{"-", "-", template.HTMLEscapeString(line)},
+			Cells: []string{"-", "-", line},
 		})
 	}
 	return rows

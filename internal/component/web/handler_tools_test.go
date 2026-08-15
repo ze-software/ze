@@ -541,7 +541,7 @@ func testRenderer(t *testing.T) *Renderer {
 // PREVENTS: A render regression that drops the close affordance or the
 // command transparency line.
 func TestToolOverlay_RenderSuccess(t *testing.T) {
-	r := testRenderer(t)
+	renderer := testRenderer(t)
 	data := toolOverlayData{
 		ID:           "overlay-peer-detail-bgp-peer-thomas",
 		State:        ToolOverlayResult,
@@ -551,7 +551,7 @@ func TestToolOverlay_RenderSuccess(t *testing.T) {
 		ContextPath:  "bgp/peer/thomas",
 		OutputInline: "session established",
 	}
-	html := string(r.RenderFragment("tool_overlay", data))
+	html := string(renderer.renderComponent("tool_overlay", toolOverlay(data)))
 
 	assert.Contains(t, html, `id="overlay-peer-detail-bgp-peer-thomas"`)
 	assert.Contains(t, html, "Peer Detail")
@@ -567,14 +567,14 @@ func TestToolOverlay_RenderSuccess(t *testing.T) {
 // VALIDATES: Spec TDD `TestToolOverlay_RenderError` row.
 // PREVENTS: An error overlay that visually looks like a successful one.
 func TestToolOverlay_RenderError(t *testing.T) {
-	r := testRenderer(t)
+	renderer := testRenderer(t)
 	data := toolOverlayData{
 		ID:           "overlay-peer-detail-bgp-peer-x",
 		State:        ToolOverlayError,
 		Title:        "Peer Detail",
 		ErrorMessage: "authorization denied",
 	}
-	html := string(r.RenderFragment("tool_overlay", data))
+	html := string(renderer.renderComponent("tool_overlay", toolOverlay(data)))
 
 	assert.Contains(t, html, "tool-overlay--error")
 	assert.Contains(t, html, "authorization denied")
@@ -589,9 +589,9 @@ func TestToolOverlay_RenderError(t *testing.T) {
 // PREVENTS: A regression that drops the overflow tail or replaces the
 // disclosure with a re-fetch button (Spec Failure Routing row).
 func TestToolOverlay_ShowFullOutput(t *testing.T) {
-	r := testRenderer(t)
 	inline := strings.Repeat("a", relatedOverlayInlineBytes)
 	overflow := strings.Repeat("b", 1024)
+	renderer := testRenderer(t)
 	data := toolOverlayData{
 		ID:             "overlay-x",
 		State:          ToolOverlayResult,
@@ -602,7 +602,7 @@ func TestToolOverlay_ShowFullOutput(t *testing.T) {
 		OutputOverflow: template.HTML(overflow),
 		HasOverflow:    true,
 	}
-	html := string(r.RenderFragment("tool_overlay", data))
+	html := string(renderer.renderComponent("tool_overlay", toolOverlay(data)))
 
 	assert.Contains(t, html, "Show full output")
 	assert.Contains(t, html, "<details")
@@ -616,7 +616,7 @@ func TestToolOverlay_ShowFullOutput(t *testing.T) {
 //
 // VALIDATES: AC-27 (truncation notice).
 func TestToolOverlay_TruncationNotice(t *testing.T) {
-	r := testRenderer(t)
+	renderer := testRenderer(t)
 	data := toolOverlayData{
 		ID:           "overlay-x",
 		State:        ToolOverlayResult,
@@ -627,7 +627,7 @@ func TestToolOverlay_TruncationNotice(t *testing.T) {
 		HasOverflow:  true,
 		Truncated:    true,
 	}
-	html := string(r.RenderFragment("tool_overlay", data))
+	html := string(renderer.renderComponent("tool_overlay", toolOverlay(data)))
 
 	assert.Contains(t, strings.ToLower(html), "truncat")
 }

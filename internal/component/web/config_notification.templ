@@ -1,0 +1,25 @@
+package web
+
+// configNotification is the config editor's pending-change notice.
+//
+// NO LIVE PATH REACHES THIS. It sat in the config template map and no node kind
+// names it. The live notice is the commit bar. Recorded in
+// plan/journal/unwired-feature.md.
+templ configNotification(v configNotificationData) {
+	if v.ChangeCount > 0 || len(v.Messages) > 0 {
+		<div class="notification-content">
+			if v.ChangeCount > 0 {
+				<div class="notification-changes">
+					// The badge, the label and the link are all inline, so both
+					// spaces reach the reader. One expression carries the label
+					// with its spaces, which is exact and needs no rule about
+					// what templ writes between two expressions.
+					<span class="notification-badge">{ intText(v.ChangeCount) }</span>{ uncommittedChangeText(v.ChangeCount) }<a class="notification-link" href="/config/commit" hx-get="/config/commit" hx-target="#content-area" hx-push-url="true">Review</a>
+				</div>
+			}
+			for _, m := range v.Messages {
+				<div class="notification-message">{ m }</div>
+			}
+		</div>
+	}
+}

@@ -250,7 +250,7 @@ func handleBGPPeersPage(renderer *Renderer, r *http.Request, viewTree *config.Tr
 	peers := collectPeers(viewTree)
 	live := fetchBGPSummaryPeers(r, dispatch)
 	tableData := buildBGPPeersTableData(peers, filterGroup, live)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // buildBGPPeerDetailData constructs a WorkbenchDetailData for a single peer.

@@ -1,0 +1,34 @@
+package web
+
+// commandForm is the parameter form for a leaf admin command. It posts into
+// the detail panel, which is where its result lands.
+templ commandForm(v *FragmentData) {
+	<div class="command-form">
+		<h3 class="command-form-title">{ v.CommandForm.CommandName }</h3>
+		if v.CommandForm.Description != "" {
+			<p class="command-form-description">{ v.CommandForm.Description }</p>
+		}
+		<form
+			method="post"
+			action={ v.CommandForm.ActionURL }
+			hx-post={ v.CommandForm.ActionURL }
+			hx-target="#detail"
+			hx-swap="innerHTML"
+		>
+			for _, p := range v.CommandForm.Parameters {
+				<div class="command-form-field">
+					<label class="command-form-label" for={ "param-" + p.Name }>{ p.Name }</label>
+					<input
+						type="text"
+						class="command-form-input"
+						id={ "param-" + p.Name }
+						name={ p.Name }
+						value={ p.Value }
+						placeholder={ p.Placeholder }
+					>
+				</div>
+			}
+			<button type="submit" class="command-form-execute">Execute</button>
+		</form>
+	</div>
+}

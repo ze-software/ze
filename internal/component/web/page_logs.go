@@ -55,7 +55,7 @@ func renderLogPageContent(renderer *Renderer, r *http.Request, path []string, di
 // streaming area. The page opens an SSE connection to /logs/live/stream
 // on the client side for real-time event display.
 func handleLogLivePage(renderer *Renderer) template.HTML {
-	return renderer.RenderFragment("log_live", nil)
+	return renderer.renderComponent("log_live", logLive())
 }
 
 // handleLogLiveStream returns an HTTP handler that streams log events via SSE.
@@ -122,7 +122,7 @@ func handleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch Command
 
 	fillOperationalRows(&data, dispatch, r, "show warnings", "warnings", true)
 
-	return renderer.RenderFragment("log_table", data)
+	return renderer.renderComponent("log_table", logTable(data))
 }
 
 // --- Errors ---
@@ -144,7 +144,7 @@ func handleLogErrorsPage(renderer *Renderer, r *http.Request, dispatch CommandDi
 
 	fillOperationalRows(&data, dispatch, r, "show errors", "errors", false)
 
-	return renderer.RenderFragment("log_table", data)
+	return renderer.renderComponent("log_table", logTable(data))
 }
 
 // issueJSON matches the report.Issue JSON shape returned by the show
@@ -186,7 +186,7 @@ func parseIssueJSON(output, key string, includeDuration bool) []WorkbenchTableRo
 		if msg == "" {
 			msg = issue.Code + ": " + issue.Subject
 		}
-		cells := []string{ts, issue.Source, template.HTMLEscapeString(msg)}
+		cells := []string{ts, issue.Source, msg}
 		if includeDuration {
 			cells = append(cells, formatDuration(issue.Updated.Sub(issue.Raised)))
 		}
@@ -222,7 +222,7 @@ func parseLogOutput(output string) []WorkbenchTableRow {
 			continue
 		}
 		rows = append(rows, WorkbenchTableRow{
-			Cells: []string{"-", "-", template.HTMLEscapeString(line), "-"},
+			Cells: []string{"-", "-", line, "-"},
 		})
 	}
 

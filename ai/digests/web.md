@@ -78,14 +78,14 @@ unmarshal it back into a `map[string]any` for template rendering.
    (`internal/component/web/ui_mode.go`) picks Workbench vs Finder from a
    switch cookie, falling back to the `GetUIMode` startup default (`ui_mode.go`).
 6. **HTMX partial navigation.** Any `HX-Request: true` request short-circuits
-   both handlers to `renderer.RenderFragment("oob_response", data)`
+   both handlers to `renderer.renderComponent("oob_response", oobResponse(data))`
    (`internal/component/web/handler_workbench.go`,
    `internal/component/web/fragment.go`, `internal/component/web/render.go`). The
-   `oob_response` template
-   (`internal/component/web/templates/component/oob_response.html:1`) emits the
+   `oobResponse` component
+   (`internal/component/web/component_oob_response.templ`) emits the
    `finder`+`detail` swap for the target plus four `hx-swap-oob` spans
-   (breadcrumb, CLI prompt, path bar, hidden context path,
-   `oob_response.html:6-9`) so shared chrome stays in sync without a reload.
+   (breadcrumb, CLI prompt, path bar, hidden context path) so shared chrome
+   stays in sync without a reload.
 7. **Inline leaf edit.** `POST /config/set/<path>` →
    `HandleConfigSetWithAuthorizer`
    (`internal/component/web/handler_config_form.go`) authorizes via

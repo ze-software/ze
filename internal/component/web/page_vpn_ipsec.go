@@ -74,7 +74,7 @@ func buildIPsecSATableData() WorkbenchTableData {
 // handleIPsecPage renders the VPN IPsec SA table page.
 func handleIPsecPage(renderer *Renderer) template.HTML {
 	tableData := buildIPsecSATableData()
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 func renderVPNPageContent(renderer *Renderer, _ *http.Request, path []string) (template.HTML, bool) {

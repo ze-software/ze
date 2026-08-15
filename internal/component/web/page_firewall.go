@@ -86,7 +86,7 @@ func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 func handleFirewallTablesPage(renderer *Renderer) template.HTML {
 	entries := collectTables()
 	tableData := buildFirewallTablesTableData(entries)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- Chains page ---
@@ -214,7 +214,7 @@ func handleFirewallChainsPage(renderer *Renderer, r *http.Request) template.HTML
 	filterType := r.URL.Query().Get("type")
 	entries := collectChains(filterTable, filterHook, filterType)
 	tableData := buildFirewallChainsTableData(entries, filterTable)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- Rules page ---
@@ -541,7 +541,7 @@ func handleFirewallRulesPage(renderer *Renderer, r *http.Request) template.HTML 
 	filterChain := r.URL.Query().Get("chain")
 	entries := collectRules(filterTable, filterChain)
 	tableData := buildFirewallRulesTableData(entries, filterTable, filterChain)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- Sets page ---
@@ -647,7 +647,7 @@ func handleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
 	filterTable := r.URL.Query().Get("table")
 	entries := collectSets(filterTable)
 	tableData := buildFirewallSetsTableData(entries)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- Connections page ---
@@ -683,7 +683,7 @@ func buildFirewallConnectionsTableData() WorkbenchTableData {
 // handleFirewallConnectionsPage renders the firewall connections table within the workbench.
 func handleFirewallConnectionsPage(renderer *Renderer) template.HTML {
 	tableData := buildFirewallConnectionsTableData()
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- Dispatch ---

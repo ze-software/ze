@@ -1,0 +1,71 @@
+package web
+
+// breadcrumbNav is the left half of the page chrome: the back link and the
+// trail from root to the current node.
+templ breadcrumbNav(v chromeData) {
+	<div class="breadcrumb-nav">
+		if len(v.Breadcrumbs) > 1 {
+			<a class="breadcrumb-back" id="link-back" href={ v.Breadcrumbs[len(v.Breadcrumbs)-2].URL }><img class="ze-logo" src="/assets/ze.svg" alt="Back" width="24" height="24"></a>
+		} else if len(v.Breadcrumbs) > 0 {
+			<a class="breadcrumb-back" id="link-back" href="/show/"><img class="ze-logo" src="/assets/ze.svg" alt="Back" width="24" height="24"></a>
+		} else {
+			<span class="ze-logo-link"><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"></span>
+		}
+		<ol class="breadcrumb-list">
+			for _, s := range v.Breadcrumbs {
+				<li class={ breadcrumbItemClass(s.Active) }>
+					if s.Active {
+						<span>{ s.Name }</span>
+					} else {
+						<a href={ s.URL }>{ s.Name }</a>
+					}
+				</li>
+			}
+		</ol>
+	</div>
+}
+
+// topbarActions is the right half of the page chrome: who is signed in, the
+// shell toggles, the theme button and the portal menu.
+templ topbarActions(v chromeData) {
+	<div class="breadcrumb-actions">
+		if v.Insecure {
+			<span class="user-badge user-insecure">NOT SECURED</span>
+		} else if v.Username != "" {
+			<span class="user-badge">{ v.Username }</span>
+		}
+		if v.ActiveUI != uiModeTokenWorkbench {
+			<a class="view-toggle" href="/show/" title="Switch to Workbench" data-action="switch-ui" data-mode="workbench">Workbench</a>
+		}
+		if v.ActiveUI != uiModeTokenFinder {
+			<a class="view-toggle" href="/show/" title="Switch to Finder" data-action="switch-ui" data-mode="finder">Finder</a>
+		}
+		if v.ActiveUI != uiModeTokenCLI {
+			<a class="view-toggle" href="/cli" title="Open CLI terminal">CLI</a>
+		}
+		<button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" data-action="toggle-theme">&#9681;</button>
+		if len(v.Services) > 0 {
+			<div class="portal-menu">
+				<button class="portal-toggle" title="Services" data-action="toggle-portal">&#9776;</button>
+				<div class="portal-dropdown">
+					for _, s := range v.Services {
+						<a class="portal-item" href={ "/portal/" + s.Key } title={ s.Title }>
+							if s.Icon != "" {
+								<img src={ s.Icon } alt="" width="16" height="16">
+							}
+							{ s.Title }
+						</a>
+						{ " " }
+					}
+				</div>
+			</div>
+		}
+	</div>
+}
+
+// breadcrumbInner is the whole page chrome, which the layout renders inside its
+// breadcrumb bar and the OOB response swaps in as one unit.
+templ breadcrumbInner(v chromeData) {
+	@breadcrumbNav(v)
+	@topbarActions(v)
+}

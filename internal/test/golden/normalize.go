@@ -2,7 +2,10 @@
 
 package golden
 
-import "strings"
+import (
+	"html"
+	"strings"
+)
 
 // NormalizeHTML rewrites markup into the form a reader receives it as.
 //
@@ -15,16 +18,35 @@ import "strings"
 // drops the whitespace between two nodes unless both are inline or text
 // (vendor/github.com/a-h/templ/generator/generator.go).
 //
-// Four rules, applied to both sides:
+// Five rules, applied to both sides. AC-2 names the same five.
 //
 //   - the doctype is lowercased, which is all generateDocType does to it.
-//   - whitespace inside a tag, between attributes and outside quoted values,
-//     becomes one space.
-//   - a run of whitespace in a text node becomes one space. That space is
-//     dropped where HTML drops it: against a block element, at the start of an
-//     element's content, and at its end.
-//   - text inside <pre> or <textarea> is kept byte for byte. Every byte there
-//     reaches the reader, so a newline and a space are different content.
+//   - whitespace inside a tag becomes one space, and none against the bracket.
+//   - a run of whitespace in a text node becomes one space.
+//   - an attribute value is written in double quotes.
+//   - a character reference is decoded and written again in one spelling.
+//
+// The text-node space is dropped where HTML drops it. That is against a block
+// element, at the start of an element's content, and at its end.
+//
+// The delimiter rule follows templ. writeExpressionAttribute writes an
+// expression attribute one way only. A single-quoted source value therefore
+// moves the delimiter and nothing else.
+//
+// The reference rule follows the two escapers. html/template escapes +, = and `
+// in its own table. templ.EscapeString escapes five characters and none of
+// those three. The two also disagree on a bare & inside an attribute. Every
+// such pair decodes to the same text.
+//
+// Text inside <pre> or <textarea> keeps its whitespace byte for byte. Every
+// byte there reaches the reader, so a newline and a space are different
+// content. The character-reference rule still applies inside it, because a
+// config diff line starts with a + that one engine spells &#43;.
+//
+// Decoding does not hide a double escape. `&amp;lt;x&amp;gt;` decodes to
+// `&lt;x&gt;` and is written again as `&amp;lt;x&amp;gt;`, which is not what a
+// value escaped once becomes. Raw markup does not hide either: a real <script>
+// is a tag, and an escaped one is text, so the two never meet.
 //
 // Between two INLINE neighbors that space survives. A space between </a> and
 // <a>, or between an expression and the <span> after it, still counts. That is
@@ -65,12 +87,12 @@ func NormalizeHTML(src string) string {
 		}
 
 		if depth > 0 {
-			b.WriteString(tok.text)
+			b.WriteString(canonicalRefs(tok.text))
 
 			continue
 		}
 
-		b.WriteString(normalizeText(tok.text, prevOf(tokens, i), nextOf(tokens, i)))
+		b.WriteString(normalizeText(canonicalRefs(tok.text), prevOf(tokens, i), nextOf(tokens, i)))
 	}
 
 	return b.String()
@@ -264,9 +286,24 @@ func tagToken(raw string) htmlToken {
 	}
 
 	tok.name = strings.ToLower(elementName(body))
-	tok.text = collapseTagSpace(raw)
+	tok.text = normalizeTag(raw)
 
 	return tok
+}
+
+// canonicalRefs decodes every character reference and writes the result again
+// in one spelling. It is how two escapers with different tables are compared by
+// the text they produce for a reader rather than by the bytes they chose.
+//
+// html.EscapeString covers &, ', <, > and ". A + or an = stays literal, which
+// is the templ spelling. The function is idempotent: a second pass decodes what
+// the first one wrote and writes it again the same way.
+func canonicalRefs(s string) string {
+	if !strings.ContainsAny(s, "&<>'\"") {
+		return s
+	}
+
+	return html.EscapeString(html.UnescapeString(s))
 }
 
 // elementName reads the leading name of a tag body.
@@ -284,48 +321,125 @@ func elementName(body string) string {
 	return body[:end]
 }
 
-// collapseTagSpace collapses whitespace between attributes. It leaves a quoted
-// value alone.
-func collapseTagSpace(raw string) string {
-	var (
-		b     strings.Builder
-		quote byte
-		space bool
-	)
+// normalizeTag writes one tag in a canonical spelling. It writes the element
+// name, then one space before each attribute, then the closing bracket. No
+// space sits against that bracket. Every value is written in double quotes, and
+// every character reference inside it in one encoding.
+//
+// The space rule is the text rule carried to the end of the tag. An HTML
+// tokenizer reads whitespace there in the before-attribute-name state and emits
+// no attribute for it. `<a href="x" >` and `<a href="x">` are one element.
+// Markup that puts a conditional attribute on its own line leaves that space
+// behind whenever the condition is false. templ writes none, so without this
+// rule every such tag reads as a difference.
+//
+// The quoting rule has the same shape. writeExpressionAttribute
+// (vendor/github.com/a-h/templ/generator/generator.go) writes an expression
+// attribute in double quotes, and escapes the value. A source value in single
+// quotes therefore reaches the browser in another delimiter, unchanged.
+// hx-vals carries JSON in this repository, which is where that pair is met.
+//
+// A tag with no closing bracket keeps none. Truncated output must read as a
+// difference, so this function never supplies a bracket the input lacks.
+func normalizeTag(raw string) string {
+	var b strings.Builder
 
-	for i := range len(raw) {
-		c := raw[i]
+	body := strings.TrimSuffix(strings.TrimSuffix(raw, ">"), "/")
+	end := raw[len(body):]
 
-		if quote != 0 {
-			b.WriteByte(c)
+	i := 1
 
-			if c == quote {
-				quote = 0
-			}
+	b.WriteByte('<')
 
-			continue
-		}
+	if strings.HasPrefix(body[i:], "/") {
+		b.WriteByte('/')
 
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-			space = true
-
-			continue
-		}
-
-		if space {
-			b.WriteByte(' ')
-
-			space = false
-		}
-
-		if c == '"' || c == '\'' {
-			quote = c
-		}
-
-		b.WriteByte(c)
+		i++
 	}
 
+	name := elementName(body[i:])
+	b.WriteString(name)
+
+	i += len(name)
+
+	for i < len(body) {
+		for i < len(body) && isTagSpace(body[i]) {
+			i++
+		}
+
+		if i >= len(body) {
+			break
+		}
+
+		attr, next := tagAttribute(body, i)
+		i = next
+
+		b.WriteByte(' ')
+		b.WriteString(attr)
+	}
+
+	b.WriteString(end)
+
 	return b.String()
+}
+
+// tagAttribute reads one attribute at i and returns it in canonical form,
+// together with the index after it. A valueless attribute keeps its bare name,
+// because dropping one is a real difference (hidden, selected, disabled).
+func tagAttribute(body string, i int) (string, int) {
+	start := i
+
+	for i < len(body) && !isTagSpace(body[i]) && body[i] != '=' {
+		i++
+	}
+
+	name := body[start:i]
+
+	for i < len(body) && isTagSpace(body[i]) {
+		i++
+	}
+
+	if i >= len(body) || body[i] != '=' {
+		return name, i
+	}
+
+	i++
+
+	for i < len(body) && isTagSpace(body[i]) {
+		i++
+	}
+
+	value, next := tagValue(body, i)
+
+	return name + `="` + canonicalRefs(value) + `"`, next
+}
+
+// tagValue reads an attribute value at i, quoted or bare, and returns it with
+// the index after it. An unterminated quoted value runs to the end of the tag,
+// which is what an HTML tokenizer does with it.
+func tagValue(body string, i int) (string, int) {
+	if i < len(body) && (body[i] == '"' || body[i] == '\'') {
+		quote := body[i]
+
+		end := strings.IndexByte(body[i+1:], quote)
+		if end < 0 {
+			return body[i+1:], len(body)
+		}
+
+		return body[i+1 : i+1+end], i + end + 2
+	}
+
+	start := i
+	for i < len(body) && !isTagSpace(body[i]) {
+		i++
+	}
+
+	return body[start:i], i
+}
+
+// isTagSpace reports whether c separates two parts of a tag.
+func isTagSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'
 }
 
 // blockElements is templ's own block set

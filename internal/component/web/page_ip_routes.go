@@ -92,9 +92,9 @@ func HandleRoutesPage(renderer *Renderer, r *http.Request) template.HTML {
 	routes, err := iface.ListKernelRoutes(filterPrefix, routeDisplayLimit)
 	if err != nil {
 		tableData := buildRouteTableData(nil, filterProtocol)
-		return renderer.RenderFragment("workbench_table", tableData)
+		return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 	}
 
 	tableData := buildRouteTableData(routes, filterProtocol)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

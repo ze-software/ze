@@ -195,12 +195,13 @@ func webGoldenDiffHandler(renderer *Renderer, mgr *EditorManager) http.Handler {
 		diff, _ := mgr.Diff(username)
 		count := mgr.ChangeCount(username)
 
-		type diffData struct {
-			Diff        string
-			ChangeCount int
+		html, renderErr := renderer.RenderDiffModalOpen(diff, count)
+		if renderErr != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+
+			return
 		}
 
-		html := renderer.RenderFragment("diff_modal_open", diffData{Diff: diff, ChangeCount: count})
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		if _, err := w.Write([]byte(html)); err != nil {
@@ -211,7 +212,13 @@ func webGoldenDiffHandler(renderer *Renderer, mgr *EditorManager) http.Handler {
 
 func webGoldenDiffCloseHandler(renderer *Renderer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		html := renderer.RenderFragment("diff_modal", nil)
+		html, renderErr := renderer.RenderDiffModal()
+		if renderErr != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		if _, err := w.Write([]byte(html)); err != nil {

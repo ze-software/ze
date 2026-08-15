@@ -1,6 +1,6 @@
 # Web Interface Architecture
 
-The ze web interface is an HTTPS server that renders YANG-driven configuration views using HTMX components. All UI is server-rendered Go templates. HTMX handles navigation, auto-save, and error display via out-of-band swaps. The only JavaScript is `cli.js` for Tab/? autocomplete in the CLI bar.
+The ze web interface is an HTTPS server that renders YANG-driven configuration views using HTMX components. All UI is server-rendered, from typed Go components the templ generator compiles. HTMX handles navigation, auto-save, and error display via out-of-band swaps. The only JavaScript is `cli.js` for Tab/? autocomplete in the CLI bar.
 
 For the component design, template filesystem, and interaction flows, see [web-components.md](web-components.md).
 
@@ -16,11 +16,11 @@ All source files in `internal/component/web/` reference this document via `// De
 | `fragment.go` | HTMX fragment handler, `FragmentData`, `FieldMeta`, sidebar builder, OOB error writer |
 | `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
-| `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `nodeKindToTemplate`, breadcrumbs |
+| `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `configViewComponent`, breadcrumbs |
 | `handler_admin.go` | Admin command tree navigation and execution; YANG-derived tree via `AdminTreeFromYANG`. When the YANG loader fails at hub startup the admin nav is empty (and the failure is logged to stderr) rather than falling back to a stale static map; an empty admin nav is operator-visible feedback that the hub did not load its command modules. |
 | `cli.go` | CLI bar (integrated + terminal modes), tab completion |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
-| `render.go` | Template loading (embedded), `RenderFragment`, `fieldFor` dispatch |
+| `render.go` | `Renderer`: embedded assets, decorators, and the entry points the hub calls (`RenderLayout`, `RenderLogin`, `RenderWorkbench`, `RenderField`, `RenderDiffModal`) |
 | `sse.go` | `EventBroker`, SSE client management, config change broadcast |
 | `ui_mode.go` | `UIMode` selector for the workbench experiment (Phase 4 default flip pending) |
 | `handler_workbench.go` | workbench shell handler; reuses fragment data path with workbench chrome |
@@ -34,21 +34,38 @@ All source files in `internal/component/web/` reference this document via `// De
 <!-- source: internal/component/web/fragment.go -- HandleFragment, FragmentData -->
 <!-- source: internal/component/web/editor.go -- EditorManager -->
 
-## Template Structure
+## Component Structure
 
-Templates are organized by visual concern:
+Every page, fragment and editor is a templ component. A component is a Go
+function, so the markup and the view model are checked against each other at
+build time. The sources sit in the package directory, named by visual concern:
 
 ```
-templates/
-  page/        layout.html, login.html
-  component/   breadcrumb, sidebar, detail, cli_bar, commit_bar,
-               error_panel, diff_modal, oob_response, oob_save, oob_error
-  input/       wrapper, bool, enum, number, text
+internal/component/web/
+  page_*.templ        layout, login, workbench
+  component_*.templ   breadcrumb, path_bar, sidebar, detail, finder,
+                      list_table, log_table, log_live, add_form_overlay,
+                      command_form, command_result, cli_bar, commit_bar,
+                      error_panel, diff_modal, notification_error,
+                      dashboard_*, oob_*, workbench_*, tool_*
+  config_*.templ      breadcrumb, command, command_form, commit, container,
+                      list, inline_list, freeform, flex, leaf_input,
+                      notification
+  input_*.templ       wrapper, bool, enum, number, text
+  l2tp_*.templ        list, detail
+  notification_banner.templ, terminal.templ
 ```
 
-Each input type is one file. The `fieldFor()` template function dispatches to `input_<type>` at render time based on the YANG `ValueType`. No if/else chain in templates.
+A name ending in `_*` above is a family: every file carrying that prefix
+belongs to the line it sits on. Each other name is one file.
 
-<!-- source: internal/component/web/render.go -- NewRenderer, fieldFor func -->
+`make generate` compiles each `.templ` into a `*_templ.go` beside it, and
+`make ze-templ-generate-check` refuses a source whose generated file is stale.
+
+Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `fieldInputs` registry, which maps a YANG field type onto the component that edits it. A type nobody registered reaches the text editor by a named rule. No if/else chain in the markup.
+
+<!-- source: internal/component/web/render.go -- NewRenderer, Renderer -->
+<!-- source: internal/component/web/field_input.go -- fieldInputs, fieldInputFor -->
 
 ## URL Scheme
 
@@ -170,10 +187,10 @@ The RouterOS-style operator workbench is the default UI. Set `ze.web.ui-mode=fin
 
 | Region | Source |
 |--------|--------|
-| Top bar (identity, breadcrumb, actions) | `templates/component/workbench_topbar.html` |
-| Left nav (Dashboard / Routing / Logs / ...) | `templates/component/workbench_nav.html` driven by `workbench_sections.go` |
+| Top bar (identity, breadcrumb, actions) | `component_workbench_topbar.templ` |
+| Left nav (Dashboard / Routing / Logs / ...) | `component_workbench_nav.templ` driven by `workbench_sections.go` |
 | Workspace (table + detail) | reuses the existing `detail` fragment so list tables and fields render unchanged inside the new chrome |
-| Tool overlay container `#tool-overlays` | `templates/component/tool_overlay.html`; HTMX `hx-swap="beforeend"` appends each instance as a sibling so multiple overlays can pin |
+| Tool overlay container `#tool-overlays` | `component_tool_overlay.templ`. HTMX `hx-swap="beforeend"` appends each instance as a sibling, so several overlays can pin |
 | Commit bar / diff modal / error panel | reused unchanged from Finder; CLI bar removed (available as `/cli` tab) |
 
 ### Related-tool execution

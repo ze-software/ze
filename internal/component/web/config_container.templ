@@ -1,0 +1,32 @@
+package web
+
+// configContainer is the config view of a YANG container: its navigable
+// children, then a set form per leaf.
+templ configContainer(v *ConfigViewData) {
+	<div class="config-container" id="content-area">
+		if len(v.Children) > 0 {
+			<section class="config-section">
+				<ul class="config-nav-list">
+					for _, c := range v.Children {
+						<li>
+							<a class={ "config-nav-link config-nav-" + c.Kind } href={ c.URL }>{ c.Name }</a>
+						</li>
+					}
+				</ul>
+			</section>
+		}
+		if len(v.LeafFields) > 0 {
+			<section class="config-section">
+				<h3 class="config-section-title">Fields</h3>
+				<div class="config-fields">
+					for _, f := range v.LeafFields {
+						<form class="config-set-form" method="POST" action={ "/config/set/" + v.CurrentPath }>
+							@leafInput(f)
+							<button type="submit" class="config-btn-set">Set</button>
+						</form>
+					}
+				</div>
+			</section>
+		}
+	</div>
+}

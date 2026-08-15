@@ -111,5 +111,5 @@ func buildDNSWorkbenchForm(data dNSFormData) WorkbenchFormData {
 func handleDNSPage(renderer *Renderer, tree *config.Tree) template.HTML {
 	data := buildDNSFormData(tree)
 	formData := buildDNSWorkbenchForm(data)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }

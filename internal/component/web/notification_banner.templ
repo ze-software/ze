@@ -1,0 +1,29 @@
+package web
+
+// notificationBanner is the config-change banner the SSE stream delivers. The
+// HTMX SSE extension swaps it into #notification-bar, so it carries no wrapper
+// of its own. BroadcastConfigChange (sse.go) renders it.
+templ notificationBanner(v notificationBannerData) {
+	<div class="notification-banner"><span class="notification-reason">{ v.Reason }</span><button class="btn btn-sm" hx-get={ v.RefreshURL } hx-target="#content-area" hx-swap="innerHTML">Refresh</button><button class="btn btn-sm btn-dismiss" data-action="dismiss-banner">Dismiss</button></div>
+}
+
+// notificationBannerOOB is the same banner inside an out-of-band wrapper.
+//
+// NO LIVE PATH REACHES THIS. It is the port of templates/notification_banner.html,
+// which no renderer ever parsed: NewRenderer (render.go) names every file it
+// loads and that one is absent. Recorded in plan/journal/unwired-feature.md.
+//
+// It repeats the markup rather than calling notificationBanner because the two
+// are not the same bytes. The banner above is one Go string with no whitespace
+// between its children; the file below laid them out on separate lines, and a
+// span next to a button is a space the browser draws. A port lands both as they
+// are and the fix pass decides which one survives.
+templ notificationBannerOOB(v notificationBannerData) {
+	<div id="notification-bar" hx-swap-oob="innerHTML:#notification-bar">
+		<div class="notification-banner">
+			<span class="notification-reason">{ v.Reason }</span>
+			<button class="btn btn-sm" hx-get={ v.RefreshURL } hx-target="#content-area" hx-swap="innerHTML">Refresh</button>
+			<button class="btn btn-sm btn-dismiss" data-action="dismiss-banner">Dismiss</button>
+		</div>
+	</div>
+}

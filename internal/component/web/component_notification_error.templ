@@ -1,0 +1,13 @@
+package web
+
+// notificationError is the toast an out-of-band swap puts in the notification
+// area. The countdown and the close button are driven by notification.js.
+templ notificationError(v notificationErrorData) {
+	<div id="notification-area" hx-swap-oob="innerHTML">
+		<div class="notification notification-error" id="notif-toast">
+			<span class="notification-message">{ v.Message }</span>
+			<span class="notification-countdown" id="notif-countdown">30</span>
+			<button class="notification-close" id="notif-close">&#10005;</button>
+		</div>
+	</div>
+}

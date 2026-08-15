@@ -1,0 +1,24 @@
+package web
+
+// configBreadcrumb is the config editor's breadcrumb trail.
+//
+// NO LIVE PATH REACHES THIS. It sat in the config template map, which only
+// nodeKindToTemplate ever indexed, and that function answers no node kind with
+// this name. Recorded in plan/journal/unwired-feature.md. The port lands its
+// markup unchanged so nothing is lost when the feature is wired or removed.
+templ configBreadcrumb(v configBreadcrumbData) {
+	if v.BackURL != "" {
+		<a class="breadcrumb-back" hx-get={ v.BackURL } hx-target="#content-area" hx-push-url="true" href={ v.BackURL }>&#8592;</a>
+	}
+	<ol class="breadcrumb-list">
+		for _, s := range v.Segments {
+			<li class={ breadcrumbItemClass(s.Active) }>
+				if s.Active {
+					<span>{ s.Name }</span>
+				} else {
+					<a hx-get={ s.URL } hx-target="#content-area" hx-push-url="true" href={ s.URL }>{ s.Name }</a>
+				}
+			</li>
+		}
+	</ol>
+}

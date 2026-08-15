@@ -1,0 +1,55 @@
+package web
+
+// configFlex is the config view of a YANG flex node. A flex node is a flag, a
+// single value, or a block, and the shape of its data decides which.
+//
+// NO LIVE PATH REACHES THIS. configViewComponent (handler_config_leaf.go)
+// answers nothing for config.NodeFlex, because the caller passes a
+// ConfigViewData and this markup reads Name, Value and LeafField, which that
+// type does not carry. The defect is recorded in
+// plan/journal/silent-fall-through.md and is not fixed here: the port lands the
+// markup, byte for byte, so the fix pass has it.
+templ configFlex(v configFlexData) {
+	<div class="config-flex">
+		if len(v.Children) == 0 && v.Value == "" {
+			// Flag mode: just the name, no input.
+			<div class="config-flex-flag">
+				<span class="config-flex-name">{ v.Name }</span>
+				<span class="config-flex-indicator">enabled</span>
+			</div>
+		} else if v.Value != "" && len(v.Children) == 0 {
+			// Value mode: single input field.
+			<div class="config-flex-value">
+				<div class="config-fields">
+					@leafInput(v.LeafField)
+				</div>
+			</div>
+		} else {
+			// Block mode: like a container, listing children.
+			<div class="config-container">
+				if len(v.LeafFields) > 0 {
+					<section class="config-section">
+						<h3 class="config-section-title">Fields</h3>
+						<div class="config-fields">
+							for _, f := range v.LeafFields {
+								@leafInput(f)
+							}
+						</div>
+					</section>
+				}
+				if len(v.Children) > 0 {
+					<section class="config-section">
+						<h3 class="config-section-title">Children</h3>
+						<ul class="config-nav-list">
+							for _, c := range v.Children {
+								<li>
+									<a class="config-nav-link" hx-get={ c.URL } hx-target="#content-area" hx-push-url="true" href={ c.URL }>{ c.Name }</a>
+								</li>
+							}
+						</ul>
+					</section>
+				}
+			</div>
+		}
+	</div>
+}

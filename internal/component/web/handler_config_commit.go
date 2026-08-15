@@ -25,9 +25,8 @@ func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFun
 			return
 		}
 
-		type saveOK struct{ ChangeCount int }
 		count := mgr.ChangeCount(username)
-		html := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+		html := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: count}))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return
@@ -122,11 +121,16 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		// the failure text; non-HX clients still receive a 500 with the message.
 		var tb textbuf.Buffer
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			modal, renderErr := renderer.RenderDiffModalOpen(
+				tb.Str("Commit failed:\n").Err(err).String(), mgr.ChangeCount(username))
+			if renderErr != nil {
+				http.Error(w, "render error", http.StatusInternalServerError)
+
+				return
+			}
+
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			modal := renderer.RenderFragment("diff_modal_open", commitModalData{
-				Diff:        tb.Str("Commit failed:\n").Err(err).String(),
-				ChangeCount: mgr.ChangeCount(username),
-			})
+
 			if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
 				return
 			}
@@ -145,11 +149,15 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		}
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			modal, renderErr := renderer.RenderDiffModalOpen(msg.String(), mgr.ChangeCount(username))
+			if renderErr != nil {
+				http.Error(w, "render error", http.StatusInternalServerError)
+
+				return
+			}
+
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			modal := renderer.RenderFragment("diff_modal_open", commitModalData{
-				Diff:        msg.String(),
-				ChangeCount: mgr.ChangeCount(username),
-			})
+
 			if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
 				return
 			}
@@ -175,10 +183,16 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	// Return closed diff modal + empty commit bar. No redirect -- the page
 	// underneath the overlay stays unchanged.
 	if r.Header.Get("HX-Request") == htmxRequestTrue {
+		modal, renderErr := renderer.RenderDiffModal()
+		if renderErr != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		modal := renderer.RenderFragment("diff_modal", nil)
-		type saveOK struct{ ChangeCount int }
-		bar := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: 0})
+
+		bar := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: 0}))
 		if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
 			return
 		}

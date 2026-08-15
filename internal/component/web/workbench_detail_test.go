@@ -11,7 +11,7 @@ import (
 // TestRenderWorkbenchDetail renders a detail panel with tabs, close button,
 // and related tools, then verifies all structural elements are present.
 func TestRenderWorkbenchDetail(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchDetailData{
@@ -28,7 +28,7 @@ func TestRenderWorkbenchDetail(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_detail", data))
+	html := string(renderer.renderComponent("workbench_detail", workbenchDetail(data)))
 	require.NotEmpty(t, html, "detail fragment must render")
 
 	// Panel structure.
@@ -59,7 +59,7 @@ func TestRenderWorkbenchDetail(t *testing.T) {
 // TestRenderWorkbenchDetail_TabSwitching verifies that only the active tab's
 // content div gets the active class, while all tab content is present in HTML.
 func TestRenderWorkbenchDetail_TabSwitching(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchDetailData{
@@ -70,7 +70,7 @@ func TestRenderWorkbenchDetail_TabSwitching(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_detail", data))
+	html := string(renderer.renderComponent("workbench_detail", workbenchDetail(data)))
 	require.NotEmpty(t, html, "detail fragment must render")
 
 	// Both tab contents should be present in the HTML.
@@ -84,7 +84,7 @@ func TestRenderWorkbenchDetail_TabSwitching(t *testing.T) {
 // TestRenderWorkbenchDetail_NoTools verifies the panel renders without a tools
 // section when no tools are provided.
 func TestRenderWorkbenchDetail_NoTools(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchDetailData{
@@ -94,7 +94,7 @@ func TestRenderWorkbenchDetail_NoTools(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_detail", data))
+	html := string(renderer.renderComponent("workbench_detail", workbenchDetail(data)))
 	require.NotEmpty(t, html, "detail fragment must render")
 
 	assert.Contains(t, html, `Minimal`)

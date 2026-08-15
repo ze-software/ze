@@ -8,6 +8,10 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Rewrite replaces a volatile span of a captured response with a fixed
@@ -91,4 +95,70 @@ func Response(rec *httptest.ResponseRecorder, rewrites []Rewrite) []byte {
 	}
 
 	return out
+}
+
+// AssertResponseHasBody refuses a captured response that answers with nothing.
+//
+// A handler capture byte-compares, so it accepts whatever the handler wrote,
+// an empty page included. A component deleted from under a handler renders
+// nothing, the handler answers 200 with no body, and one -update-golden run
+// freezes that as the expected answer. Nothing later reports it: the fixture
+// and the render agree.
+//
+// webGoldenDiffHandler is the case this exists for. It called a component the
+// port had deleted, and only a reader noticed. The TEMPLATE capture has carried
+// the same refusal since it was written: webCaptureSet fails a unit that
+// renders only whitespace in every variant.
+//
+// The exemptions are DERIVED, not declared. A redirect, a 204 and a 304 each
+// carry no body by their own definition. The stream exemption reads a property
+// the case already states. A stream case cancels its request before the
+// handler runs, so the capture holds nothing the handler wrote.
+//
+// It ends the subtest rather than reporting it, and that is load-bearing. A
+// capture run writes the fixture after this call, so anything short of Fatal
+// leaves the empty page on disk beside a red test. Every case is its own
+// subtest, so the rest of the capture still runs.
+func AssertResponseHasBody(t *testing.T, name string, got []byte, stream bool) {
+	t.Helper()
+
+	if finding := responseBodyFinding(name, got, stream); finding != "" {
+		t.Fatal(finding)
+	}
+}
+
+// responseBodyFinding reports why one captured response is refused, or "".
+func responseBodyFinding(name string, got []byte, stream bool) string {
+	head, body := splitResponse(got)
+
+	if strings.TrimSpace(body) != "" {
+		return ""
+	}
+
+	var tb textbuf.Buffer
+
+	status, err := responseStatus(head)
+	if err != nil {
+		return tb.Str("case ").Str(name).Str(" captures no status line this check can read: ").Err(err).String()
+	}
+
+	// 204 and 304 are defined to carry no body, and a redirect carries the
+	// Location header rather than a page.
+	if status == 204 || status == 304 || (status >= 300 && status < 400) {
+		return ""
+	}
+
+	if stream {
+		return ""
+	}
+
+	return tb.Str("case ").Str(name).Str(" answers ").Int(int64(status)).
+		Str(" with an empty body, so the capture would freeze a page nobody renders").String()
+}
+
+// responseStatus reads the status line Response wrote.
+func responseStatus(head string) (int, error) {
+	line, _, _ := strings.Cut(head, "\n")
+
+	return strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "status:")))
 }

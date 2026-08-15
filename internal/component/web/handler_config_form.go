@@ -157,9 +157,8 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			}
 
 			// OOB commit bar with change count.
-			type saveOK struct{ ChangeCount int }
 			count := mgr.ChangeCount(username)
-			oob := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+			oob := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: count}))
 			if _, writeErr := w.Write([]byte(oob)); writeErr != nil {
 				return
 			}
@@ -245,8 +244,7 @@ func HandleConfigFormWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			type saveOK struct{ ChangeCount int }
-			oob := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: mgr.ChangeCount(username)})
+			oob := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: mgr.ChangeCount(username)}))
 			if _, writeErr := w.Write([]byte(oob)); writeErr != nil {
 				return
 			}

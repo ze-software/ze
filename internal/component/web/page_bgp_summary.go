@@ -126,5 +126,5 @@ func buildBGPSummaryTableData(viewTree *config.Tree, live map[string]bgpSummaryP
 func handleBGPSummaryPage(renderer *Renderer, r *http.Request, viewTree *config.Tree, dispatch CommandDispatcher) template.HTML {
 	live := fetchBGPSummaryPeers(r, dispatch)
 	tableData := buildBGPSummaryTableData(viewTree, live)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

@@ -7,18 +7,4 @@ header: X-Content-Type-Options: nosniff
 header: X-Frame-Options: DENY
 header: X-Ze-Version: <VERSION>
 
-
-
-
-
-<div class="command-result">
-  <div class="command-result-header">
-    <span class="command-result-title">show version</span>
-    
-  </div>
-  <div class="command-result-body">
-    <pre class="command-result-output">{&#34;result&#34;:&#34;golden&#34;}</pre>
-  </div>
-</div>
-
-
+<div class="command-result"><div class="command-result-header"><span class="command-result-title">show version</span> </div><div class="command-result-body"><pre class="command-result-output">{&#34;result&#34;:&#34;golden&#34;}</pre></div></div>

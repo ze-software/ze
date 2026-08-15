@@ -175,6 +175,11 @@ func TestLGHandlerGoldenOutput(t *testing.T) {
 					c.Method, c.Target)
 			}
 
+			// A byte comparison accepts an empty page, and a capture run
+			// freezes it. The component capture has always refused a unit that
+			// renders only whitespace: this is the same refusal, one layer up.
+			golden.AssertResponseHasBody(t, c.Name, got, c.Stream)
+
 			golden.Compare(t, fixture, got)
 		})
 	}
@@ -220,9 +225,11 @@ func lgGoldenRequest(t *testing.T, c lgHandlerCase) *http.Request {
 	}
 
 	if c.Stream {
-		// Cancel before the handler runs. A stream writes its headers and its
-		// first payload, then returns on ctx.Done instead of holding the test
-		// for a tick.
+		// Cancel before the handler runs, so it returns on ctx.Done instead of
+		// holding the test for a tick. The capture then holds the headers and
+		// whatever the handler wrote before it returned. For /lg/events that is
+		// nothing, which is why Stream also exempts a case from
+		// AssertResponseHasBody.
 		ctx, cancel := context.WithCancel(req.Context())
 		cancel()
 		req = req.WithContext(ctx)

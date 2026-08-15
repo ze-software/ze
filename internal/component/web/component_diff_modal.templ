@@ -1,0 +1,28 @@
+package web
+
+// diffModal is the closed review overlay. Every full page carries it so the
+// commit bar has a target to swap.
+templ diffModal() {
+	<div id="diff-modal" class="diff-modal">
+		<div class="diff-title">Review changes</div>
+		<pre class="diff-content"></pre>
+		<div class="diff-actions">
+			<button class="commit-btn" hx-post="/config/commit" hx-target="#diff-modal" hx-swap="outerHTML">Confirm Commit</button>
+			<button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
+		</div>
+	</div>
+}
+
+// diffModalOpen is the same overlay with the pending diff inside it. The diff
+// is written into a <pre>, where a newline is content, so the expression sits
+// directly against both tags and carries no source layout.
+templ diffModalOpen(v commitModalData) {
+	<div id="diff-modal" class="diff-modal open">
+		<div class="diff-title">Review changes ({ intText(v.ChangeCount) })</div>
+		<pre class="diff-content">{ v.Diff }</pre>
+		<div class="diff-actions">
+			<button class="commit-btn" hx-post="/config/commit" hx-target="#diff-modal" hx-swap="outerHTML">Confirm Commit</button>
+			<button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
+		</div>
+	</div>
+}

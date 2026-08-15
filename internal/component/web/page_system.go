@@ -81,7 +81,7 @@ func buildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 // handleSystemIdentityPage renders the System Identity form.
 func handleSystemIdentityPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := buildSystemIdentityFormData(viewTree)
-	return renderer.RenderFragment("workbench_form", formData)
+	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
 // --- Router Identity Resolution ---
@@ -244,7 +244,7 @@ func handleUsersPage(renderer *Renderer, viewTree *config.Tree, powerUsers []str
 	}
 	allUsers = append(allUsers, configUsers...)
 	tableData := buildUsersTableData(allUsers)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 // --- System > Resources ---
@@ -613,5 +613,5 @@ func smartHealthLabel(healthy bool) string {
 func handleSysctlProfilesPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	profiles := collectSysctlProfiles(viewTree)
 	tableData := buildSysctlProfilesTableData(profiles)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

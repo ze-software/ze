@@ -11,7 +11,7 @@ import (
 // TestRenderWorkbenchTable renders a table with columns, rows, and actions,
 // then verifies toolbar, headers, flag column, cells, and action buttons.
 func TestRenderWorkbenchTable(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchTableData{
@@ -46,7 +46,7 @@ func TestRenderWorkbenchTable(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_table", data))
+	html := string(renderer.renderComponent("workbench_table", workbenchTable(data)))
 	require.NotEmpty(t, html, "table fragment must render")
 
 	// Toolbar
@@ -85,7 +85,7 @@ func TestRenderWorkbenchTable(t *testing.T) {
 // TestRenderWorkbenchTable_EmptyState renders a table with zero rows and
 // verifies the empty message and add button appear.
 func TestRenderWorkbenchTable_EmptyState(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchTableData{
@@ -99,7 +99,7 @@ func TestRenderWorkbenchTable_EmptyState(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_table", data))
+	html := string(renderer.renderComponent("workbench_table", workbenchTable(data)))
 	require.NotEmpty(t, html, "table fragment must render")
 
 	assert.Contains(t, html, `wb-table-empty-row`, "empty row must be present")
@@ -115,7 +115,7 @@ func TestRenderWorkbenchTable_EmptyState(t *testing.T) {
 // TestRenderWorkbenchTable_FlagColors renders rows with different FlagClass
 // values and verifies the correct CSS classes are applied.
 func TestRenderWorkbenchTable_FlagColors(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchTableData{
@@ -130,7 +130,7 @@ func TestRenderWorkbenchTable_FlagColors(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_table", data))
+	html := string(renderer.renderComponent("workbench_table", workbenchTable(data)))
 	require.NotEmpty(t, html, "table fragment must render")
 
 	assert.Contains(t, html, `wb-table-flag--green`, "green flag must be present")
@@ -140,7 +140,10 @@ func TestRenderWorkbenchTable_FlagColors(t *testing.T) {
 	// Row with empty FlagClass should have wb-table-flag but no color modifier.
 	r4Idx := strings.Index(html, `data-key="r4"`)
 	require.Greater(t, r4Idx, 0, "r4 row must exist")
-	// The flag cell for r4 should not have a color modifier class.
-	r4Section := html[r4Idx : r4Idx+200]
+	// The flag cell for r4 should not have a color modifier class. The window
+	// is bounded because r4 is the last row. A compact render leaves fewer than
+	// 200 bytes after it, and an unbounded slice panics on the length rather
+	// than reporting what it read.
+	r4Section := html[r4Idx:min(r4Idx+200, len(html))]
 	assert.Contains(t, r4Section, `class="wb-table-flag"`, "empty flag class should have no modifier")
 }

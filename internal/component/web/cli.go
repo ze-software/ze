@@ -196,7 +196,7 @@ func HandleCLIPageHTTP(renderer *Renderer, insecure bool) http.HandlerFunc {
 			CLIPrompt:  formatCLIPrompt(nil),
 			Username:   username,
 			Insecure:   insecure,
-			ActiveUI:   "cli",
+			ActiveUI:   uiModeTokenCLI,
 		}
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
 			http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)

@@ -1,0 +1,20 @@
+package web
+
+// configCommand is a command result card for the config editor.
+//
+// NO LIVE PATH REACHES THIS. It sat in the config template map and no node kind
+// names it. The workbench renders commandResult instead. Recorded in
+// plan/journal/unwired-feature.md.
+templ configCommand(v CommandResultData) {
+	<div class={ commandResultClass(v.Error) }>
+		<div class="command-result-header">
+			<span class="command-result-title">{ v.CommandName }</span>
+			if v.Error {
+				<span class="command-result-error-badge">error</span>
+			}
+		</div>
+		<div class="command-result-body">
+			<pre class="command-result-output">{ v.Output }</pre>
+		</div>
+	</div>
+}

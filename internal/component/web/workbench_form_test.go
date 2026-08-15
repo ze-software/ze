@@ -26,7 +26,7 @@ func TestHumanizeFieldLabel(t *testing.T) {
 // TestRenderWorkbenchForm renders a form with multiple field types and verifies
 // the form structure, field labels, Save and Discard buttons.
 func TestRenderWorkbenchForm(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchFormData{
@@ -43,7 +43,7 @@ func TestRenderWorkbenchForm(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_form", data))
+	html := string(renderer.renderComponent("workbench_form", workbenchForm(data)))
 	require.NotEmpty(t, html, "form fragment must render")
 
 	// Form structure.
@@ -76,7 +76,7 @@ func TestRenderWorkbenchForm(t *testing.T) {
 // TestRenderWorkbenchForm_FieldTypes verifies that each field type renders
 // the correct HTML element.
 func TestRenderWorkbenchForm_FieldTypes(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -129,7 +129,7 @@ func TestRenderWorkbenchForm_FieldTypes(t *testing.T) {
 				Fields:  []WorkbenchFormField{tt.field},
 			}
 
-			html := string(r.RenderFragment("workbench_form", data))
+			html := string(renderer.renderComponent("workbench_form", workbenchForm(data)))
 			require.NotEmpty(t, html, "form fragment must render")
 			assert.Contains(t, html, tt.contains)
 		})
@@ -139,7 +139,7 @@ func TestRenderWorkbenchForm_FieldTypes(t *testing.T) {
 // TestRenderWorkbenchForm_DisabledField verifies that disabled fields render
 // the disabled attribute.
 func TestRenderWorkbenchForm_DisabledField(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := WorkbenchFormData{
@@ -150,7 +150,7 @@ func TestRenderWorkbenchForm_DisabledField(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_form", data))
+	html := string(renderer.renderComponent("workbench_form", workbenchForm(data)))
 	require.NotEmpty(t, html, "form fragment must render")
 	assert.Contains(t, html, `disabled`)
 }

@@ -2,6 +2,7 @@ package web
 
 import (
 	"io/fs"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,12 +27,14 @@ func TestMobileViewportCSS(t *testing.T) {
 	assert.Contains(t, style, "overflow-x: hidden", "390px block needs the horizontal-scroll guard")
 	assert.Contains(t, style, ".finder-table { display: block; overflow-x: auto;", "wide tables must scroll inside their box")
 
+	// The three page sources are templ components now, so they are on disk
+	// beside the Go files rather than in the embedded template FS.
 	for _, page := range []string{
-		"templates/page/login.html",
-		"templates/page/layout.html",
-		"templates/page/workbench.html",
+		"page_login.templ",
+		"page_layout.templ",
+		"page_workbench.templ",
 	} {
-		data, readErr := fs.ReadFile(templatesFS, page)
+		data, readErr := os.ReadFile(page)
 		require.NoErrorf(t, readErr, "read %s", page)
 		assert.Containsf(t, string(data), `name="viewport"`, "%s must declare a viewport meta", page)
 		assert.Containsf(t, string(data), "width=device-width", "%s viewport must be responsive", page)

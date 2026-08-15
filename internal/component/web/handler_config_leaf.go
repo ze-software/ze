@@ -5,6 +5,10 @@
 package web
 
 import (
+	"html/template"
+
+	"github.com/a-h/templ"
+
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -99,24 +103,56 @@ func leafInputType(vt config.ValueType) LeafField {
 	return LeafField{InputType: "text"}
 }
 
-// nodeKindToTemplate maps a NodeKind to the template file name used for rendering.
-func nodeKindToTemplate(kind config.NodeKind) string {
+// configViewComponent resolves the component that renders one config node.
+//
+// This replaced a lookup by template name. The renderer held a map keyed on
+// that name. A name it did not hold rendered nothing. Two of the six names this
+// function used to answer reach no markup, and the config editor answers both
+// with a blank panel:
+//
+//   - config.NodeLeaf named leaf.html, which is in neither the embedded tree
+//     nor the parsed set.
+//   - config.NodeFlex named flex.html, whose markup reads Name, Value and
+//     LeafField. The caller passes a ConfigViewData, which carries none.
+//
+// Both are recorded in plan/journal/silent-fall-through.md and neither is fixed
+// here: this phase ports markup and changes no rendered byte. They answer nil,
+// which renderConfigContent reports at debug rather than swallowing.
+func configViewComponent(kind config.NodeKind, v *ConfigViewData) templ.Component {
 	switch kind {
-	case config.NodeContainer:
-		return "container.html"
 	case config.NodeList:
-		return "list.html"
-	case config.NodeLeaf:
-		return "leaf.html"
+		return configList(v)
 	case config.NodeFreeform:
-		return "freeform.html"
-	case config.NodeFlex:
-		return "flex.html"
+		return configFreeform(v)
 	case config.NodeInlineList:
-		return "inline_list.html"
+		return configInlineList(v)
+	case config.NodeLeaf, config.NodeFlex:
+		return nil
+	case config.NodeContainer:
+		return configContainer(v)
 	}
 
-	return "container.html"
+	return configContainer(v)
+}
+
+// renderConfigContent renders the config view of one node. A node kind with no
+// component of its own yields empty markup, which is what the operator saw
+// before the port. It says so in the log.
+//
+// AT DEBUG, because a leaf is a routine view. Two of the six node kinds reach
+// no markup. A warning here is one line for each such view, on a path an
+// operator walks all day. The defect belongs to
+// plan/journal/silent-fall-through.md, and a log level cannot fix it.
+func renderConfigContent(renderer *Renderer, v *ConfigViewData) template.HTML {
+	component := configViewComponent(v.NodeKind, v)
+	if component == nil {
+		serverLogger.Debug("config node kind has no view component",
+			"kind", nodeKindString(v.NodeKind), "path", v.CurrentPath)
+
+		return ""
+	}
+
+	return renderer.renderComponent("config view", component)
 }
 
 // nodeKindString returns a human-readable kind string for display.

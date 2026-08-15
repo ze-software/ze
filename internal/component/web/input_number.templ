@@ -1,0 +1,28 @@
+package web
+
+// inputNumber edits a leaf whose YANG type is an integer. min and max come from
+// the schema range, so the browser refuses an out-of-range value before the
+// POST reaches the editor.
+templ inputNumber(f FieldMeta) {
+	<input
+		type="number"
+		class={ fieldInputClass(f.Value) }
+		name="value"
+		value={ f.Value }
+		inputmode="numeric"
+		hx-post={ configSetURL(f.Path) }
+		hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
+		hx-target="closest .ze-field"
+		hx-swap="outerHTML"
+		hx-vals={ fieldHxVals(f.Leaf) }
+		if f.Min != "" {
+			min={ f.Min }
+		}
+		if f.Max != "" {
+			max={ f.Max }
+		}
+		if fieldPlaceholder(f) != "" {
+			placeholder={ fieldPlaceholder(f) }
+		}
+	>@fieldValueTag(f)
+}

@@ -1,0 +1,90 @@
+package web
+
+// leafInput is one leaf editor inside a config view. The editor shape follows
+// LeafField.InputType, which handler_config_leaf.go derives from the YANG type.
+//
+// This is the config VIEW's editor. The workbench detail panel has its own,
+// resolved through the input registry (field_input.go) from a FieldMeta.
+templ leafInput(f LeafField) {
+	<div
+		class={ leafFieldClass(f.Modified) }
+		if f.Modified {
+			data-old-value={ f.OldValue }
+			title={ "Changed from: " + f.OldValue }
+		}
+	>
+		<label class="config-label" for={ "field-" + f.Name } title={ f.Description }>{ f.Name }</label>
+		// templ writes no whitespace before a switch, and the label and the
+		// editor are both inline, so the space between them is an expression.
+		{ " " }
+		switch f.InputType {
+			case "checkbox":
+				<input
+					type="checkbox"
+					class="config-input config-checkbox"
+					id={ "field-" + f.Name }
+					name={ f.Name }
+					if f.Value != "" {
+						checked
+					}
+					title={ f.Description }
+				>
+			case "select":
+				<select
+					class={ leafSelectClass(f.IsConfigured) }
+					id={ "field-" + f.Name }
+					name={ f.Name }
+					title={ f.Description }
+				>
+					if f.Value == "" {
+						<option value="" selected>{ enumBlankLabel(f.Default) }</option>
+					}
+					for _, opt := range f.Options {
+						{ " " }
+						<option
+							value={ opt }
+							if opt == f.Value {
+								selected
+							}
+						>{ opt }</option>
+					}
+				</select>
+			case "number":
+				<input
+					type="number"
+					class={ leafInputClass(f.IsConfigured) }
+					id={ "field-" + f.Name }
+					name={ f.Name }
+					value={ f.Value }
+					if f.Min != "" {
+						min={ f.Min }
+					}
+					if f.Max != "" {
+						max={ f.Max }
+					}
+					if !f.IsConfigured && f.Default != "" {
+						placeholder={ f.Default }
+					}
+					title={ f.Description }
+				>
+			default:
+				<input
+					type="text"
+					class={ leafInputClass(f.IsConfigured) }
+					id={ "field-" + f.Name }
+					name={ f.Name }
+					value={ f.Value }
+					if f.Pattern != "" {
+						pattern={ f.Pattern }
+					}
+					if !f.IsConfigured && f.Default != "" {
+						placeholder={ f.Default }
+					}
+					if f.Placeholder != "" {
+						placeholder={ f.Placeholder }
+					}
+					title={ f.Description }
+				>
+		}
+	</div>
+}

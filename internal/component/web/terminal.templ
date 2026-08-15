@@ -1,0 +1,30 @@
+package web
+
+// terminalPage is the standalone CLI terminal shell.
+//
+// NO LIVE PATH REACHES THIS. It is the port of templates/terminal.html, which
+// no renderer ever parsed: NewRenderer (render.go) names every file it loads
+// and that one is absent. The terminal an operator reaches is built in
+// cli_terminal.go from Go string literals, which phase 5 owns. Recorded in
+// plan/journal/unwired-feature.md.
+templ terminalPage(v terminalPageData) {
+	<div class="terminal-container" id="content-area">
+		<div class="terminal-scrollback" id="terminal-scrollback"></div>
+		<div class="terminal-input-line">
+			<span class="terminal-prompt">{ v.CLIPrompt }</span>
+			<input
+				type="text"
+				class="terminal-input"
+				id="terminal-input"
+				autocomplete="off"
+				spellcheck="false"
+				name="command"
+			>
+		</div>
+		<div class="terminal-controls">
+			<button hx-post="/cli/mode" hx-vals={ `{"mode":"integrated"}` } hx-target="#content-area" hx-swap="outerHTML">
+				Switch to Integrated Mode
+			</button>
+		</div>
+	</div>
+}

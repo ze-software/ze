@@ -46,18 +46,7 @@ func (h *l2TPHandlers) handleL2TPList() http.HandlerFunc {
 		}
 		snap := svc.Snapshot()
 
-		type sessionRow struct {
-			LocalSID     uint16
-			TunnelTID    uint16
-			Username     string
-			AssignedAddr string
-			PeerAddr     string
-			State        string
-			Interface    string
-			CreatedAt    time.Time
-		}
-
-		rows := make([]sessionRow, 0, snap.SessionCount)
+		rows := make([]l2tpSessionRow, 0, snap.SessionCount)
 		for i := range snap.Tunnels {
 			t := &snap.Tunnels[i]
 			for j := range t.Sessions {
@@ -66,7 +55,7 @@ func (h *l2TPHandlers) handleL2TPList() http.HandlerFunc {
 				if s.AssignedAddr.IsValid() {
 					addr = s.AssignedAddr.String()
 				}
-				rows = append(rows, sessionRow{
+				rows = append(rows, l2tpSessionRow{
 					LocalSID:     s.LocalSID,
 					TunnelTID:    t.LocalTID,
 					Username:     s.Username,
@@ -95,10 +84,14 @@ func (h *l2TPHandlers) handleL2TPList() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		html := h.Renderer.RenderL2TPTemplate("list.html", data)
-		if _, err := w.Write([]byte(html)); err != nil {
-			return
+		view := l2tpListView{
+			TunnelCount:  snap.TunnelCount,
+			SessionCount: snap.SessionCount,
+			Sessions:     rows,
+		}
+
+		if err := writeComponent(w, "l2tp list", l2tpList(view)); err != nil {
+			serverLogger.Warn("l2tp list render", "error", err)
 		}
 	}
 }
@@ -130,25 +123,23 @@ func (h *l2TPHandlers) handleL2TPDetail() http.HandlerFunc {
 		}
 		show.Enrich("show l2tp session detail", enriched)
 
-		data := map[string]any{
-			"Session":  ss,
-			"Events":   events,
-			"Login":    ss.Username,
-			"Enriched": enriched,
+		body := l2tpDetailBody{
+			Enriched: enriched,
+			Events:   events,
+			Login:    ss.Username,
+			Session:  ss,
 		}
 
 		if NegotiateContentType(r) == formatJSON {
 			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(data); err != nil {
+			if err := json.NewEncoder(w).Encode(body); err != nil {
 				serverLogger.Warn("l2tp detail json encode", "error", err)
 			}
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		html := h.Renderer.RenderL2TPTemplate("detail.html", data)
-		if _, err := w.Write([]byte(html)); err != nil {
-			return
+		if err := writeComponent(w, "l2tp detail", l2tpDetail(l2tpDetailViewOf(body))); err != nil {
+			serverLogger.Warn("l2tp detail render", "error", err)
 		}
 	}
 }
@@ -486,4 +477,67 @@ func extractLogin(r *http.Request) string {
 		}
 	}
 	return login
+}
+
+// l2tpDetailBody is what GET /l2tp/{sid} answers a JSON request with, and the
+// value the page renders from. ONE construction feeds both, so the API body and
+// the page cannot describe the same session differently.
+//
+// The fields are declared in alphabetical order. The map this replaced
+// serialized in sorted key order, and a struct serializes in declaration order.
+// The order below is what keeps the response bytes.
+//
+// The snapshot and the event ring go out whole. An API client keeps every field
+// the subsystem published. The page takes the subset it shows, through
+// l2tpDetailViewOf.
+type l2tpDetailBody struct {
+	Enriched map[string]any
+	Events   []l2tp.ObserverEvent
+	Login    string
+	Session  l2tp.SessionSnapshot
+}
+
+// l2tpDetailViewOf converts the response body into the view the detail page
+// renders. It is the only place the l2tp package's types meet the view models.
+// That is what keeps view_l2tp.go free of the import, and its generated
+// components free of the ze_l2tp build tag.
+func l2tpDetailViewOf(body l2tpDetailBody) l2tpDetailView {
+	ss := body.Session
+
+	view := l2tpDetailView{
+		Session: l2tpSessionView{
+			LocalSID: ss.LocalSID,
+			Username: ss.Username,
+			State:    ss.State,
+			// String() unconditionally, including for the zero address. The
+			// page used to read the snapshot's netip.Addr directly, and
+			// html/template printed "invalid IP" for a session with no NCP
+			// assignment yet. The list page blanks it instead. That difference
+			// belongs to the pages, not to the port.
+			AssignedAddr:   ss.AssignedAddr.String(),
+			PppInterface:   ss.PppInterface,
+			TunnelLocalTID: ss.TunnelLocalTID,
+			Family:         ss.Family,
+		},
+		Login: body.Login,
+	}
+
+	for _, e := range body.Events {
+		row := l2tpEventRow{
+			Timestamp: e.Timestamp,
+			Type:      e.Type.String(),
+			Actor:     e.Actor,
+			Reason:    e.Reason,
+		}
+
+		// A zero RTT is the one the page skips, and an empty string is how the
+		// view says so. Every other duration prints what String gave it.
+		if e.RTT != 0 {
+			row.RTT = e.RTT.String()
+		}
+
+		view.Events = append(view.Events, row)
+	}
+
+	return view
 }

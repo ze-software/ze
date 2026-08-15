@@ -158,10 +158,8 @@ bgp {
 			group-updates disable
 		}
 
-		process lg-ui-pages {
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

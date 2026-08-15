@@ -1,0 +1,10 @@
+status: 200
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: application/json
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+{"Enriched":{"session-id":42,"username":"operator@example.net"},"Events":[{"Timestamp":"2026-01-02T03:04:05Z","Type":3,"TunnelID":7,"SessionID":42,"RTT":0,"Actor":"lns","Reason":"","Cause":0},{"Timestamp":"2026-01-02T03:04:35Z","Type":6,"TunnelID":7,"SessionID":42,"RTT":12000000,"Actor":"","Reason":"","Cause":0}],"Login":"operator@example.net","Session":{"LocalSID":42,"RemoteSID":43,"TunnelLocalTID":7,"State":"established","StateNum":4,"CreatedAt":"2026-01-02T03:04:05Z","Username":"operator@example.net","AssignedAddr":"192.0.2.10","Family":"ipv4","TxConnectSpeed":100000000,"RxConnectSpeed":100000000,"FramingType":0,"SequencingRequired":false,"LNSMode":true,"KernelSetupNeeded":false,"PppInterface":"ppp0"}}

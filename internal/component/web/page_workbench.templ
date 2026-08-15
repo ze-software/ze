@@ -1,0 +1,40 @@
+package web
+
+// pageWorkbench is the workbench shell: topbar, left navigation, workspace.
+templ pageWorkbench(v workbenchData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<title>{ v.Title }</title>
+			<link rel="stylesheet" href="/assets/style.css">
+			<script src="/assets/cli.js"></script>
+			<script src="/assets/htmx.min.js"></script>
+			<script src="/assets/sse-client.js"></script>
+			<script src="/assets/notification.js"></script>
+			<script defer src="/assets/log-live.js"></script>
+		</head>
+		<body class="ui-workbench">
+			<div class="workbench-shell" id="workbench-shell" data-ui-mode="workbench">
+				<header class="workbench-topbar" id="workbench-topbar">
+					@workbenchTopbar(v.LayoutData)
+				</header>
+				<nav class="workbench-nav" id="workbench-nav" aria-label="Workbench sections">
+					@workbenchNav(v.Sections)
+				</nav>
+				<main class="workbench-workspace" id="workbench-workspace">
+					@templ.Raw(v.Content)
+				</main>
+				<aside class="workbench-notifications" id="notification-bar">
+					@templ.Raw(v.NotificationHTML)
+				</aside>
+				@commitBar(v.LayoutData)
+			</div>
+			<div id="tool-overlays" class="tool-overlays"></div>
+			<div id="notification-area" class="notification-area"></div>
+			@diffModal()
+			@errorPanel()
+		</body>
+	</html>
+}

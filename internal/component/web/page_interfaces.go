@@ -531,11 +531,11 @@ func handleInterfacesPage(renderer *Renderer, r *http.Request, path []string, vi
 	if err != nil {
 		// Backend not loaded: still show configured entries from the editor tree.
 		tableData := buildInterfaceTableDataForView(nil, viewTree, filterType)
-		return renderer.RenderFragment("workbench_table", tableData)
+		return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 	}
 
 	tableData := buildInterfaceTableDataForView(infos, viewTree, filterType)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
 func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *config.Tree) template.HTML {
@@ -548,7 +548,7 @@ func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *con
 	}
 
 	detailData := buildInterfaceDetailData(info)
-	return renderer.RenderFragment("workbench_detail", detailData)
+	return renderer.renderComponent("workbench_detail", workbenchDetail(detailData))
 }
 
 func configuredInterfaceByName(viewTree *config.Tree, name string) *iface.InterfaceInfo {

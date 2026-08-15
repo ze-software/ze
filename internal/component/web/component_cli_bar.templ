@@ -1,0 +1,27 @@
+package web
+
+// cliBar is the command bar the Finder shell used to carry at the foot of every
+// page. No page renders it today: layout.templ dropped it when /cli became the
+// full terminal, and TestRenderLayout asserts it stays out. The markup is kept
+// because the CLI page still owns the same element ids.
+templ cliBar(v LayoutData) {
+	<footer class="cli-bar" id="cli-bar">
+		<div class="cli-path-bar" id="cli-path-bar">
+			@templ.Raw(v.CLIPathBar)
+		</div>
+		<div class="cli-input-row">
+			<span class="cli-prompt" id="cli-prompt">{ v.CLIPrompt }</span>
+			<input
+				type="text"
+				class="cli-input"
+				id="cli-input"
+				placeholder="type a command..."
+				autocomplete="off"
+				spellcheck="false"
+				name="command"
+			>
+			<div class="cli-completions is-hidden" id="cli-completions"></div>
+		</div>
+		<span id="cli-context-path" class="is-hidden">{ v.CLIContextPath }</span>
+	</footer>
+}

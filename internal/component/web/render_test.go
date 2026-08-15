@@ -2,10 +2,14 @@ package web
 
 import (
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,9 +17,23 @@ import (
 
 var inlineHandlerPattern = regexp.MustCompile(`\s(?:on[a-z]+|hx-on(?:::|:)[^=]*)=`)
 
-// TestNewRenderer verifies that NewRenderer returns a non-nil renderer with no error.
-// VALIDATES: All embedded templates are valid html/template syntax.
-// PREVENTS: Typo in template causes runtime crash.
+// templateParseCall names the html/template entry points that build a template
+// at run time. A package that calls one of them parses markup again.
+var templateParseCall = regexp.MustCompile(`^(New|Must|Parse[A-Za-z]*)$`)
+
+// TestNewRenderer verifies that NewRenderer returns a ready renderer, and that
+// the package parses no template.
+// VALIDATES: AC-4 -- the renderer holds no parsed template. Every page,
+// fragment and editor is a templ component, resolved by the compiler, so the
+// renderer carries only the static assets and the decorator registry.
+// PREVENTS: a second rendering engine coming back in beside templ
+// (ai/rules/no-layering.md).
+//
+// IT READS THE PACKAGE SOURCE, because the field is cheap to add back. A
+// Renderer that holds a layout *template.Template again passes every assertion
+// on the struct below. No import ban can fire either, because render.go imports
+// html/template for the template.HTML TYPE and keeps doing so. The walk is what
+// refuses the return of the old engine.
 func TestNewRenderer(t *testing.T) {
 	r, err := NewRenderer()
 	if err != nil {
@@ -26,48 +44,151 @@ func TestNewRenderer(t *testing.T) {
 		t.Fatal("NewRenderer() returned nil renderer")
 	}
 
-	if r.layout == nil {
-		t.Error("renderer layout template is nil")
-	}
-
-	if r.login == nil {
-		t.Error("renderer login template is nil")
-	}
-
 	if r.assets == nil {
 		t.Error("renderer assets filesystem is nil")
+	}
+
+	assertPackageParsesNoTemplate(t)
+}
+
+// assertPackageParsesNoTemplate fails on any call that parses an html/template
+// or text/template in package source, test files excluded.
+//
+// IT COUNTS WHAT IT READ, like the markup walk below. A filter that matches no
+// file reports green, which is the one result this test must not be able to
+// give.
+func assertPackageParsesNoTemplate(t *testing.T) {
+	t.Helper()
+
+	fset := token.NewFileSet()
+	visited := 0
+
+	err := fs.WalkDir(os.DirFS("."), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			// Subdirectories are other packages or fixture trees. AC-4 is
+			// about this package.
+			if path != "." {
+				return fs.SkipDir
+			}
+
+			return nil
+		}
+
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		visited++
+
+		for _, imported := range file.Imports {
+			if imported.Path.Value == `"text/template"` {
+				t.Errorf("%s imports text/template; templ is the rendering engine", path)
+			}
+		}
+
+		ast.Inspect(file, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+
+			pkg, ok := sel.X.(*ast.Ident)
+			if !ok || pkg.Name != "template" {
+				return true
+			}
+
+			if templateParseCall.MatchString(sel.Sel.Name) {
+				t.Errorf("%s:%d calls template.%s; the renderer parses no template (AC-4)",
+					path, fset.Position(call.Pos()).Line, sel.Sel.Name)
+			}
+
+			return true
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk package source: %v", err)
+	}
+
+	// The floor is the guard against a vacuous pass. The package holds far
+	// more Go files than this, so a walk that reads a handful found nothing.
+	if visited < 100 {
+		t.Errorf("read %d source files; the package holds far more, so the walk found nothing to read", visited)
 	}
 }
 
 // TestTemplatesAvoidInlineScriptAndStyle verifies templates stay compatible with strict CSP.
-// VALIDATES: Templates use external scripts/styles and delegated event handlers.
+// VALIDATES: every markup source in the package, whichever engine reads it,
+// uses external scripts and styles and delegated event handlers.
 // PREVENTS: Reintroducing inline JS/CSS that requires unsafe-inline CSP.
+//
+// IT COUNTS WHAT IT VISITED. The port moved every file from templates/*.html to
+// *.templ. A walk filtered on the old suffix would pass over zero files and
+// report green (AC-6 of plan/spec-web-templ-migration.md). The floor below is
+// what makes the pass mean something.
 func TestTemplatesAvoidInlineScriptAndStyle(t *testing.T) {
-	err := fs.WalkDir(templatesFS, "templates", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".html") {
-			return nil
-		}
-		contentBytes, readErr := templatesFS.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		content := string(contentBytes)
+	scan := func(name string, content string) {
 		if strings.Contains(content, "<script>") {
-			t.Errorf("%s contains inline <script> block", path)
+			t.Errorf("%s contains inline <script> block", name)
 		}
 		if strings.Contains(content, "style=") {
-			t.Errorf("%s contains inline style attribute", path)
+			t.Errorf("%s contains inline style attribute", name)
 		}
 		if inlineHandlerPattern.MatchString(content) {
-			t.Errorf("%s contains inline event handler or hx-on attribute", path)
+			t.Errorf("%s contains inline event handler or hx-on attribute", name)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk templates: %v", err)
+	}
+
+	visited := 0
+
+	trees := []struct {
+		fsys fs.FS
+		root string
+		ext  string
+	}{
+		{fsys: os.DirFS("."), root: ".", ext: ".templ"},
+	}
+
+	for _, tree := range trees {
+		err := fs.WalkDir(tree.fsys, tree.root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(path, tree.ext) {
+				return nil
+			}
+			contentBytes, readErr := fs.ReadFile(tree.fsys, path)
+			if readErr != nil {
+				return readErr
+			}
+			visited++
+			scan(path, string(contentBytes))
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("walk %s for %s: %v", tree.root, tree.ext, err)
+		}
+	}
+
+	// The count is the guard against a vacuous pass. It is a floor, not the
+	// exact number, so porting one file to templ does not red it.
+	if visited < 40 {
+		t.Errorf("scanned %d markup files; the package holds far more, so the walk found nothing to read", visited)
 	}
 }
 

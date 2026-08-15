@@ -150,5 +150,5 @@ func titleFromSchemaName(name string) string {
 func handleBGPPolicyPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
 	entries := collectPolicies(viewTree, schema)
 	tableData := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

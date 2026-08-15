@@ -97,9 +97,9 @@ func handleAddressesPage(renderer *Renderer, r *http.Request) template.HTML {
 	infos, err := iface.ListInterfaces()
 	if err != nil {
 		tableData := buildAddressTableData(nil, filterIface, filterProtocol)
-		return renderer.RenderFragment("workbench_table", tableData)
+		return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 	}
 
 	tableData := buildAddressTableData(infos, filterIface, filterProtocol)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

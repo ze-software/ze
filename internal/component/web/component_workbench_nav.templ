@@ -1,0 +1,35 @@
+package web
+
+// workbenchNav is the workbench left navigation: one <details> per section and
+// one link per sub-page.
+// templ writes no whitespace between two turns of a loop. A space expression
+// ends each section, which is where the markup this replaced put a newline.
+templ workbenchNav(sections []WorkbenchSection) {
+	<nav class="workbench-nav-list" id="workbench-nav-list" role="navigation" aria-label="Main sections">
+		for _, s := range sections {
+			<details
+				class={ navSectionClass(s.Selected) }
+				data-section={ s.Key }
+				if s.Expanded {
+					open
+				}
+			>
+				<summary class="workbench-nav-section-label">{ s.Label }</summary>
+				<ul class="workbench-nav-sublist">
+					for _, c := range s.Children {
+						<li class={ navSubItemClass(c.Selected) }>
+							<a
+								class="workbench-nav-sublink"
+								href={ c.URL }
+								if c.Selected {
+									aria-current="page"
+								}
+							>{ c.Label }</a>
+						</li>
+					}
+				</ul>
+			</details>
+			{ " " }
+		}
+	</nav>
+}

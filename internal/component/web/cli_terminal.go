@@ -974,15 +974,13 @@ func buildPathBarSegments(path []string) []PathBarSegment {
 	return segments
 }
 
-// buildPathBarOOB appends a CLI path bar OOB swap using the path_bar_inner
-// template rendered via the Renderer. Falls back to empty if renderer is nil.
+// buildPathBarOOB appends a CLI path bar OOB swap rendered by pathBarInner.
+// Falls back to empty if renderer is nil.
 func buildPathBarOOB(buf *textbuf.Buffer, path []string, renderer *Renderer) {
 	buf.Str(`<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">`)
 	if renderer != nil {
-		data := struct {
-			CLIPathSegments []PathBarSegment
-		}{CLIPathSegments: buildPathBarSegments(path)}
-		buf.Str(string(renderer.RenderFragment("path_bar_inner", data)))
+		data := &FragmentData{CLIPathSegments: buildPathBarSegments(path)}
+		buf.Str(string(renderer.renderComponent("path_bar_inner", pathBarInner(data))))
 	}
 	buf.Str(`</div>`)
 }

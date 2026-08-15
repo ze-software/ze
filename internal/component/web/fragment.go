@@ -50,7 +50,7 @@ func WriteOOBError(w http.ResponseWriter, renderer *Renderer, path, message stri
 		Path:    path,
 		Message: message,
 	}
-	html := renderer.RenderFragment("oob_error", data)
+	html := renderer.renderComponent("oob_error", oobError(data))
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
@@ -260,7 +260,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		// HTMX partial request: render OOB response via template.
 		if r.Header.Get("HX-Request") == "true" {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			html := renderer.RenderFragment("oob_response", data)
+			html := renderer.renderComponent("oob_response", oobResponse(data))
 			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 				return // client disconnected
 			}
@@ -268,8 +268,8 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		}
 
 		// Full page: render all fragments via templates.
-		content := renderer.RenderFragment("full_content", data)
-		pathBar := renderer.RenderFragment("path_bar_inner", data)
+		content := renderer.renderComponent("full_content", fullContent(data))
+		pathBar := renderer.renderComponent("path_bar_inner", pathBarInner(data))
 
 		var tb textbuf.Buffer
 		layoutData := LayoutData{

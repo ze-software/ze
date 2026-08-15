@@ -1,0 +1,11 @@
+package web
+
+// errorPanel is the collapsed error drawer every full page carries. The list
+// inside it is filled by the oob_error fragment over HTMX, so the component
+// reads nothing.
+templ errorPanel() {
+	<aside id="error-panel" class="error-panel collapsed">
+		<button class="error-toggle" id="error-toggle">Errors</button>
+		<div class="error-list" id="error-list"></div>
+	</aside>
+}

@@ -1,0 +1,65 @@
+package web
+
+// pageLogin renders the sign-in form. An expired session inside the UI gets the
+// overlay; a fresh browser gets the full page.
+templ pageLogin(v LoginData) {
+	if v.Overlay {
+		@loginOverlay(v)
+	} else {
+		@loginFullPage(v)
+	}
+}
+
+// loginOverlay is the dismissible card an expired session sees over the page it
+// was reading.
+templ loginOverlay(v LoginData) {
+	<div class="login-overlay" id="login-overlay">
+		<div class="login-card">
+			<button class="login-close" data-action="dismiss-login">&times;</button>
+			<h2>{ Translate(v.Locale, "login.title") }</h2>
+			if v.Error != "" {
+				<div class="login-error">{ v.Error }</div>
+			}
+			@loginForm(v)
+		</div>
+	</div>
+}
+
+// loginFullPage is the standalone sign-in page.
+templ loginFullPage(v LoginData) {
+	<!DOCTYPE html>
+	<html lang={ loginLang(v.Locale) }>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<title>{ Translate(v.Locale, "login.title") }</title>
+			<link rel="stylesheet" href="/assets/style.css">
+		</head>
+		<body>
+			<div class="login-page">
+				<div class="login-card">
+					<h2>{ Translate(v.Locale, "login.title") }</h2>
+					if v.Error != "" {
+						<div class="login-error">{ v.Error }</div>
+					}
+					@loginForm(v)
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+// loginForm is the credential form both shapes carry. ReturnTo travels in a
+// hidden field so a sign-in lands back on the page the operator asked for.
+templ loginForm(v LoginData) {
+	<form method="POST" action="/login">
+		if v.ReturnTo != "" {
+			<input type="hidden" name="return_to" value={ v.ReturnTo }>
+		}
+		<label for="username">{ Translate(v.Locale, "login.username") }</label>
+		<input type="text" id="username" name="username" required autofocus>
+		<label for="password">{ Translate(v.Locale, "login.password") }</label>
+		<input type="password" id="password" name="password" required>
+		<button type="submit" class="login-submit">{ Translate(v.Locale, "login.submit") }</button>
+	</form>
+}

@@ -99,7 +99,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 		// HTMX partial: return finder + detail via oob_response.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			html := renderer.RenderFragment("oob_response", fragData)
+			html := renderer.renderComponent("oob_response", oobResponse(fragData))
 			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 				return
 			}
@@ -107,7 +107,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 		}
 
 		// Full HTML: render inside layout.
-		content := renderer.RenderFragment("full_content", fragData)
+		content := renderer.renderComponent("full_content", fullContent(fragData))
 		var tb textbuf.Buffer
 		layoutData := LayoutData{
 			Title:       tb.Str("Admin: /").Join(path, "/").String(),
@@ -187,7 +187,7 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 			CommandResult: &result,
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		html := renderer.RenderFragment("detail", fragData)
+		html := renderer.renderComponent("detail", detail(fragData))
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return
 		}

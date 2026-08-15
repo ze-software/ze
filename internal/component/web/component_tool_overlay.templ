@@ -1,0 +1,68 @@
+package web
+
+// toolOverlay is one related-tool result, delivered as an out-of-band append to
+// the overlay stack. It shows a result, an error or a confirmation prompt.
+templ toolOverlay(v toolOverlayData) {
+	<div
+		class={ toolOverlayClass(v.State) }
+		id={ v.ID }
+		hx-swap-oob="beforeend:#tool-overlays"
+	>
+		<header class="tool-overlay-header">
+			<span class="tool-overlay-title">{ v.Title }</span>
+			if v.Command != "" {
+				<code class="tool-overlay-command">{ v.Command }</code>
+			}
+			<button class="tool-overlay-close" type="button" aria-label="Close">×</button>
+		</header>
+		<section class="tool-overlay-body">
+			if v.State == ToolOverlayError {
+				<div class="tool-overlay-error" role="alert">
+					<strong>Error:</strong>
+					<pre class="tool-overlay-error-message">{ v.ErrorMessage }</pre>
+				</div>
+			} else if v.State == ToolOverlayConfirm {
+				<p class="tool-overlay-confirm-prompt">{ v.ConfirmPrompt }</p>
+				<form
+					class="tool-overlay-confirm-form"
+					hx-post="/tools/related/run"
+					hx-target="#tool-overlays"
+					hx-swap="beforeend"
+				>
+					<input type="hidden" name="tool_id" value={ v.ToolID }>
+					<input type="hidden" name="context_path" value={ v.ContextPath }>
+					<input type="hidden" name="confirm" value="true">
+					<button type="submit" class="tool-overlay-confirm-yes">Confirm</button>
+					<button type="button" class="tool-overlay-confirm-cancel">Cancel</button>
+				</form>
+			} else {
+				<pre class="tool-overlay-output">@templ.Raw(v.OutputInline)</pre>
+				if v.HasOverflow {
+					<details class="tool-overlay-overflow">
+						<summary>Show full output</summary>
+						<pre class="tool-overlay-output-overflow">@templ.Raw(v.OutputOverflow)</pre>
+					</details>
+				}
+				if v.Truncated {
+					<p class="tool-overlay-truncation" role="status">
+						Output truncated server-side at the buffer cap.
+					</p>
+				}
+			}
+		</section>
+		<footer class="tool-overlay-footer">
+			if v.State != ToolOverlayConfirm && v.ToolID != "" {
+				<button
+					type="button"
+					class="tool-overlay-rerun"
+					hx-post="/tools/related/run"
+					hx-target="#tool-overlays"
+					hx-swap="beforeend"
+					hx-vals={ toolRerunHxVals(v) }
+				>
+					Rerun
+				</button>
+			}
+		</footer>
+	</div>
+}

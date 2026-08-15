@@ -284,7 +284,7 @@ func TestListTableHidesEditControlsForReadOnly(t *testing.T) {
 	assert.NoError(t, err)
 
 	render := func(readOnly bool) string {
-		data := FragmentData{
+		data := &FragmentData{
 			ActiveUI: "workbench",
 			ReadOnly: readOnly,
 			ListTable: &ListTableView{
@@ -299,7 +299,7 @@ func TestListTableHidesEditControlsForReadOnly(t *testing.T) {
 				FormURL: "/config/add-form/bgp/peer/",
 			},
 		}
-		return string(renderer.RenderFragment("list_table", data))
+		return string(renderer.renderComponent("list_table", listTable(data)))
 	}
 
 	roHTML := render(true)

@@ -1,0 +1,49 @@
+package web
+
+// inputBool edits a boolean leaf as a tristate: yes, no, or unset. Unset is not
+// a third value on the wire. It means the leaf carries no configuration, so the
+// schema default applies, and the track shows which way that default points.
+templ inputBool(f FieldMeta) {
+	<div class="ze-tristate" id={ "tristate-" + f.Leaf }>
+		if f.Value == boolTrue || f.Value == "1" {
+			<span class="ze-tristate-label ze-tristate-active">yes</span>
+			<button
+				type="button"
+				class="ze-tristate-track ze-tristate-yes"
+				hx-post={ configSetURL(f.Path) }
+				hx-target="closest .ze-field"
+				hx-swap="outerHTML"
+				hx-vals={ fieldHxValsWith(f.Leaf, "false") }
+				data-tristate
+				data-default={ f.Default }
+			><span class="ze-tristate-thumb"></span></button>
+			<span class="ze-tristate-label">no</span>
+		} else if f.Value == boolFalse {
+			<span class="ze-tristate-label">yes</span>
+			<button
+				type="button"
+				class="ze-tristate-track ze-tristate-no"
+				hx-post={ configSetURL(f.Path) }
+				hx-target="closest .ze-field"
+				hx-swap="outerHTML"
+				hx-vals={ fieldHxValsWith(f.Leaf, "__default__") }
+				data-tristate
+				data-default={ f.Default }
+			><span class="ze-tristate-thumb"></span></button>
+			<span class="ze-tristate-label ze-tristate-active">no</span>
+		} else {
+			<span class="ze-tristate-label">yes</span>
+			<button
+				type="button"
+				class={ tristateDefaultClass(f.Default) }
+				hx-post={ configSetURL(f.Path) }
+				hx-target="closest .ze-field"
+				hx-swap="outerHTML"
+				hx-vals={ fieldHxValsWith(f.Leaf, "true") }
+				data-tristate
+				data-default={ f.Default }
+			><span class="ze-tristate-thumb"></span></button>
+			<span class="ze-tristate-label">no</span>
+		}
+	</div>
+}

@@ -1,0 +1,61 @@
+package web
+
+// addFormOverlay is the card that creates one list entry. It asks for the key,
+// then for the fields the YANG list marks required, suggested or unique.
+templ addFormOverlay(v addFormData) {
+	<div class="add-entry-overlay" id="add-entry-overlay">
+		<div class="add-entry-card">
+			<h3>{ v.Heading }</h3>
+			<form
+				hx-post={ v.AddURL }
+				hx-target={ addFormSwapTarget(v.Workbench) }
+				hx-swap="innerHTML"
+				data-close-on-after-request="true"
+			>
+				if v.Workbench {
+					<input type="hidden" name="_workbench" value="1">
+				}
+				if v.Keyless {
+					if v.DisplayKey != "" {
+						<div class="add-entry-row">
+							<label class="add-entry-label" for="add-entry-key">{ v.DisplayKey }</label>
+							<input type="text" class="add-entry-input" id="add-entry-key" name={ "field:" + v.DisplayKey } aria-label={ v.DisplayKey } autofocus>
+						</div>
+					}
+				} else {
+					<div class="add-entry-row">
+						<label class="add-entry-label" for={ v.KeyInputID }>{ v.KeyLabel }</label>
+						<input type="text" class="add-entry-input" id={ v.KeyInputID } name="name" aria-label={ v.KeyLabel } required autofocus>
+					</div>
+				}
+				for _, f := range v.Fields {
+					<div class={ "add-entry-row add-entry-" + f.Category }>
+						<label class="add-entry-label" for={ "field-" + formFieldID(f.Path) }>
+							{ humanizeFieldLabel(f.Path) }
+							if f.Category == addFieldRequired {
+								<span class="add-entry-req-mark">*</span>
+							}
+						</label>
+						<input
+							type="text"
+							class="add-entry-input"
+							id={ "field-" + formFieldID(f.Path) }
+							name={ "field:" + f.Path }
+							if f.Inherited != "" {
+								value={ f.Inherited }
+							}
+							placeholder={ f.Placeholder }
+							if f.Category == addFieldRequired {
+								data-required="true"
+							}
+						>
+					</div>
+				}
+				<div class="add-entry-actions">
+					<button type="submit" class="add-entry-submit">{ addFormSubmitLabel(v.Workbench) }</button>
+					<button type="button" class="add-entry-cancel" data-action="close-add-overlay">Cancel</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}

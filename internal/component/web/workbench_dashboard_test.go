@@ -109,7 +109,7 @@ func TestBuildDashboardData_NilTree(t *testing.T) {
 
 // TestRenderDashboard verifies the dashboard template renders all panels.
 func TestRenderDashboard(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := dashboardData{
@@ -135,7 +135,7 @@ func TestRenderDashboard(t *testing.T) {
 		},
 	}
 
-	html := string(r.RenderFragment("workbench_dashboard", data))
+	html := string(renderer.renderComponent("workbench_dashboard", workbenchDashboard(data)))
 	require.NotEmpty(t, html, "dashboard fragment must render")
 
 	// Panel titles.
@@ -174,7 +174,7 @@ func TestDashboardStatValueAlignmentCSS(t *testing.T) {
 // TestRenderDashboard_EmptyState verifies the dashboard template renders
 // empty hints when panels have no data.
 func TestRenderDashboard_EmptyState(t *testing.T) {
-	r, err := NewRenderer()
+	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
 	data := dashboardData{
@@ -187,7 +187,7 @@ func TestRenderDashboard_EmptyState(t *testing.T) {
 		Interfaces: DashboardIfacePanel{Empty: true, HintURL: "/show/iface/"},
 	}
 
-	html := string(r.RenderFragment("workbench_dashboard", data))
+	html := string(renderer.renderComponent("workbench_dashboard", workbenchDashboard(data)))
 	require.NotEmpty(t, html, "dashboard fragment must render")
 
 	assert.Contains(t, html, `No BGP peers configured`)

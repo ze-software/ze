@@ -1,0 +1,34 @@
+package web
+
+// workbenchTopbar is the workbench shell's top bar: the page chrome plus the
+// router identity and the fleet selector.
+templ workbenchTopbar(v LayoutData) {
+	<div class="workbench-topbar-inner" id="workbench-topbar-inner">
+		<div class="workbench-topbar-left">
+			@breadcrumbNav(v.chrome())
+			if len(v.FleetPeers) > 0 || namedRouter(v.RouterIdentity) {
+				<div class="workbench-router">
+					if namedRouter(v.RouterIdentity) {
+						<span class="workbench-router-name">{ v.RouterIdentity }</span>
+					}
+					if len(v.FleetPeers) > 0 {
+						<div class="fleet-menu">
+							<button class="fleet-toggle" title="Switch router">&#9660;</button>
+							<div class="fleet-dropdown">
+								for _, p := range v.FleetPeers {
+									if p.Active {
+										<span class="fleet-item fleet-item--active">{ p.Name + " (this)" }</span>
+									} else {
+										<a class="fleet-item" href={ p.URL } title={ p.Name }>{ p.Name }</a>
+									}
+									{ " " }
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</div>
+		@topbarActions(v.chrome())
+	</div>
+}

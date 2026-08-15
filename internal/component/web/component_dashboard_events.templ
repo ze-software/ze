@@ -1,0 +1,53 @@
+package web
+
+// dashboardEvents is the recent-events table, with a namespace filter that
+// submits on change.
+templ dashboardEvents(v dashboardEventsData) {
+	<div class="wb-table-container">
+		<h2 class="wb-form-title">Recent Events</h2>
+		<div class="wb-table-toolbar">
+			<form method="get" action="/show/events/">
+				<select name="namespace" class="wb-form-input" data-action="submit-on-change" aria-label="Namespace filter">
+					<option value="">All Namespaces</option>
+					for _, ns := range v.Namespaces {
+						<option
+							value={ ns }
+							if ns == v.SelectedNS {
+								selected
+							}
+						>{ ns }</option>
+					}
+				</select>
+			</form>
+		</div>
+		if len(v.Rows) > 0 {
+			<table class="wb-table">
+				<thead>
+					<tr>
+						for _, c := range v.Columns {
+							<th class="wb-table-col">{ c.Label }</th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					for _, row := range v.Rows {
+						<tr class="wb-table-row">
+							for _, cell := range row.Cells {
+								<td class="wb-table-cell">{ cell }</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		} else {
+			<div class="wb-table-empty">
+				<div class="wb-table-empty-content">
+					<p class="wb-table-empty-message">{ v.EmptyMessage }</p>
+					if v.EmptyHint != "" {
+						<p class="wb-table-empty-hint">{ v.EmptyHint }</p>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}

@@ -111,5 +111,5 @@ func buildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 func handleBGPGroupsPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	groups := collectGroups(viewTree)
 	tableData := buildBGPGroupsTableData(groups)
-	return renderer.RenderFragment("workbench_table", tableData)
+	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }

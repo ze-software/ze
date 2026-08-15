@@ -1,0 +1,26 @@
+package web
+
+// fieldWrapper is the label and frame around one leaf editor. The editor comes
+// in as a component, so the frame is one balanced element rather than the
+// field_wrapper_start / field_wrapper_end pair it replaces. templ parses whole
+// elements, so an open tag with no close is not expressible, and a pair that
+// only the caller balances was the reason the old markup could half-render.
+templ fieldWrapper(f FieldMeta, input templ.Component) {
+	<div class="ze-field" id={ "field-" + f.Leaf }>
+		<label class="ze-field-label">
+			{ f.Leaf }
+			if f.Description != "" {
+				<span class="ze-field-info" data-tooltip={ f.Description }>i</span>
+			}
+			if f.Decoration != "" {
+				<span class="ze-field-decoration">({ f.Decoration })</span>
+			}
+		</label>
+		// The pair this replaced ended one file and began the next, so a
+		// newline separated the label from the editor and the browser drew a
+		// space there. templ writes no whitespace before an @ call, and both
+		// tags are inline, so the space has to be an expression to survive.
+		{ " " }
+		@input
+	</div>
+}

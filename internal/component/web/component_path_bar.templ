@@ -1,0 +1,23 @@
+package web
+
+// pathBarInner is the CLI path bar: the root link, then one link per segment
+// of the current context.
+//
+// Every element here is inline. templ writes no whitespace between two turns of
+// a loop, so the space that opens a turn is an expression. At the end of a turn
+// it would add a trailing space the markup this replaced never wrote.
+templ pathBarInner(v *FragmentData) {
+	<a class="cli-path-seg cli-path-root" href="/show/" hx-get="/fragment/detail" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/">/</a>
+	for _, s := range v.CLIPathSegments {
+		{ " " }
+		<span class="cli-path-sep">/</span>
+		<a
+			class="cli-path-seg"
+			href={ s.URL }
+			hx-get={ "/fragment/detail?path=" + s.HxPath }
+			hx-target="#content-area"
+			hx-swap="innerHTML"
+			hx-push-url={ s.URL }
+		>{ s.Name }</a>
+	}
+}

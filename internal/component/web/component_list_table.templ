@@ -1,0 +1,121 @@
+package web
+
+// listTable renders a YANG list whose unique constraints give it columns. Each
+// cell is editable in place unless the session is read only.
+templ listTable(v *FragmentData) {
+	<section class="config-section">
+		if len(v.ListTable.TableTools) > 0 {
+			<div class="list-table-toolbar" id="list-table-toolbar">
+				for _, t := range v.ListTable.TableTools {
+					<button
+						class={ relatedToolClass(t.Class) }
+						data-tool-id={ t.ToolID }
+						hx-post="/tools/related/run"
+						hx-target="#tool-overlays"
+						hx-swap="beforeend"
+						hx-vals={ relatedToolHxVals(t) }
+					>
+						{ t.Label }
+					</button>
+					{ " " }
+				}
+			</div>
+		}
+		<table class="finder-table detail-table">
+			<thead>
+				<tr>
+					<th class="finder-table-action"></th>
+					for _, c := range v.ListTable.Columns {
+						<th>{ c.Name }</th>
+					}
+					<th class="finder-table-action"></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range v.ListTable.Rows {
+					<tr class={ listRowClass(row.HasPendingChanges) } data-row-key={ row.KeyValue }>
+						<td class="finder-table-action">
+							if !v.ReadOnly {
+								<button class="finder-rename-btn" data-action="rename-entry" data-url={ row.URL } data-key={ row.KeyValue } title="Rename">&#9998;</button>
+							}
+						</td>
+						<td>
+							@pendingMarker(row.HasPendingChanges)<a
+								class="finder-table-link"
+								href={ row.URL }
+								hx-get={ listRowDetailURL(row.HxPath, v.ActiveUI) }
+								hx-target={ listRowSwapTarget(v.ActiveUI) }
+								hx-swap="innerHTML"
+								hx-push-url={ row.URL }
+							>{ row.KeyValue }</a>
+						</td>
+						for _, cell := range row.Cells {
+							if v.ReadOnly {
+								<td>{ cell.Value }</td>
+							} else {
+								<td>
+									<input
+										class="finder-table-input"
+										type="text"
+										value={ cell.Value }
+										placeholder={ cell.Placeholder }
+										hx-post={ "/config/set/" + cell.Path }
+										hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
+										hx-target="closest td"
+										hx-swap="innerHTML"
+										name="value"
+										hx-vals={ fieldHxVals(cell.Leaf) }
+									>
+								</td>
+							}
+						}
+						<td class="finder-table-action">
+							if len(row.RowTools) > 0 {
+								<span class="row-tools" data-row-tools={ row.KeyValue }>
+									for _, t := range row.RowTools {
+										<button
+											class={ relatedToolClass(t.Class) }
+											data-tool-id={ t.ToolID }
+											if t.Confirm != "" {
+												data-confirm="true"
+											}
+											hx-post="/tools/related/run"
+											hx-target="#tool-overlays"
+											hx-swap="beforeend"
+											hx-vals={ relatedToolHxVals(t) }
+										>
+											{ t.Label }
+										</button>
+										{ " " }
+									}
+								</span>
+							}
+							if !v.ReadOnly {
+								<button class="finder-delete-btn" data-action="delete-entry" data-path={ row.HxPath } data-key={ row.KeyValue } title="Delete">&#128465;</button>
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		if !v.ReadOnly {
+			<button
+				class="finder-item finder-add"
+				id="btn-add-entry"
+				hx-get={ v.ListTable.FormURL }
+				hx-target="body"
+				hx-swap="beforeend"
+			>+ new</button>
+		}
+	</section>
+}
+
+// pendingMarker is the dot beside a row the editor session has changed but not
+// committed. It is a component rather than an if block inside the cell because
+// templ writes a whitespace trailer after an if body whose neighbour is inline,
+// and the markup this replaced put the marker against the link with no space.
+templ pendingMarker(pending bool) {
+	if pending {
+		<span class="row-pending-marker" title="Uncommitted changes" aria-label="Pending changes">●</span>
+	}
+}

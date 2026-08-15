@@ -114,7 +114,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			data.Services = PortalServices()
 			data.ActiveUI = uiModeTokenWorkbench
 			data.ReadOnly = readOnly
-			pathBar := renderer.RenderFragment("path_bar_inner", data)
+			pathBar := renderer.renderComponent("path_bar_inner", pathBarInner(data))
 
 			wb := workbenchData{
 				LayoutData: LayoutData{
@@ -178,7 +178,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			html := renderer.RenderFragment("oob_response", data)
+			html := renderer.renderComponent("oob_response", oobResponse(data))
 			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 				return
 			}
@@ -190,11 +190,11 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		var content template.HTML
 		if len(path) == 0 {
 			dashData := buildDashboardData(viewTree, schema)
-			content = renderer.RenderFragment("workbench_dashboard", dashData)
+			content = renderer.renderComponent("workbench_dashboard", workbenchDashboard(dashData))
 		} else {
-			content = renderer.RenderFragment("detail", data)
+			content = renderer.renderComponent("detail", detail(data))
 		}
-		pathBar := renderer.RenderFragment("path_bar_inner", data)
+		pathBar := renderer.renderComponent("path_bar_inner", pathBarInner(data))
 
 		var tb2 textbuf.Buffer
 		wb := workbenchData{

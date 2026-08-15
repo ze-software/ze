@@ -6,9 +6,9 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strings"
 	"sync"
@@ -217,34 +217,15 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 	return err
 }
 
-// notificationBannerSource is the template for rendering config change
-// notification banners. Rendered server-side for SSE delivery via
-// html/template which auto-escapes the reason text.
-// SSE event data is swapped into #notification-bar innerHTML by the HTMX SSE
-// extension (sse-swap="config-change"). No OOB wrapper needed.
-const notificationBannerSource = `<div class="notification-banner">` +
-	`<span class="notification-reason">{{.Reason}}</span>` +
-	`<button class="btn btn-sm" hx-get="{{.RefreshURL}}" hx-target="#content-area" hx-swap="innerHTML">Refresh</button>` +
-	`<button class="btn btn-sm btn-dismiss" data-action="dismiss-banner">Dismiss</button>` +
-	`</div>`
-
-// notificationBannerTmpl is the pre-compiled template for config change
-// notification banners delivered via SSE. It uses html/template for
-// automatic escaping of the reason text.
-var notificationBannerTmpl = template.Must(template.New("notification_banner").Parse(
-	notificationBannerSource,
-))
-
-// notificationBannerData holds the template data for rendering the notification banner.
+// notificationBannerData holds the data for rendering the notification banner.
 type notificationBannerData struct {
 	Reason     string
 	RefreshURL string
 }
 
-// BroadcastConfigChange renders the notification banner template with the
-// given username and reason, then broadcasts it as a "config-change" SSE
-// event to all connected clients. The reason text is auto-escaped by
-// html/template.
+// BroadcastConfigChange renders the notification banner with the given
+// username and reason, then broadcasts it as a "config-change" SSE event to
+// all connected clients. The reason text is escaped by the component.
 func BroadcastConfigChange(broker *EventBroker, username, reason string) {
 	if broker == nil {
 		return
@@ -257,7 +238,7 @@ func BroadcastConfigChange(broker *EventBroker, username, reason string) {
 	}
 
 	var buf bytes.Buffer
-	if err := notificationBannerTmpl.Execute(&buf, data); err != nil {
+	if err := notificationBanner(data).Render(context.Background(), &buf); err != nil {
 		serverLogger.Warn("notification banner render failed", "error", err)
 		return
 	}

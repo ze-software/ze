@@ -225,14 +225,13 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 
 			tree = mgr.Tree(username)
 			data := buildFragmentData(schema, tree, listPath)
-			tableHTML := renderer.RenderFragment("list_table", data)
+			tableHTML := renderer.renderComponent("list_table", listTable(data))
 
-			type saveOK struct{ ChangeCount int }
 			count := mgr.ChangeCount(username)
-			commitHTML := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+			commitHTML := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: count}))
 
 			// OOB finder update so the peer count refreshes.
-			finderHTML := renderer.RenderFragment("finder_oob", data)
+			finderHTML := renderer.renderComponent("finder_oob", finderOOB(data))
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if _, writeErr := w.Write([]byte(string(tableHTML) + string(commitHTML) + string(finderHTML))); writeErr != nil {
@@ -376,8 +375,8 @@ func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, 
 	tree := mgr.Tree(username)
 	data := buildFragmentData(schema, tree, listPath)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tableHTML := renderer.RenderFragment("list_table", data)
-	notifHTML := renderer.RenderFragment("notification_error", struct{ Message string }{Message: errMsg})
+	tableHTML := renderer.renderComponent("list_table", listTable(data))
+	notifHTML := renderer.renderComponent("notification_error", notificationError(notificationErrorData{Message: errMsg}))
 	if _, writeErr := w.Write([]byte(string(tableHTML) + string(notifHTML))); writeErr != nil {
 		return
 	}
@@ -418,13 +417,6 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 			return
 		}
 
-		type formField struct {
-			Path        string
-			Placeholder string
-			Category    string // "required", "suggest", or "unique"
-			Inherited   string // pre-filled inherited value (empty if none)
-		}
-
 		listName := strings.ToUpper(listPath[len(listPath)-1][:1]) + listPath[len(listPath)-1][1:]
 		keyless := listNode.KeyName == ""
 		displayKey := listNode.DisplayKey
@@ -443,19 +435,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		}
 		includeKeyField := workbench && listNode.KeyName != ""
 
-		data := struct {
-			AddURL          string
-			ListName        string
-			Heading         string
-			KeyName         string
-			KeyLabel        string
-			KeyInputID      string
-			Keyless         bool
-			DisplayKey      string
-			Workbench       bool
-			IncludeKeyField bool
-			Fields          []formField
-		}{
+		data := addFormData{
 			AddURL: func() string {
 				var tb textbuf.Buffer
 				return tb.Str("/config/add/").Join(listPath, "/").Byte('/').String()
@@ -480,7 +460,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 
 		for _, field := range collectRequiredFields(listNode) {
 			seen[field] = true
-			data.Fields = append(data.Fields, formField{
+			data.Fields = append(data.Fields, addFormField{
 				Path:        field,
 				Placeholder: resolveLeafDescription(listNode, field),
 				Category:    "required",
@@ -493,7 +473,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 				continue
 			}
 			seen[field] = true
-			data.Fields = append(data.Fields, formField{
+			data.Fields = append(data.Fields, addFormField{
 				Path:        field,
 				Placeholder: resolveLeafDescription(listNode, field),
 				Category:    "suggest",
@@ -505,14 +485,14 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 			if seen[field] {
 				continue
 			}
-			data.Fields = append(data.Fields, formField{
+			data.Fields = append(data.Fields, addFormField{
 				Path:        field,
 				Placeholder: resolveLeafDescription(listNode, field),
 				Category:    "unique",
 			})
 		}
 
-		html := renderer.RenderFragment("add_form_overlay", data)
+		html := renderer.renderComponent("add_form_overlay", addFormOverlay(data))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return

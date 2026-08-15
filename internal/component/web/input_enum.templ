@@ -1,0 +1,29 @@
+package web
+
+// inputEnum edits a leaf whose YANG type enumerates its values. The blank
+// option carries the schema default in brackets, so an unset leaf still shows
+// what the daemon will use.
+// templ writes no whitespace between two turns of a loop. A space expression
+// ends each option, which is where the markup this replaced put a newline.
+templ inputEnum(f FieldMeta) {
+	<select
+		class="ze-field-select"
+		name="value"
+		hx-post={ configSetURL(f.Path) }
+		hx-trigger="change"
+		hx-target="closest .ze-field"
+		hx-swap="outerHTML"
+		hx-vals={ fieldHxVals(f.Leaf) }
+	>
+		<option value="">{ enumBlankLabel(f.Default) }</option>
+		for _, opt := range splitFieldOptions(f.Options) {
+			<option
+				value={ opt }
+				if opt == f.Value {
+					selected
+				}
+			>{ opt }</option>
+			{ " " }
+		}
+	</select>
+}

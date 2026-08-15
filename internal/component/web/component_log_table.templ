@@ -1,0 +1,39 @@
+package web
+
+// logTable is the warning and error table of the log pages.
+templ logTable(v logTableData) {
+	<div class="wb-table-container">
+		if v.Title != "" {
+			<h2 class="wb-form-title">{ v.Title }</h2>
+		}
+		if len(v.Rows) > 0 {
+			<table class="wb-table">
+				<thead>
+					<tr>
+						for _, c := range v.Columns {
+							<th class="wb-table-col">{ c.Label }</th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					for _, row := range v.Rows {
+						<tr class={ wbTableRowClass(row.FlagClass) }>
+							for _, cell := range row.Cells {
+								<td class="wb-table-cell">{ cell }</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		} else {
+			<div class="wb-table-empty">
+				<div class="wb-table-empty-content">
+					<p class="wb-table-empty-message">{ v.EmptyMessage }</p>
+					if v.EmptyHint != "" {
+						<p class="wb-table-empty-hint">{ v.EmptyHint }</p>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}

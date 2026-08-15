@@ -1,0 +1,89 @@
+package web
+
+// l2tpDetail is the L2TP session detail page: the session's attributes, its
+// CQM chart, its event timeline and the disconnect form.
+templ l2tpDetail(v l2tpDetailView) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<title>L2TP Session { intText(int(v.Session.LocalSID)) }</title>
+			<link rel="stylesheet" href="/assets/style.css">
+			<link rel="stylesheet" href="/assets/uPlot.min.css">
+			<script src="/assets/htmx.min.js"></script>
+			<script src="/assets/uPlot.min.js"></script>
+		</head>
+		<body>
+			<div class="layout">
+				<nav class="breadcrumb-bar">
+					<a href="/">ze</a> / <a href="/l2tp">l2tp</a> / <span>{ intText(int(v.Session.LocalSID)) }</span>
+				</nav>
+				<main class="content-area">
+					<h2>Session { intText(int(v.Session.LocalSID)) }</h2>
+					<section class="l2tp-session-info">
+						<table class="l2tp-detail-table">
+							<tr><th>Username</th><td>{ v.Session.Username }</td></tr>
+							<tr><th>State</th><td>{ v.Session.State }</td></tr>
+							<tr><th>Address</th><td>{ v.Session.AssignedAddr }</td></tr>
+							<tr><th>Interface</th><td>{ v.Session.PppInterface }</td></tr>
+							<tr><th>Tunnel</th><td>{ intText(int(v.Session.TunnelLocalTID)) }</td></tr>
+							<tr><th>Family</th><td>{ v.Session.Family }</td></tr>
+						</table>
+					</section>
+					if v.Login != "" {
+						<section class="l2tp-chart">
+							<h3>CQM Graph</h3>
+							<div id="cqm-chart" data-login={ v.Login }></div>
+							<p><a href={ "/l2tp/" + v.Login + "/samples.csv" }>Download CSV</a></p>
+						</section>
+					}
+					<section class="l2tp-events">
+						<h3>Event Timeline</h3>
+						if len(v.Events) > 0 {
+							<table class="l2tp-table">
+								<thead><tr><th>Time</th><th>Type</th><th>Details</th></tr></thead>
+								<tbody>
+									for _, e := range v.Events {
+										<tr>
+											<td>{ e.Timestamp.Format("2006-01-02 15:04:05") }</td>
+											<td>{ e.Type }</td>
+											<td>
+												if e.Actor != "" {
+													actor: { e.Actor }
+												}
+												if e.Reason != "" {
+													reason: { e.Reason }
+												}
+												if e.RTT != "" {
+													rtt: { e.RTT }
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						} else {
+							<p>No events recorded.</p>
+						}
+					</section>
+					<section class="l2tp-disconnect">
+						<h3>Disconnect</h3>
+						<form
+							method="POST"
+							action={ "/l2tp/" + intText(int(v.Session.LocalSID)) + "/disconnect" }
+							data-confirm={ "Disconnect session " + intText(int(v.Session.LocalSID)) + "?" }
+						>
+							<label for="reason">Reason (required):</label>
+							<input type="text" id="reason" name="reason" required maxlength="256" placeholder="maintenance window">
+							<label for="cause">Disconnect Cause (optional):</label>
+							<input type="number" id="cause" name="cause" min="0" max="65535" placeholder="0">
+							<button type="submit" class="btn btn-danger">Disconnect</button>
+						</form>
+					</section>
+				</main>
+			</div>
+			<script src="/assets/l2tp-chart.js"></script>
+		</body>
+	</html>
+}

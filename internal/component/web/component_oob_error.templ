@@ -1,0 +1,17 @@
+package web
+
+// oobError appends one error to the error list and opens the panel. Both
+// swaps travel out of band, so a handler answers with this and nothing else.
+templ oobError(v ErrorData) {
+	<div id="error-list" hx-swap-oob="beforeend">@errorItem(v)</div>
+	<aside id="error-panel" hx-swap-oob="className" class="error-panel"></aside>
+}
+
+// errorItem is one line in the error list.
+templ errorItem(v ErrorData) {
+	<div class="error-item" id={ "error-" + v.ID }>
+		<b>{ v.Path }</b>
+		<span>{ v.Message }</span>
+		<button class="error-dismiss" data-action="dismiss-error">x</button>
+	</div>
+}

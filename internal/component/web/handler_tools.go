@@ -246,7 +246,7 @@ func errorOverlay(toolID string, contextPath []string, tool *config.RelatedTool,
 // its own visual error treatment); 4xx/5xx are reserved for protocol
 // errors that prevent overlay rendering at all.
 func renderToolOverlay(w http.ResponseWriter, renderer *Renderer, data toolOverlayData, status int) {
-	html := renderer.RenderFragment("tool_overlay", data)
+	html := renderer.renderComponent("tool_overlay", toolOverlay(data))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if _, err := w.Write([]byte(html)); err != nil {

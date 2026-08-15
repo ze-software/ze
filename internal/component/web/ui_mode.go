@@ -30,6 +30,10 @@ const (
 
 	uiModeTokenFinder    = "finder"
 	uiModeTokenWorkbench = "workbench"
+	// uiModeTokenCLI is not a selectable UI mode. It is the LayoutData.ActiveUI
+	// value the /cli terminal page sets, and pageLayout reads it to leave the
+	// commit bar out of that page.
+	uiModeTokenCLI = "cli"
 )
 
 // String returns the canonical token for the mode.

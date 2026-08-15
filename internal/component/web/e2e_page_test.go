@@ -49,7 +49,7 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 	t.Logf("FragmentData fields: %d, sidebar: %d, breadcrumbs: %d",
 		len(data.Fields), len(data.Sidebar), len(data.Breadcrumbs))
 
-	result := renderer.RenderFragment("oob_response", data)
+	result := renderer.renderComponent("oob_response", oobResponse(data))
 	t.Logf("oob_response result length: %d", len(result))
 	require.NotEmpty(t, result, "oob_response must render for HTMX navigation")
 	require.Contains(t, string(result), "group")

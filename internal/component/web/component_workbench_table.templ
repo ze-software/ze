@@ -1,0 +1,82 @@
+package web
+
+// workbenchTable is the workbench's list view: a flag column, the data
+// columns, and a row action column.
+// templ writes no whitespace between two turns of a loop. A space expression
+// ends each action, which is where the markup this replaced put a newline.
+templ workbenchTable(v WorkbenchTableData) {
+	<div class="wb-table-container">
+		if v.Title != "" {
+			<h2 class="wb-table-title">{ v.Title }</h2>
+		}
+		<div class="wb-table-toolbar">
+			if len(v.AddActions) > 0 {
+				for _, a := range v.AddActions {
+					<button type="button" class="wb-table-add" data-action="add-entry" data-base-url={ a.URL }>{ a.Label }</button>
+				}
+			} else if v.AddURL != "" {
+				<button type="button" class="wb-table-add" id="btn-add-entry" data-action="add-entry" data-base-url={ v.AddURL }>{ addButtonLabel(v.AddLabel) }</button>
+			}
+			<div class="wb-table-toolbar-right">
+				<input type="search" class="wb-table-search" placeholder="Search..." aria-label="Search table">
+			</div>
+		</div>
+		<table class="wb-table">
+			<thead>
+				<tr>
+					<th class="wb-table-flag-header">Flags</th>
+					for _, c := range v.Columns {
+						<th class={ wbTableColClass(c.Sortable) }>{ c.Label }</th>
+					}
+					<th class="wb-table-actions-header">Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				if len(v.Rows) > 0 {
+					for _, row := range v.Rows {
+						<tr class={ wbTablePendingClass(row.Pending) } data-key={ row.Key }>
+							<td class={ wbTableFlagClass(row.FlagClass) }>{ row.Flags }</td>
+							for _, cell := range row.Cells {
+								<td class="wb-table-cell">{ cell }</td>
+							}
+							<td class="wb-table-actions">
+								for _, a := range row.Actions {
+									if a.HxPost != "" {
+										<button
+											hx-post={ a.HxPost }
+											class={ wbActionClass(a.Class) }
+											if a.Confirm != "" {
+												hx-confirm={ a.Confirm }
+											}
+										>{ a.Label }</button>
+									} else {
+										<a href={ a.URL } class={ wbActionClass(a.Class) }>{ a.Label }</a>
+									}
+									{ " " }
+								}
+							</td>
+						</tr>
+					}
+				} else {
+					<tr class="wb-table-empty-row">
+						<td colspan="0" class="wb-table-empty">
+							<div class="wb-table-empty-content">
+								<p class="wb-table-empty-message">{ v.EmptyMessage }</p>
+								if v.EmptyHint != "" {
+									<p class="wb-table-empty-hint">{ v.EmptyHint }</p>
+								}
+								if len(v.AddActions) > 0 {
+									for _, a := range v.AddActions {
+										<button type="button" class="wb-table-add wb-table-empty-add" data-action="add-entry" data-base-url={ a.URL }>{ a.Label }</button>
+									}
+								} else if v.AddURL != "" {
+									<button type="button" class="wb-table-add wb-table-empty-add" data-action="add-entry" data-base-url={ v.AddURL }>{ addButtonLabel(v.AddLabel) }</button>
+								}
+							</div>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}

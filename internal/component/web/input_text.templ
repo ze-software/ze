@@ -1,0 +1,33 @@
+package web
+
+// inputText edits a leaf as free text. It is also the fallback the input
+// registry answers with for a type no component claims.
+templ inputText(f FieldMeta) {
+	<input
+		type="text"
+		class={ fieldInputClass(f.Value) }
+		name="value"
+		value={ f.Value }
+		hx-post={ configSetURL(f.Path) }
+		hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
+		hx-target="closest .ze-field"
+		hx-swap="outerHTML"
+		hx-vals={ fieldHxVals(f.Leaf) }
+		if f.Pattern != "" {
+			pattern={ f.Pattern }
+		}
+		if fieldPlaceholder(f) != "" {
+			placeholder={ fieldPlaceholder(f) }
+		}
+	>@fieldValueTag(f)
+}
+
+// fieldValueTag is the badge after an editor: set when the operator configured
+// the leaf, default when the schema supplies the value.
+templ fieldValueTag(f FieldMeta) {
+	if f.Value != "" {
+		<span class="ze-field-tag ze-field-tag-set">set</span>
+	} else if f.Default != "" {
+		<span class="ze-field-tag ze-field-tag-default">default</span>
+	}
+}

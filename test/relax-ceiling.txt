@@ -172,4 +172,24 @@
 # leaving view_test.go and could not see them land in another package of the same
 # commit. That is the cross-file blindness the 2026-08-14 blackholecfg row above
 # records, in the same Go arm.
-760
+# raised-for: 2026-08-14, plan/spec-web-templ-migration.md phase 3, one token in
+# internal/component/web/golden_test.go.
+#
+# NOTHING LEFT THE SUITE. Thirteen web templates became templ components in this
+# commit: the three page templates, five chrome fragments and the five leaf
+# input files. Their golden entries moved from webGoldenSpec, which covers the
+# templates/ tree, into webTemplGoldenSpec, which covers the .templ tree. Both
+# specs sit in the same file.
+#
+# WHAT MOVED. Every unit and every variant, under the same fixture path. The
+# Fixture field of internal/test/golden carries the old html/template path, so
+# no fixture is renamed in the commit that changes its bytes.
+#
+# WHAT THE MOVE ADDED. TestWebGoldenOutput now renders both specs and calls
+# AssertCoversDir once over the union, so a fixture that neither spec writes is
+# still reported. The templ half also gained four page/login components the
+# single html/template file never exposed on its own.
+#
+# WHY THE TOKEN EXISTS. The hook counts table rows per file and saw seven
+# entries leave one map. It cannot see them arrive in the map below it.
+761

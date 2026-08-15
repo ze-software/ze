@@ -1,0 +1,39 @@
+package web
+
+// configCommandForm is a command parameter form for the config editor.
+//
+// NO LIVE PATH REACHES THIS. It sat in the config template map and no node kind
+// names it. The workbench renders commandForm instead, which posts to #detail
+// rather than to a results list. Recorded in
+// plan/journal/unwired-feature.md.
+templ configCommandForm(v CommandFormData) {
+	<div class="command-form">
+		<h3 class="command-form-title">{ v.CommandName }</h3>
+		if v.Description != "" {
+			<p class="command-form-description">{ v.Description }</p>
+		}
+		<form
+			method="post"
+			action={ v.ActionURL }
+			hx-post={ v.ActionURL }
+			hx-target="#command-results"
+			hx-swap="afterbegin"
+		>
+			for _, p := range v.Parameters {
+				<div class="command-form-field">
+					<label class="command-form-label" for={ "param-" + p.Name }>{ p.Name }</label>
+					<input
+						type="text"
+						class="command-form-input"
+						id={ "param-" + p.Name }
+						name={ p.Name }
+						value={ p.Value }
+						placeholder={ p.Placeholder }
+					>
+				</div>
+			}
+			<button type="submit" class="command-form-execute">Execute</button>
+		</form>
+		<div id="command-results" class="command-results-container"></div>
+	</div>
+}

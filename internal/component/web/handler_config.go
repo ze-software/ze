@@ -180,8 +180,7 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 			return
 		}
 
-		tmplName := nodeKindToTemplate(viewData.NodeKind)
-		contentHTML := renderer.RenderConfigToHTML(tmplName, viewData)
+		contentHTML := renderConfigContent(renderer, viewData)
 
 		// HTMX partial: return content fragment without layout wrapper.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {

@@ -60,6 +60,12 @@ type webHandlerCase struct {
 	// carries a canceled context, so the capture holds what the handler emits
 	// before it returns rather than blocking on a ticker.
 	Stream bool
+	// Setup publishes whatever the handler looks up before the request runs,
+	// and undoes it through t.Cleanup. A handler that answers 503 without a
+	// running subsystem captures the 503 alone, and the page behind it stays
+	// uncaptured. The data it publishes MUST be fixed: the capture serves the
+	// same request twice and compares the two answers.
+	Setup func(t *testing.T)
 	// Rewrites normalize a volatile span. Each one names its producer.
 	Rewrites []golden.Rewrite
 }
@@ -299,13 +305,13 @@ func webCaseName(target string) string {
 // TestWebHandlerGoldenOutput captures the response bytes of a real request to
 // every route the hub serves.
 //
-// It is not the template capture with extra steps. TestWebGoldenOutput executes
-// one parsed template against data the test writes. This one goes through
-// RenderLayout, RenderWorkbench, RenderFragment, RenderConfigToHTML,
-// RenderField and RenderL2TPTemplate, with the view model the handler builds.
-// It therefore covers the composition the templ port rewrites. A port that
-// renders each template identically from a differently built handler model
-// keeps the template capture green and turns this one red.
+// It is not the component capture with extra steps. TestWebGoldenOutput renders
+// one component against data the test writes. This one goes through
+// RenderLayout, RenderWorkbench, RenderField and every page handler, with the
+// view model the handler builds. It therefore covers the composition the other
+// capture cannot see. A page that renders each component identically from a
+// differently built view model keeps the component capture green and turns this
+// one red.
 //
 // VALIDATES: every byte the web UI answers a request with.
 // PREVENTS: a rendering change reaching an operator with every test green.
@@ -344,6 +350,10 @@ func TestWebHandlerGoldenOutput(t *testing.T) {
 		written = append(written, fixture)
 
 		t.Run(c.Name, func(t *testing.T) {
+			if c.Setup != nil {
+				c.Setup(t)
+			}
+
 			got := webGoldenServe(t, c)
 
 			// Each serve runs against its own editor and its own session, so a
@@ -354,6 +364,11 @@ func TestWebHandlerGoldenOutput(t *testing.T) {
 				t.Fatalf("%s %s answers two different bodies on two identical requests; the capture cannot pin it",
 					c.Method, c.Target)
 			}
+
+			// A byte comparison accepts an empty page, and a capture run
+			// freezes it. The component capture has always refused a unit that
+			// renders only whitespace: this is the same refusal, one layer up.
+			golden.AssertResponseHasBody(t, c.Name, got, c.Stream)
 
 			golden.Compare(t, fixture, got)
 		})
@@ -669,9 +684,11 @@ func webGoldenRequest(t *testing.T, env *webGoldenEnv, c webHandlerCase) *http.R
 	}
 
 	if c.Stream {
-		// Cancel before the handler runs. A stream writes its headers and its
-		// first payload, then returns on ctx.Done instead of holding the test
-		// for a tick.
+		// Cancel before the handler runs, so it returns on ctx.Done instead of
+		// holding the test for a tick. The capture then holds the headers and
+		// whatever the handler wrote before it returned. For the three stream
+		// routes here that is nothing, which is why Stream also exempts a case
+		// from AssertResponseHasBody.
 		ctx, cancel := context.WithCancel(req.Context())
 		cancel()
 		req = req.WithContext(ctx)

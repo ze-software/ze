@@ -1,0 +1,18 @@
+package web
+
+// commandResult is the card an executed admin command answers with. It reads
+// the result off FragmentData because the detail fragment dispatches to it and
+// passes the whole view.
+templ commandResult(v *FragmentData) {
+	<div class={ commandResultClass(v.CommandResult.Error) }>
+		<div class="command-result-header">
+			<span class="command-result-title">{ v.CommandResult.CommandName }</span>
+			if v.CommandResult.Error {
+				<span class="command-result-error-badge">error</span>
+			}
+		</div>
+		<div class="command-result-body">
+			<pre class="command-result-output">{ v.CommandResult.Output }</pre>
+		</div>
+	</div>
+}

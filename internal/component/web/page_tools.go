@@ -73,7 +73,7 @@ func handleToolPingPage(renderer *Renderer, r *http.Request, dispatch CommandDis
 		data = handlePingSubmit(r, dispatch)
 	}
 
-	return renderer.RenderFragment("tool_ping", data)
+	return renderer.renderComponent("tool_ping", toolPing(data))
 }
 
 // handlePingSubmit validates ping form params and dispatches the command.
@@ -145,7 +145,7 @@ func handleToolBGPDecodePage(renderer *Renderer, r *http.Request, dispatch Comma
 		data = handleBGPDecodeSubmit(r, dispatch)
 	}
 
-	return renderer.RenderFragment("tool_bgp_decode", data)
+	return renderer.renderComponent("tool_bgp_decode", toolBGPDecode(data))
 }
 
 // handleBGPDecodeSubmit validates hex input and dispatches the decode command.
@@ -185,7 +185,7 @@ func handleToolMetricsPage(renderer *Renderer, r *http.Request, dispatch Command
 		data = handleMetricsSubmit(r, dispatch)
 	}
 
-	return renderer.RenderFragment("tool_metrics", data)
+	return renderer.renderComponent("tool_metrics", toolMetrics(data))
 }
 
 // handleMetricsSubmit validates metric name and dispatches the query command.
@@ -229,7 +229,7 @@ func handleToolCapturePage(renderer *Renderer, r *http.Request, dispatch Command
 		data = handleCaptureSubmit(r, dispatch)
 	}
 
-	return renderer.RenderFragment("tool_capture", data)
+	return renderer.renderComponent("tool_capture", toolCapture(data))
 }
 
 // handleCaptureSubmit validates capture filters and dispatches the command.
@@ -299,10 +299,12 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 	}
 
 	cleaned, truncated := normalizeOutput(output)
-	result := template.HTMLEscapeString(cleaned)
 	if truncated {
-		result += "\n\n[Output truncated at 4 MiB]"
+		cleaned += "\n\n[Output truncated at 4 MiB]"
 	}
 
-	return toolPageData{Output: result}
+	// No hand escape. The tool page writes Output into a <pre> through templ,
+	// which escapes it once. Escaping here as well rendered &lt; to the
+	// operator (AC-5 of plan/spec-web-templ-migration.md).
+	return toolPageData{Output: cleaned}
 }

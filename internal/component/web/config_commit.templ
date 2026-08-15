@@ -1,0 +1,60 @@
+package web
+
+// configCommit is the config editor's full-page commit review.
+//
+// NO LIVE PATH REACHES THIS. The review the operator sees is the diff modal
+// (component_diff_modal.templ), which the commit bar swaps in. This template
+// sat in the config template map and no node kind names it. Recorded in
+// plan/journal/unwired-feature.md.
+//
+// Every newline inside <pre class="commit-diff-output"> is a line break of the
+// config diff. templ rewrites source layout, so each one is written as an
+// expression: templ.EscapeString is html.EscapeString, whose replacer covers
+// five characters and no newline.
+templ configCommit(v configCommitData) {
+	<div class="commit-review">
+		<h2 class="commit-title">Review Uncommitted Changes</h2>
+		if v.Error != "" {
+			<section class="commit-error">
+				<h3>Conflict Errors</h3>
+				<p class="commit-error-message">{ v.Error }</p>
+				if len(v.ConflictPaths) > 0 {
+					<ul class="commit-conflict-list">
+						for _, p := range v.ConflictPaths {
+							<li class="commit-conflict-path">{ p }</li>
+						}
+					</ul>
+				}
+			</section>
+		}
+		if v.Diff != "" {
+			<section class="commit-diff">
+				<h3>Changes</h3>
+				<pre class="commit-diff-output">for _, l := range v.DiffLines {
+	if l.IsAdd {
+		<span class="diff-add">{ l.Text }</span>{ "\n" }
+	} else if l.IsDel {
+		<span class="diff-del">{ l.Text }</span>{ "\n" }
+	} else if l.IsChange {
+		<span class="diff-change">{ l.Text }</span>{ "\n" }
+	} else {
+		<span class="diff-context">{ l.Text }</span>{ "\n" }
+	}
+}</pre>
+			</section>
+		} else {
+			<p class="commit-empty">No uncommitted changes.</p>
+		}
+		<div class="commit-actions">
+			if v.Diff != "" {
+				<button
+					class="config-btn config-btn-confirm"
+					hx-post="/config/commit"
+					hx-target="#content-area"
+					hx-confirm="Commit these changes?"
+				>Confirm Commit</button>
+			}
+			<a class="config-btn config-btn-cancel" href="/config/edit/">Cancel</a>
+		</div>
+	</div>
+}

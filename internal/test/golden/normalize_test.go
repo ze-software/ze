@@ -23,6 +23,16 @@ func TestNormalizeHTMLErasesLayoutOnly(t *testing.T) {
 		{"padding at the edges of a cell", "<td>\n  AS Path\n</td>", "<td>AS Path</td>"},
 		{"a run of spaces between words", "<td>a   b</td>", "<td>a b</td>"},
 		{"newline between two inline tags", "</a>\n<a>", "</a> <a>"},
+		{"space against the closing bracket", "<a href=\"/x\"\n  >P</a>", `<a href="/x">P</a>`},
+		{"space against a self-closing bracket", `<br  />`, `<br/>`},
+		// The last three rules of AC-2. Each pair is one value in two
+		// encodings, and a browser decodes both to the same document.
+		{"an attribute delimiter", `<a hx-vals='{"leaf":"x"}'>P</a>`, `<a hx-vals="{&#34;leaf&#34;:&#34;x&#34;}">P</a>`},
+		{"a plus escaped by one engine only", "<td>&#43;set</td>", "<td>+set</td>"},
+		{"an equals and a backtick", "<td>&#61;&#96;</td>", "<td>=`</td>"},
+		{"a bare ampersand in an attribute", `<a href="/x?a=1&b=2">P</a>`, `<a href="/x?a=1&amp;b=2">P</a>`},
+		{"an entity against a raw ampersand", "<td>a &amp; b</td>", "<td>a & b</td>"},
+		{"a plus inside pre", "<pre>&#43;bgp\n</pre>", "<pre>+bgp\n</pre>"},
 	}
 
 	for _, tt := range same {
@@ -45,8 +55,15 @@ func TestNormalizeHTMLErasesLayoutOnly(t *testing.T) {
 		{"whitespace inside a quoted value", `<a class="a  b">P</a>`, `<a class="a b">P</a>`},
 		{"space between an expression and an inline span", "<span>AS 64500 <span>N</span></span>", "<span>AS 64500<span>N</span></span>"},
 		{"whole element dropped", "<td>a</td><td>b</td>", "<td>a</td>"},
-		{"an entity against a raw ampersand", "<td>a &amp; b</td>", "<td>a & b</td>"},
+		// The encoding fold above decodes a character reference. These four
+		// prove it decodes ONCE. A value escaped twice reaches the reader as
+		// markup they can read, which is the defect AC-5 exists for.
+		{"a value escaped twice in a text node", "<td>&amp;lt;b&amp;gt;</td>", "<td>&lt;b&gt;</td>"},
+		{"a value escaped twice in an attribute", `<a title="&amp;lt;b&amp;gt;">P</a>`, `<a title="&lt;b&gt;">P</a>`},
+		{"an escaped tag against a real one", "<td>&lt;script&gt;</td>", "<td><script></td>"},
+		{"an ampersand added to a value", `<a href="/x?a=1">P</a>`, `<a href="/x?a=1&amp;b=2">P</a>`},
 		{"self-closing against paired", "<td><br/></td>", "<td><br></br></td>"},
+		{"a bare attribute dropped against the bracket", `<a href="/x" hidden>P</a>`, `<a href="/x">P</a>`},
 	}
 
 	for _, tt := range differ {
@@ -131,8 +148,17 @@ func TestNormalizeHTMLKeepsWhitespaceInsidePre(t *testing.T) {
 func TestNormalizeHTMLKeepsAGreaterThanInAValue(t *testing.T) {
 	withGT := `<div title="a > b">x</div>`
 
-	if got := NormalizeHTML(withGT); got != withGT {
-		t.Errorf("NormalizeHTML rewrote a quoted '>': got %q, want %q", got, withGT)
+	// The encoding rule writes the '>' as a reference, which is the templ
+	// spelling of the same value. The scanner is what this pins. A split at
+	// that '>' leaves ` b"` outside the tag, where the text rules rewrite it.
+	// No whole element survives that.
+	want := `<div title="a &gt; b">x</div>`
+	if got := NormalizeHTML(withGT); got != want {
+		t.Errorf("NormalizeHTML rewrote a quoted '>': got %q, want %q", got, want)
+	}
+
+	if got := NormalizeHTML(want); got != want {
+		t.Errorf("NormalizeHTML is not idempotent over a quoted '>': got %q, want %q", got, want)
 	}
 
 	if NormalizeHTML(withGT) == NormalizeHTML(`<div title="a > c">x</div>`) {

@@ -110,7 +110,7 @@ func sections() []sectionDef {
 			{Key: "sets", Label: "Sets", URL: "/show/firewall/set/"},
 			{Key: "connections", Label: "Connections", URL: "/show/firewall/connections/"},
 		}},
-		{key: "l2tp", label: "L2TP", children: []WorkbenchSubPage{
+		{key: segL2TP, label: "L2TP", children: []WorkbenchSubPage{
 			{Key: "sessions", Label: "Sessions", URL: "/show/l2tp/sessions/"},
 			{Key: "configuration", Label: "Configuration", URL: "/show/l2tp/"},
 			{Key: "health", Label: "Health", URL: "/show/l2tp/health/"},
@@ -237,8 +237,8 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 		if first != segFirewall {
 			return
 		}
-	case "l2tp":
-		if first != "l2tp" {
+	case segL2TP:
+		if first != segL2TP {
 			return
 		}
 	case "services":

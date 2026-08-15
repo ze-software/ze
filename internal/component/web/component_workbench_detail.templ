@@ -1,0 +1,42 @@
+package web
+
+// workbenchDetail is the workbench's detail panel: a title, tabbed content and
+// the related-tool buttons the page offers.
+templ workbenchDetail(v WorkbenchDetailData) {
+	<div class="wb-detail-panel">
+		<div class="wb-detail-header">
+			<span class="wb-detail-title">{ v.Title }</span>
+			if v.CloseURL != "" {
+				<a href={ v.CloseURL } class="wb-detail-close">Close</a>
+			} else {
+				<button class="wb-detail-close" type="button">Close</button>
+			}
+		</div>
+		if len(v.Tabs) > 0 {
+			<div class="wb-detail-tabs">
+				for _, t := range v.Tabs {
+					<button class={ wbDetailTabClass(t.Active) } data-tab={ t.Key } type="button">{ t.Label }</button>
+					{ " " }
+				}
+			</div>
+			for _, t := range v.Tabs {
+				<div class={ wbDetailContentClass(t.Active) } data-tab-content={ t.Key }>@templ.Raw(t.Content)</div>
+			}
+		}
+		if len(v.Tools) > 0 {
+			<div class="wb-detail-tools">
+				for _, t := range v.Tools {
+					<button
+						class={ wbDetailToolClass(t.Class) }
+						hx-post={ t.HxPost }
+						if t.Confirm != "" {
+							hx-confirm={ t.Confirm }
+						}
+						type="button"
+					>{ t.Label }</button>
+					{ " " }
+				}
+			</div>
+		}
+	</div>
+}

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -92,52 +93,53 @@ func buildTestSchemaAndTree() (*config.Schema, *config.Tree) {
 	return schema, tree
 }
 
-// TestNodeKindToTemplate verifies that each NodeKind maps to the correct
-// template name for rendering.
-// VALIDATES: AC-2 (container), AC-3 (list), AC-21 (flex), AC-22 (freeform), AC-23 (inline list).
-// PREVENTS: Wrong template selected for a node kind.
-func TestNodeKindToTemplate(t *testing.T) {
+// TestConfigViewComponentResolvesEachKind verifies that each NodeKind reaches
+// the component that renders it. The two kinds with no component of their own
+// are reported rather than guessed at.
+//
+// VALIDATES: AC-2 (container), AC-3 (list), AC-21 (flex), AC-22 (freeform),
+// AC-23 (inline list). The dispatch is a switch over the kind, so a kind that
+// falls to the wrong branch renders the wrong page.
+// PREVENTS: the string lookup this replaced. Two of its six names could not
+// render at all and the config editor answered both with a blank panel
+// (plan/journal/silent-fall-through.md). The nil rows below pin that state, so
+// the fix pass has to change this test to change the behavior.
+func TestConfigViewComponentResolvesEachKind(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	view := &ConfigViewData{CurrentPath: "bgp"}
+
 	tests := []struct {
-		name     string
-		kind     config.NodeKind
-		wantTmpl string
+		name    string
+		kind    config.NodeKind
+		want    string
+		resolve bool
 	}{
-		{
-			name:     "container maps to container template",
-			kind:     config.NodeContainer,
-			wantTmpl: "container.html",
-		},
-		{
-			name:     "list maps to list template",
-			kind:     config.NodeList,
-			wantTmpl: "list.html",
-		},
-		{
-			name:     "leaf maps to leaf template",
-			kind:     config.NodeLeaf,
-			wantTmpl: "leaf.html",
-		},
-		{
-			name:     "flex maps to flex template",
-			kind:     config.NodeFlex,
-			wantTmpl: "flex.html",
-		},
-		{
-			name:     "freeform maps to freeform template",
-			kind:     config.NodeFreeform,
-			wantTmpl: "freeform.html",
-		},
-		{
-			name:     "inline list maps to inline_list template",
-			kind:     config.NodeInlineList,
-			wantTmpl: "inline_list.html",
-		},
+		{name: "container renders the container view", kind: config.NodeContainer, want: "config-container", resolve: true},
+		{name: "list renders the list view", kind: config.NodeList, want: "config-list-layout", resolve: true},
+		{name: "freeform renders the freeform view", kind: config.NodeFreeform, want: "config-freeform", resolve: true},
+		{name: "inline list renders the inline list view", kind: config.NodeInlineList, want: "config-list-layout", resolve: true},
+		{name: "leaf has no view component", kind: config.NodeLeaf},
+		{name: "flex has no view component", kind: config.NodeFlex},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := nodeKindToTemplate(tt.kind)
-			assert.Equal(t, tt.wantTmpl, got)
+			got := configViewComponent(tt.kind, view)
+
+			if !tt.resolve {
+				assert.Nil(t, got)
+				assert.Empty(t, string(renderConfigContent(renderer, &ConfigViewData{NodeKind: tt.kind})))
+
+				return
+			}
+
+			require.NotNil(t, got)
+
+			var buf bytes.Buffer
+			require.NoError(t, got.Render(context.Background(), &buf))
+			assert.Contains(t, buf.String(), tt.want)
 		})
 	}
 }
@@ -433,7 +435,8 @@ func TestConfigViewRendersEnumSelect(t *testing.T) {
 
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	html := string(renderer.RenderConfigToHTML("container.html", data))
+
+	html := string(renderConfigContent(renderer, data))
 
 	assert.Contains(t, html, `<select`)
 	assert.Contains(t, html, `id="field-output"`)
@@ -464,7 +467,8 @@ func TestEnumSelectPlaceholderWhenUnconfigured(t *testing.T) {
 
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	html := string(renderer.RenderConfigToHTML("container.html", data))
+
+	html := string(renderConfigContent(renderer, data))
 
 	assert.Contains(t, html, `<option value="" selected>-- select --</option>`)
 	assert.Contains(t, html, `default-value`)

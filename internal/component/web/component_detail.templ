@@ -1,0 +1,42 @@
+package web
+
+// detail is the right-hand panel of the Finder shell. It shows whichever of a
+// command result, a command form, a list table or a field set the current path
+// resolved to.
+// templ writes no whitespace between two turns of a loop. A space expression
+// ends each heading pair. Between the two spans templ writes the space itself.
+templ detail(v *FragmentData) {
+	if len(v.ContextHeading) > 0 {
+		<div class="context-heading">
+			for _, c := range v.ContextHeading {
+				<span class="context-label">{ c.ListName }</span>
+				<span class="context-key">{ c.Key }</span>
+				{ " " }
+			}
+		</div>
+	}
+	if v.CommandResult != nil {
+		@commandResult(v)
+	} else if v.CommandForm != nil {
+		@commandForm(v)
+	} else if v.ListTable != nil {
+		@listTable(v)
+	} else if len(v.Fields) > 0 {
+		<section class="config-section">
+			<div class="config-fields">
+				for _, f := range v.Fields {
+					@fieldComponent(f)
+				}
+			</div>
+			if v.ActiveUI == uiModeTokenWorkbench && !v.ReadOnly {
+				<div class="field-page-actions">
+					<button type="button" class="field-page-save" data-action="save-field-page">Save</button>
+				</div>
+			}
+		</section>
+	} else if len(v.Sidebar) == 0 {
+		<section class="config-section">
+			<p class="config-hint">Select an item from the sidebar.</p>
+		</section>
+	}
+}
