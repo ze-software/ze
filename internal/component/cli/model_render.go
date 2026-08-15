@@ -137,6 +137,9 @@ func (m *Model) setViewportData(data viewportData) {
 	}
 
 	highlighted := highlightValidationIssues(content, errs, warns, lineMapping, m.showHints)
+	if changesEnabled && data.hasOriginal {
+		highlighted += secretChangeLines(data.secretChanges)
+	}
 	m.viewportContent = highlighted
 	m.viewport.SetContent(highlighted)
 	m.viewport.GotoTop()
@@ -145,19 +148,40 @@ func (m *Model) setViewportData(data viewportData) {
 	m.err = nil
 }
 
+// secretChangeLines names each secret leaf whose value moved, one per line, and
+// publishes neither value. It is appended after the highlighting, so it adds no
+// display line the validation line mapping has to account for.
+//
+// Each line comes from secretChangeLine (editor_mask.go), which the commit diff
+// also writes: one property, one wording, on every surface.
+func secretChangeLines(paths []string) string {
+	if len(paths) == 0 {
+		return ""
+	}
+	var b textbuf.Buffer
+	for _, leafPath := range paths {
+		b.Byte('\n').Str(secretChangeLine(leafPath))
+	}
+	return b.String()
+}
+
 // configViewAtPath builds a viewportData for the config at the given path,
 // including original content for diff gutter annotation.
 func (m *Model) configViewAtPath(path []string) *viewportData {
-	// Display-masked: ze:bcrypt hashes are hidden in the config view. Both sides
+	// Display-masked: every secret leaf is hidden in the config view. Both sides
 	// are masked so the diff gutter compares masked-against-masked. Validation
 	// still runs on the unmasked ContentAtPath elsewhere; masking is
 	// line-preserving so validation highlight line numbers still align.
+	//
+	// A rotated secret is invisible to that comparison, which is why the changed
+	// paths travel beside the text rather than inside it.
 	content := m.editor.DisplayContentAtPath(path)
 	original := m.editor.DisplayOriginalContentAtPath(path)
 	return &viewportData{
 		content:         content,
 		originalContent: original,
 		hasOriginal:     true,
+		secretChanges:   m.editor.changedSecretsAt(path),
 	}
 }
 

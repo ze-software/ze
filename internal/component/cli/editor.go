@@ -421,39 +421,13 @@ func (e *Editor) ContentAtPath(path []string) string {
 
 // activeContentAtPath returns config text showing only active nodes (inactive pruned).
 func (e *Editor) activeContentAtPath(path []string) string {
-	if !e.treeValid || e.tree == nil || e.schema == nil {
-		return e.workingContent
-	}
-	clone := e.tree.Clone()
-	config.PruneInactive(clone, e.schema)
-	config.MaskBcryptInPlace(clone, e.schema) // display-only; hides ze:bcrypt hashes
-	if len(path) == 0 {
-		return config.Serialize(clone, e.schema)
-	}
-	subtree, schemaNode := e.walkPathWithSchemaFrom(clone, path)
-	if subtree == nil || schemaNode == nil {
-		return config.Serialize(clone, e.schema)
-	}
-	return config.SerializeSubtree(subtree, schemaNode)
+	return e.prunedContentAtPath(path, config.PruneInactive, e.workingContent)
 }
 
 // inactiveContentAtPath returns config text showing only inactive nodes.
 // Active nodes are pruned; inactive nodes are shown with their full subtree.
 func (e *Editor) inactiveContentAtPath(path []string) string {
-	if !e.treeValid || e.tree == nil || e.schema == nil {
-		return ""
-	}
-	clone := e.tree.Clone()
-	config.PruneActive(clone, e.schema)
-	config.MaskBcryptInPlace(clone, e.schema) // display-only; hides ze:bcrypt hashes
-	if len(path) == 0 {
-		return config.Serialize(clone, e.schema)
-	}
-	subtree, schemaNode := e.walkPathWithSchemaFrom(clone, path)
-	if subtree == nil || schemaNode == nil {
-		return config.Serialize(clone, e.schema)
-	}
-	return config.SerializeSubtree(subtree, schemaNode)
+	return e.prunedContentAtPath(path, config.PruneActive, "")
 }
 
 // schemaGetter is any schema node that can look up children by name.
@@ -772,26 +746,22 @@ func (e *Editor) blameView() string {
 	if meta == nil {
 		meta = config.NewMetaTree()
 	}
-	return config.SerializeBlame(e.tree, meta, e.schema)
+	// A blame gutter is a display path, so every secret leaf is masked.
+	// MaskSecrets clones, and the metadata tree is keyed by node rather than by
+	// value, so each line still names its author.
+	return config.SerializeBlame(config.MaskSecrets(e.tree, e.schema), meta, e.schema)
 }
 
-// setView returns the flat set-format view of the configuration.
-// Always emits bare set commands without metadata (AC-15: exportable format).
-func (e *Editor) setView() string {
-	return config.SerializeSet(e.tree, e.schema)
-}
-
-// SensitiveKeys returns the set of leaf names marked ze:sensitive in the schema.
-func (e *Editor) SensitiveKeys() map[string]bool {
-	if e.schema == nil {
-		return nil
-	}
-	return config.SensitiveKeys(e.schema)
-}
-
-// BcryptKeys returns the set of leaf names marked ze:bcrypt in the schema.
-func (e *Editor) BcryptKeys() map[string]bool {
-	return config.BcryptKeys(e.schema)
+// displaySetView returns the flat set-format view of the configuration, with
+// every secret leaf masked. Config search reads it, and a search result is text
+// the operator sees. The format stays bare set commands with no metadata
+// (AC-15: exportable format).
+//
+// Masking the TREE here is why search needs no secret predicate of its own. It
+// used to carry one, keyed on the leaf NAME, and that was a third answer to a
+// question config.LeafHoldsSecret already answers.
+func (e *Editor) displaySetView() string {
+	return config.SerializeSet(config.MaskSecrets(e.tree, e.schema), e.schema)
 }
 
 // SessionChanges returns the changes for a specific session, or all sessions.
@@ -970,9 +940,35 @@ func (e *Editor) SetSession(session *EditSession) {
 	}
 }
 
-// Diff returns a simple diff between original and working content.
+// Diff returns a line diff between the committed config and the working
+// config, with every secret leaf masked.
+//
+// It is the one diff producer in this package. Four sinks read it:
+//
+//   - the commit audit record (Model.recordConfigCommit, model_commands_commit.go)
+//   - the REST and gRPC session diff (ConfigSessionManager.Diff, internal/component/api/config_session.go)
+//   - the hub (editorAdapter.Diff, cmd/ze/hub/editor_adapter.go)
+//   - the --dry-run form of `ze config set` and `ze config deactivate`
+//
+// A raw text diff wrote the old value AND the new value of a rotated credential
+// into every one of them.
+//
+// Both sides come from the tree, so the diff reports what the editor holds
+// rather than the text it was loaded from. SetValue writes the tree alone, so
+// the raw text this compared was stale for every tree edit. Only a config that
+// parses nowhere falls back to its own text, which is the rule displayTreeOf
+// states.
+//
+// The mask gives a rotated secret the same placeholder on both sides, so the
+// line diff reads them as equal and reports nothing. changedSecretsAt names the
+// leaf that moved, and it publishes neither value.
 func (e *Editor) Diff() string {
-	return computeDiff(e.originalContent, e.workingContent)
+	var b textbuf.Buffer
+	b.Str(computeDiff(e.DisplayOriginalContentAtPath(nil), e.DisplayContentAtPath(nil)))
+	for _, leafPath := range e.changedSecretsAt(nil) {
+		b.Str(secretChangeLine(leafPath)).Byte('\n')
+	}
+	return b.String()
 }
 
 // computeDiff computes a simple line-based diff between two strings.

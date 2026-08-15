@@ -77,19 +77,26 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 		file1 = resolved
 	}
 
-	tree1, err := loadAndResolve(store, file1)
+	schema, err := config.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: YANG schema: %v\n", err)
+		return exitError
+	}
+
+	tree1, err := loadAndResolve(store, schema, file1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
 		return exitError
 	}
 
-	tree2, err := loadAndResolve(store, file2)
+	tree2, err := loadAndResolve(store, schema, file2)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file2, err)
 		return exitError
 	}
 
 	diff := config.DiffMaps(tree1, tree2)
+	maskDiffSecrets(diff, config.SecretKeys(schema))
 
 	if *jsonOutput {
 		return outputDiffJSON(diff)
@@ -118,8 +125,8 @@ func resolveRollbackPath(store storage.Storage, configPath string, n int) (strin
 }
 
 // loadAndResolve loads a config file via storage, parses it, and resolves the BGP tree.
-// Supports "-" for stdin.
-func loadAndResolve(store storage.Storage, path string) (map[string]any, error) {
+// Supports "-" for stdin. The caller owns the schema, so one diff builds it once.
+func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (map[string]any, error) {
 	// "-" reads stdin (claiming it once); a real path goes through the storage
 	// abstraction, which may be a blob store where path is a key, not a file.
 	var data []byte
@@ -131,11 +138,6 @@ func loadAndResolve(store storage.Storage, path string) (map[string]any, error) 
 	}
 	if err != nil {
 		return nil, err
-	}
-
-	schema, err := config.YANGSchema()
-	if err != nil {
-		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
 
 	p := config.NewParser(schema)
@@ -154,6 +156,55 @@ func loadAndResolve(store storage.Storage, path string) (map[string]any, error) 
 	}
 
 	return bgpTree, nil
+}
+
+// maskDiffSecrets replaces every secret value the diff carries with the display
+// placeholder, in the text shape and in the JSON shape alike.
+//
+// The diff runs on the REAL values first, so a rotated credential still reports
+// as changed. Masking the two trees before the diff would give both sides the
+// same placeholder, and the command would answer that nothing moved. The
+// operator learns which leaf changed, and neither value. That is the answer
+// Editor.Diff (internal/component/cli/editor.go) and the web commit review
+// (changedSecretLines, internal/component/web/cli_terminal.go) already write.
+//
+// The parser decodes a $9$ value into the tree, so this command printed in
+// cleartext what the file holds encoded.
+func maskDiffSecrets(diff *config.ConfigDiff, secretKeys map[string]bool) {
+	if diff == nil || len(secretKeys) == 0 {
+		return
+	}
+	for key, value := range diff.Added {
+		diff.Added[key] = maskDiffValue(key, value, secretKeys)
+	}
+	for key, value := range diff.Removed {
+		diff.Removed[key] = maskDiffValue(key, value, secretKeys)
+	}
+	for key, pair := range diff.Changed {
+		diff.Changed[key] = config.DiffPair{
+			Old: maskDiffValue(key, pair.Old, secretKeys),
+			New: maskDiffValue(key, pair.New, secretKeys),
+		}
+	}
+}
+
+// maskDiffValue masks one diff entry. A whole subtree is walked, because an
+// added peer carries its own md5 password. A scalar is masked when the last
+// segment of its path names a secret leaf.
+//
+// The name is what identifies the leaf here. ResolveBGPTree flattens group and
+// peer inheritance, so a path in the resolved map addresses no schema node.
+// `ze config dump` reads a name for the same reason.
+func maskDiffValue(path string, value any, secretKeys map[string]bool) any {
+	if subtree, ok := value.(map[string]any); ok {
+		maskMapValues(subtree, secretKeys, config.DisplayStrip)
+		return subtree
+	}
+	segments := config.SplitPath(path)
+	if secretKeys[segments[len(segments)-1]] {
+		return config.SecretDataPlaceholder
+	}
+	return value
 }
 
 func outputDiffJSON(diff *config.ConfigDiff) int {

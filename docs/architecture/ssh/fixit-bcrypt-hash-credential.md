@@ -13,7 +13,7 @@ redact credential tokens in the command log.
 
 <!-- source: internal/component/ssh/passwordauth.go -- authenticatePassword, isLocalTransport, loggedCommand -->
 <!-- source: internal/component/authz/auth.go -- CheckPassword, AuthenticateUser -->
-<!-- source: internal/component/config/mask.go -- MaskBcrypt, MaskBcryptInPlace, RejectMaskedBcryptLeaves, BcryptKeys -->
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, RejectMaskedSecretLeaves -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->
 <!-- source: internal/core/redact/redact.go -- IsBcryptHash, Command, JSON, Placeholder -->
 
@@ -29,12 +29,19 @@ spoofed, and it lives at the transport layer, not inside the authorization
 package.
 
 **Masking happens on a display CLONE, never in the shared serializers.**
-`MaskBcrypt` clones the tree and replaces every non-empty bcrypt leaf value with
-the secret-data placeholder. `MaskBcryptInPlace` serves a caller that already
-holds a private clone. The mask is applied at each display choke point: the CLI
-show, annotated, diff and search paths, the display twins of the unmasked
-accessors, the web CLI terminal serializers, the web per-leaf builders, and the
-config dump.
+`MaskSecrets` clones the tree and replaces every non-empty secret leaf value
+with the secret-data placeholder. It reads `LeafHoldsSecret`, which is the one
+answer to "does this leaf hold a secret". `MaskSecretsInPlace` serves a caller
+that already holds a private clone. `MaskBcrypt` stays narrow for the config
+dump, which writes a sensitive value back in its reversible form. The mask is
+applied at each display choke point: the CLI show, annotated, diff and search
+paths, the display twins of the unmasked accessors, the web CLI terminal
+serializers, the web per-leaf builders, and the config dump.
+
+**Map-shaped data is masked by leaf NAME.** `SecretKeys` answers that set from
+the same predicate. The BGP resolver flattens group and peer inheritance, so a
+path in the resolved map addresses no schema node. The config dump and the
+config diff both read a name there.
 
 **The placeholder is never the reversible sensitive-value marker.** A sensitive
 leaf uses a reversible encoding; bcrypt is one way and the parser refuses the
@@ -42,8 +49,10 @@ reversible marker on a bcrypt leaf. In the config dump the sensitive encoder
 skips a value that already equals the placeholder, because a leaf name can be
 both bcrypt in one module and sensitive in another.
 
-**The commit guard fails closed.** `RejectMaskedBcryptLeaves` rejects a bcrypt
-leaf that holds the placeholder rather than silently resolving it. It is wired
+**The commit guard fails closed.** `RejectMaskedSecretLeaves` rejects a secret
+leaf that holds the placeholder rather than silently resolving it. It reads
+`LeafHoldsSecret`, so it covers a `ze:sensitive` leaf as well as a `ze:bcrypt`
+one, and it answers the one predicate the display mask reads. It is wired
 at every commit and validate entry point, which is also what backs the web
 upload. The web value setter no-ops a resubmitted placeholder as a
 user-interface backstop.

@@ -6,7 +6,6 @@ package cli
 import (
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -17,7 +16,13 @@ const searchMaxResults = 50
 // Each space-separated token in query is a word-prefix filter: "/r a" matches lines
 // containing a word starting with "r" followed by a word starting with "a" (e.g., "remote as").
 // Results use type "search" so applyCompletion can strip the last word (the value).
-// Sensitive values (ze:sensitive leaves like md5-password) are masked in results.
+//
+// A secret value never reaches this function. displaySetView masks the tree
+// before it serializes, so the cached text already reads as the placeholder.
+// Search used to mask here instead. It matched the leaf NAME against a union of
+// SensitiveKeys and BcryptKeys. That was a third answer to the question
+// config.LeafHoldsSecret answers. It was right only about the leaves whose
+// names it collected.
 func (m *Model) searchConfig(query string) []Completion {
 	if m.editor == nil {
 		return nil
@@ -26,21 +31,12 @@ func (m *Model) searchConfig(query string) []Completion {
 	// Cache the set-view to avoid re-serializing the entire config tree on every keystroke.
 	// Invalidated when the tree is dirty (user edited config since last cache).
 	if m.searchCache == "" || m.editor.Dirty() {
-		m.searchCache = m.editor.setView()
+		m.searchCache = m.editor.displaySetView()
 	}
 	if m.searchCache == "" {
 		return nil
 	}
 
-	// Mask both ze:sensitive and ze:bcrypt leaf values in search results; both
-	// render as the same placeholder, so a single combined key set suffices.
-	maskedKeys := m.editor.SensitiveKeys()
-	if maskedKeys == nil {
-		maskedKeys = map[string]bool{}
-	}
-	for k := range m.editor.BcryptKeys() {
-		maskedKeys[k] = true
-	}
 	tokens := strings.Fields(query)
 	var results []Completion
 	for line := range strings.SplitSeq(m.searchCache, "\n") {
@@ -53,7 +49,6 @@ func (m *Model) searchConfig(query string) []Completion {
 			if len(words) < 2 {
 				continue
 			}
-			line = maskSensitiveLine(words, maskedKeys)
 			results = append(results, Completion{
 				Text:        line,
 				Description: textbuf.Join(words[1:], " "),
@@ -65,17 +60,6 @@ func (m *Model) searchConfig(query string) []Completion {
 		}
 	}
 	return results
-}
-
-// maskSensitiveLine replaces the value (last word) with a placeholder when the
-// leaf name (second-to-last word) is a sensitive key. The words slice is modified
-// in place so both Text and Description reflect the mask.
-// Example: "set peer X md5-password secret" becomes "set peer X md5-password /* SECRET-DATA */".
-func maskSensitiveLine(words []string, sensitiveKeys map[string]bool) string {
-	if len(words) >= 3 && sensitiveKeys[words[len(words)-2]] {
-		words[len(words)-1] = config.SecretDataPlaceholder
-	}
-	return textbuf.Join(words, " ")
 }
 
 // matchesPrefixTokens returns true if the line contains words matching each token as a prefix,

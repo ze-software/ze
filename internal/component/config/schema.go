@@ -92,23 +92,30 @@ const (
 const SecretDataPlaceholder = "/* SECRET-DATA */" //nolint:gosec // not a credential
 
 // SensitiveKeys walks a schema tree and returns all leaf names marked ze:sensitive.
+//
+// It is the NARROW half, and `ze config dump` is what keeps it. That command
+// writes a ze:sensitive value back as $9$, and a ze:bcrypt hash has no $9$
+// form. A display mask reads SecretKeys (mask.go) instead.
 func SensitiveKeys(schema *Schema) map[string]bool {
 	keys := make(map[string]bool)
-	collectSensitiveKeys(schema.root, keys)
+	collectLeafNames(schema.root, func(leaf *LeafNode) bool { return leaf.Sensitive }, keys)
 	return keys
 }
 
-func collectSensitiveKeys(node Node, keys map[string]bool) {
+// collectLeafNames walks the schema and keeps the NAME of every leaf the
+// predicate accepts. One walk serves both key sets, so a node kind reached by
+// one is reached by the other.
+func collectLeafNames(node Node, accept func(*LeafNode) bool, keys map[string]bool) {
 	cp, ok := node.(childProvider)
 	if !ok {
 		return
 	}
 	for _, name := range cp.Children() {
 		child := cp.Get(name)
-		if leaf, ok := child.(*LeafNode); ok && leaf.Sensitive {
+		if leaf, ok := child.(*LeafNode); ok && accept(leaf) {
 			keys[name] = true
 		}
-		collectSensitiveKeys(child, keys)
+		collectLeafNames(child, accept, keys)
 	}
 }
 
@@ -163,6 +170,7 @@ type ContainerNode struct {
 	Hidden       bool           // ze:hidden — excluded from config display output
 	Ephemeral    bool           // ze:ephemeral — present in schema, not persisted to config file
 	Presence     bool           // YANG presence container: accepts flag (;), value (word;), or block ({})
+	Flatten      bool           // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
 	Description  string         // YANG description for tooltips
 	Backend      []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related      []*RelatedTool // ze:related — operator tools attached to this container (see related.go)

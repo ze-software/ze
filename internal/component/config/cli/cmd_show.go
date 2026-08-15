@@ -40,6 +40,10 @@ func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, e
 // `ze config completion` engine use; list entries are addressed by their key
 // (`bgp peer edge1`). `--json` emits the subtree as a JSON object.
 //
+// Every secret leaf reads as the display placeholder, in the text form and in
+// the JSON form. The parser decodes a $9$ value into the tree, so an unmasked
+// render published in cleartext what the file holds encoded.
+//
 // Like `ze config dump`/`validate`, it reads a config file directly from the
 // filesystem (not the blob store), so a plain path works without `-f`.
 func cmdShow(args []string) int {
@@ -91,17 +95,36 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	}
 	defer ed.Close() //nolint:errcheck // read-only inspection, nothing to flush
 
-	// No path: whole tree.
+	// Resolve the whole tree first. A configuration that parses nowhere is a
+	// different answer from a path that does not resolve. Both output shapes owe
+	// the operator the same one.
+	//
+	// The text form of the whole configuration still answers the raw file: the
+	// operator must read the broken line to repair it. Every other shape reports
+	// the failure. The JSON form has no text to carry, and writing the empty
+	// object there would read as a configuration that parsed and held nothing.
+	whole := ed.DisplayTreeAtPath(nil)
+	if whole == nil {
+		if !*jsonOutput && len(path) == 0 {
+			return writeText(out, ed.DisplayContentAtPath(nil))
+		}
+		helpfmt.WriteError(os.Stderr, false, "%s: the configuration does not parse", configFile)
+		return exitError
+	}
+
+	// No path: whole tree. Both shapes are masked, because the JSON is the same
+	// disclosure as the text to anything that reads it.
 	if len(path) == 0 {
 		if *jsonOutput {
-			return encodeJSONTo(out, ed.Tree().ToMap())
+			return encodeJSONTo(out, whole.ToMap())
 		}
-		return writeText(out, ed.ContentAtPath(nil))
+		return writeText(out, ed.DisplayContentAtPath(nil))
 	}
 
 	// Resolve the path first so a miss is an explicit error, not a silent
-	// fall-back to the whole tree (which ContentAtPath does on a bad path).
-	subtree := ed.WalkPath(path)
+	// fall-back to the whole tree (which DisplayContentAtPath does on a bad
+	// path). DisplayTreeAtPath resolves it with the same rules as WalkPath.
+	subtree := ed.DisplayTreeAtPath(path)
 	if subtree == nil {
 		var b textbuf.Buffer
 		helpfmt.WriteError(os.Stderr, false, "path not found: %s", b.Join(path, " ").String())
@@ -111,7 +134,7 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	if *jsonOutput {
 		return encodeJSONTo(out, subtree.ToMap())
 	}
-	return writeText(out, ed.ContentAtPath(path))
+	return writeText(out, ed.DisplayContentAtPath(path))
 }
 
 // writeText writes s to w and maps a write error (e.g. a closed pipe) to a

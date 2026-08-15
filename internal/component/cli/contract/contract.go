@@ -148,6 +148,9 @@ type Editor interface {
 	Discard() error
 	DiscardSessionPath(path []string) error
 	DisconnectSession(sessionID string) error
+	// Diff is the line diff between the committed config and the working
+	// config, with every secret leaf masked. It names a secret whose value
+	// moved, and it publishes neither value.
 	Diff() string
 	SaveDraft() error
 	SetPreCommitValidate(fn func(candidate string) error)
@@ -157,12 +160,10 @@ type Editor interface {
 	// Returned as any to avoid contract importing config.
 	Tree() any
 	ContentAtPath(path []string) string
-	// DisplayContentAtPath is ContentAtPath with ze:bcrypt leaves masked for
-	// display. It masks that half alone, so a ze:sensitive leaf still reads in
-	// the clear. Its callers are the SSH CLI display paths, which hold the
-	// concrete editor. The web CLI show verb masks the whole tree with
-	// config.MaskSecrets instead. ContentAtPath stays unmasked for validation
-	// and persistence.
+	// DisplayContentAtPath is ContentAtPath with every secret leaf masked for
+	// display, through config.MaskSecrets. config.LeafHoldsSecret is the one
+	// predicate that says which leaf that is. ContentAtPath stays unmasked for
+	// validation and persistence.
 	DisplayContentAtPath(path []string) string
 	OriginalContentAtPath(path []string) string
 	Dirty() bool

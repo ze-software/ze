@@ -33,9 +33,11 @@ func (e *Editor) annotatedViewOf(tree *config.Tree, path []string, columns confi
 		meta = config.NewMetaTree()
 	}
 
-	// Mask ze:bcrypt leaf values for display. MaskBcrypt clones, leaving the
-	// working tree (and the metadata tree, keyed by node not value) untouched.
-	tree = config.MaskBcrypt(tree, schema)
+	// Mask every secret leaf value for display. MaskSecrets clones, so the
+	// working tree stays untouched. The metadata tree is keyed by node rather
+	// than by value. The columns therefore still mark a leaf whose value now
+	// reads as the placeholder. This view names the change, never the value.
+	tree = config.MaskSecrets(tree, schema)
 
 	// Walk to sub-path if needed
 	if len(path) > 0 && e.treeValid {

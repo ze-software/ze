@@ -10,33 +10,6 @@ import (
 	"strings"
 )
 
-// BcryptKeys returns the set of leaf names marked ze:bcrypt in the schema. It
-// mirrors SensitiveKeys and is used by per-leaf display paths (CLI search, web
-// leaf/form rendering, config dump) that mask by leaf name rather than by
-// cloning the whole tree.
-func BcryptKeys(schema *Schema) map[string]bool {
-	if schema == nil {
-		return nil
-	}
-	keys := make(map[string]bool)
-	collectBcryptKeys(schema.root, keys)
-	return keys
-}
-
-func collectBcryptKeys(node Node, keys map[string]bool) {
-	cp, ok := node.(childProvider)
-	if !ok {
-		return
-	}
-	for _, name := range cp.Children() {
-		child := cp.Get(name)
-		if leaf, ok := child.(*LeafNode); ok && leaf.Bcrypt {
-			keys[name] = true
-		}
-		collectBcryptKeys(child, keys)
-	}
-}
-
 // LeafHoldsSecret reports whether the schema marks this leaf as holding a
 // secret. It is the ONE answer to that question. Every display mask and every
 // write guard reads it, so the two halves of the placeholder pair cannot
@@ -52,6 +25,25 @@ func collectBcryptKeys(node Node, keys map[string]bool) {
 // secret says so with ze:sensitive, plaintext-password included.
 func LeafHoldsSecret(leaf *LeafNode) bool {
 	return leaf != nil && (leaf.Sensitive || leaf.Bcrypt)
+}
+
+// SecretKeys answers the NAME of every leaf the schema marks as holding a
+// secret. It reads LeafHoldsSecret, so it names what MaskSecrets hides.
+//
+// A caller that masks a TREE walks the schema beside it and needs no name set.
+// This is for map-shaped data whose paths no longer address a schema node:
+// ResolveBGPTree flattens group and peer inheritance, so `peer/edge1/...` in the
+// resolved map has no node at that path. `ze config diff` and `ze config dump`
+// both read a name there.
+//
+// Nil-safe: returns an empty set when schema is nil.
+func SecretKeys(schema *Schema) map[string]bool {
+	keys := make(map[string]bool)
+	if schema == nil {
+		return keys
+	}
+	collectLeafNames(schema.root, LeafHoldsSecret, keys)
+	return keys
 }
 
 // leafIsBcrypt reports whether the leaf holds a one-way hash. It is the narrow
@@ -79,15 +71,21 @@ func MaskBcrypt(tree *Tree, schema *Schema) *Tree {
 	return maskClone(tree, schema, leafIsBcrypt)
 }
 
-// MaskBcryptInPlace masks every non-empty ze:bcrypt leaf value in tree directly,
-// without cloning. Use it only when the caller already owns a private (cloned)
-// tree that will feed a display serializer; callers that hold a shared/live tree
-// must use MaskBcrypt instead so the live tree keeps the real hash. Nil-safe.
-func MaskBcryptInPlace(tree *Tree, schema *Schema) {
+// MaskSecretsInPlace is MaskSecrets over a tree the caller already owns, with no
+// second clone. Use it only when that tree is private and feeds a display
+// serializer. A caller holding the live or committed tree must use MaskSecrets,
+// so the stored value survives.
+//
+// It reads the same predicate as MaskSecrets. A narrower in-place mask beside a
+// wider cloning one is two answers to one question, and the display path that
+// picks the narrower one publishes what its sibling hides.
+//
+// Nil-safe: does nothing when tree or schema is nil.
+func MaskSecretsInPlace(tree *Tree, schema *Schema) {
 	if tree == nil || schema == nil {
 		return
 	}
-	maskWalk(tree, schema.root, leafIsBcrypt)
+	maskWalk(tree, schema.root, LeafHoldsSecret)
 }
 
 // MaskSecrets returns a deep clone of tree in which every secret leaf holding a

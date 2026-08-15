@@ -68,6 +68,13 @@ type viewportData struct {
 	// value under two peers) bind to the wrong parent. Showing no marker beats
 	// showing a wrong one -- `show | errors` remains the accurate view.
 	noValidationHighlight bool
+
+	// secretChanges names each secret leaf whose value moved between the two
+	// sides of this view, as a dotted path. Both sides render the same
+	// placeholder, so the text diff reads them as equal and marks the line
+	// unchanged. setViewportData writes one line per path, and nothing else can:
+	// both values are gone by the time the diff has text.
+	secretChanges []string
 }
 
 // CommandModeCompleter provides completions for command mode.

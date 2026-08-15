@@ -40,11 +40,16 @@ func computeTreeAnnotatedDiff(original, modified string, schema *config.Schema) 
 		return nil, err
 	}
 
-	// Mask ze:bcrypt leaves on both sides so the diff renders the placeholder,
-	// never the raw hash, and an unchanged hash is not flagged as changed.
-	// Idempotent when the inputs were already masked upstream.
-	origTree = config.MaskBcrypt(origTree, schema)
-	modTree = config.MaskBcrypt(modTree, schema)
+	// Mask every secret leaf on both sides. The diff then renders the
+	// placeholder rather than the stored value. An unchanged secret is not
+	// flagged as changed. Idempotent when the inputs were masked upstream.
+	//
+	// A CHANGED secret reads as the same placeholder on each side, so this diff
+	// cannot see it. Editor.changedSecretsAt names it instead, and
+	// setViewportData writes that line (model_render.go). Recovering it here is
+	// not possible: by the time this function has text, both values are gone.
+	origTree = config.MaskSecrets(origTree, schema)
+	modTree = config.MaskSecrets(modTree, schema)
 
 	var lines []diffLine
 	diffWalkChildren(&lines, origTree, modTree, schema, 0)

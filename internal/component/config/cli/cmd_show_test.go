@@ -5,9 +5,11 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 )
@@ -96,6 +98,109 @@ func TestConfigShowJSON(t *testing.T) {
 	}
 	if _, ok := decoded["peer"]; !ok {
 		t.Fatalf("JSON subtree missing 'peer' key: %v", decoded)
+	}
+}
+
+// showSecretToken is the value the fixture stores on a real ze:sensitive leaf.
+const showSecretToken = "show-stored-api-token" //nolint:gosec // fixture value, not a credential
+
+// showSecretConfig carries one secret leaf and one ordinary leaf.
+// environment.api-server.token is marked ze:sensitive in
+// internal/component/api/yang/ze-api-conf.yang, so one render answers both
+// questions: the secret is hidden and the rest of the tree still prints.
+const showSecretConfig = `bgp {
+	router-id 1.2.3.4;
+}
+environment {
+	api-server {
+		token ` + showSecretToken + `;
+	}
+}
+`
+
+// TestConfigShowMasksASecret verifies `ze config show` hides every secret leaf,
+// in the text form and in the JSON form, whole-tree and at a path.
+//
+// VALIDATES: no `ze config show` shape renders a value the schema marks.
+// PREVENTS: a shipped command printing an API token, a shared secret or a
+// pre-shared key to stdout. The parser decodes a $9$ value into the tree, so
+// this command published in cleartext what its sibling `ze config dump` writes
+// encoded. The JSON shape is the same disclosure to anything that reads it.
+func TestConfigShowMasksASecret(t *testing.T) {
+	configPath := writeTestConfig(t, showSecretConfig)
+
+	stored, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	if !strings.Contains(string(stored), showSecretToken) {
+		t.Fatalf("the fixture holds no secret, so this test would prove nothing:\n%s", stored)
+	}
+
+	cases := []struct {
+		name string
+		args []string
+		keep string
+	}{
+		{"text whole tree", []string{configPath}, "router-id"},
+		{"text at path", []string{configPath, "environment", "api-server"}, "token"},
+		{"json whole tree", []string{"--json", configPath}, "router-id"},
+		{"json at path", []string{"--json", configPath, "environment", "api-server"}, "token"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if rc := showConfig(&buf, storage.NewFilesystem(), tc.args); rc != exitOK {
+				t.Fatalf("exit code = %d, want %d\n%s", rc, exitOK, buf.String())
+			}
+			out := buf.String()
+			if !strings.Contains(out, tc.keep) {
+				t.Fatalf("render carried no configuration, so this case would prove nothing:\n%s", out)
+			}
+			if strings.Contains(out, showSecretToken) {
+				t.Fatalf("published the stored secret:\n%s", out)
+			}
+			if !strings.Contains(out, config.SecretDataPlaceholder) {
+				t.Fatalf("rendered no placeholder:\n%s", out)
+			}
+		})
+	}
+}
+
+// TestConfigShowUnparsableConfig verifies the two output shapes agree about a
+// configuration that parses nowhere.
+//
+// VALIDATES: the JSON form reports the parse failure rather than writing `{}`.
+// PREVENTS: a silent empty answer. newEditor substitutes an empty tree when
+// nothing parses, so the JSON form said the configuration held nothing while
+// the text form printed the file. The text form keeps that fallback for the
+// whole configuration, because the operator must read the broken line to
+// repair it.
+func TestConfigShowUnparsableConfig(t *testing.T) {
+	broken := "bgp {\n    router-id 1.2.3.4;\n"
+	configPath := writeTestConfig(t, broken)
+
+	var textOut bytes.Buffer
+	if rc := showConfig(&textOut, storage.NewFilesystem(), []string{configPath}); rc != exitOK {
+		t.Fatalf("text whole-tree exit = %d, want %d", rc, exitOK)
+	}
+	if !strings.Contains(textOut.String(), "router-id") {
+		t.Fatalf("the text form must answer the file so the operator can repair it:\n%s", textOut.String())
+	}
+
+	for _, args := range [][]string{
+		{"--json", configPath},
+		{"--json", configPath, "bgp"},
+		{configPath, "bgp"},
+	} {
+		var buf bytes.Buffer
+		if rc := showConfig(&buf, storage.NewFilesystem(), args); rc == exitOK {
+			t.Fatalf("args %v exited 0 on a configuration that does not parse:\n%s", args, buf.String())
+		}
+		if buf.Len() != 0 {
+			t.Fatalf("args %v wrote output for a configuration that does not parse:\n%s", args, buf.String())
+		}
 	}
 }
 

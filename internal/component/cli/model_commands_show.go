@@ -172,10 +172,11 @@ func (m *Model) renderTreeAtPath(tree *config.Tree, path []string, format string
 	if tree == nil || m.editor == nil || m.editor.schema == nil {
 		return ""
 	}
-	// Mask ze:bcrypt leaf values for display. MaskBcrypt clones, so the editor's
-	// working tree keeps the real hash for validation and persistence. Masking is
-	// value-only and line-preserving, so validation line numbers still align.
-	tree = config.MaskBcrypt(tree, m.editor.schema)
+	// Mask every secret leaf value for display. MaskSecrets clones, so the
+	// editor's working tree keeps the real value for validation and persistence.
+	// Masking is value-only and line-preserving, so validation line numbers still
+	// align.
+	tree = config.MaskSecrets(tree, m.editor.schema)
 	if format == fmtConfig {
 		return config.FilterSetByPath(config.SerializeSet(tree, m.editor.schema), path)
 	}
@@ -232,12 +233,18 @@ func (m *Model) compareView(format, compareTarget, source string) (commandResult
 		return m.compareViewUnpruned(format, compareTarget, source, columns)
 	}
 
+	// Both trees are still unmasked here, so this is the last point that can see
+	// a rotated secret. The rendering below masks each side to the same
+	// placeholder, and the text diff then reads the two as equal.
+	secrets := m.editor.changedSecretsBetween(baseline, displayed, m.contextPath)
+
 	content, original := m.comparePrunedViews(displayed, baseline, columns, format)
 	return commandResult{configView: &viewportData{
 		content:         content,
 		originalContent: original,
 		hasOriginal:     true,
 		forceChanges:    true,
+		secretChanges:   secrets,
 		// The pruned view is not the validated string, so it cannot position
 		// validation errors. Only this branch opts out: compareViewUnpruned below
 		// renders the full content, where the line numbers still line up.
