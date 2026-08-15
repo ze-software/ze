@@ -897,6 +897,64 @@ was live config. Those files are excluded from parser coverage by name in
 form does not parse: `expected value or ';' in receive, got LBRACE`. Reading it in the
 guard is fail-closed and harmless, so it stays; the claim about why is corrected.
 
+## Pre-Commit Verification
+
+Re-checked by the main thread at `ded58c666`, not copied from an agent's report.
+The spec is NOT closed: what blocks closure is named at the end.
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| the seven `test/plugin/attach-process-*.ci` fixtures | Yes | `git cat-file -e HEAD:<path>` succeeds for receive-filter, unattached-is-silent, reload, runtime-subscribe, dynamic-group, send-permission and delivery-graph |
+| `internal/component/plugin/server/delivery_graph.go` | Yes | in HEAD |
+| `internal/component/bgp/reactor/send_permission.go` | Yes | in HEAD |
+| `internal/component/plugin/sender.go` | Yes | in HEAD |
+| `internal/core/events/token.go` | Yes | in HEAD |
+| `internal/component/config/flatten.go` and `retired.go` | Yes | both in HEAD |
+
+### AC Verified (grep/test)
+
+| AC | Evidence |
+|----|----------|
+| AC-1, AC-3 | `attach-process-receive-filter.ci`; discrimination proven by returning the process set unfiltered, which reds it |
+| AC-2 | `attach-process-unattached-is-silent.ci`: the silent program refuses the first event it ever receives |
+| AC-4 | `attach-process-reload.ci`: the added edge refuses any event beating the SIGHUP marker |
+| AC-5 | `attach-process-runtime-subscribe.ci`, plus `TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply` and `TestConfigApplyDiscardsRuntimeSubscriptions` for the two halves |
+| AC-6, AC-6b | `attach-process-dynamic-group.ci` and `TestDynamicPeerEntersTheIndexUnderItsOwnAddress` |
+| AC-7, AC-7b | `TestReconcileNamesAProcessNoPeerAttaches`, which also stays silent when both halves agree |
+| AC-8 | `TestGraphLookupAllocatesNothing` measures 0 on hit and miss; `TestPeerScopedProcsAddsNoAllocation` shows the filter adds none |
+| AC-9, AC-10, AC-11 | `attach-process-send-permission.ci` and `TestSendPermissionRefusesUnattachedPeer`; the four formerly ungated rails by `TestRailsRefuseACommandWithNoSender` and four entry-point deny tests |
+| AC-12 | `TestParseRefusesRetiredProcessKeyword`. AC-12b withdrawn on the owner's ruling that ze is not released |
+| AC-13 | `TestLoadEditCommitKeepsBothAttachedProcesses` and its two siblings |
+
+### Wiring Verified
+
+| Claim | Evidence |
+|-------|----------|
+| Every peer-scoped delivery path reaches the graph | All seven sites in `internal/component/bgp/server/events.go` call `PeerScopedProcs`; `deliverEvent` branches to it when a peer address is present |
+| Every rail to a peer's wire is permission-checked | `filterPermittedPeers` is the one shared filter, read at `send_permission.go`; the four rails that bypassed the resolver now carry a `plugin.Sender` and are tested from their registered wire methods |
+| The index is republished wherever the peer set changes | startup, `AddPeer`, `doRemovePeer`, `createDynamicPeer`, `removeDynamicPeer`, `reconcilePeersJournaled` |
+
+### Assumptions Resolved
+
+| ID | Status |
+|----|--------|
+| A-1 | validated, owner statement |
+| A-2 | broken, then repaired by phase 2: all 15 declarations read, ten needed vocabulary that did not exist |
+| A-3 | confirmed for its residual scope, the runtime `subscribe` name selector |
+| A-4 | confirmed by `TestGraphSwapIsAtomicAcrossReload` under `-race` |
+
+### Not Verified, and blocking closure
+
+**Until every row here is cleared this spec MUST NOT be removed from `plan/`.**
+
+| What | State | Evidence |
+|------|-------|----------|
+| Review Gate artifact | OWED | Five rounds ran and none was recorded. `ls tmp/review/` holds nothing for this spec, so `review_gate.py check` cannot pass and a closure commit is refused |
+| `make ze-verify` | NEVER RUN | The pre-commit gate. In a checkout this busy it cannot come back green, so its reds must be attributed rather than waved through |
+| `make ze-rfc-check` | RED | RFC7606-5.1-2 and 5.1-3 carry stale verdicts: `rfc7606-relay-one-field.ci` is a file-scoped tagged unit and its reject rule changed. `ze-rfc-reseal` refuses this by design, and the re-audit must be run by someone who did not author the change |
+
 ## Known Limitations
 
 - Per-peer `content { encoding format }` stays inert. It resolves through the same dead
