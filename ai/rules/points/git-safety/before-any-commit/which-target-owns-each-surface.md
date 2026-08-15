@@ -6,6 +6,7 @@ stage:
 | You changed | Run this |
 |-------------|----------|
 | A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
+| A `.go` change that alters what the daemon PUTS ON THE WIRE, installs, or shows | the FUNCTIONAL suite owning that surface as well: `make ze-plugin-test`, `ze-encode-test`, `ze-decode-test`, `ze-parse-test`, `ze-reload-test`, `ze-ui-test`, `ze-web-test`. The unit tests of the package you edited are not evidence about the rail |
 | Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
 | A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |

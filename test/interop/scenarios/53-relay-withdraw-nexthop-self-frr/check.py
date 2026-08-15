@@ -40,10 +40,13 @@ Section 4.3's message shape, which the summary carries as prose rather than as a
 checklist row: Section 4.3's "will not include path attributes" is indicative,
 and the MUST that bites is Section 6.3's Missing Well-known Attribute, whose
 extracted row (RFC4271-6.3-1) is a RECEIVER obligation this scenario does not
-drive. The NEXT_HOP clause Ze violates, Section 5.1.3, has no row covering it
-either. Tagging one of those would claim evidence for something else, so the
-scenario stands as interop evidence under ai/rules/interop-and-goal-validation.md
-and claims nothing in the ledger. Scenario 54 IS tagged, to RFC4456-8-1 and
+drive. Section 5.1.3 DOES carry rows now -- RFC4271-5.1.3-1 and 5.1.3-2, added
+with the guard in internal/component/bgp/reactor/forward_next_hop.go -- but they
+are about a NEXT_HOP naming the peer's own address, which is scenario 61's
+subject and not this one's: here the address is Ze's own and the defect was
+stamping it onto a message that advertises nothing. Tagging any of those would
+claim evidence for something else, so the scenario stands as interop evidence
+under ai/rules/interop-and-goal-validation.md and claims nothing in the ledger. Scenario 54 IS tagged, to RFC4456-8-1 and
 RFC4456-8-2, whose "when an RR reflects a route" condition is extracted.
 
 The negative reads FRR's OWN log rather than its routing table, because a routing

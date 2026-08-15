@@ -90,6 +90,7 @@ before-any-commit ## Before Any Commit
   test-one-package-with-ze-test-pkg
   ze-test-pkg-examples
   which-target-owns-each-surface
+  a-wire-behaviour-change-owes-its-functional-suite
   derive-the-owning-target-when-the-table-has-no-row
   read-the-whole-failure-summary-before-re-running
   traps-that-misread-a-verify-log

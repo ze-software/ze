@@ -74,6 +74,7 @@ functional-test-gate ## Functional Test Gate
   the-steps-of-a-mutation-verification
   no-tool-catches-a-functional-false-pass
   guard-an-unobservable-behavior-with-a-unit-test
+  a-fixture-must-encode-a-topology-that-can-exist
   common-violations
   the-excuses-for-skipping-a-functional-test
   relationship-to-other-rules

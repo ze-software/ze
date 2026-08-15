@@ -134,6 +134,7 @@ time, when the work is finished and you are about to prepare the commit script.*
 | You changed | Run this |
 |-------------|----------|
 | A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
+| A `.go` change that alters what the daemon PUTS ON THE WIRE, installs, or shows | the FUNCTIONAL suite owning that surface as well: `make ze-plugin-test`, `ze-encode-test`, `ze-decode-test`, `ze-parse-test`, `ze-reload-test`, `ze-ui-test`, `ze-web-test`. The unit tests of the package you edited are not evidence about the rail |
 | Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
 | A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
@@ -146,6 +147,9 @@ time, when the work is finished and you are about to prepare the commit script.*
 | Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-verify-changed` |
+**A change to what the daemon PUTS ON THE WIRE, installs, or shows MUST run the
+**The fixture that catches the regression is named after ANOTHER feature.** A rail
+**A guard is the case this bites hardest.** It changes the answer for every caller
 **When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
 **YOU MUST READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
 - **`tail` on the log of a run that is still going.** The stage banner tells you

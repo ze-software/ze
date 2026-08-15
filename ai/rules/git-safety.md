@@ -584,6 +584,7 @@ make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
 | You changed | Run this |
 |-------------|----------|
 | A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
+| A `.go` change that alters what the daemon PUTS ON THE WIRE, installs, or shows | the FUNCTIONAL suite owning that surface as well: `make ze-plugin-test`, `ze-encode-test`, `ze-decode-test`, `ze-parse-test`, `ze-reload-test`, `ze-ui-test`, `ze-web-test`. The unit tests of the package you edited are not evidence about the rail |
 | Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
 | A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
@@ -596,6 +597,21 @@ make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
 | Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-verify-changed` |
+
+**A change to what the daemon PUTS ON THE WIRE, installs, or shows MUST run the
+functional suite that owns that surface before commit. The package's unit tests
+are not that evidence.** A unit test proves the function answers correctly. Only a
+running daemon proves the rail carries the answer to a peer.
+
+**The fixture that catches the regression is named after ANOTHER feature.** A rail
+every feature crosses is observed by every fixture that crosses it, so the file
+that goes red carries a name with no connection to what you changed. Searching the
+suite for a fixture named after your change finds nothing, and finding nothing is
+not evidence. Run the whole suite that owns the surface.
+
+**A guard is the case this bites hardest.** It changes the answer for every caller
+of the rail at once, including the callers whose fixtures were written before it
+existed and assert the answer it now refuses.
 
 **When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
 target and what it runs, `make help` lists them, and `ai/rules/repo-maintenance.md` maps

@@ -26,10 +26,20 @@
 # attribute is ABSENT passes when the mechanism that adds it is deleted. So the
 # POSITIVE and the NEGATIVE run on the SAME session to the SAME peer in one run:
 # dest seq=1 requires the advertisement to carry the REWRITTEN next-hop
-# 7F000002, and dest seq=2 requires the withdrawal to carry no attribute at all.
+# 7F000003, and dest seq=2 requires the withdrawal to carry no attribute at all.
 # A build where next-hop-self never fires reddens seq=1; a build without the gate
 # reddens seq=2. Neither red can be reached by the peer having disconnected: the
 # observer proves each message was written to the dest before releasing the next.
+#
+# THE THREE ADDRESSES ARE DISTINCT ON PURPOSE. Ze's local address on the dest
+# session (127.0.0.3) is neither peer's address, because a session whose two ends
+# share one address is a topology that cannot exist: loopback is the only reason
+# such a fixture can be written at all. next-hop-self resolves to that local
+# address (precomputeNextHop, reactor/peer_forward_facts.go), so a fixture that
+# gave the dest peer 127.0.0.2 on BOTH ends would hand it its own address as
+# NEXT_HOP, and egressNextHopIsPeerOwn (reactor/forward_next_hop.go) would
+# withhold the advertisement for the RFC 4271 Section 5.1.3 reason rather than
+# for anything this file is about.
 
 # Source peer (ASN 65001) on 127.0.0.1.
 stdin=source:terminator=EOF_SOURCE
@@ -56,13 +66,13 @@ stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=30s
 # seq=1 POSITIVE -- the advertisement MUST carry the REWRITTEN next-hop:
-# 4003 04 7F000002, ze's local address for this session (127.0.0.2), not the
+# 4003 04 7F000003, ze's local address for this session (127.0.0.3), not the
 # source's 1.1.1.1. This is what proves next-hop-self is engaged; without it
 # seq=2 below would pass on a build where the rewrite never ran at all.
-expect=bgp:conn=1:seq=1:contains=4003047F000002
+expect=bgp:conn=1:seq=1:contains=4003047F000003
 # seq=2 NEGATIVE -- the forwarded withdrawal, BYTE-IDENTICAL to what the source
 # sent: attrLen=0000, no attribute of any code. A stamped withdrawal reads
-# attrLen=0007 with 4003047F000002, and this exact-hex rule refuses it.
+# attrLen=0007 with 4003047F000003, and this exact-hex rule refuses it.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 EOF_DEST
 
@@ -153,8 +163,8 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		process relay-nhself {
-			receive [ update state ]
+		attach process relay-nhself {
+			send [ update ]
 		}
 	}
 
@@ -163,8 +173,11 @@ bgp {
 			remote {
 				ip 127.0.0.2
 			}
+			# Ze's own address on this session, and what next-hop-self puts on the
+			# wire. It is NOT 127.0.0.2: see "THE THREE ADDRESSES ARE DISTINCT ON
+			# PURPOSE" at the top of this file.
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.3
 				accept false
 			}
 		}
