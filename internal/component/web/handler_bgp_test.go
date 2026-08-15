@@ -436,7 +436,7 @@ func TestBGPPeerDetailTabs(t *testing.T) {
 		Families: "ipv4/unicast",
 	}
 
-	detail := buildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(&Renderer{}, pe)
 	assert.Equal(t, "peer-a", detail.Title)
 	assert.Equal(t, "/show/bgp/peer/", detail.CloseURL)
 
@@ -456,7 +456,7 @@ func TestBGPPeerDetailConfigContent(t *testing.T) {
 		Families: "ipv4/unicast",
 	}
 
-	detail := buildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(&Renderer{}, pe)
 	configContent := string(detail.Tabs[0].Content)
 	assert.Contains(t, configContent, "peer-a")
 	assert.Contains(t, configContent, "192.168.1.1")
@@ -467,7 +467,7 @@ func TestBGPPeerDetailConfigContent(t *testing.T) {
 
 func TestBGPPeerDetailStatusPlaceholder(t *testing.T) {
 	pe := peerEntry{Name: "peer-a", RemoteIP: "192.168.1.1"}
-	detail := buildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(&Renderer{}, pe)
 	statusContent := string(detail.Tabs[1].Content)
 	assert.Contains(t, statusContent, peerStateConfigured)
 	assert.Contains(t, statusContent, "--") // placeholder values
@@ -475,7 +475,7 @@ func TestBGPPeerDetailStatusPlaceholder(t *testing.T) {
 
 func TestBGPPeerDetailActionsTab(t *testing.T) {
 	pe := peerEntry{Name: "peer-a", RemoteIP: "192.168.1.1"}
-	detail := buildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(&Renderer{}, pe)
 	actionsContent := string(detail.Tabs[2].Content)
 	assert.Contains(t, actionsContent, "Flush")
 	assert.Contains(t, actionsContent, "Teardown")
@@ -485,7 +485,7 @@ func TestBGPPeerDetailActionsTab(t *testing.T) {
 
 func TestBGPPeerDetailGroupedCloseURL(t *testing.T) {
 	pe := peerEntry{Name: "peer-a", Group: "transit"}
-	detail := buildBGPPeerDetailData(pe)
+	detail := buildBGPPeerDetailData(&Renderer{}, pe)
 	assert.Equal(t, "/show/bgp/group/transit/peer/", detail.CloseURL)
 }
 

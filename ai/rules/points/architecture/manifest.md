@@ -127,6 +127,9 @@ ze-divergences-from-standard-go ## Ze Divergences from Standard Go
   where-the-ze-cli-diverges-from-standard-go
   scripts-tooling
   where-ze-tooling-diverges-from-standard-go
+server-rendered-markup ## Server-Rendered Markup
+  keep-markup-in-templ-and-out-of-go
+  the-guard-that-owns-each-property
 architecture-summary ## Architecture Summary
   system
   the-bgp-and-plugin-layer-diagram

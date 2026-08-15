@@ -479,9 +479,10 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 //
 // This is a DISPLAY path (the web CLI-bar `show` verb) and it is not edit-authz
 // gated, so no secret MUST reach it. It serializes the tree here rather than
-// through the editor's DisplayContentAtPath, which masks the ze:bcrypt half
-// alone and published every ze:sensitive leaf. A session with no tree to mask
-// gets nothing, which is the fail-closed answer.
+// through the editor's DisplayContentAtPath, which answers the raw working text
+// when the configuration parses nowhere. That text is a file the web must not
+// publish. A session with no tree to mask gets nothing, which is the fail-closed
+// answer.
 func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
@@ -498,7 +499,7 @@ func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	if tree == nil || m.schema == nil {
 		// Fail closed. Without a tree and a schema nothing decides which leaf
 		// holds a secret, so this path answers nothing. Editor.DisplayContentAtPath
-		// was the old answer, and its first branch returns e.workingContent with
+		// was the old answer, and its last branch returns e.workingContent with
 		// no mask at all (internal/component/cli/editor_mask.go). newEditor
 		// substitutes an empty tree when the config does not parse, so only
 		// another editor implementation reaches this today. The guard does not

@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 627 packages, 624 described, 3 TODO
+Total: 628 packages, 625 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -714,6 +714,7 @@ Total: 627 packages, 624 described, 3 TODO
 | `internal/test/cli` | registers the ze-test command's functional-test and mock-server handlers |  |
 | `internal/test/decode` | provides shared BGP message decode helpers for test tools |  |
 | `internal/test/golden` | compares captured bytes against fixtures committed beside the package under test |  |
+| `internal/test/markupcheck` | holds the static checks over a package that renders markup |  |
 | `internal/test/mock/cymru` | implements a deterministic Team Cymru DNS mock server for tests |  |
 | `internal/test/mock/irr` | implements a deterministic IRR whois mock server for tests |  |
 | `internal/test/mock/peeringdb` | implements a deterministic PeeringDB HTTP mock server for tests |  |

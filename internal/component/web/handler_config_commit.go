@@ -6,7 +6,6 @@ package web
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"strings"
 
@@ -99,7 +98,7 @@ func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Render
 	}
 
 	if diff != "" {
-		layoutData.NotificationHTML = template.HTML("<pre>" + template.HTMLEscapeString(diff) + "</pre>") //nolint:gosec // escaped
+		layoutData.NotificationHTML = renderer.renderComponent("notification_pre", notificationPre(diff))
 	}
 
 	if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -176,7 +175,7 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 
 		layoutData := LayoutData{
 			Title:            "Commit Conflicts",
-			NotificationHTML: template.HTML("<pre>" + template.HTMLEscapeString(msg.String()) + "</pre>"), //nolint:gosec // escaped
+			NotificationHTML: renderer.renderComponent("notification_pre", notificationPre(msg.String())),
 			ActiveUI:         uiModeTokenFinder,
 		}
 

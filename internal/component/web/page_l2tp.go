@@ -89,10 +89,9 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 // The outer div polls every 5 seconds so session state updates automatically.
 func handleL2TPSessionsPage(renderer *Renderer) template.HTML {
 	tableData := buildL2TPSessionsTableData()
-	table := renderer.renderComponent("workbench_table", workbenchTable(tableData))
-	return template.HTML(`<div hx-get="/show/l2tp/sessions/" hx-trigger="every 5s" hx-swap="innerHTML">`) + //nolint:gosec // trusted builder output
-		table +
-		template.HTML(`</div>`) //nolint:gosec // trusted builder output
+
+	return renderer.renderComponent("l2tp_sessions_panel",
+		pollPanel("/show/l2tp/sessions/", workbenchTable(tableData)))
 }
 
 // --- L2TP > Configuration ---

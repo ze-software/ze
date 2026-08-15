@@ -68,12 +68,6 @@ type notificationErrorData struct {
 	Message string
 }
 
-// terminalPageData is what terminalPage renders. See terminal.templ: no live
-// path reaches it.
-type terminalPageData struct {
-	CLIPrompt string
-}
-
 // addFormField is one field of the add-entry overlay. Category is what the
 // YANG list said about it: required, suggest or unique.
 type addFormField struct {
@@ -152,15 +146,6 @@ func finderItemClass(it ColumnItem) string {
 	}
 
 	return tb.String()
-}
-
-// sidebarEntryClass is one sidebar flyout entry's class list.
-func sidebarEntryClass(selected bool) string {
-	if selected {
-		return "sidebar-flyout-entry selected"
-	}
-
-	return "sidebar-flyout-entry"
 }
 
 // relatedToolClass is one ze:related tool button's class list.

@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"net/http"
 	"strconv"
@@ -925,7 +924,7 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 		}
 
 		if mode == "terminal" {
-			writeTerminalContent(w, contextPath)
+			writeTerminalContent(w, renderer, contextPath)
 			return
 		}
 
@@ -943,56 +942,28 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 }
 
 // writeTerminalContent writes the terminal mode content HTML to w.
-func writeTerminalContent(w http.ResponseWriter, contextPath []string) {
-	prompt := formatCLIPrompt(contextPath)
-
-	var buf textbuf.Buffer
-	buf.Str(`<div class="terminal-container" id="content-area">`)
-	buf.Str(`<div class="terminal-scrollback" id="terminal-scrollback"></div>`)
-	buf.Str(`<div class="terminal-input-line">`)
-	buf.Str(`<span class="terminal-prompt">`).Str(template.HTMLEscapeString(prompt)).Str(`</span>`)
-	buf.Str(`<input type="text" class="terminal-input" id="terminal-input" `)
-	buf.Str(`autocomplete="off" spellcheck="false" `)
-	buf.Str(`hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']" `)
-	buf.Str(`hx-target="#terminal-scrollback" hx-swap="beforeend" `)
-	buf.Str(`hx-include="this" name="command">`)
-	buf.Str(`</div>`)
-	buf.Str(`</div>`)
-
-	writeHTML(w, buf.String())
+func writeTerminalContent(w http.ResponseWriter, renderer *Renderer, contextPath []string) {
+	writeHTML(w, string(renderer.renderComponent("terminal_content",
+		terminalContent(formatCLIPrompt(contextPath)))))
 }
 
 // writeCLIResponse writes an HTMX multi-target response with content area,
 // breadcrumb OOB swap, CLI prompt OOB swap, path bar OOB swap, and context
 // path OOB swap.
 func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, viewData *ConfigViewData) {
-	crumbs := buildBreadcrumbs(path)
-	prompt := formatCLIPrompt(path)
-
-	var buf textbuf.Buffer
-
-	// Main content area (must match layout.html element for outerHTML swap).
-	buf.Str(`<main class="content-area" id="content-area">`)
-	buildViewDataHTML(&buf, viewData)
-	buf.Str(`</main>`)
-
-	// OOB breadcrumb update.
-	buildBreadcrumbOOB(&buf, crumbs)
-
-	// OOB CLI prompt update.
-	buildPromptOOB(&buf, prompt)
-
-	// OOB path bar and context updates.
-	buildPathBarOOB(&buf, path, renderer)
-	buildContextOOB(&buf, path)
-	writeHTML(w, buf.String())
+	writeHTML(w, string(renderer.renderComponent("cli_response", cliResponse(cliResponseData{
+		Prompt:      formatCLIPrompt(path),
+		ContextPath: textbuf.Join(path, "/"),
+		Crumbs:      buildBreadcrumbs(path),
+		View:        viewData,
+		PathBar:     &FragmentData{CLIPathSegments: buildPathBarSegments(path)},
+	}))))
 }
 
 // writeCLINotification writes only a notification OOB swap (for error responses).
-func writeCLINotification(w http.ResponseWriter, message, notifType string) {
-	var buf textbuf.Buffer
-	buildNotificationOOB(&buf, message, notifType)
-	writeHTML(w, buf.String())
+func writeCLINotification(w http.ResponseWriter, renderer *Renderer, message, notifType string) {
+	writeHTML(w, string(renderer.renderComponent("cli_notification_oob",
+		cliNotificationOOB(cliNotificationData{Message: message, Kind: notifType}))))
 }
 
 // writeHTML writes an HTML string response to w with appropriate content type.
@@ -1027,108 +998,80 @@ func buildPathBarSegments(path []string) []PathBarSegment {
 	return segments
 }
 
-// buildPathBarOOB appends a CLI path bar OOB swap rendered by pathBarInner.
-// Falls back to empty if renderer is nil.
-func buildPathBarOOB(buf *textbuf.Buffer, path []string, renderer *Renderer) {
-	buf.Str(`<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">`)
-	if renderer != nil {
-		data := &FragmentData{CLIPathSegments: buildPathBarSegments(path)}
-		buf.Str(string(renderer.renderComponent("path_bar_inner", pathBarInner(data))))
-	}
-	buf.Str(`</div>`)
+// cliResponseData is what cliResponse renders: the content area a navigation
+// command replaces, and the four out-of-band elements that follow the operator.
+type cliResponseData struct {
+	Prompt      string
+	ContextPath string
+	Crumbs      []BreadcrumbSegment
+	View        *ConfigViewData
+	PathBar     *FragmentData
 }
 
-// buildContextOOB appends a hidden context path OOB swap element to buf.
-func buildContextOOB(buf *textbuf.Buffer, path []string) {
-	buf.Str(`<span id="cli-context-path" class="is-hidden" hx-swap-oob="true">`).Str(template.HTMLEscapeString(textbuf.Join(path, "/"))).Str(`</span>`)
+// cliShowData is what cliShowResponse renders. Content is the configuration
+// text the show verb read, already masked.
+type cliShowData struct {
+	Prompt      string
+	ContextPath string
+	Content     string
+	Crumbs      []BreadcrumbSegment
+	PathBar     *FragmentData
 }
 
-// buildBreadcrumbOOB appends a breadcrumb OOB swap element to buf.
-func buildBreadcrumbOOB(buf *textbuf.Buffer, crumbs []BreadcrumbSegment) {
-	buf.Str(`<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML">`)
-	buildBreadcrumbHTML(buf, crumbs)
-	buf.Str(`</nav>`)
+// cliNotificationData is what cliNotificationOOB renders. Kind is what the
+// command reported, and notificationBarClass turns it into the bar's color.
+type cliNotificationData struct {
+	Message string
+	Kind    string
 }
 
-// buildPromptOOB appends a CLI prompt OOB swap element to buf.
-func buildPromptOOB(buf *textbuf.Buffer, prompt string) {
-	buf.Str(`<span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">`).Str(template.HTMLEscapeString(prompt)).Str(`</span>`)
+// cliPageData is what cliPage renders.
+type cliPageData struct {
+	Prompt string
+	Mode   string
 }
 
-// buildNotificationOOB appends a notification OOB swap element to buf.
-func buildNotificationOOB(buf *textbuf.Buffer, message, notifType string) {
-	cssClass := "notification-info"
-	if notifType == "error" {
-		cssClass = "notification-error"
+// notificationBarClass is the notification bar's class list. Anything that is
+// not an error reads as information, so a new kind never renders as a failure.
+func notificationBarClass(kind string) string {
+	if kind == "error" {
+		return "notification-bar notification-error"
 	}
 
-	buf.Str(`<aside class="notification-bar `).Str(cssClass).Str(`" id="notification-bar" hx-swap-oob="true">`).Str(template.HTMLEscapeString(message)).Str(`</aside>`)
+	return "notification-bar notification-info"
 }
 
-// buildViewDataHTML writes a simple HTML representation of ConfigViewData to buf.
-func buildViewDataHTML(buf *textbuf.Buffer, data *ConfigViewData) {
-	if data == nil {
-		return
-	}
+// configLinkClass is the class list of a link to a child config node. The kind
+// is in the class, so a container and a list look different in the browser.
+func configLinkClass(kind string) string {
+	var tb textbuf.Buffer
 
-	if len(data.Children) > 0 {
-		buf.Str(`<ul class="config-children">`)
-
-		for _, child := range data.Children {
-			buf.Str(`<li><a href="`).Str(template.HTMLEscapeString(child.URL)).Str(`" class="config-link config-link-`).Str(template.HTMLEscapeString(child.Kind)).Str(`">`).Str(template.HTMLEscapeString(child.Name)).Str(`</a></li>`)
-		}
-
-		buf.Str(`</ul>`)
-	}
-
-	if len(data.Keys) > 0 {
-		var tb textbuf.Buffer
-		tb.Str("/show/")
-		if len(data.Path) > 0 {
-			tb.Join(data.Path, "/").Byte('/')
-		}
-		prefix := tb.String()
-
-		buf.Str(`<ul class="config-keys">`)
-
-		for _, key := range data.Keys {
-			buf.Str(`<li><a href="`).Str(template.HTMLEscapeString(prefix)).Str(template.HTMLEscapeString(key)).Str(`/">`).Str(template.HTMLEscapeString(key)).Str(`</a></li>`)
-		}
-
-		buf.Str(`</ul>`)
-	}
-
-	if len(data.LeafFields) > 0 {
-		buf.Str(`<table class="config-leaves"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>`)
-
-		var tb textbuf.Buffer
-		for i := range data.LeafFields {
-			f := &data.LeafFields[i]
-			val := f.Value
-			if val == "" && f.Default != "" {
-				val = tb.Reset().Str(f.Default).Str(" (default)").String()
-			}
-
-			buf.Str(`<tr><td>`).Str(template.HTMLEscapeString(f.Name)).Str(`</td><td>`).Str(template.HTMLEscapeString(val)).Str(`</td></tr>`)
-		}
-
-		buf.Str(`</tbody></table>`)
-	}
+	return tb.Str("config-link config-link-").Str(kind).String()
 }
 
-// buildBreadcrumbHTML writes breadcrumb navigation HTML to buf.
-func buildBreadcrumbHTML(buf *textbuf.Buffer, crumbs []BreadcrumbSegment) {
-	buf.Str(`<ol class="breadcrumb-list">`)
+// configKeyURL is the show URL of one list entry under path.
+func configKeyURL(path []string, key string) string {
+	var tb textbuf.Buffer
 
-	for _, seg := range crumbs {
-		if seg.Active {
-			buf.Str(`<li class="breadcrumb-item breadcrumb-active"><span>`).Str(template.HTMLEscapeString(seg.Name)).Str(`</span></li>`)
-		} else {
-			buf.Str(`<li class="breadcrumb-item"><a href="`).Str(template.HTMLEscapeString(seg.URL)).Str(`">`).Str(template.HTMLEscapeString(seg.Name)).Str(`</a></li>`)
-		}
+	tb.Str("/show/")
+
+	if len(path) > 0 {
+		tb.Join(path, "/").Byte('/')
 	}
 
-	buf.Str(`</ol>`)
+	return tb.Str(key).Byte('/').String()
+}
+
+// leafDisplayValue is what one leaf's value cell shows. An unset leaf shows its
+// schema default, marked as such, so it never reads as a configured value.
+func leafDisplayValue(f LeafField) string {
+	if f.Value != "" || f.Default == "" {
+		return f.Value
+	}
+
+	var tb textbuf.Buffer
+
+	return tb.Str(f.Default).Str(" (default)").String()
 }
 
 // buildConfigEditURL constructs the /config/edit/ URL for a context path.

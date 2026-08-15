@@ -254,10 +254,10 @@ func handleBGPPeersPage(renderer *Renderer, r *http.Request, viewTree *config.Tr
 }
 
 // buildBGPPeerDetailData constructs a WorkbenchDetailData for a single peer.
-func buildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
-	configHTML := buildPeerConfigHTML(pe)
-	statusHTML := buildPeerStatusHTML(pe)
-	actionsHTML := buildPeerActionsHTML(pe)
+func buildBGPPeerDetailData(renderer *Renderer, pe peerEntry) WorkbenchDetailData {
+	configHTML := buildPeerConfigHTML(renderer, pe)
+	statusHTML := buildPeerStatusHTML(renderer, pe)
+	actionsHTML := buildPeerActionsHTML(renderer, pe)
 
 	tabs := []WorkbenchDetailTab{
 		{Key: "config", Label: "Config", Content: configHTML, Active: true},
@@ -278,63 +278,74 @@ func buildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
 	}
 }
 
-func buildPeerConfigHTML(pe peerEntry) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-detail-section">`)
-	b.Str(`<table class="wb-detail-kv">`)
-	writeKV(&b, "Name", pe.Name)
-	writeKV(&b, "Remote IP", valueOrDash(pe.RemoteIP))
-	writeKV(&b, "Remote AS", valueOrDash(pe.RemoteAS))
-	writeKV(&b, "Local AS", valueOrDash(pe.LocalAS))
-	writeKV(&b, "Group", valueOrDash(pe.Group))
-	writeKV(&b, "Families", valueOrDash(pe.Families))
-	b.Str(`</table>`)
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+// peerActionsData is what peerDetailActions renders. ContextPath addresses the
+// peer in the config tree and both buttons carry it to the tool runner. A peer
+// with no remote address reaches no session, so HasRemoteIP withholds them.
+type peerActionsData struct {
+	Name        string
+	ContextPath string
+	HasRemoteIP bool
 }
 
-func buildPeerStatusHTML(pe peerEntry) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-detail-section">`)
-	b.Str(`<table class="wb-detail-kv">`)
+// peerToolVals is the hx-vals payload naming the tool a button runs and the
+// peer it runs against.
+func peerToolVals(toolID, contextPath string) string {
+	var tb textbuf.Buffer
+
+	return tb.Str(`{"tool_id":`).Quoted(toolID).Str(`,"context_path":`).Quoted(contextPath).Byte('}').String()
+}
+
+// peerTeardownConfirm is the question teardown asks before it drops a session.
+func peerTeardownConfirm(name string) string {
+	var tb textbuf.Buffer
+
+	return tb.Str("Tear down BGP session with ").Str(name).Byte('?').String()
+}
+
+func buildPeerConfigHTML(renderer *Renderer, pe peerEntry) template.HTML {
+	rows := []detailKV{
+		{Key: "Name", Value: pe.Name},
+		{Key: "Remote IP", Value: valueOrDash(pe.RemoteIP)},
+		{Key: "Remote AS", Value: valueOrDash(pe.RemoteAS)},
+		{Key: "Local AS", Value: valueOrDash(pe.LocalAS)},
+		{Key: "Group", Value: valueOrDash(pe.Group)},
+		{Key: "Families", Value: valueOrDash(pe.Families)},
+	}
+
+	return renderer.renderComponent("peer_detail_config", detailKVSection(rows))
+}
+
+func buildPeerStatusHTML(renderer *Renderer, pe peerEntry) template.HTML {
 	state := peerStateConfigured
 	if pe.Disabled {
 		state = peerStateDisabled
 	}
-	writeKV(&b, "State", state)
-	writeKV(&b, "Uptime", "--")
-	writeKV(&b, "Prefixes Received", "--")
-	writeKV(&b, "Messages In", "--")
-	writeKV(&b, "Messages Out", "--")
-	writeKV(&b, "Last Error", "--")
-	b.Str(`</table>`)
-	b.Str(`<p class="wb-detail-hint">Operational data requires a running BGP engine.</p>`)
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+
+	rows := []detailKV{
+		{Key: "State", Value: state},
+		{Key: "Uptime", Value: "--"},
+		{Key: "Prefixes Received", Value: "--"},
+		{Key: "Messages In", Value: "--"},
+		{Key: "Messages Out", Value: "--"},
+		{Key: "Last Error", Value: "--"},
+	}
+
+	return renderer.renderComponent("peer_detail_status", peerDetailStatus(rows))
 }
 
-func buildPeerActionsHTML(pe peerEntry) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-detail-section">`)
-	b.Str(`<div class="wb-detail-actions">`)
-	if pe.RemoteIP != "" {
-		var tb textbuf.Buffer
-		contextPath := tb.Str("bgp/peer/").Str(pe.Name).String()
-		if pe.Group != "" {
-			contextPath = tb.Reset().Str("bgp/group/").Str(pe.Group).Str("/peer/").Str(pe.Name).String()
-		}
-		b.Str(`<button class="wb-detail-tool" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-flush","context_path":"`)
-		b.Str(template.HTMLEscapeString(contextPath))
-		b.Str(`"}' type="button">Flush</button>`)
-		b.Str(`<button class="wb-detail-tool wb-detail-tool--danger" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-teardown","context_path":"`)
-		b.Str(template.HTMLEscapeString(contextPath))
-		b.Str(`"}' hx-confirm="Tear down BGP session with `)
-		b.Str(template.HTMLEscapeString(pe.Name))
-		b.Str(`?" type="button">Teardown</button>`)
+func buildPeerActionsHTML(renderer *Renderer, pe peerEntry) template.HTML {
+	var tb textbuf.Buffer
+
+	contextPath := tb.Str("bgp/peer/").Str(pe.Name).String()
+	if pe.Group != "" {
+		contextPath = tb.Reset().Str("bgp/group/").Str(pe.Group).Str("/peer/").Str(pe.Name).String()
 	}
-	b.Str(`</div>`)
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+
+	return renderer.renderComponent("peer_detail_actions", peerDetailActions(peerActionsData{
+		Name:        pe.Name,
+		ContextPath: contextPath,
+		HasRemoteIP: pe.RemoteIP != "",
+	}))
 }
 
 // valueOrDash returns v if non-empty, "-" otherwise.

@@ -156,7 +156,7 @@ func TestBuildResourcesHTML(t *testing.T) {
 		MemSys:     "20 MB",
 		GCRuns:     5,
 	}
-	html := buildResourcesHTML(data)
+	html := buildResourcesHTML(&Renderer{}, data)
 	s := string(html)
 	assert.Contains(t, s, "System Resources")
 	assert.Contains(t, s, "1.0.0")
@@ -177,7 +177,7 @@ func TestBuildHostHardwareHTML_WithSections(t *testing.T) {
 	sections := []hardwareSection{
 		{Title: "CPU", Items: []HardwareItem{{Key: "Cores", Value: "4"}}},
 	}
-	html := buildHostHardwareHTML(sections)
+	html := buildHostHardwareHTML(&Renderer{}, sections)
 	s := string(html)
 	assert.Contains(t, s, "Host Hardware")
 	assert.Contains(t, s, "CPU")
@@ -188,7 +188,7 @@ func TestBuildHostHardwareHTML_WithSections(t *testing.T) {
 }
 
 func TestBuildHostHardwareHTML_Empty(t *testing.T) {
-	html := buildHostHardwareHTML(nil)
+	html := buildHostHardwareHTML(&Renderer{}, nil)
 	s := string(html)
 	assert.Contains(t, s, "No hardware information available")
 }
@@ -200,7 +200,7 @@ func TestBuildHostHardwareHTML_AlarmIndicator(t *testing.T) {
 			{Key: "coretemp1", Value: "42.0°C"},
 		}},
 	}
-	html := buildHostHardwareHTML(sections)
+	html := buildHostHardwareHTML(&Renderer{}, sections)
 	s := string(html)
 	assert.Contains(t, s, `wb-hardware-alarm`)
 	assert.Contains(t, s, "85.0°C [ALARM]")
@@ -214,7 +214,7 @@ func TestBuildHostHardwareHTML_NICCarrierClass(t *testing.T) {
 			{Key: "eth1", Value: "igb, 11:22:33:44:55:66, -, down", CSSClass: "down"},
 		}},
 	}
-	html := buildHostHardwareHTML(sections)
+	html := buildHostHardwareHTML(&Renderer{}, sections)
 	s := string(html)
 	assert.Contains(t, s, `wb-hardware-up`)
 	assert.Contains(t, s, `wb-hardware-down`)

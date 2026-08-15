@@ -1,0 +1,155 @@
+package web
+
+// The web CLI: the page the workbench embeds, the terminal shell, and the
+// out-of-band swaps one command's response carries.
+//
+// Every HTMX response here updates several regions of one page, so a component
+// renders the content area and each OOB element together. That is the contract
+// docs/architecture/web-components.md names: one request, several components.
+//
+// Two inline elements written on separate lines are one space apart in the
+// browser, so each such pair below sits on one line.
+
+// cliPage is the CLI the workbench shows inside its content area.
+templ cliPage(v cliPageData) {
+	<div class="cli-page">
+		<div class="cli-output" id="cli-output"></div>
+		<div class="cli-messages" id="cli-messages">
+			<div class="cli-feedback" id="cli-feedback"></div>
+			<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>
+		</div>
+		<div class="cli-input-line">
+			<span class="terminal-prompt" id="terminal-prompt">{ v.Prompt }</span><input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false" name="command">
+			<div class="terminal-completions is-hidden" id="terminal-completions"></div>
+		</div>
+		<span id="cli-context-path" class="is-hidden"></span><span id="cli-mode" class="is-hidden">{ v.Mode }</span>
+	</div>
+}
+
+// terminalContent is the terminal shell. Its input posts each line to
+// /cli/terminal and appends the answer to the scrollback.
+templ terminalContent(prompt string) {
+	<div class="terminal-container" id="content-area">
+		<div class="terminal-scrollback" id="terminal-scrollback"></div>
+		<div class="terminal-input-line">
+			<span class="terminal-prompt">{ prompt }</span><input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false" hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']" hx-target="#terminal-scrollback" hx-swap="beforeend" hx-include="this" name="command">
+		</div>
+	</div>
+}
+
+// cliResponse is what a navigation command answers: the new content area, then
+// the four out-of-band elements that follow the operator's position.
+// The content area is one line because templ counts an if block as INLINE: a
+// newline between it and </main> is a space the browser draws inside the swap
+// target. configViewBody is one such block from end to end.
+templ cliResponse(v cliResponseData) {
+	<main class="content-area" id="content-area">@configViewBody(v.View)</main>
+	@cliBreadcrumbOOB(v.Crumbs)
+	@cliPromptOOB(v.Prompt)
+	@cliPathBarOOB(v.PathBar)
+	@cliContextOOB(v.ContextPath)
+}
+
+// cliShowResponse is what the show verb answers. It writes the breadcrumb
+// first, which is the order the verb has always used.
+templ cliShowResponse(v cliShowData) {
+	@cliBreadcrumbOOB(v.Crumbs)
+	<main class="content-area" id="content-area"><pre class="config-output">{ v.Content }</pre></main>
+	@cliPromptOOB(v.Prompt)
+	@cliPathBarOOB(v.PathBar)
+	@cliContextOOB(v.ContextPath)
+}
+
+// configViewBody is the content area of a config node: its children, its list
+// keys, and its leaves.
+//
+// THE THREE SECTIONS SIT ON ONE LINE, and that is load-bearing. A newline
+// between two siblings inside an if body is ONE SPACE in the output, whether
+// they are if blocks or component calls: measured 2026-08-15, three sections on
+// three lines put two spaces before </main> that the Go builder never wrote.
+// Splitting them into components did not help, so the line is the fix.
+templ configViewBody(v *ConfigViewData) {
+	if v != nil {
+		@configChildList(v.Children)@configKeyList(v.Path, v.Keys)@configLeafTable(v.LeafFields)
+	}
+}
+
+// configChildList links each child node of the current one.
+templ configChildList(children []ChildEntry) {
+	if len(children) > 0 {
+		<ul class="config-children">
+			for _, child := range children {
+				<li><a href={ child.URL } class={ configLinkClass(child.Kind) }>{ child.Name }</a></li>
+			}
+		</ul>
+	}
+}
+
+// configKeyList links each entry of the list at path.
+templ configKeyList(path []string, keys []string) {
+	if len(keys) > 0 {
+		<ul class="config-keys">
+			for _, key := range keys {
+				<li><a href={ configKeyURL(path, key) }>{ key }</a></li>
+			}
+		</ul>
+	}
+}
+
+// configLeafTable shows each leaf of the current node and its value.
+templ configLeafTable(fields []LeafField) {
+	if len(fields) > 0 {
+		<table class="config-leaves">
+			<thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>
+				for _, f := range fields {
+					<tr><td>{ f.Name }</td><td>{ leafDisplayValue(f) }</td></tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+// breadcrumbList is the trail of the current path. The active segment is text,
+// because a link to where the operator already is leads nowhere.
+templ breadcrumbList(crumbs []BreadcrumbSegment) {
+	<ol class="breadcrumb-list">
+		for _, seg := range crumbs {
+			if seg.Active {
+				<li class="breadcrumb-item breadcrumb-active"><span>{ seg.Name }</span></li>
+			} else {
+				<li class="breadcrumb-item"><a href={ seg.URL }>{ seg.Name }</a></li>
+			}
+		}
+	</ol>
+}
+
+// cliBreadcrumbOOB swaps the breadcrumb bar's contents.
+templ cliBreadcrumbOOB(crumbs []BreadcrumbSegment) {
+	<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML">
+		@breadcrumbList(crumbs)
+	</nav>
+}
+
+// cliPromptOOB swaps the prompt text.
+templ cliPromptOOB(prompt string) {
+	<span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">{ prompt }</span>
+}
+
+// cliContextOOB swaps the hidden element holding the current config path. The
+// browser reads it to know where the next command runs.
+templ cliContextOOB(path string) {
+	<span id="cli-context-path" class="is-hidden" hx-swap-oob="true">{ path }</span>
+}
+
+// cliNotificationOOB swaps the notification bar. It is the whole answer to a
+// command that failed, so nothing else on the page moves.
+templ cliNotificationOOB(v cliNotificationData) {
+	<aside class={ notificationBarClass(v.Kind) } id="notification-bar" hx-swap-oob="true">{ v.Message }</aside>
+}
+
+// cliPathBarOOB swaps the clickable path bar.
+templ cliPathBarOOB(v *FragmentData) {
+	<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">
+		@pathBarInner(v)
+	</div>
+}

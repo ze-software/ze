@@ -19,11 +19,16 @@ templ routeResults(v searchView) {
 			}
 		</p>
 		if v.Prefix != "" {
+			// THE BUTTONS CARRY NO onclick. The looking glass answers every
+			// page with default-src 'self' and no script-src beside it
+			// (setSecurityHeaders, server.go), so a browser refuses an inline
+			// handler and the active mode never moved. assets/graph-mode.js
+			// reads data-mode and sets the class instead.
 			<div class="graph-controls">
-				<button class="graph-mode-btn" data-mode="aspath" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=aspath" } hx-target="#graph-container" hx-swap="innerHTML" onclick="document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">
+				<button class="graph-mode-btn" data-mode="aspath" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=aspath" } hx-target="#graph-container" hx-swap="innerHTML">
 					AS Path
 				</button>
-				<button class="graph-mode-btn" data-mode="nexthop" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=nexthop" } hx-target="#graph-container" hx-swap="innerHTML" onclick="document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">
+				<button class="graph-mode-btn" data-mode="nexthop" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=nexthop" } hx-target="#graph-container" hx-swap="innerHTML">
 					Next Hop
 				</button>
 			</div>

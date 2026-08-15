@@ -1,0 +1,26 @@
+package web
+
+// snapshotPage is the standalone read-only view of one command's JSON. The
+// IS-IS and OSPF neighbor and database pages are the same shell, differing only
+// in the title, the stream, the event name and the element id.
+//
+// THE PAGE CARRIES NO SCRIPT. The stream and the event name reach the browser
+// as data attributes, and assets/snapshot-live.js reads them. Every response
+// owes script-src 'self' (setSecurityHeaders, auth.go), so a browser refuses an
+// inline script: the page used to write its EventSource inline and the live
+// update never ran. That is also why no value here is JavaScript-escaped. Each
+// one is an HTML attribute now, and templ escapes it once.
+templ snapshotPage(v snapshotPageData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<title>{ v.Title }</title>
+			<script src="/assets/snapshot-live.js" defer></script>
+		</head>
+		<body>
+			<h1>{ v.Title }</h1>
+			<pre id={ v.DataID } data-snapshot-stream={ v.StreamPath } data-snapshot-event={ v.EventName }>{ v.Initial }</pre>
+		</body>
+	</html>
+}

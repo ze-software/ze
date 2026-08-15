@@ -18,11 +18,8 @@ func webFreeformData() *ConfigViewData {
 	}
 }
 
-func webFlexChildren() []ChildEntry {
-	return []ChildEntry{
-		{Name: "timers", Kind: "container", URL: "/show/bgp/timers/", HxPath: "bgp/timers"},
-	}
-}
+// test-relax: webFlexChildren fed configFlex, which phase 5 deletes. No
+// producer ever built a configFlexData, so the component reached no page.
 
 func webCommandResult(failed bool) CommandResultData {
 	if failed {
@@ -68,9 +65,9 @@ func webBreadcrumbNone() *FragmentData {
 	return &FragmentData{ActiveUI: "finder"}
 }
 
-func webSidebarRoot() *FragmentData {
-	return &FragmentData{Sidebar: webSidebarSections()}
-}
+// test-relax: webSidebarRoot fed the sidebar component, which phase 5 deletes.
+// webSidebarSections survives: FragmentData.Sidebar still reaches detail, which
+// reads its length to pick an empty state.
 
 func webFragmentDataMonitor() *FragmentData {
 	data := webFragmentDataFields()

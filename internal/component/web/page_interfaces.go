@@ -6,7 +6,6 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -373,10 +372,10 @@ func interfaceDisplayType(info iface.InterfaceInfo) string {
 
 // buildInterfaceDetailData constructs a WorkbenchDetailData for a single
 // interface, showing config, status, and traffic counter tabs.
-func buildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
-	configHTML := buildDetailConfigHTML(info)
-	statusHTML := buildDetailStatusHTML(info)
-	countersHTML := buildDetailCountersHTML(info)
+func buildInterfaceDetailData(renderer *Renderer, info *iface.InterfaceInfo) WorkbenchDetailData {
+	configHTML := buildDetailConfigHTML(renderer, info)
+	statusHTML := buildDetailStatusHTML(renderer, info)
+	countersHTML := buildDetailCountersHTML(renderer, info)
 
 	tabs := []WorkbenchDetailTab{
 		{Key: "config", Label: "Configuration", Content: configHTML, Active: true},
@@ -397,86 +396,118 @@ func buildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
 	}
 }
 
-func buildDetailConfigHTML(info *iface.InterfaceInfo) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-detail-section">`)
-	b.Str(`<table class="wb-detail-kv">`)
-	writeKV(&b, "Name", info.Name)
-	writeKV(&b, "Type", info.Type)
-	writeKV(&b, "MTU", strconv.Itoa(info.MTU))
+// detailKV is one row of a wb-detail-kv table: a label and the value beside it.
+// The interface, BGP peer and system panels all draw that table.
+type detailKV struct {
+	Key   string
+	Value string
+}
+
+// ifaceAddressRow is one address of an interface, as the config panel lists it.
+type ifaceAddressRow struct {
+	Address string
+	Prefix  int
+	Family  string
+}
+
+// ifaceConfigData is what ifaceDetailConfig renders. The address list is drawn
+// only when the interface holds one.
+type ifaceConfigData struct {
+	Rows      []detailKV
+	Addresses []ifaceAddressRow
+}
+
+// ifaceCountersData is what ifaceDetailCounters renders. Name is the interface
+// the panel polls, which is what advances the counters while the tab is open.
+type ifaceCountersData struct {
+	Name string
+	Rows []detailKV
+}
+
+// ifaceCountersURL is the endpoint the counters panel re-reads.
+func ifaceCountersURL(name string) string {
+	var tb textbuf.Buffer
+
+	return tb.Str("/show/iface/counters/").Str(name).String()
+}
+
+func buildDetailConfigHTML(renderer *Renderer, info *iface.InterfaceInfo) template.HTML {
+	rows := []detailKV{
+		{Key: "Name", Value: info.Name},
+		{Key: "Type", Value: info.Type},
+		{Key: "MTU", Value: strconv.Itoa(info.MTU)},
+	}
 	if info.MAC != "" {
-		writeKV(&b, "MAC", info.MAC)
-	}
-	writeKV(&b, "Admin State", info.State)
-	b.Str(`</table>`)
-
-	if len(info.Addresses) > 0 {
-		b.Str(`<h4>Addresses</h4><ul>`)
-		for _, addr := range info.Addresses {
-			fmt.Fprintf(&b, `<li>%s/%d (%s)</li>`, //nolint:errcheck // report output
-				template.HTMLEscapeString(addr.Address),
-				addr.PrefixLength,
-				template.HTMLEscapeString(addr.Family))
-		}
-		b.Str(`</ul>`)
+		rows = append(rows, detailKV{Key: "MAC", Value: info.MAC})
 	}
 
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+	rows = append(rows, detailKV{Key: "Admin State", Value: info.State})
+
+	addresses := make([]ifaceAddressRow, 0, len(info.Addresses))
+	for _, addr := range info.Addresses {
+		addresses = append(addresses, ifaceAddressRow{
+			Address: addr.Address,
+			Prefix:  addr.PrefixLength,
+			Family:  addr.Family,
+		})
+	}
+
+	return renderer.renderComponent("iface_detail_config",
+		ifaceDetailConfig(ifaceConfigData{Rows: rows, Addresses: addresses}))
 }
 
-func buildDetailStatusHTML(info *iface.InterfaceInfo) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-detail-section">`)
-	b.Str(`<table class="wb-detail-kv">`)
-	writeKV(&b, "Link State", info.State)
-	writeKV(&b, "Index", strconv.Itoa(info.Index))
-	writeKV(&b, "MTU (actual)", strconv.Itoa(info.MTU))
+func buildDetailStatusHTML(renderer *Renderer, info *iface.InterfaceInfo) template.HTML {
+	rows := []detailKV{
+		{Key: "Link State", Value: info.State},
+		{Key: "Index", Value: strconv.Itoa(info.Index)},
+		{Key: "MTU (actual)", Value: strconv.Itoa(info.MTU)},
+	}
 	if info.ParentIndex > 0 {
-		writeKV(&b, "Parent Index", strconv.Itoa(info.ParentIndex))
+		rows = append(rows, detailKV{Key: "Parent Index", Value: strconv.Itoa(info.ParentIndex)})
 	}
+
 	if info.VlanID > 0 {
-		writeKV(&b, "VLAN ID", strconv.Itoa(info.VlanID))
+		rows = append(rows, detailKV{Key: "VLAN ID", Value: strconv.Itoa(info.VlanID)})
 	}
-	b.Str(`</table>`)
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+
+	return renderer.renderComponent("iface_detail_status", detailKVSection(rows))
 }
 
-func buildDetailCountersHTML(info *iface.InterfaceInfo) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-detail-section"`)
-	fmt.Fprintf(&b, ` hx-get="/show/iface/counters/%s" hx-trigger="every 3s" hx-swap="innerHTML"`, //nolint:errcheck // report output
-		template.HTMLEscapeString(info.Name))
-	b.Str(`>`)
-	b.Str(formatCountersTable(info.Stats, info.Name))
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+func buildDetailCountersHTML(renderer *Renderer, info *iface.InterfaceInfo) template.HTML {
+	return renderer.renderComponent("iface_detail_counters",
+		ifaceDetailCounters(ifaceCountersData{Name: info.Name, Rows: counterRows(info.Stats, info.Name)}))
 }
 
-func formatCountersTable(stats *iface.InterfaceStats, name string) string {
-	var b textbuf.Buffer
-	b.Str(`<table class="wb-detail-kv">`)
+// counterRows is the counter list one interface reports. A rate row appears
+// only while the sampler holds a rate for that interface.
+func counterRows(stats *iface.InterfaceStats, name string) []detailKV {
+	var rows []detailKV
+
 	if stats != nil {
-		writeKV(&b, "RX Bytes", strconv.Itoa(int(stats.RxBytes)))
-		writeKV(&b, "RX Packets", strconv.Itoa(int(stats.RxPackets)))
-		writeKV(&b, "RX Errors", strconv.Itoa(int(stats.RxErrors)))
-		writeKV(&b, "RX Dropped", strconv.Itoa(int(stats.RxDropped)))
-		writeKV(&b, "TX Bytes", strconv.Itoa(int(stats.TxBytes)))
-		writeKV(&b, "TX Packets", strconv.Itoa(int(stats.TxPackets)))
-		writeKV(&b, "TX Errors", strconv.Itoa(int(stats.TxErrors)))
-		writeKV(&b, "TX Dropped", strconv.Itoa(int(stats.TxDropped)))
+		rows = []detailKV{
+			{Key: "RX Bytes", Value: strconv.Itoa(int(stats.RxBytes))},
+			{Key: "RX Packets", Value: strconv.Itoa(int(stats.RxPackets))},
+			{Key: "RX Errors", Value: strconv.Itoa(int(stats.RxErrors))},
+			{Key: "RX Dropped", Value: strconv.Itoa(int(stats.RxDropped))},
+			{Key: "TX Bytes", Value: strconv.Itoa(int(stats.TxBytes))},
+			{Key: "TX Packets", Value: strconv.Itoa(int(stats.TxPackets))},
+			{Key: "TX Errors", Value: strconv.Itoa(int(stats.TxErrors))},
+			{Key: "TX Dropped", Value: strconv.Itoa(int(stats.TxDropped))},
+		}
 	} else {
-		writeKV(&b, "Counters", "not available")
+		rows = []detailKV{{Key: "Counters", Value: "not available"}}
 	}
+
 	if r, ok := iface.GetRate(name); ok {
-		writeKV(&b, "RX bps", formatRate(r.RxBps))
-		writeKV(&b, "TX bps", formatRate(r.TxBps))
-		writeKV(&b, "RX pps", formatRate(r.RxPps))
-		writeKV(&b, "TX pps", formatRate(r.TxPps))
+		rows = append(rows,
+			detailKV{Key: "RX bps", Value: formatRate(r.RxBps)},
+			detailKV{Key: "TX bps", Value: formatRate(r.TxBps)},
+			detailKV{Key: "RX pps", Value: formatRate(r.RxPps)},
+			detailKV{Key: "TX pps", Value: formatRate(r.TxPps)},
+		)
 	}
-	b.Str(`</table>`)
-	return b.String()
+
+	return rows
 }
 
 // capitalizeFirst returns the string with its first rune uppercased.
@@ -498,14 +529,6 @@ func formatRate(v float64) string {
 	return strconv.FormatFloat(v, 'f', 0, 64)
 }
 
-func writeKV(b *textbuf.Buffer, key, value string) {
-	b.Str(`<tr><td class="wb-detail-kv-key">`)
-	b.Str(template.HTMLEscapeString(key))
-	b.Str(`</td><td class="wb-detail-kv-val">`)
-	b.Str(template.HTMLEscapeString(value))
-	b.Str(`</td></tr>`)
-}
-
 // handleInterfacesPage renders the interface list table within the workbench.
 // It is called by the workbench handler when the path starts with "iface/".
 // Returns the rendered HTML content for embedding in the workbench shell.
@@ -519,7 +542,7 @@ func handleInterfacesPage(renderer *Renderer, r *http.Request, path []string, vi
 
 	// Counters sub-path: /show/iface/counters/<name> (HTMX partial for auto-refresh)
 	if len(path) >= 2 && path[0] == "counters" {
-		return handleInterfaceCountersContent(path[1])
+		return handleInterfaceCountersContent(renderer, path[1])
 	}
 
 	// Traffic sub-path: /show/iface/traffic/
@@ -544,10 +567,10 @@ func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *con
 		info = configuredInterfaceByName(viewTree, name)
 	}
 	if info == nil {
-		return template.HTML(`<div class="wb-detail-panel"><p>Interface not found.</p></div>`) //nolint:gosec // static HTML
+		return renderer.renderComponent("iface_detail_missing", ifaceDetailMissing())
 	}
 
-	detailData := buildInterfaceDetailData(info)
+	detailData := buildInterfaceDetailData(renderer, info)
 	return renderer.renderComponent("workbench_detail", workbenchDetail(detailData))
 }
 
@@ -562,10 +585,11 @@ func configuredInterfaceByName(viewTree *config.Tree, name string) *iface.Interf
 	return nil
 }
 
-func handleInterfaceCountersContent(name string) template.HTML {
+func handleInterfaceCountersContent(renderer *Renderer, name string) template.HTML {
 	stats, err := iface.GetStats(name)
 	if err != nil {
-		return template.HTML(formatCountersTable(nil, name)) //nolint:gosec // trusted builder output
+		stats = nil
 	}
-	return template.HTML(formatCountersTable(stats, name)) //nolint:gosec // trusted builder output
+
+	return renderer.renderComponent("iface_counters_table", detailKVTable(counterRows(stats, name)))
 }

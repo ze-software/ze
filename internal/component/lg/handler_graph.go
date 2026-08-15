@@ -128,11 +128,22 @@ func (s *LGServer) decorateGraphNodes(g *Graph) {
 // writeEmpty writes an empty-state message in the requested format.
 func writeEmpty(w http.ResponseWriter, format, msg string) {
 	if format == graphFormatText {
-		writeText(w, msg+"\n")
+		var tb textbuf.Buffer
+
+		writeText(w, tb.Str(msg).Byte('\n').String())
+
 		return
 	}
-	writeSVG(w, `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="50">`+
-		`<text x="10" y="30" font-family="monospace" font-size="14" fill="currentColor">`+msg+`</text></svg>`)
+
+	svg, err := renderToString(graphEmpty(msg))
+	if err != nil {
+		lgLogger.Warn("empty graph render failed", "error", err)
+		http.Error(w, "render error", http.StatusInternalServerError)
+
+		return
+	}
+
+	writeSVG(w, svg)
 }
 
 // writeText writes a plain text response.

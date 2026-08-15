@@ -109,10 +109,9 @@ func trafficCells(tr trafficRow) []string {
 func buildTrafficPageContent(renderer *Renderer) template.HTML {
 	infos, _ := iface.ListInterfaces()
 	tableData := buildTrafficTableData(infos)
-	table := renderer.renderComponent("workbench_table", workbenchTable(tableData))
-	return template.HTML(`<div hx-get="/show/iface/traffic/" hx-trigger="every 5s" hx-swap="innerHTML">`) + //nolint:gosec // trusted builder output
-		table +
-		template.HTML(`</div>`) //nolint:gosec // trusted builder output
+
+	return renderer.renderComponent("traffic_panel",
+		pollPanel("/show/iface/traffic/", workbenchTable(tableData)))
 }
 
 // HandleTrafficPage renders the traffic monitoring page for direct HTTP responses.

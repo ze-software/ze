@@ -1,0 +1,40 @@
+package web
+
+// The two System pages that report what the host holds. Each polls itself, so
+// the operator reads live values without a reload.
+
+// systemResources is the System Resources property list.
+templ systemResources(rows []detailKV) {
+	<div class="wb-resources" hx-get="/show/system/resources/" hx-trigger="every 5s" hx-swap="innerHTML">
+		<h2 class="wb-form-title">System Resources</h2>
+		@detailKVTable(rows)
+	</div>
+}
+
+// hostHardware is the Host Hardware inventory: one section per hardware class,
+// each a wb-detail-kv table.
+//
+// A row takes a class when the hardware reports a state. That is what colors a
+// NIC carrier and a thermal alarm, so the class is part of what the row says.
+templ hostHardware(sections []hardwareSection) {
+	<div class="wb-hardware" hx-get="/show/system/hardware/" hx-trigger="every 10s" hx-swap="innerHTML">
+		<h2 class="wb-form-title">Host Hardware</h2>
+		for _, sec := range sections {
+			<div class="wb-hardware-section">
+				<h3>{ sec.Title }</h3>
+				<table class="wb-detail-kv">
+					for _, item := range sec.Items {
+						if item.CSSClass != "" {
+							<tr class={ hardwareRowClass(item.CSSClass) }><td class="wb-detail-kv-key">{ item.Key }</td><td class="wb-detail-kv-val">{ item.Value }</td></tr>
+						} else {
+							<tr><td class="wb-detail-kv-key">{ item.Key }</td><td class="wb-detail-kv-val">{ item.Value }</td></tr>
+						}
+					}
+				</table>
+			</div>
+		}
+		if len(sections) == 0 {
+			<p>No hardware information available.</p>
+		}
+	</div>
+}

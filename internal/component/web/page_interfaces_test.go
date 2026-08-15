@@ -322,7 +322,7 @@ func TestInterfaceDetailData_Build(t *testing.T) {
 		},
 	}
 
-	detail := buildInterfaceDetailData(info)
+	detail := buildInterfaceDetailData(&Renderer{}, info)
 	assert.Equal(t, "eth0", detail.Title)
 	assert.Equal(t, "/show/iface/", detail.CloseURL)
 	require.Len(t, detail.Tabs, 3)
@@ -357,7 +357,7 @@ func TestInterfaceDetailData_NilStats(t *testing.T) {
 		MTU:   1500,
 	}
 
-	detail := buildInterfaceDetailData(info)
+	detail := buildInterfaceDetailData(&Renderer{}, info)
 	assert.Contains(t, string(detail.Tabs[2].Content), "not available")
 }
 

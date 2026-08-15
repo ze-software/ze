@@ -6,7 +6,6 @@ package web
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"sync"
 )
@@ -55,6 +54,14 @@ func portalTarget(key string) (PortalService, bool) {
 	return PortalService{}, false
 }
 
+// portalFrameData is what portalFrame renders. Both values come from a
+// registered PortalService, never from the request, which is what keeps the
+// frame free of an open redirect.
+type portalFrameData struct {
+	URL   string
+	Title string
+}
+
 // HandlePortal returns an HTTP handler that renders the ze layout with an
 // iframe embedding the requested service. The URL pattern is /portal/{key}
 // where key matches a registered PortalService. This avoids open redirects
@@ -78,12 +85,8 @@ func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 
 		username := GetUsernameFromRequest(r)
 
-		//nolint:gosec // svc.Path comes from pre-registered whitelist, not user input
-		content := template.HTML(
-			`<iframe src="` + template.HTMLEscapeString(svc.Path) +
-				`" class="portal-frame" title="` + template.HTMLEscapeString(svc.Title) +
-				`"></iframe>`,
-		)
+		content := renderer.renderComponent("portal_frame",
+			portalFrame(portalFrameData{URL: svc.Path, Title: svc.Title}))
 
 		breadcrumbs := []BreadcrumbSegment{
 			{Name: "portal", URL: "/show/"},

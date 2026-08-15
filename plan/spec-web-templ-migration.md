@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 3/5 |
+| Phase | 5/5 |
 | Deferral shard | - |
 | Updated | 2026-08-15 |
 
@@ -206,7 +206,7 @@ route and no plugin emits HTML.
 | AC-4 | A package is declared migrated | No `html/template` parse call remains in it (no-layering) |
 | AC-5 | A value containing `<script>` reaches any rendered field | It appears escaped exactly once, never twice, never raw |
 | AC-6 | The ported template set is scanned for inline script and style | Still none, as today. The scan MUST walk `.templ` files: today's walk filters on a `.html` suffix, so a port that changes the extension makes the check pass over zero files |
-| AC-7 | The web and lg packages are scanned for HTML tag literals in Go | None outside a `.templ` file. The scan MUST match backtick raw strings, which carry 99 of the 107 sites; the double-quoted form the Deliverables grep looks for carries only 8, all in `page_snapshot.go` |
+| AC-7 | The web and lg packages are scanned for HTML tag literals in Go | None outside a `.templ` file, with ONE stated exception. **DONE 2026-08-15, and the criterion is a TEST now rather than a grep in a checklist: `TestNoGoFileBuildsMarkup` in each package, over `internal/test/markupcheck`.** The set was DERIVED, never taken from a list. 16 files held a literal shaped like a tag and one was a false positive: `handler.go` writes `/config/<verb>/<path>` in an error message. 13 are ported, and `web`'s exemption table is EMPTY. **The exception is a GENERATED DRAWING, stated as a rule rather than a file list.** `renderGraphSVG` (`lg/layout.go`) and `renderNextHopGraphSVG` (`lg/layout_nexthop.go`) write SVG whose every attribute is a coordinate `computeLayout` produced. Porting them buys neither thing this spec exists to buy. They read `layout.Positions[n.ASN].X` in Go, so a renamed field is ALREADY a compile error and the blank-panel failure cannot arise. Their only two interpolated values already go through `template.HTMLEscapeString`. It costs bytes and legibility: measured on a probe 2026-08-15, templ rewrites `<rect x="20" y="20" width="81" height="40"/>` as `<rect ...></rect>`. A graph draws three such elements per node and two per edge, and the response is `image/svg+xml`, which `golden.AssertPortFidelity` compares byte for byte rather than normalizing. `graphEmpty` (`lg/graph_empty.templ`) keeps the exception narrow. It is SVG too, and it IS a document, so it is ported. **The gate is fail-closed both ways.** A file that starts building markup is a finding, and an exemption that stops explaining one is a finding too, so no entry outlives its builder. The scan reads Go string LITERALS, so a tag in a comment is not a finding. It reads the FORM of a tag rather than its name, so the 14 `usage: set <leaf> <value>` strings in `cli_terminal.go` are not findings either. A name-based scan is a chore and a hole at once: `<path>` is an SVG element and also how a usage string names a path, and `<old-name>` carries the hyphen HTML gives a custom element. **HTML's void elements are the one case FORM cannot reach, and 5b closed it.** `<br>` never closes, so a bare `<br>` IS a whole element and `strings.Join(rows, "<br>")` showed the scan nothing. `voidElements` holds HTML's list, minus `command` and `source`, which ze writes as CLI usage text in `cli_terminal.go`. It changes the BARE case alone: each of the sixteen was already a finding once it carried an attribute. Proven to discriminate by `TestReportNamesEachMarkupLiteral` and its seven siblings, each building a throwaway package in `t.TempDir()`. **Two sibling scans joined it in 5b, over the `.templ` sources rather than the Go ones.** `AssertNoInlineScriptOrStyle` refuses what `'self'` refuses, and `AssertAssetsResolve` resolves each `src` and `href` against the served sub-FS. `lg` had neither, and it shipped two `onclick` handlers no browser ran |
 | AC-8 | An `lg` page's view data is inspected after the port | It is a named struct. No `map[string]any` reaches a templ component. Renaming one of its fields fails the build, as AC-1 requires for `web`. Without this, porting `lg` to templ buys nothing: an unchecked map key stays unchecked inside a templ component. THE GUARD IS `internal/test/templcheck`, called by `TestLGViewDataIsTyped` and by phase 3 for `web`. It resolves a named type through the package's own declarations, so `type viewData map[string]any` is refused as the map it is, and it refuses a bare `any`. It is fail-closed: a type it cannot resolve is reported. It walks struct fields, nested and embedded ones included, so `struct{ Data map[string]any }` is refused as the map it wraps. That wrapper is the cheapest port of the `map[string]any` `web` builds today, and it defeats AC-8 one dereference in. A field of a type from another package is accepted, because refusing it would refuse `template.HTML`. `TestReportRefusesEachEscape` names every escape and proves each one reds |
 
 ## End-to-End User Stories
@@ -216,7 +216,7 @@ route and no plugin emits HTML.
 | 1 | Deletes a list entry in the config editor | HTTP → `HandleFragment` → templ component → HTMX OOB swap | `test/ui/web-delete-list-entry.ci` |
 | 2 | Commits a config change and sees the result | HTTP → commit handler → `WriteOOBError` or commit bar → OOB swap | `test/ui/web-commit-transactional.ci` |
 | 3 | Has a rejected commit reported back | HTTP → commit handler → error panel component | `test/ui/web-commit-reject.ci` |
-| 4 | Opens a looking-glass AS-path graph | HTTP → `lg` handler → ported SVG component | NEW test required. `TestRenderSVGWithNames` calls `renderGraphSVG` directly and never exercises the handler or `renderPage`, so it cannot prove this story |
+| 4 | Opens a looking-glass AS-path graph | HTTP → `lg` handler → `renderGraphSVG`, which stays in Go by AC-7 | `make ze-web-golden-check`, cases `ui-graph-aspath` and `ui-graph-nexthop` of `TestLGHandlerGoldenOutput`. CORRECTED 2026-08-15: the row said "ported SVG component" and a NEW test was required. The handler capture phase 1 built IS that test, and it exercises the whole story, which `TestRenderSVGWithNames` could not. The empty-state drawing is covered too, by `graphEmpty` in `TestLGGoldenOutput` |
 | 5 | Signs in to the web UI | HTTP → `RenderLogin` replacement | `TestRenderLogin` and `test/plugin/web-auth.ci` |
 
 ## 🧪 TDD Test Plan
@@ -275,10 +275,10 @@ N-A. Scope is tooling; no wire-visible behavior changes.
 - `internal/component/web/fragment.go` - `WriteOOBError`, `HandleFragment`
 - `internal/component/web/sse.go` - `notificationBannerTmpl`, `writeSSEEvent`
 - `cmd/ze/hub/service_web.go` - external `RenderFragment` consumer
-- phase 5, the Go-literal markup: `web/cli_terminal.go` (32 markup lines),
-  `web/page_system.go` (19), `web/page_interfaces.go` (19),
-  `web/page_bgp_peers.go` (17), `web/cli.go` (15), `web/page_snapshot.go` (8),
-  `lg/layout_nexthop.go` (7), and the 11 remaining files carrying 1 or 2 each
+- phase 5, the Go-literal markup. The set is DERIVED by
+  `internal/test/markupcheck`, not by the line counts this bullet used to carry:
+  16 files hold a tag-shaped literal, one is a false positive, 13 are ported and
+  two are the drawing builders AC-7 exempts by rule
 - `docs/architecture/web-interface.md`, `docs/architecture/web-components.md`,
   `docs/architecture/web-workbench-pages.md` - 9 source anchors name symbols
   this deletes
@@ -295,6 +295,11 @@ N-A. Scope is tooling; no wire-visible behavior changes.
   DONE 2026-08-14
 - `internal/test/templcheck/` - the AC-8 guard both packages call. DONE
   2026-08-14
+- `internal/test/markupcheck/` - the AC-7 guard both packages call, and
+  `markup_check_test.go` in each. DONE 2026-08-15
+- `internal/component/web/assets/snapshot-live.js` - the snapshot page's live
+  view, moved out of an inline script `script-src 'self'` refuses. DONE
+  2026-08-15
 - `internal/component/web/testdata/templtypesafety/` - the AC-1 fixture, and
   `internal/component/web/templ_typesafety_test.go`, its test (DONE)
 - a new `lg` file holding one named view-model struct per page (AC-8), replacing
@@ -645,13 +650,84 @@ renderer.
    - Tests: `TestTemplComponentTypeSafety` (new), proving AC-1
    - Files: the three web architecture docs and their 9 source anchors
    - Verify: AC-1 demonstrated, `make ze-doc-test` green
-5. **Phase: Go-literal markup** -- the 143 lines across 18 files, chiefly
-   `cli_terminal.go` (32), `page_system.go` (19), `page_interfaces.go` (19),
-   `page_bgp_peers.go` (17), `cli.go` (15)
-   - Tests: `TestHandleCLIPageAvoidsInlineStyle`, plus the CLI terminal and
-     system page tests already covering these files
-   - Files: the 18 files listed under Files to Modify, and `lg/layout.go`
-   - Verify: AC-7. No HTML tag literal is built in Go outside a `.templ` file
+5. **Phase: Go-literal markup** -- DONE 2026-08-15. 13 files ported into 13 templ
+   components' worth of markup, six dead components deleted, and AC-7 made a
+   runnable gate
+   - Files: `web/{cli,cli_terminal,page_system,page_interfaces,page_bgp_peers,
+     page_snapshot,page_l2tp,page_traffic,page_l2tp_off,page_vpn_ipsec_off,
+     handler_portal,handler_config_commit,snapshot_views,handler_isis,
+     handler_ospf,page_workbench_generic}.go`, `lg/handler_graph.go`, and the new
+     `.templ` files beside them. NEW `internal/test/markupcheck`
+   - **The set was DERIVED, not read off the spec.** The earlier count of 18
+     files and 143 lines was a line-based grep. A literal-aware scan finds 16
+     files, one of them a false positive, and it separates markup from the 17
+     `usage: <leaf>` strings a line grep counted
+   - **The two SVG drawing builders stay in Go, deliberately.** AC-7 states the
+     rule and the measurement. `writeEmpty` (`lg/handler_graph.go`) is SVG and a
+     document, so it is ported to `graphEmpty`
+   - **The snapshot page's inline script was a live defect, and the port could
+     not land without fixing it.** `snapshotPageHTML` wrote its `EventSource`
+     inline, `setSecurityHeaders` (`auth.go`) puts `script-src 'self'` on every
+     response through the whole-mux wrapper, so a browser refused it and the
+     IS-IS and OSPF live views never updated. Porting the markup would also have
+     reddened `TestTemplatesAvoidInlineScriptAndStyle`, which walks `.templ`
+     files for `<script>`. The stream path and the event name are data
+     attributes now, read by the new `assets/snapshot-live.js`, which follows
+     `log-live.js`. Both `JSEscapeString` calls are gone with the script:
+     neither value is JavaScript any more. Eight handler fixtures move, recorded
+     in `webPortHandlers`
+   - **Six dead components deleted**, each with what proved it dead: `configFlex`
+     (no producer builds a `configFlexData`), `terminalPage` and
+     `notificationBannerOOB` (ports of a template file `NewRenderer` never
+     parsed, whose live markup is now `terminalContent` and `cliNotificationOOB`),
+     `cliBar`, `dashboardOverview`, `sidebar` and `sidebarSection` (no caller).
+     Each was checked by the component identifier, the old template name, and
+     any string that could reach it: the only references were the golden capture
+     itself. `FragmentData.Sidebar` survives, because `detail`
+     (`component_detail.templ`) reads its length for an empty state
+   - **One rendered byte moved that was not intended, and it was caught and
+     closed.** Three sibling `if` blocks inside `configViewBody` put two spaces
+     before `</main>` in the CLI response, because templ counts an `if` block as
+     inline. The three sections are components on one line now, and
+     `post-cli-mode` is byte-identical to its pre-port capture
+   - Verify: AC-7 by `TestNoGoFileBuildsMarkup` in both packages.
+     `ze-templ-port-check REF=80f0b8b57` reports no unexplained difference,
+     `ze-web-test` 87/87 and `ze-ui-test` 179/179 green
+5b. **Phase: the review's five findings, plus three record defects** -- DONE
+   2026-08-15. The gate got the case it could not see, `lg` got the gate it
+   never had, and one live outage closed
+   - **The AC-7 scan missed HTML's void elements.** `<br>`, `<hr>` and
+     `<input>` never close, so `strings.Join(rows, "<br>")` carried no close
+     tag, no self-close and no attribute, and the three form rules saw nothing.
+     `voidElements` (`markupcheck.go`) holds HTML's list, minus `command` and
+     `source`, which ze writes as CLI usage text in `cli_terminal.go`. The list
+     changes the BARE case alone: every void element was already a finding once
+     it carried an attribute. `TestReportReadsABareVoidElement` and
+     `TestReportPassesTheTwoVoidNamesZeWritesAsCLIText` hold both halves
+   - **`lg` shipped the same class of outage this phase exists to close.**
+     `route_table.templ` carried an `onclick` on each graph-mode button, and
+     `lg` answers `default-src 'self'` with no `script-src` beside it
+     (`setSecurityHeaders`, `server.go`), so a browser refused the handler and
+     the pressed button never gained `.active`. `assets/graph-mode.js` carries
+     the class change now, delegated on the document so it survives the HTMX
+     swap. Proven live in a browser over the real fixture and the real asset
+   - **`lg` had no equivalent of `TestTemplatesAvoidInlineScriptAndStyle`.**
+     The scan moved into `markupcheck.AssertNoInlineScriptOrStyle`, and both
+     packages call it. Copying the body into `lg` would have been the second
+     copy of a check both packages owe
+   - **Nothing proved an asset resolved.** `AssertAssetsResolve` resolves each
+     `src` and `href` against the SERVED sub-FS, in both packages. Renaming
+     `assets/snapshot-live.js` now reds `TestTemplAssetsResolve` instead of
+     killing the live view in silence
+   - **The three record defects.** `webPortHandlers` said "the ONE response" of
+     nine and had absorbed `portSnapshotScript`'s doc comment. `AssertNoMarkup`
+     failed only at zero literals, where its siblings use counted floors, so it
+     takes a `Floors` now. `Findings` could not see an exemption table GROW,
+     which is the one edit that turns a finding green, so `Floors.Exempt` fixes
+     the size
+   - Verify: `TestGraphModeScriptTargetsTheButtons` (`lg`) holds the class the
+     script selects against the class the buttons carry, which is the join no
+     other guard reads
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -679,7 +755,7 @@ renderer.
 | Rendered bytes unchanged (AC-2), composition and handler layers | `make ze-web-golden-check`, the handler half. The template capture cannot stand in for it: it bypasses every wrapper phase 3 rewrites |
 | Rendered bytes unchanged (AC-2), against the PRE-PORT bytes | `make ze-templ-port-check REF=80f0b8b57`. `ze-web-golden-check` proves the fixtures are the current render. Once a fixture is recaptured it compares the port against itself, and only this target still reads what the port had to preserve |
 | A handler that renders nothing cannot be captured | `make ze-web-golden-check`. `golden.AssertResponseHasBody` refuses an empty body on both handler captures, during a capture run as much as a check run. Proven by name: an early return in `HandleAdminView` reds `get-admin`, and one in `handleUIHelp` reds `ui-help` |
-| No HTML literals left in Go (AC-7) | Match BOTH string forms. The double-quoted `Str("<` finds 8 sites, all in `page_snapshot.go`; the backtick raw-string form (`Str(` and `WriteString(` followed by a backtick and `<`) finds 99 more. A grep for the double-quoted form alone was already near-vacuous before any work started, so it MUST NOT be the deliverable's check |
+| No HTML literals left in Go (AC-7) | `make ze-test-pkg` on either package runs `TestNoGoFileBuildsMarkup`. **A GREP MUST NOT BE THE CHECK.** The one this row used to name matched the double-quoted form alone, found 8 sites of 107, and nothing ran it. The scan reads Go string literals in both forms and judges the FORM of the tag, so it neither misses a raw string nor reds on `usage: set <leaf> <value>`. `lg` carries two named exemptions and `web` carries none |
 
 ### Security Review Checklist
 | Check | What to look for |

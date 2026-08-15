@@ -45,6 +45,17 @@ var lgGolden = golden.Set{
 // component is a Go function and carries a Go name, and renaming 29 fixtures
 // would hide the byte delta of the port inside a rename.
 var lgGoldenSpec = golden.Spec{
+	// The empty-state drawing, ported in phase 5 of
+	// plan/spec-web-templ-migration.md. The two graph builders beside it stay in
+	// Go: markup_check_test.go carries the reason.
+	"graph_empty.templ": {{
+		Name:    "graphEmpty",
+		Fixture: "graph_empty",
+		Variants: []golden.Variant{
+			{Name: "no-routes", Data: graphEmpty("No routes found")},
+			{Name: "too-many", Data: graphEmpty("Too many ASes (240) for graph")},
+		},
+	}},
 	"error.templ": {{
 		Name:    "errorBanner",
 		Fixture: "error_banner",

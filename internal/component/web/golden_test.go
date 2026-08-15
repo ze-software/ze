@@ -83,11 +83,6 @@ var webTemplGoldenSpec = golden.Spec{
 	},
 
 	// --- page chrome ------------------------------------------------------
-	"component_cli_bar.templ": {{
-		Name:     "cliBar",
-		Fixture:  "component/cli_bar",
-		Variants: []golden.Variant{{Data: cliBar(webLayoutData("finder"))}},
-	}},
 	"component_commit_bar.templ": {{
 		Name:    "commitBar",
 		Fixture: "component/commit_bar",
@@ -197,24 +192,12 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "empty", Data: configFreeform(&ConfigViewData{CurrentPath: "system/banner"})},
 		},
 	}},
-	// No live path reaches this. A flex node renders through configContainer,
-	// which reads the Children and LeafFields buildConfigViewData fills. No
-	// producer builds a configFlexData. The capture keeps the markup on record
-	// until phase 5 of plan/spec-web-templ-migration.md decides its fate.
-	"config_flex.templ": {{
-		Name: "configFlex", Fixture: "flex.html",
-		Variants: []golden.Variant{
-			{Name: "flag", Data: configFlex(configFlexData{Name: "multipath"})},
-			{Name: "value", Data: configFlex(configFlexData{
-				Name: "hold-time", Value: "180", LeafField: webLeafField("number"),
-			})},
-			{Name: "block", Data: configFlex(configFlexData{
-				Name:       "graceful-restart",
-				LeafFields: []LeafField{webLeafField("text"), webLeafField("checkbox")},
-				Children:   webFlexChildren(),
-			})},
-		},
-	}},
+	// test-relax: configFlex, cliBar, dashboardOverview, sidebar, sidebarSection,
+	// terminalPage and notificationBannerOOB are DELETED in phase 5 of
+	// plan/spec-web-templ-migration.md. Their cases go with them. A capture of a
+	// component that no longer exists cannot compile, and the coverage is
+	// retired with the markup rather than lost. webPortTemplates records each
+	// vanished fixture and what proved the component dead.
 	"config_leaf_input.templ": {{
 		Name: "leafInput", Fixture: "leaf_input",
 		Variants: []golden.Variant{
@@ -277,16 +260,11 @@ var webTemplGoldenSpec = golden.Spec{
 		{Name: "notificationBanner", Fixture: "notification_banner_sse", Variants: []golden.Variant{
 			{Data: notificationBanner(webBannerData())},
 		}},
-		{Name: "notificationBannerOOB", Fixture: "notification_banner.html", Variants: []golden.Variant{
-			{Data: notificationBannerOOB(webBannerData())},
-		}},
+		// test-relax: notificationBannerOOB and terminalPage are deleted, so
+		// their cases cannot compile. Both were ports of a template file no
+		// renderer ever parsed, and the live markup they duplicated is
+		// cliNotificationOOB and terminalContent (component_cli_terminal.templ).
 	},
-	"terminal.templ": {{
-		Name: "terminalPage", Fixture: "terminal.html",
-		Variants: []golden.Variant{
-			{Data: terminalPage(terminalPageData{CLIPrompt: "ze[bgp]# "})},
-		},
-	}},
 
 	// --- l2tp pages -------------------------------------------------------
 	"l2tp_list.templ": {{
@@ -345,13 +323,9 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "empty", Data: dashboardHealth(webDashboardHealth(false))},
 		},
 	}},
-	"component_dashboard_overview.templ": {{
-		Name: "dashboardOverview", Fixture: "component/dashboard_overview",
-		Variants: []golden.Variant{
-			{Name: "full", Data: dashboardOverview(webDashboardData(true))},
-			{Name: "empty", Data: dashboardOverview(webDashboardData(false))},
-		},
-	}},
+	// test-relax: dashboardOverview is deleted, so its two cases cannot compile.
+	// No page rendered it: the Finder shell reaches workbenchDashboard, whose
+	// cases below still cover the same dashboardData.
 	"component_detail.templ": {{
 		Name: "detail", Fixture: "component/detail",
 		Variants: []golden.Variant{
@@ -440,16 +414,10 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "root", Data: pathBarInner(&FragmentData{})},
 		},
 	}},
-	"component_sidebar.templ": {
-		{Name: "sidebar", Fixture: "component/sidebar", Variants: []golden.Variant{
-			{Name: "nested", Data: sidebar(webFragmentData())},
-			{Name: "root", Data: sidebar(webSidebarRoot())},
-		}},
-		{Name: "sidebarSection", Fixture: "component/sidebar_section", Variants: []golden.Variant{
-			{Name: "list", Data: sidebarSection(webSidebarSections()[0])},
-			{Name: "container", Data: sidebarSection(webSidebarSections()[1])},
-		}},
-	},
+	// test-relax: sidebar and sidebarSection are deleted, so their six cases
+	// cannot compile. No page rendered either one. FragmentData.Sidebar survives
+	// because detail (component_detail.templ) reads its LENGTH to pick an empty
+	// state, and that reader keeps its own cases below.
 	"component_tool_bgp_decode.templ": {{
 		Name: "toolBGPDecode", Fixture: "component/tool_bgp_decode",
 		Variants: webToolVariants(toolBGPDecode),
@@ -511,6 +479,132 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "single", Data: workbenchTopbar(webWorkbenchData(true).LayoutData)},
 		},
 	}},
+
+	// --- the markup phase 5 moved out of Go -------------------------------
+	//
+	// These fixtures are NEW. Each names the builder whose bytes it took over,
+	// so a reader can find what it used to be. The pre-port bytes of the two
+	// the markup capture already held are compared by TestWebMarkupGoldenOutput.
+	"component_detail_kv.templ": {
+		{Name: "detailKVTable", Fixture: "component/detail_kv_table", Variants: []golden.Variant{
+			{Name: "rows", Data: detailKVTable(webDetailKVRows())},
+			{Name: "empty", Data: detailKVTable(nil)},
+		}},
+		{Name: "detailKVSection", Fixture: "component/detail_kv_section", Variants: []golden.Variant{
+			{Data: detailKVSection(webDetailKVRows())},
+		}},
+	},
+	"component_system_panels.templ": {
+		{Name: "systemResources", Fixture: "component/system_resources", Variants: []golden.Variant{
+			{Data: systemResources(resourceRows(webGoldenResources()))},
+		}},
+		{Name: "hostHardware", Fixture: "component/host_hardware", Variants: []golden.Variant{
+			{Name: "sections", Data: hostHardware(webGoldenHardwareSections())},
+			{Name: "empty", Data: hostHardware(nil)},
+		}},
+	},
+	"component_iface_detail.templ": {
+		{Name: "ifaceDetailConfig", Fixture: "component/iface_detail_config", Variants: []golden.Variant{
+			{Name: "addresses", Data: ifaceDetailConfig(webIfaceConfigData(true))},
+			{Name: "bare", Data: ifaceDetailConfig(webIfaceConfigData(false))},
+		}},
+		{Name: "ifaceDetailCounters", Fixture: "component/iface_detail_counters", Variants: []golden.Variant{
+			{Data: ifaceDetailCounters(ifaceCountersData{Name: "eth0", Rows: webDetailKVRows()})},
+		}},
+		{Name: "ifaceDetailMissing", Fixture: "component/iface_detail_missing", Variants: []golden.Variant{
+			{Data: ifaceDetailMissing()},
+		}},
+	},
+	"component_peer_detail.templ": {
+		{Name: "peerDetailStatus", Fixture: "component/peer_detail_status", Variants: []golden.Variant{
+			{Data: peerDetailStatus(webDetailKVRows())},
+		}},
+		{Name: "peerDetailActions", Fixture: "component/peer_detail_actions", Variants: []golden.Variant{
+			{Name: "buttons", Data: peerDetailActions(peerActionsData{
+				Name: "london", ContextPath: "bgp/group/transit/peer/london", HasRemoteIP: true,
+			})},
+			{Name: "no-remote-ip", Data: peerDetailActions(peerActionsData{Name: "london"})},
+		}},
+	},
+	"component_cli_terminal.templ": {
+		{Name: "cliPage", Fixture: "component/cli_page", Variants: []golden.Variant{
+			{Data: cliPage(cliPageData{Prompt: "ze[bgp]# ", Mode: "config"})},
+		}},
+		{Name: "terminalContent", Fixture: "component/terminal_content", Variants: []golden.Variant{
+			{Data: terminalContent("ze[bgp]# ")},
+		}},
+		{Name: "cliResponse", Fixture: "component/cli_response", Variants: []golden.Variant{
+			{Data: cliResponse(webCLIResponseData())},
+		}},
+		{Name: "cliShowResponse", Fixture: "component/cli_show_response", Variants: []golden.Variant{
+			{Data: cliShowResponse(webCLIShowData())},
+		}},
+		{Name: "configViewBody", Fixture: "component/config_view_body", Variants: []golden.Variant{
+			{Name: "full", Data: configViewBody(webCLIViewData())},
+			{Name: "nil", Data: configViewBody(nil)},
+		}},
+		{Name: "configChildList", Fixture: "component/config_child_list", Variants: []golden.Variant{
+			{Name: "children", Data: configChildList(webCLIViewData().Children)},
+			{Name: "empty", Data: configChildList(nil)},
+		}},
+		{Name: "configKeyList", Fixture: "component/config_key_list", Variants: []golden.Variant{
+			{Name: "keys", Data: configKeyList([]string{"bgp", "peer"}, webCLIViewData().Keys)},
+			{Name: "root", Data: configKeyList(nil, webCLIViewData().Keys)},
+		}},
+		{Name: "configLeafTable", Fixture: "component/config_leaf_table", Variants: []golden.Variant{
+			{Name: "leaves", Data: configLeafTable(webCLIViewData().LeafFields)},
+			{Name: "empty", Data: configLeafTable(nil)},
+		}},
+		{Name: "breadcrumbList", Fixture: "component/breadcrumb_list", Variants: []golden.Variant{
+			{Data: breadcrumbList(webBreadcrumbs())},
+		}},
+		{Name: "cliBreadcrumbOOB", Fixture: "component/cli_breadcrumb_oob", Variants: []golden.Variant{
+			{Data: cliBreadcrumbOOB(webBreadcrumbs())},
+		}},
+		{Name: "cliPromptOOB", Fixture: "component/cli_prompt_oob", Variants: []golden.Variant{
+			{Data: cliPromptOOB("ze[bgp]# ")},
+		}},
+		{Name: "cliContextOOB", Fixture: "component/cli_context_oob", Variants: []golden.Variant{
+			{Data: cliContextOOB("bgp/peer/london")},
+		}},
+		{Name: "cliNotificationOOB", Fixture: "component/cli_notification_oob", Variants: []golden.Variant{
+			{Name: "error", Data: cliNotificationOOB(cliNotificationData{
+				Message: "set error: no such leaf", Kind: "error",
+			})},
+			{Name: "info", Data: cliNotificationOOB(cliNotificationData{
+				Message: "No active web sessions.", Kind: "info",
+			})},
+		}},
+		{Name: "cliPathBarOOB", Fixture: "component/cli_path_bar_oob", Variants: []golden.Variant{
+			{Data: cliPathBarOOB(webFragmentData())},
+		}},
+	},
+	"component_page_shells.templ": {
+		{Name: "pollPanel", Fixture: "component/poll_panel", Variants: []golden.Variant{
+			{Data: pollPanel("/show/iface/traffic/", workbenchTable(webWorkbenchTable("rows")))},
+		}},
+		{Name: "portalFrame", Fixture: "component/portal_frame", Variants: []golden.Variant{
+			{Data: portalFrame(portalFrameData{URL: "/grafana/", Title: "Grafana"})},
+		}},
+		{Name: "notificationPre", Fixture: "component/notification_pre", Variants: []golden.Variant{
+			{Data: notificationPre("+ bgp peer london\n-   hold-time 90\n+   hold-time 180\n")},
+		}},
+		{Name: "featureDisabled", Fixture: "component/feature_disabled", Variants: []golden.Variant{
+			{Data: featureDisabled("L2TP/PPPoE (BNG) is not included in this build (ze_l2tp off).")},
+		}},
+	},
+	"page_snapshot.templ": {{
+		Name: "snapshotPage", Fixture: "page/snapshot",
+		Variants: []golden.Variant{
+			{Data: snapshotPage(snapshotPageData{
+				Title:      "OSPF Neighbors",
+				StreamPath: "/ospf/neighbors/stream",
+				EventName:  "neighbors",
+				DataID:     "ospf-data",
+				Initial:    `{"neighbors":[{"id":"10.0.0.1","state":"Full"}]}`,
+			})},
+		},
+	}},
 }
 
 // webChromeVariants covers the three breadcrumb depths for a component that
@@ -549,6 +643,88 @@ func webPageWorkbench(single bool) templ.Component {
 func webFieldComponent(f FieldMeta) templ.Component { return fieldComponent(f) }
 
 // --- fixture data -------------------------------------------------------
+
+// webDetailKVRows is the property list the three detail panels draw.
+//
+// Each cell carries an HTML special. The panels used to escape by hand and
+// templ escapes for them now, and a fixture of plain words CAN NOT tell the two
+// apart.
+func webDetailKVRows() []detailKV {
+	return []detailKV{
+		{Key: "Name", Value: "eth0"},
+		{Key: "Model", Value: `Ze <NIC> & "fast"`},
+		{Key: "MTU", Value: "1500"},
+	}
+}
+
+// webGoldenResources is the resource snapshot the System Resources panel shows.
+// Every value is fixed, so the fixture is the same on every machine.
+func webGoldenResources() resourcesData {
+	return resourcesData{
+		Version:     "1.2.3",
+		Uptime:      "3d 4h 5m",
+		CPUCount:    4,
+		GOMAXPROCS:  4,
+		Goroutines:  42,
+		MemAlloc:    "12.5 MB",
+		MemSys:      "48.0 MB",
+		GCRuns:      7,
+		CurrentTime: "2026-08-15 06:00:00 UTC",
+	}
+}
+
+// webIfaceConfigData is the interface config panel's data, with and without the
+// address list its second half draws.
+func webIfaceConfigData(withAddresses bool) ifaceConfigData {
+	data := ifaceConfigData{Rows: webDetailKVRows()}
+	if !withAddresses {
+		return data
+	}
+
+	data.Addresses = []ifaceAddressRow{
+		{Address: "192.0.2.1", Prefix: 24, Family: "ipv4"},
+		{Address: "2001:db8::1", Prefix: 64, Family: "ipv6"},
+	}
+
+	return data
+}
+
+// webCLIViewData is the config node the web CLI renders: children, list keys
+// and leaves, so every branch of configViewBody draws.
+func webCLIViewData() *ConfigViewData {
+	return &ConfigViewData{
+		Path:     []string{"bgp", "peer"},
+		Children: []ChildEntry{{Name: "local", URL: "/show/bgp/local/", Kind: "container"}},
+		Keys:     []string{"london", "paris"},
+		LeafFields: []LeafField{
+			{Name: "hold-time", Value: "180"},
+			{Name: "keepalive", Default: "60"},
+		},
+	}
+}
+
+// webCLIResponseData is one navigation command's whole answer.
+func webCLIResponseData() cliResponseData {
+	return cliResponseData{
+		Prompt:      "ze[bgp peer]# ",
+		ContextPath: "bgp/peer",
+		Crumbs:      webBreadcrumbs(),
+		View:        webCLIViewData(),
+		PathBar:     webFragmentData(),
+	}
+}
+
+// webCLIShowData is the show verb's whole answer. Content holds newlines,
+// because the pre element is what keeps them.
+func webCLIShowData() cliShowData {
+	return cliShowData{
+		Prompt:      "ze[bgp peer]# ",
+		ContextPath: "bgp/peer",
+		Content:     "peer london {\n    hold-time 180;\n}\n",
+		Crumbs:      webBreadcrumbs(),
+		PathBar:     webFragmentData(),
+	}
+}
 
 func webBreadcrumbs() []BreadcrumbSegment {
 	return []BreadcrumbSegment{

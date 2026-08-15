@@ -7,20 +7,4 @@ header: X-Content-Type-Options: nosniff
 header: X-Frame-Options: DENY
 header: X-Ze-Version: <VERSION>
 
-<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<title>OSPF Database</title>
-</head><body>
-<h1>OSPF Database</h1>
-<pre id="ospf-data">{&#34;rows&#34;:[{&#34;neighbor&#34;:&#34;10.0.0.2&#34;,&#34;state&#34;:&#34;full&#34;}]}</pre>
-<script>
-(function(){
-  var es = new EventSource("/ospf/database/stream");
-  es.addEventListener("database", function(e){
-    var el = document.getElementById("ospf-data");
-    el.textContent = e.data;
-  });
-  window.addEventListener("beforeunload", function(){ es.close(); });
-})();
-</script>
-</body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>OSPF Database</title><script src="/assets/snapshot-live.js" defer></script></head><body><h1>OSPF Database</h1><pre id="ospf-data" data-snapshot-stream="/ospf/database/stream" data-snapshot-event="database">{&#34;rows&#34;:[{&#34;neighbor&#34;:&#34;10.0.0.2&#34;,&#34;state&#34;:&#34;full&#34;}]}</pre></body></html>

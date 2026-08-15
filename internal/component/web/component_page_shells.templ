@@ -1,0 +1,30 @@
+package web
+
+// The small shells a page wraps around a component it does not own: a polling
+// panel, an embedded service, a preformatted notification, and the message a
+// page shows when its feature is not in this build.
+
+// pollPanel wraps a table that refreshes itself. URL is the endpoint the panel
+// re-reads every five seconds, which is what advances live session and traffic
+// counters without a reload.
+templ pollPanel(url string, body templ.Component) {
+	<div hx-get={ url } hx-trigger="every 5s" hx-swap="innerHTML">
+		@body
+	</div>
+}
+
+// portalFrame embeds a registered service's own UI.
+templ portalFrame(v portalFrameData) {
+	<iframe src={ v.URL } class="portal-frame" title={ v.Title }></iframe>
+}
+
+// notificationPre is a notification whose text is preformatted, which is what a
+// config diff and a commit conflict report need to stay readable.
+templ notificationPre(text string) {
+	<pre>{ text }</pre>
+}
+
+// featureDisabled is what a page renders when its feature is not in this build.
+templ featureDisabled(message string) {
+	<div class="workbench-empty">{ message }</div>
+}

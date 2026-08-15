@@ -1,0 +1,33 @@
+package web
+
+// The interface detail tabs, and the empty state a missing interface reaches.
+// handleInterfaceDetailContent (page_interfaces.go) fills them.
+
+// ifaceDetailConfig is the Config tab: the configured properties, then the
+// addresses when the interface holds any.
+templ ifaceDetailConfig(v ifaceConfigData) {
+	<div class="wb-detail-section">
+		@detailKVTable(v.Rows)
+		if len(v.Addresses) > 0 {
+			<h4>Addresses</h4>
+			<ul>
+				for _, a := range v.Addresses {
+					<li>{ a.Address }/{ intText(a.Prefix) } ({ a.Family })</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+// ifaceDetailCounters is the Counters tab. It polls its own endpoint every
+// three seconds, so the counters advance while the tab is open.
+templ ifaceDetailCounters(v ifaceCountersData) {
+	<div class="wb-detail-section" hx-get={ ifaceCountersURL(v.Name) } hx-trigger="every 3s" hx-swap="innerHTML">
+		@detailKVTable(v.Rows)
+	</div>
+}
+
+// ifaceDetailMissing is what a detail request for an unknown interface renders.
+templ ifaceDetailMissing() {
+	<div class="wb-detail-panel"><p>Interface not found.</p></div>
+}

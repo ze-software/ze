@@ -29,14 +29,14 @@ type webMarkupCase struct {
 var webMarkupGoldenCases = []webMarkupCase{
 	{
 		Name:  "host-hardware",
-		Build: func() template.HTML { return buildHostHardwareHTML(webGoldenHardwareSections()) },
+		Build: func() template.HTML { return buildHostHardwareHTML(&Renderer{}, webGoldenHardwareSections()) },
 	},
 	{
 		// buildHostHardwareData never returns an empty list: it substitutes an
 		// Info section. The empty branch is still markup an operator can be
 		// served, so it is captured rather than left to a reader to derive.
 		Name:  "host-hardware-empty",
-		Build: func() template.HTML { return buildHostHardwareHTML(nil) },
+		Build: func() template.HTML { return buildHostHardwareHTML(&Renderer{}, nil) },
 	},
 }
 

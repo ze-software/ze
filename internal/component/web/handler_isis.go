@@ -32,6 +32,7 @@ var (
 func (h *ISISHandlers) views() *snapshotHandlers {
 	return &snapshotHandlers{
 		dispatch:       h.Dispatch,
+		renderer:       h.Renderer,
 		errNoDispatch:  errISISDispatchUnavailable,
 		unavailableMsg: "isis engine unavailable",
 		jsonWarnMsg:    "isis view json write",

@@ -45,7 +45,35 @@ const (
 	portNumberEditor     = "an integer leaf reaches the number editor and shows its schema range"
 )
 
+// Phase 5 DELETES six components, so six units stop being captured. Each was
+// markup no page rendered, and each entry says what proved it dead.
+//
+// Two of them were ports of a template file NewRenderer never parsed. Their
+// markup had a second spelling in Go, diverged from it, and that spelling is
+// the one the operator reached. Deleting the orphan leaves the live one.
+const (
+	portDeadNeverParsed = "deleted: the port of a template file no renderer parsed, and the live " +
+		"markup it duplicated is a component of its own now"
+	portDeadNoProducer = "deleted: no producer builds the value it reads, so no page could render it"
+	portDeadNoCaller   = "deleted: no page rendered it, and none had since before this migration"
+)
+
 var webPortTemplates = map[string]string{
+	"terminal.html":            portDeadNeverParsed,
+	"notification_banner.html": portDeadNeverParsed,
+
+	"flex.html--flag.html":  portDeadNoProducer,
+	"flex.html--value.html": portDeadNoProducer,
+	"flex.html--block.html": portDeadNoProducer,
+
+	"component/cli_bar.html":                    portDeadNoCaller,
+	"component/dashboard_overview--full.html":   portDeadNoCaller,
+	"component/dashboard_overview--empty.html":  portDeadNoCaller,
+	"component/sidebar--nested.html":            portDeadNoCaller,
+	"component/sidebar--root.html":              portDeadNoCaller,
+	"component/sidebar_section--list.html":      portDeadNoCaller,
+	"component/sidebar_section--container.html": portDeadNoCaller,
+
 	"input/field_wrapper_start--bare.html":      webPortWrapperPair,
 	"input/field_wrapper_start--annotated.html": webPortWrapperPair,
 	"input/field_wrapper_end.html":              webPortWrapperPair,
@@ -61,9 +89,6 @@ var webPortTemplates = map[string]string{
 	"component/oob_error.html":                    portErrorSwapRemoved,
 	"component/oob_response--fields.html":         portAddEntryID + ", " + portNumberEditor,
 	"component/oob_response--monitor.html":        portAddEntryID + ", " + portNumberEditor,
-	"component/sidebar--nested.html":              portAddEntryID,
-	"component/sidebar--root.html":                portAddEntryID,
-	"component/sidebar_section--list.html":        portAddEntryID,
 	"component/workbench_form--fields.html":       portSecretMasked,
 	"component/workbench_table--add-actions.html": portEmptyRowColspan,
 	"component/workbench_table--empty.html":       portEmptyRowColspan,
@@ -73,16 +98,44 @@ var webPortTemplates = map[string]string{
 	"page/workbench.html--readonly.html":          portErrorToggle,
 }
 
-// webPortHandlers explains the ONE response whose content changed on purpose.
-// It is AC-5, recorded against A-2 in plan/spec-web-templ-migration.md.
+// portSnapshotScript is why the eight IS-IS and OSPF views moved. They are one
+// page shell, so one reason covers all eight.
+//
+// snapshotPageHTML (page_snapshot.go) wrote its EventSource as an inline
+// <script>. setSecurityHeaders (auth.go) puts script-src 'self' on every
+// response, so a browser refused that script and the live view never updated.
+//
+// The stream and the event name are data attributes now. assets/snapshot-live.js
+// reads them, and the page loads it from /assets/. The two JSEscapeString calls
+// went with the script, because neither value is JavaScript any more.
+const portSnapshotScript = "the snapshot page's live view is an external script, which script-src 'self' allows"
+
+// webPortHandlers explains each response whose content changed on purpose.
+// Every other difference is a finding.
+//
+// Nine responses moved, and each one moved to make a page work. Eight are the
+// snapshot views above. The ninth is AC-5, recorded against A-2 in
+// plan/spec-web-templ-migration.md.
 //
 // handleDashboardEventsPage (page_dashboard.go) ran each cell through
-// template.HTMLEscapeString, and handed the result to markup that escapes
+// template.HTMLEscapeString and handed the result to markup that escapes
 // again. An operator therefore read the JSON payload of an event as &#34;
 // rather than as a quote. The pre-port fixture holds that defect. The hand
-// escape is deleted, and templ escapes the value once.
+// escape is deleted, and templ escapes once.
+//
+// The rest of the table is header and class differences the port declared
+// before phase 5, each with its own reason above.
 var webPortHandlers = map[string]string{
 	"nav-show-events.txt": "AC-5: the event payload was escaped twice before the port",
+
+	"get-isis.txt":                 portSnapshotScript,
+	"get-isis-neighbors.txt":       portSnapshotScript,
+	"get-isis-database.txt":        portSnapshotScript,
+	"get-ospf.txt":                 portSnapshotScript,
+	"get-ospf-neighbors.txt":       portSnapshotScript,
+	"get-ospf-database.txt":        portSnapshotScript,
+	"get-ospf-database-opaque.txt": portSnapshotScript,
+	"get-ospfv3-database.txt":      portSnapshotScript,
 
 	"get-admin-subtree.txt":             portErrorToggle,
 	"get-admin.txt":                     portErrorToggle,

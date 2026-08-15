@@ -15,6 +15,7 @@ import (
 // build without the IKE engine states plainly that IPsec is not included
 // instead of importing internal/component/ike/engine (which would pin the
 // whole IKE subtree into the binary).
-func renderVPNPageContent(_ *Renderer, _ *http.Request, _ []string) (template.HTML, bool) {
-	return template.HTML(`<div class="workbench-empty">IKEv2/IPsec is not included in this build (ze_ike off).</div>`), true
+func renderVPNPageContent(renderer *Renderer, _ *http.Request, _ []string) (template.HTML, bool) {
+	return renderer.renderComponent("feature_disabled",
+		featureDisabled("IKEv2/IPsec is not included in this build (ze_ike off).")), true
 }

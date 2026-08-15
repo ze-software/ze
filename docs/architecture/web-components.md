@@ -1,17 +1,17 @@
 # Web Component Architecture
 
 <!-- source: internal/component/web/fragment.go -- HandleFragment, FragmentData -->
-<!-- source: internal/component/web/render.go -- Renderer, RenderFragment, fieldFor -->
+<!-- source: internal/component/web/render.go -- Renderer, renderComponent -->
 
 ## Design Principles
 
 The web interface follows three rules:
 
-1. **Server renders HTML, HTMX handles interaction.** No custom JavaScript creates UI elements. All HTML comes from Go templates. HTMX attributes on elements handle save, navigation, and error display. The only JS file (`cli.js`) handles Tab/? key interception for CLI autocomplete, which has no HTMX equivalent.
+1. **Server renders HTML, HTMX handles interaction.** No custom JavaScript creates UI elements. All HTML comes from templ components. HTMX attributes on elements handle save, navigation, and error display. The only JS file (`cli.js`) handles Tab/? key interception for CLI autocomplete, which has no HTMX equivalent.
 
-2. **One template per visual concern.** Each file in `templates/` renders exactly one thing. Adding a new input type means adding one file. The template filesystem mirrors the page structure.
+2. **One component per visual concern.** Each `.templ` file renders exactly one thing. Adding a new input type means adding one file and one line in the `fieldInputs` registry. The file names mirror the page structure.
 
-3. **One HTTP request updates multiple components.** HTMX out-of-band (OOB) swaps let a single response update the detail panel, sidebar, breadcrumb, commit bar, and error panel simultaneously.
+3. **One HTTP request updates multiple components.** HTMX out-of-band (OOB) swaps let a single response update the detail panel, Finder columns, breadcrumb, commit bar, and error panel.
 
 ## Page Layout
 
@@ -57,46 +57,83 @@ Hidden overlays (shown on demand):
 - `#diff-modal` -- diff review with Confirm Commit / Cancel
 - `#error-panel` -- collapsible right-side panel for validation errors
 
-## Template Filesystem
+## Component Filesystem
+
+Every unit below is a templ component in `internal/component/web`. The file name
+carries the visual concern, and `make generate` writes a `*_templ.go` beside
+each source.
 
 ```
-templates/
-  page/                          -- document shells
-    layout.html                  -- Finder grid layout, includes all component templates
-    workbench.html               -- workbench shell (default), grid: top bar / nav / workspace / commit bar
-    login.html                   -- login form
+page_layout.templ                -- pageLayout: Finder grid layout
+page_workbench.templ             -- pageWorkbench: workbench shell (default)
+page_login.templ                 -- pageLogin, loginOverlay, loginFullPage, loginForm
+page_snapshot.templ              -- snapshotPage: one command's JSON, live over SSE
 
-  component/                     -- page sections (one file = one visual region)
-    breadcrumb.html              -- breadcrumb_inner: path trail + CLI/GUI toggle
-    sidebar.html                 -- sidebar + sidebar_section: back link, headings, entries, add forms
-    detail.html                  -- detail: leaf fields via fieldFor(), hint when empty
-    cli_bar.html                 -- cli_bar: prompt + input + completions container
-    commit_bar.html              -- commit_bar: change count + Review/Discard buttons
-    error_panel.html             -- error_panel: collapsible panel with error list
-    diff_modal.html              -- diff_modal (closed) + diff_modal_open (with content)
-    oob_response.html            -- oob_response: HTMX partial (detail + OOB sidebar/breadcrumb)
-                                    full_content: initial page (sidebar + detail)
-    oob_save.html                -- oob_save_ok: OOB commit bar after successful save
-    oob_error.html               -- oob_error: OOB error item appended to error list
-    workbench_topbar.html        -- workbench_topbar: workbench top bar with breadcrumb + identity
-    workbench_nav.html           -- workbench_nav: workbench left navigation section list
-    tool_overlay.html            -- tool_overlay: V2 related-tool result/error/confirmation overlay (HTMX OOB swap into #tool-overlays)
+component_breadcrumb.templ       -- breadcrumbNav, topbarActions, breadcrumbInner
+component_detail.templ           -- detail: leaf fields, or the panel the path resolves to
+component_detail_kv.templ        -- detailKVTable, detailKVSection: label and value rows
+component_finder.templ           -- finder, finderOOB, finderItem
+component_list_table.templ       -- listTable, pendingMarker
+component_commit_bar.templ       -- commitBar: change count, Review and Discard
+component_error_panel.templ      -- errorPanel: collapsible panel with the error list
+component_diff_modal.templ       -- diffModal (closed), diffModalOpen (with content)
+component_oob_response.templ     -- oobResponse, fullContent, mainSplit
+component_oob_save.templ         -- oobSaveOK: OOB commit bar after a save
+component_oob_error.templ        -- oobError, errorItem
+component_notification_error.templ -- notificationError: OOB toast
+component_add_form_overlay.templ -- addFormOverlay: create one list entry
+component_path_bar.templ         -- pathBarInner: CLI path bar
+component_command_form.templ     -- commandForm
+component_command_result.templ   -- commandResult
+component_workbench_topbar.templ -- workbenchTopbar
+component_workbench_nav.templ    -- workbenchNav
+component_workbench_table.templ  -- workbenchTable
+component_workbench_form.templ   -- workbenchForm
+component_workbench_detail.templ -- workbenchDetail
+component_workbench_dashboard.templ, component_dashboard_health.templ,
+component_dashboard_events.templ
+component_log_live.templ, component_log_table.templ
+component_tool_ping.templ        -- toolPing, toolResult
+component_tool_bgp_decode.templ, component_tool_capture.templ,
+component_tool_metrics.templ
+component_tool_overlay.templ     -- toolOverlay: related-tool result, error or prompt
+component_system_panels.templ    -- systemResources, hostHardware
+component_iface_detail.templ     -- ifaceDetailConfig, ifaceDetailCounters, ifaceDetailMissing
+component_peer_detail.templ      -- peerDetailStatus, peerDetailActions
+component_page_shells.templ      -- pollPanel, portalFrame, notificationPre, featureDisabled
+component_cli_terminal.templ     -- cliPage, terminalContent, cliResponse, cliShowResponse,
+                                    configViewBody, configChildList, configKeyList,
+                                    configLeafTable, breadcrumbList, and the five
+                                    cli*OOB swaps
 
-  input/                         -- one file per YANG value type
-    wrapper.html                 -- field_wrapper_start/end: label, (i) tooltip, decoration, container div
-    bool.html                    -- input_bool: toggle button (on/off), hx-post on click
-    enum.html                    -- input_enum: <select> dropdown, hx-post on change
-    number.html                  -- input_number: <input type=number>, hx-post on blur
-    text.html                    -- input_text: <input type=text>, hx-post on blur
+input_wrapper.templ              -- fieldWrapper: label, tooltip, decoration, frame
+input_bool.templ                 -- inputBool: tristate toggle
+input_enum.templ                 -- inputEnum: select dropdown
+input_number.templ               -- inputNumber
+input_text.templ                 -- inputText, fieldValueTag
 
-  *.html                         -- legacy config templates (container, list, flex, etc.)
+config_container.templ, config_list.templ, config_inline_list.templ,
+config_freeform.templ, config_leaf_input.templ
+config_breadcrumb.templ, config_commit.templ, config_notification.templ,
+config_command.templ, config_command_form.templ
+
+l2tp_list.templ, l2tp_detail.templ
+notification_banner.templ        -- notificationBanner (SSE)
 ```
+
+`TestNoGoFileBuildsMarkup` (`internal/component/web/markup_check_test.go`) holds
+this list to its claim. It reads every Go source in the package and reports a
+string literal that builds a tag. A panel written in Go is therefore a red test
+rather than a file nobody added above.
+
+`fieldWrapper` takes the editor as a component, so the frame is one balanced
+element rather than the start and end pair it replaced.
 
 ## Decorators
 
 Leaves with the `ze:decorate` YANG extension show enriched display text alongside their value. The decorator name in the YANG schema (e.g., `ze:decorate "asn-name"`) maps to a registered `Decorator` implementation that resolves the annotation at render time.
 
-The `DecoratorRegistry` is set on the `Renderer` via `SetDecorators()`. When `RenderField()` or `ResolveDecorations()` runs, each field with a `DecoratorName` is resolved and its `Decoration` is set. The wrapper template renders the decoration in a `ze-field-decoration` span next to the label.
+The `DecoratorRegistry` is set on the `Renderer` via `SetDecorators()`. When `RenderField()` or `ResolveDecorations()` runs, each field with a `DecoratorName` is resolved and its `Decoration` is set. `fieldWrapper` renders the decoration in a `ze-field-decoration` span next to the label.
 
 Currently registered: `asn-name` (resolves AS numbers to organization names via Team Cymru DNS TXT queries). Errors are silently ignored for graceful degradation.
 
@@ -109,14 +146,18 @@ Currently registered: `asn-name` (resolves AS numbers to organization names via 
 All navigation uses HTMX. No full page reloads after initial load.
 
 ```
-User clicks "peer" in sidebar
+User clicks a Finder column entry
   Browser: hx-get="/fragment/detail?path=bgp/peer" hx-target="#detail"
   Server:  HandleFragment builds FragmentData for path ["bgp","peer"]
   Response: detail HTML (fields)
-            + <aside id="sidebar" hx-swap-oob="innerHTML"> (new sidebar children)
+            + <div class="finder-columns" id="finder" hx-swap-oob="outerHTML">
             + <nav id="breadcrumb" hx-swap-oob="innerHTML"> (updated breadcrumb)
-  HTMX:    replaces #detail content, OOB-swaps sidebar and breadcrumb
+  HTMX:    replaces #detail content, OOB-swaps the Finder columns and breadcrumb
 ```
+
+The left sidebar is gone. The Finder columns carry navigation now, and
+`FragmentData.Sidebar` survives only as the count `detail` reads to choose an
+empty state.
 
 ## Field Save Flow
 
@@ -157,16 +198,15 @@ User clicks "Cancel"
 The `fieldFor` template function renders a field by dispatching to the correct input template based on the YANG type. No if/else chain in templates.
 
 ```
-Go render.go:
-  fieldFor(FieldMeta{Type:"bool", ...})
-    -> executes "field_wrapper_start" (label + tooltip)
-    -> executes "input_bool" (toggle button with hx-post)
-    -> executes "field_wrapper_end" (closing div)
+Go field_input.go:
+  fieldComponent(FieldMeta{Type:"bool", ...})
+    -> fieldInputFor reads the fieldInputs registry and picks inputBool
+    -> fieldWrapper draws the label and tooltip around it
 
 Adding a new type:
-  1. Create templates/input/<type>.html with {{define "input_<type>"}}
-  2. Add case to valueTypeToFieldType() in fragment.go
-  3. Done -- fieldFor dispatches automatically
+  1. Create input_<type>.templ with `templ input<Type>(f FieldMeta)`
+  2. Add one line to the fieldInputs registry in field_input.go
+  3. Add case to valueTypeToFieldType() in fragment.go
 ```
 
 ## Data Types
@@ -176,12 +216,12 @@ Adding a new type:
 | Type | Purpose | Used by |
 |------|---------|---------|
 | `FragmentData` | All data for rendering any page state | HandleFragment |
-| `FieldMeta` | YANG metadata for one leaf field | fieldFor, input templates |
+| `FieldMeta` | YANG metadata for one leaf field | fieldComponent, the input_*.templ editors |
 | `FinderColumn` | One column in the Finder navigation (NamedItems, UnnamedItems, or Table) | finder template |
 | `ListTableView` | Table view for lists with YANG unique constraints | finder template |
 | `ListTableRow` | One entry row in a list table (key + editable cells) | finder template |
-| `SidebarSection` | One heading in the sidebar (with entries for lists) | sidebar template |
-| `SidebarEntry` | One key in a list section | sidebar_section template |
+| `SidebarSection` | One level of the config hierarchy, with its list entries | `detail`, which reads the count alone |
+| `SidebarEntry` | One key in a list section | `SidebarSection.Entries`, which no component reads |
 | `ChildEntry` | One navigation link | detail template (legacy) |
 | `ErrorData` | One error item | oob_error template |
 

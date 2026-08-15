@@ -503,6 +503,24 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 | `/tmp` for scratch files | Project `tmp/` (gitignored) | `ai/rules/testing.md` | `go test ./...` walks `/tmp`; project tmp is isolated |
 | `git add -A && git commit` | Commit via script the user triggers | `CLAUDE.md` prohibitions | Sessions share staging; cross-commits result |
 
+## Server-Rendered Markup
+
+- **Markup MUST live in a `.templ` file. A Go string literal MUST NOT build an HTML or SVG tag in `internal/component/web` or `internal/component/lg`.**
+- **A templ component MUST take a named struct. A `map[string]any` MUST NOT reach one, and a struct field wrapping one MUST NOT either.**
+- **A page MUST NOT carry an inline script, an inline style attribute, or an inline event handler. Both packages answer `'self'` for script, so a browser refuses an inline script and an inline handler and tells the server nothing. The rule covers the style attribute too, so both packages hold one rule and a header CAN be tightened without a hunt.**
+- **Behavior a page needs MUST reach it as a data attribute an external asset reads. That asset MUST exist in the embedded filesystem the handler serves.**
+- **A new exemption MUST carry its reason and MUST raise the exact count beside it. Each guard fixes the size of its table, so widening one is an edit a reader sees.**
+- **A gate that names one package MUST NOT be treated as covering its sibling. Each guard walks its own directory, and `lg` shipped two dead handlers under the web package's green.**
+
+| Guard | Where the rules live | What it refuses |
+|---|---|---|
+| `TestNoGoFileBuildsMarkup` | `internal/test/markupcheck`, `AssertNoMarkup` | a Go string literal that builds a tag. It reads the FORM of a tag, so `usage: set <leaf>` is not a finding, and it knows HTML's void elements, so a bare `<br>` is one. An exemption that explains nothing is a finding, and so is a table that changed size |
+| `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | an inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
+| `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | a `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
+| `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | a component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
+| `make ze-templ-generate-check` | `Makefile` | a `*_templ.go` its `.templ` source no longer produces |
+| `make ze-web-golden-check` | `Makefile` | a rendered byte that moved with no fixture behind it |
+
 ## Architecture Summary
 
 ### System

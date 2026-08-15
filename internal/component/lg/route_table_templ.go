@@ -111,14 +111,14 @@ func routeResults(v searchView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if v.Prefix != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"graph-controls\"><button class=\"graph-mode-btn\" data-mode=\"aspath\" data-prefix=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "     <div class=\"graph-controls\"><button class=\"graph-mode-btn\" data-mode=\"aspath\" data-prefix=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(v.Prefix)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 23, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 28, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -131,20 +131,20 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("/lg/graph?prefix=" + v.Prefix + "&mode=aspath")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 23, Col: 135}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 28, Col: 135}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" hx-target=\"#graph-container\" hx-swap=\"innerHTML\" onclick=\"document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')\">AS Path</button> <button class=\"graph-mode-btn\" data-mode=\"nexthop\" data-prefix=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" hx-target=\"#graph-container\" hx-swap=\"innerHTML\">AS Path</button> <button class=\"graph-mode-btn\" data-mode=\"nexthop\" data-prefix=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(v.Prefix)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 26, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 31, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -157,13 +157,13 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("/lg/graph?prefix=" + v.Prefix + "&mode=nexthop")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 26, Col: 137}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 31, Col: 137}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" hx-target=\"#graph-container\" hx-swap=\"innerHTML\" onclick=\"document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')\">Next Hop</button></div><div id=\"graph-container\"><span class=\"spinner\"></span> Loading topology...</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" hx-target=\"#graph-container\" hx-swap=\"innerHTML\">Next Hop</button></div><div id=\"graph-container\"><span class=\"spinner\"></span> Loading topology...</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -190,7 +190,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(routeDetailURL(r))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 47, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 52, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -213,7 +213,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(r.Prefix)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 56, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 61, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -226,7 +226,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(r.NextHop)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 57, Col: 21}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 62, Col: 21}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -239,7 +239,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(formatASPath(r.ASPath))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 58, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 63, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -252,7 +252,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(r.Origin)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 59, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 64, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -265,7 +265,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(formatNum(r.LocalPreference))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 60, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 65, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -278,7 +278,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(formatNum(r.MED))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 61, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 66, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -291,7 +291,7 @@ func routeResults(v searchView) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(r.PeerAddress)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 62, Col: 25}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/lg/route_table.templ`, Line: 67, Col: 25}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {

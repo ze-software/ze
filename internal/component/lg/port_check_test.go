@@ -21,10 +21,43 @@ import (
 // banner reaches the operator. Recorded in plan/journal/silent-fall-through.md.
 const lgPortSearchBanner = "the search error banner reached no rendered byte before the port"
 
+// The two below are one live outage the port left standing, and phase 5b
+// closed. Each graph-mode button carried an onclick that removed .active from
+// its siblings and set it on itself. setSecurityHeaders (server.go) answers
+// `default-src 'self'` with no script-src beside it, so default-src is what a
+// browser applies to script and it refuses an inline handler. The pressed
+// button therefore never looked pressed, in any browser.
+//
+// assets/graph-mode.js carries the class change now. Its listener sits on the
+// document, so it survives the HTMX swap that replaces the result panel and its
+// buttons.
+const (
+	// lgPortGraphScript covers every page that carries the looking-glass
+	// chrome. pageLayout (layout.templ) loads the new script beside the three
+	// already there, so each such page gains one element.
+	lgPortGraphScript = "pageLayout loads the graph-mode script, which default-src 'self' allows"
+	// lgPortGraphHandler covers the two buttons themselves.
+	lgPortGraphHandler = "the graph-mode buttons dropped an onclick no browser ran"
+)
+
+var lgPortTemplates = map[string]string{
+	"layout--peers.html":  lgPortGraphScript,
+	"layout--search.html": lgPortGraphScript,
+
+	"route_results--routes.html": lgPortGraphHandler,
+	"search--filled.html":        lgPortGraphHandler,
+}
+
 var lgPortHandlers = map[string]string{
-	"ui-search-empty.txt":   lgPortSearchBanner,
-	"ui-search-invalid.txt": lgPortSearchBanner,
-	"ui-search-result.txt":  lgPortSearchBanner,
+	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript,
+	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript,
+	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript,
+
+	"gated-peers-authorized.txt": lgPortGraphScript,
+	"ui-help.txt":                lgPortGraphScript,
+	"ui-peer-routes.txt":         lgPortGraphScript,
+	"ui-peers.txt":               lgPortGraphScript,
+	"ui-search-form.txt":         lgPortGraphScript,
 }
 
 // TestLGTemplPortFidelity compares every captured unit against the bytes it
@@ -42,6 +75,6 @@ var lgPortHandlers = map[string]string{
 func TestLGTemplPortFidelity(t *testing.T) {
 	ref := golden.PortRef()
 
-	golden.AssertPortFidelity(t, ref, filepath.Join("testdata", "golden"), golden.PortMarkup, nil)
+	golden.AssertPortFidelity(t, ref, filepath.Join("testdata", "golden"), golden.PortMarkup, lgPortTemplates)
 	golden.AssertPortFidelity(t, ref, filepath.Join("testdata", lgHandlerFixtures), golden.PortResponse, lgPortHandlers)
 }

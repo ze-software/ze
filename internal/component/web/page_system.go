@@ -280,30 +280,30 @@ func buildResourcesData() resourcesData {
 	}
 }
 
+// resourceRows is the property list the System Resources panel shows.
+func resourceRows(data resourcesData) []detailKV {
+	return []detailKV{
+		{Key: "Version", Value: data.Version},
+		{Key: "Uptime", Value: data.Uptime},
+		{Key: "CPU Cores", Value: strconv.Itoa(data.CPUCount)},
+		{Key: "GOMAXPROCS", Value: strconv.Itoa(data.GOMAXPROCS)},
+		{Key: "Goroutines", Value: strconv.Itoa(data.Goroutines)},
+		{Key: "Memory Allocated", Value: data.MemAlloc},
+		{Key: "Memory System", Value: data.MemSys},
+		{Key: "GC Runs", Value: strconv.Itoa(int(data.GCRuns))},
+		{Key: "Current Time", Value: data.CurrentTime},
+	}
+}
+
 // buildResourcesHTML renders the resources property list as HTML.
-func buildResourcesHTML(data resourcesData) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-resources" hx-get="/show/system/resources/" hx-trigger="every 5s" hx-swap="innerHTML">`)
-	b.Str(`<h2 class="wb-form-title">System Resources</h2>`)
-	b.Str(`<table class="wb-detail-kv">`)
-	writeKV(&b, "Version", data.Version)
-	writeKV(&b, "Uptime", data.Uptime)
-	writeKV(&b, "CPU Cores", strconv.Itoa(data.CPUCount))
-	writeKV(&b, "GOMAXPROCS", strconv.Itoa(data.GOMAXPROCS))
-	writeKV(&b, "Goroutines", strconv.Itoa(data.Goroutines))
-	writeKV(&b, "Memory Allocated", data.MemAlloc)
-	writeKV(&b, "Memory System", data.MemSys)
-	writeKV(&b, "GC Runs", strconv.Itoa(int(data.GCRuns)))
-	writeKV(&b, "Current Time", data.CurrentTime)
-	b.Str(`</table>`)
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+func buildResourcesHTML(renderer *Renderer, data resourcesData) template.HTML {
+	return renderer.renderComponent("system_resources", systemResources(resourceRows(data)))
 }
 
 // handleResourcesPage renders the System Resources property list.
-func handleResourcesPage() template.HTML {
+func handleResourcesPage(renderer *Renderer) template.HTML {
 	data := buildResourcesData()
-	return buildResourcesHTML(data)
+	return buildResourcesHTML(renderer, data)
 }
 
 // --- System > Host Hardware ---
@@ -493,47 +493,22 @@ func buildHostHardwareData() []hardwareSection {
 }
 
 // buildHostHardwareHTML renders the hardware inventory as HTML.
-func buildHostHardwareHTML(sections []hardwareSection) template.HTML {
-	var b textbuf.Buffer
-	b.Str(`<div class="wb-hardware" hx-get="/show/system/hardware/" hx-trigger="every 10s" hx-swap="innerHTML">`)
-	b.Str(`<h2 class="wb-form-title">Host Hardware</h2>`)
-
-	for _, sec := range sections {
-		b.Str(`<div class="wb-hardware-section">`)
-		fmt.Fprintf(&b, `<h3>%s</h3>`, template.HTMLEscapeString(sec.Title)) //nolint:errcheck // report output
-		b.Str(`<table class="wb-detail-kv">`)
-		for _, item := range sec.Items {
-			writeHardwareKV(&b, item)
-		}
-		b.Str(`</table>`)
-		b.Str(`</div>`)
-	}
-
-	if len(sections) == 0 {
-		b.Str(`<p>No hardware information available.</p>`)
-	}
-
-	b.Str(`</div>`)
-	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+func buildHostHardwareHTML(renderer *Renderer, sections []hardwareSection) template.HTML {
+	return renderer.renderComponent("host_hardware", hostHardware(sections))
 }
 
-// writeHardwareKV writes a key-value table row with optional CSS class for
-// visual indicators (NIC carrier status, thermal alarms).
-func writeHardwareKV(b *textbuf.Buffer, item HardwareItem) {
-	if item.CSSClass != "" {
-		b.Str(`<tr class="wb-hardware-`).Str(template.HTMLEscapeString(item.CSSClass)).Str(`">`)
-	} else {
-		b.Str(`<tr>`)
-	}
-	b.Str(`<td class="wb-detail-kv-key">`).Str(template.HTMLEscapeString(item.Key)).Str(`</td>`)
-	b.Str(`<td class="wb-detail-kv-val">`).Str(template.HTMLEscapeString(item.Value)).Str(`</td>`)
-	b.Str(`</tr>`)
+// hardwareRowClass is the class a hardware row takes when the hardware reports
+// a state, which is what colors a NIC carrier and a thermal alarm.
+func hardwareRowClass(state string) string {
+	var tb textbuf.Buffer
+
+	return tb.Str("wb-hardware-").Str(state).String()
 }
 
 // handleHostHardwarePage renders the Host Hardware inventory.
-func handleHostHardwarePage() template.HTML {
+func handleHostHardwarePage(renderer *Renderer) template.HTML {
 	sections := buildHostHardwareData()
-	return buildHostHardwareHTML(sections)
+	return buildHostHardwareHTML(renderer, sections)
 }
 
 // --- System > Sysctl Profiles ---

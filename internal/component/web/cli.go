@@ -160,26 +160,10 @@ func formatTerminalPrompt(mode string, path []string) string {
 // Layout matches the SSH CLI: output viewport fills available space, two-line
 // message area shows feedback and hints, prompt + input at the very bottom.
 func HandleCLIPage(renderer *Renderer) template.HTML {
-	prompt := formatTerminalPrompt(terminalModeConfig, nil)
-
-	var buf textbuf.Buffer
-	buf.Str(`<div class="cli-page">`)
-	buf.Str(`<div class="cli-output" id="cli-output"></div>`)
-	buf.Str(`<div class="cli-messages" id="cli-messages">`)
-	buf.Str(`<div class="cli-feedback" id="cli-feedback"></div>`)
-	buf.Str(`<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>`)
-	buf.Str(`</div>`)
-	buf.Str(`<div class="cli-input-line">`)
-	buf.Str(`<span class="terminal-prompt" id="terminal-prompt">`).Str(template.HTMLEscapeString(prompt)).Str(`</span>`)
-	buf.Str(`<input type="text" class="terminal-input" id="terminal-input" `)
-	buf.Str(`autocomplete="off" spellcheck="false" name="command">`)
-	buf.Str(`<div class="terminal-completions is-hidden" id="terminal-completions"></div>`)
-	buf.Str(`</div>`)
-	buf.Str(`<span id="cli-context-path" class="is-hidden"></span>`)
-	buf.Str(`<span id="cli-mode" class="is-hidden">`).Str(terminalModeConfig).Str(`</span>`)
-	buf.Str(`</div>`)
-
-	return template.HTML(buf.String()) //nolint:gosec // trusted template output
+	return renderer.renderComponent("cli_page", cliPage(cliPageData{
+		Prompt: formatTerminalPrompt(terminalModeConfig, nil),
+		Mode:   terminalModeConfig,
+	}))
 }
 
 // HandleCLIPageHTTP returns an HTTP handler for /cli/ that renders the CLI
@@ -292,7 +276,7 @@ var knownCLIVerbs = map[string]bool{
 // Returns an error notification for unrecognized verbs.
 func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string) {
 	if !knownCLIVerbs[cmd.Verb] {
-		writeCLINotification(w, "unknown command: "+cmd.Verb, "error")
+		writeCLINotification(w, renderer, "unknown command: "+cmd.Verb, "error")
 		return
 	}
 
@@ -300,9 +284,9 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbEdit:
 		handleCLIEdit(w, contextPath, cmd.Args, schema, renderer, mgr, username)
 	case verbSet:
-		handleCLISet(w, r, contextPath, cmd.Args, schema, mgr, username)
+		handleCLISet(w, r, contextPath, cmd.Args, schema, renderer, mgr, username)
 	case verbDelete:
-		handleCLIDelete(w, r, contextPath, cmd.Args, mgr, username)
+		handleCLIDelete(w, r, contextPath, cmd.Args, renderer, mgr, username)
 	case verbShow:
 		handleCLIShow(w, contextPath, cmd.Args, renderer, mgr, username)
 	case verbTop:
@@ -310,13 +294,13 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbUp:
 		handleCLIUp(w, contextPath, schema, renderer, mgr, username)
 	case verbCommit:
-		handleCLICommit(w, r, mgr, username)
+		handleCLICommit(w, r, renderer, mgr, username)
 	case verbDiscard:
-		handleCLIDiscard(w, r, mgr, username)
+		handleCLIDiscard(w, r, renderer, mgr, username)
 	case verbWho:
-		handleCLIWho(w, mgr)
+		handleCLIWho(w, renderer, mgr)
 	case verbHelp:
-		writeCLINotification(w, "commands: edit, set, delete, show, top, up, commit, discard, who, help", "info")
+		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top, up, commit, discard, who, help", "info")
 	}
 }
 
@@ -324,7 +308,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 // new breadcrumb + content for the target path.
 func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
 	if err := ValidatePathSegments(args); err != nil {
-		writeCLINotification(w, "invalid path: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "invalid path: "+err.Error(), "error")
 		return
 	}
 
@@ -333,7 +317,7 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 	// Validate the path exists in schema.
 	if len(newPath) > 0 {
 		if _, err := walkSchema(schema, newPath); err != nil {
-			writeCLINotification(w, "invalid path: "+err.Error(), "error")
+			writeCLINotification(w, renderer, "invalid path: "+err.Error(), "error")
 			return
 		}
 	}
@@ -341,7 +325,7 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 	tree := mgr.Tree(username)
 	viewData, err := buildConfigViewData(schema, tree, newPath)
 	if err != nil {
-		writeCLINotification(w, "view error: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "view error: "+err.Error(), "error")
 		return
 	}
 
@@ -354,14 +338,14 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 // is the leaf name, and any preceding tokens extend the context path.
 // The full path (context + args) must resolve to a specific list entry, not an
 // anonymous list access (which would create a "default" entry).
-func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, schema *config.Schema, mgr *EditorManager, username string) {
+func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
 	if len(args) < 2 { //nolint:mnd // set requires key and value
-		writeCLINotification(w, "usage: set <leaf> <value>", "error")
+		writeCLINotification(w, renderer, "usage: set <leaf> <value>", "error")
 		return
 	}
 
 	if err := ValidatePathSegments(args[:len(args)-1]); err != nil {
-		writeCLINotification(w, "invalid path", "error")
+		writeCLINotification(w, renderer, "invalid path", "error")
 		return
 	}
 
@@ -375,14 +359,14 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 		lookupPath := config.JoinPath(append(setPath, key)...)
 		if node, err := schema.Lookup(lookupPath); err == nil {
 			if node.Kind() != config.NodeLeaf {
-				writeCLINotification(w, key+" is not a leaf -- did you forget a value?", "error")
+				writeCLINotification(w, renderer, key+" is not a leaf -- did you forget a value?", "error")
 				return
 			}
 		}
 	}
 
 	if err := mgr.SetValue(username, setPath, key, value); err != nil {
-		writeCLINotification(w, "set error: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "set error: "+err.Error(), "error")
 		return
 	}
 
@@ -394,22 +378,22 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 // it deletes list entries and containers as well as leaves, matching the SSH
 // CLI's `delete` (cli.Model.cmdDelete). The leaf-only DeleteValue silently
 // no-ops on a list entry.
-func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args []string, mgr *EditorManager, username string) {
+func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args []string, renderer *Renderer, mgr *EditorManager, username string) {
 	if len(args) < 1 {
-		writeCLINotification(w, "usage: delete <name>", "error")
+		writeCLINotification(w, renderer, "usage: delete <name>", "error")
 		return
 	}
 
 	key := args[0]
 
 	if err := ValidatePathSegments([]string{key}); err != nil {
-		writeCLINotification(w, "invalid name", "error")
+		writeCLINotification(w, renderer, "invalid name", "error")
 		return
 	}
 
 	if err := mgr.DeleteByPath(username, contextPath, key); err != nil {
 		var tb textbuf.Buffer
-		writeCLINotification(w, tb.Str("delete error: ").Str(key).Str(": ").Err(err).String(), "error")
+		writeCLINotification(w, renderer, tb.Str("delete error: ").Str(key).Str(": ").Err(err).String(), "error")
 		return
 	}
 
@@ -417,10 +401,10 @@ func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args [
 }
 
 // handleCLIWho processes the "who" verb: lists active web editing sessions.
-func handleCLIWho(w http.ResponseWriter, mgr *EditorManager) {
+func handleCLIWho(w http.ResponseWriter, renderer *Renderer, mgr *EditorManager) {
 	sessions := mgr.ActiveSessions()
 	if len(sessions) == 0 {
-		writeCLINotification(w, "No active web sessions.", "info")
+		writeCLINotification(w, renderer, "No active web sessions.", "info")
 		return
 	}
 
@@ -429,31 +413,25 @@ func handleCLIWho(w http.ResponseWriter, mgr *EditorManager) {
 	for _, s := range sessions {
 		buf.Str("  ").Str(s).Byte('\n')
 	}
-	writeCLINotification(w, buf.String(), "info")
+	writeCLINotification(w, renderer, buf.String(), "info")
 }
 
 // handleCLIShow processes the "show" verb: renders config text in the content area.
 func handleCLIShow(w http.ResponseWriter, contextPath, args []string, renderer *Renderer, mgr *EditorManager, username string) {
 	if err := ValidatePathSegments(args); err != nil {
-		writeCLINotification(w, "invalid path: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "invalid path: "+err.Error(), "error")
 		return
 	}
 
 	showPath := append(append([]string{}, contextPath...), args...)
-	content := mgr.ContentAtPath(username, showPath)
-	crumbs := buildBreadcrumbs(showPath)
-	prompt := formatCLIPrompt(showPath)
 
-	var buf textbuf.Buffer
-	buildBreadcrumbOOB(&buf, crumbs)
-	buf.Str(`<main class="content-area" id="content-area">`)
-	buf.Str(`<pre class="config-output">`).Str(template.HTMLEscapeString(content)).Str(`</pre>`)
-	buf.Str(`</main>`)
-	buildPromptOOB(&buf, prompt)
-	buildPathBarOOB(&buf, showPath, renderer)
-	buildContextOOB(&buf, showPath)
-
-	writeHTML(w, buf.String())
+	writeHTML(w, string(renderer.renderComponent("cli_show_response", cliShowResponse(cliShowData{
+		Prompt:      formatCLIPrompt(showPath),
+		ContextPath: textbuf.Join(showPath, "/"),
+		Content:     mgr.ContentAtPath(username, showPath),
+		Crumbs:      buildBreadcrumbs(showPath),
+		PathBar:     &FragmentData{CLIPathSegments: buildPathBarSegments(showPath)},
+	}))))
 }
 
 // handleCLITop processes the "top" verb: navigates to root context.
@@ -461,7 +439,7 @@ func handleCLITop(w http.ResponseWriter, schema *config.Schema, renderer *Render
 	tree := mgr.Tree(username)
 	viewData, err := buildConfigViewData(schema, tree, nil)
 	if err != nil {
-		writeCLINotification(w, "view error: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "view error: "+err.Error(), "error")
 		return
 	}
 
@@ -478,7 +456,7 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 	tree := mgr.Tree(username)
 	viewData, err := buildConfigViewData(schema, tree, newPath)
 	if err != nil {
-		writeCLINotification(w, "view error: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "view error: "+err.Error(), "error")
 		return
 	}
 
@@ -486,10 +464,10 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 }
 
 // handleCLICommit processes the "commit" verb.
-func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager, username string) {
+func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string) {
 	result, err := mgr.Commit(username)
 	if err != nil {
-		writeCLINotification(w, "commit error: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return
 	}
 
@@ -501,7 +479,7 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager,
 			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
 		}
 
-		writeCLINotification(w, msg.String(), "error")
+		writeCLINotification(w, renderer, msg.String(), "error")
 
 		return
 	}
@@ -510,9 +488,9 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager,
 }
 
 // handleCLIDiscard processes the "discard" verb.
-func handleCLIDiscard(w http.ResponseWriter, r *http.Request, mgr *EditorManager, username string) {
+func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string) {
 	if err := mgr.Discard(username); err != nil {
-		writeCLINotification(w, "discard error: "+err.Error(), "error")
+		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
 		return
 	}
 

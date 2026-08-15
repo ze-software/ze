@@ -142,7 +142,7 @@ func TestWebCLIBarDeleteRemovesListEntry(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/cli", http.NoBody)
-	handleCLIDelete(rec, req, []string{"bgp", "peer"}, []string{"london"}, mgr, "alice")
+	handleCLIDelete(rec, req, []string{"bgp", "peer"}, []string{"london"}, &Renderer{}, mgr, "alice")
 
 	assert.Nil(t, peerEntries(t, mgr, "alice")["london"],
 		"CLI bar delete must remove the list entry; response: %s", rec.Body.String())

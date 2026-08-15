@@ -30,6 +30,7 @@ type viewSpec struct {
 // no engine state of their own (they are read-only over dispatched snapshots).
 type snapshotHandlers struct {
 	dispatch       CommandDispatcher
+	renderer       *Renderer
 	errNoDispatch  error
 	unavailableMsg string // "isis engine unavailable" -- the 503 body
 	jsonWarnMsg    string // "isis view json write" -- the write-error log message
@@ -75,7 +76,7 @@ func (h *snapshotHandlers) handleView(v viewSpec) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page := snapshotPageHTML(v.title, v.streamPath, v.eventName, string(payload), h.dataID)
+		page := snapshotPageHTML(h.renderer, v.title, v.streamPath, v.eventName, string(payload), h.dataID)
 		if _, werr := w.Write([]byte(page)); werr != nil {
 			return
 		}

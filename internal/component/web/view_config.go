@@ -8,22 +8,6 @@ package web
 // class list, a URL and a label are values, so Go builds them and the markup
 // holds no tag literal (AC-7 of plan/spec-web-templ-migration.md).
 
-// configFlexData is what configFlex renders. A flex node is a flag, a single
-// value, or a block, and which one is decided by whether Value and Children are
-// set.
-//
-// NOTHING BUILDS ONE YET. configViewComponent (handler_config_leaf.go) resolves
-// config.NodeFlex to no component, because the config view handler carries a
-// ConfigViewData and that type holds none of these fields. Recorded in
-// plan/journal/silent-fall-through.md.
-type configFlexData struct {
-	Name       string
-	Value      string
-	LeafField  LeafField
-	LeafFields []LeafField
-	Children   []ChildEntry
-}
-
 // configBreadcrumbData is what configBreadcrumb renders.
 type configBreadcrumbData struct {
 	BackURL  string

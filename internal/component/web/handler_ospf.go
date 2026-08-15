@@ -36,6 +36,7 @@ var (
 func (h *OSPFHandlers) views() *snapshotHandlers {
 	return &snapshotHandlers{
 		dispatch:       h.Dispatch,
+		renderer:       h.Renderer,
 		errNoDispatch:  errOSPFDispatchUnavailable,
 		unavailableMsg: "ospf engine unavailable",
 		jsonWarnMsg:    "ospf view json write",

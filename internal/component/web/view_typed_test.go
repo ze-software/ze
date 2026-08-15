@@ -12,7 +12,7 @@ import (
 // webComponentCount is the number of templ components the web package declares.
 // The check below would pass over an empty set, so it counts what it inspected
 // and fails when the walk finds nothing. Raise it with each component added.
-const webComponentCount = 72
+const webComponentCount = 93
 
 // TestWebViewDataIsTyped reads the generated components and requires every
 // parameter to be a type the compiler checks a field name against.

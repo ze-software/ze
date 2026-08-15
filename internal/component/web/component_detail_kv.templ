@@ -1,0 +1,26 @@
+package web
+
+// The wb-detail-kv table, and the section wrapper three workbench pages put
+// around it: System Resources and Host Hardware (page_system.go), the interface
+// detail tabs (page_interfaces.go) and the BGP peer detail tabs
+// (page_bgp_peers.go).
+//
+// A row is written on one line because its cells carry no whitespace between
+// them. templ drops whitespace between two block elements, so the newlines
+// around the loop reach no rendered byte, and td is a block element here.
+
+// detailKVTable draws one label-and-value row per entry.
+templ detailKVTable(rows []detailKV) {
+	<table class="wb-detail-kv">
+		for _, row := range rows {
+			<tr><td class="wb-detail-kv-key">{ row.Key }</td><td class="wb-detail-kv-val">{ row.Value }</td></tr>
+		}
+	</table>
+}
+
+// detailKVSection is the table inside the section a detail tab shows.
+templ detailKVSection(rows []detailKV) {
+	<div class="wb-detail-section">
+		@detailKVTable(rows)
+	</div>
+}

@@ -43,7 +43,7 @@ func pageLayout(v layoutView, content templ.Component) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - Ze Looking Glass</title><link rel=\"stylesheet\" href=\"/lg/assets/style.css\"><script src=\"/lg/assets/htmx.min.js\"></script><script src=\"/lg/assets/sse.js\"></script><script src=\"/lg/assets/theme.js\"></script></head><body><header><div class=\"header-row\"><nav class=\"tab-bar\"><a href=\"/lg/peers\" hx-get=\"/lg/peers\" hx-target=\"#content\" hx-push-url=\"true\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - Ze Looking Glass</title><link rel=\"stylesheet\" href=\"/lg/assets/style.css\"><script src=\"/lg/assets/htmx.min.js\"></script><script src=\"/lg/assets/sse.js\"></script><script src=\"/lg/assets/theme.js\"></script><script src=\"/lg/assets/graph-mode.js\"></script></head><body><header><div class=\"header-row\"><nav class=\"tab-bar\"><a href=\"/lg/peers\" hx-get=\"/lg/peers\" hx-target=\"#content\" hx-push-url=\"true\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

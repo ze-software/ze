@@ -92,11 +92,10 @@ func TestDashboardOverviewEmptyState(t *testing.T) {
 }
 
 func TestDashboardOverviewAutoRefresh(t *testing.T) {
-	// The dashboard overview is rendered by the workbench_dashboard template
-	// at the root path. The template contains hx-trigger for auto-refresh.
-	// The existing template uses static panels; auto-refresh is added via
-	// the dashboard_overview template used by the health sub-page.
-	// For v1, verify the dashboard renders with the expected panels.
+	// workbenchDashboard (component_workbench_dashboard.templ) renders the root
+	// path, and its panels are static. Auto-refresh reaches them through the
+	// hx-trigger the health sub-page carries.
+	// This test verifies the dashboard renders with the expected panels.
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, nil)
 

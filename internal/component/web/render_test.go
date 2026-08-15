@@ -13,9 +13,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-)
 
-var inlineHandlerPattern = regexp.MustCompile(`\s(?:on[a-z]+|hx-on(?:::|:)[^=]*)=`)
+	"github.com/ze-software/ze/internal/test/markupcheck"
+)
 
 // templateParseCall names the html/template entry points that build a template
 // at run time. A package that calls one of them parses markup again.
@@ -139,57 +139,18 @@ func assertPackageParsesNoTemplate(t *testing.T) {
 //
 // IT COUNTS WHAT IT VISITED. The port moved every file from templates/*.html to
 // *.templ. A walk filtered on the old suffix would pass over zero files and
-// report green (AC-6 of plan/spec-web-templ-migration.md). The floor below is
+// report green (AC-6 of plan/spec-web-templ-migration.md). webTemplFileFloor is
 // what makes the pass mean something.
+//
+// test-relax: the three assertions and the floor moved to
+// markupcheck.InlineFindings unchanged. The looking glass owes the same
+// property and carried no check at all. Its route_table.templ shipped two
+// onclick handlers that lg's own CSP refuses. Copying this body there would
+// have been the second copy of a scan both packages need. Coverage is wider
+// after the move, never narrower. markupcheck_test proves each of the three
+// forms reds on its own.
 func TestTemplatesAvoidInlineScriptAndStyle(t *testing.T) {
-	scan := func(name string, content string) {
-		if strings.Contains(content, "<script>") {
-			t.Errorf("%s contains inline <script> block", name)
-		}
-		if strings.Contains(content, "style=") {
-			t.Errorf("%s contains inline style attribute", name)
-		}
-		if inlineHandlerPattern.MatchString(content) {
-			t.Errorf("%s contains inline event handler or hx-on attribute", name)
-		}
-	}
-
-	visited := 0
-
-	trees := []struct {
-		fsys fs.FS
-		root string
-		ext  string
-	}{
-		{fsys: os.DirFS("."), root: ".", ext: ".templ"},
-	}
-
-	for _, tree := range trees {
-		err := fs.WalkDir(tree.fsys, tree.root, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() || !strings.HasSuffix(path, tree.ext) {
-				return nil
-			}
-			contentBytes, readErr := fs.ReadFile(tree.fsys, path)
-			if readErr != nil {
-				return readErr
-			}
-			visited++
-			scan(path, string(contentBytes))
-			return nil
-		})
-		if err != nil {
-			t.Fatalf("walk %s for %s: %v", tree.root, tree.ext, err)
-		}
-	}
-
-	// The count is the guard against a vacuous pass. It is a floor, not the
-	// exact number, so porting one file to templ does not red it.
-	if visited < 40 {
-		t.Errorf("scanned %d markup files; the package holds far more, so the walk found nothing to read", visited)
-	}
+	markupcheck.AssertNoInlineScriptOrStyle(t, ".", webTemplFileFloor)
 }
 
 // TestHandleCLIPageAvoidsInlineStyle verifies generated CLI HTML also obeys strict CSP.

@@ -1,0 +1,29 @@
+package web
+
+// The BGP peer detail tabs. buildBGPPeerDetailData (page_bgp_peers.go) fills
+// them.
+
+// peerDetailStatus is the Status tab. Every value it shows is a dash until a
+// BGP engine runs, and the hint says so rather than leaving the operator to
+// read the dashes as zero.
+templ peerDetailStatus(rows []detailKV) {
+	<div class="wb-detail-section">
+		@detailKVTable(rows)
+		<p class="wb-detail-hint">Operational data requires a running BGP engine.</p>
+	</div>
+}
+
+// peerDetailActions is the Actions tab. Both buttons post the peer's config
+// path to the tool runner, and teardown asks for a confirmation first.
+//
+// The two buttons sit on one line because a button is an inline element: a
+// newline between them is one space the browser draws.
+templ peerDetailActions(v peerActionsData) {
+	<div class="wb-detail-section">
+		<div class="wb-detail-actions">
+			if v.HasRemoteIP {
+				<button class="wb-detail-tool" hx-post="/tools/related/run" hx-vals={ peerToolVals("peer-flush", v.ContextPath) } type="button">Flush</button><button class="wb-detail-tool wb-detail-tool--danger" hx-post="/tools/related/run" hx-vals={ peerToolVals("peer-teardown", v.ContextPath) } hx-confirm={ peerTeardownConfirm(v.Name) } type="button">Teardown</button>
+			}
+		</div>
+	</div>
+}
