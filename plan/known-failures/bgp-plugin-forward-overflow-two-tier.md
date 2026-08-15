@@ -18,16 +18,44 @@ been legitimate, and the spec said so itself.
 |---------|-------|
 | Tool | `scripts/dev/stress-repro.py "bgp plugin" --test forward-overflow-two-tier --any-failure` |
 | Invocations | 80 |
-| Parallelism | 8 |
-| CPU/GC burners | 32, on a 16-CPU host |
+| Concurrent `ze-test` processes | 8 (tool default, `max(2, NCPU//2)`, NOT chosen) |
+| CPU/GC burners | 32 (tool default, `2*NCPU`, NOT chosen) |
+| `ZE_PLUGIN_PARALLEL` | **never set.** See "What the attempt did NOT do" |
+| Run alone (no burners, no concurrency) | **never run** |
 | Race build | no |
 | Result | **not reproduced** |
 | Capture | `tmp/stress-repro/bgp-plugin-forward-overflow-two-tier-20260815-134636.log` (scratch, not durable) |
 | Test variant | the working tree's, NOT the 2026-08-08 one. See "What was actually run" below |
 
 `--any-failure` was set, so ANY non-zero exit would have counted, not only a
-crash signature. The burner and parallelism profile is the one that surfaced
-the other failures in this suite on 2026-08-08.
+crash signature. That part of the attempt is as sensitive as this tool gets.
+
+## What the attempt did NOT do
+
+The spec named two conditions, and neither was run. Recording this is the whole
+point of the shard, so it is stated before the result is used.
+
+**`ZE_PLUGIN_PARALLEL` was never set.** The spec's Task named it directly as the
+setting to try. `run_once` (`scripts/dev/stress-repro.py`) builds the child
+environment with `ze.bin`, `ze.test.bin`, `ZE_TEST_NO_BUILD` and `GOTRACEBACK`
+only, so no invocation of this tool can set it. `--parallel` is a DIFFERENT
+knob: its own help calls it "concurrent invocations per round", and it is the
+`max_workers` of the `ThreadPoolExecutor` that launches whole `ze-test`
+processes. Plugin-level parallelism inside one daemon was never raised.
+
+**It was never run alone.** Both captures used burners and concurrency. The
+Task asked for the isolated case first, and no run answers it.
+
+**The two numbers were defaults, not a reconstruction.** `parallel = args.parallel
+or max(2, ncpu // 2)` and `nburn = args.burners if args.burners else 2 * ncpu`.
+On a 16-CPU host that is exactly the 8 and 32 in the table. An earlier draft of
+this shard called them "the profile that surfaced the other 2026-08-08
+failures". That was not true and has been removed: nothing was carried over
+from those runs.
+
+So the negative is real but NARROWER than the spec asked for. It says this test
+survived 80 oversubscribed process-parallel runs. It says nothing about the
+isolated case, and nothing about raised plugin parallelism.
 
 ## What was actually run, and how far the negative reaches
 
@@ -43,10 +71,17 @@ another session's config-grammar migration. It is more than a rename:
 | `attach process adj-rib-in` added to both peers | adj-rib-in now attaches by config instead of by `--plugin` |
 | `exec=ze --plugin ze.bgp-adj-rib-in -` became `exec=ze -` | the plugin set comes from the config, not the command line |
 
-What did NOT change: all 50 `ordered=` needles, `expect=exit:code=0`, every
-`reject=` line, and the 20s timeout. So the assertions the 2026-08-08 failure
-tripped are intact and were evaluated 80 times. The forwarding path under test
-is the same one; its observers and its peer roles are not.
+What did NOT change TEXTUALLY: all 50 `ordered=` needles, `expect=exit:code=0`,
+every `reject=` line, and the 20s timeout. The `ordered=` needles are the ones
+the 2026-08-08 failure tripped, and they were evaluated 80 times. The forwarding
+path under test is the same one; its observers and its peer roles are not.
+
+One caveat on the `reject=` lines, unverified: the detached `overflow-test`
+plugin is also the source of the `ZE-OBSERVER-FAIL` output and the deterministic
+drain. Whether a declared-but-unattached external plugin still starts decides
+whether those lines stayed LIVE or merely stayed present. Nobody established it.
+The `ordered=` claim does not depend on this; the "every `reject=` line" claim
+does.
 
 This is why the next step below names the committed variant. A negative measured
 on a changed fixture is a real negative about a real test, and it is not
@@ -74,18 +109,22 @@ proposes making the tool refuse rather than rely on the caller remembering.
 
 ## Next step
 
-Not "run it again the same way": that has been done and it answers no. The next
-run that could say something new is one of these, in this order.
+Not "run it again the same way": that has been done and it answers no. The first
+two entries are not new ideas, they are the spec's own conditions, still unrun.
 
-1. Against the COMMITTED variant of the `.ci`, which is the fixture that actually
-   failed. The 80 invocations ran the working tree's migrated copy (above), so
-   this is the cheapest run that closes a real gap rather than adding volume.
-2. Under `--race`, which changes scheduling enough to surface ordering bugs that
+1. With `ZE_PLUGIN_PARALLEL` well above the core count. This is the setting the
+   spec named and the attempt never set. `stress-repro.py` cannot set it, so
+   export it around the runner, or run `ze-test` directly.
+2. Alone: one invocation, no burners, no concurrency. The Task asked for the
+   isolated case and no run answers it.
+3. Against the COMMITTED variant of the `.ci`, which is the fixture that actually
+   failed. The 80 invocations ran the working tree's migrated copy (above).
+4. Under `--race`, which changes scheduling enough to surface ordering bugs that
    a plain build hides, and which this attempt did not use.
-3. On Linux rather than darwin. The original failure came from GitHub Actions,
+5. On Linux rather than darwin. The original failure came from GitHub Actions,
    and the two platforms differ in loopback bind timing, which this suite has
    already been bitten by elsewhere.
-4. With `--burners` and `--parallel` raised beyond the settings above, which is
+6. With `--burners` and `--parallel` raised beyond the defaults above, which is
    what the tool's own miss message suggests.
 
 Until one of those reproduces it, there is nothing to root-cause. The test is
