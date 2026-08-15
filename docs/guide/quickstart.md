@@ -212,12 +212,28 @@ block pointed at the local sink, so ze dials `127.0.0.1:1179` instead of
                 port 1179
             }
             local {
-                ip 127.0.0.1
+                ip 127.0.0.2
             }
         }
 ```
 
 The sink's `--asn 65001` matches the peer's `session { asn { remote 65001 } }`.
+
+**The two ends carry different addresses on purpose, even here.** One machine can
+hold both, so a loopback demo is the one place a session can be written with one
+address at each end, and BGP does not work that way: `next-hop self` then puts the
+peer's OWN address on the wire, and Ze refuses to advertise that, because RFC 4271
+Section 5.1.3 forbids telling a peer to reach a destination through itself. The
+session still establishes, so the symptom is routes that never arrive rather than
+an error. On Linux the whole 127.0.0.0/8 range is available; on macOS add the
+alias once with `sudo ifconfig lo0 alias 127.0.0.2`, which `make ze-setup` also
+does. The refusal is `originatedNextHopIsPeerOwn`
+(`internal/component/bgp/reactor/forward_next_hop.go`), and `precomputeNextHop`
+(`internal/component/bgp/reactor/peer_forward_facts.go`) is what resolves
+`next-hop self` to the local address.
+
+The sink accepts whatever it is sent, so this demo works either way until you
+announce a route; the address split is what keeps it working when you do.
 
 ## Stop
 

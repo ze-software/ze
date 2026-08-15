@@ -1696,7 +1696,23 @@ class API:
                 f">= {families}; the leak count below would under-report: {dest}"
             )
 
-        leaked = int(dest.get("updates-sent", 0) or 0) - eor_sent
+        sent = int(dest.get("updates-sent", 0) or 0)
+        leaked = sent - eor_sent
+        if leaked < 0:
+            # Not a leak, and saying "leak" here sends the reader hunting for a
+            # route that never moved. The two counters disagree: fewer UPDATEs
+            # were written than markers were counted. That is unreachable while
+            # the marker is also an UPDATE, so it means the build under test has
+            # changed which frames count as which -- the ordinary case being a
+            # deliberate mutation, since this helper is written to be run against
+            # one. Report the pair and say what it is not.
+            runtime_fail(
+                f"destination peer {peer_addr} reports updates-sent={sent} below "
+                f"eor-sent={eor_sent}. Nothing reached it beyond the marker, so "
+                f"this is NOT a leak: the two counters disagree, which on a "
+                f"mutated build means the mutation changed how a frame is "
+                f"counted: {dest}"
+            )
         if leaked != 0:
             runtime_fail(
                 f"{leaked} UPDATE(s) beyond the End-of-RIB reached {peer_addr}, "

@@ -320,6 +320,15 @@ Containers (like `capability`, `timer`) deep-merge at key level -- both group an
 
 #### Example
 
+Every peer below gives `remote` and `local` DIFFERENT addresses, and that is a
+property of BGP rather than a style choice: the two ends of one session are two
+speakers, so they hold two addresses. A configuration naming one address for both
+describes a session that cannot exist, and Ze refuses to advertise a route whose
+NEXT_HOP is the peer's own address (RFC 4271 Section 5.1.3), so such a peer
+receives nothing while looking established. The refusal is
+`originatedNextHopIsPeerOwn` and `egressNextHopIsPeerOwn`, both in
+`internal/component/bgp/reactor/forward_next_hop.go`.
+
 ```
 bgp {
     router-id 1.2.3.4
@@ -332,14 +341,14 @@ bgp {
         peer router-east {
             connection {
                 remote { ip 10.0.0.1; }
-                local { ip 10.0.0.1; }
+                local { ip 10.0.0.254; }
             }
             session { asn { remote 65001; } }
         }
         peer client-b {
             connection {
                 remote { ip 10.0.0.2; }
-                local { ip 10.0.0.2; }
+                local { ip 10.0.0.254; }
             }
             session { asn { remote 65002; } }
             timer { receive-hold-time 90; }    # Overrides group's 180
@@ -424,7 +433,7 @@ bgp {
             description <string>;
             timer { receive-hold-time <seconds>; send-hold-time <seconds>; connect-retry <seconds>; }
             rib { adj { in <bool>; out <bool>; } out { ... } }
-            process <plugin-name> { ... }
+            attach process <plugin-name> { ... }
             update { ... }
         }
     }
@@ -480,7 +489,7 @@ Peer configuration is organized into nested containers by concern.
 | `description` | string | Peer description |
 | `timer { receive-hold-time; send-hold-time; connect-retry; }` | container | Timer settings (defaults: 90s, 0/auto, 120s) |
 | `rib { adj { in; out; } out { ... } }` | container | RIB configuration (adj-rib-in/out, outbound batching) |
-| `process <name> { ... }` | list | Plugin process bindings |
+| `attach process <name> { ... }` | list | Plugin process bindings |
 | `update { ... }` | container | Route announcements |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, containers connection, session, behavior -->
 
@@ -608,7 +617,7 @@ The `direction` and `limit` leaves on the container apply to all negotiated fami
 
 ```
 # Named process binding (preferred)
-process <plugin-name> {
+attach process <plugin-name> {
     content {
         encoding json;       # json | text (default: inherit from plugin)
         format parsed;       # parsed | raw | full (default: parsed)
@@ -629,13 +638,42 @@ process <plugin-name> {
 | `keepalive` | Keepalive messages |
 | `refresh` | Route refresh requests |
 | `state` | Peer up/down events |
-| `sent` | Sent UPDATE confirmations |
 | `negotiated` | Capability negotiation results |
+| `*` | Every event type, in both directions |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list receive, ze:validate receive-event-type -->
 
 Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that can also appear in receive lists. These are validated at runtime against the plugin registry.
 
-**`all` is not accepted.** List event types explicitly. Using `all` would silently include new event types as plugins register them, making config behavior depend on which plugins are loaded. This was an ExaBGP compatibility feature that has been removed.
+**Direction is part of the type.** A plain type means both directions. A `-received` or `-sent` suffix means one: `receive [ update-received ]` asks for the UPDATEs the peer sends to ze, and `receive [ update-sent ]` asks for the ones ze sends to the peer. The two together mean both, which is what the plain type already says.
+
+A token is resolved against the event registry whole before any suffix is cut, so a plugin type whose name ends in `-sent` keeps its name and is never read as a direction.
+
+**`sent` on its own is not a type** and is refused. It named a direction, and the direction now belongs to the type it applies to, so `receive [ sent state ]` becomes `receive [ update-sent state ]`.
+
+**`all` is not accepted.** `*` says the same thing without reading like a type name, and it says it deliberately: a config that names `*` accepts every event type a plugin registers later, which is exactly what the word `all` used to do by accident.
+
+**`receive` decides delivery, and an absent block feeds nothing.** ze builds a
+peer-to-process index from the resolved settings of every peer and consults it
+on each peer-scoped event. A process is handed an event when the peer's block
+grants that type in that direction AND the process subscribed to it. A peer
+that states no block for a running process feeds it nothing, whatever the
+process asked for at startup. The two halves are reported when they disagree,
+at plugin ready and after every config apply.
+
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
+<!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
+
+**A group's block reaches its members, and a member's list replaces it.**
+`attach process` lives in the `peer-fields` grouping, so it is legal at
+`bgp/group`, `bgp/group/peer` and `bgp/peer`. `receive` and `send` are
+leaf-lists outside `cumulativePaths`, so a member that restates a process block
+REPLACES the group's list for that member rather than adding to it. The index
+is built after that merge, which is why a peer a dynamic group creates carries
+its group's blocks under the address its connection arrived from: no config
+document names its generated `dyn-<address>` identity, and none needs to.
+
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
 
 #### Send enum values
 
@@ -643,12 +681,55 @@ Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that c
 |-------|-------------|
 | `update` | Can inject routes |
 | `refresh` | Can request route refresh |
-| `enhanced-refresh` | Can send BORR/EORR markers (RFC 7313, always paired) |
+| `*` | Every message type, including every one a plugin registers later |
+<!-- source: internal/core/bgp/events/events.go -- BaseSendTypes -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list send, ze:validate send-message-type -->
 
-**`all` is not accepted.** List send types explicitly.
+`update` and `refresh` are the two BASE types. A plugin registers more through
+`Registration.SendTypes`, and naming one in a send list auto-loads the plugin
+that enables it: `send [ enhanced-refresh ]` starts bgp-route-refresh, which
+sends the RFC 7313 BoRR and EoRR markers. `*` names no type, so it auto-loads
+nothing.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.SendTypes -->
+
+A direction suffix has no meaning in a send list, because every send type is sent.
+
+**`all` is not accepted.** List send types explicitly, or write `*`.
 
 Invalid enum values are rejected at parse time.
+
+**`send` is enforced, not documentation.** A process reaches only the peers that
+attach it with the type the command puts on the wire. A peer the command names
+but the permission refuses is dropped and reported; a command whose every peer
+refuses fails. `update` covers an announce, a withdrawal, an End-of-RIB marker, a
+named commit, a cache forward and a stored-route relay; `refresh` covers a route
+refresh, a BoRR, an EoRR and a soft clear. A command an operator types is not a
+process and is not gated.
+
+The reactor applies it in two places, and a peer-naming command reaches one of
+them. Six commands resolve a peer SELECTOR and are gated there. Four more name
+their peers directly, without a selector, and each applies the same check:
+`cache forward`, the `forward-cached` and `relay-stored-route` plugin RPCs, and
+`peer <addr> raw`.
+
+**Raw is the one exception to the type table, and it is gated on ATTACHMENT.**
+`bgp peer <addr> raw ...` carries a whole BGP message the caller chose, an OPEN
+or a NOTIFICATION included, so no `send` type describes it and the `send` list
+has no word to write. What ze requires instead is that the peer attaches the
+process at all: a bare `attach process <name> { }` is enough, and a peer that
+names the process nowhere refuses it. Write the block for any program that
+injects raw messages.
+
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendOrigin, filterPermittedPeers -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
+
+**A truthful `send [ update ]` moves the peer's End-of-RIB.** The session's
+initial sync counts the bindings that carry it and holds the marker until each
+one has sent `plugin session ready`, so the marker means what RFC 4724 Section 2
+says it means. A program granted the permission that never sends that signal
+delays the marker by the sync timeout instead. ze's own plugins send it
+(bgp-rib, bgp-watchdog); a plugin author who originates routes at peer-up
+should.
 
 ---
 
