@@ -9,7 +9,7 @@ commands move from `planned` to `shipped` without a fresh design pass.
 This is a historical roadmap seed, not a user reference and not the current
 cross-vendor migration surface. For what ze ships today, see
 `docs/guide/command-reference.md`. For generated Ze-to-vendor lookup, use the
-[website Command Equivalents page](https://ze-software.net/command-equivalents/).
+[website Command Equivalents page](https://ze-software.net/reference/command-equivalents/).
 Code-tree readers can inspect the maintained data and generator on the
 `gh-pages` branch:
 [`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/gh-pages/data/command-equivalents.json)

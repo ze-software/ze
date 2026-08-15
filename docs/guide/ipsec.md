@@ -74,7 +74,7 @@ vpn {
 }
 ```
 
-Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated [configuration reference](../../config-reference/#xfrm-interfaces) documents the XFRM interface leaves.
+Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the XFRM interface leaves.
 
 ## IKE features
 
@@ -468,7 +468,7 @@ Health monitoring reports certificate expiry as a warning at 30 days and an erro
 
 ## XFRM interfaces
 
-XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated [configuration reference](../../config-reference/#xfrm-interfaces) documents the interface surface.
+XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the interface surface.
 
 ## CLI
 
@@ -514,7 +514,7 @@ The IKE implementation includes interop tests against strongSwan 5.9.14, the ver
 
 ## See also
 
-- The generated [configuration reference](../../config-reference/#ipsec-vpn) covers every IPsec and XFRM configuration leaf.
+- The generated [configuration reference](https://ze-software.net/reference/configuration/#ipsec-vpn) covers every IPsec and XFRM configuration leaf.
 - [Monitoring](monitoring.md) covers the health registry and operational visibility.
 - [Feature inventory](../features.md) shows the maturity of each IKE and IPsec capability.
 

@@ -55,7 +55,7 @@ Ze ships filters for:
 - RPKI and IRR validation;
 - RFC 4271 AS loop and RFC 4456 cluster-list loop detection.
 
-The [plugin guide](plugins.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/docs/features/plugins/) shows which plugin owns each filter.
+The [plugin guide](plugins.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/reference/plugins/) shows which plugin owns each filter.
 
 ## IRR and RPKI
 

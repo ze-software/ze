@@ -4,7 +4,7 @@ This page walks through BGP peer configuration specifically, since it is
 the most-configured surface. For every other subsystem's config syntax
 (interfaces, firewall, L2TP, DHCP, and the rest of Ze's 38 plugin groups),
 see the generated [Configuration
-Reference](https://ze-software.net/config-reference/), built
+Reference](https://ze-software.net/reference/configuration/), built
 straight from each plugin's own YANG module.
 
 ### Peer Settings
