@@ -100,6 +100,12 @@ test-sensitivity-ratchets-blocking ## Test Sensitivity Ratchets (BLOCKING)
   read-the-test-health-report-before-claiming-health
   which-target-enforces-what
   why-the-report-is-published-and-not-byte-gated
+the-affected-population-is-not-the-edited-population ## The Affected Population Is Not the Edited Population
+  re-check-the-tests-a-change-can-reach
+  a-discrimination-proof-expires-when-the-environment-changes
+  the-three-shapes-a-missed-fixture-takes
+  derive-the-reachable-set-from-the-graph-not-from-git-diff
+  run-the-audit-that-exists-over-the-reachable-tagged-tests
 no-throw-away-tests ## No Throw-Away Tests
   never-write-a-throw-away-test
   where-each-kind-of-test-lives-and-its-format

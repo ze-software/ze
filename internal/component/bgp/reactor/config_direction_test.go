@@ -98,6 +98,15 @@ func walkTreeConfigs(t *testing.T) (files int, checked counts, parsed parseCount
 
 	root := filepath.Join("..", "..", "..", "..")
 	dirs := []string{"test", "docs", "demos", "contrib"}
+	// `.j2` is deliberately absent. A Jinja template is not a document either
+	// reader can judge: the parser cannot accept `{{ }}` and `{% %}`, and feeding
+	// the text scan a family of texts that can never parse would make
+	// parseCounts.refused grow for a reason that is not "a surface stopped
+	// parsing", which is the one thing that counter exists to say.
+	// `contrib/netlab/ze/ze.j2` is the only template that writes an attach block,
+	// and what it RENDERS is judged: contrib/netlab/golden/r1.conf, r2.conf and
+	// r3.conf are committed and are read here as configs. A template whose output
+	// has no committed golden would be unread, and that is the limit.
 	exts := map[string]bool{".ci": true, ".conf": true, ".md": true, ".et": true}
 
 	for _, dir := range dirs {
@@ -314,7 +323,7 @@ func scanParsedTree(root map[string]any, loc where) (violations []string, checke
 			if !ok {
 				continue
 			}
-			plugin, reason, pinned := resolvePinned(alias, name)
+			plugin, reason, pinned := resolvePinned(alias, name, declaredTarget(binding))
 			if !pinned {
 				continue
 			}
@@ -340,10 +349,13 @@ func scanParsedTree(root map[string]any, loc where) (violations []string, checke
 // treeAliases reads the plugin declarations of a parsed config, so a block
 // naming an alias is judged against the plugin behind it.
 //
-// BOTH declaration lists carry a `use` leaf: `internal <name> { use <plugin> }`
-// runs the plugin in process, and `external <name> { use <plugin> }` names one
+// BOTH declaration lists carry BOTH leaves: `internal <name> { use <plugin> }`
+// runs the plugin in process, and `external <name> { run <command> }` names one
 // too (internal/component/plugin/yang/ze-plugin-conf.yang, list internal and
-// list external). Every alias in this tree today is declared under internal.
+// list external). Every alias in this tree today is declared under internal with
+// `use`, and reading only that pair was a hole: `external rrx { run ze.bgp-rr }`
+// validates, and startInternal (plugin/process/process.go) resolves it to the
+// registered bgp-rr runner exactly as `use bgp-rr` does.
 func treeAliases(root map[string]any) map[string]string {
 	alias := map[string]string{}
 	plugins := childMap(root, "plugin")
@@ -353,12 +365,30 @@ func treeAliases(root map[string]any) map[string]string {
 			if !ok {
 				continue
 			}
-			if use, ok := decl["use"].(string); ok && use != "" {
-				alias[name] = use
+			if target := declaredTarget(decl); target != "" {
+				alias[unquoteName(name)] = target
 			}
 		}
 	}
 	return alias
+}
+
+// declaredTarget names the plugin one `use` or `run` leaf reaches, or "" when
+// the node carries neither.
+//
+// The leaf is read the way startInternal (internal/component/plugin/process/process.go)
+// reads it, and no wider: a bare registered name is taken as itself, and a `ze.`
+// prefix is stripped because ResolvePlugin (plugin/resolve.go) treats
+// `ze.<name>` as the internal plugin <name>. Anything else -- a path, a command
+// with arguments, `ze plugin <name>` -- resolves to an EXTERNAL plugin there, so
+// it never reaches a registered runner and must not be resolved to one here.
+func declaredTarget(node map[string]any) string {
+	for _, key := range []string{"use", "run"} {
+		if v, ok := node[key].(string); ok && v != "" {
+			return strings.TrimPrefix(unquoteName(v), "ze.")
+		}
+	}
+	return ""
 }
 
 // childMap returns one child container of a tree node, or nil.
@@ -389,9 +419,20 @@ func leafList(node map[string]any, key string) []string {
 
 // resolvePinned answers whether one attach block names a received-only plugin,
 // following an alias to the plugin behind it.
-func resolvePinned(alias map[string]string, name string) (plugin, reason string, pinned bool) {
+//
+// inline is the plugin the BLOCK ITSELF names, and it wins over the alias map.
+// `attach process rrx { run ze.bgp-rr; receive [ update ] }` declares its plugin
+// where it attaches it: extractInlinePluginsFromMap
+// (internal/component/bgp/config/plugins.go) builds the PluginConfig from that
+// block, and validatePeerProcessRefs (same file) skips its own name check for
+// exactly this shape, so nothing else in the config has to mention rrx. Reading
+// only the alias map left that grant unchecked -- resolvePinned answered
+// not-pinned, the counter never moved, and R-15's deadlock passed in silence.
+func resolvePinned(alias map[string]string, name, inline string) (plugin, reason string, pinned bool) {
 	plugin = unquoteName(name)
-	if to, ok := alias[plugin]; ok {
+	if inline != "" {
+		plugin = inline
+	} else if to, ok := alias[plugin]; ok {
 		plugin = to
 	}
 	reason, pinned = noSentUpdates[plugin]
@@ -435,18 +476,33 @@ func appendViolation(out []string, at, plugin, reason, tok string) []string {
 // something in front of the keyword.
 //
 // Every name is captured with its quotes and unquoted by unquoteName, and
-// useToken skips an opening quote for the same reason: a list key is a word OR a
-// quoted string (config/parser_list.go, parseList takes the key from TokenWord
-// and from TokenString alike), so `process "bgp-rr" { }` is the same block as
-// the bare spelling.
+// targetToken skips an opening quote for the same reason: a list key is a word
+// OR a quoted string (config/parser_list.go, parseList takes the key from
+// TokenWord and from TokenString alike), so `process "bgp-rr" { }` is the same
+// block as the bare spelling.
 var (
 	attachOpen   = regexp.MustCompile(`attach\s+process\s+(\S+)\s*\{(.*)$`)
 	attachSet    = regexp.MustCompile(`\bset\s+.*\battach\s+process\s+(\S+)\s+receive\s+(.*?)\s*$`)
 	attachNested = regexp.MustCompile(`\battach\s*\{(.*)$`)
 	processOpen  = regexp.MustCompile(`\bprocess\s+(\S+)\s*\{(.*)$`)
-	internalOpen = regexp.MustCompile(`internal\s+(\S+)\s*\{(.*)$`)
-	useToken     = regexp.MustCompile(`\buse\s+['"]?([A-Za-z0-9_.:-]+)`)
+	// Both declaration lists and both leaves. `external <name> { run ze.bgp-rr }`
+	// reaches the registered runner exactly as `internal <name> { use bgp-rr }`
+	// does (declaredTarget says why), so a scan that read only the internal/use
+	// pair judged the alias name itself and found nothing pinned.
+	declOpen    = regexp.MustCompile(`\b(?:internal|external)\s+(\S+)\s*\{(.*)$`)
+	targetToken = regexp.MustCompile(`\b(?:use|run)\s+['"]?([A-Za-z0-9_.:-]+)`)
 )
+
+// textTarget names the plugin an attach block declares in its own body, or ""
+// when it declares none. The tree reader's declaredTarget answers the same
+// question from a parsed node; this one answers it from the block's text.
+func textTarget(body string) string {
+	m := targetToken.FindStringSubmatch(body)
+	if m == nil {
+		return ""
+	}
+	return strings.TrimPrefix(m[1], "ze.")
+}
 
 // unquoteName strips the quotes a captured name carries.
 //
@@ -471,13 +527,19 @@ func scanText(text string, loc where) (violations []string, checked int) {
 
 	// judge reads one attach block, whichever spelling opened it, and records
 	// every receive token that grants a pinned plugin the sent direction.
+	//
+	// rest is whatever followed the opening brace on the line that opened the
+	// block, which carries the whole block when it is written on one line. The
+	// body is joined once and read twice: for the plugin the block names inline,
+	// and for the receive list.
 	judge := func(start int, name, rest string) {
-		plugin, reason, pinned := resolvePinned(alias, name)
+		body := attachBody(lines, start, rest)
+		plugin, reason, pinned := resolvePinned(alias, name, textTarget(body))
 		if !pinned {
 			return
 		}
 		checked++
-		for _, tok := range receiveTokens(lines, start, rest) {
+		for _, tok := range listTokens(body, "receive") {
 			violations = appendViolation(violations, loc.atLine(start+1), plugin, reason, tok)
 		}
 	}
@@ -496,7 +558,9 @@ func scanText(text string, loc where) (violations []string, checked int) {
 		// format, config/serialize_set.go DetectFormat), so this matcher only
 		// ever sees the `set` lines a guide writes between paragraphs of prose.
 		if m := attachSet.FindStringSubmatch(line); m != nil {
-			plugin, reason, pinned := resolvePinned(alias, m[1])
+			// No inline target: the `set` form names the process and its receive
+			// list on one line and carries no block to declare a plugin in.
+			plugin, reason, pinned := resolvePinned(alias, m[1], "")
 			if !pinned {
 				continue
 			}
@@ -541,8 +605,9 @@ func braceDelta(s string) int {
 	return strings.Count(s, "{") - strings.Count(s, "}")
 }
 
-// aliasMap reads the `internal <alias> { use <plugin> }` declarations of one
-// text, so a block naming the alias is judged against the plugin behind it.
+// aliasMap reads the `internal <alias> { use <plugin> }` and
+// `external <alias> { run <plugin> }` declarations of one text, so a block
+// naming the alias is judged against the plugin behind it.
 //
 // The declaration is written on one line as often as on two, and the one-line
 // form is the one every guide uses. A `use` matcher anchored to the start of its
@@ -552,9 +617,9 @@ func aliasMap(lines []string) map[string]string {
 	alias := map[string]string{}
 	current := ""
 	for _, line := range lines {
-		if m := internalOpen.FindStringSubmatch(line); m != nil {
-			if u := useToken.FindStringSubmatch(m[2]); u != nil {
-				alias[unquoteName(m[1])] = u[1]
+		if m := declOpen.FindStringSubmatch(line); m != nil {
+			if u := targetToken.FindStringSubmatch(m[2]); u != nil {
+				alias[unquoteName(m[1])] = strings.TrimPrefix(u[1], "ze.")
 				current = ""
 				continue
 			}
@@ -564,19 +629,12 @@ func aliasMap(lines []string) map[string]string {
 		if current == "" {
 			continue
 		}
-		if u := useToken.FindStringSubmatch(line); u != nil {
-			alias[current] = u[1]
+		if u := targetToken.FindStringSubmatch(line); u != nil {
+			alias[current] = strings.TrimPrefix(u[1], "ze.")
 			current = ""
 		}
 	}
 	return alias
-}
-
-// receiveTokens returns the receive tokens of the attach block that opens at
-// lines[start]. rest is whatever followed the opening brace on that line, which
-// carries the whole block when it is written on one line.
-func receiveTokens(lines []string, start int, rest string) []string {
-	return listTokens(attachBody(lines, start, rest), "receive")
 }
 
 // attachBody joins the attach block that opens at lines[start], stopping at the
@@ -729,7 +787,7 @@ func listTokens(body, keyword string) []string {
 // brace form, an alias declared on one line, a block inside a markdown table
 // cell, a bare value, the nested `attach { process <name> { } }` spelling, a
 // quoted value, and a quoted process or alias NAME.
-// PREVENTS: a shape-blind rewrite of receiveTokens, listFields, aliasMap or
+// PREVENTS: a shape-blind rewrite of attachBody, listFields, aliasMap or
 // unquoteName, which is worse than having no guard at all because this one is
 // cited as R-15's clearance.
 func TestReceivedOnlyGuardReadsEveryShape(t *testing.T) {
@@ -893,6 +951,47 @@ bgp {
 			config: `set plugin internal rrx use bgp-rr
 set bgp peer edge1 attach process rrx receive [ update ]`,
 		},
+		{
+			// The block declares its own plugin and nothing else in the config
+			// mentions rrx. extractInlinePluginsFromMap (bgp/config/plugins.go)
+			// builds the PluginConfig from this block and startInternal
+			// (plugin/process/process.go) resolves `ze.bgp-rr` to the registered
+			// runner, so this is the same deadlock as an alias. Both readers
+			// answered not-pinned here until 2026-08-15.
+			name:      "plugin declared inline on the attach block",
+			viaParser: true,
+			config: `
+bgp {
+    peer edge1 {
+        attach process rrx {
+            run ze.bgp-rr;
+            receive [ update ];
+        }
+    }
+}`,
+		},
+		{
+			// The other half of the same hole: the declaration is in the plugin
+			// block, under external rather than internal, and it says `run` rather
+			// than `use`. `internal rrx { use ze.bgp-rr }` is refused by the
+			// validator, so this is the shape that reaches bgp-rr through a `run`
+			// declaration.
+			name:      "external declaration with a run leaf",
+			viaParser: true,
+			config: `
+plugin {
+    external rrx {
+        run ze.bgp-rr;
+    }
+}
+bgp {
+    peer edge1 {
+        attach process rrx {
+            receive [ update ];
+        }
+    }
+}`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -932,9 +1031,17 @@ set bgp peer edge1 attach process rrx receive [ update ]`,
 // class of hole four review rounds kept finding: each round patched a spelling,
 // and the reader stayed a reader of spellings.
 //
-// VALIDATES: the hole is closed for every text ze can parse, and only for those.
-// The same config is missed by the text scan and caught by the parser, which is
-// the whole argument for reading the tree.
+// VALIDATES: one named hole in the text scan, and that the parser closes THAT
+// one. The same config is missed by the text scan and caught by the parser,
+// which is the whole argument for reading the tree.
+//
+// It does NOT establish that the parser closes every hole, and this comment said
+// it did until 2026-08-15. Two shapes that PARSE were missed by the parsed-tree
+// reader itself for as long as it existed: a plugin declared inline on the
+// attach block (`attach process rrx { run ze.bgp-rr; ... }`) and one declared
+// under `external ... { run ... }`. Neither is a text-scan limit. Both are cases
+// in TestReceivedOnlyGuardReadsEveryShape now, which is where a claim about what
+// the readers see belongs -- an assertion the tree can fail, not a sentence.
 // PREVENTS: a comment claiming the text scan is complete. It is not, it cannot
 // be, and a guard cited as R-15's clearance must not be believed further than it
 // reads.

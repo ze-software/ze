@@ -441,6 +441,28 @@ regenerate-and-commit to ~60% of commits, and a check that fires that often for
 cosmetic reasons gets routed around instead of read: the same "advisory gate
 permanently red" failure the report is built to expose.
 
+## The Affected Population Is Not the Edited Population
+
+**When a change alters what reaches a component at runtime, the tests you MUST re-check are the ones its new semantics can REACH, not only the ones it edited.** Delivery, wiring, subscription and permission are the four shapes of that change: each one moves a fixture onto a different code path while every line of that fixture stays as it was.
+
+**Every gate in this repository scopes itself to the files the commit touched, so the reachable set is yours to find.** `changed_test_files` (`scripts/dev/audit-test-relaxation.py`) builds its population from `git diff --name-status`, and the lint, the relaxation audit and the changed-file targets all read that same list. A fixture the change never opened is outside every one of them.
+
+A discrimination proof expires when the environment changes. `ai/rules/interop-and-goal-validation.md` requires you to revert a change once and watch the test go red, which proves that test could fail on the day it was proven, against the wiring of that day. This point is about the proof EXPIRING. A change to what reaches a component moves a green test onto another rail without touching one assertion, so the test still passes, no gate reddens, and the recorded proof now describes code the test no longer runs.
+
+| The fixture | What the change did to it | Why nothing named it |
+|-------------|---------------------------|----------------------|
+| `test/plugin/bgp-rs-reactor-fastpath-fallback.ci` | its config stopped feeding `bgp-rs`, so it exercised the reactor fast path instead of the `bgp-rs` fallback rail its name certifies | it kept PASSING and no assertion moved. It burned its authored budget on every run, 31.5s against a 15s timeout, and it was found days later through suite instability |
+| `test/plugin/role-otc-rs-withdraw-eor.ci` | went RED for the same missing attachment | the commit never edited it, so the relaxation audit never opened it. That audit reports the diff, and this file was not in the diff |
+| `test/plugin/local-pref-strip-ebgp.ci` | gained a route server it deliberately ran without, because a peer that attaches `bgp-rs` becomes a destination in `selectForwardTargets` (`internal/component/bgp/plugins/rs/server_forward.go`) | its header still states that no route-server plugin is loaded. A header is read by people, and no gate compares one against the config below it |
+
+**MUST derive the reachable set from the graph the change alters, then state that derivation and its count in the report.** A set derived from `git diff` is the edited set wearing another name, and it answers a question nobody asked.
+
+**The derivation is one command when you name the graph first.** For a delivery change the graph is the config: the set was every fixture attaching a program whose feed changed, which `git grep -l 'attach process <name>' -- test/` returns in full. For a permission change it is every fixture whose peer sends through the rail you gated. Name the edge, then list the files that carry it.
+
+**The audit that reads whether a test still enforces what it names already exists, so MUST run it over the reachable set rather than write a new one.** `/ze-rfc-audit` records a verdict per requirement, and `check_audit_freshness` (`scripts/dev/rfc_requirements.py`) invalidates that verdict when the tagged test changes. What is missing is a trigger and a scope: nothing routes a semantics change to that audit, and its population is edited files.
+
+**A fixture carrying no RFC tag has no audit, so MUST read its header against its config yourself.** A header that names the rail, the plugin or the topology under test is the assertion the runner cannot check. When the change contradicts that header, the fixture is now testing something else and MUST be fixed in the same work, never left green.
+
 ## No Throw-Away Tests
 
 Never write temporary test code. Add functional or unit tests that run in CI.

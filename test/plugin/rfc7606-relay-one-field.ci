@@ -18,18 +18,21 @@
 # peer/code/subcode -- not to retune the assertion to whatever the code happened to print.
 #
 # BE PRECISE ABOUT WHAT THAT BOUGHT. Re-running the same mutation now, ze DOES emit
-# `level=WARN msg="notification sent" ... code=3 subcode=1`, so the rule has a real signal to
-# match instead of matching nothing by construction. It does NOT make this mutation fail
-# faster: that mutation also stops the forward, so the conn=2 expectation below times out at
-# 15s and the runner reports the timeout first. What the rule uniquely catches is the case the
-# expectations CANNOT: ze forwarding the split correctly AND still answering the source with a
-# NOTIFICATION. Before the daemon fix, that case passed silently.
+# `level=WARN msg="notification sent" ... code="UPDATE Message Error" subcode=1`, so the rule
+# has a real signal to match instead of matching nothing by construction. It does NOT make this
+# mutation fail faster: that mutation also stops the forward, so the conn=2 expectation below
+# times out at 15s and the runner reports the timeout first. What the rule uniquely catches is
+# the case the expectations CANNOT: ze forwarding the split correctly AND still answering the
+# source with a NOTIFICATION. Before the daemon fix, that case passed silently.
 #
-# The rule is also safe against a false red. `Session.Close` (session_connection.go:378) sends
-# Cease/AdminShutdown, which would match `notification` on a green run -- but measured, not
-# assumed: SIGTERM to a ze with an Established peer produced ZERO type-03 messages at the peer
-# and zero `notification sent` lines, and this file is green 6/6 with the daemon fix in place.
-# (Whether ze SHOULD send that Cease is a separate question, unexamined here.)
+# THE BARE WORD WAS NOT SAFE AGAINST A FALSE RED, and this file used to claim it was on the
+# strength of a SIGTERM measurement. Session.teardown (session_connection.go) sends
+# Cease/AdminShutdown through logNotifyErr on the shutdown this file's observer asks for, and
+# when the check-mode peer has already closed its socket that logs `notification send failed
+# ... broken pipe`. Review round 5 of spec-fixit-peer-process-event-filter measured the file at
+# 3 of 4 with steps 1 to 3 green, which is that line and nothing else. The reject rule at the
+# foot of this file is now scoped to the NOTIFICATION code, so ze's own shutdown cannot trip
+# it. (Whether ze SHOULD send that Cease is a separate question, unexamined here.)
 #
 # WHICH BRANCH THIS PROVES. buildFwdBody (reactor/forward_body.go:37) forks on `sameCtx` at :51,
 # and the two arms compute the same verdict from different types. This file drives the PARSED
@@ -267,4 +270,25 @@ reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error
 # The source must not be reset for sending a mixed shape: Section 5.1 requires receivers to
 # accept these fields in any combination.
-reject=stderr:pattern=notification
+#
+# rfc-test-change-approved: 2026-08-15, review round 5 of
+# spec-fixit-peer-process-event-filter. The bare word `notification` also matched the daemon's
+# OWN shutdown: Session.teardown (reactor/session_connection.go) sends Cease/AdminShutdown
+# through logNotifyErr, which logs `notification send failed ... broken pipe` once the
+# check-mode peer has closed. That is ze ending its own session, not ze refusing an UPDATE, and
+# it failed this file 1 run in 4 under load. rfc-test-change-approved: 2026-08-15, same
+# directive. The pattern is scoped by CODE rather than by the word, and the line it must catch
+# is the one ze logs when it ANSWERS a message with an error: every such code renders through
+# NotifyErrorCode.String (bgp/message/notification.go) as a name ending in `Error` -- Message
+# Header Error, OPEN Message Error, UPDATE Message Error, Route Refresh Error, FSM Error -- and
+# slog quotes it because it carries spaces. `Cease` is the one code that is NOT an answer to a
+# message: it is how a speaker ends a session it chose to end, which is exactly ze's own
+# shutdown. Nothing this file exists to catch is lost: rfc7606SessionReset
+# (reactor/session_validation.go) is the only route from a refused UPDATE to a NOTIFICATION and
+# it always passes message.NotifyUpdateMessage. `send failed` is kept as well, because ze
+# ANSWERING with a NOTIFICATION violates Section 5.1 whether or not the write reached the peer.
+#
+# Measured, not reasoned. Rejecting the mixed shape at the head of enforceRFC7606 makes ze emit
+#   level=WARN msg="notification sent" ... peer=127.0.0.1 code="UPDATE Message Error" subcode=1
+# which this pattern matches; the mutation was reverted after the line was captured.
+reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"

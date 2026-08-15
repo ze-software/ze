@@ -21,9 +21,24 @@
 #   whose UPDATE was never read cannot satisfy this file.
 #
 # This exercises the GENERAL forward rail (forwardUpdateCore,
-# reactor/reactor_api_forward.go): no route-server plugin is loaded, so
-# reactorForwardRS is not the path. The RS rail's copy of the same strip is
-# proven against a real peer by test/interop/scenarios/54-local-pref-strip-frr.
+# reactor/reactor_api_forward.go). bgp-rs IS loaded and IS the program that asks
+# for the forward: it is what turns the source's UPDATE into a write toward
+# dest-ebgp-peer, and nothing else here does. bgp-adj-rib-in only replays on
+# peer-up (rib.go RelayStoredRoute), so with the rs attach removed the
+# destination is sent no UPDATE at all -- measured 4/4 with the observer's
+# ZE-OBSERVER-FAIL, which is why the attach stays.
+#
+# What is NOT on the path is reactorForwardRS, the reactor's own RS fast path:
+# no peer here sets `rs-fast-path`, so bgp-rs reaches the wire through the plugin
+# dispatch and forwardUpdateCore. That fast-path copy of the same strip is proven
+# against a real peer by test/interop/scenarios/54-local-pref-strip-frr.
+#
+# The header said "no route-server plugin is loaded" until 2026-08-15. That was
+# never true: registry.Registration in bgp/plugins/rs/register.go declares
+# `ConfigRoots: []string{"bgp"}`, so getConfigPathPlugins
+# (plugin/server/startup_autoload.go) auto-loads bgp-rs for ANY config with a bgp
+# container, and it did so here before the attach block existed. What the attach
+# adds is the delivery edge, not the process.
 #
 # An absence assertion is satisfied just as well by a daemon that forwarded
 # nothing, so the observer below fails loudly when the destination was never sent

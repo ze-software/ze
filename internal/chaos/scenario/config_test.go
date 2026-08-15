@@ -357,8 +357,16 @@ func TestConfigGenAttachesEveryPluginItRuns(t *testing.T) {
 	assert.Equal(t, len(profiles), strings.Count(inProcess, "attach process bgp-rs {"))
 	assert.NotContains(t, inProcess, "attach process bgp-rib")
 
-	// The generated text is schema-valid: the receive and send leaf-lists are
-	// validated at parse, so an unregistered token would fail here.
+	// The generated text is schema-valid: it parses against the YANG schema.
+	//
+	// That is LESS than it looks, and the difference is worth stating. This parse
+	// does NOT judge the receive and send tokens: validatedSections
+	// (internal/component/config/validate_sections.go) excludes `bgp`, so the
+	// `receive-event-type` and `send-message-type` custom validators never run
+	// over a peer's attach block here. An unregistered token is caught later, by
+	// parseOneReceiveFlag / parseOneSendFlag (bgp/reactor/config.go), on the
+	// startup path this test does not take. What this parse proves is the SHAPE:
+	// that the generator emits containers and leaf-lists the schema knows.
 	_, err := zeconfig.ParseTreeWithYANG(config, nil)
 	require.NoError(t, err)
 	_, err = zeconfig.ParseTreeWithYANG(inProcess, nil)

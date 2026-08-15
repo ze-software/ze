@@ -74,6 +74,9 @@ documentation ## Documentation
   the-rules-for-a-source-anchor
   before-writing-any-documentation-read-the-actual-source
   write-every-config-example-on-several-lines
+  every-config-example-must-parse
+  a-refused-example-becomes-false-evidence-in-a-review
+  the-gate-this-owes-and-what-its-scope-costs
   validation
   run-make-ze-doc-test-after-editing-any-file-under-docs
   ze-doc-test-runs-on-demand-not-inside-ze-verify

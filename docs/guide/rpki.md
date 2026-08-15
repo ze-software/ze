@@ -25,18 +25,27 @@ bgp {
     }
 
     peer peer1 {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip 10.0.0.2
+            }
         }
-        local {
-            as 65000
-            ip 10.0.0.2
-        }
-        router-id 10.0.0.2
-
-        family {
-            ipv4/unicast
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 10.0.0.2
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
         }
 
         attach process rpki {
