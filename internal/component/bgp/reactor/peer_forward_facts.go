@@ -43,12 +43,9 @@ const (
 // Built at session lifecycle boundaries, read on every UPDATE iteration.
 // Stored via atomic.Pointer on Peer; nil means not established.
 type peerForwardFacts struct {
-	addr netip.Addr
-	// localAddr is Ze's own address on this session, held for ONE question:
-	// sessionEndsShareOneAddress (forward_next_hop.go).
-	localAddr netip.Addr
-	peerKey   netip.AddrPort
-	addrStr   string
+	addr    netip.Addr
+	peerKey netip.AddrPort
+	addrStr string
 
 	localAS       uint32
 	globalLocalAS uint32
@@ -155,10 +152,9 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	extendedMsg := nc != nil && nc.ExtendedMessage
 
 	facts := &peerForwardFacts{
-		addr:      s.Address,
-		localAddr: s.LocalAddress,
-		peerKey:   s.PeerKey(),
-		addrStr:   p.addrString,
+		addr:    s.Address,
+		peerKey: s.PeerKey(),
+		addrStr: p.addrString,
 
 		localAS:       s.LocalAS,
 		globalLocalAS: s.GlobalLocalAS,

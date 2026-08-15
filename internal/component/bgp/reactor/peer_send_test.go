@@ -141,15 +141,27 @@ func newAnnouncePeer(t *testing.T, peerAddr string) (*Peer, *recordingConn) {
 // octet is 32 (0x20) because a link-local address is also included.
 //
 // RFC requirement: RFC2545-3-3 positive -- both halves of the condition hold: the
-// speaker shares the loopback subnet with the entity named by the global next hop
-// (::1) and with the peer the route is advertised to (::1).
+// speaker shares a locally connected subnet with the entity named by the global
+// next hop (::1) and with the peer the route is advertised to (fd00::2).
 //
 // VALIDATES: this rail emits the 32-octet form. Before this it hardcoded a next-hop
 // length of 16 and could not encode the second address at all.
 // PREVENTS: an announce leaving with the 16-octet form in a case Section 3 requires
 // the link-local address.
+//
+// rfc-test-change-approved: 2026-08-15 -- Thomas, answering the question this
+// comment records. The peer was ::1 while the next hop was ALSO ::1, so the
+// fixture asked the encoder to advertise a peer its own address as NEXT_HOP.
+// RFC 4271 Section 5.1.3 forbids that, and originatedNextHopIsPeerOwn
+// (forward_next_hop.go) now refuses it, so the fixture was asserting the wire form
+// of a message Ze must never send. The peer moves to fd00::2, which `make ze-setup`
+// provisions on the loopback. Section 3's condition still holds on both halves:
+// fd00::2 is connected so the peer is on-link, and ::1 is connected and passes
+// ValidateGlobalNextHop so the global next hop still shares a subnet. NO assertion
+// changed. The wire expectation below is byte-identical, because the next hop the
+// encoder writes is unchanged; only the destination advertised TO is different.
 func TestSendAnnounceAppendsLinkLocalWhenSection3Holds(t *testing.T) {
-	peer, conn := newAnnouncePeer(t, "::1")
+	peer, conn := newAnnouncePeer(t, "fd00::2")
 	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8:1::/64"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("::1")),

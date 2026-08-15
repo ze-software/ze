@@ -497,40 +497,31 @@ func TestSendAnnounceWithholdsRouteWithPeerOwnNextHop(t *testing.T) {
 	})
 }
 
-// VALIDATES: the exemption that keeps the Section 5.1.3 question answerable is
-// bounded to the one state where it has no answer, and nothing wider.
+// VALIDATES: the guard has NO exemption for a session whose two ends carry one
+// address, on either rail.
 //
-// PREVENTS: the exemption growing into a hole. It exists because a session whose
-// two ends carry ONE address makes Section 5.1.3's prohibition and its own
-// prescription ("the BGP speaker SHOULD use its own IP address for the NEXT_HOP
-// attribute") name a single value. Widened by one step -- to "the next hop is
-// Ze's own address", or to an unset local address -- it would excuse the
-// blackhole the guard exists to refuse, on a session where the RFC's two
-// sentences do not conflict at all.
-func TestSessionEndsShareOneAddressBoundsTheExemption(t *testing.T) {
+// PREVENTS: the exemption a red fixture argues for. `next-hop self` resolves to
+// Ze's own local address (precomputeNextHop, peer_forward_facts.go), so a
+// loopback fixture that gives one address to both ends of a session has every
+// originated route withheld here. The cheap repair is to exempt "the address is
+// also ours", and it is wrong twice: Section 5.1.3's prohibition is SHALL NOT
+// while its "use its own IP address" is SHOULD, so the prohibition governs where
+// the two name one value; and BIRD, which enforces this rule, tests the final
+// next hop against the peer address AFTER its own next-hop-self substitution
+// (bgp_update_next_hop_ip, proto/bgp/packets.c) and withdraws the route. The
+// fixture is what to fix. Owner decision, 2026-08-15.
+func TestSection513HasNoSameAddressExemption(t *testing.T) {
 	peer := netip.MustParseAddr(nhOwnerAddr)
-	other := netip.MustParseAddr(nhBystanderAddr)
-
-	assert.True(t, sessionEndsShareOneAddress(peer, peer),
-		"one address on both ends is the impossible topology the exemption is for")
-	assert.True(t, sessionEndsShareOneAddress(peer, netip.MustParseAddr("::ffff:192.0.2.10")),
-		"the 4-in-6 spelling of the same address is the same address")
-	assert.False(t, sessionEndsShareOneAddress(peer, other),
-		"two addresses is every real session, and the guard applies to all of them")
-	assert.False(t, sessionEndsShareOneAddress(peer, netip.Addr{}),
-		"an unset local address is not a license: a peer never paired with one keeps the full guard")
-
-	// The guard itself, through the exemption, on both halves of Section 5.1.3.
 	body := nhPayload(nhOwnerAddr)
-	assert.True(t, originatedNextHopIsPeerOwn(body, peer, other),
-		"an ordinary session still refuses a next hop naming the peer")
-	assert.False(t, originatedNextHopIsPeerOwn(body, peer, peer),
-		"the impossible topology answers no rather than withholding every originated route")
 
+	assert.True(t, originatedNextHopIsPeerOwn(body, peer),
+		"the originate rail refuses the peer's own address whatever Ze's own address is")
+
+	// The relay rail, with the peer's address arriving as a next-hop-self rewrite:
+	// the operation carries the value a same-address session would produce.
 	var mods filterapi.ModAccumulator
-	base := payloadNextHop(body)
-	assert.True(t, egressNextHopIsPeerOwn(&peerForwardFacts{addr: peer, localAddr: other}, &mods, base),
-		"the relay rail refuses the same next hop on an ordinary session")
-	assert.False(t, egressNextHopIsPeerOwn(&peerForwardFacts{addr: peer, localAddr: peer}, &mods, base),
-		"both rails read the premise the same way")
+	own := peer.As4()
+	mods.Op(3, filterapi.AttrModSet, own[:])
+	assert.True(t, egressNextHopIsPeerOwn(&peerForwardFacts{addr: peer}, &mods, nextHopValue{}),
+		"the relay rail reads the rewritten address and refuses it on the same terms")
 }

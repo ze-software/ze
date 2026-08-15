@@ -4,13 +4,22 @@
 #   Header: 16 marker | 002C len | 02 type(UPDATE)
 #   Body:   0000 wdLen | 0014 attrLen | 40010100 origin(IGP)
 #           4002060201 0000FFFD AS_PATH [65533]
-#           4003047F000001        NEXT_HOP 127.0.0.1
+#           4003047F000002        NEXT_HOP 127.0.0.2
 #           00                    NLRI 0.0.0.0/0
 # Followed by an EOR marker for ipv4/unicast (0017 len, empty UPDATE).
+#
+# The NEXT_HOP is Ze's local address on the session: sendDefaultOriginateRoutes
+# (internal/component/bgp/reactor/peer_initial_sync.go) reads
+# p.settings.LocalAddress and passes it to BuildUnicast. The peer is 127.0.0.1
+# and that local address is 127.0.0.2, so the default route does not reach the
+# peer carrying the peer's own address. RFC 4271 Section 5.1.3 forbids that, and
+# originatedNextHopIsPeerOwn (internal/component/bgp/reactor/forward_next_hop.go)
+# withholds a route that carries it. test/plugin/relay-withdraw-nexthop-self.ci
+# carries the long form of that reasoning.
 
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65000
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002C02000000144001010040020602010000FFFD4003047F00000100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002C02000000144001010040020602010000FFFD4003047F00000200
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -23,8 +32,11 @@ bgp {
 				remote {
 					ip 127.0.0.1
 				}
+				# Ze's local address is deliberately not the peer's: the default
+				# route takes its NEXT_HOP from it, and a shared address would be
+				# withheld.
 				local {
-					ip 127.0.0.1
+					ip 127.0.0.2
 					accept false
 				}
 			}

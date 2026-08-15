@@ -1,8 +1,19 @@
+# Test: `next-hop self` stamps Ze's local session address on an originated route
+#
+# The peer is 127.0.0.1 and Ze's local address on the session is 127.0.0.3, so
+# the NEXT_HOP this file asserts (7F000003) is Ze's own address and not the
+# peer's. RFC 4271 Section 5.1.3 forbids advertising a route to a peer using
+# that peer's address as NEXT_HOP, and originatedNextHopIsPeerOwn
+# (internal/component/bgp/reactor/forward_next_hop.go) withholds such a route,
+# so a fixture giving both session ends one address would assert a frame Ze
+# must never send. test/plugin/relay-withdraw-nexthop-self.ci carries the long
+# form of that reasoning.
+
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 127.0.0.1 nlri ipv4/unicast add 10.0.0.0/32
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000140050400000064200A000000
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/32"],"next-hop":"127.0.0.1"}]}
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 127.0.0.3 nlri ipv4/unicast add 10.0.0.0/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000340050400000064200A000000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/32"],"next-hop":"127.0.0.3"}]}
 cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
@@ -16,8 +27,10 @@ bgp {
 				remote {
 					ip 127.0.0.1
 				}
+				# Ze's local address is deliberately not the peer's: `next-hop
+				# self` resolves to it, and a shared address would be withheld.
 				local {
-					ip 127.0.0.1
+					ip 127.0.0.3
 					accept false
 				}
 			}

@@ -391,7 +391,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// abandon the route queue, and one unusable route is neither. The refusal is
 	// LOUD instead -- an operator who configured this next hop needs to hear that
 	// the route is not being advertised.
-	if gate && originatedNextHopIsPeerOwn(body, s.settings.Address, s.settings.LocalAddress) {
+	if gate && originatedNextHopIsPeerOwn(body, s.settings.Address) {
 		sessionLogger().Warn("withholding originated route: its next hop is this peer's own address",
 			"peer", s.settings.Address,
 			"rfc", "RFC 4271 Section 5.1.3",
@@ -662,7 +662,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// the session buffer instead of going through writeUpdate, so the question has
 	// to be asked again rather than inherited. Withheld, not rewritten, and asked
 	// after the export chain, for the reasons given there.
-	if originatedNextHopIsPeerOwn(body, s.settings.Address, s.settings.LocalAddress) {
+	if originatedNextHopIsPeerOwn(body, s.settings.Address) {
 		sessionLogger().Warn("withholding originated route: its next hop is this peer's own address",
 			"peer", s.settings.Address,
 			"rfc", "RFC 4271 Section 5.1.3",
