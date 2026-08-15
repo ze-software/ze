@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Native IKEv2 and IPsec - Ze</title>
-        <meta name="description" content="Ze documentation: guide/ipsec.md" />
+        <meta name="description" content="Ze documentation." />
         <meta property="og:title" content="Native IKEv2 and IPsec - Ze" />
-        <meta property="og:description" content="Ze documentation: guide/ipsec.md" />
+        <meta property="og:description" content="Ze documentation." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Native IKEv2 and IPsec - Ze" />
-        <meta name="twitter:description" content="Ze documentation: guide/ipsec.md" />
+        <meta name="twitter:description" content="Ze documentation." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -47,7 +47,7 @@
         </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
-            <section class="md-content reveal cat-secure">
+            <section class="md-content reveal">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="native-ikev2-and-ipsec">Native IKEv2 and IPsec</h1>
@@ -172,7 +172,7 @@ vpn {
     }
 }
 </code></pre>
-<p>Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated <a href="https://github.com/ze-software/ze/tree/main/docs/../config-reference" target="_blank" rel="noopener">configuration reference</a> documents the XFRM interface leaves.</p>
+<p>Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated <a href="https://ze-software.net/reference/configuration/#xfrm-interfaces">configuration reference</a> documents the XFRM interface leaves.</p>
 <h2 id="ike-features">IKE features</h2>
 <table>
 <thead>
@@ -468,7 +468,7 @@ of three per connection attempt, so two peers can never oscillate between them.<
 
 <h2 id="rekeying">Rekeying</h2>
 <p>Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries <code>N(REKEY_SA)</code> with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.</p>
-<p>Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. The endpoint that created the SA with the lowest of the four nonces closes that SA, so both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by <code>ze_ipsec_rekey_total{peer}</code> and streamed as <code>child-rekey</code> events by <code>monitor vpn ipsec</code>.</p>
+<p>Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. Section 2.8.1 states it as a recommendation: if redundant SAs are created, the endpoint that created the SA with the lowest of the four nonces SHOULD close that SA. Ze resolves the collision one step earlier and abandons its own pending exchange when its nonce is the lower one, so the redundant SA is never created and both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by <code>ze_ipsec_rekey_total{peer}</code> and streamed as <code>child-rekey</code> events by <code>monitor vpn ipsec</code>.</p>
 <h2 id="child-sa-and-dataplane">Child SA and dataplane</h2>
 <p>Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM policies and states through netlink. Route-based IPsec uses XFRM interfaces.</p>
 <table>
@@ -615,7 +615,7 @@ through it. Use the XFRM backend, which is the default and the production path.<
 <p>The <code>pki { }</code> block stores X.509 certificates, private keys, and CA certificates. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
 <p>Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes <code>ze_pki_certificate_expiry_seconds</code> and <code>ze_pki_certificate_valid</code>.</p>
 <h2 id="xfrm-interfaces">XFRM interfaces</h2>
-<p>XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated <a href="https://github.com/ze-software/ze/tree/main/docs/../config-reference" target="_blank" rel="noopener">configuration reference</a> documents the interface surface.</p>
+<p>XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated <a href="https://ze-software.net/reference/configuration/#xfrm-interfaces">configuration reference</a> documents the interface surface.</p>
 <h2 id="cli">CLI</h2>
 <table>
 <thead>
@@ -674,9 +674,9 @@ carries no encrypted traffic</code> when this happens.</p>
 <p>The IKE implementation includes interop tests against strongSwan 5.9.14, the version in the Alpine 3.21 test image. The test infrastructure in <code>test/ipsec-interop/</code> drives strongSwan containers as remote IKE peers. Coverage includes PSK, X.509, EAP-MSCHAPv2, and EAP-TLS authentication; Ze as a PSK and EAP-MSCHAPv2 responder against a strongSwan initiator; Child SA rekeying with make-before-break; and IKE SA rekeying initiated by strongSwan.</p>
 <h2 id="see-also">See also</h2>
 <ul>
-<li>The generated <a href="https://github.com/ze-software/ze/tree/main/docs/../config-reference" target="_blank" rel="noopener">configuration reference</a> covers every IPsec and XFRM configuration leaf.</li>
-<li><a href="../monitoring/">Monitoring</a> covers the health registry and operational visibility.</li>
-<li><a href="../../features/">Feature inventory</a> shows the maturity of each IKE and IPsec capability.</li>
+<li>The generated <a href="https://ze-software.net/reference/configuration/#ipsec-vpn">configuration reference</a> covers every IPsec and XFRM configuration leaf.</li>
+<li><a href="monitoring.md">Monitoring</a> covers the health registry and operational visibility.</li>
+<li><a href="../features.md">Feature inventory</a> shows the maturity of each IKE and IPsec capability.</li>
 </ul>
 <!-- source: internal/component/ike/engine/fsm.go -- IKE exchange state machine -->
 <!-- source: internal/component/ike/engine/responder.go -- responder role -->
@@ -710,7 +710,7 @@ carries no encrypted traffic</code> when this happens.</p>
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

@@ -4,13 +4,13 @@
 Usage:
     tools/render-docs.py
 
-Reads tools/page_registry.py DOCS_MANIFEST, renders each
-../main/docs/<path>.md into docs/<path>/index.html (mirroring the source path,
-e.g. docs/features/configuration.md ->
-docs/features/configuration/index.html), and computes the relative --root depth
-from the destination path automatically. Re-run this whenever a registered doc
-changes upstream, same workflow as render-doc.py for a single file, just for all
-of them at once.
+Reads tools/page_registry.py DOCS_MANIFEST, renders each registered
+../main/docs/<path>.md to the destination selected by
+page_registry.docs_dest_rel_for(), and computes the relative --root depth from
+that destination automatically. Most pages mirror the source below docs/;
+lookup pages can use DOCS_DEST_OVERRIDES to live under reference/<type>/.
+Re-run this batch when a registered source changes upstream, or use
+render-doc.py to render one file.
 
 Add a new doc to page_registry.DOCS_MANIFEST (path relative to the main repo's
 docs/, no extension logic, just the .md path) and re-run to publish it.

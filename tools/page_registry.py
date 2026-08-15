@@ -143,6 +143,15 @@ DOCS_MANIFEST = {
     "why-ze.md": None,
 }
 
+# Lookup-oriented docs and menu outliers whose public URL follows site IA.
+DOCS_DEST_OVERRIDES = {
+    "architecture/config/deprecated-options.md": "reference/deprecations",
+    "contributing/testing.md": "contribute/testing",
+    "features/rfc-status.md": "reference/rfcs",
+    "glossary.md": "reference/glossary",
+    "history.md": "project/history",
+}
+
 NAV_PATCH_TARGETS = [
     "zeledon/index.html",
     "style-guide/index.html",
@@ -298,7 +307,7 @@ def doc_stem(doc_path):
 
 
 def docs_dest_rel_dir_for(doc_path):
-    return "docs/%s" % doc_stem(doc_path)
+    return DOCS_DEST_OVERRIDES.get(doc_path, "docs/%s" % doc_stem(doc_path))
 
 
 def docs_dest_rel_for(doc_path):

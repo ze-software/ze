@@ -290,7 +290,7 @@
           "category": "automate",
           "status": null,
           "title": "Plugin System",
-          "href": "docs/features/plugins/",
+          "href": "reference/plugins/",
           "external": false,
           "chips": [
             {
@@ -592,7 +592,7 @@
           "category": "secure",
           "status": null,
           "title": "Secure by Default",
-          "href": "docs/features/plugins/",
+          "href": "reference/plugins/",
           "external": false,
           "chips": [
             {

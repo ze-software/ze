@@ -139,7 +139,7 @@ match the shipping system:</p>
   the surviving form.</li>
 <li>The <code>local-as</code> / <code>peer-as</code> / <code>peer-group</code> config grammar shown here has been
   removed; local AS is now <code>session { asn { local ... } }</code> and peer groups are
-  <code>group</code> blocks (see <a href="../config/deprecated-options/">configuration syntax changes</a>
+  <code>group</code> blocks (see <a href="../../../reference/deprecations/">configuration syntax changes</a>
   and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md" target="_blank" rel="noopener">config syntax</a>).</li>
 <li>Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
   as separate <code>external ... { run "ze bgp" }</code> processes; the <code>external</code> block

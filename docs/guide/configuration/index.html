@@ -787,6 +787,23 @@ leaf-lists ACCUMULATE across the levels, so a peer that names one community
 keeps the ones its group named. A peer cannot drop a community its group agreed:
 where one session must be excluded, name the community on the peers rather than
 on the group.</p>
+<p>A listen-range group states the agreement for every session it accepts. Such a
+session has no <code>peer</code> block, so the group is where an IXP route server writes
+one <code>blackhole</code> container for all of its members:</p>
+<pre><code>bgp {
+    group ix {
+        connection {
+            remote {
+                ip    dynamic;
+                range 192.0.2.0/24;
+            }
+        }
+        blackhole {
+            prefixes 192.0.2.0/24;
+        }
+    }
+}
+</code></pre>
 <h3 id="announcing-a-blackhole-to-a-peer">Announcing a blackhole to a peer</h3>
 <p>The same <code>communities</code> list decides which peers Ze may ADVERTISE the well-known
 BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
@@ -1226,19 +1243,37 @@ dump.</p>
 <!-- source: internal/component/host/tuning.go -- ApplyTuning engine -->
 
 <h2 id="process-bindings">Process Bindings</h2>
-<p>Plugins are bound to peers via <code>process</code> blocks. Each process block names a plugin and configures what events it receives.</p>
+<p>A peer attaches a program in an <code>attach process</code> block. The block names a
+plugin and states the relationship in two directions: <code>receive</code> is what the
+program is fed for this peer, and <code>send</code> is what it may originate toward it.</p>
 <pre><code>peer transit-a {
     ...
-    process adj-rib-in {
-        receive [ update state ]
+    attach process adj-rib-in {
+        receive [ update-received state ];
     }
-    process rpki {
-        receive [ update ]
+    attach process rpki {
+        receive [ update-received ];
     }
 }
 </code></pre>
-<p>Base event types for <code>receive</code>: <code>update</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>, <code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>rpki</code>. Plugins may register additional types (e.g., <code>update-rpki</code> from bgp-rpki-decorator). Validated at config parse time against registered event types.</p>
+<p><strong>A peer that attaches nothing feeds nothing.</strong> These blocks decide delivery.
+A running plugin that a peer does not attach receives no event from that peer,
+whatever the plugin asked for when it started, and it may send that peer
+nothing. Loading a plugin and attaching it to a peer are two separate acts.</p>
+<p>Base event types for <code>receive</code>: <code>update</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>,
+<code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>rpki</code>. Plugins may register more (for
+example <code>update-rpki</code> from bgp-rpki-decorator). A plain type is fed in both
+directions; <code>update-received</code> and <code>update-sent</code> name one. <code>*</code> names every
+registered type. Values are validated at config parse time.</p>
+<p>Base message types for <code>send</code>: <code>update</code> to originate routes, <code>refresh</code> to ask
+the peer to re-advertise. <code>*</code> grants both, and every send type registered
+later. A send a peer's block does not grant is refused and reported.</p>
+<p>Write the block on a group and every peer of that group carries it, dynamic
+members included. A member that restates the block replaces the group's list
+for itself alone. <code>show event delivery</code> prints the edges the running config
+produces, peer by peer.</p>
 <!-- source: internal/component/bgp/event.go -- event type definitions; internal/component/plugin/registry/registry.go -- EventTypes registration -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
 
 <h2 id="route-filters">Route Filters</h2>
 <p>Route filtering is configured via <code>filter</code> blocks at bgp, group, or peer level.
@@ -1546,7 +1581,11 @@ standard, large, or extended community attributes.</p>
 <h3 id="route-attribute-modifier">Route Attribute Modifier</h3>
 <p>Named modifier definitions live under <code>bgp { policy { modify NAME { set { ... } } } }</code>.
 Only present leaves are applied; undeclared attributes pass through unchanged.
-For conditional modification, compose with match filters earlier in the chain.</p>
+A definition applies to every route that reaches it. A definition that states a
+<code>match</code> container applies its operations only to the routes that meet the
+condition, and every other route leaves the filter unchanged. Use a match filter
+earlier in the chain when you want the rest dropped, because a rejected route
+leaves the pipe.</p>
 <pre><code>bgp {
     policy {
         modify PREFER-LOCAL {
@@ -1592,6 +1631,12 @@ For conditional modification, compose with match filters earlier in the chain.</
 <td>Set MED</td>
 </tr>
 <tr>
+<td><code>med-remove</code></td>
+<td>boolean</td>
+<td>true, false</td>
+<td>Remove MULTI_EXIT_DISC from the route</td>
+</tr>
+<tr>
 <td><code>origin</code></td>
 <td>enum</td>
 <td>igp, egp, incomplete</td>
@@ -1611,8 +1656,24 @@ For conditional modification, compose with match filters earlier in the chain.</
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container -->
+<p><code>med-remove</code> is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
+implement, so it takes effect on an <code>import</code> chain only. That section requires
+the removal to happen before Decision Process phases 1 and 2, and the import
+chain is the only chain that runs there. On an <code>export</code> chain the directive is
+refused and logged. It is mutually exclusive with <code>med</code>, <code>increment med</code> and
+<code>decrement med</code>, and the configuration is refused when both are stated.</p>
+<p>A metric received from one neighboring AS is already kept off a session toward
+another with no configuration at all, which is the same section's propagation
+rule. <code>med-remove</code> is for the operator who wants the metric gone from the route
+itself.</p>
+<p>The <code>match</code> container holds three leaf-lists, <code>community</code>, <code>large-community</code> and
+<code>extended-community</code>. Values across all three are alternatives: any one present
+in the route satisfies the condition.</p>
+<!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container, match -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDefs -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
+<!-- source: internal/component/bgp/reactor/forward_med.go -- applyFactsMED -->
+<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 
 <h2 id="static-routes">Static Routes</h2>
 <p>Routes can be configured directly per peer:</p>
@@ -2655,7 +2716,7 @@ and an optional list of authorization profile names.</p>
 <pre><code>system {
     authentication {
         user alice {
-            plaintext-password &quot;secret&quot;     # write-only; hashed on commit
+            plaintext-password &quot;secret&quot;     # write-only; hashed at commit and at load
             profile [ admin ]
         }
         user bob {
@@ -2681,16 +2742,36 @@ and an optional list of authorization profile names.</p>
 </tr>
 <tr>
 <td><code>plaintext-password</code></td>
-<td>never persisted</td>
-<td>Junos-style write-only input. The commit hook bcrypt-hashes the value into <code>password</code> and removes this leaf.</td>
+<td>only in a file you wrote</td>
+<td>Junos-style write-only input. Ze bcrypt-hashes the value into <code>password</code> and removes this leaf. Ze never writes this leaf itself.</td>
 </tr>
 </tbody>
 </table>
-<p>Both leaves are mutually exchangeable inputs; only <code>password</code> survives a
-commit. For end-to-end usage (login, hashing, multi-user setup) see
+<p>Both leaves are inputs and only <code>password</code> reaches the running tree. Ze applies the
+same transform on two paths:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What happens to the file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Editor <code>commit</code>, <code>ze config set</code>, <code>ze config import</code></td>
+<td>The file Ze writes carries the hash. It never carries the plaintext</td>
+</tr>
+<tr>
+<td>A config file loaded at daemon start or at SIGHUP</td>
+<td>Ze hashes the leaf in memory and leaves your file as you wrote it. It warns once, naming the file, because the plaintext is still in it</td>
+</tr>
+</tbody>
+</table>
+<p>For end-to-end usage (login, hashing, multi-user setup) see
 <a href="../authentication/">authentication.md</a>.</p>
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 
 <p>Remote AAA backends authenticate operators against a central server, with local
 users as the fallback: <code>system.authentication.tacacs</code> (RFC 8907, see
@@ -4309,7 +4390,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

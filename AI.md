@@ -98,19 +98,20 @@ gh-pages/
                                               landmark-features timeline, oldest first, grouped by
                                               quarter and color-coded by category
     render-command-equivalents.py         -- data/command-equivalents.json + live Ze CLI catalog ->
-                                              command-equivalents/index.html and index.md
-    render-cli-catalog.py                 -- `ze help command --json` -> cli/index.html, with a
-                                              live search box that jumps to a matching command's
+                                              reference/command-equivalents/index.html and index.md
+    render-cli-catalog.py                 -- `ze help command --json` -> reference/cli/index.html,
+                                              with a live search box that jumps to a matching command's
                                               anchor (id="cmd-<slug>") in its group
     render-dependencies.py                -- ../main/go.mod + data/dependencies.json -> dependencies/index.html
     extract-plugin-registry.py            -- ../main/internal/**/register.go + YANG imports ->
                                               data/plugin-registry.json
-    render-plugin-catalog.py             -- data/plugin-registry.json -> docs/features/plugins/
+    render-plugin-catalog.py             -- data/plugin-registry.json -> reference/plugins/
                                               catalog plus one local detail page per plugin;
                                               grouping is derived from ConfigRoots and source
                                               paths, not a hand-written plugin taxonomy
-    render-config-reference.py            -- data/plugin-registry.json -> config-reference/index.html,
-                                              every plugin (not just BGP) grouped by config root
+    render-config-reference.py            -- data/plugin-registry.json ->
+                                              reference/configuration/index.html, every plugin
+                                              (not just BGP) grouped by config root
     render-index.py                       -- data/audience.json + data/whats-new.json + template
                                               -> index.html
     render-llms-txt.py                    -- data/nav.json + page_registry.py + Markdown + live counts -> llms.txt
@@ -307,8 +308,8 @@ page is already built:
   when the target is also published (GitHub blob link otherwise -- same
   rule its HTML-link rewriter already used, just emitting Markdown link
   syntax).
-- **Built from JSON/data** (`features/`, `cli/`, `dependencies/`,
-  `config-reference/`, `activity/`, blog posts): each `render-*.py` has a
+- **Built from JSON/data** (`features/`, `reference/cli/`, `dependencies/`,
+  `reference/configuration/`, `activity/`, blog posts): each `render-*.py` has a
   `render_markdown()` next to its `render()`, both reading the same data,
   so the two can't disagree.
 - **Hand-authored HTML, no source of either kind** (`labs/*/`, `talks/`,
@@ -388,7 +389,7 @@ fresh, `tools/build.py --only command-equivalents,search,seo,llms` is enough.
 
 ### Plugin catalog
 
-`docs/features/plugins/` is generated from `data/plugin-registry.json`, which
+`reference/plugins/` is generated from `data/plugin-registry.json`, which
 is generated from `../main/internal/**/register.go` plus optional local
 `PLUGIN.md` front matter beside a plugin's `register.go`. Do not hand-edit
 plugin cards, dependency lists, source paths, or detail pages. Add or fix
@@ -396,8 +397,8 @@ machine facts in `registry.Registration`; add local prose or display metadata
 in that plugin's `PLUGIN.md`; then run `tools/build.py --only
 plugins,search,seo,llms` or the full build.
 
-The catalog renderer creates `docs/features/plugins/index.html`, its
-`index.md` mirror, and one local `docs/features/plugins/<plugin>/` detail page
+The catalog renderer creates `reference/plugins/index.html`, its `index.md`
+mirror, and one local `reference/plugins/<plugin>/` detail page
 per registry entry. Card clicks must stay on the site. If the page needs a new
 machine fact, extend the extractor or registry data instead of adding a
 hardcoded list to the renderer.

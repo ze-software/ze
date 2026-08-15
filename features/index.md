@@ -134,7 +134,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - YANG roots join **CLI** and web
 - Independent, **composable**
 
-[Learn more](https://ze-software.net/docs/features/plugins/)
+[Learn more](https://ze-software.net/reference/plugins/)
 
 ### Programmable
 
@@ -264,7 +264,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **RPKI** route origin validation
 - No **other daemons** needed
 
-[Learn more](https://ze-software.net/docs/features/plugins/)
+[Learn more](https://ze-software.net/reference/plugins/)
 
 ### TACACS+ AAA
 

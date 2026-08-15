@@ -126,15 +126,15 @@ bgp {
         filter {
             import [ bgp-filter-irr:65001 ]
         }
-        process bgp-adj-rib-in {
-            receive [ update state ]
+        attach process bgp-adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
 </code></pre>
 <p>The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is not required to make the filter decision, but it provides <code>show bgp adj-rib-in</code> so you can verify which routes passed.</p>
 <p>The suffix in <code>bgp-filter-irr:65001</code> is the peer's remote ASN. It selects the dynamic list associated with AS 65001. Use the corresponding ASN in each peer's filter reference. Prefixes that do not match that list are rejected by the implicit deny.</p>
-<p>No <code>process bgp-filter-irr</code> block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.</p>
+<p>No <code>attach process bgp-filter-irr</code> block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.</p>
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
 
@@ -202,13 +202,13 @@ $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
       <span>irr-filter.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/irr-filter.png?v=4f0975525e" aria-label="Add IRR filtering to an existing BGP peer demonstration">
-      <source src="../../../assets/demos/irr-filter.webm?v=fccd694124" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/irr-filter.webm?v=fccd694124">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/irr-filter.png?v=fd5f3c7eae" aria-label="Add IRR filtering to an existing BGP peer demonstration">
+      <source src="../../../assets/demos/irr-filter.webm?v=6d4db8f71b" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/irr-filter.webm?v=6d4db8f71b">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>3 minutes 37 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.20</span><span>3 minutes 37 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/irr-filter.txt?v=3fd732070b">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -319,7 +319,7 @@ The operational commands use Ze&#x27;s default text format. Its key/value layout
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

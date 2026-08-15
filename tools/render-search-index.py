@@ -15,11 +15,11 @@ dump of the whole YANG config tree, so a single capped page record would
 bury every config term (searching "ddos" found nothing before this). Instead
 we read data/yang-config-tree.json directly and emit one record per
 top-level config section (bgp, ddos, ospf, ...), each deep-linked to
-config-reference/#<section> -- the same hash the in-page config explorer
-routes on -- with the whole subtree's names, types and descriptions as its
-body. So "ddos", "flowtriq", "flowspec" and friends now land straight on the
-ddos section. The raw config-reference/index.md page is skipped in the
-generic walk to avoid a giant duplicate record.
+reference/configuration/#<section> -- the same hash the in-page config
+explorer routes on -- with the whole subtree's names, types and descriptions
+as its body. So "ddos", "flowtriq", "flowspec" and friends now land straight
+on the ddos section. The raw reference/configuration/index.md page is skipped
+in the generic walk to avoid a giant duplicate record.
 
 Run this after the pages and their index.md siblings exist (i.e. after the
 docs/blog/nav steps) and after data/yang-config-tree.json is generated, so
@@ -45,7 +45,7 @@ SKIP_TOP = {"data", "assets", "tmp", ".git", ".ruff_cache", "tools"}
 # The Configuration Reference is indexed per config section from the YANG
 # tree (see build_config_records), not as one capped page, so its raw
 # index.md mirror is skipped in the generic walk.
-CONFIG_REF_DIR = "config-reference"
+CONFIG_REF_DIR = "reference/configuration"
 
 # Per-page body cap. Big enough that multi-section pages (the Configuration
 # guide, command reference, the per-protocol guides) are searchable past
@@ -143,8 +143,8 @@ def flatten_section(node, heads, descs):
 
 def build_config_records():
     """One search record per top-level config section, read straight from the
-    YANG config tree, each deep-linked to config-reference/#<section>. Returns
-    [] (with a warning) if the tree has not been generated yet."""
+    YANG config tree, each deep-linked to reference/configuration/#<section>.
+    Returns [] (with a warning) if the tree has not been generated yet."""
     if not YANG_TREE.exists():
         sitelib.warn(
             "%s not found -- config sections will be missing from "

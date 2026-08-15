@@ -16,7 +16,7 @@
                     {"label_only": "Before you run"},
                     {"href": "roadmap/", "icon": "🗺️", "title": "Project status", "desc": "What works today and what may still change"},
                     {"href": "faq/", "icon": "?", "title": "FAQ", "desc": "Common questions before trying Ze"},
-                    {"href": "docs/features/plugins/", "icon": "🔌", "title": "Plugin catalogue", "desc": "Find runtime plugins by purpose, config, or dependency"}
+                    {"href": "reference/plugins/", "icon": "🔌", "title": "Plugin catalogue", "desc": "Find runtime plugins by purpose, config, or dependency"}
                 ]
             ]
         },
@@ -119,17 +119,16 @@
             "columns": [
                 [
                     {"label_only": "Generated references"},
-                    {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "%(cli_commands)s commands, generated from Ze's live binary"},
-                    {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "%(config_sections)s sections, indexed from live YANG"},
-                    {"href": "command-equivalents/", "icon": "↔️", "title": "Command equivalents", "desc": "Search Ze commands across Junos MX, IOS XR, SR OS, and VyOS"},
-                    {"href": "docs/features/rfc-status/", "icon": "📜", "title": "RFC status", "desc": "Implemented RFCs, partial support, and known gaps"}
+                    {"href": "reference/cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "%(cli_commands)s commands, generated from Ze's live binary"},
+                    {"href": "reference/configuration/", "icon": "🧬", "title": "Configuration Reference", "desc": "%(config_sections)s sections, indexed from live YANG"},
+                    {"href": "reference/command-equivalents/", "icon": "↔️", "title": "Command equivalents", "desc": "Search Ze commands across Junos MX, IOS XR, SR OS, and VyOS"},
+                    {"href": "reference/rfcs/", "icon": "📜", "title": "RFC status", "desc": "Implemented RFCs, partial support, and known gaps"},
+                    {"href": "reference/plugins/", "icon": "🔌", "title": "Plugin catalogue", "desc": "Find runtime plugins by purpose, config, or dependency"}
                 ]
                 ,[
                     {"label_only": "Written references"},
-                    {"href": "docs/glossary/", "icon": "📖", "title": "Glossary", "desc": "Routing, policy, configuration, and test terms"},
-                    {"href": "docs/architecture/config/deprecated-options/", "icon": "🗑️", "title": "Deprecated options", "desc": "Removed configuration syntax and replacements"},
-                    {"href": "docs/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"},
-                    {"href": "docs/contributing/testing/", "icon": "✅", "title": "Contributor testing", "desc": "How to choose and run the right test layer"}
+                    {"href": "reference/glossary/", "icon": "📖", "title": "Glossary", "desc": "Routing, policy, configuration, and test terms"},
+                    {"href": "reference/deprecations/", "icon": "🗑️", "title": "Deprecated options", "desc": "Removed configuration syntax and replacements"}
                 ]
             ]
         },
@@ -147,7 +146,9 @@
                     {"label_only": "Community"},
                     {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Project notes and release stories"},
                     {"href": "talks/", "icon": "🎤", "title": "Talks", "desc": "Talk slides and conference material"},
-                    {"href": "contribute/", "icon": "🤝", "title": "Contribute", "desc": "How to send code, reports, and interop results"}
+                    {"href": "project/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"},
+                    {"href": "contribute/", "icon": "🤝", "title": "Contribute", "desc": "How to send code, reports, and interop results"},
+                    {"href": "contribute/testing/", "icon": "✅", "title": "Contributor testing", "desc": "How to choose and run the right test layer"}
                 ]
             ]
         }

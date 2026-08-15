@@ -72,20 +72,32 @@ ze cli -c &quot;request peer transit-a clear soft&quot;
 <h2 id="graceful-restart">Graceful Restart</h2>
 <p>Graceful Restart requires the <code>bgp-gr</code> and <code>bgp-rib</code> plugins. The restarting speaker advertises the capability, while the receiving speaker retains stale routes until End-of-RIB or timer expiry.</p>
 <pre><code class="language-text">plugin {
-    internal rib { use bgp-rib }
-    internal gr { use bgp-gr }
+    internal rib {
+        use bgp-rib
+    }
+    internal gr {
+        use bgp-gr
+    }
 }
 
 bgp {
     peer upstream1 {
-        capability {
-            graceful-restart {
-                restart-time 120
-                long-lived-stale-time 3600
+        session {
+            capability {
+                graceful-restart {
+                    restart-time 120
+                    long-lived-stale-time 3600
+                }
             }
         }
-        process gr { receive [ state eor ] }
-        process rib { receive [ state ]; send [ update ] }
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+        attach process rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
     }
 }
 </code></pre>
@@ -165,7 +177,7 @@ bgp {
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

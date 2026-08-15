@@ -55,7 +55,7 @@ Ze ships filters for:
 - RPKI and IRR validation;
 - RFC 4271 AS loop and RFC 4456 cluster-list loop detection.
 
-The [plugin guide](../plugins/index.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/docs/features/plugins/) shows which plugin owns each filter.
+The [plugin guide](../plugins/index.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/reference/plugins/) shows which plugin owns each filter.
 
 ## IRR and RPKI
 
@@ -119,7 +119,7 @@ community [ 0:64998 65000:65002 65001:100 ]
 Two limits are worth knowing:
 
 - A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches `<rs-asn>:<asn>` on the low 16 bits of its ASN only. Use large communities where that is ambiguous.
-- Stripping is ze's own forwarding behaviour. RFC 7947 requires per-client import and export policy but does not mandate it, so a different route-server implementation may leave these tags in place.
+- Stripping is ze's own forwarding behaviour. RFC 7947 expects per-client import and export policy but prescribes no mechanism for it (Section 2.3.2.1 offers per-client RIBs as "the most portable method"), so a different route-server implementation may leave these tags in place.
 
 <!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->

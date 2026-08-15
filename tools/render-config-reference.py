@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render config-reference/index.html: the whole Ze configuration as a
+"""Render reference/configuration/index.html: the whole Ze configuration as a
 breadcrumb-navigated browser -- the same table-of-children presentation at
 every level.
 
@@ -49,7 +49,7 @@ GH_PAGES = HERE.parent
 MAIN_REPO = (GH_PAGES.parent / "main").resolve()
 DATA = GH_PAGES / "data" / "plugin-registry.json"
 YANG_TREE_DATA = GH_PAGES / "data" / "yang-config-tree.json"
-DEST = GH_PAGES / "config-reference" / "index.html"
+DEST = GH_PAGES / "reference" / "configuration" / "index.html"
 
 TEST_DIR_PREFIX = "internal/test/"
 
@@ -501,7 +501,7 @@ def render_markdown(tree, owner_map, owned_count):
 
 
 def render(tree, owner_map):
-    root = "../"
+    root = "../../"
     sections = sorted(tree)
     warn_orphan_roots(tree, owner_map)
     owned_count = sum(1 for name in sections if owner_map.get(name))
@@ -518,7 +518,7 @@ def render(tree, owner_map):
             root,
             og_title=title,
             og_desc=desc,
-            page_key="config-reference/",
+            page_key="reference/configuration/",
         )
     ]
     out.append(

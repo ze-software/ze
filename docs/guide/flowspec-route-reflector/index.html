@@ -135,7 +135,8 @@ set bgp peer mitigation-upstream session cluster-id 10.0.0.1
 set bgp peer mitigation-upstream session next-hop unchanged
 set bgp peer mitigation-upstream session family ipv4/flow mode enable
 set bgp peer mitigation-upstream session family ipv4/flow prefix maximum 1000
-set bgp peer mitigation-upstream process bgp-rr
+set bgp peer mitigation-upstream attach process bgp-rr receive [ update-received state open-received ]
+set bgp peer mitigation-upstream attach process bgp-rr send [ update ]
 
 set bgp peer edge-a description &quot;FlowSpec client edge-a&quot;
 set bgp peer edge-a connection remote ip 10.0.0.11
@@ -147,7 +148,8 @@ set bgp peer edge-a session cluster-id 10.0.0.1
 set bgp peer edge-a session next-hop unchanged
 set bgp peer edge-a session family ipv4/flow mode enable
 set bgp peer edge-a session family ipv4/flow prefix maximum 1000
-set bgp peer edge-a process bgp-rr
+set bgp peer edge-a attach process bgp-rr receive [ update-received state open-received ]
+set bgp peer edge-a attach process bgp-rr send [ update ]
 
 set bgp peer edge-b description &quot;FlowSpec client edge-b&quot;
 set bgp peer edge-b connection remote ip 10.0.0.12
@@ -159,7 +161,8 @@ set bgp peer edge-b session cluster-id 10.0.0.1
 set bgp peer edge-b session next-hop unchanged
 set bgp peer edge-b session family ipv4/flow mode enable
 set bgp peer edge-b session family ipv4/flow prefix maximum 1000
-set bgp peer edge-b process bgp-rr
+set bgp peer edge-b attach process bgp-rr receive [ update-received state open-received ]
+set bgp peer edge-b attach process bgp-rr send [ update ]
 EOF
 
 /usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
@@ -180,12 +183,12 @@ sudo systemctl reload ze.service
 </thead>
 <tbody>
 <tr>
-<td><code>plugin internal bgp-rr { use bgp-rr }</code></td>
+<td><code>plugin { internal bgp-rr { use bgp-rr; } }</code></td>
 <td>Starts the in-process route reflector plugin.</td>
 </tr>
 <tr>
-<td><code>process bgp-rr { }</code> on each peer</td>
-<td>Binds the peer to the declared plugin name.</td>
+<td><code>attach process bgp-rr { receive [ update-received state open-received ]; send [ update ]; }</code> on each peer</td>
+<td>Feeds the reflector what it declares it handles, and lets it reflect back. The received direction is not a preference: reflecting an UPDATE raises the sent event the reflection is waiting on, so a plain <code>update</code> deadlocks it.</td>
 </tr>
 <tr>
 <td><code>family ipv4/flow</code></td>
@@ -255,7 +258,7 @@ address-family ipv4 flowspec
 </tr>
 <tr>
 <td>Updates are reflected back to the origin</td>
-<td>Confirm the source peer is bound to <code>process bgp-rr</code> and is visible in <code>show rr peers</code>.</td>
+<td>Confirm the source peer is bound to <code>attach process bgp-rr</code> and is visible in <code>show rr peers</code>.</td>
 </tr>
 <tr>
 <td>Clients do not receive non-client routes</td>
@@ -293,7 +296,7 @@ address-family ipv4 flowspec
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

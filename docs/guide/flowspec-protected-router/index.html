@@ -150,7 +150,7 @@ set bgp peer flowspec-rr session asn local 65010
 set bgp peer flowspec-rr session asn remote 65010
 set bgp peer flowspec-rr session family ipv4/flow mode enable
 set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
-set bgp peer flowspec-rr process flowspec-firewall
+set bgp peer flowspec-rr attach process flowspec-firewall receive [ update-received state ]
 EOF
 
 /usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
@@ -191,8 +191,8 @@ sudo systemctl reload ze.service
 <td>Negotiates IPv4 FlowSpec with the route reflector.</td>
 </tr>
 <tr>
-<td><code>process flowspec-firewall</code></td>
-<td>Binds this peer to the bridge plugin.</td>
+<td><code>attach process flowspec-firewall { receive [ update-received state ]; }</code></td>
+<td>Feeds the plugin the FlowSpec routes this peer announces, and its session state. Without the receive list the peer feeds it nothing.</td>
 </tr>
 <tr>
 <td><code>ddos flowspec</code></td>
@@ -310,7 +310,7 @@ sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 sudo /usr/local/bin/ze config rollback 1 edge-01.conf
 sudo systemctl reload ze.service
 </code></pre>
-<p>Use the revision number from <code>ze config history</code>. To stop enforcing received FlowSpec while keeping the BGP session, remove the <code>process flowspec-firewall</code> binding and the <code>plugin internal flowspec-firewall</code> line with the same zefs update pattern, validate, import, and reload.</p>
+<p>Use the revision number from <code>ze config history</code>. To stop enforcing received FlowSpec while keeping the BGP session, remove the <code>attach process flowspec-firewall</code> binding and the <code>plugin internal flowspec-firewall</code> line with the same zefs update pattern, validate, import, and reload.</p>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -337,7 +337,7 @@ sudo systemctl reload ze.service
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

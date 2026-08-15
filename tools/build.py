@@ -9,7 +9,7 @@ Steps (default order, also the --only vocabulary):
     css       assets/css/site.css imports -> assets/site.css, minified
               (tools/render-css.py)
     js        assets/js/site.js -> assets/site.js, minified (tools/render-js.py)
-    docs      main/docs/*.md -> docs/**/index.html      (tools/page_registry.py DOCS_MANIFEST)
+    docs      main/docs/*.md -> docs/** or IA namespace (tools/page_registry.py DOCS_MANIFEST)
     usage    usage/*.md -> usage/**/index.html      (tools/render-doc.py)
     blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
               (tools/render-blog.py) -- empty until articles are added
@@ -19,10 +19,10 @@ Steps (default order, also the --only vocabulary):
     activity  git history -> activity/index.html         (tools/render-activity.py)
     compare   compare/*.md -> compare/**/index.html      (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)
-    cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
+    cli       `ze help command --json` -> reference/cli/index.html  (tools/render-cli-catalog.py)
     deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
     quality   quality/*.md -> quality/**/index.html      (tools/render-doc.py)
-    config    live YANG + ../main/internal/**/register.go -> config-reference/index.html
+    config    live YANG + ../main/internal/**/register.go -> reference/configuration/index.html
               (tools/extract-yang-config-tree.py, tools/extract-plugin-registry.py,
               tools/render-config-reference.py) -- extract-yang-config-tree.py runs
               `ze yang tree --json --config` against ../main/bin/ze (same
@@ -32,7 +32,7 @@ Steps (default order, also the --only vocabulary):
               level by level (breadcrumb + a table of each node's children),
               the same presentation at every depth, not a per-plugin list
     plugins   ../main/internal/**/register.go + local PLUGIN.md front matter
-              -> data/plugin-registry.json -> docs/features/plugins/index.html
+              -> data/plugin-registry.json -> reference/plugins/index.html
               searchable runtime plugin catalog, generated from live registry
               extraction rather than a hand-authored website list
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)

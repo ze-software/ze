@@ -24,6 +24,130 @@ document.addEventListener("DOMContentLoaded", function () {
         return String(text || "").replace(/\s+/g, " ").replace(/`/g, "").trim();
     }
 
+    function initTaglineCarousel() {
+        var carousel = document.querySelector("[data-tagline-carousel]");
+        if (!carousel) return;
+
+        var text = carousel.querySelector("[data-tagline-text]");
+        var template = carousel.querySelector("[data-tagline-options]");
+        var dotsHost = carousel.querySelector("[data-tagline-dots]");
+        var previous = carousel.querySelector("[data-tagline-prev]");
+        var next = carousel.querySelector("[data-tagline-next]");
+        var status = carousel.querySelector("[data-tagline-status]");
+        if (!text || !template || !template.content || !dotsHost || !previous || !next) return;
+
+        var taglines = slice(template.content.querySelectorAll("span")).map(function (option) {
+            return cleanLabel(option.textContent);
+        }).filter(Boolean);
+        if (taglines.length < 2) return;
+
+        var current = 0;
+        var transitionTimer = null;
+        var autoplayTimer = null;
+        var hovered = false;
+        var focused = false;
+        var reduceMotion = window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var dots = taglines.map(function (tagline, index) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "tagline-carousel-dot";
+            button.setAttribute("aria-label", "Show tagline " + (index + 1) + ": " + tagline);
+            button.setAttribute("aria-controls", "hero-title");
+            button.addEventListener("click", function () {
+                show(index, true);
+            });
+            dotsHost.appendChild(button);
+            return button;
+        });
+
+        function updateDots() {
+            dots.forEach(function (dot, index) {
+                if (index === current) {
+                    dot.setAttribute("aria-current", "true");
+                } else {
+                    dot.removeAttribute("aria-current");
+                }
+            });
+        }
+
+        function announce() {
+            if (!status) return;
+            status.textContent =
+                "Showing tagline " + (current + 1) + " of " + taglines.length + ": " + taglines[current];
+        }
+
+        function commit(index, manual) {
+            current = (index + taglines.length) % taglines.length;
+            text.textContent = taglines[current];
+            updateDots();
+            if (manual) announce();
+            window.requestAnimationFrame(function () {
+                carousel.classList.remove("is-changing");
+            });
+        }
+
+        function show(index, manual) {
+            window.clearTimeout(transitionTimer);
+            carousel.classList.remove("is-changing");
+            if (reduceMotion) {
+                commit(index, manual);
+                return;
+            }
+            carousel.classList.add("is-changing");
+            transitionTimer = window.setTimeout(function () {
+                commit(index, manual);
+            }, 180);
+        }
+
+        function stopAutoplay() {
+            window.clearTimeout(autoplayTimer);
+            autoplayTimer = null;
+        }
+
+        function scheduleAutoplay() {
+            stopAutoplay();
+            if (reduceMotion || hovered || focused || document.hidden) return;
+            autoplayTimer = window.setTimeout(function () {
+                show(current + 1, false);
+                scheduleAutoplay();
+            }, 6000);
+        }
+
+        previous.setAttribute("aria-controls", "hero-title");
+        next.setAttribute("aria-controls", "hero-title");
+        previous.addEventListener("click", function () {
+            show(current - 1, true);
+            scheduleAutoplay();
+        });
+        next.addEventListener("click", function () {
+            show(current + 1, true);
+            scheduleAutoplay();
+        });
+        carousel.addEventListener("mouseenter", function () {
+            hovered = true;
+            stopAutoplay();
+        });
+        carousel.addEventListener("mouseleave", function () {
+            hovered = false;
+            scheduleAutoplay();
+        });
+        carousel.addEventListener("focusin", function () {
+            focused = true;
+            stopAutoplay();
+        });
+        carousel.addEventListener("focusout", function () {
+            window.setTimeout(function () {
+                focused = carousel.contains(document.activeElement);
+                scheduleAutoplay();
+            }, 0);
+        });
+        document.addEventListener("visibilitychange", scheduleAutoplay);
+
+        updateDots();
+        scheduleAutoplay();
+    }
+
     function escapeRegExp(text) {
         return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
@@ -1526,6 +1650,7 @@ document.addEventListener("DOMContentLoaded", function () {
         initNavigation();
         initSearchOverlay();
     });
+    initTaglineCarousel();
     initSearchPage();
     initFeatureFilters();
     initTimelineFilters();

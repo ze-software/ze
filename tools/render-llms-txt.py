@@ -60,7 +60,7 @@ LIVE_DESC_OVERRIDES = {
     "features/": lambda: (
         "%s features, color-coded by category" % live_counts()["features"]
     ),
-    "cli/": lambda: (
+    "reference/cli/": lambda: (
         "%s commands, generated from the live binary" % live_counts()["cli_commands"]
     ),
     "dependencies/": lambda: (
@@ -510,7 +510,7 @@ def render_published_documentation():
     main_docs = GH_PAGES.parent / "main" / "docs"
     for source in page_registry.DOCS_MANIFEST:
         title, desc = markdown_title_and_summary(main_docs / source)
-        href = "docs/%s/" % page_registry.doc_stem(source)
+        href = page_registry.docs_dest_rel_dir_for(source) + "/"
         lines.append(
             "- [%s](%s): %s (web: %s)"
             % (title, local_md_url(href), desc, local_web_url(href))

@@ -107,25 +107,34 @@ bgp {
     }
 
     peer peer1 {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip 10.0.0.2
+            }
         }
-        local {
-            as 65000
-            ip 10.0.0.2
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 10.0.0.2
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
         }
-        router-id 10.0.0.2
 
-        family {
-            ipv4/unicast
+        attach process rpki {
+            receive [ update-received ]
         }
-
-        process rpki {
-            receive [ update ]
-        }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -205,8 +214,13 @@ bgp {
 <code>peer</code> or a <code>group</code>, overriding the global <code>rpki / action</code> for routes learned from that peer.
 Only the action blocks are per-peer; <code>cache-server</code>, <code>validation-timeout</code>, and <code>aspa / validation</code>
 remain global. Resolution is <strong>peer &gt; group &gt; global, per leaf</strong>: a leaf left unset on the peer
-inherits the group's value, then the global value. Peers with a static <code>connection / remote / ip</code>
-can be overridden; dynamically-addressed peers use the global actions.</p>
+inherits the group's value, then the global value.</p>
+<p>A listen-range group states the actions for every session it accepts. Such a session is
+created from the group's template when the connection arrives, so it has no <code>peer</code> block of
+its own, and it inherits what the group states. A NAMED peer that gives no
+<code>connection / remote / ip</code> of its own is different: ze never builds it from the template, so
+it has no address at all and it uses the global actions. It is reported at startup with
+<code>rpki: per-peer action override ignored: no static remote ip</code>.</p>
 <pre><code>bgp {
     rpki {                                  /* global: caches + baseline actions */
         cache-server 192.0.2.1 { port 323; }
@@ -218,14 +232,20 @@ can be overridden; dynamically-addressed peers use the global actions.</p>
             rpki { action { invalid log-only; } }  /* per-peer override; not-found inherits global */
         }
     }
+    group ix {                                     /* listen range: no peer blocks */
+        connection { remote { ip dynamic; range 192.0.2.0/24; } }
+        rpki { action { invalid reject; } }         /* every session this group accepts */
+    }
 }
 </code></pre>
 <p><code>show bgp rpki status</code> reports the effective global actions (<code>actions</code>) and the resolved per-peer
-overrides with the source of each leaf (<code>peer-actions</code>).</p>
+overrides with the source of each leaf (<code>peer-actions</code>). An entry names what it is: <code>"peer"</code>
+carries a remote address, and <code>"group"</code> carries a listen-range group's name and states what
+every session that group accepts inherits.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
 
 <h3 id="plugin-bindings">Plugin Bindings</h3>
-<p>The rpki plugin must be bound to peers with <code>process rpki { receive [ update ] }</code>. The adj-rib-in plugin must also be bound with <code>process adj-rib-in { receive [ update state ] }</code> -- it provides the validation gate that holds routes pending validation.</p>
+<p>The rpki plugin must be bound to peers with <code>attach process rpki { receive [ update-received ]; }</code>. It validates what the peer announces, so it asks for one direction. The adj-rib-in plugin must also be bound with <code>attach process adj-rib-in { receive [ update-received state ]; }</code> -- it provides the validation gate that holds routes pending validation.</p>
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 
 <h2 id="how-it-works">How It Works</h2>
@@ -368,17 +388,17 @@ between polls even after a successful sync.</p>
 
 bgp {
     peer peer1 {
-        process my-consumer {
+        attach process my-consumer {
             receive [ update-rpki ]
         }
-        process rpki {
-            receive [ update ]
+        attach process rpki {
+            receive [ update-received ]
         }
-        process rpki-decorator {
-            receive [ update rpki ]
+        attach process rpki-decorator {
+            receive [ update-received rpki ]
         }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -551,13 +571,13 @@ bgp {
       <span>rpki.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/rpki.png?v=e67d7948bf" aria-label="Accept valid routes and reject RPKI-invalid ones demonstration">
-      <source src="../../../assets/demos/rpki.webm?v=e9f864daba" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/rpki.webm?v=e9f864daba">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/rpki.png?v=ee521ed133" aria-label="Accept valid routes and reject RPKI-invalid ones demonstration">
+      <source src="../../../assets/demos/rpki.webm?v=d07469afde" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/rpki.webm?v=d07469afde">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>46 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>46 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/rpki.txt?v=bf49f52038">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -605,7 +625,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
 <tr>
 <td>Routes accepted without validation</td>
 <td>rpki plugin not bound to peer</td>
-<td>Add <code>process rpki { receive [ update ] }</code> to peer config</td>
+<td>Add <code>attach process rpki { receive [ update-received ]; }</code> to peer config</td>
 </tr>
 </tbody>
 </table>
@@ -635,7 +655,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

@@ -53,6 +53,66 @@
                         scenario by scenario.
                     </p>
                 </div>
+                <section class="lab-methods" aria-labelledby="lab-methods-title">
+                    <div class="section-head reveal">
+                        <h2 id="lab-methods-title">Two ways to test Ze.</h2>
+                        <p>
+                            Use the Ze interop harness for protocol assertions,
+                            or netlab for reusable multi-node topologies.
+                        </p>
+                    </div>
+                    <div class="cards lab-method-grid reveal">
+                        <article class="card audience-card cat-operate">
+                            <span class="cat">Ze harness</span>
+                            <h3>
+                                <a href="../../docs/architecture/testing/interop/"
+                                    >Protocol interop scenarios</a
+                                >
+                            </h3>
+                            <p>
+                                Run 68 curated scenarios against FRR, BIRD, and
+                                GoBGP. The harness starts only the required
+                                daemons and checks behavior through each peer's
+                                own CLI.
+                            </p>
+                            <div class="chips">
+                                <span class="chip">68 scenarios</span>
+                                <span class="chip">FRR</span>
+                                <span class="chip">BIRD</span>
+                                <span class="chip">GoBGP</span>
+                            </div>
+                            <span class="audience-card-cta"
+                                >Use the Ze harness
+                                <small>scenario assertions</small></span
+                            >
+                        </article>
+                        <article class="card audience-card cat-platform">
+                            <span class="cat">netlab</span>
+                            <h3>
+                                <a href="../../docs/guide/netlab/"
+                                    >Reusable topology lab</a
+                                >
+                            </h3>
+                            <p>
+                                Describe a three-node topology in YAML. netlab
+                                renders Ze configuration and starts each daemon
+                                node under containerlab.
+                            </p>
+                            <div class="chips">
+                                <span class="chip">YAML</span>
+                                <span class="chip">containerlab</span>
+                                <span class="chip">BGP</span>
+                                <span class="chip">OSPF</span>
+                                <span class="chip">IS-IS</span>
+                                <span class="chip">BFD</span>
+                            </div>
+                            <span class="audience-card-cta"
+                                >Use netlab
+                                <small>three-node topology</small></span
+                            >
+                        </article>
+                    </div>
+                </section>
                 <div class="status-panel reveal">
                     <div class="status-copy">
                         <span class="tag">Daemon</span>
@@ -137,6 +197,10 @@
                     <a class="page-sidebar-link" href="../../labs/">
                         <span class="page-sidebar-link-label">All labs</span>
                         <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/guide/netlab/">
+                        <span class="page-sidebar-link-label">netlab topology</span>
+                        <small>Build reusable Ze topologies under containerlab.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../quality/qemu-interop-release/">
                         <span class="page-sidebar-link-label">Release evidence</span>

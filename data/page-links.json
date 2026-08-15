@@ -246,7 +246,7 @@
               "desc": "Use when checking what Ze exposes today."
             },
             {
-              "href": "command-equivalents/",
+              "href": "reference/command-equivalents/",
               "label": "Command equivalents",
               "desc": "Use when comparing operational syntax with vendors."
             },
@@ -499,7 +499,7 @@
               "desc": "Learn how to use the features."
             },
             {
-              "href": "docs/features/plugins/",
+              "href": "reference/plugins/",
               "label": "Plugin catalogue",
               "desc": "Runtime plugins behind feature areas."
             },
@@ -602,7 +602,7 @@
         }
       ]
     },
-    "docs/features/plugins/": {
+    "reference/plugins/": {
       "eyebrow": "Plugins",
       "groups": [
         {
@@ -614,7 +614,7 @@
               "desc": "Feature view grouped by operator outcome."
             },
             {
-              "href": "config-reference/",
+              "href": "reference/configuration/",
               "label": "Configuration reference",
               "desc": "Generated config tree owned by plugins."
             },
@@ -627,14 +627,14 @@
         }
       ]
     },
-    "command-equivalents/": {
+    "reference/command-equivalents/": {
       "eyebrow": "Operations",
       "groups": [
         {
           "title": "Use this map",
           "links": [
             {
-              "href": "cli/",
+              "href": "reference/cli/",
               "label": "CLI reference",
               "desc": "Generated Ze command catalogue."
             },
@@ -905,14 +905,14 @@
         }
       ]
     },
-    "cli/": {
+    "reference/cli/": {
       "eyebrow": "Operations",
       "groups": [
         {
           "title": "Use the CLI",
           "links": [
             {
-              "href": "command-equivalents/",
+              "href": "reference/command-equivalents/",
               "label": "Command equivalents",
               "desc": "Map Ze syntax to Junos, IOS XR, SR OS, and VyOS."
             },
@@ -935,7 +935,7 @@
         }
       ]
     },
-    "config-reference/": {
+    "reference/configuration/": {
       "eyebrow": "Reference",
       "groups": [
         {
@@ -947,7 +947,7 @@
               "desc": "Understand the model behind the generated tree."
             },
             {
-              "href": "docs/features/plugins/",
+              "href": "reference/plugins/",
               "label": "Plugin catalog",
               "desc": "Find which plugins own config roots."
             },
@@ -1012,7 +1012,7 @@
               "desc": "Browse product surface by category."
             },
             {
-              "href": "command-equivalents/",
+              "href": "reference/command-equivalents/",
               "label": "Command equivalents",
               "desc": "Find operational syntax quickly."
             },
@@ -1072,7 +1072,7 @@
               "desc": "Proof-density and sensitivity metrics."
             },
             {
-              "href": "docs/features/rfc-status/",
+              "href": "reference/rfcs/",
               "label": "RFC status",
               "desc": "Public implementation and remaining-gap ledger."
             },
@@ -1080,6 +1080,36 @@
               "href": "quality/verify-debugging/",
               "label": "Verify debugging",
               "desc": "How failed gates route to evidence."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/bgp-interop/": {
+      "eyebrow": "Lab evidence",
+      "groups": [
+        {
+          "title": "Related lab work",
+          "links": [
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "docs/guide/netlab/",
+              "label": "netlab topology",
+              "desc": "Build reusable Ze topologies under containerlab."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "Release evidence",
+              "desc": "How lab runs feed release checks."
+            },
+            {
+              "href": "docs/guide/production-diagnostics/",
+              "label": "Production diagnostics",
+              "desc": "Use lab findings to debug systems."
             }
           ]
         }
@@ -1151,9 +1181,9 @@
       ]
     },
     {
-      "prefix": "command-equivalents/",
+      "prefix": "reference/command-equivalents/",
       "exclude": [
-        "command-equivalents/"
+        "reference/command-equivalents/"
       ],
       "eyebrow": "Command detail",
       "groups": [
@@ -1161,12 +1191,12 @@
           "title": "More commands",
           "links": [
             {
-              "href": "command-equivalents/",
+              "href": "reference/command-equivalents/",
               "label": "Command equivalents",
               "desc": "Return to the side-by-side vendor map."
             },
             {
-              "href": "cli/",
+              "href": "reference/cli/",
               "label": "CLI reference",
               "desc": "Open the generated Ze command catalogue."
             },
@@ -1197,9 +1227,9 @@
       ]
     },
     {
-      "prefix": "docs/features/plugins/",
+      "prefix": "reference/plugins/",
       "exclude": [
-        "docs/features/plugins/"
+        "reference/plugins/"
       ],
       "eyebrow": "Plugin detail",
       "groups": [
@@ -1207,12 +1237,12 @@
           "title": "Plugin context",
           "links": [
             {
-              "href": "docs/features/plugins/",
+              "href": "reference/plugins/",
               "label": "Plugin catalog",
               "desc": "Return to every runtime plugin."
             },
             {
-              "href": "config-reference/",
+              "href": "reference/configuration/",
               "label": "Configuration reference",
               "desc": "Find generated config owned by plugins."
             },
@@ -1321,7 +1351,7 @@
               "desc": "Set up operator accounts and profiles."
             },
             {
-              "href": "command-equivalents/",
+              "href": "reference/command-equivalents/",
               "label": "Command equivalents",
               "desc": "Compare Ze commands with familiar NOS syntax."
             }

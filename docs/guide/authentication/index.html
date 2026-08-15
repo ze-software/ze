@@ -65,6 +65,7 @@ passwords, and connecting as them with the <code>ze</code> CLI.</p>
 <ol>
 <li><a href="#step-1-hash-a-password">Step 1: hash a password</a></li>
 <li><a href="#step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</a></li>
+<li><a href="#passwords-in-a-config-file">Passwords in a config file</a></li>
 <li><a href="#step-3-reload">Step 3: reload</a></li>
 </ol></li>
 <li><a href="#logging-in-as-a-yang-user">Logging in as a YANG user</a>
@@ -156,7 +157,7 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 </tr>
 <tr>
 <td><code>plaintext-password "secret"</code></td>
-<td>You want to type the plaintext and let the commit hook hash it (Junos style)</td>
+<td>You want to type the plaintext and let Ze hash it (Junos style)</td>
 </tr>
 </tbody>
 </table>
@@ -171,9 +172,35 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 </code></pre>
 <p>After <code>commit</code> (or <code>ze config set</code>), the persisted file contains
 only the bcrypt hash; the <code>plaintext-password</code> leaf is removed and never
-written to disk. This matches Junos's <code>plain-text-password</code> behaviour.</p>
+written to disk. This matches Junos's <code>plain-text-password</code> behavior.</p>
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+<!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
+
+<h3 id="passwords-in-a-config-file">Passwords in a config file</h3>
+<p>An operator, a template, or a lab tool can also write <code>plaintext-password</code> straight
+into a config file. Ze hashes that leaf when it loads the file, at daemon start and at
+every SIGHUP reload. The running tree then holds the bcrypt hash and no
+<code>plaintext-password</code> leaf, which is the same tree the editor produces. The user
+authenticates with the password as written.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing -->
+
+<p><strong>The load path does not rewrite your file.</strong> <code>LoadConfig</code> writes nothing, so the secret
+stays readable on disk exactly as you typed it. The daemon says so once per load, naming
+the file:</p>
+<pre><code>plaintext password in /etc/ze/ze.conf: ze hashed it at load, and the file still holds the secret
+</code></pre>
+<p>The warning names the leaf paths in a log attribute and never the password. Replace the
+plaintext with a hash from <code>ze passwd</code>, or protect the file, or accept the risk if the
+file is a throwaway lab render (see <a href="../netlab/">netlab</a>).</p>
+<!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
+
+<p>Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
+schema evolution makes <code>applyEvolutions</code> serialize the loaded tree back to the config
+path, and a rollback makes <code>RecoverConfig</code> do the same. <code>applyEvolutions</code> archives the
+current file first, so the archived version keeps the plaintext.</p>
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+<!-- source: internal/component/config/stamp.go -- RecoverConfig -->
 
 <h3 id="step-3-reload">Step 3: reload</h3>
 <p>The daemon picks up the new user on the next config reload. A session
@@ -231,7 +258,7 @@ the web config views, <code>ze config dump</code>, and CLI search show <code>ze:
 raw download (<code>GET /config/download</code>, gated behind edit permission) keeps the real
 hash so a download → edit → upload round-trip is byte-exact; a masked value pasted
 back into a commit or upload is rejected with a clear error.</p>
-<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedBcryptLeaves -->
+<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedSecretLeaves -->
 <!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
 
 <h3 id="remote-management-listener-guard">Remote management listener guard</h3>
@@ -445,7 +472,7 @@ super-admin (created by <code>ze init</code>) authenticates with a password.</p>
 <p>The canonical <code>password</code> leaf is marked <code>ze:bcrypt</code> -- the parser stores
 the value verbatim and never tries to apply the <code>$9$</code> reversible
 obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
-it with <code>$9$</code> would be a footgun.</p>
+it with <code>$9$</code> would let an operator recover the password from the file.</p>
 <p>If you write a literal plaintext directly on <code>password</code>:</p>
 <pre><code>user alice {
     password &quot;secret&quot;     # WRONG -- not a bcrypt hash
@@ -464,11 +491,43 @@ the bcrypt hash and the ephemeral leaf is removed at commit; the draft is
 deleted afterward. Plaintext never appears in the canonical config file
 nor in commit metadata, but does briefly live in the local zefs database
 during the editing session.</p>
-<p>The bcrypt algorithm only considers the first 72 bytes of input. <code>ze passwd</code>
-rejects oversize input outright with a clear error so the user does not get
-a hash that validates only a prefix of their intended passphrase. The
-commit hook accepts oversize input (preserving an existing config) but emits
-a <code>slog.Warn</code> so the truncation surfaces in daemon logs.</p>
+<p>A config file you write yourself is the other path. Ze hashes it at load and leaves
+your file as you wrote it, so the plaintext stays on disk until you replace it. Refer
+to <a href="#passwords-in-a-config-file">Passwords in a config file</a>.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
+
+<p>bcrypt takes 72 bytes at most. The vendored library refuses a longer input with
+<code>ErrPasswordTooLong</code> and hashes nothing, so no path stores a hash that matches
+only a prefix. Every path reports the refusal as an error, and none of them warns
+and continues.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What an oversize password does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze passwd</code></td>
+<td>Prints <code>error: password too long (&lt;n&gt; bytes; bcrypt limit is 72)</code> and exits 1</td>
+</tr>
+<tr>
+<td><code>ze config edit</code>, at commit</td>
+<td><code>hashPlaintextSibling</code> returns <code>&lt;leaf&gt;: password too long (&lt;n&gt; bytes; bcrypt limit is 72)</code>. The commit wraps it as <code>hash password: ...</code> and fails. The config file is not rewritten</td>
+</tr>
+<tr>
+<td><code>plaintext-password</code> in a config file</td>
+<td><code>LoadConfig</code> wraps the same error as <code>hash password: ...</code>. The daemon refuses to start, unless the config stamp is newer than the binary: that error is recoverable, so <code>RecoverConfig</code> can start the daemon on a rollback version instead. A SIGHUP reload fails with <code>reload: parse config: hash password: ...</code> and the running configuration stays in place</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/password_hash.go -- hashPlaintextSibling -->
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReload -->
+
 <h2 id="things-that-do-not-work">Things that do NOT work</h2>
 <table>
 <thead>
@@ -570,7 +629,7 @@ a <code>slog.Warn</code> so the truncation surfaces in daemon logs.</p>
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

@@ -192,17 +192,27 @@
     .home-proof-head {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: var(--space-5);
+        grid-template-areas:
+            "title title"
+            "copy actions";
+        gap: var(--space-2) var(--space-5);
         align-items: end;
         margin-bottom: var(--space-4);
     }
 
+    .home-proof-head > div:first-child {
+        display: contents;
+    }
+
     .home-proof-head h2 {
-        margin-bottom: var(--space-2);
+        grid-area: title;
+        margin: 0;
         font-size: clamp(1.55rem, 3vw, 2.35rem);
+        white-space: nowrap;
     }
 
     .home-proof-head p {
+        grid-area: copy;
         max-width: 56rem;
         margin: 0;
         color: var(--muted);
@@ -211,6 +221,7 @@
     }
 
     .home-proof-actions {
+        grid-area: actions;
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-2);
@@ -305,6 +316,12 @@
         box-shadow: var(--shadow-clay), 0 0.8rem 1.7rem rgba(38, 110, 125, 0.07);
     }
 
+    .home-section-panel-map .section-head,
+    .home-section-panel-usecases .section-head {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
 
     .home-section-panel .section-note {
         max-width: none;
@@ -343,6 +360,10 @@
     @media (max-width: 1080px) {
         .home-proof-head {
             grid-template-columns: 1fr;
+            grid-template-areas:
+                "title"
+                "copy"
+                "actions";
             align-items: start;
         }
 
@@ -355,6 +376,12 @@
         .run-path-grid,
         .home-usecase-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .home-proof-head h2 {
+            white-space: normal;
         }
     }
 

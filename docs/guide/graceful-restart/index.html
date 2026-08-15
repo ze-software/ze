@@ -103,11 +103,12 @@ bgp {
             }
         }
 
-        process gr {
-            receive [ state eor ]
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
         }
-        process rib {
-            receive [ state ]
+        attach process rib {
+            receive [ update state refresh ]
             send [ update ]
         }
     }
@@ -170,8 +171,8 @@ bgp {
 
 <h2 id="plugin-bindings">Plugin Bindings</h2>
 <p>The GR plugin requires:
-- <code>receive [ state eor ]</code> -- needs peer up/down events and End-of-RIB markers
-- The RIB plugin must also be loaded with <code>receive [ state ]</code> and <code>send [ update ]</code></p>
+- <code>receive [ open-received state eor ]</code> -- needs the peer's OPEN, its up/down events, and End-of-RIB markers
+- The RIB plugin must also be loaded with <code>receive [ update state refresh ]</code> and <code>send [ update ]</code></p>
 <p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 
@@ -358,7 +359,7 @@ the child engine get that same treatment.</p>
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

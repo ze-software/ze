@@ -506,7 +506,7 @@ WantedBy=multi-user.target
    ze --plugins                  # list compiled-in plugins</code></p>
 </li>
 <li>
-<p><strong>Check plugin is bound to peer:</strong> Config must have <code>process &lt;name&gt; { receive [...] }</code> on the peer</p>
+<p><strong>Check plugin is bound to peer:</strong> Config must have <code>attach process &lt;name&gt; { receive [...] }</code> on the peer</p>
 </li>
 <li>
 <p><strong>Check plugin logs:</strong> Set <code>ZE_LOG_PLUGIN_RELAY=debug</code> to see plugin stderr output</p>
@@ -610,7 +610,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

@@ -7,7 +7,7 @@ Usage:
 Runs ../main/bin/ze help command --json -- the exact JSON the project's own
 wiki command-catalog is generated from (see cmd/ze/help_command.go and
 docs/guide/command-reference.md) -- caches it to data/cli-commands.json, and
-renders cli/index.html grouped by command verb with a client-side filter.
+renders reference/cli/index.html grouped by command verb with a client-side filter.
 
 The catalog is generated from the live binary's own command registry
 (YANG dispatch tree + offline local commands), so it cannot go stale the
@@ -29,7 +29,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 ZE_BINARY = GH_PAGES.parent / "main" / "bin" / "ze"
 DATA = GH_PAGES / "data" / "cli-commands.json"
-DEST = GH_PAGES / "cli" / "index.html"
+DEST = GH_PAGES / "reference" / "cli" / "index.html"
 
 MODE_LABELS = {
     "daemon": "Daemon",
@@ -237,7 +237,7 @@ def render_markdown(commands, groups):
 
 
 def render(commands, groups):
-    root = "../"
+    root = "../../"
     title = "CLI Reference - Ze"
     desc = (
         "Every ze command, generated live from the binary's own command "
@@ -245,7 +245,7 @@ def render(commands, groups):
     )
     out = [
         sitelib.page_head(
-            title, desc, root, og_title=title, og_desc=desc, page_key="cli/"
+            title, desc, root, og_title=title, og_desc=desc, page_key="reference/cli/"
         )
     ]
     out.append(

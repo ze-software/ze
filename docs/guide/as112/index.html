@@ -79,7 +79,7 @@
 }
 </code></pre>
 <p>This is the full config for the DNS node. The four canonical addresses (192.175.48.1, 192.31.196.1, 2620:4f:8000::1, 2001:4:112::1) are Go constants, registered against the interface address-ownership registry and bound on <code>lo</code> automatically, so they are not typed into config.</p>
-<p><code>as112</code> must run as an <strong>internal</strong> plugin (the default auto-load path, or an explicit <code>plugin { internal as112 { use as112 } }</code>). It must not run as <code>plugin { external as112 { ... } }</code>. The address-ownership registration is a same-process call into the <code>iface</code> engine; as a forked subprocess, it would register against its own copy of that state and never reach the kernel. <code>as112</code> refuses to start and logs an error if it detects it is not running in-process.</p>
+<p><code>as112</code> must run as an <strong>internal</strong> plugin (the default auto-load path, or an explicit <code>plugin { internal as112 { use as112; } }</code>). It must not run as <code>plugin { external as112 { ... } }</code>. The address-ownership registration is a same-process call into the <code>iface</code> engine; as a forked subprocess, it would register against its own copy of that state and never reach the kernel. <code>as112</code> refuses to start and logs an error if it detects it is not running in-process.</p>
 <h2 id="configuration-reference">Configuration Reference</h2>
 <p>All leaves go under <code>service { as112 { ... } }</code>.</p>
 <table>
@@ -522,7 +522,7 @@ bgp {
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

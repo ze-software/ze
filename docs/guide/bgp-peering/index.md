@@ -34,7 +34,7 @@ ze config validate ze.conf
 ze doctor
 ```
 
-Use the generated [configuration reference](https://ze-software.net/config-reference/) for the current leaf names and constraints.
+Use the generated [configuration reference](https://ze-software.net/reference/configuration/) for the current leaf names and constraints.
 
 ## Groups and inheritance
 

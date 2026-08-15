@@ -293,7 +293,7 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 <h3 id="list-table-view">List Table View</h3>
 <p>Lists that have YANG <code>unique</code> constraints (e.g., <code>peer</code> with <code>unique "remote/ip"</code>) display as an interactive table in the detail panel. The table shows the list key and all unique fields as columns.</p>
 <!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
-<!-- source: internal/component/web/templates/component/list_table.html -->
+<!-- source: internal/component/web/component_list_table.templ -->
 
 <table>
 <thead>
@@ -323,7 +323,7 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 </table>
 <p>The <code>+ new</code> button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.</p>
 <!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigAddForm -->
-<!-- source: internal/component/web/templates/component/add_form_overlay.html -->
+<!-- source: internal/component/web/component_add_form_overlay.templ -->
 
 <h3 id="breadcrumb-navigation">Breadcrumb Navigation</h3>
 <p>Every page displays a breadcrumb trail from root to the current YANG path. Clicking any breadcrumb segment navigates to that level.</p>
@@ -398,11 +398,14 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 
 <h3 id="notifications">Notifications</h3>
 <p>Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.</p>
-<!-- source: internal/component/web/templates/component/notification_error.html -->
+<!-- source: internal/component/web/component_notification_error.templ -->
+
+<p>A refused action raises a toast carrying the status and the message the daemon wrote, and the same message lands in the field or panel the action came from. A request that gets no answer at all raises a toast that says so instead: the daemon is unreachable, and nothing was changed.</p>
+<!-- source: internal/component/web/assets/notification.js -- handleResponseError and handleRequestError -->
 
 <h3 id="input-auto-save">Input Auto-Save</h3>
 <p>Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus.</p>
-<!-- source: internal/component/web/templates/input/text.html -- hx-trigger with input changed delay:1s -->
+<!-- source: internal/component/web/input_text.templ -- hx-trigger with input changed delay:1s -->
 
 <h3 id="conflict-detection">Conflict Detection</h3>
 <p>When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.</p>
@@ -526,7 +529,7 @@ data: &lt;html-fragment&gt;
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

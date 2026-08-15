@@ -75,6 +75,7 @@ def render_chip_row(card):
 
 def render_audience_card(card):
     category = card.get("category", "platform")
+    accent = card.get("accent")
     label = card.get("label", category.capitalize())
     link = card.get("link")
     title = esc(card["title"])
@@ -88,7 +89,7 @@ def render_audience_card(card):
     else:
         cta = ""
 
-    return """                    <article class="card audience-card cat-{category}">
+    return """                    <article class="card audience-card cat-{category}{accent_class}">
                         <span class="cat">{label}</span>
                         <h3>{title}</h3>
                         <p>
@@ -96,6 +97,7 @@ def render_audience_card(card):
                         </p>
 {chips}{cta}                    </article>""".format(
         category=esc(category),
+        accent_class=(" accent-%s" % esc(accent)) if accent else "",
         label=esc(label),
         title=title,
         body=esc(card["body"]),
@@ -286,13 +288,61 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 </a>
                             </div>
                             <div class="hero-start-copy">
-                                <h1 id="hero-title" class="hero-start-title">
-                                    Configuration and protocol engine for
-                                    Linux routing
-                                </h1>
-                                <p class="hero-release-badge">
-                                    Expected release: Q4 2026
-                                </p>
+                                <div
+                                    class="tagline-carousel"
+                                    data-tagline-carousel
+                                >
+                                    <h1
+                                        id="hero-title"
+                                        class="hero-start-title"
+                                    >
+                                        <span data-tagline-text
+                                            >Open routing for white-label
+                                            hardware</span
+                                        >
+                                    </h1>
+                                    <template data-tagline-options>
+                                        <span
+                                            >Open routing for white-label
+                                            hardware</span
+                                        >
+                                        <span
+                                            >Internet Configuration and Protocol
+                                            Engine</span
+                                        >
+                                        <span>Immutable Linux appliance</span>
+                                    </template>
+                                    <div
+                                        class="tagline-carousel-controls"
+                                        aria-label="Choose a Ze tagline"
+                                    >
+                                        <button
+                                            class="tagline-carousel-arrow"
+                                            type="button"
+                                            data-tagline-prev
+                                            aria-label="Previous tagline"
+                                        >
+                                            <span aria-hidden="true">←</span>
+                                        </button>
+                                        <div
+                                            class="tagline-carousel-dots"
+                                            data-tagline-dots
+                                        ></div>
+                                        <button
+                                            class="tagline-carousel-arrow"
+                                            type="button"
+                                            data-tagline-next
+                                            aria-label="Next tagline"
+                                        >
+                                            <span aria-hidden="true">→</span>
+                                        </button>
+                                        <span
+                                            class="sr-only"
+                                            data-tagline-status
+                                            aria-live="polite"
+                                        ></span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="hero-start-lead-wrap">
                                 <p class="hero-start-lead">
@@ -308,6 +358,9 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                     <strong class="hl blue">CLI</strong>, web,
                                     API, and <strong class="hl blue">MCP</strong>
                                     then share the same model.
+                                </p>
+                                <p class="hero-release-badge">
+                                    Expected Initial release: Q4 2026
                                 </p>
                             </div>
                         </div>
@@ -381,10 +434,10 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
 
             <section class="outcome-strip reveal" aria-label="Ze product map">
                 <a href="docs/architecture/">Protocol-agnostic core</a>
-                <a href="config-reference/">YANG per subsystem</a>
+                <a href="reference/configuration/">YANG per subsystem</a>
                 <a href="features/#routing">BGP, interfaces, FIB</a>
                 <a href="docs/features/ai-first/">CLI, SSH, web, API, MCP</a>
-                <a href="docs/features/plugins/">Compiled or external plugins</a>
+                <a href="reference/plugins/">Compiled or external plugins</a>
                 <a href="license/">AGPLv3 source</a>
             </section>
 
@@ -393,11 +446,10 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <span class="tag">Evidence</span>
                         <h2 id="proof-title">Tests, fuzzing, and interop before release claims.</h2>
                         <p>
                             These counts show what backs Ze before you spend
-                            time on a lab. The interop list names the peer
+                            time on a lab.<br />The interop list names the peer
                             daemons used in the protocol checks.
                         </p>
                     </div>
@@ -462,10 +514,13 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
 
             <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
                 <div class="section-head reveal cat-platform">
-                    <h2 id="run-title">Run it as a lab, daemon, or appliance.</h2>
+                    <h2 id="run-title">
+                        Run it as a lab,<br />daemon, or appliance.
+                    </h2>
                     <p>
                         The same binary and configuration support each path,
-                        from a Docker lab to spare hardware.
+                        from a <a href="docs/guide/netlab/">netlab topology</a>
+                        or BGP interop lab to spare hardware.
                     </p>
                 </div>
                 <div class="audience run-path-grid reveal">
@@ -486,7 +541,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
                     <article class="card usp-card cat-observe">
                         <span class="cat">Model</span>
-                        <h3><a href="config-reference/">One model feeds every interface</a></h3>
+                        <h3><a href="reference/configuration/">One model feeds every interface</a></h3>
                         <p>
                             Each subsystem declares YANG. The config tree,
                             validation, CLI completion, web editor, API, MCP,
@@ -513,7 +568,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     </article>
                     <article class="card usp-card cat-secure">
                         <span class="cat">Honest</span>
-                        <h3><a href="docs/features/plugins/">Plugins keep their own contract</a></h3>
+                        <h3><a href="reference/plugins/">Plugins keep their own contract</a></h3>
                         <p>
                             Plugins can be compiled Go modules or external
                             processes. Compiled modules load their YANG into the
@@ -705,7 +760,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
 
 def render(data):
     root = ""
-    title = "Ze - Configuration and protocol engine for Linux routing"
+    title = "Ze - Configuration and Protocol Engine for Internet Infrastructure"
     desc = (
         "Ze is an open-source configuration and protocol engine. The network "
         "operating system built on it speaks BGP, manages Linux interfaces, "

@@ -83,6 +83,7 @@
 <li><a href="#egress-modification-failures">Egress Modification Failures</a></li>
 <li><a href="#well-known-community-suppressions">Well-Known Community Suppressions</a></li>
 <li><a href="#announces-refused-for-size">Announces Refused For Size</a></li>
+<li><a href="#sends-refused-by-the-attach-permission">Sends Refused By The Attach Permission</a></li>
 <li><a href="#prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</a></li>
 </ol></li>
 </ol></li>
@@ -252,7 +253,7 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 </code></pre>
 <h2 id="programmatic-access">Programmatic Access</h2>
 <p>Plugins can subscribe to events via the SDK:</p>
-<pre><code>process my-plugin {
+<pre><code>attach process my-plugin {
     receive [ update state ]
 }
 </code></pre>
@@ -336,7 +337,7 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 <tr>
 <td><code>basic-auth/plaintext-password</code></td>
 <td>unset</td>
-<td>Write-only password input, hashed on commit</td>
+<td>Write-only password input, hashed at commit and at load</td>
 </tr>
 <tr>
 <td><code>netdata/enabled</code></td>
@@ -362,7 +363,10 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 </table>
 <p>Deprecated compatibility aliases remain accepted: <code>prefix</code>, <code>interval</code>, and <code>collector</code> directly under <code>prometheus</code>. Prefer <code>netdata/prefix</code>, <code>netdata/interval</code>, and <code>netdata/collector</code> in new config.</p>
 <h3 id="http-basic-authentication">HTTP Basic Authentication</h3>
-<p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when editing the config and the commit hook will replace it with <code>password</code>. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly.</p>
+<p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when you edit the config and Ze replaces it with <code>password</code> at commit. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly.</p>
+<p>A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
+
 <p>Prometheus scrape configuration:</p>
 <pre><code class="language-yaml">scrape_configs:
   - job_name: ze
@@ -981,6 +985,42 @@ did not fit and <code>attributes</code> when the path-attribute block did not.</
 so a plugin sees its own announce refused. A <code>queued</code> increment has no such
 channel and the counter is the only signal besides the log line. Act on either by
 sending fewer prefixes per announce, or by reducing the attributes on the route.</p>
+<h4 id="sends-refused-by-the-attach-permission">Sends Refused By The Attach Permission</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_send_refused_total</code></td>
+<td>counter</td>
+<td><code>process</code>, <code>type</code></td>
+<td>A process asked to generate a message toward a peer whose config does not attach it with that send type. Nothing reached the peer</td>
+</tr>
+</tbody>
+</table>
+<p>A peer feeds and is fed by the processes its <code>attach process &lt;name&gt;</code> blocks
+name, and the <code>send</code> list inside a block is the permission to originate toward
+that peer. An increment means a program addressed a peer it was never attached
+to: the peer was dropped from that command and nothing went on its wire. <code>type</code>
+is <code>update</code> for a route, a withdrawal or an End-of-RIB marker, and <code>refresh</code> for
+a route refresh or a soft clear.</p>
+<p>A steady non-zero rate with no config change is usually a program that widened
+its selector to <code>peer *</code> and is now reaching for peers the operator never linked
+it to. A step at reload is usually the opposite: an attach block was removed
+while the program kept announcing. The WARN line beside each increment names the
+peer, which this counter deliberately does not (an error path should not carry
+peer-driven cardinality), and it prints the exact block to add.</p>
+<p>An operator at the CLI, over SSH or through the REST API never appears here:
+their authority is checked by AAA, and <code>send</code> grants authority to a program.</p>
+<!-- source: internal/component/bgp/reactor/send_permission.go -- recordSendRefused, sendPermissionDenied -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+
 <h4 id="prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</h4>
 <table>
 <thead>
@@ -1076,7 +1116,7 @@ ze cli -c &quot;show bgp rpki status&quot;
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

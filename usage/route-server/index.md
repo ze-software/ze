@@ -29,7 +29,7 @@ A practical deployment uses:
 - RPKI and IRR policy where the IXP requires them;
 - the Looking Glass for member-facing visibility.
 
-Use the generated [plugin catalogue](../../docs/features/plugins/) to confirm current dependencies and configuration roots. Build peer groups with the [BGP peering guide](../../docs/guide/bgp-peering/) and policy chains with the [BGP policy guide](../../docs/guide/bgp-policy/).
+Use the generated [plugin catalogue](../../reference/plugins/) to confirm current dependencies and configuration roots. Build peer groups with the [BGP peering guide](../../docs/guide/bgp-peering/) and policy chains with the [BGP policy guide](../../docs/guide/bgp-policy/).
 
 ## Complete lab configuration
 

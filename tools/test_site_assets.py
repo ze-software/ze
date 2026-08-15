@@ -89,3 +89,18 @@ def test_page_root_for_dest_depth():
     assert page_registry.page_root_for_dest("docs/guide/x/index.html") == "../../../"
     # used to raise for a non-index.html page; now it just computes depth
     assert page_registry.page_root_for_dest("404.html") == ""
+
+
+def test_docs_destinations_follow_public_information_architecture():
+    assert (
+        page_registry.docs_dest_rel_for("features/rfc-status.md")
+        == "reference/rfcs/index.html"
+    )
+    assert (
+        page_registry.docs_dest_rel_for("contributing/testing.md")
+        == "contribute/testing/index.html"
+    )
+    assert (
+        page_registry.docs_dest_rel_for("guide/quickstart.md")
+        == "docs/guide/quickstart/index.html"
+    )

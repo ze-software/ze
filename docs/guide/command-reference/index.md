@@ -12,7 +12,7 @@ is produced from this JSON.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
-[Command Equivalents](https://ze-software.net/command-equivalents/) page.
+[Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
 It joins `ze help command --json` with the curated vendor mapping in the
 website branch, so Ze command additions appear as unmapped rows until a vendor
 equivalent is added. For code-tree readers, the maintained data and generator
@@ -75,9 +75,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../../assets/demos/launcher.webm?v=5f2c9c7ead) · [View the poster](../../../assets/demos/launcher.png?v=bb8520296b) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
+[Play the WebM recording](../../../assets/demos/launcher.webm?v=46c97f8572) · [View the poster](../../../assets/demos/launcher.png?v=cae872cf66) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
 
 ```console
 $ ze
@@ -434,9 +434,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=e3e17ac796) · [View the poster](../../../assets/demos/host-inventory.png?v=c5efe62e66) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=8c89c5019c) · [View the poster](../../../assets/demos/host-inventory.png?v=01c12c6314) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.05 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
+Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -1892,8 +1892,10 @@ bgp decode/encode, env, schema, yang, completion). These are dispatched
 via local handlers before attempting SSH connection.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
-`--format <format>` (default: yaml).
-<!-- source: internal/component/cli/client/main.go -- Run -->
+`--format <format>` (default: yaml). A format pipe inside the command wins over the
+flag, so `ze cli -c "show bgp peer list | json compact"` prints JSON.
+<!-- source: internal/component/cli/client/main.go -- Run, renderCommandOutput -->
+<!-- source: internal/component/command/pipe.go -- HasFormatPipe -->
 
 ### Peer Selector
 
@@ -2310,6 +2312,8 @@ active after enabling debug or applying a profile.
 | `show command help <name>` | read-only | Detailed help for a command |
 | `show event list` | read-only | List available event types |
 <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
+| `show event delivery` | read-only | Show which peers feed which attached processes |
+<!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery -->
 
 ---
 

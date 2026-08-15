@@ -4,7 +4,7 @@ This page walks through BGP peer configuration specifically, since it is
 the most-configured surface. For every other subsystem's config syntax
 (interfaces, firewall, L2TP, DHCP, and the rest of Ze's 38 plugin groups),
 see the generated [Configuration
-Reference](https://ze-software.net/config-reference/), built
+Reference](https://ze-software.net/reference/configuration/), built
 straight from each plugin's own YANG module.
 
 ### Peer Settings
@@ -174,9 +174,9 @@ External processes receive BGP events and send commands:
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Play the WebM recording](../../../assets/demos/config-graph.webm?v=fbb0bda458) · [View the poster](../../../assets/demos/config-graph.png?v=f10c574616) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
+[Play the WebM recording](../../../assets/demos/config-graph.webm?v=551b0249a0) · [View the poster](../../../assets/demos/config-graph.png?v=60a75596e2) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
 
-Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

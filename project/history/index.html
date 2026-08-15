@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Project History - Ze</title>
+        <meta name="description" content="Ze documentation: history.md" />
+        <meta property="og:title" content="Project History - Ze" />
+        <meta property="og:description" content="Ze documentation: history.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Project History - Ze" />
+        <meta name="twitter:description" content="Ze documentation: history.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/history/" />
+        <meta property="og:url" content="https://ze-software.net/project/history/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Documentation</span>
+    <h1 id="project-history">Project History</h1>
+    <p>Ze grew from the operational lessons of ExaBGP. ExaBGP made BGP programmable by treating routes and protocol events as input and output for ordinary processes. That model proved that a routing tool did not need to imitate a traditional router CLI to be useful.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#from-exabgp-to-ze">From ExaBGP to Ze</a></li>
+<li><a href="#the-first-development-period">The first development period</a></li>
+<li><a href="#what-remained-familiar">What remained familiar</a></li>
+<li><a href="#why-the-architecture-changed">Why the architecture changed</a></li>
+<li><a href="#current-state">Current state</a></li>
+</ol></nav>
+<h2 id="from-exabgp-to-ze">From ExaBGP to Ze</h2>
+<p>ExaBGP remained deliberately focused on BGP and process integration. Over time, operators needed the surrounding system as well: a validated configuration model, route storage, policy, interface and FIB management, health, telemetry, secure operator access, and a consistent way to expose every command to automation.</p>
+<p>Ze keeps the programmable event model and builds those surrounding responsibilities into one system. Its native BGP engine, YANG configuration, plugin registry, CLI, web interface, APIs, MCP server, Looking Glass, telemetry, and optional dataplane integrations share the same runtime state and command dispatcher.</p>
+<h2 id="the-first-development-period">The first development period</h2>
+<p>The first tracked development week began in December 2025 with the BGP wire engine, capability negotiation, path attributes, address families, RIB work, session state, and ExaBGP interop. The project then expanded through configuration and plugin architecture, route server and reflector paths, policy, operator surfaces, interfaces, FIB backends, routing protocols, access services, security, diagnostics, packaging, and interoperability.</p>
+<p>The <a href="https://ze-software.net/changes/">weekly changes</a> retain the detailed chronological record. <a href="https://ze-software.net/milestones/">Milestones</a> selects the larger product changes, while the <a href="https://ze-software.net/roadmap/">roadmap</a> describes what remains before a stable release.</p>
+<h2 id="what-remained-familiar">What remained familiar</h2>
+<p>The ExaBGP migration path preserves two useful ideas:</p>
+<ul>
+<li>Existing ExaBGP configuration can be converted into Ze's configuration model.</li>
+<li>Existing process scripts can continue through the compatibility bridge before being ported to the native plugin SDK.</li>
+</ul>
+<p>This allows a routing-engine migration and an application rewrite to happen separately. The <a href="https://ze-software.net/usage/exabgp-migration/">ExaBGP migration example</a> documents that path.</p>
+<h2 id="why-the-architecture-changed">Why the architecture changed</h2>
+<p>Ze needs to support both a small programmable speaker and a more complete Linux network system. Plugins provide that boundary. BGP, policy, RIB storage, interfaces, FIB backends, routing protocols, services, and operator features register what they own. A deployment loads only the components selected by configuration and build tags.</p>
+<p>The shared registration model also keeps operator surfaces aligned. A command registered by a component can be discovered and dispatched through the CLI, web interface, REST, gRPC, and MCP without each surface building a separate implementation.</p>
+<h2 id="current-state">Current state</h2>
+<p>Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the <a href="https://ze-software.net/features/">feature inventory</a>, <a href="../../reference/rfcs/">RFC status</a>, <a href="https://ze-software.net/quality/">quality evidence</a>, and <a href="https://ze-software.net/roadmap/">roadmap</a> for current decisions rather than treating this history as a readiness statement.</p>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

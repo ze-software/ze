@@ -20,8 +20,8 @@ import sitelib
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "command-equivalents.json"
-DEST = GH_PAGES / "command-equivalents" / "index.html"
-DETAIL_ROOT = GH_PAGES / "command-equivalents"
+DEST = GH_PAGES / "reference" / "command-equivalents" / "index.html"
+DETAIL_ROOT = GH_PAGES / "reference" / "command-equivalents"
 SLUG_RE = re.compile(r"[^a-z0-9]+")
 CONFIDENCE_LABELS = {
     "verified": "verified",
@@ -455,7 +455,7 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
     equivalent_count = len([row for row in rows if row_has_vendor_commands(row, vendor_ids)])
     title = "Command Equivalents - Ze"
     desc = "One-line Ze command map with side-by-side Junos MX, IOS XR, Nokia SR OS, and VyOS equivalents."
-    root = "../"
+    root = "../../"
     out = [
         sitelib.page_head(
             title,
@@ -463,7 +463,7 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
             root,
             og_title=title,
             og_desc=desc,
-            page_key="command-equivalents/",
+            page_key="reference/command-equivalents/",
         )
     ]
     out.append('<section aria-labelledby="command-equivalents-title" class="md-content command-equivalents reveal cat-operate">')
@@ -596,7 +596,7 @@ def render_vendor_detail(row, vendor_id, vendor, sources):
 
 def render_detail_page(row, mapping, vendor_ids, vendor_labels, sources):
     command = row["command"]
-    root = "../../"
+    root = "../../../"
     title = "%s - Command Equivalents - Ze" % command_display_path(command)
     desc = "Command details and vendor equivalents for %s." % command_display_path(command)
     out = [
@@ -606,7 +606,7 @@ def render_detail_page(row, mapping, vendor_ids, vendor_labels, sources):
             root,
             og_title=title,
             og_desc=desc,
-            page_key="command-equivalents/%s/" % row["slug"],
+            page_key="reference/command-equivalents/%s/" % row["slug"],
         )
     ]
     out.append('<section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">')

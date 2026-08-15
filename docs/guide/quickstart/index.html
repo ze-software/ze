@@ -112,13 +112,13 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
       <span>zefs-config.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/zefs-config.png?v=2e83eff63a" aria-label="Create ZeFS and commit over SSH demonstration">
-      <source src="../../../assets/demos/zefs-config.webm?v=89ce0ef365" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/zefs-config.webm?v=89ce0ef365">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/zefs-config.png?v=26fc4f1939" aria-label="Create ZeFS and commit over SSH demonstration">
+      <source src="../../../assets/demos/zefs-config.webm?v=644b96eda1" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/zefs-config.webm?v=644b96eda1">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>1 minute 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>1 minute 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/zefs-config.txt?v=4253c65985">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -283,11 +283,25 @@ block pointed at the local sink, so ze dials <code>127.0.0.1:1179</code> instead
                 port 1179
             }
             local {
-                ip 127.0.0.1
+                ip 127.0.0.2
             }
         }
 </code></pre>
 <p>The sink's <code>--asn 65001</code> matches the peer's <code>session { asn { remote 65001 } }</code>.</p>
+<p><strong>The two ends carry different addresses on purpose, even here.</strong> One machine can
+hold both, so a loopback demo is the one place a session can be written with one
+address at each end, and BGP does not work that way: <code>next-hop self</code> then puts the
+peer's OWN address on the wire, and Ze refuses to advertise that, because RFC 4271
+Section 5.1.3 forbids telling a peer to reach a destination through itself. The
+session still establishes, so the symptom is routes that never arrive rather than
+an error. On Linux the whole 127.0.0.0/8 range is available; on macOS add the
+alias once with <code>sudo ifconfig lo0 alias 127.0.0.2</code>, which <code>make ze-setup</code> also
+does. The refusal is <code>originatedNextHopIsPeerOwn</code>
+(<code>internal/component/bgp/reactor/forward_next_hop.go</code>), and <code>precomputeNextHop</code>
+(<code>internal/component/bgp/reactor/peer_forward_facts.go</code>) is what resolves
+<code>next-hop self</code> to the local address.</p>
+<p>The sink accepts whatever it is sent, so this demo works either way until you
+announce a route; the address split is what keeps it working when you do.</p>
 <h2 id="stop">Stop</h2>
 <pre><code class="language-bash">bin/ze signal stop             # graceful shutdown
 bin/ze signal restart          # graceful restart (preserves routes via GR)
@@ -324,7 +338,7 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

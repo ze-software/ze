@@ -65,6 +65,9 @@
 <li><a href="#event-types">Event Types</a></li>
 <li><a href="#runtime-subscriptions">Runtime subscriptions</a></li>
 <li><a href="#directions">Directions</a></li>
+<li><a href="#groups-and-dynamic-peers">Groups and dynamic peers</a></li>
+<li><a href="#the-send-permission">The send permission</a></li>
+<li><a href="#reading-the-delivery-graph">Reading the delivery graph</a></li>
 </ol></li>
 <li><a href="#invocation-modes">Invocation Modes</a></li>
 <li><a href="#built-in-plugins">Built-In Plugins</a>
@@ -216,26 +219,33 @@
 </tbody>
 </table>
 <h2 id="binding-plugins-to-peers">Binding Plugins to Peers</h2>
-<p>Each peer declares which plugins receive its events via <code>process</code> blocks. The process name must match the plugin's <code>internal</code> or <code>external</code> name in the <code>plugin { }</code> block:</p>
+<p>Each peer declares which plugins receive its events, in <code>attach process</code> blocks.
+The process name must match the plugin's <code>internal</code> or <code>external</code> name in the
+<code>plugin { }</code> block:</p>
 <pre><code>plugin {
     internal rib { ... }       # &lt;-- this name
 }
 peer transit-a {
-    process rib { ... }        # &lt;-- must match
+    attach process rib { ... }        # &lt;-- must match
 }
 </code></pre>
-<p>Plugins receive BGP events through process bindings on each peer:</p>
+<p>Plugins receive BGP events through the attach blocks on each peer:</p>
 <pre><code>peer transit-a {
     ...
-    process rib {
-        receive [ state ]
+    attach process rib {
+        receive [ update state refresh ]
         send [ update ]
     }
-    process adj-rib-in {
-        receive [ update state ]
+    attach process adj-rib-in {
+        receive [ update-received state ]
     }
 }
 </code></pre>
+<p><strong>A peer that attaches nothing feeds nothing.</strong> The block is the whole
+statement of the relationship: a plugin that no peer attaches runs and is fed
+no peer event, and a peer that attaches one plugin feeds that plugin and no
+other. Loading a plugin and attaching it are two separate acts, and the second
+is the one that moves data.</p>
 <h3 id="event-types">Event Types</h3>
 <table>
 <thead>
@@ -318,11 +328,140 @@ byte-compatible with earlier releases.</p>
 <!-- source: internal/component/plugin/server/dispatch.go -- wildcard expansion and enveloped delivery -->
 
 <h3 id="directions">Directions</h3>
-<pre><code>process my-plugin {
-    receive [ update ]        # events FROM the peer
-    send [ update ]           # ability to send TO the peer
+<pre><code>attach process my-plugin {
+    receive [ update-received ]   # UPDATEs the peer sends to ze
+    send [ update ]               # permission to announce toward the peer
 }
 </code></pre>
+<p><code>receive</code> names an event type and the direction it is fed in. A plain type means
+both directions, so <code>receive [ update ]</code> feeds the program the UPDATEs ze sends
+as well as the ones it gets. <code>send</code> carries no direction, because every send type
+is sent.</p>
+<p>The two lists are independent. A program with <code>send</code> and no <code>receive</code> announces
+to the peer and is told nothing by it. A program with <code>receive</code> and no <code>send</code>
+watches the peer and may not answer it.</p>
+<h3 id="groups-and-dynamic-peers">Groups and dynamic peers</h3>
+<p>Write the block once on a group and every peer that group produces carries it.
+A member that restates the block REPLACES the group's list for itself, and the
+other members keep the group's.</p>
+<pre><code>plugin {
+    external looking-glass {
+        run ./looking-glass.py
+        encoder json
+    }
+}
+
+bgp {
+    group transit {
+        attach process looking-glass {
+            receive [ update-received state ]
+        }
+
+        peer transit-a { }                    # updates and state
+        peer transit-b { }                    # updates and state
+        peer transit-c {
+            attach process looking-glass {
+                receive [ state ]             # state ONLY
+            }
+        }
+    }
+}
+</code></pre>
+<p><code>transit-c</code> is fed state and no update. Its own list stands in for the group's
+rather than adding to it, which is how every leaf-list in a group merges. To
+widen one member, restate the whole list you want it to have.</p>
+<p>A peer a DYNAMIC group creates carries the group's blocks too. Such a peer is
+named by no config: ze generates <code>dyn-&lt;address&gt;</code> when it accepts the
+connection. Nothing needs to name it, because ze reads each peer's blocks after
+the group merge, not from the text of the config file.</p>
+<pre><code>bgp {
+    group ix {
+        connection {
+            remote {
+                ip dynamic
+                connect false
+                range 198.51.100.0/24
+            }
+            local {
+                ip 198.51.100.1
+                accept true
+            }
+        }
+        attach process looking-glass {
+            receive [ update-received state ]
+        }
+    }
+}
+</code></pre>
+<p>Every member that connects from <code>198.51.100.0/24</code> feeds <code>looking-glass</code> its
+received UPDATEs and its session state. <code>show event delivery</code> lists them by the
+address each one connected from.</p>
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
+
+<h3 id="the-send-permission">The send permission</h3>
+<p><code>send</code> is a permission, and ze enforces it on the peers a command resolves to.
+A program that issues <code>peer * update ...</code> reaches the peers that attach it with
+<code>send [ update ]</code>, and no others. A peer the program is not attached to is
+dropped from the command, and ze writes one WARN naming the peer, the process
+and the message type. When the selector names ONLY peers that refuse it, the
+whole command fails and the program is told why.</p>
+<p>The two BASE message types are separate permissions. A plugin registers more,
+and naming one auto-loads the plugin that enables it, <code>enhanced-refresh</code> from
+bgp-route-refresh among them:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Permits</th>
+<th>Commands</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update</code></td>
+<td>originating routes toward the peer</td>
+<td><code>update text ... add</code>, <code>update text ... del</code>, an End-of-RIB marker, a named commit</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td>asking the peer to re-advertise</td>
+<td><code>peer &lt;sel&gt; refresh</code>, <code>borr</code>, <code>eorr</code>, <code>clear soft</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>send [ * ]</code> grants both, and every send type registered later.</p>
+<p>An operator at the CLI, over SSH or through the REST API is not a process and is
+not gated by this: their authority is the one AAA already checked.</p>
+<p>Counter: <code>ze_bgp_send_refused_total{process,type}</code> counts messages the permission
+refused. A non-zero value with no config change means a program is asking for a
+peer it was never attached to.</p>
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendPermissionDenied, ze_bgp_send_refused_total -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+
+<h3 id="reading-the-delivery-graph">Reading the delivery graph</h3>
+<p><code>show event delivery</code> prints the peer-to-process edges the running config
+produces: one block per peer, one row per <code>attach process</code> block on it, with the
+event types that process is fed and the message types it may send toward that
+peer. A peer with no <code>attach process</code> block shows no process.</p>
+<p>The daemon builds this from the RESOLVED settings of each peer, so a block a
+peer inherits from its group is shown on the peer. A token the event registry
+does not know is listed under <code>unresolved</code> and carries no edge, which is what an
+operator sees when a custom event type names a plugin that did not load.</p>
+<p>These edges DECIDE delivery. A peer hands a program an event when the peer's
+block grants the type and the program subscribed to it; a peer that attaches no
+block for a program feeds it nothing, whatever the program asked for at startup.
+That holds for ze's own plugins as well: a config that loads <code>bgp-rib</code> and
+attaches it to no peer stores no route. When the two halves disagree, the daemon
+names each peer, process and event type in the log rather than dropping the
+event in silence.</p>
+<p>The name in <code>attach process &lt;name&gt;</code> is the name the program runs under: the one
+in its <code>plugin { external &lt;name&gt; }</code> or <code>plugin { internal &lt;name&gt; }</code> block, or the
+registry name of a plugin loaded with <code>--plugin</code>.</p>
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
+
 <h2 id="invocation-modes">Invocation Modes</h2>
 <table>
 <thead>
@@ -335,12 +474,12 @@ byte-compatible with earlier releases.</p>
 <tbody>
 <tr>
 <td>Internal</td>
-<td><code>internal rib { use bgp-rib }</code></td>
+<td><code>internal rib { use bgp-rib; }</code></td>
 <td>Compiled-in plugin using <code>net.Pipe</code> for startup and DirectBridge for hot paths</td>
 </tr>
 <tr>
 <td>External</td>
-<td><code>external feed { run "/usr/local/bin/my-plugin" }</code></td>
+<td><code>external feed { run "/usr/local/bin/my-plugin"; }</code></td>
 <td>External binary or script using TLS connect-back</td>
 </tr>
 </tbody>
@@ -365,27 +504,32 @@ byte-compatible with earlier releases.</p>
 <tr>
 <td><code>bgp-rib</code></td>
 <td>Route Information Base</td>
-<td><code>receive [ state ] send [ update ]</code></td>
+<td><code>receive [ update state refresh ] send [ update refresh ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-adj-rib-in</code></td>
 <td>Adj-RIB-In (raw hex replay, auto-replays on peer-up)</td>
-<td><code>receive [ update state ]</code></td>
+<td><code>receive [ update-received state ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-persist</code></td>
 <td>Route persistence across restarts</td>
-<td><code>receive [ update state ] send [ update ]</code></td>
+<td><code>receive [ update-sent state open-received ] send [ update ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-rs</code></td>
 <td>Route server (forward-all)</td>
-<td><code>receive [ update ] send [ update ]</code></td>
+<td><code>receive [ update-received state open-received refresh ] send [ update ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-rr</code></td>
+<td>Route reflector (RFC 4456)</td>
+<td><code>receive [ update-received state open-received ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-watchdog</code></td>
 <td>Deferred route announcement</td>
-<td><code>receive [ update ]</code></td>
+<td><code>receive [ state ] send [ update ]</code></td>
 </tr>
 </tbody>
 </table>
@@ -393,6 +537,7 @@ byte-compatible with earlier releases.</p>
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in registration -->
 <!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist registration -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration -->
+<!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr registration -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog registration -->
 
 <h3 id="protocol">Protocol</h3>
@@ -408,22 +553,22 @@ byte-compatible with earlier releases.</p>
 <tr>
 <td><code>bgp-gr</code></td>
 <td>Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494)</td>
-<td><code>receive [ state eor ]</code></td>
+<td><code>receive [ open-received state eor ] send [ update ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-rpki</code></td>
 <td>RPKI origin validation (RFC 6811)</td>
-<td><code>receive [ update ]</code></td>
+<td><code>receive [ update-received ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-rpki-decorator</code></td>
 <td>Merged UPDATE+RPKI events</td>
-<td><code>receive [ update rpki ]</code></td>
+<td><code>receive [ update-received rpki ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-route-refresh</code></td>
 <td>Route Refresh (RFC 2918)</td>
-<td><code>receive [ refresh ]</code></td>
+<td><code>send [ refresh ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-role</code></td>
@@ -448,7 +593,7 @@ byte-compatible with earlier releases.</p>
 <tr>
 <td><code>bgp-bmp</code></td>
 <td>BMP receiver + sender (RFC 7854)</td>
-<td><code>receive [ state update ]</code></td>
+<td><code>receive [ state update open notification keepalive refresh ]</code></td>
 </tr>
 </tbody>
 </table>
@@ -828,7 +973,7 @@ address families are redistributed; an empty list means "all families".
 An import is scoped to its enclosing <code>destination</code>: an <code>import</code> under
 <code>destination bgp</code> feeds only BGP, not OSPF/IS-IS.</p>
 <p>The orchestrator <strong>auto-loads</strong> when <code>redistribute {}</code> appears in the
-config. No <code>plugin { internal redistribute-orchestrator { use redistribute-orchestrator } }</code>
+config. No <code>plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }</code>
 block is required.</p>
 <p>Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
 <code>NextHop</code> zero, the reactor stamps each peer's local session address as the
@@ -926,8 +1071,9 @@ work as match values because the filter text format renders them as names.</p>
 <!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
 
 <h3 id="route-attribute-modifier-bgp-filter-modify">Route Attribute Modifier (<code>bgp-filter-modify</code>)</h3>
-<p><code>bgp-filter-modify</code> unconditionally applies declared operations on every route
-that reaches it in the filter chain. Three operation types are supported:</p>
+<p><code>bgp-filter-modify</code> applies declared operations to every route that reaches it
+in the filter chain. A definition that states a <code>match</code> container applies them
+only to the routes that meet it. Three operation types are supported:</p>
 <p><strong>Set</strong> (absolute value): <code>set { local-preference 200; med 50; origin igp;
 next-hop 10.0.0.1; as-path-prepend 3; }</code>. Only present leaves are applied.</p>
 <p><strong>Increment/Decrement</strong> (relative adjustment): <code>increment { local-preference 50; }</code>
@@ -938,13 +1084,39 @@ Set and increment/decrement for the same attribute are mutually exclusive.</p>
 [ 65000:100 ]; large-community-add [ 65000:100:200 ]; }</code>. Adds or removes
 individual community values (standard, large, extended) without replacing the
 entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.</p>
-<p>For conditional modification, compose with match filters earlier in the chain:
+<p><strong>MED removal</strong>: <code>set { med-remove true; }</code>. Removes MULTI_EXIT_DISC (RFC 4271
+type 4) from the route. This is the mechanism RFC 4271 Section 5.1.4 requires a
+speaker to implement, so it is honored on an <strong>import</strong> chain only: that section
+also requires the removal to happen before the route reaches Decision Process
+phases 1 and 2, and the import chain is the only chain that runs there. On an
+export chain the directive is refused and logged, because RFC 4271 Section
+9.1.2.2 states that comparing on a MULTI_EXIT_DISC and then advertising the
+route without it causes route loops. Mutually exclusive with <code>set med</code>,
+<code>increment med</code> and <code>decrement med</code>. A metric received from one neighboring AS
+is already kept off a session toward another with no configuration at all
+(Section 5.1.4); this leaf is for the operator who wants the metric gone from
+the route itself.</p>
+<p><strong>Match</strong> (the condition the operations apply under): <code>match { community [
+65535:666 ]; large-community [ 65001:100:200 ]; extended-community [
+target:65001:1 ]; }</code>. The three leaf-lists hold alternatives, so any one value
+present in the route satisfies the condition. A route that matches none passes
+through UNCHANGED rather than rejected. An absent <code>match</code> container applies the
+operations to every route, which is what every definition written before this
+container did.</p>
+<p>A <code>match</code> container and an earlier match filter answer different questions. A
+filter chain is a pipe in which a reject DROPS the route. A match filter placed
+earlier therefore expresses "modify these and discard everything else", and the
+route that must keep flowing untouched has nowhere to go. Use an earlier filter
+when you want the rest dropped:
 <code>filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]</code>.</p>
 <p>Chain references: <code>bgp-filter-modify:NAME</code> or <code>modify:NAME</code>.</p>
+<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
 
 <h3 id="as-path-length-filter-bgp-filter-aspath-length">AS-Path Length Filter (<code>bgp-filter-aspath-length</code>)</h3>
 <p><code>bgp-filter-aspath-length</code> accepts or rejects routes based on AS_PATH hop count.
@@ -1219,7 +1391,7 @@ while True:
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

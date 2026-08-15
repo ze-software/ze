@@ -24,11 +24,11 @@ except ImportError:  # pragma: no cover - direct runs without uv fallback
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "plugin-registry.json"
-DEST = GH_PAGES / "docs" / "features" / "plugins" / "index.html"
+DEST = GH_PAGES / "reference" / "plugins" / "index.html"
 DETAIL_DIR = DEST.parent
 TEST_DIR_PREFIX = "internal/test/"
-CATALOG_ROOT = "../../../"
-DETAIL_ROOT = "../../../../"
+CATALOG_ROOT = "../../"
+DETAIL_ROOT = "../../../"
 COLOR_CLASSES = sitelib.CATEGORIES
 
 # Presentation only: labels keep common network acronyms readable while the
@@ -336,7 +336,7 @@ def detail_markdown_href(plugin):
 
 def config_href(root, markdown=False):
     suffix = "index.md" if markdown else ""
-    return "%sconfig-reference/%s#%s" % (
+    return "%sreference/configuration/%s#%s" % (
         DETAIL_ROOT,
         suffix,
         urllib.parse.quote(root, safe="/"),
@@ -675,7 +675,7 @@ def render_detail_html(plugin, group, by_name, dependents):
             root,
             og_title=title,
             og_desc=desc,
-            page_key="docs/features/plugins/%s/" % plugin["slug"],
+            page_key="reference/plugins/%s/" % plugin["slug"],
         )
     ]
     out.append('            <section class="md-content reveal cat-%s plugin-detail" aria-labelledby="plugin-detail-title">' % group["cat"])
@@ -874,7 +874,7 @@ def render_catalog(plugins, groups):
             CATALOG_ROOT,
             og_title=title,
             og_desc=desc,
-            page_key="docs/features/plugins/",
+            page_key="reference/plugins/",
         )
     ]
     out.append('            <section class="md-content reveal cat-automate plugin-catalog" data-plugin-catalog aria-labelledby="plugin-catalog-title">')

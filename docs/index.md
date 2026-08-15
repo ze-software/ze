@@ -64,9 +64,13 @@ Management transports, browser and public interfaces, and the plugin SDK.
 Information-oriented pages generated from live data where possible.
 
 - [Features capabilities by category and maturity](https://ze-software.net/features/)
-- [RFC status implemented RFCs, partial support, and remaining gaps](https://ze-software.net/docs/features/rfc-status/)
-- [CLI reference all generated commands in one place](https://ze-software.net/cli/)
-- [Configuration reference the whole config as a searchable tree](https://ze-software.net/config-reference/)
+- [CLI reference all generated commands in one place](https://ze-software.net/reference/cli/)
+- [Configuration reference the whole config as a searchable tree](https://ze-software.net/reference/configuration/)
+- [Command equivalents Ze syntax across Junos, IOS XR, SR OS, and VyOS](https://ze-software.net/reference/command-equivalents/)
+- [RFC status implemented RFCs, partial support, and remaining gaps](https://ze-software.net/reference/rfcs/)
+- [Plugin catalogue runtime plugins, dependencies, and config roots](https://ze-software.net/reference/plugins/)
+- [Glossary routing, policy, configuration, and testing terms](https://ze-software.net/reference/glossary/)
+- [Deprecated options removed syntax and its replacements](https://ze-software.net/reference/deprecations/)
 - [Dependencies direct Go packages and why they exist](https://ze-software.net/dependencies/)
 
 **Design**
@@ -101,6 +105,5 @@ Project context for people deciding whether to try Ze or help shape it.
 - [Developer setup build, test, and debug the Ze source tree](https://ze-software.net/docs/guide/developer-setup/)
 - [RFC implementation guide how a new RFC gets built and proven](https://ze-software.net/docs/contributing/rfc-implementation-guide/)
 - [Documentation testing keep docs honest with tested command output](https://ze-software.net/docs/contributing/documentation-testing/)
-- [Project history how ExaBGP's programmable model grew into Ze](https://ze-software.net/docs/history/)
-- [Glossary BGP, policy, configuration, operator, and testing terms](https://ze-software.net/docs/glossary/)
-- [Contributor testing choose the right proof layer and run it locally](https://ze-software.net/docs/contributing/testing/)
+- [Project history how ExaBGP's programmable model grew into Ze](https://ze-software.net/project/history/)
+- [Contributor testing choose the right proof layer and run it locally](https://ze-software.net/contribute/testing/)

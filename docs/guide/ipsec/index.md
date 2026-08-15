@@ -74,7 +74,7 @@ vpn {
 }
 ```
 
-Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated [configuration reference](https://github.com/ze-software/ze/tree/main/docs/../config-reference) documents the XFRM interface leaves.
+Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the XFRM interface leaves.
 
 ## IKE features
 
@@ -339,7 +339,7 @@ of three per connection attempt, so two peers can never oscillate between them.
 
 Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries `N(REKEY_SA)` with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.
 
-Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. The endpoint that created the SA with the lowest of the four nonces closes that SA, so both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by `ze_ipsec_rekey_total{peer}` and streamed as `child-rekey` events by `monitor vpn ipsec`.
+Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. Section 2.8.1 states it as a recommendation: if redundant SAs are created, the endpoint that created the SA with the lowest of the four nonces SHOULD close that SA. Ze resolves the collision one step earlier and abandons its own pending exchange when its nonce is the lower one, so the redundant SA is never created and both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by `ze_ipsec_rekey_total{peer}` and streamed as `child-rekey` events by `monitor vpn ipsec`.
 
 ## Child SA and dataplane
 
@@ -468,7 +468,7 @@ Health monitoring reports certificate expiry as a warning at 30 days and an erro
 
 ## XFRM interfaces
 
-XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated [configuration reference](https://github.com/ze-software/ze/tree/main/docs/../config-reference) documents the interface surface.
+XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the interface surface.
 
 ## CLI
 
@@ -514,9 +514,9 @@ The IKE implementation includes interop tests against strongSwan 5.9.14, the ver
 
 ## See also
 
-- The generated [configuration reference](https://github.com/ze-software/ze/tree/main/docs/../config-reference) covers every IPsec and XFRM configuration leaf.
-- [Monitoring](../monitoring/index.md) covers the health registry and operational visibility.
-- [Feature inventory](../../features/index.md) shows the maturity of each IKE and IPsec capability.
+- The generated [configuration reference](https://ze-software.net/reference/configuration/#ipsec-vpn) covers every IPsec and XFRM configuration leaf.
+- [Monitoring](monitoring.md) covers the health registry and operational visibility.
+- [Feature inventory](../features.md) shows the maturity of each IKE and IPsec capability.
 
 <!-- source: internal/component/ike/engine/fsm.go -- IKE exchange state machine -->
 <!-- source: internal/component/ike/engine/responder.go -- responder role -->

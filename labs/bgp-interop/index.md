@@ -4,7 +4,25 @@ Protocol lab
 
 Ze's BGP engine against real FRR, BIRD, and GoBGP, scenario by scenario.
 
-`Daemon`
+## Two ways to test Ze.
+
+Use the Ze interop harness for protocol assertions, or netlab for reusable multi-node topologies.
+
+**Ze harness**
+
+### [Protocol interop scenarios](https://ze-software.net/docs/architecture/testing/interop/)
+
+Run 68 curated scenarios against FRR, BIRD, and GoBGP. The harness starts only the required daemons and checks behavior through each peer's own CLI.
+
+`68 scenarios` `FRR` `BIRD` `GoBGP` Use the Ze harness scenario assertions
+
+**netlab**
+
+### [Reusable topology lab](https://ze-software.net/docs/guide/netlab/)
+
+Describe a three-node topology in YAML. netlab renders Ze configuration and starts each daemon node under containerlab.
+
+`YAML` `containerlab` `BGP` `OSPF` `IS-IS` `BFD` Use netlab three-node topology `Daemon`
 
 A Docker orchestrator launches Ze and one or more peer daemons on an isolated network, establishes real BGP sessions, and asserts correct behavior through each daemon's own CLI (`vtysh`, `birdc`, `gobgp`). Daemons start conditionally per scenario, so each run only spins up what it needs.
 

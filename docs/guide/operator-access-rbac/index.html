@@ -74,7 +74,7 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user and environment.ssh -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.profile -->
 <!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->
-<!-- source: internal/component/config/password_hash.go -- password hashing on commit -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
 <!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
 
 <h2 id="1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</h2>
@@ -253,13 +253,13 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
       <span>rbac.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/rbac.png?v=c6370ebe88" aria-label="Prove read-only RBAC enforcement demonstration">
-      <source src="../../../assets/demos/rbac.webm?v=4f667a97be" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/rbac.webm?v=4f667a97be">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/rbac.png?v=3a7f101f5d" aria-label="Prove read-only RBAC enforcement demonstration">
+      <source src="../../../assets/demos/rbac.webm?v=aaa447ec07" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/rbac.webm?v=aaa447ec07">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.05</span><span>1 minute 30 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.07.18</span><span>1 minute 30 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -347,7 +347,7 @@ set system authentication tacacs-profile 1 profile read-only
                         <span class="page-sidebar-link-label">Production diagnostics</span>
                         <small>Debug by symptom when something is wrong.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

@@ -301,9 +301,34 @@ virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs
 evidence scripts select the Apple hypervisor (<code>hvf</code>) by platform.</p>
 <!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
 
-<p>These two, and the apt installs above, are every place setup reaches for root.
-All three go through one helper, so the table of states earlier in this section
-governs each of them.</p>
+<p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
+its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
+NEXT_HOP, so a session whose two ends share one address has every originated
+route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to <code>lo</code> and
+macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
+host exactly <code>::1</code> on every platform, so setup adds <code>fd00::2</code> on both. That
+address is unique-local (RFC 4193) and never globally routable, so a fixture
+cannot leak a packet toward a real destination. Setup checks this as
+<code>loopback-addresses</code> and, in install mode, runs:</p>
+<pre><code class="language-bash">sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
+sudo ip -6 addr add fd00::2/128 dev lo         # Linux
+</code></pre>
+<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+
+<p>Presence is decided by binding a socket to the address, which is the same
+question a fixture asks and a stronger one than reading the interface list: an
+IPv6 address is listed while duplicate-address detection still refuses it. The
+test runner cannot add either family itself (the ioctl returns EPERM
+unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
+missing address fails at once naming the command above.</p>
+<!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
+
+<p>Neither addition survives a reboot. Re-run <code>make ze-setup</code> after one;
+<code>make ze-setup CHECK=1</code> says when it is needed. The merge gate adds the IPv6
+address the same way, as its own workflow step (<code>.github/workflows/verify.yml</code>).</p>
+<p>These three, and the apt installs above, are every place setup reaches for root.
+All of them go through one helper, so the table of states earlier in this
+section governs each of them.</p>
 <h2 id="after-setup">After Setup</h2>
 <p>Verify everything works:</p>
 <pre><code class="language-bash">make ze-smoke    # lint + unit tests + build (~2 min)
@@ -342,7 +367,7 @@ preventing the lists from drifting apart.</p>
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>

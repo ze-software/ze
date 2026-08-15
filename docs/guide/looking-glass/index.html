@@ -180,7 +180,7 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 </tr>
 </tbody>
 </table>
-<p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v2.0.4) and SSE extension are embedded.</p>
+<p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0-beta6) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 
@@ -277,7 +277,7 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
                         <span class="page-sidebar-link-label">SSH and RBAC</span>
                         <small>Set up operator accounts and profiles.</small>
                     </a>
-                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>
                         <small>Compare Ze commands with familiar NOS syntax.</small>
                     </a>
