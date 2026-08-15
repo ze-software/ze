@@ -146,10 +146,17 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		RouterID:  se.RouterID,
 		ContextID: wu.SourceCtxID(),
 		GroupName: se.PeerGroup,
+		// This speaker's end of the session. Parsed here, on the same
+		// changed-only path as the fields above, because it is what "itself"
+		// means to RFC 4271 Section 5.1.3 (isSelfNextHop, rib_self_nexthop.go).
+		// An address that does not parse leaves the zero Addr, which names no
+		// address rather than a wrong one.
+		LocalAddress: parseLocalAddr(se.LocalAddress),
 	}
 	if cur := r.peerMeta[peerAddr]; cur == nil || *cur != candidate {
 		m := candidate
 		r.peerMeta[peerAddr] = &m
+		r.refreshSelfNextHopsLocked()
 	}
 	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {

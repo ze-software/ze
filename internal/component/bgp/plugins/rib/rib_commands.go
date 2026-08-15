@@ -1038,6 +1038,11 @@ func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Ca
 // PeerRIB content reads (peerRIB.Lookup) use PeerRIB's own lock.
 func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte) []*Candidate {
 	var candidates []*Candidate
+	// Loaded ONCE, so every candidate for this prefix is judged against the same
+	// set of this speaker's own addresses (rib_self_nexthop.go). A per-candidate
+	// load could straddle a session change and admit one route while excluding
+	// its equal.
+	selfNextHops := r.selfNextHops.Load()
 	for peer, peerRIB := range r.bgpPeers {
 		entry, ok := peerRIB.Lookup(fam, nlriBytes)
 		if !ok {
@@ -1046,6 +1051,34 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
 		if isSRv6Ineligible(entry) {
 			continue
+		}
+		// RFC 4271 Section 5.1.3: "A BGP speaker SHALL NOT install a route with
+		// itself as the next hop." A route naming one of this speaker's own
+		// addresses tells it to forward through itself, which is a local loop.
+		//
+		// EXCLUDED FROM THE DECISION PROCESS, not refused at install. Refusing at
+		// install would leave the prefix with no route at all whenever the broken
+		// path happened to win, even with a sound alternative in the RIB. Removing
+		// it from candidacy lets the runner-up win, which is what Section 9.1.2
+		// already does with a next hop it cannot resolve, and this is a next hop
+		// that resolves to this speaker.
+		//
+		// Nothing legitimate reaches here with a self next hop. Every candidate is
+		// a route another speaker SENT (r.bgpPeers is the Adj-RIB-In), and
+		// Section 6.3 calls that address semantically incorrect on arrival. Locally
+		// originated routes -- static, connected, redistributed -- never enter this
+		// map and so are untouched by this test.
+		if selfNextHops != nil && len(*selfNextHops) > 0 {
+			if nh := entryNextHopAddr(entry); isSelfNextHop(selfNextHops, nh) {
+				// RFC 4271 Section 6.3: "the error SHOULD be logged, and the route
+				// SHOULD be ignored". A guard that drops a route in silence is how
+				// "routes vanish sometimes" gets reported instead of the cause.
+				logger().Warn("route excluded from best-path: its next hop is this speaker's own address",
+					"peer", peerRIB.PeerAddr(), "next-hop", nh, "family", fam,
+					"rfc", "RFC 4271 Section 5.1.3",
+					"action", "route not installed; another path to this prefix is used if one exists")
+				continue
+			}
 		}
 		// The map key gives the typed address; PeerRIB caches the canonical
 		// string, so the hot path performs no parse and no conversion.

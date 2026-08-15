@@ -1106,7 +1106,17 @@ func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byt
 	if !ok {
 		return netip.Addr{}
 	}
+	return entryNextHopAddr(entry)
+}
 
+// entryNextHopAddr reads the next-hop a stored route entry advertises. Returns
+// the zero Addr when the entry carries none.
+//
+// This is the ONE producer of that answer, so the winner's installed next hop
+// (bestCandidateNextHopAddr) and the Section 5.1.3 eligibility test
+// (gatherCandidatesLocked, rib_commands.go) cannot disagree about which address
+// a route names. Reads pool handles only; no lock, no allocation.
+func entryNextHopAddr(entry storage.RouteEntry) netip.Addr {
 	// Try IPv4 NEXT_HOP attribute (code 3) first.
 	b := entry.GetBundle()
 	if b.HasNextHop() {

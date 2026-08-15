@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -1072,4 +1073,141 @@ func TestRFC4271NoHoldExpiryLeavesTheSessionIntact(t *testing.T) {
 			"RFC4271-8.2.2-4 drops it on Event 10, not on establishment", err)
 	default:
 	}
+}
+
+// rfc4271UnknownAttrUpdate builds a well-formed announce UPDATE for 10.0.0.0/24 whose
+// path attributes end with one extra attribute carrying the caller's flags and code.
+func rfc4271UnknownAttrUpdate(flags, code byte) []byte {
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP, well-known transitive
+		0x40, 0x02, 0x00, // AS_PATH (empty), well-known transitive
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP = 192.0.2.1, well-known transitive
+	}
+	attrs = append(attrs, flags, code, 0x03, 0x01, 0x02, 0x03)
+	return makeUpdateBody(nil, attrs, []byte{24, 10, 0, 0})
+}
+
+// rfc4271PublishedFlags returns the flags octet of one attribute in the UPDATE ze
+// publishes: the bytes every downstream consumer sees and every peer is sent.
+func rfc4271PublishedFlags(t *testing.T, body []byte, code byte) byte {
+	t.Helper()
+	sections, err := wire.ParseUpdateSections(body)
+	require.NoError(t, err, "the published UPDATE body must still parse into sections")
+	section := sections.Attrs(body)
+	for pos := 0; pos+3 <= len(section); {
+		flags := section[pos]
+		hdr, valLen := 3, int(section[pos+2])
+		if flags&0x10 != 0 {
+			require.LessOrEqual(t, pos+4, len(section))
+			hdr, valLen = 4, int(section[pos+2])<<8|int(section[pos+3])
+		}
+		if section[pos+1] == code {
+			return flags
+		}
+		pos += hdr + valLen
+	}
+	t.Fatalf("attribute %d is not in the published UPDATE: %x", code, section)
+	return 0
+}
+
+// TestRFC4271PartialSetOnUnrecognizedTransitiveOptional drives the real receive path with
+// an attribute ze has no meaning for, sent as optional transitive with Partial clear.
+//
+// VALIDATES: the UPDATE ze retains and propagates carries that attribute with the Partial
+// bit set to 1, and carries it with its value and its Optional/Transitive bits intact.
+//
+// PREVENTS: relaying an unrecognized transitive optional attribute as though ze understood
+// it, which tells every downstream AS the information is complete when ze never read it.
+//
+// RFC requirement: RFC4271-5-3 positive -- enforceRFC7606 stamps the bit through
+// publishBase before the UPDATE is published (internal/component/bgp/reactor/
+// session_validation.go, publishBase -> attribute.SetPartialOnUnrecognizedTransitive).
+func TestRFC4271PartialSetOnUnrecognizedTransitiveOptional(t *testing.T) {
+	const unknownCode = 250
+	require.False(t, attribute.AttributeCode(unknownCode).Recognized(),
+		"the fixture only tests the requirement while ze has no meaning for this code")
+
+	s := newValidateSession()
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(rfc4271UnknownAttrUpdate(0xC0, unknownCode), 0))
+	require.NoError(t, err)
+	require.Equal(t, message.RFC7606ActionNone, action,
+		"an unrecognized transitive optional attribute is accepted, not an error")
+
+	flags := rfc4271PublishedFlags(t, wu.Payload(), unknownCode)
+	assert.Equal(t, byte(0xE0), flags,
+		"RFC 4271 Section 5: an unrecognized transitive optional attribute must be passed "+
+			"along with the Partial bit set to 1, and its Optional and Transitive bits kept")
+}
+
+// TestRFC4271PartialNotSetOnRecognizedOrNonTransitive drives the same producer with the
+// three classes the requirement excludes.
+//
+// VALIDATES: a well-known attribute, an optional non-transitive attribute and a RECOGNIZED
+// optional transitive attribute all leave the receive path with the Partial bit still 0.
+//
+// PREVENTS: a stamp that fires on the Optional bit alone, or on every attribute, which
+// would break RFC 4271 Section 4.3 for three classes to satisfy Section 5 for one.
+//
+// RFC requirement: RFC4271-5-3 negative -- the stamp is conditioned on the attribute being
+// unrecognized AND optional AND transitive: none of the three excluded classes is stamped
+// (internal/core/bgp/attribute/partial.go, SetPartialOnUnrecognizedTransitive).
+// RFC requirement: RFC4271-4.3-2 positive -- the Partial bit stays 0 on a well-known
+// attribute and on an optional non-transitive one after the receive path has run.
+func TestRFC4271PartialNotSetOnRecognizedOrNonTransitive(t *testing.T) {
+	s := newValidateSession()
+	// MED (4) is optional NON-transitive; COMMUNITIES (8) is a RECOGNIZED optional
+	// transitive attribute. Both ride the same UPDATE as the well-known ORIGIN.
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN, well-known transitive
+		0x40, 0x02, 0x00, // AS_PATH, well-known transitive
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP, well-known transitive
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x0a, // MED, optional non-transitive
+		0xC0, 0x08, 0x04, 0xff, 0xff, 0xff, 0x01, // COMMUNITIES, recognized optional transitive
+	}
+	body := makeUpdateBody(nil, attrs, []byte{24, 10, 0, 0})
+
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err)
+	require.Equal(t, message.RFC7606ActionNone, action)
+
+	assert.Equal(t, byte(0x40), rfc4271PublishedFlags(t, wu.Payload(), byte(attribute.AttrOrigin)),
+		"RFC 4271 Section 4.3: the Partial bit must be 0 for a well-known attribute")
+	assert.Equal(t, byte(0x80), rfc4271PublishedFlags(t, wu.Payload(), byte(attribute.AttrMED)),
+		"RFC 4271 Section 4.3: the Partial bit must be 0 for an optional non-transitive attribute")
+	assert.Equal(t, byte(0xC0), rfc4271PublishedFlags(t, wu.Payload(), byte(attribute.AttrCommunity)),
+		"RFC 4271 Section 5 stamps UNRECOGNIZED attributes only: a recognized optional "+
+			"transitive attribute keeps the Partial bit the sender chose")
+}
+
+// TestRFC4271PartialFromPreviousASNeverCleared drives the receive path with the bit
+// already set by an upstream AS, on both a recognized and an unrecognized attribute.
+//
+// VALIDATES: neither the stamp nor the publish path ever writes a 0 into the Partial bit.
+//
+// PREVENTS: a normalizing rewrite that recomputes flags from the attribute's type and so
+// downgrades partial information to complete as it crosses ze.
+//
+// RFC requirement: RFC4271-5-4 positive -- a Partial bit set to 1 by a previous AS survives
+// the receive path on a recognized transitive optional attribute
+// (internal/core/bgp/attribute/partial.go: the stamp only ORs the bit in, it never clears).
+func TestRFC4271PartialFromPreviousASNeverCleared(t *testing.T) {
+	const unknownCode = 251
+	s := newValidateSession()
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN
+		0x40, 0x02, 0x00, // AS_PATH
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		0xE0, 0x08, 0x04, 0xff, 0xff, 0xff, 0x01, // COMMUNITIES with Partial already set
+		0xE0, unknownCode, 0x02, 0x01, 0x02, // unrecognized transitive optional, Partial set
+	}
+	body := makeUpdateBody(nil, attrs, []byte{24, 10, 0, 0})
+
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err)
+	require.Equal(t, message.RFC7606ActionNone, action)
+
+	assert.Equal(t, byte(0xE0), rfc4271PublishedFlags(t, wu.Payload(), byte(attribute.AttrCommunity)),
+		"RFC 4271 Section 5: a Partial bit set by a previous AS must not be set back to 0")
+	assert.Equal(t, byte(0xE0), rfc4271PublishedFlags(t, wu.Payload(), unknownCode),
+		"an unrecognized attribute that already carried the bit keeps it, unchanged")
 }

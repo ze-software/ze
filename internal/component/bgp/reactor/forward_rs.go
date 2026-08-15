@@ -251,6 +251,13 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// destinations a route server peers with.
 	srcMED := payloadMED(update.WireUpdate.Payload())
 
+	// RFC 4271 Section 5.1.3 needs one read per UPDATE, not one per client: the
+	// NEXT_HOP the source sent. A route server relays a client's third-party next
+	// hop untouched, so the client that OWNS that address is the everyday way a
+	// peer gets told to send traffic to itself (egressNextHopIsPeerOwn,
+	// forward_next_hop.go).
+	srcNextHop := payloadNextHop(update.WireUpdate.Payload())
+
 	// RFC 1997 needs one scan per UPDATE, not one per client; see the identical
 	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay
 	// behaviorally identical: honoring the well-known communities on one only
@@ -387,6 +394,39 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
+
+		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
+		// be advertised to a peer using an address of that peer as NEXT_HOP."
+		//
+		// The general rail (reactor_api_forward.go) carries the full reasoning:
+		// asked after every rewrite so it reads the address about to be written,
+		// the announcement withheld rather than rewritten, and the withdrawal half
+		// still delivered. The two rails MUST answer this the same way -- which
+		// one runs is the deployment's rs-fast-path setting, not a policy.
+		//
+		// RFC 7947 Section 2.2.2 requires a route server to pass NEXT_HOP through
+		// untouched, and withholding keeps that promise: no client is ever sent a
+		// next hop this speaker invented, and the one client the address names is
+		// the one client the address is useless to.
+		baseNextHop := srcNextHop
+		if destBaseWire != update.WireUpdate {
+			baseNextHop = payloadNextHop(destBaseWire.Payload())
+		}
+		if egressNextHopIsPeerOwn(facts, &mods, baseNextHop) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+			}
+			fwdLogger().Warn("withholding route: its next hop is this peer's own address",
+				"peer", facts.addrStr, "next-hop", facts.addr, "src", sourcePeerAddr,
+				"rfc", "RFC 4271 Section 5.1.3",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				continue
+			}
+			destBaseWire = srcWithdrawOnly
+		}
+
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress filter pass above so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail

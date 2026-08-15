@@ -203,6 +203,13 @@ type peerMetadata struct {
 	// group (configjson.GroupKey) and reached from here.
 	// Read by blackholeRouteTypeForBest.
 	GroupName string
+	// LocalAddress is THIS speaker's end of the session: the address the peer
+	// dialed or was dialed from. It arrives on the same peer event the fields
+	// above do (PeerInfoJSON.Local.Address, bgp/event.go; StructuredEvent.
+	// LocalAddress), and it is the address ze itself advertises as NEXT_HOP
+	// under `next-hop self` (precomputeNextHop, reactor/peer_forward_facts.go).
+	// Read by selfNextHops, which is how the RIB knows "itself".
+	LocalAddress netip.Addr
 }
 
 // peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
@@ -256,6 +263,20 @@ type RIBManager struct {
 
 	// peerMeta tracks per-peer metadata for best-path comparison.
 	peerMeta map[netip.Addr]*peerMetadata // peer address -> metadata
+
+	// selfNextHops names every address this speaker answers to as a next hop:
+	// the local end of each session in peerMeta, deduplicated. RFC 4271
+	// Section 6.3 calls it "the IP address of the receiving speaker", and
+	// Section 5.1.3 forbids installing a route that names one.
+	//
+	// DERIVED, never authored. peerMeta is where the local address arrives, so
+	// rebuilding this from it keeps one source of truth: a second list would go
+	// stale exactly when a session moves, which is when the answer changes.
+	// Rebuilt under peerMu by refreshSelfNextHopsLocked and published atomically,
+	// so gatherCandidatesLocked reads it once per call with no lock of its own.
+	// Typically one or two entries; a linear scan beats a map for that size and
+	// allocates nothing to search.
+	selfNextHops atomic.Pointer[[]netip.Addr]
 
 	// retainedPeers tracks peers whose Adj-RIB-In is retained during GR.
 	// RFC 4724: When a GR-capable peer goes down, routes are retained until
@@ -1102,6 +1123,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 				delete(r.bgpPeers, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
+			r.refreshSelfNextHopsLocked()
 			// Purge bestPrev records belonging to the departing peer so
 			// cross-protocol consumers see the withdrawal immediately
 			// (instead of waiting for the next UPDATE per prefix to
@@ -1169,6 +1191,7 @@ func (r *RIBManager) handleState(event *Event) {
 				delete(r.bgpPeers, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
+			r.refreshSelfNextHopsLocked()
 			// See handleStructuredState for the emit-after-unlock contract.
 			// The interner is keyed by the canonical address string.
 			pendingPurgeEmits = r.purgeBestPrevForPeer(peerAddr.String())
@@ -1198,14 +1221,36 @@ func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr) {
 	peerASN := event.GetPeerASN()
 	localASN := getLocalASN(event)
 	group := event.GetPeerGroup()
-	if peerASN == 0 && localASN == 0 && group == "" {
+	localAddr := getLocalAddress(event)
+	if peerASN == 0 && localASN == 0 && group == "" && !localAddr.IsValid() {
 		return
 	}
 	r.peerMeta[peerAddr] = &peerMetadata{
-		PeerASN:   peerASN,
-		LocalASN:  localASN,
-		GroupName: group,
+		PeerASN:      peerASN,
+		LocalASN:     localASN,
+		GroupName:    group,
+		LocalAddress: localAddr,
 	}
+	r.refreshSelfNextHopsLocked()
+}
+
+// getLocalAddress extracts this speaker's end of the session from an event's
+// peer format (YANG: local.address). Zero Addr when the event states none or
+// states one that does not parse.
+//
+// This is the ONLY place the RIB learns what "itself" means (RFC 4271
+// Section 5.1.3, isSelfNextHop). The field is already on every event carrying
+// the nested peer format, so reading it adds no plumbing and creates no second
+// source of truth.
+func getLocalAddress(event *Event) netip.Addr {
+	if len(event.Peer) == 0 {
+		return netip.Addr{}
+	}
+	var info PeerInfoJSON
+	if err := json.Unmarshal(event.Peer, &info); err != nil || info.Local == nil {
+		return netip.Addr{}
+	}
+	return parseLocalAddr(info.Local.Address)
 }
 
 // getLocalASN extracts the local ASN from an event's peer format.

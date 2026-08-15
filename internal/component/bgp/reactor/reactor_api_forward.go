@@ -500,6 +500,12 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// the source did not is the operator originating one (applyFactsMED).
 	srcMED := payloadMED(update.WireUpdate.Payload())
 
+	// RFC 4271 Section 5.1.3 needs one read per UPDATE for the same reason: the
+	// NEXT_HOP the source sent, which is what every destination is offered unless
+	// something rewrites it for that destination (egressNextHopIsPeerOwn,
+	// forward_next_hop.go).
+	srcNextHop := payloadNextHop(update.WireUpdate.Payload())
+
 	// RFC 1997 needs one scan per UPDATE, not one per destination: which
 	// well-known communities the RECEIVED route carries. Scanned over the SOURCE
 	// payload, never over a policy chain's wire override -- an export policy that
@@ -662,6 +668,47 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		peerBaseWire := destBaseWire
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
+		}
+
+		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
+		// be advertised to a peer using an address of that peer as NEXT_HOP."
+		//
+		// Asked AFTER the egress step pass and after applyFactsNextHop, because
+		// the address that matters is the one about to be written and both a
+		// filter and a configured next-hop mode replace the source's. A policy
+		// may not grant what the RFC refuses.
+		//
+		// THE PROHIBITION COVERS THE ANNOUNCEMENT, NOT THE WITHDRAWAL. "SHALL NOT
+		// be advertised" governs the route being offered; taking a route back
+		// carries no NEXT_HOP and points this peer at nothing. So the destination
+		// gets the withdrawal half alone, which is the repair the RFC 1997 and
+		// RFC 7947 gates above already make: refusing the whole message would
+		// leave this peer holding a prefix ze can no longer withdraw until the
+		// session resets.
+		//
+		// The route is WITHHELD rather than rewritten. Section 5.1.3 states a
+		// prohibition on advertising, so not advertising is the conformant act,
+		// and rewriting would both invent a next hop the operator never configured
+		// and break the transparency RFC 7947 Section 2.2.2 requires of a route
+		// server.
+		baseNextHop := srcNextHop
+		if peerBaseWire != update.WireUpdate {
+			baseNextHop = payloadNextHop(peerBaseWire.Payload())
+		}
+		if egressNextHopIsPeerOwn(facts, &mods, baseNextHop) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+			}
+			fwdLogger().Warn("withholding route: its next hop is this peer's own address",
+				"peer", facts.addrStr, "next-hop", facts.addr,
+				"rfc", "RFC 4271 Section 5.1.3",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				suppressedCount++
+				continue
+			}
+			peerBaseWire = srcWithdrawOnly
 		}
 
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
