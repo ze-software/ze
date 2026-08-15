@@ -355,6 +355,31 @@
     });
   }
 
+  // Enter fires the ze-enter event on the control that asks for it.
+  //
+  // htmx compiles a bracketed trigger filter such as keyup[key=='Enter'] with
+  // Function(). setSecurityHeaders (auth.go) sends script-src 'self' with no
+  // unsafe-eval, so the compile throws, htmx reports htmx:syntax:error and
+  // leaves the filter unset. A trigger with no filter ignores nothing, so the
+  // bare key event fired on EVERY keystroke. An inline editor posted a partial
+  // value and swapped itself away under the operator, and the terminal ran a
+  // partial command.
+  //
+  // The markup names the event and this listener dispatches it. Delegation
+  // survives every swap, and nothing here compiles source. A control whose own
+  // handler already acted leaves defaultPrevented set, and keeps this one off.
+  function initEnterSubmit() {
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter' || e.defaultPrevented) return;
+      var el = e.target;
+      if (!el || !el.getAttribute) return;
+      var trigger = el.getAttribute('hx-trigger');
+      if (!trigger || trigger.split(/[\s,]+/).indexOf('ze-enter') < 0) return;
+      e.preventDefault();
+      el.dispatchEvent(new CustomEvent('ze-enter'));
+    });
+  }
+
   // Delegated click handlers for data-action buttons (CSP-safe, no inline handlers).
   function initActions() {
     document.addEventListener('click', function(e) {
@@ -871,6 +896,7 @@
     init();
     initViewToggle();
     initNumberInputs();
+    initEnterSubmit();
     initActions();
     initErrorPanel();
     initFlyout();

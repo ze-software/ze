@@ -7,6 +7,7 @@ package web
 // ends each option, which is where the markup this replaced put a newline.
 templ inputEnum(f FieldMeta) {
 	<select
+		id={ fieldInputID(f.Path, f.Leaf) }
 		class="ze-field-select"
 		name="value"
 		hx-post={ configSetURL(f.Path) }

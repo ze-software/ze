@@ -55,12 +55,13 @@ templ listTable(v *FragmentData) {
 							} else {
 								<td>
 									<input
+										id={ fieldInputID(cell.Path, cell.Leaf) }
 										class="finder-table-input"
 										type="text"
 										value={ cell.Value }
 										placeholder={ cell.Placeholder }
 										hx-post={ "/config/set/" + cell.Path }
-										hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
+										hx-trigger="blur changed, ze-enter, input changed delay:1s"
 										hx-target="closest td"
 										hx-swap="innerHTML"
 										name="value"

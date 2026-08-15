@@ -45,6 +45,25 @@ const (
 	portNumberEditor     = "an integer leaf reaches the number editor and shows its schema range"
 )
 
+// portEditorFocusID is the eleventh defect the pass fixes, and it changes the
+// bytes of every fixture that draws an inline editor.
+//
+// htmx keeps the focused element across a swap and re-finds it by id
+// afterwards. Each editor replaces itself with the response, and no editor
+// carried an id. An operator lost the caret on every field of the config
+// editor. The id is derived from the leaf path (fieldInputID, view.go), which
+// is what makes the page's editor and the response's editor agree.
+const portEditorFocusID = "an inline editor carries a DOM id, and htmx puts the caret back in the element that id finds"
+
+// portEnterTriggerCSP is the twelfth defect, and it is what made the eleventh
+// visible on every keystroke rather than once a second.
+//
+// Four controls carried a bracketed htmx trigger. htmx compiles that filter
+// with Function(), and setSecurityHeaders (auth.go) forbids it, so htmx left
+// the filter unset and the trigger fired on every key. The markup names the
+// custom event ze-enter, and initEnterSubmit (assets/cli.js) dispatches it.
+const portEnterTriggerCSP = "Enter arrives as an event a listener dispatches, where the trigger filter needed an eval the CSP refuses"
+
 // Phase 5 DELETES six components, so six units stop being captured. Each was
 // markup no page rendered, and each entry says what proved it dead.
 //
@@ -78,17 +97,30 @@ var webPortTemplates = map[string]string{
 	"input/field_wrapper_start--annotated.html": webPortWrapperPair,
 	"input/field_wrapper_end.html":              webPortWrapperPair,
 
-	"component/detail--fields.html":               portNumberEditor,
-	"component/detail--list-table.html":           portListRowClass,
-	"component/error_panel.html":                  portErrorToggle,
-	"component/finder--columns.html":              portAddEntryID,
-	"component/full_content--fields.html":         portAddEntryID + ", " + portNumberEditor,
-	"component/full_content--monitor.html":        portAddEntryID + ", " + portNumberEditor,
-	"component/list_table--editable.html":         portListRowClass,
-	"component/list_table--readonly.html":         portListRowClass,
-	"component/oob_error.html":                    portErrorSwapRemoved,
-	"component/oob_response--fields.html":         portAddEntryID + ", " + portNumberEditor,
-	"component/oob_response--monitor.html":        portAddEntryID + ", " + portNumberEditor,
+	"component/detail--fields.html":        portNumberEditor + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"component/detail--list-table.html":    portListRowClass + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"component/error_panel.html":           portErrorToggle,
+	"component/finder--columns.html":       portAddEntryID,
+	"component/full_content--fields.html":  portAddEntryID + ", " + portNumberEditor + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"component/full_content--monitor.html": portAddEntryID + ", " + portNumberEditor + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"component/list_table--editable.html":  portListRowClass + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"component/list_table--readonly.html":  portListRowClass,
+	"component/oob_error.html":             portErrorSwapRemoved,
+	"component/oob_response--fields.html":  portAddEntryID + ", " + portNumberEditor + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"component/oob_response--monitor.html": portAddEntryID + ", " + portNumberEditor + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+
+	"input/input_bool--false.html":     portEditorFocusID,
+	"input/input_bool--true.html":      portEditorFocusID,
+	"input/input_bool--unset.html":     portEditorFocusID,
+	"input/input_enum--selected.html":  portEditorFocusID,
+	"input/input_enum--unset.html":     portEditorFocusID,
+	"input/input_number--bare.html":    portEditorFocusID + ", " + portEnterTriggerCSP,
+	"input/input_number--default.html": portEditorFocusID + ", " + portEnterTriggerCSP,
+	"input/input_number--set.html":     portEditorFocusID + ", " + portEnterTriggerCSP,
+	"input/input_text--bare.html":      portEditorFocusID + ", " + portEnterTriggerCSP,
+	"input/input_text--default.html":   portEditorFocusID + ", " + portEnterTriggerCSP,
+	"input/input_text--set.html":       portEditorFocusID + ", " + portEnterTriggerCSP,
+
 	"component/workbench_form--fields.html":       portSecretMasked,
 	"component/workbench_table--add-actions.html": portEmptyRowColspan,
 	"component/workbench_table--empty.html":       portEmptyRowColspan,
@@ -143,10 +175,11 @@ var webPortHandlers = map[string]string{
 	"get-assets-ze-svg.txt":             portSecurityHeaders,
 	"get-cli.txt":                       portErrorToggle,
 	"get-favicon.txt":                   portSecurityHeaders,
-	"get-fragment-detail-page.txt":      portErrorToggle,
+	"get-fragment-detail-page.txt":      portErrorToggle + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
+	"get-fragment-detail.txt":           portEditorFocusID + ", " + portEnterTriggerCSP,
 	"get-monitor.txt":                   portErrorToggle,
 	"get-root.txt":                      portSecurityHeaders,
-	"get-show-bgp-finder.txt":           portErrorToggle + ", " + portListRowClass,
+	"get-show-bgp-finder.txt":           portErrorToggle + ", " + portListRowClass + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
 	"get-show-finder.txt":               portErrorToggle,
 	"nav-show-api.txt":                  portErrorToggle,
 	"nav-show-bgp-family.txt":           portEmptyRowColspan + ", " + portErrorToggle,

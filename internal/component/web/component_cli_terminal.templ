@@ -28,11 +28,16 @@ templ cliPage(v cliPageData) {
 
 // terminalContent is the terminal shell. Its input posts each line to
 // /cli/terminal and appends the answer to the scrollback.
+//
+// The line is sent on ze-enter, which initEnterSubmit (assets/cli.js)
+// dispatches. It used to be sent on keydown[key=='Enter']. htmx compiles a
+// bracketed filter with Function(), and the Content-Security-Policy forbids
+// that, so the filter was never set and every keystroke ran a partial command.
 templ terminalContent(prompt string) {
 	<div class="terminal-container" id="content-area">
 		<div class="terminal-scrollback" id="terminal-scrollback"></div>
 		<div class="terminal-input-line">
-			<span class="terminal-prompt">{ prompt }</span><input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false" hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']" hx-target="#terminal-scrollback" hx-swap="beforeend" hx-include="this" name="command">
+			<span class="terminal-prompt">{ prompt }</span><input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false" hx-post="/cli/terminal" hx-trigger="ze-enter" hx-target="#terminal-scrollback" hx-swap="beforeend" hx-include="this" name="command">
 		</div>
 	</div>
 }

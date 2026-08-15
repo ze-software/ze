@@ -286,6 +286,144 @@ func TestGoldenFixturesCarryNoEmptyClassAttribute(t *testing.T) {
 	assert.Positive(t, scanned, "no fixture was scanned; the capture directory is missing")
 }
 
+// triggerAttrPattern finds one hx-trigger literal in template source. templ
+// writes an expression attribute with double quotes only, so a literal value is
+// always in this form.
+var triggerAttrPattern = regexp.MustCompile(`hx-trigger="([^"]*)"`)
+
+// TestNoTriggerFilterNeedsEval verifies no trigger in this package asks htmx to
+// compile a bracketed filter.
+//
+// This test proves MARKUP. The behavior behind it was proven in a browser.
+// Three keystrokes in an inline editor produced three POSTs of a partial value.
+// Three keystrokes in the terminal ran three partial commands.
+//
+// VALIDATES: no hx-trigger carries a [ ] filter clause.
+// PREVENTS: a trigger that fires on every event instead of the one it names.
+// htmx builds the filter as source and runs it through Function() (nt,
+// assets/htmx.min.js). setSecurityHeaders (auth.go) sends script-src 'self'
+// with no unsafe-eval, so the call throws. htmx catches it, fires
+// htmx:syntax:error and returns null, and the caller assigns only a truthy
+// filter. gt then reads no filter and ignores no event, so keyup[key=='Enter']
+// degrades to a bare keyup rather than failing closed.
+//
+// Enter is delivered by initEnterSubmit (assets/cli.js) instead. It reads the
+// element's own hx-trigger and dispatches ze-enter, so the markup states the
+// contract and the script compiles nothing.
+func TestNoTriggerFilterNeedsEval(t *testing.T) {
+	sources, err := filepath.Glob(filepath.Join(".", "*.templ"))
+	require.NoError(t, err)
+	require.NotEmpty(t, sources, "the component set must not be empty")
+
+	seen := 0
+	enterUsers := 0
+
+	for _, path := range sources {
+		body, readErr := os.ReadFile(path) //nolint:gosec // a test reading its own package
+		require.NoError(t, readErr)
+
+		for _, match := range triggerAttrPattern.FindAllStringSubmatch(string(body), -1) {
+			seen++
+
+			assert.NotContains(t, match[1], "[",
+				"%s writes hx-trigger=%q, and the Content-Security-Policy stops htmx compiling that filter", path, match[1])
+
+			if slices.Contains(strings.Fields(strings.ReplaceAll(match[1], ",", " ")), "ze-enter") {
+				enterUsers++
+			}
+		}
+	}
+
+	assert.Positive(t, seen, "no trigger was scanned; the pattern has stopped matching")
+
+	script, err := os.ReadFile(filepath.Join("assets", "cli.js"))
+	require.NoError(t, err)
+
+	dispatch := jsBlock(string(script), "function initEnterSubmit()")
+	require.NotEmpty(t, dispatch, "assets/cli.js defines no initEnterSubmit, so ze-enter reaches nothing")
+	assert.Contains(t, dispatch, "'ze-enter'", "initEnterSubmit dispatches an event no trigger names")
+	assert.Contains(t, string(script), "initEnterSubmit();", "initEnterSubmit is never called on page load")
+	assert.Positive(t, enterUsers, "no component asks for ze-enter, so the listener drives nothing")
+}
+
+// focusableTagPattern finds one start tag a browser can put the caret in.
+// Every one of the four takes focus, and each is a control an operator types or
+// clicks in.
+var focusableTagPattern = regexp.MustCompile(`<(?:input|select|textarea|button)\b[^>]*>`)
+
+// selfSwapTargetPattern reads the hx-target of a control that replaces itself.
+// "closest <selector>" names an ancestor and "this" names the element, so both
+// swaps take the control out of the document with the target.
+var selfSwapTargetPattern = regexp.MustCompile(`hx-target="(closest [^"]+|this)"`)
+
+// cssUnsafeIDPattern finds a character that ends an id inside a CSS selector.
+// The set is what a config path can carry: isYANGIdentChar (handler.go) admits
+// a dot and a colon, and joining the path adds the slash.
+var cssUnsafeIDPattern = regexp.MustCompile(`[^A-Za-z0-9_-]`)
+
+// TestSelfReplacingControlsCarryAStableID verifies every captured control that
+// swaps itself away names an id, and that the id is one a CSS selector reads
+// whole.
+//
+// This test proves MARKUP. The behavior behind it was proven in a browser. The
+// caret survives a swap of the workbench field, of a list-table cell, and of a
+// field whose list key carries a dot.
+//
+// VALIDATES: an id attribute on each control inside its own swap target.
+// PREVENTS: the caret and the focus leaving the field an operator is typing
+// in. htmx keeps the focused element, its selectionStart and its selectionEnd
+// across a swap. It then re-finds the element by id and restores all three
+// (assets/htmx.min.js, the swap function $e). With no id the lookup is
+// getElementById(""), which answers null, and nothing is restored. Every
+// inline editor here replaces itself with the response, so an operator lost the
+// caret on every field of the config editor.
+//
+// The id must also survive a CSS selector. The vendored htmx is 2.0.4 and it
+// calls CSS.escape nowhere. The settle matcher (Le) builds an attribute
+// selector and the out-of-band lookup (He) builds "#" + id. Upstream 2.0.10
+// escapes both. A VLAN interface is keyed eth0.100, so a raw path would put a
+// dot in an id here.
+func TestSelfReplacingControlsCarryAStableID(t *testing.T) {
+	root := filepath.Join("testdata", "golden")
+
+	checked := 0
+
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".html") {
+			return nil
+		}
+
+		body, readErr := os.ReadFile(path) //nolint:gosec // a test reading its own fixtures
+		if readErr != nil {
+			return readErr
+		}
+
+		for _, tag := range focusableTagPattern.FindAllString(string(body), -1) {
+			if !selfSwapTargetPattern.MatchString(tag) {
+				continue
+			}
+
+			checked++
+
+			id := idAttrPattern.FindStringSubmatch(tag)
+			if !assert.NotNil(t, id, "%s: a control that swaps itself away carries no id: %s", path, tag) {
+				continue
+			}
+
+			assert.NotEmpty(t, id[1], "%s: a control that swaps itself away carries an empty id: %s", path, tag)
+			assert.NotRegexp(t, cssUnsafeIDPattern, id[1],
+				"%s: the id %q ends early in a CSS selector, and htmx 2.0.4 escapes none", path, id[1])
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Positive(t, checked, "no self-replacing control was scanned; the capture directory is missing")
+}
+
 // jsBlock returns the source of one brace-delimited JavaScript block, starting
 // at header. It answers an empty string when the header is absent, so a caller
 // that asserts on the result fails rather than passing over nothing.

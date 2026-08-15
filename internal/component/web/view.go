@@ -4,6 +4,8 @@
 package web
 
 import (
+	"strings"
+
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -131,6 +133,36 @@ func configSetURL(path string) string {
 	var tb textbuf.Buffer
 
 	return tb.Str("/config/set/").Str(path).String()
+}
+
+// fieldInputIDEscaper makes a config path usable as a DOM id. It keeps every
+// character, so no two paths can arrive at one id.
+//
+// A path segment holds [a-zA-Z0-9._:-] and nothing else (isYANGIdentChar,
+// handler.go). A VLAN interface is keyed eth0.100 and a peer can be keyed by an
+// address, so a raw path carries a dot or a colon. Each one ends a CSS id
+// selector, and the vendored htmx 2.0.4 calls CSS.escape nowhere.
+//
+// A literal dash doubles here, so a single dash always begins a marker. The
+// mapping therefore reverses, and no two paths collapse onto one id. A shared
+// id would send the caret to another row's field.
+var fieldInputIDEscaper = strings.NewReplacer("-", "--", "/", "-s", ".", "-d", ":", "-c")
+
+// fieldInputID is the DOM id of one leaf editor.
+//
+// htmx records the focused element before a swap. Afterwards it re-finds that
+// element by its id. An editor with no id is never restored, so the operator
+// loses the caret each time the editor replaces itself.
+//
+// The id is derived from the leaf's path, which is what makes it work. The page
+// renders one editor and the POST response renders the next, so the two renders
+// have to agree on the id. The path and the leaf name are what both carry.
+func fieldInputID(path, leaf string) string {
+	var tb textbuf.Buffer
+
+	qualified := tb.Str(path).Byte('/').Str(leaf).String()
+
+	return tb.Reset().Str("input-").Str(fieldInputIDEscaper.Replace(qualified)).String()
 }
 
 // fieldHxVals is the hx-vals payload naming the leaf a POST edits. The value

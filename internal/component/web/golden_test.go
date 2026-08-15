@@ -160,6 +160,8 @@ var webTemplGoldenSpec = golden.Spec{
 		Variants: []golden.Variant{
 			{Name: "annotated", Data: webFieldComponent(webFieldMeta("string", "london"))},
 			{Name: "bare", Data: webFieldComponent(webFieldMetaBare("string"))},
+			{Name: "table-cell", Data: webFieldComponent(webFieldMetaCell())},
+			{Name: "dotted-key", Data: webFieldComponent(webFieldMetaDottedKey())},
 		},
 	}},
 
@@ -912,6 +914,26 @@ func webFieldMeta(fieldType, value string) FieldMeta {
 // conditional in the input templates renders.
 func webFieldMetaBare(fieldType string) FieldMeta {
 	return FieldMeta{Leaf: "router-id", Path: "bgp", Type: fieldType}
+}
+
+// webFieldMetaCell is the field a list-table cell edits. handleConfigSet
+// (handler_config_form.go) answers the cell's POST with RenderField over this
+// path and leaf, so this fixture is the markup that lands in the table cell.
+// The editor the page drew and the editor the response draws must name one id.
+func webFieldMetaCell() FieldMeta {
+	return FieldMeta{Leaf: "ip", Path: "bgp/peer/london/remote", Type: "string", Value: "192.0.2.1"}
+}
+
+// webFieldMetaDottedKey keys the list by a name that carries a dot. A VLAN
+// interface is eth0.100, and a dot is a legal YANG identifier character
+// (isYANGIdentChar, handler.go), so an operator reaches this path with no
+// special configuration.
+//
+// A dot ends an id in a CSS selector, and the vendored htmx 2.0.4 escapes none
+// of the ids it puts in one (He, assets/htmx.min.js, builds "#" + id). This
+// fixture is what pins the editor id to characters a selector reads whole.
+func webFieldMetaDottedKey() FieldMeta {
+	return FieldMeta{Leaf: "address", Path: "iface/eth0.100/ipv4", Type: "string", Value: "192.0.2.1/24"}
 }
 
 func webSidebarSections() []SidebarSection {

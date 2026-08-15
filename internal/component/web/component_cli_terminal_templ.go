@@ -76,6 +76,11 @@ func cliPage(v cliPageData) templ.Component {
 
 // terminalContent is the terminal shell. Its input posts each line to
 // /cli/terminal and appends the answer to the scrollback.
+//
+// The line is sent on ze-enter, which initEnterSubmit (assets/cli.js)
+// dispatches. It used to be sent on keydown[key=='Enter']. htmx compiles a
+// bracketed filter with Function(), and the Content-Security-Policy forbids
+// that, so the filter was never set and every keystroke ran a partial command.
 func terminalContent(prompt string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -104,13 +109,13 @@ func terminalContent(prompt string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(prompt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 35, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 40, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span><input type=\"text\" class=\"terminal-input\" id=\"terminal-input\" autocomplete=\"off\" spellcheck=\"false\" hx-post=\"/cli/terminal\" hx-trigger=\"keydown[key=='Enter']\" hx-target=\"#terminal-scrollback\" hx-swap=\"beforeend\" hx-include=\"this\" name=\"command\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span><input type=\"text\" class=\"terminal-input\" id=\"terminal-input\" autocomplete=\"off\" spellcheck=\"false\" hx-post=\"/cli/terminal\" hx-trigger=\"ze-enter\" hx-target=\"#terminal-scrollback\" hx-swap=\"beforeend\" hx-include=\"this\" name=\"command\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -210,7 +215,7 @@ func cliShowResponse(v cliShowData) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(v.Content)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 57, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 62, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -327,7 +332,7 @@ func configChildList(children []ChildEntry) templ.Component {
 				var templ_7745c5c3_Var12 templ.SafeURL
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(child.URL)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 82, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 87, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -353,7 +358,7 @@ func configChildList(children []ChildEntry) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(child.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 82, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 87, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -408,7 +413,7 @@ func configKeyList(path []string, keys []string) templ.Component {
 				var templ_7745c5c3_Var16 templ.SafeURL
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(configKeyURL(path, key))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 93, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 98, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -421,7 +426,7 @@ func configKeyList(path []string, keys []string) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(key)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 93, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 98, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -476,7 +481,7 @@ func configLeafTable(fields []LeafField) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 105, Col: 21}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 110, Col: 21}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -489,7 +494,7 @@ func configLeafTable(fields []LeafField) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(leafDisplayValue(f))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 105, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 110, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -545,7 +550,7 @@ func breadcrumbList(crumbs []BreadcrumbSegment) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(seg.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 118, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 123, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -563,7 +568,7 @@ func breadcrumbList(crumbs []BreadcrumbSegment) templ.Component {
 				var templ_7745c5c3_Var23 templ.SafeURL
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(seg.URL)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 120, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 125, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -576,7 +581,7 @@ func breadcrumbList(crumbs []BreadcrumbSegment) templ.Component {
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(seg.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 120, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 125, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -663,7 +668,7 @@ func cliPromptOOB(prompt string) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(prompt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 135, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 140, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -707,7 +712,7 @@ func cliContextOOB(path string) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(path)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 141, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 146, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -769,7 +774,7 @@ func cliNotificationOOB(v cliNotificationData) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(v.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 147, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_cli_terminal.templ`, Line: 152, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {

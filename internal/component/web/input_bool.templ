@@ -9,6 +9,7 @@ templ inputBool(f FieldMeta) {
 			<span class="ze-tristate-label ze-tristate-active">yes</span>
 			<button
 				type="button"
+				id={ fieldInputID(f.Path, f.Leaf) }
 				class="ze-tristate-track ze-tristate-yes"
 				hx-post={ configSetURL(f.Path) }
 				hx-target="closest .ze-field"
@@ -22,6 +23,7 @@ templ inputBool(f FieldMeta) {
 			<span class="ze-tristate-label">yes</span>
 			<button
 				type="button"
+				id={ fieldInputID(f.Path, f.Leaf) }
 				class="ze-tristate-track ze-tristate-no"
 				hx-post={ configSetURL(f.Path) }
 				hx-target="closest .ze-field"
@@ -35,6 +37,7 @@ templ inputBool(f FieldMeta) {
 			<span class="ze-tristate-label">yes</span>
 			<button
 				type="button"
+				id={ fieldInputID(f.Path, f.Leaf) }
 				class={ tristateDefaultClass(f.Default) }
 				hx-post={ configSetURL(f.Path) }
 				hx-target="closest .ze-field"

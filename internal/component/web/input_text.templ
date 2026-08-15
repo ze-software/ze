@@ -5,11 +5,12 @@ package web
 templ inputText(f FieldMeta) {
 	<input
 		type="text"
+		id={ fieldInputID(f.Path, f.Leaf) }
 		class={ fieldInputClass(f.Value) }
 		name="value"
 		value={ f.Value }
 		hx-post={ configSetURL(f.Path) }
-		hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
+		hx-trigger="blur changed, ze-enter, input changed delay:1s"
 		hx-target="closest .ze-field"
 		hx-swap="outerHTML"
 		hx-vals={ fieldHxVals(f.Leaf) }

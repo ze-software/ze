@@ -1,6 +1,9 @@
 package web
 
-import "testing"
+import (
+	"regexp"
+	"testing"
+)
 
 // TestPendingChangeLabelCounts verifies the commit counter's text at each
 // boundary the golden fixtures pin and at the one they cannot.
@@ -95,5 +98,47 @@ func TestSplitFieldOptionsEmptyYieldsNone(t *testing.T) {
 	got := splitFieldOptions("igp,egp")
 	if len(got) != 2 || got[0] != "igp" || got[1] != "egp" {
 		t.Errorf("splitFieldOptions = %#v, want [igp egp]", got)
+	}
+}
+
+// TestFieldInputIDIsSelectorSafeAndUnique verifies the editor id htmx re-finds
+// the focused element by.
+//
+// VALIDATES: the id holds only characters a CSS selector reads whole, and two
+// different leaves never share one id.
+// PREVENTS: the caret leaving the field, or landing in another row's field. A
+// config path carries a dot or a colon (isYANGIdentChar, handler.go): a VLAN
+// interface is eth0.100 and a peer can be keyed by an address. The vendored
+// htmx 2.0.4 calls CSS.escape nowhere, so a dot ends the id in the selector its
+// settle pass and its out-of-band lookup build. Collapsing every unsafe
+// character onto one replacement would fix that and introduce the second
+// defect, which is why each one keeps its own marker.
+func TestFieldInputIDIsSelectorSafeAndUnique(t *testing.T) {
+	paths := [][2]string{
+		{"bgp/peer/london", "hold-time"},
+		{"bgp/peer/london/remote", "ip"},
+		{"bgp/peer/paris/remote", "ip"},
+		{"iface/eth0.100/ipv4", "address"},
+		{"iface/eth0-100/ipv4", "address"},
+		{"bgp/peer/2001:db8::1/remote", "ip"},
+		{"bgp/peer", "london/remote"},
+	}
+
+	unsafe := regexp.MustCompile(`[^A-Za-z0-9_-]`)
+	seen := make(map[string][2]string, len(paths))
+
+	for _, p := range paths {
+		id := fieldInputID(p[0], p[1])
+
+		if unsafe.MatchString(id) {
+			t.Errorf("fieldInputID(%q, %q) = %q, which ends early in a CSS selector", p[0], p[1], id)
+		}
+
+		if first, dup := seen[id]; dup {
+			t.Errorf("fieldInputID(%q, %q) and fieldInputID(%q, %q) both answer %q",
+				p[0], p[1], first[0], first[1], id)
+		}
+
+		seen[id] = p
 	}
 }
