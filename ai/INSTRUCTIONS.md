@@ -322,7 +322,7 @@ means "no rule applies".
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
 | Claim work is done | `ai/rules/completion.md`, `ai/rules/completion.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
-| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Spawn reviewer subagents, loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
+| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
 | Finish Go edits | `ai/rules/commands.md` -- run `make ze-lint-changed` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
 | Run any test/build/lint command | `ai/rules/commands.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after; write the log under `$(scripts/dev/session-scratch.sh)`, never at the `tmp/` root |

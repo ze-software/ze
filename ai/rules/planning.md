@@ -100,13 +100,17 @@ judgment behind it in a way that writing a test does not.
 
 **Review is independent of the author.** That was always the real guarantee, and
 the model split never delivered it: a different model is not a different
-context. A fresh session or reviewer subagents MUST be used, and the session
-that wrote the code MUST NOT sit in judgment on it.
+context. A fresh session, a phase agent spawned after the
+implementing phase ended, or reviewer subagents MUST be used, and the context
+that wrote the code MUST NOT sit in judgment on it. Any one of the three
+satisfies the guarantee, so the review MUST NOT be spawned again from a context
+that already meets it -- `/ze-close` is the case that bites, and it MUST run the
+review itself (owner directive, 2026-08-15).
 
 | Situation | Do |
 |-----------|-----|
 | The spec is approved and coding is about to start | Start. No model switch is needed, and no announcement is owed |
-| Implementation is complete and the Review Gate is next | Spawn reviewer subagents, or hand off to a fresh session. Never review your own implementation inline |
+| Implementation is complete and the Review Gate is next | Spawn ONE closure agent and let it run the review itself, or hand off to a fresh session. Never review your own implementation inline, and never let the closure agent spawn readers of its own |
 | A review or audit produces fixes | The fixes are implementation, so make them. The re-review that follows is a fresh pass, not the same context re-reading itself |
 | You are mid-phase and the work has changed shape | Say so plainly and let the operator decide. Do not silently continue as if nothing moved |
 | The work is a one-line mechanical edit with no design or review content | Proceed. This rule governs phases, not keystrokes |
@@ -418,10 +422,19 @@ reviewers caught on the same diff minutes later.
 
 ### What a real review pass is
 
-1. **Independent.** Spawn ≥2 reviewer subagents over the diff, each a distinct
-   lens (logic/wiring/removed-behavior; security/edge-cases/test-quality; the
-   feature's own risk area). They read the PRODUCER, not the caller,
-   and verify claims against source (`ai/rules/evidence.md`).
+1. **Independent, and independence is a property of the CONTEXT, not of the agent
+   count.** The reviewer MUST NOT be the context that wrote the code. A fresh
+   session satisfies that, and so does a phase agent spawned after the
+   implementing phase ended. What is required is ≥2 distinct LENSES over the diff
+   (logic/wiring/removed-behavior; security/edge-cases/test-quality; the
+   feature's own risk area), each reading the PRODUCER rather than the caller and
+   verifying claims against source (`ai/rules/evidence.md`). One independent
+   context MAY run every lens itself.
+   **`/ze-close` MUST run them itself and MUST NOT spawn (owner directive,
+   2026-08-15).** Its closure agent already satisfies the independence condition,
+   so a spawned reader adds a hop and a full startup cost without adding a lens.
+   Spawn reviewers only from a main thread invoking `/ze-review` directly, where
+   the alternative is reviewing inline in the context that authored the diff.
 2. **Adversarial.** The question is "what can go wrong that nobody planned for?"
    Default findings PLAUSIBLE, not dismissed. MUST NOT discard wiring, removed-guard,
    logic, or vacuous-test findings.

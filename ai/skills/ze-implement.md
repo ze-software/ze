@@ -125,7 +125,10 @@ Review Gate, or the commits. Those are `/ze-close`, for two reasons:
 - **Model.** Implementation carries no model requirement (`ai/rules/planning.md`, 2026-08-03).
   The Review Gate, spec closure and implementation audit still run on Opus 5, and
   review is INDEPENDENT of the author: end this skill and hand the review to a
-  fresh session or to reviewer subagents, never to this context.
+  fresh session or to the `/ze-close` agent, never to this context. That agent
+  runs every review lens ITSELF and spawns nothing (`ai/rules/planning.md`,
+  owner directive 2026-08-15); the independence comes from the phase boundary
+  you are crossing here, not from the number of agents behind it.
 
 ## Spec Sections Used by Each Stage
 

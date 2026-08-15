@@ -3,10 +3,19 @@ kind: directive
 level: MUST NOT
 stage:
 ---
-1. **Independent.** Spawn ≥2 reviewer subagents over the diff, each a distinct
-   lens (logic/wiring/removed-behavior; security/edge-cases/test-quality; the
-   feature's own risk area). They read the PRODUCER, not the caller,
-   and verify claims against source (`ai/rules/evidence.md`).
+1. **Independent, and independence is a property of the CONTEXT, not of the agent
+   count.** The reviewer MUST NOT be the context that wrote the code. A fresh
+   session satisfies that, and so does a phase agent spawned after the
+   implementing phase ended. What is required is ≥2 distinct LENSES over the diff
+   (logic/wiring/removed-behavior; security/edge-cases/test-quality; the
+   feature's own risk area), each reading the PRODUCER rather than the caller and
+   verifying claims against source (`ai/rules/evidence.md`). One independent
+   context MAY run every lens itself.
+   **`/ze-close` MUST run them itself and MUST NOT spawn (owner directive,
+   2026-08-15).** Its closure agent already satisfies the independence condition,
+   so a spawned reader adds a hop and a full startup cost without adding a lens.
+   Spawn reviewers only from a main thread invoking `/ze-review` directly, where
+   the alternative is reviewing inline in the context that authored the diff.
 2. **Adversarial.** The question is "what can go wrong that nobody planned for?"
    Default findings PLAUSIBLE, not dismissed. MUST NOT discard wiring, removed-guard,
    logic, or vacuous-test findings.
