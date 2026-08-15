@@ -171,9 +171,6 @@ bgp {
 			group-updates disable
 		}
 
-
-		process show-errors-received-test {
-		}
 	}
 }
 EOF_CONF

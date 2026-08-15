@@ -96,7 +96,7 @@ bgp {
 			import [ community-match:BLOCK-NO-EXPORT ]
 		}
 
-		process test-cm-reject {
+		attach process test-cm-reject {
 			receive [ update state ]
 		}
 	}

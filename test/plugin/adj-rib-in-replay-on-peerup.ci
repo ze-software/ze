@@ -211,6 +211,9 @@ EOF_RUN
 # producer of the second message.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal rs {
+		use bgp-rs
+	}
 	external replay-relay {
 		run ./replay-relay.run
 		encoder json
@@ -248,11 +251,15 @@ bgp {
 			group-updates disable
 		}
 
-		process replay-relay {
-			receive [ update state ]
+		attach process replay-relay {
+			send [ update ]
 		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
 		}
 	}
 
@@ -281,6 +288,20 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		# The replay under test puts an UPDATE on THIS peer's wire, so this peer
+		# must grant adj-rib-in the permission to originate one (maySend,
+		# internal/component/bgp/reactor/send_permission.go). Send only, and no
+		# receive list: the NON-VACUITY note at the top of this file rests on
+		# adj-rib-in never being fed `state` for the dest peer, so its own
+		# peer-up self-replay (rib.go, handleStructuredState) stays silent and
+		# the second arrival can come from nothing but the commanded relay.
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
 		}
 	}
 }

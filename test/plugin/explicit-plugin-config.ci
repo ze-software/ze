@@ -109,7 +109,7 @@ bgp {
     	}
 
 
-        process flowspec {
+        attach process flowspec {
             send [ update ]
         }
     }

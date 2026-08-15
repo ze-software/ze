@@ -90,8 +90,6 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process pprof-probe {
-        }
     }
 }
 EOF_CONF

@@ -151,8 +151,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process fw-go-test {
-		}
 	}
 }
 EOF_CONF

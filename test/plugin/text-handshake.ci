@@ -50,8 +50,8 @@ bgp {
 			group-updates disable
 		}
 
-		process text-test {
-			send [ update ]
+		attach process text-test {
+			receive [ update ]
 		}
 	}
 }

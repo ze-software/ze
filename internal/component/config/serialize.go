@@ -346,9 +346,12 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		if n.Presence {
 			serializePresenceContainer(b, tree, name, n, indent)
 		} else if child := tree.containers[name]; child != nil {
-			if canInlineContainer(child) {
+			switch {
+			case n.Flatten && canFlattenContainer(child, n):
+				serializeFlattenedContainer(b, child, name, n, indent)
+			case canInlineContainer(child):
 				serializeContainerInline(b, child, name, n, indent)
-			} else {
+			default:
 				b.Str(prefix)
 				if child.IsInactive() {
 					b.Str("inactive: ")
@@ -366,34 +369,12 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			break
 		}
 		if entries := tree.lists[name]; entries != nil {
-			if n.KeyName != "" && len(n.Children()) <= 2 && allChildrenAreLeaves(n) {
+			if usesMultiBlockForm(n) {
 				// Multi-entry block: name { key1 val1; key2; ... }
 				serializeListMultiBlock(b, name, entries, n, tree.listOrder[name], indent)
 			} else {
 				// Individual blocks: name key { ... }
-				keys := make([]string, 0, len(entries))
-				for k := range entries {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
-
-				for _, key := range keys {
-					entry := entries[key]
-					b.Str(prefix)
-					if entry.IsInactive() {
-						b.Str("inactive: ")
-					}
-					b.Str(name)
-					// Skip outputting KeyDefault - it's the implicit default
-					if key != KeyDefault {
-						b.Str(" ")
-						b.Str(quoteIfNeeded(key))
-					}
-					b.Str(" {\n")
-					serializeListEntry(b, entry, n, indent+1)
-					b.Str(prefix)
-					b.Str("}\n")
-				}
+				serializeListBlocks(b, entries, name, n, indent, "")
 			}
 		}
 
@@ -569,6 +550,42 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 
 	b.Str(prefix)
 	b.Str("}\n")
+}
+
+// serializeListBlocks writes one block per list entry: "name key { ... }".
+// keyword is empty for a plain list, and holds the parent container's name for
+// a child of a ze:flatten container, which writes "attach process key { ... }"
+// (flatten.go).
+func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, name string, node *ListNode, indent int, keyword string) {
+	prefix := strings.Repeat("\t", indent)
+
+	keys := make([]string, 0, len(entries))
+	for k := range entries {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		entry := entries[key]
+		b.Str(prefix)
+		if entry.IsInactive() {
+			b.Str("inactive: ")
+		}
+		if keyword != "" {
+			b.Str(keyword)
+			b.Str(" ")
+		}
+		b.Str(name)
+		// Skip outputting KeyDefault - it's the implicit default
+		if key != KeyDefault {
+			b.Str(" ")
+			b.Str(quoteIfNeeded(key))
+		}
+		b.Str(" {\n")
+		serializeListEntry(b, entry, node, indent+1)
+		b.Str(prefix)
+		b.Str("}\n")
+	}
 }
 
 func serializeListEntry(b *textbuf.Buffer, tree *Tree, node *ListNode, indent int) {

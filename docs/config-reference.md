@@ -140,12 +140,14 @@ config reload (SIGHUP).
 
 ## Process Bindings
 
-Plugins receive BGP events through `process` blocks on each peer:
+Plugins receive BGP events through the `attach process` blocks on each peer.
+A peer that attaches no block for a plugin feeds it nothing and lets it send
+nothing.
 
 ```
 peer transit-a {
-    process rib {
-        receive [ update state ]
+    attach process rib {
+        receive [ update state refresh ]
         send [ update ]
     }
 }
@@ -162,7 +164,26 @@ peer transit-a {
 | `negotiated` | Capability negotiation results |
 | `eor` | End-of-RIB marker |
 | `rpki` | RPKI validation results |
+| `*` | Every registered type, in both directions |
+
+A plain type is fed in both directions. Add `-received` or `-sent` to name one:
+`receive [ update-received ]` asks for the UPDATEs the peer sends to ze.
+
+| Send type | Permits |
+|-----------|---------|
+| `update` | originating routes toward the peer |
+| `refresh` | asking the peer to re-advertise |
+| `*` | both, and every send type registered later |
+
+Those two are the base types. A plugin registers more, and naming one in a send
+list auto-loads the plugin that enables it: `send [ enhanced-refresh ]` starts
+bgp-route-refresh.
+
+A block written on a group reaches every peer of that group, dynamic members
+included. A member that restates the block replaces the group's list for
+itself. `show event delivery` prints the resulting edges.
 <!-- source: internal/component/bgp/event.go -- event type definitions -->
+<!-- source: internal/component/bgp/reactor/peersettings.go -- ProcessBinding -->
 
 ## Configuration Database
 

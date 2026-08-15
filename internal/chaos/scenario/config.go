@@ -212,5 +212,26 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 
 	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime) //nolint:errcheck // output
 
-	fmt.Fprintf(b, "    }\n") //nolint:errcheck // output
+	// Attach container — this peer's relationship to each plugin the config runs.
+	// A peer that attaches no process is fed nothing and may announce nothing
+	// (pluginserver.Server.PeerScopedProcs, reactor/send_permission.go), so route
+	// forwarding stops without these blocks. Each receive list restates that
+	// plugin's own startup subscription, the mapping
+	// reactor.TestEveryStartupSubscriptionIsExpressible holds. bgp-rs takes
+	// UPDATEs in the RECEIVED direction alone: granting the sent direction as
+	// well is the delivery loop bgp/plugins/rr/rr.go describes.
+	b.Str("        attach process bgp-rs {\n").
+		Str("            receive [ update-received state open-received refresh ];\n").
+		Str("            send [ update ];\n").
+		Str("        }\n")
+	// bgp-rib runs only when the plugin block declares it. In-process mode loads
+	// bgp-rs alone, so attaching the RIB there would name no running program.
+	if !params.NoPlugin {
+		b.Str("        attach process bgp-rib {\n").
+			Str("            receive [ update state refresh ];\n").
+			Str("            send [ update ];\n").
+			Str("        }\n")
+	}
+
+	b.Str("    }\n")
 }

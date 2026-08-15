@@ -130,7 +130,8 @@ bgp {
 			group-updates disable
 		}
 
-		process bus-test {
+		attach process bus-test {
+			receive [ state ]
 		}
 	}
 }

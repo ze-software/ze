@@ -28,14 +28,16 @@ import (
 // unused methods exist) and records the batch that AnnounceNLRIBatch dispatches.
 type captureReactor struct {
 	bgptypes.BGPReactor
-	sel   *selector.Selector
-	batch bgptypes.NLRIBatch
-	calls int
+	sel    *selector.Selector
+	batch  bgptypes.NLRIBatch
+	sender plugin.Sender
+	calls  int
 }
 
-func (r *captureReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+func (r *captureReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
 	r.sel = sel
 	r.batch = batch
+	r.sender = sender
 	r.calls++
 	return nil
 }
@@ -226,7 +228,7 @@ func TestHandleAnnounceFlowspec(t *testing.T) {
 	// Drives the full CLI verb through a fake reactor and asserts the dispatched
 	// NLRIBatch: correct family, a single flow NLRI, and next-hop self (required
 	// for the FlowSpec MP_REACH_NLRI). Covers rate-limit, discard, and v6.
-	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
 	ctx := &pluginserver.CommandContext{}
 
 	cases := []struct {
@@ -471,7 +473,7 @@ func TestHandlewithdrawAllWithSelector(t *testing.T) {
 // PREVENTS: the CLI reaching the encoder with a link-local as the sole next hop,
 // which would put it in the field's first slot.
 func TestHandleAnnounceUnicastRejectsLinkLocalNextHop(t *testing.T) {
-	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
 	ctx := &pluginserver.CommandContext{}
 	rctr := &captureReactor{}
 
@@ -488,7 +490,7 @@ func TestHandleAnnounceUnicastRejectsLinkLocalNextHop(t *testing.T) {
 // reactor. Without this row the guard could refuse everything and still look
 // correct.
 func TestHandleAnnounceUnicastAcceptsGlobalNextHop(t *testing.T) {
-	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
 	ctx := &pluginserver.CommandContext{}
 
 	cases := []struct {

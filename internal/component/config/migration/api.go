@@ -19,28 +19,32 @@ var ErrDuplicateProcess = errors.New("duplicate process in process block")
 // ErrAPICollision is returned when migration would overwrite an existing named process block.
 var ErrAPICollision = errors.New("process block collision: old syntax process conflicts with existing named block")
 
-// MigrateAPIBlocks transforms old api syntax to new named syntax.
+// MigrateAPIBlocks transforms the old ExaBGP-era block body into the current
+// one. The keyword itself is not migrated: ze accepts one spelling,
+// `attach process <name>`, and refuses the retired `process <name>` at parse
+// (../retired.go). Every block this function sees therefore already carries the
+// current keyword, and what it rewrites is the body inside it.
 //
 // Handles two cases:
 //
-// 1. Anonymous process blocks:
+// 1. Anonymous blocks:
 //
-//	api { processes [ foo ]; neighbor-changes; }
+//	attach process { processes [ foo ]; neighbor-changes; }
 //
 // Becomes:
 //
-//	api foo { receive [ state ]; }
+//	attach process foo { receive [ state ]; }
 //
-// 2. Named process blocks with processes inside:
+// 2. Named blocks with processes inside:
 //
-//	api speaking {
+//	attach process speaking {
 //	    processes [ foo ]
 //	    receive [ parsed update ]
 //	}
 //
 // Becomes:
 //
-//	api foo {
+//	attach process foo {
 //	    content { format parsed; }
 //	    receive [ update ]
 //	}
@@ -87,13 +91,18 @@ func MigrateAPIBlocks(tree *config.Tree) (*config.Tree, error) {
 	return result, nil
 }
 
-// migrateAPIFromPeer converts old api syntax to new named syntax in a peer tree.
+// migrateAPIFromPeer converts an old attachment body to the current one for
+// every process the peer attaches.
 func migrateAPIFromPeer(location string, peer *config.Tree) error {
 	if peer == nil {
 		return nil
 	}
 
-	apiList := peer.GetListOrdered("process")
+	attach := peer.GetContainer("attach")
+	if attach == nil {
+		return nil
+	}
+	apiList := attach.GetListOrdered("process")
 	if len(apiList) == 0 {
 		return nil
 	}
@@ -117,7 +126,7 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 
 	// Process each block that needs migration
 	for _, task := range tasks {
-		if err := migrateAPIBlock(location, peer, task.key, task.apiTree); err != nil {
+		if err := migrateAPIBlock(location, attach, task.key, task.apiTree); err != nil {
 			return err
 		}
 	}
@@ -132,7 +141,8 @@ func needsMigration(apiTree *config.Tree) bool {
 }
 
 // migrateAPIBlock migrates a single process block (anonymous or named).
-func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *config.Tree) error {
+// attach is the peer's attach container, which holds the process list.
+func migrateAPIBlock(location string, attach *config.Tree, key string, apiTree *config.Tree) error {
 	// Extract process names
 	processNames := extractProcessNames(apiTree)
 	matchPatterns := extractProcessesMatch(apiTree)
@@ -162,7 +172,7 @@ func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *co
 	}
 
 	// Check for collision with existing named process blocks
-	apiList := peer.GetList("process")
+	apiList := attach.GetList("process")
 	for name := range seen {
 		if name == key {
 			continue // Same block, will be replaced
@@ -176,16 +186,16 @@ func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *co
 	cfg := extractAPIConfig(apiTree)
 
 	// Remove the old block
-	peer.RemoveListEntry("process", key)
+	attach.RemoveListEntry("process", key)
 
 	// Create new named blocks for each process
 	for _, procName := range processNames {
 		newAPI := buildNewAPIBlock(cfg)
-		peer.AddListEntry("process", procName, newAPI)
+		attach.AddListEntry("process", procName, newAPI)
 	}
 	for _, procName := range matchPatterns {
 		newAPI := buildNewAPIBlock(cfg)
-		peer.AddListEntry("process", procName, newAPI)
+		attach.AddListEntry("process", procName, newAPI)
 	}
 
 	return nil

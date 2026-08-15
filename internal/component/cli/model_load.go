@@ -420,6 +420,19 @@ func (m *Model) applyLoadRelative(action, content, path string) (commandResult, 
 	}, nil
 }
 
+// blockHeaderMatches reports whether a block-opening line names the block a
+// context path points at. targetPattern is built from the last two path
+// elements, and a ze:flatten container writes its own name in front of its
+// child ("attach process alpha {"), so the pattern is the TAIL of that header
+// rather than the whole of it.
+func blockHeaderMatches(blockPart, targetPattern string) bool {
+	if blockPart == targetPattern {
+		return true
+	}
+	var tb textbuf.Buffer
+	return strings.HasSuffix(blockPart, tb.Byte(' ').Str(targetPattern).String())
+}
+
 // replaceAtContext replaces the content at the given context path with new content.
 func replaceAtContext(fullConfig string, contextPath []string, newContent string) string {
 	if len(contextPath) == 0 {
@@ -452,7 +465,7 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 				blockPart := strings.TrimSuffix(trimmed, "{")
 				blockPart = strings.TrimSpace(blockPart)
 
-				if blockPart == targetPattern {
+				if blockHeaderMatches(blockPart, targetPattern) {
 					// Found target - write opening line and new content
 					result.Str(line).Byte('\n')
 					inTarget = true
@@ -517,7 +530,7 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 				blockPart := strings.TrimSuffix(trimmed, "{")
 				blockPart = strings.TrimSpace(blockPart)
 
-				if blockPart == targetPattern {
+				if blockHeaderMatches(blockPart, targetPattern) {
 					inTarget = true
 					targetDepth = currentDepth + openBraces
 				}
@@ -836,9 +849,11 @@ func mergeConfigs(current, merge string) string {
 // extractConfigKey extracts the key from a config line.
 // For "router-id 1.2.3.4;" returns "router-id".
 // For "peer 1.1.1.1 {" returns "peer 1.1.1.1".
+// For "attach process alpha {" returns "attach process alpha".
 // For "local-as 65000;" returns "local-as".
 func extractConfigKey(line string) string {
 	line = strings.TrimSpace(line)
+	isBlock := strings.HasSuffix(line, "{")
 	line = strings.TrimSuffix(line, "{")
 	line = strings.TrimSuffix(line, ";")
 	line = strings.TrimSpace(line)
@@ -852,15 +867,22 @@ func extractConfigKey(line string) string {
 	// For leaf values like "router-id 1.2.3.4", the key is "router-id"
 	// For blocks like "peer 1.1.1.1", the key is "peer 1.1.1.1"
 	// Heuristic: if there are 2 parts and first is a known block keyword, use both
+	// Known block keywords that take a key value
+	blockKeywords := map[string]bool{
+		"peer": true, "template": true, "plugin": true, "process": true, "group": true,
+	}
+	// A ze:flatten container writes its own name in front of the block keyword:
+	// "attach process alpha {". The key is then all three words. Keying on
+	// "attach" alone gives every process a peer attaches the SAME key, and a
+	// load merge then treats the second one as a duplicate and drops it.
+	if isBlock && len(parts) >= 3 && !blockKeywords[parts[0]] && blockKeywords[parts[1]] {
+		var tb textbuf.Buffer
+		return tb.Str(parts[0]).Byte(' ').Str(parts[1]).Byte(' ').Str(parts[2]).String()
+	}
 	if len(parts) >= 2 {
-		first := parts[0]
-		// Known block keywords that take a key value
-		blockKeywords := map[string]bool{
-			"peer": true, "template": true, "plugin": true, "process": true, "group": true,
-		}
-		if blockKeywords[first] {
+		if blockKeywords[parts[0]] {
 			var tb textbuf.Buffer
-			return tb.Str(first).Byte(' ').Str(parts[1]).String()
+			return tb.Str(parts[0]).Byte(' ').Str(parts[1]).String()
 		}
 	}
 

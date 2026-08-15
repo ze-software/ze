@@ -9,11 +9,14 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -511,21 +514,74 @@ type ProcessBinding struct {
 	Encoding string // "json" | "text" (empty = inherit from plugin)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
 
-	// Receive settings (WHAT message types to forward)
-	ReceiveUpdate       bool
-	ReceiveOpen         bool
-	ReceiveNotification bool
-	ReceiveKeepalive    bool
-	ReceiveRefresh      bool
-	ReceiveState        bool
-	ReceiveSent         bool            // Forward sent UPDATE events
-	ReceiveNegotiated   bool            // Forward negotiated capabilities after OPEN exchange
-	ReceiveCustom       map[string]bool // Plugin-registered event types (e.g., "update-rpki")
+	// Receive settings (WHAT the peer feeds this process).
+	//
+	// ReceiveAll is the "*" token: every event type, in both directions.
+	// Receive names one type per key, each mapped to the direction that type
+	// is granted in, so one type can be received-only while another is both.
+	// A type with no key is not granted. Base and plugin-registered types
+	// share the map: what the parser tells apart is auto-loading, never
+	// delivery (AutoLoadReceiveTypes).
+	//
+	// A grant only ever adds, so a list holding "*" and a named type grants
+	// everything: the named type takes nothing away.
+	ReceiveAll bool
+	Receive    map[string]events.Direction
 
-	// Send settings (WHAT message types plugin can send)
-	SendUpdate  bool
-	SendRefresh bool
-	SendCustom  map[string]bool // Plugin-registered send types (e.g., "enhanced-refresh")
+	// Send settings (WHAT this process may generate toward the peer).
+	// SendAll is the "*" token and grants every type, named or not. Read both
+	// through MaySend.
+	SendAll bool
+	Send    map[string]bool
+}
+
+// baseReceiveTypes are the event types the receive list has always named
+// directly. A granted type outside this set is plugin-provided, so it drives
+// plugin auto-loading (internal/component/bgp/config/loader_create.go).
+var baseReceiveTypes = map[string]bool{
+	bgpevents.EventUpdate:       true,
+	bgpevents.EventOpen:         true,
+	bgpevents.EventNotification: true,
+	bgpevents.EventKeepalive:    true,
+	bgpevents.EventRefresh:      true,
+	bgpevents.EventState:        true,
+	bgpevents.EventNegotiated:   true,
+}
+
+// MaySend reports whether this binding permits the process to generate the
+// named message type toward the peer.
+func (b *ProcessBinding) MaySend(sendType string) bool {
+	return b.SendAll || b.Send[sendType]
+}
+
+// AutoLoadReceiveTypes returns the granted event types no base token names,
+// sorted. The plugin server maps each to the plugin that produces it, so
+// `receive [ update-rpki ]` starts bgp-rpki-decorator. The direction a type
+// carries does not change which plugin produces it. The wildcard names no
+// type, so it offers none.
+func (b *ProcessBinding) AutoLoadReceiveTypes() []string {
+	var out []string
+	for et := range b.Receive {
+		if !baseReceiveTypes[et] {
+			out = append(out, et)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// AutoLoadSendTypes returns the granted send types no built-in type names,
+// sorted, so `send [ enhanced-refresh ]` starts bgp-route-refresh. The
+// wildcard names no type, so it offers none.
+func (b *ProcessBinding) AutoLoadSendTypes() []string {
+	var out []string
+	for st := range b.Send {
+		if !slices.Contains(bgpevents.BaseSendTypes(), st) {
+			out = append(out, st)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // NewPeerSettings creates a peer settings with default values.

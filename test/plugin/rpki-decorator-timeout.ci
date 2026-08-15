@@ -138,14 +138,14 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-to-test {
+		attach process rpki-to-test {
 			receive [ update-rpki ]
 		}
-		process rpki-decorator {
-			receive [ update ]
+		attach process rpki-decorator {
+			receive [ update-received rpki ]
 		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

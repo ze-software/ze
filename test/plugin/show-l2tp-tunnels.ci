@@ -296,8 +296,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-l2tp-tunnels-test {
-		}
 	}
 }
 EOF_CONF

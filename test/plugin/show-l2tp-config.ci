@@ -142,8 +142,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-l2tp-config-test {
-		}
 	}
 }
 EOF_CONF

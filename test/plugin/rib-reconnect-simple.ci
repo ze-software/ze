@@ -68,7 +68,8 @@ bgp {
 			}
 		}
 	
-		process bgp-rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

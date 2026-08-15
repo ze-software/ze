@@ -140,9 +140,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process show-dns-cache-test {
-		}
 	}
 }
 EOF_CONF

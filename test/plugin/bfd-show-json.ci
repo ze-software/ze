@@ -145,8 +145,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process bfd-show-json-test {
-		}
 	}
 }
 EOF_CONF

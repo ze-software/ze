@@ -7,10 +7,10 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
-# FlowSpec UPDATE: MP_REACH (nexthop 127.0.0.1 = nhop self), destination
-# 192.0.2.0/24 + protocol tcp + destination-port 80, with the traffic-rate
-# (rate-limit:9600) extended community.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E15000185047F000001000B0118C00002038106058150C010088006000046160000
+# FlowSpec UPDATE: MP_REACH (nexthop 127.0.0.2 = nhop self, ze's own address on
+# this session), destination 192.0.2.0/24 + protocol tcp + destination-port 80,
+# with the traffic-rate (rate-limit:9600) extended community.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E15000185047F000002000B0118C00002038106058150C010088006000046160000
 EOF_PEER
 
 # Plugin script sends the responder's rendered announce command.
@@ -46,8 +46,13 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what `nhop self` puts in the
+			# MP_REACH. It is deliberately NOT the peer's 127.0.0.1: RFC 4271
+			# Section 5.1.3 forbids a peer its own address as NEXT_HOP, and
+			# originatedNextHopIsPeerOwn (reactor/forward_next_hop.go) withholds
+			# the route when the two match.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -69,7 +74,8 @@ bgp {
 			group-updates disable
 		}
 
-		process ddos-flowspec-announce {
+		attach process ddos-flowspec-announce {
+			send [ update ]
 		}
 	}
 }

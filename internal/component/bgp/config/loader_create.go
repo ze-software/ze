@@ -144,7 +144,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	customEventSeen := make(map[string]bool)
 	for _, ps := range peers {
 		for _, pb := range ps.ProcessBindings {
-			for et := range pb.ReceiveCustom {
+			for _, et := range pb.AutoLoadReceiveTypes() {
 				if !customEventSeen[et] {
 					customEventSeen[et] = true
 					configuredCustomEvents = append(configuredCustomEvents, et)
@@ -159,7 +159,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	customSendSeen := make(map[string]bool)
 	for _, ps := range peers {
 		for _, pb := range ps.ProcessBindings {
-			for st := range pb.SendCustom {
+			for _, st := range pb.AutoLoadSendTypes() {
 				if !customSendSeen[st] {
 					customSendSeen[st] = true
 					configuredCustomSendTypes = append(configuredCustomSendTypes, st)

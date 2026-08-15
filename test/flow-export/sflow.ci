@@ -114,8 +114,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process sflow-receiver {
-		}
 	}
 }
 EOF_CONF

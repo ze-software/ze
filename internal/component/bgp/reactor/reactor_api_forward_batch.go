@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -52,9 +53,23 @@ var errNoPeersMatch = errors.New("forward-cached: no established peers match des
 // Non-empty updateIDs with every id missing returns the last per-id lookup
 // error. At least one id processed returns nil (per-id dispatch failures
 // are logged and do not fail the batch).
-func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error {
+//
+// sender is the AUTHORITY, gated on `send [ update ]` for every destination:
+// this rail puts a full UPDATE on each one's wire, and the destinations come
+// from the CALLER, so without the gate a process reached any peer it could name.
+// pluginName stays what it was, the cache consumer whose acks are tracked, and
+// it is not an identity anything trusts. A refused batch still acks every id,
+// for the reason the destination-resolution branch below already states.
+func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender) error {
 	if len(updateIDs) == 0 {
 		return nil
+	}
+	origin := announceOrigin(sender)
+	if !origin.sender.IsSet() {
+		sendNoSenderDenied(destinationsTarget(len(destinations)), origin)
+		a.ackBatch(updateIDs, pluginName)
+		return fmt.Errorf("%w: %d destinations, send type %s",
+			errSendNoSender, len(destinations), origin.sendType)
 	}
 	if len(destinations) > maxForwardDestinations {
 		fwdLogger().Error("forward-cached: destination list exceeds cap",
@@ -91,6 +106,21 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 			"count", len(destinations), "err", resolveErr)
 		return resolveErr
 	}
+
+	// The permission runs over the RESOLVED peers rather than the address list,
+	// so it reads the same peer objects the forward will write to. Refusing every
+	// one of them is an error for the caller, and refusing some is not: a batch
+	// aimed at a mixed set serves the destinations it may reach, which is what
+	// getMatchingPeersSel does for a selector.
+	a.r.mu.RLock()
+	permitted, refused := filterPermittedPeers(matchingPeers, origin)
+	a.r.mu.RUnlock()
+	if len(permitted) == 0 && refused > 0 {
+		a.ackBatch(updateIDs, pluginName)
+		return fmt.Errorf("%w: %d destinations, process %s, send type %s",
+			errSendNotPermitted, len(destinations), origin.sender, origin.sendType)
+	}
+	matchingPeers = permitted
 
 	ids := dedupIDs(updateIDs)
 

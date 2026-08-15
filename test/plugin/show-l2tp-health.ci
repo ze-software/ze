@@ -108,8 +108,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-l2tp-health-test {
-		}
 	}
 }
 EOF_CONF

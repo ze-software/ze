@@ -16,7 +16,7 @@ service {
 
 This is the full config for the DNS node. The four canonical addresses (192.175.48.1, 192.31.196.1, 2620:4f:8000::1, 2001:4:112::1) are Go constants, registered against the interface address-ownership registry and bound on `lo` automatically, so they are not typed into config.
 
-`as112` must run as an **internal** plugin (the default auto-load path, or an explicit `plugin { internal as112 { use as112 } }`). It must not run as `plugin { external as112 { ... } }`. The address-ownership registration is a same-process call into the `iface` engine; as a forked subprocess, it would register against its own copy of that state and never reach the kernel. `as112` refuses to start and logs an error if it detects it is not running in-process.
+`as112` must run as an **internal** plugin (the default auto-load path, or an explicit `plugin { internal as112 { use as112; } }`). It must not run as `plugin { external as112 { ... } }`. The address-ownership registration is a same-process call into the `iface` engine; as a forked subprocess, it would register against its own copy of that state and never reach the kernel. `as112` refuses to start and logs an error if it detects it is not running in-process.
 
 ## Configuration Reference
 

@@ -70,8 +70,8 @@ bgp {
         filter {
             import [ bgp-filter-irr:65001 ]
         }
-        process bgp-adj-rib-in {
-            receive [ update state ]
+        attach process bgp-adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -81,7 +81,7 @@ The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is n
 
 The suffix in `bgp-filter-irr:65001` is the peer's remote ASN. It selects the dynamic list associated with AS 65001. Use the corresponding ASN in each peer's filter reference. Prefixes that do not match that list are rejected by the implicit deny.
 
-No `process bgp-filter-irr` block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.
+No `attach process bgp-filter-irr` block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.
 
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->

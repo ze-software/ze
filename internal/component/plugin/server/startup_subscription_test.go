@@ -346,7 +346,7 @@ func TestStartupWildcardExpandsToNamespaceEvents(t *testing.T) {
 		Events:    []string{"*"},
 	})
 
-	want := len(allEventTypes()["test-ns-wild"])
+	want := len(events.AllEventTypes()["test-ns-wild"])
 	if want < 2 {
 		t.Fatalf("expected at least sa-up and sa-down registered, got %d", want)
 	}

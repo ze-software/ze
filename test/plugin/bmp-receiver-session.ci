@@ -81,9 +81,6 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process bmp-observer {
-            receive [ state ];
-        }
     }
 }
 EOF_CONF

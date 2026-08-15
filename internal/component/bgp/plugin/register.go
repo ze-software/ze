@@ -62,7 +62,6 @@ func init() {
 		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
 		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
 		bgpevents.EventUpdateNotification,
-		events.DirectionSent, // "sent" is a config receive flag, not a true event type
 	)
 
 	// BGP owns the namespace for plugin-declared event types and

@@ -103,7 +103,7 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 
 		fieldNode := node.Get(fieldName)
 		if fieldNode == nil {
-			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.Line)
 		}
 
 		if markInactive {

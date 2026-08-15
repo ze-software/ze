@@ -34,7 +34,7 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 		return errResp, err
 	}
 
-	families, err := r.SoftClearPeer(selector.Addr(addr))
+	families, err := r.SoftClearPeer(selector.Addr(addr), ctx.Sender)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

@@ -99,9 +99,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process summary-test {
-		}
 	}
 }
 EOF_CONF

@@ -1,0 +1,225 @@
+# Test: the `send` half of an attach block is a PERMISSION, and ze enforces it
+#       at the point a process originates a message toward a peer.
+# Exercises: peer config -> PeerSettings.ProcessBindings ->
+#            reactorAPIAdapter.getMatchingPeersSel (internal/component/bgp/reactor/
+#            reactor_api.go) -> Peer.maySend (send_permission.go), the one resolver
+#            every send command shares.
+# VALIDATES: AC-9 (a `peer *` announce reaches the peer that attached the program
+#            with send [ update ] and NOT the peer that never attached it, and the
+#            refusal is REPORTED), AC-10 (an announce aimed at the unattached peer
+#            is refused, and the refusal names the peer and the process), AC-11
+#            (the attached peer's block carries a send list and NO receive line:
+#            the program MAY announce to it and is fed nothing by it).
+# PREVENTS: route injection through an unenforced permission. Before this, a
+#           process issuing `peer * update ...` reached every peer in the config,
+#           including peers whose operator never linked it to them.
+#
+# How "peer 127.0.0.2 received nothing" is proven, since the peer harness has no
+# absence-on-wire primitive: by ze's OWN per-peer record, `updates-sent` from
+# `show bgp peer <addr> detail`, baselined AFTER both End-of-RIB markers are on
+# the wire and re-read after the announce has quiesced. It is the counter
+# reactor_notify.go increments once per UPDATE that reached a peer's socket, so an
+# unchanged value is ze stating it wrote nothing to that peer. The refusal WARN
+# and the refused explicit announce are two further independent signals.
+#
+# Why this cannot pass by luck: the injector is granted send on 127.0.0.1 only,
+# and every assertion below is about the DIFFERENCE between the two peers under
+# one command. With the permission filter removed, 127.0.0.2's updates-sent moves,
+# the explicit announce to it succeeds, and no refusal is logged -- three
+# independent failures.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=30s
+option=bind:value=0.0.0.0
+# Map conn=N to a peer by remote IP rather than by accept order: both sessions
+# are handshaked concurrently (127.0.0.1 -> conn=1 permitted, 127.0.0.2 -> conn=2
+# unattached).
+option=conn_map:value=remote-ip
+
+# conn=1 is the peer that attaches the injector with send [ update ]. Its
+# End-of-RIB comes first (the script holds that barrier before announcing), then
+# the announce carrying 203.0.113.0/24 -- prefix length 0x18, then CB 00 71.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:contains=18CB0071
+
+# conn=2 is the peer that attaches nothing. Its only message is its own
+# End-of-RIB: ze originates that marker itself, and the injector may originate
+# nothing at all toward this peer.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=send-permission-injector.run:mode=755:terminator=EOF_INJECT
+#!/usr/bin/env python3
+import sys
+
+from ze_api import API, runtime_fail
+
+PERMITTED = "127.0.0.1"
+UNATTACHED = "127.0.0.2"
+ROUTE = "nhop 101.1.101.1 nlri ipv4/unicast add 203.0.113.0/24"
+
+
+def updates_sent(api, peer):
+    """ze's own count of UPDATEs that reached this peer's socket."""
+    row = api.peer_fields(peer).get(peer)
+    if not isinstance(row, dict):
+        runtime_fail(f"SEND-PERMISSION: no detail row for {peer}")
+        return -1
+    return int(row.get("updates-sent", 0) or 0)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    # Declared wide on purpose: only the config can keep this program unfed, so
+    # AC-11's "and is fed nothing by it" is a statement about the missing receive
+    # line rather than about a narrow subscription.
+    api.subscribe(["update", "state"])
+    api.ready()
+
+    # Both sessions up and both markers on the wire. Everything counted after
+    # this point is the announce and nothing else.
+    if not api.wait_peer_eor_sent(expected_peers=2, attempts=60):
+        runtime_fail("SEND-PERMISSION: both peers must send their End-of-RIB first")
+        return
+    before = updates_sent(api, UNATTACHED)
+
+    # AC-9. One command, both peers named.
+    api.send(f"peer * update text {ROUTE}")
+    api.quiesce()
+
+    if updates_sent(api, PERMITTED) < 1:
+        runtime_fail("SEND-PERMISSION: the peer that grants send [ update ] received nothing")
+        return
+    print("SEND-PERMISSION: announce reached the attached peer", file=sys.stderr, flush=True)
+
+    after = updates_sent(api, UNATTACHED)
+    if after != before:
+        runtime_fail(
+            f"SEND-PERMISSION: the unattached peer was sent {after - before} update(s)")
+        return
+    print("SEND-PERMISSION: the unattached peer was sent nothing", file=sys.stderr, flush=True)
+
+    # AC-10. Aimed at the unattached peer alone, the whole command is refused and
+    # the refusal names the peer and this process. The engine reports it either as
+    # an RPC error or as an error response, so both shapes count.
+    refusal = ""
+    try:
+        result = (api._call_engine(
+            "ze-plugin-engine:update-route",
+            {"peer-selector": UNATTACHED, "command": f"update text {ROUTE}"},
+        ) or {}).get("result", {})
+        if isinstance(result, dict) and result.get("status") == "error":
+            refusal = str(result.get("error", ""))
+    except RuntimeError as exc:
+        refusal = str(exc)
+
+    if "send refused" not in refusal:
+        runtime_fail(f"SEND-PERMISSION: the unattached peer accepted an announce: {refusal!r}")
+        return
+    if api.plugin_name not in refusal or UNATTACHED not in refusal:
+        runtime_fail(f"SEND-PERMISSION: the refusal names neither the peer nor the process: {refusal!r}")
+        return
+    print("SEND-PERMISSION: refused for the unattached peer", file=sys.stderr, flush=True)
+
+    # AC-11's other half. The attached peer grants send and no receive, so this
+    # program may announce to it and must be handed nothing by it. Everything the
+    # session produced (state, its own sent UPDATE) has already happened.
+    leaked = api.wait_for_event(timeout=2.0)
+    if leaked is not None:
+        runtime_fail(f"SEND-PERMISSION: a send-only binding was fed an event: {leaked!r}")
+        return
+    print("SEND-PERMISSION: a send-only binding is fed nothing", file=sys.stderr, flush=True)
+
+    api.dispatch("request shutdown")
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_INJECT
+
+expect=stderr:pattern=SEND-PERMISSION: announce reached the attached peer
+expect=stderr:pattern=SEND-PERMISSION: the unattached peer was sent nothing
+expect=stderr:pattern=SEND-PERMISSION: refused for the unattached peer
+expect=stderr:pattern=SEND-PERMISSION: a send-only binding is fed nothing
+# ze's own report of the refusal, naming the peer and the process. AC-9 requires
+# the drop to be REPORTED rather than silent, and this is the line that reports it.
+expect=stderr:pattern=send refused.*peer=127\.0\.0\.2 process=send-permission-injector send-type=update
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external send-permission-injector {
+		run ./send-permission-injector.run
+		encoder json
+	}
+}
+
+bgp {
+	peer permitted {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process send-permission-injector {
+			send [ update ]
+		}
+	}
+	peer unattached {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0

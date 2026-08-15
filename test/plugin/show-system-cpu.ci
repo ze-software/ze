@@ -140,8 +140,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-system-cpu-test {
-		}
 	}
 }
 EOF_CONF

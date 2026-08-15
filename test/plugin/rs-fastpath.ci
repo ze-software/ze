@@ -69,6 +69,7 @@ def main():
         n, data = forwarded_count(api)
         if n > 0:
             break
+        # poll interval: the loop is bounded by the deadline above and breaks on the first forwarded byte
         time.sleep(0.2)
 
     if n == 0:
@@ -123,10 +124,8 @@ bgp {
 			group-updates disable
 		}
 
-		process rs-fastpath {
-		}
-		process bgp-rib {
-			receive [ state update ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

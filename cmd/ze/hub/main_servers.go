@@ -51,6 +51,12 @@ func serverDispatcher(s *pluginserver.Server, surface string) plugin.CommandDisp
 			Username:   caller.Username,
 			RemoteAddr: caller.RemoteAddr,
 			Surface:    srf,
+			// Every surface this dispatcher serves is an operator surface (web,
+			// ssh, mcp, cli, lg, chaos, REST, gRPC). The command carries the
+			// operator's own authority, which AAA checks against Username above,
+			// so a peer's `attach process` block does not gate it
+			// (internal/component/bgp/reactor/send_permission.go).
+			Sender: plugin.OperatorSender(),
 		}
 		// Thread a genuine per-request context: the REST/gRPC transport passes
 		// its request ctx so the command cancels with the request. Text surfaces

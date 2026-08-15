@@ -176,8 +176,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process mgmt-refuses-unauth-test {
-		}
 	}
 }
 EOF_CONF2
@@ -239,8 +237,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		process mgmt-refuses-unauth-test {
 		}
 	}
 }

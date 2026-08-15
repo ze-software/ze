@@ -933,7 +933,7 @@ func TestValidateSetFormat(t *testing.T) {
 		},
 		{
 			name:    "set_meta_format_valid_with_process_binding",
-			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp session asn local 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 connection remote ip 192.0.2.1\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 session asn remote 65001\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 process rejector\n",
+			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp session asn local 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 connection remote ip 192.0.2.1\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 session asn remote 65001\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 attach process rejector\n",
 			wantErr: false,
 		},
 		{

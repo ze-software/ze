@@ -1,0 +1,275 @@
+# Test: the runtime `request subscribe` command takes effect at once, and the
+#       next config apply discards it.
+# Exercises: ze-bgp:subscribe -> Subscription.Runtime -> Server.PeerScopedProcs
+#            (the override branch), then SIGHUP -> publishDeliveryGraphLocked ->
+#            Server.UpdateDeliveryGraph -> clearRuntimeOverrides.
+# VALIDATES: AC-5 and R-10, both directions of the precedence rule: config is
+#            durable truth rebuilt on every apply, a runtime subscription is a
+#            live override that the apply discards.
+# PREVENTS: an operator's live subscribe silently doing nothing once the config
+#           is authoritative, and a runtime change outliving the document that
+#           is supposed to describe the daemon.
+#
+# The traffic under test is the session's own KEEPALIVE stream, at one per
+# second. It needs no route injection and no second peer: the daemon produces it
+# continuously, so "fed nothing for four seconds" and "fed within eight" are
+# both statements about the same steady stream, and each window sees several
+# frames.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=40s
+# One session before the reload and one after it: a changed attach block tears
+# the peer down and re-adds it (ProcessBindings sits outside
+# hotSwappableSettings), and each session ends its initial sync with an
+# End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=runtime-subscribe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import os
+import sys
+import time
+
+from ze_api import API, result_text_data, runtime_fail
+
+PEER = '127.0.0.1'
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return (resp or {}).get('result', {})
+
+
+def body_of(raw):
+    try:
+        decoded = json.loads(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return {}
+    return decoded.get("bgp", decoded)
+
+
+def is_up(raw):
+    """True for a state event that says the session is UP."""
+    if raw is None:
+        return False
+    body = body_of(raw)
+    return body.get("message", {}).get("type", "") == "state" and body.get("state") == "up"
+
+
+def wait_up(api, what):
+    """Block until the session is UP, not merely until a state event arrives."""
+    deadline = time.monotonic() + 25.0
+    while time.monotonic() < deadline:
+        if is_up(api.wait_for_event(timeout=1.0)):
+            return
+    runtime_fail(f"RUNTIME-SUB: the session never came up {what}")
+
+
+def keepalive_within(api, seconds):
+    """True when a keepalive event reaches this program inside the window."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        event = api.wait_for_event(timeout=0.5)
+        if event is None:
+            continue
+        if body_of(event).get("message", {}).get("type", "") == "keepalive":
+            return True
+    return False
+
+
+def granted_receive(api):
+    """What the CONFIG grants this program on the peer, read from the index."""
+    resp = dispatch(api, 'show event delivery')
+    data = result_text_data(resp)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    if not isinstance(data, dict):
+        return []
+    for peer in data.get('peers', []):
+        if peer.get('peer') != PEER:
+            continue
+        for proc in peer.get('processes', []):
+            if proc.get('process') == 'runtime-subscribe':
+                return proc.get('receive', [])
+    return []
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.subscribe(["keepalive", "state"])
+    api.ready()
+
+    wait_up(api, "for the first session")
+
+    # The config grants state only. The keepalives are flowing at one per second
+    # and none of them belongs to this program.
+    if keepalive_within(api, 4.0):
+        runtime_fail("RUNTIME-SUB: fed a keepalive the config never granted")
+        return
+    print("RUNTIME-SUB: the config grants state only", file=sys.stderr, flush=True)
+
+    # The operator's live override.
+    resp = dispatch(api, f'request subscribe peer {PEER} event keepalive')
+    if resp.get('status') != 'done':
+        runtime_fail(f"RUNTIME-SUB: subscribe refused: {resp}")
+        return
+    if not keepalive_within(api, 8.0):
+        runtime_fail("RUNTIME-SUB: the live subscribe did not take effect")
+        return
+    print("RUNTIME-SUB: the live subscribe takes effect at once", file=sys.stderr, flush=True)
+
+    # An override is a live addition, never an edit of the durable truth: the
+    # config's own index must still say what the document says.
+    granted = granted_receive(api)
+    if 'keepalive' in granted:
+        runtime_fail(f"RUNTIME-SUB: the override rewrote the config's index: {granted}")
+        return
+    print("RUNTIME-SUB: the config index is unchanged by the override", file=sys.stderr, flush=True)
+
+    # Hand over to the trigger, which applies the document again.
+    with open("subscribed.marker", "w") as marker:
+        marker.write("done")
+    # The wait for the marker must READ the events, not discard them: the peer
+    # bounces on the apply and its new state=up can land inside this window.
+    # Throwing it away here is what made a later wait_up hang on an event that
+    # had already happened.
+    came_up = False
+    while not os.path.exists("reloaded.marker"):
+        came_up = is_up(api.wait_for_event(timeout=0.5)) or came_up
+    if not came_up:
+        wait_up(api, "after the reload")
+
+    if keepalive_within(api, 4.0):
+        runtime_fail("RUNTIME-SUB: the override outlived the config apply")
+        return
+    print("RUNTIME-SUB: the config apply discards the override", file=sys.stderr, flush=True)
+
+    api.shutdown_fire_and_forget()
+    api.wait_for_shutdown(timeout=15.0)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Trigger: apply the document again once the override is in force.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f subscribed.marker ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+touch reloaded.marker
+EOF_TRIGGER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external runtime-subscribe {
+		run ./runtime-subscribe.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer {
+			receive-hold-time 9
+			keepalive 1
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process runtime-subscribe {
+			receive [ state ]
+		}
+	}
+}
+EOF_CONF
+
+# The reloaded document grants the same process one more type, so the apply is a
+# real one. It still grants no keepalive, which is what the override added.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external runtime-subscribe {
+		run ./runtime-subscribe.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer {
+			receive-hold-time 9
+			keepalive 1
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process runtime-subscribe {
+			receive [ state open-received ]
+		}
+	}
+}
+EOF_CONF2
+
+expect=stderr:pattern=RUNTIME-SUB: the config grants state only
+expect=stderr:pattern=RUNTIME-SUB: the live subscribe takes effect at once
+expect=stderr:pattern=RUNTIME-SUB: the config index is unchanged by the override
+expect=stderr:pattern=RUNTIME-SUB: the config apply discards the override
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=50s
+expect=exit:code=0

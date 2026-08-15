@@ -91,7 +91,7 @@ bgp {
 			import [ as-path-length:REJECT-LONG ]
 		}
 
-		process test-aspath-len {
+		attach process test-aspath-len {
 			receive [ update state ]
 		}
 	}

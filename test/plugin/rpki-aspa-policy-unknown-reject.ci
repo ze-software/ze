@@ -151,13 +151,14 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-aspa-policy-unknown-reject-test {
+		attach process rpki-aspa-policy-unknown-reject-test {
+			receive [ rpki-received ]
 		}
-		process rpki {
-			receive [ update ]
+		attach process rpki {
+			receive [ update-received ]
 		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

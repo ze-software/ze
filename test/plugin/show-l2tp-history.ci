@@ -377,8 +377,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process l2tp-history-test {
-		}
 	}
 }
 EOF_CONF

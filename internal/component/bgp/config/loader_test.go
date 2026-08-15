@@ -228,7 +228,7 @@ bgp {
                 route-refresh;
             }
         }
-        process rib { send [ update ]; }
+        attach process rib { send [ update ]; }
     }
 }
 `

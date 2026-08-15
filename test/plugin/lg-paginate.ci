@@ -123,10 +123,8 @@ bgp {
 			group-updates disable
 		}
 
-		process lg-paginate {
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

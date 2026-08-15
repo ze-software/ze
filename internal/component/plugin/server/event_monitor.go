@@ -85,12 +85,6 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 	}
 }
 
-// excludedFromMonitor contains entries in the BGP event namespace that are not
-// event types but rather config flags (e.g., "sent" is a direction, not an event).
-var excludedFromMonitor = map[string]bool{
-	events.DirectionSent: true,
-}
-
 // ParseEventMonitorArgs parses keyword arguments for the event monitor command.
 //
 // Syntax: [include|exclude <types>] [peer <selector>] [direction received|sent]
@@ -204,25 +198,23 @@ func parseEventTypeList(raw string) ([]string, error) {
 }
 
 // validateEventTypeAnyNamespace returns nil if the event type is valid in any
-// namespace (BGP or RIB). Returns an error if unknown or excluded (e.g., "sent"
-// is a direction flag, not an event type).
+// namespace (BGP or RIB). A bare direction word gets the hint that names the
+// event type it belongs to, because the monitor's own `direction` keyword takes
+// the same words.
 func validateEventTypeAnyNamespace(eventType string) error {
-	if excludedFromMonitor[eventType] {
-		return fmt.Errorf("invalid event type %q: %q is a direction, not an event type", eventType, eventType)
-	}
-
 	if events.IsValidEventAnyNamespace(eventType) {
 		return nil
 	}
+	if hint := events.DirectionWordHint(eventType); hint != "" {
+		return fmt.Errorf("invalid event type %q: %s", eventType, hint)
+	}
 
-	// Build a filtered list of valid types for the error message.
+	// Build the list of valid types for the error message.
 	all := events.AllEventTypes()
 	seen := make(map[string]bool)
 	for _, types := range all {
 		for _, t := range types {
-			if !excludedFromMonitor[t] {
-				seen[t] = true
-			}
+			seen[t] = true
 		}
 	}
 	valid := make([]string, 0, len(seen))
@@ -231,22 +223,6 @@ func validateEventTypeAnyNamespace(eventType string) error {
 	}
 	sort.Strings(valid)
 	return fmt.Errorf("invalid event type %q (valid: %s)", eventType, textbuf.Join(valid, ", "))
-}
-
-// allEventTypes returns all valid event types across all namespaces,
-// excluding non-event entries like "sent".
-func allEventTypes() map[string][]string {
-	all := events.AllEventTypes()
-	for ns, types := range all {
-		filtered := types[:0]
-		for _, et := range types {
-			if !excludedFromMonitor[et] {
-				filtered = append(filtered, et)
-			}
-		}
-		all[ns] = filtered
-	}
-	return all
 }
 
 // BuildEventMonitorSubscriptions creates subscriptions from parsed options.
@@ -264,7 +240,7 @@ func BuildEventMonitorSubscriptions(opts *EventMonitorOpts) []*Subscription {
 		dir = events.DirBoth
 	}
 
-	all := allEventTypes()
+	all := events.AllEventTypes()
 
 	included := make(map[string]bool, len(opts.IncludeTypes))
 	for _, t := range opts.IncludeTypes {

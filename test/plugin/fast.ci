@@ -96,7 +96,8 @@ bgp {
 			group-updates disable
 		}
 	
-		process announce-routes {
+		attach process announce-routes {
+			send [ update ]
 		}
 	}
 }

@@ -73,6 +73,7 @@ documentation ## Documentation
   anchors-are-invisible-and-let-a-reader-verify
   the-rules-for-a-source-anchor
   before-writing-any-documentation-read-the-actual-source
+  write-every-config-example-on-several-lines
   validation
   run-make-ze-doc-test-after-editing-any-file-under-docs
   ze-doc-test-runs-on-demand-not-inside-ze-verify

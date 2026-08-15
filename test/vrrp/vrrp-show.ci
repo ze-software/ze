@@ -177,9 +177,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process vrrp-show {
-		}
 	}
 }
 EOF_CONF

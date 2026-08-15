@@ -404,13 +404,13 @@ func (m *mockReactor) RegisterCacheConsumer(name string, unordered bool) {
 func (m *mockReactor) UnregisterCacheConsumer(name string) {
 	delete(m.cacheConsumers, name)
 }
-func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
+func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string, Sender) error {
 	return nil
 }
 
 // RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
 // nothing because these tests exercise command dispatch, not the forward rail.
-func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute) error {
+func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute, _ Sender) error {
 	return nil
 }
 func (m *mockReactor) ReleaseUpdates([]uint64, string) error { return nil }

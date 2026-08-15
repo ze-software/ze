@@ -93,10 +93,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process subscribe-test {
-			receive [ update ]
-		}
 	}
 }
 EOF_CONF

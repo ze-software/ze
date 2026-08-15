@@ -156,6 +156,18 @@ bgp {
 			group-updates disable
 			rs-fast-path enable
 		}
+		# bgp-rs owns the FALLBACK this file is about, and it only learns a peer
+		# from that peer's own events: handleState makes it a live forward target
+		# (server_handlers.go) and the received UPDATE is what it forwards.
+		# `plugin { internal rs }` STARTS the program and `rs-fast-path enable`
+		# selects the reactor rail; neither creates a delivery edge
+		# (plan/spec-fixit-peer-process-event-filter.md, Known Limitations), so
+		# without this block the fast path is the ONLY rail and a receiver that
+		# is not yet a target loses the UPDATE for good.
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
 	}
 	peer receiver-peer {
 		connection {
@@ -182,6 +194,17 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		# The observer waits for the UPDATE this peer is SENT, so this peer is
+		# the one that must grant it. Without the grant its wait_for_event runs
+		# to its own 30s timeout on every run and the shutdown it triggers is
+		# ordered against nothing.
+		attach process shutdown-after-up {
+			receive [ update-sent ]
 		}
 	}
 }

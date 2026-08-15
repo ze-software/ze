@@ -57,6 +57,7 @@ def wait_entry(api, prefix, predicate, tries=30):
         e = rib_entry(api, prefix)
         if e is not None and predicate(e):
             return e
+        # poll interval: the loop is bounded by tries and returns as soon as the predicate holds
         time.sleep(0.2)
     return rib_entry(api, prefix)
 
@@ -99,6 +100,12 @@ def main():
         runtime_fail(f'ecmp-paths not empty after shrink: {entry.get("ecmp-paths")}')
     print('OK: ECMP set shrank to a single next-hop after withdraw', file=sys.stderr)
 
+    # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
+    # documents for that shape before shutting the daemon down: this peer
+    # attaches a process permitted to send updates, so the initial-sync gate
+    # holds the marker and a prompt shutdown closes the session under it.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('ze did not send the End-of-RIB to the peer before shutdown')
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
@@ -154,11 +161,9 @@ bgp {
 			group-updates disable
 		}
 
-		process fib-ecmp-realtime {
-		}
-		process bgp-rib {
-		}
-		process rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }

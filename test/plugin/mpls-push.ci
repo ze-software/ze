@@ -109,7 +109,8 @@ bgp {
 		# top-level NEXT_HOP -- a different 62-byte UPDATE than the expect=bgp
 		# line asserts. The assertion is unchanged and now runs against the path
 		# it was written for. Zero assertions removed.
-		process route-driver {
+		attach process route-driver {
+			send [ update ]
 		}
 	}
 }

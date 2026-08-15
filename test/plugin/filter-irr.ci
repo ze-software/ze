@@ -101,7 +101,7 @@ bgp {
 			import [ bgp-filter-irr:65001 ]
 		}
 
-		process test-filter-irr {
+		attach process test-filter-irr {
 			receive [ update state ]
 		}
 	}

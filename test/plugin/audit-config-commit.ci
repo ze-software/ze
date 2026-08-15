@@ -200,7 +200,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process audit-commit-test { }
 	}
 }
 EOF_CONF

@@ -17,10 +17,10 @@ stdin=peer:terminator=EOF_PEER
 option=asn:value=64500
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:contains=40020A02020000FDE9000000704003047F00000118C0AF30
-expect=bgp:conn=1:seq=1:contains=40020A02020000FDE9000000704003047F00000118C01FC4
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[65001,112],"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.1"}]}
-expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[65001,112],"ipv4/unicast":[{"action":"add","nlri":["192.31.196.0/24"],"next-hop":"127.0.0.1"}]}
+expect=bgp:conn=1:seq=1:contains=40020A02020000FDE9000000704003047F00000218C0AF30
+expect=bgp:conn=1:seq=1:contains=40020A02020000FDE9000000704003047F00000218C01FC4
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[65001,112],"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.2"}]}
+expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[65001,112],"ipv4/unicast":[{"action":"add","nlri":["192.31.196.0/24"],"next-hop":"127.0.0.2"}]}
 EOF_PEER
 
 # Python observer plugin: drive `fakeas112 emit add asn 112`, then exit.
@@ -113,8 +113,13 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what `nhop self` puts on the
+			# wire. It is deliberately NOT peer1's 127.0.0.1: RFC 4271 Section
+			# 5.1.3 forbids a peer its own address as NEXT_HOP, and
+			# originatedNextHopIsPeerOwn (reactor/forward_next_hop.go) withholds
+			# the route when the two match.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -133,6 +138,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 }

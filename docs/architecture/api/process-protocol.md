@@ -409,8 +409,24 @@ the engine re-resolves it to its own id via `redistevents.RegisterProtocol`.
 
 ## Event Delivery
 
-Events are delivered to plugins that have subscribed (via `subscribe-events` RPC
-or `SetStartupSubscriptions`). Events are enqueued into a per-process channel.
+A subscription states what a plugin CAN handle. The peer's configuration
+decides what it GETS. A peer-scoped event is delivered when both halves name
+it: the plugin subscribed to the type in that direction, and the peer's
+`attach process <name>` block grants it. A peer that attaches no block for a
+plugin feeds it nothing, whatever the plugin subscribed to.
+
+**Write no plugin that assumes its subscription is enough.** Declare what the
+program can act on, and tell the operator which `receive` list the program
+needs. ze names each peer, process and event type the two halves disagree
+about, at plugin ready and after every config apply, so an operator can see the
+gap without reading the program.
+
+An event that is not peer-scoped is untouched by this: the config filter is per
+peer.
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
+<!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
+
+Events that pass both halves are enqueued into a per-process channel.
 The delivery goroutine drains all available events into a batch and sends them
 in a single `deliver-batch` RPC, reducing syscalls and goroutine churn. Single
 events are delivered as a batch of 1.
@@ -536,6 +552,15 @@ Plugins subscribe to events using either:
 2. **Runtime subscription**: via `subscribe-events` RPC in `OnStarted` callback.
    Safe but has a small window where events could be missed.
    <!-- source: pkg/plugin/sdk/sdk_engine.go -- SubscribeEvents -->
+
+Neither form widens what a peer grants. The one exception is the operator's own
+`request subscribe` at a running daemon, which overrides the config until the
+next config apply rebuilds the index from the document.
+
+A session that reaches Established before a plugin registers its subscription
+raises its state event into an empty list, and nothing replays it. This is why
+the startup form is recommended: it registers before `SignalAPIReady`, and ze
+starts its peers after every plugin tier.
 
 **Cross-Plugin DispatchCommand from Startup.** A plugin whose startup logic
 must call `DispatchCommand` on a sibling plugin's command (e.g., `bgp-rpki`

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
@@ -110,7 +111,7 @@ func TestRelayStoredRouteForwardsThroughForwardRail(t *testing.T) {
 	require.Equal(t, 0, cache.Len(), "cache starts empty")
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.NoError(t, err, "relay of a well-formed stored route must succeed")
 
 	select {
@@ -173,7 +174,7 @@ func storedRouteASPath(t *testing.T) []uint32 {
 func relayDispatchedBody(t *testing.T, api *reactorAPIAdapter, dispatched *[]fwdItem, mu *sync.Mutex, done chan struct{}) []byte {
 	t.Helper()
 	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}))
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender()))
 
 	select {
 	case <-done:
@@ -291,7 +292,7 @@ func TestRelayStoredRouteCountsDispatchFailureAsIncomplete(t *testing.T) {
 	dst.fwdFacts.Store(nil)
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.Error(t, err, "a route that reached no destination through failure must not report success")
 	assert.NotErrorIs(t, err, errAllDestinationsSuppressed,
 		"a dispatch failure must not be classified as an egress-policy suppression")
@@ -318,7 +319,7 @@ func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
 	api, cache, dispatched, mu, _ := relayFixtureAS(t, 65000, 65000)
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.NoError(t, err, "a correctly suppressed route is handled, not a failed relay")
 
 	mu.Lock()
@@ -356,7 +357,7 @@ func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
 	}}
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.Error(t, err, "a route dropped by a FAILED egress step must not report success")
 	assert.NotErrorIs(t, err, errAllDestinationsSuppressed,
 		"a step that could not run is not an egress-policy suppression")
@@ -396,7 +397,7 @@ func TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete(t *testing.T) {
 	api.r.orderedEgressSteps = []orderedEgressStep{{name: "peer-chain", policyChain: true}}
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.Error(t, err, "a route dropped by an unevaluatable export chain must not report success")
 	assert.NotErrorIs(t, err, errAllDestinationsSuppressed,
 		"a chain that could not run is not an egress-policy suppression")
@@ -420,7 +421,7 @@ func TestRelayStoredRouteFailsClosedWithoutSource(t *testing.T) {
 	api, cache, dispatched, mu, _ := relayFixture(t)
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.9.9.9")}) // never an established peer
+		[]rpc.StoredRoute{storedIPv4Route("10.9.9.9")}, plugin.OperatorSender()) // never an established peer
 	require.ErrorIs(t, err, errRelayNoSource, "an unknown source must fail closed")
 
 	mu.Lock()
@@ -461,7 +462,7 @@ func TestRelayStoredRouteRejectsMalformedInput(t *testing.T) {
 			route := storedIPv4Route("10.0.0.1")
 			tc.mut(&route)
 
-			err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), []rpc.StoredRoute{route})
+			err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), []rpc.StoredRoute{route}, plugin.OperatorSender())
 			require.ErrorIs(t, err, tc.want)
 
 			mu.Lock()
@@ -483,7 +484,7 @@ func TestRelayStoredRouteSkipsSourceEqualsDestination(t *testing.T) {
 	api, cache, dispatched, mu, _ := relayFixture(t)
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.1"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.NoError(t, err, "skipping the source is not an error")
 
 	mu.Lock()
@@ -499,7 +500,7 @@ func TestRelayStoredRouteSkipsSourceEqualsDestination(t *testing.T) {
 // been learned.
 func TestRelayStoredRouteEmptyIsNoOp(t *testing.T) {
 	api, cache, _, _, _ := relayFixture(t)
-	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), nil))
+	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), nil, plugin.OperatorSender()))
 	assert.Equal(t, 0, cache.Len())
 }
 
@@ -570,7 +571,7 @@ func TestRelayStoredRouteRefusesAddPathSource(t *testing.T) {
 	src.recvCtxID = addPathCtxID
 
 	relayErr := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
 	require.ErrorIs(t, relayErr, errRelayAddPath, "an add-path source must be refused")
 
 	mu.Lock()

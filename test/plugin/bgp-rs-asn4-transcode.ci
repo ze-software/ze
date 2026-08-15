@@ -157,6 +157,13 @@ bgp {
 			group-updates disable
 			rs-fast-path enable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
 	}
 	peer receiver-peer {
 		connection {
@@ -186,6 +193,13 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
 		}
 	}
 }

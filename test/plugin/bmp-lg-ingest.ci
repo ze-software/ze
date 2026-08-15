@@ -169,9 +169,6 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process bmp-ingest {
-            receive [ state ];
-        }
     }
 }
 EOF_CONF

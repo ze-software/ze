@@ -81,7 +81,8 @@ bgp {
 			group-updates disable
 		}
 
-		process quiesce-barrier {
+		attach process quiesce-barrier {
+			send [ update ]
 		}
 	}
 }

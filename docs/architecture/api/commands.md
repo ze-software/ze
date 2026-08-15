@@ -317,13 +317,31 @@ bgp plugin ack async         # Return immediately (default)
 
 ### Event Subscription Commands
 
-Plugins subscribe to events via API instead of config. Replaces config-driven `receive {}` blocks.
+A plugin declares what it CAN handle. The peer's configuration decides what it
+GETS. A peer-scoped event is delivered to a process when both halves name it:
+the process subscribed to the event, and the peer's `attach process <name>`
+block grants that type in that direction. A peer that attaches no block for a
+process feeds it nothing.
 
 ```
 request subscribe <namespace> event <type> [direction received|sent|both]
 request subscribe peer <selector> event <type> [direction ...]
 request subscribe plugin <name> <namespace> event <type> [direction ...]
 request unsubscribe <namespace> event <type> [direction received|sent|both]
+```
+
+**Precedence.** The configuration is durable truth and is rebuilt on every
+config apply. A `request subscribe` typed at a running daemon is a live
+override: it is delivered whether or not the peer's block grants the type, and
+the next config apply discards it. Use it to look at a live session; write the
+attach block to keep the change.
+
+At plugin ready, and again after every apply, ze reports each peer, process and
+event type the two halves disagree about. Two lines an operator sees:
+
+```
+event delivery: the config grants an event the plugin never declared  peer=... process=... granted=update-received
+event delivery: the plugin declared an event the peer does not grant it  peer=... process=... declared=state
 ```
 
 **Namespaces:**
@@ -753,17 +771,12 @@ version
 
 ### Attribute Filtering
 
-Limit which attributes are parsed for API output:
-
-```
-api route-server {
-    content {
-        encoding json;
-        attribute as-path community next-hop;  # Only parse these
-    }
-    receive { update; }
-}
-```
+`ContentConfig.Attributes` limits which path attributes are parsed for API
+output. It is set by the engine, not by a peer's attach block: the
+`content { encoding format attribute }` container inside `attach process`
+parses and reaches no field of `ProcessBinding`, so a peer cannot ask for one
+rendering while another peer asks for a different one.
+<!-- source: internal/component/bgp/reactor/peersettings.go -- ProcessBinding -->
 
 Available attribute names:
 | Name | Code | Description |
@@ -790,19 +803,8 @@ Benefits of partial parsing:
 
 ### NLRI Family Filtering
 
-Limit which address families are included in API output:
-
-```
-api route-server {
-    content {
-        encoding json;
-        attribute as-path community next-hop;
-        nlri ipv4/unicast;
-        nlri ipv6/unicast;
-    }
-    receive { update; }
-}
-```
+`ContentConfig.NLRI` limits which address families are included in API output.
+Like the attribute filter, it is engine-set: no config leaf reaches it.
 
 Available families:
 | Config Syntax | Canonical Name |

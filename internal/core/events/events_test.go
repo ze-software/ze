@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 		"update", "open", "notification", "keepalive",
 		"refresh", "state", "negotiated", "eor",
 		"congested", "resumed", "rpki", "listener-ready",
-		"update-notification", DirectionSent,
+		"update-notification",
 	)
 	_ = RegisterNamespace("bgp-rib", "cache", "route", "best-change", "replay-request")
 	_ = RegisterNamespace("config",

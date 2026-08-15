@@ -97,8 +97,6 @@ bgp {
         behavior {
             group-updates disable
         }
-        process traffic-monitor-done {
-        }
     }
 }
 EOF_CONF

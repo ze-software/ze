@@ -235,6 +235,18 @@ bgp {
 {% endif %}
 			}
 		}
+{#      A peer that attaches no process is fed nothing and may announce nothing.
+        bgp-rib takes this peer's UPDATEs and answers with the routes the node
+        offers; redistribute-orchestrator carries the connected, OSPF and IS-IS
+        prefixes the block below imports. Without both blocks the session comes
+        up, the ping validation fails, and nothing says why. #}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
+		}
 	}
 {% endfor %}
 }

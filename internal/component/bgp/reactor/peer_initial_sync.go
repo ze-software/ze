@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -176,23 +175,49 @@ func (p *Peer) sendInitialRoutes() {
 	// grace. Bounded; on timeout it releases and says so.
 	p.waitPeerUpBarrier()
 
-	// Wait for API processes to send initial routes before processing queue.
-	// Two-phase wait:
-	// 1. Minimum 500ms delay for external plugins that send routes via IPC
-	//    (their state=up handling involves pipe round-trips not tracked by apiSync).
-	// 2. Channel-based sync for internal plugins like bgp-rib that signal
-	//    "plugin session ready" after replaying routes (may take longer than 500ms
-	//    under load).
+	// Wait for the processes this peer permits to send, so their initial routes
+	// precede the End-of-RIB. ONE bounded wait: it returns the moment every
+	// expected `plugin session ready` has arrived, and gives up at
+	// apiSyncTimeout for a process that never sends one.
 	//
-	// KNOWN DEFECT, do not "simplify" this condition without reading
-	// plan/spec-fixit-forward-rail-initial-sync-ordering.md first. apiSyncExpected
-	// counts only bindings that declare `send [ update ]`
-	// (ProcessBinding.SendUpdate, peer_run.go), and NOTHING on the route-injection
-	// path reads that declaration -- a plugin bound as a bare `process X { }`
-	// injects routes all the same. So a peer with an undeclared external route
-	// source takes no hold at all and its End-of-RIB can precede the very routes
-	// it claims to complete (RFC 4724 Section 4; test/plugin/mup4.ci and
-	// test/plugin/ipv6.ci fail on it under load).
+	// It used to sleep 500ms FIRST and then wait, and that fixed sleep was pure
+	// latency once a process answered promptly. It was also wire-visible: the
+	// sleep keeps ShouldQueue true, so an announce an API client issues inside
+	// it is queued and drains AHEAD of the marker. test/exabgp-compat/encoding/
+	// conf-watchdog.ci caught exactly that -- ExaBGP emits the End-of-RIB before
+	// the first scripted announce, and ze stopped doing so the moment the
+	// migrated config declared bgp-watchdog's send permission truthfully.
+	// Shrinking this window also shrinks the duplicate-relay window the
+	// 2026-08-08 measurement below names.
+	//
+	// KNOWN DEFECT, do not "simplify" this condition first. apiSyncExpected counts
+	// only bindings that declare `send [ update ]` (ProcessBinding.MaySend,
+	// peer_run.go). The spec this note used to send you to,
+	// spec-fixit-forward-rail-initial-sync-ordering, closed on 2026-08-11 and
+	// fixed the forward RAILS; it did not fix this hold, so read the two
+	// paragraphs below rather than looking for a file that is no longer on disk.
+	//
+	// The UNDERCOUNT half is NARROWED, not closed, and the difference is one
+	// rail. Every path that BUILDS an UPDATE now reads the same declaration this
+	// counts: the six selector-resolving commands through getMatchingPeersSel,
+	// plus ForwardUpdate, ForwardUpdatesDirect and RelayStoredRoute, all gated on
+	// `send [ update ]` (send_permission.go). A plugin bound as a bare
+	// `attach process X { }` reaches none of them.
+	//
+	// It can still reach ze-bgp:peer-raw. That rail carries a message of the
+	// caller's choosing, so it is gated on ATTACHMENT alone (rawOrigin), and a
+	// hand-built UPDATE injected through it lands on this peer from a binding
+	// MaySend(SendUpdate) reports false for and this count therefore skips. The
+	// claim that a bare-bound process no longer injects at all was written before
+	// that rail was gated at all and was never true; do not restore it. Whether
+	// the send vocabulary should gain a word for raw is an owner decision.
+	//
+	// What survives is the OVERCOUNT: only bgp-rib ever signals plugin-session-
+	// ready, so any other permitted plugin makes this wait run to apiSyncTimeout,
+	// and the hold keeps ShouldQueue true for the whole of it. An event-driven
+	// announce raised inside that window (a watchdog probe going up) is queued
+	// and drains BEFORE the marker, so the marker then claims a route that was
+	// never part of the initial routing update.
 	//
 	// Widening the condition to "any process binding" is NOT the fix on its own:
 	// the hold keeps sendingInitialRoutes non-zero, so it also widens the window
@@ -206,8 +231,6 @@ func (p *Peer) sendInitialRoutes() {
 	needsAPIWait := p.apiSyncExpected > 0
 	p.mu.RUnlock()
 	if needsAPIWait {
-		routesLogger().Debug("sleeping for API routes", "peer", addr, "duration", "500ms")
-		p.clock.Sleep(500 * time.Millisecond)
 		p.waitForAPISync()
 	}
 

@@ -1,4 +1,4 @@
-# Valid config: multiple processes with group
+# Valid config: a group attaches two processes
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
@@ -12,10 +12,10 @@ plugin {
 }
 bgp {
 	group test {
-		process my-process {
+		attach process my-process {
 			receive [ state ]
 		}
-		process my-second-process {
+		attach process my-second-process {
 			receive [ state ]
 		}
 

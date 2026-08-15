@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -392,7 +393,13 @@ type ReactorCacheCoordinator interface {
 	// for that consumer (FIFO or unordered per the consumer registration).
 	// Returns error only if NO id could be dispatched at all -- missing ids log a
 	// BUG warning and continue (rs-fastpath-3 AC-7a).
-	ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error
+	//
+	// sender is the authority, and it is a different question from pluginName:
+	// each destination must attach it with `send [ update ]`, because a full
+	// UPDATE lands on that destination's wire
+	// (bgp/reactor/send_permission.go). Destinations that grant nothing are
+	// dropped and reported; a batch every destination refused is an error.
+	ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender Sender) error
 
 	// ReleaseUpdates acks a batch of cached UPDATEs for pluginName without
 	// forwarding. Used when the plugin decided not to forward (e.g. empty target
@@ -417,7 +424,12 @@ type ReactorRelayCoordinator interface {
 	// Returns an error when destination resolves to no established peer or no
 	// route could be relayed; per-route failures are logged and do not fail the
 	// call. An empty routes slice is a success no-op.
-	RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error
+	//
+	// sender is the authority: the destination must attach it with
+	// `send [ update ]`, because each relayed route leaves as an UPDATE on that
+	// peer's wire (bgp/reactor/send_permission.go). One destination, so the
+	// permission is all or nothing and a refusal is an error.
+	RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender Sender) error
 }
 
 // ReactorLifecycle is the full BGP reactor interface composed from focused
@@ -442,6 +454,8 @@ type ReactorLifecycle interface {
 }
 
 // PeerProcessBinding describes which plugin receives messages from a BGP peer.
+// It mirrors reactor.ProcessBinding with the content settings already
+// resolved.
 type PeerProcessBinding struct {
 	PluginName string // Reference to plugin name
 
@@ -449,19 +463,14 @@ type PeerProcessBinding struct {
 	Encoding string // "json" | "text" (empty = inherit from plugin)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
 
-	// Receive settings (WHAT message types to forward)
-	ReceiveUpdate       bool
-	ReceiveOpen         bool
-	ReceiveNotification bool
-	ReceiveKeepalive    bool
-	ReceiveRefresh      bool
-	ReceiveState        bool
-	ReceiveNegotiated   bool            // Forward negotiated capabilities after OPEN exchange
-	ReceiveSent         bool            // Forward sent UPDATE events
-	ReceiveCustom       map[string]bool // Plugin-registered event types (e.g., "update-rpki")
+	// Receive settings (WHAT the peer feeds this process).
+	// ReceiveAll is the "*" token. Receive maps each granted event type to the
+	// direction it is granted in; a type with no key is not granted.
+	ReceiveAll bool
+	Receive    map[string]events.Direction
 
-	// Send settings (WHAT message types plugin can send)
-	SendUpdate  bool
-	SendRefresh bool
-	SendCustom  map[string]bool // Plugin-registered send types (e.g., "enhanced-refresh")
+	// Send settings (WHAT this process may generate toward the peer).
+	// SendAll is the "*" token.
+	SendAll bool
+	Send    map[string]bool
 }

@@ -1,4 +1,4 @@
-# Test: ze config completion — peer with process list configured
+# Test: ze config completion — peer with attached processes configured
 # VALIDATES: Process list keys shown when multiple processes exist
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -23,11 +23,11 @@ bgp {
 				remote 65001
 			}
 		}
-		process my-watcher {
+		attach process my-watcher {
 			run /usr/bin/watcher
 			receive update
 		}
-		process my-filter {
+		attach process my-filter {
 			run /usr/bin/filter
 			send update
 		}
@@ -35,7 +35,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input edit+process+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/attach --input edit+process+ test.conf
 expect=exit:code=0
 expect=stdout:contains=my-watcher
 expect=stdout:contains=my-filter

@@ -212,7 +212,7 @@ func cmdMigrate(args []string) int {
 				{Title: "Transformations applied", Entries: []helpfmt.HelpEntry{
 					{Name: "neighbor -> peer", Desc: ""},
 					{Name: "process -> plugin", Desc: "Wrapped with ze exabgp plugin bridge"},
-					{Name: "api { processes [...] }", Desc: "-> process NAME { ... } inside peer"},
+					{Name: "api { processes [...] }", Desc: "-> attach process NAME { ... } inside peer"},
 					{Name: "capability { route-refresh; }", Desc: "-> capability { route-refresh enable; }"},
 					{Name: "If GR or route-refresh", Desc: "Inject RIB plugin"},
 				}},

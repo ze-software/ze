@@ -113,7 +113,8 @@ bgp {
 		# expect=bgp assertions below prove the API path they were always meant to.
 		# Coverage of the static config path is unaffected: test/encode/simple-flow.ci
 		# and the other 14 test/encode flow tests exercise it directly.
-		process flowspec-process {
+		attach process flowspec-process {
+			send [ update ]
 		}
 	}
 }

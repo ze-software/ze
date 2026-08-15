@@ -130,10 +130,15 @@ func addBGPEdges(g *Graph, tree *Tree) {
 	}
 }
 
-// addProcessBindings adds edges from a peer to the plugins it references via process bindings.
+// addProcessBindings adds edges from a peer to the plugins it attaches with
+// `attach process <name> { ... }`.
 func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer *Tree) {
 	var tb textbuf.Buffer
-	processList := peerTree.GetList("process")
+	attach := peerTree.GetContainer("attach")
+	if attach == nil {
+		return
+	}
+	processList := attach.GetList("process")
 	for name, processTree := range processList {
 		if name == KeyDefault {
 			continue

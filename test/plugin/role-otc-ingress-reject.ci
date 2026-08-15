@@ -121,7 +121,7 @@ bgp {
 		role {
 			import provider
 		}
-		process test-otc {
+		attach process test-otc {
 			receive [ update state ]
 		}
 	}

@@ -129,7 +129,8 @@ bgp {
 			group-updates disable
 		}
 
-		process route-driver {
+		attach process route-driver {
+			send [ update ]
 		}
 	}
 }

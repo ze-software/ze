@@ -30,6 +30,19 @@ type reloadTestReactor struct {
 	setTree map[string]any
 }
 
+// The mock reaches the server as a plugin.ReactorLifecycle, and every other
+// interface it claims is reached by a runtime type assertion. A method that
+// drifts out of one of those still compiles, and the path under test then takes
+// the silent "reactor not available" branch. These bind the claims at compile
+// time instead: RelayStoredRoute and ForwardUpdatesDirect both gained a
+// plugin.Sender when the send permission reached the last four rails, and this
+// mock kept the old shape without a word from the compiler or from go vet.
+var (
+	_ plugin.ReactorLifecycle        = (*reloadTestReactor)(nil)
+	_ plugin.ReactorCacheCoordinator = (*reloadTestReactor)(nil)
+	_ plugin.ReactorRelayCoordinator = (*reloadTestReactor)(nil)
+)
+
 type failingReconfigurable struct {
 	addrs []string
 	err   error
@@ -82,13 +95,13 @@ func (r *reloadTestReactor) FlushForwardPool(context.Context) error {
 func (r *reloadTestReactor) FlushForwardPoolPeer(context.Context, string) error {
 	return nil
 }
-func (r *reloadTestReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
+func (r *reloadTestReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string, plugin.Sender) error {
 	return nil
 }
 
 // RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
 // nothing because these tests exercise SIGHUP reload, not the forward rail.
-func (r *reloadTestReactor) RelayStoredRoute(netip.Addr, []rpc.StoredRoute) error {
+func (r *reloadTestReactor) RelayStoredRoute(netip.Addr, []rpc.StoredRoute, plugin.Sender) error {
 	return nil
 }
 func (r *reloadTestReactor) ReleaseUpdates([]uint64, string) error { return nil }

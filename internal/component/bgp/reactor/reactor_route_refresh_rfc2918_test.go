@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -112,6 +113,7 @@ func TestRFC2918SendRouteRefreshToCapablePeer(t *testing.T) {
 		uint16(family.AFIIPv4),
 		uint8(family.SAFIUnicast),
 		message.RouteRefreshNormal,
+		plugin.OperatorSender(),
 	)
 	require.NoError(t, err)
 
@@ -134,6 +136,7 @@ func TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability(t *testing.T) {
 			uint16(family.AFIIPv4),
 			uint8(family.SAFIUnicast),
 			message.RouteRefreshNormal,
+			plugin.OperatorSender(),
 		)
 		require.NoError(t, err)
 
@@ -151,6 +154,7 @@ func TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability(t *testing.T) {
 			uint16(family.AFIIPv4),
 			uint8(family.SAFIUnicast),
 			message.RouteRefreshNormal,
+			plugin.OperatorSender(),
 		)
 		require.NoError(t, err)
 
@@ -167,7 +171,7 @@ func TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability(t *testing.T) {
 func TestRFC2918SoftClearPeerSendsRefreshToCapablePeer(t *testing.T) {
 	adapter, _, conn := newRefreshPeer(t, true)
 
-	families, err := adapter.SoftClearPeer(selector.All())
+	families, err := adapter.SoftClearPeer(selector.All(), plugin.OperatorSender())
 	require.NoError(t, err)
 	require.Contains(t, families,
 		family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}.String())
@@ -181,7 +185,7 @@ func TestRFC2918SoftClearPeerSendsRefreshToCapablePeer(t *testing.T) {
 func TestRFC2918SoftClearPeerSkipsPeerWithoutCapability(t *testing.T) {
 	adapter, _, conn := newRefreshPeer(t, false)
 
-	families, err := adapter.SoftClearPeer(selector.All())
+	families, err := adapter.SoftClearPeer(selector.All(), plugin.OperatorSender())
 	require.NoError(t, err)
 	require.Empty(t, families, "an incapable peer contributes no cleared families")
 	require.Empty(t, conn.written(),

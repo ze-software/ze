@@ -37,7 +37,7 @@ type agreementReactor struct {
 	batches []bgptypes.NLRIBatch
 }
 
-func (r *agreementReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+func (r *agreementReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	r.sels = append(r.sels, sel)
 	r.batches = append(r.batches, batch)
 	return nil
@@ -76,7 +76,7 @@ func agreementCtx(t *testing.T, communities ...string) (*pluginserver.CommandCon
 }
 
 func newReg() *Registry {
-	return NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	return NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
 }
 
 // carriesBlackhole reports whether a dispatched batch tags the route with

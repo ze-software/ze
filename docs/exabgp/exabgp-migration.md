@@ -33,7 +33,7 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 |------|--------|-------|-------|
 | Keyword | `neighbor` | `peer` | Migration converts |
 | API output | `community` | `communities` | Plural for consistency |
-| Config syntax | `api { processes [...] }` | `api <name> { }` | Named blocks |
+| Config syntax | `api { processes [...] }` | `attach process <name> { }` | One block per peer per program. The converter emits it |
 | NLRI format | `announce`/`withdraw` with next-hop grouping | `<family>` array with `action: add/del` | See below |
 | RD format | `65000:1` | `2:65000:1` (with type prefix) | Disambiguates Type 0 vs Type 2 |
 
@@ -139,8 +139,10 @@ Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:
 ze exabgp plugin /path/to/exabgp-plugin.py
 
 # In Ze config
-process exabgp-compat {
-    run "ze exabgp plugin /path/to/plugin.py";
+plugin {
+    external exabgp-compat {
+        run "ze exabgp plugin /path/to/plugin.py";
+    }
 }
 ```
 

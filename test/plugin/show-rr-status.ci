@@ -116,8 +116,8 @@ bgp {
             }
             route-reflector-client true
         }
-        process rr-status-test {
-            receive [ state ];
+        attach process rr-status-test {
+            receive [ state ]
         }
     }
 }

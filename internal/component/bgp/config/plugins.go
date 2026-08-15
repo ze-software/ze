@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // extractBGPInlinePlugins extracts inline plugin configs from BGP peer process bindings.
@@ -40,7 +41,11 @@ func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig 
 		if !ok {
 			continue
 		}
-		processes, ok := peerMap["process"].(map[string]any)
+		attach, ok := peerMap["attach"].(map[string]any)
+		if !ok {
+			continue
+		}
+		processes, ok := attach["process"].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -115,10 +120,29 @@ func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig)
 	return nil
 }
 
-// validatePeerProcessRefs checks that all process binding references in a peer tree
-// point to declared plugins. context is the error message prefix (e.g., "bgp.peer 10.0.0.1").
+// validatePeerProcessRefs checks that every process binding on a peer names a
+// plugin that exists: one the config declares, one `--plugin` loaded, or one
+// ze's own registry holds. context is the error message prefix
+// (e.g., "bgp.peer 10.0.0.1").
+//
+// The registry is consulted because `attach process` states this peer's
+// RELATIONSHIP to a program, while `plugin { }` states HOW to start one, and a
+// plugin ze auto-loads from a config path is started without either. Requiring
+// the declaration as well made ze contradict itself once the send permission
+// became enforceable: the refusal tells the operator to write
+// `attach process redistribute-orchestrator { send [ update ] }`, and this
+// function used to refuse that exact line, because the orchestrator is loaded by
+// the `redistribute { }` root rather than declared. Declaring it instead is not
+// the same config: it takes the plugin off the auto-load path.
+//
+// The guard keeps its purpose. A typo is still refused, because a misspelled
+// name is in neither the config nor the registry.
 func validatePeerProcessRefs(peerTree *config.Tree, pluginNames map[string]bool, context string) error {
-	processList := peerTree.GetList("process")
+	attach := peerTree.GetContainer("attach")
+	if attach == nil {
+		return nil
+	}
+	processList := attach.GetList("process")
 	for name, processTree := range processList {
 		if name == config.KeyDefault {
 			continue
@@ -130,7 +154,7 @@ func validatePeerProcessRefs(peerTree *config.Tree, pluginNames map[string]bool,
 		if use, ok := processTree.Get("use"); ok && use != "" {
 			continue
 		}
-		if !pluginNames[name] {
+		if !pluginNames[name] && !registry.Has(name) {
 			return fmt.Errorf("%s: undefined plugin %q in process binding", context, name)
 		}
 	}

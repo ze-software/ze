@@ -15,6 +15,13 @@ import (
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
+// requireBGPReactor type-asserts at RUNTIME, so a mock that drifts out of
+// bgptypes.BGPReactor still COMPILES and every handler under test silently takes
+// the "BGP reactor not available" branch instead. This line makes that drift a
+// build failure. It was added when the send permission put a process name on
+// eight of the interface's methods and seven mocks went stale in silence.
+var _ bgptypes.BGPReactor = (*mockReactor)(nil)
+
 // mockReactor implements plugin.ReactorLifecycle for handler tests.
 type mockReactor struct {
 	peers    []plugin.PeerInfo
@@ -100,13 +107,13 @@ func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)       {}
 func (m *mockReactor) SignalPeerUpBarrier(_ string)           {}
 func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
-func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
+func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }
 
 // RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
 // nothing because these tests exercise command dispatch, not the forward rail.
-func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute) error {
+func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute, _ plugin.Sender) error {
 	return nil
 }
 func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
@@ -144,8 +151,10 @@ func (m *mockReactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error
 }
 
 // BGP reactor stubs (not tracked unless needed).
-func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8) error { return nil }
-func (m *mockReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+func (m *mockReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string
 		batch bgptypes.NLRIBatch
@@ -153,7 +162,7 @@ func (m *mockReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.N
 	return nil
 }
 
-func (m *mockReactor) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+func (m *mockReactor) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.withdrawnBatches = append(m.withdrawnBatches, struct {
 		peer  string
 		batch bgptypes.NLRIBatch
@@ -166,7 +175,7 @@ func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
 func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactor) ClearRIBIn() int                      { return 0 }
 
-func (m *mockReactor) SendRoutes(_ *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+func (m *mockReactor) SendRoutes(_ *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool, _ plugin.Sender) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{
 		RoutesAnnounced: len(routes),
 		RoutesWithdrawn: len(withdrawals),
@@ -190,7 +199,7 @@ func (m *mockReactor) DeleteUpdate(id uint64) error {
 	return nil
 }
 
-func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64, _ string) error {
+func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64, _ string, _ plugin.Sender) error {
 	m.forwardedUpdates = append(m.forwardedUpdates, struct {
 		sel *selector.Selector
 		id  uint64
@@ -201,7 +210,7 @@ func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64, _ string)
 func (m *mockReactor) ListUpdates() []uint64 { return m.cachedIDs }
 
 // Raw message sending (tracked).
-func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []byte) error {
+func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []byte, _ plugin.Sender) error {
 	m.rawMessages = append(m.rawMessages, struct {
 		addr    netip.Addr
 		msgType uint8
@@ -210,22 +219,22 @@ func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []b
 	return nil
 }
 
-func (m *mockReactor) SendRefresh(_ *selector.Selector, _ uint16, _ uint8) error {
+func (m *mockReactor) SendRefresh(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	m.sendRefreshCalled = true
 	return nil
 }
 
-func (m *mockReactor) SendBoRR(_ *selector.Selector, _ uint16, _ uint8) error {
+func (m *mockReactor) SendBoRR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	m.sendBoRRCalled = true
 	return nil
 }
 
-func (m *mockReactor) SendEoRR(_ *selector.Selector, _ uint16, _ uint8) error {
+func (m *mockReactor) SendEoRR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	m.sendEoRRCalled = true
 	return nil
 }
 
-func (m *mockReactor) SoftClearPeer(sel *selector.Selector) ([]string, error) {
+func (m *mockReactor) SoftClearPeer(sel *selector.Selector, _ plugin.Sender) ([]string, error) {
 	m.softClearCalls = append(m.softClearCalls, sel.String())
 	return []string{"ipv4/unicast", "ipv6/unicast"}, nil
 }

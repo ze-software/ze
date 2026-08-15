@@ -23,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -76,14 +77,23 @@ var errForwardNoSource = errors.New("forward: source peer is not an established 
 
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
-func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8) error {
+//
+// sender is who asked for the marker: an attached process, or the operator.
+// It is gated on `send [ update ]`: RFC 4724 Section 2 defines the
+// End-of-RIB marker as an UPDATE message, and it closes the announce a process
+// just made, so the permission that let it announce is the permission that lets
+// it say the announce is complete.
+func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
 	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
 	update := message.BuildEOR(fam)
 
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	peers := a.getMatchingPeersSel(sel)
+	peers, err := a.getMatchingPeersSel(sel, announceOrigin(sender))
+	if err != nil {
+		return err
+	}
 
 	var errs []error
 	sentCount := 0
@@ -189,22 +199,22 @@ func logEORSuppressed(peer *Peer, fam family.Family) {
 // SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
 // RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH message to
 // its peer only if it has received the Route Refresh Capability from its peer.".
-func (a *reactorAPIAdapter) SendRefresh(sel *selector.Selector, afi uint16, safi uint8) error {
-	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshNormal)
+func (a *reactorAPIAdapter) SendRefresh(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
+	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshNormal, sender)
 }
 
 // SendBoRR sends a Beginning of Route Refresh marker to matching peers.
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
-func (a *reactorAPIAdapter) SendBoRR(sel *selector.Selector, afi uint16, safi uint8) error {
-	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshBoRR)
+func (a *reactorAPIAdapter) SendBoRR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
+	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshBoRR, sender)
 }
 
 // SendEoRR sends an End of Route Refresh marker to matching peers.
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
-func (a *reactorAPIAdapter) SendEoRR(sel *selector.Selector, afi uint16, safi uint8) error {
-	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshEoRR)
+func (a *reactorAPIAdapter) SendEoRR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
+	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshEoRR, sender)
 }
 
 // sendRouteRefresh sends a ROUTE-REFRESH message with the specified subtype.
@@ -221,7 +231,13 @@ func (a *reactorAPIAdapter) SendEoRR(sel *selector.Selector, afi uint16, safi ui
 //
 // RFC 7313: "If peer did not advertise Enhanced Route Refresh Capability:
 // Do NOT send BoRR or EoRR." Only subtype 0 is allowed without Enhanced RR.
-func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16, safi uint8, subtype message.RouteRefreshSubtype) error {
+//
+// sender is who asked for the message: an attached process, or the operator.
+// It is gated on `send [ refresh ]` and not on `send [ update ]`: a
+// ROUTE-REFRESH asks the peer to re-advertise and carries no NLRI of ze's own,
+// so a program that may ask for a refresh is not thereby allowed to originate
+// routes. That is the whole point of the two send types being separate words.
+func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16, safi uint8, subtype message.RouteRefreshSubtype, sender plugin.Sender) error {
 	requiresEnhancedRR := subtype == message.RouteRefreshBoRR || subtype == message.RouteRefreshEoRR
 
 	rr := &message.RouteRefresh{
@@ -235,7 +251,10 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	peers := a.getMatchingPeersSel(sel)
+	peers, err := a.getMatchingPeersSel(sel, refreshOrigin(sender))
+	if err != nil {
+		return err
+	}
 
 	var errs []error
 	for _, peer := range peers {
@@ -272,8 +291,20 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 // ForwardUpdate forwards a cached UPDATE to peers matching the selector.
 // Looks up the update by ID from the cache and sends to matching peers.
 //
+// sender is the AUTHORITY the forward runs under, and it is gated on
+// `send [ update ]`: a full UPDATE lands on the destination's wire, which is
+// exactly what that permission is the word for. Before this gate any connected
+// process could call ze-bgp:cache-forward with an id it learned from peer A and
+// relay that UPDATE into peer B, which never attached it.
+//
+// pluginName is a different contract and stays beside it: it names the cache
+// consumer whose acks are tracked, is empty for a non-consumer, and is not an
+// identity anything trusts (cacheConsumerNameFromCtx, plugins/cmd/cache).
 // If pluginName is non-empty (cache consumer), records plugin ack after forwarding.
 // Non-cache-consumer callers can still forward but don't participate in ack tracking.
+// A refused forward still acks: refusing to forward is not refusing to own an
+// entry the caller took delivery of, which is the rule ForwardUpdatesDirect
+// states for its own refusals.
 //
 // RFC 4271 §9.1.2 compliance: For EBGP peers, the local AS is prepended to
 // AS_PATH in the wire bytes before forwarding. IBGP peers receive the original
@@ -286,7 +317,8 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 // RFC 8654 compliance: If the UPDATE exceeds a peer's max message size
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
-func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64, pluginName string) error {
+func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64, pluginName string, sender plugin.Sender) error {
+	origin := announceOrigin(sender)
 	update, ok := a.r.recentUpdates.Get(updateID)
 	if !ok {
 		return ErrUpdateExpired
@@ -298,6 +330,15 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 					"id", updateID, "plugin", pluginName, "err", ackErr)
 			}
 		}()
+	}
+
+	// Refused whole, before any peer is resolved: a command nobody claimed has no
+	// attach block to consult, and no peer is at fault. It sits after the ack
+	// defer above so the entry is still owned, and before the filter so a
+	// refusal is reported once as what it is rather than once per peer.
+	if !origin.sender.IsSet() {
+		sendNoSenderDenied(selectorTarget(sel), origin)
+		return fmt.Errorf("%w: selector %s, send type %s", errSendNoSender, sel, origin.sendType)
 	}
 
 	// Resolve matching peers and source info under one lock.
@@ -341,7 +382,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			matchingPeers = append(matchingPeers, peer)
 		}
 	}
+	// The permission is resolved under the same lock the match ran under, and
+	// before the source is judged: a destination this process may not reach is
+	// not a destination, whatever the source turns out to be.
+	permittedPeers, refused := filterPermittedPeers(matchingPeers, origin)
 	a.r.mu.RUnlock()
+
+	if len(permittedPeers) == 0 && refused > 0 {
+		return fmt.Errorf("%w: selector %s, process %s, send type %s",
+			errSendNotPermitted, sel, origin.sender, origin.sendType)
+	}
 
 	// Fail CLOSED before considering destinations: without the source peer we
 	// cannot reproduce the egress transform a live forward would have applied, and
@@ -353,11 +403,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return errForwardNoSource
 	}
 
-	if len(matchingPeers) == 0 {
+	if len(permittedPeers) == 0 {
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
-	return a.forwardUpdateCore(update, updateID, matchingPeers, srcInfo)
+	return a.forwardUpdateCore(update, updateID, permittedPeers, srcInfo)
 }
 
 // forwardSourceInfo holds source-peer facts resolved once per ForwardUpdate call

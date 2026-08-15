@@ -107,6 +107,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
 	}
 	peer rs-client-receiver {
 		connection {
@@ -139,6 +146,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
 	}
 	peer plain-ebgp-receiver {
 		connection {
@@ -167,6 +181,13 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
 		}
 	}
 }

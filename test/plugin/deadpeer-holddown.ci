@@ -241,9 +241,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process deadpeer-watch {
-		}
 	}
 }
 EOF_CONF

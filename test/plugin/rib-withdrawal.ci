@@ -106,10 +106,11 @@ bgp {
 		}
 		timer { connect-retry 5; }
 	
-		process announce-routes {
+		attach process announce-routes {
+			send [ update ]
 		}
-		process bgp-rib {
-			receive [ sent state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

@@ -115,7 +115,7 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-auto-test {
+		attach process rpki-auto-test {
 			receive [ update-rpki ]
 		}
 	}

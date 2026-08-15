@@ -183,10 +183,10 @@ func TestValidatePluginReferences_GroupPeerUndefinedPlugin(t *testing.T) {
 	peerRemote.Set("as", "65001")
 	peerTree.SetContainer("remote", peerRemote)
 
-	// Add process binding referencing undefined plugin.
+	// Attach a process referencing an undefined plugin.
 	processTree := config.NewTree()
 	processTree.Set("send", "update")
-	peerTree.AddListEntry("process", "nonexistent-plugin", processTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", "nonexistent-plugin", processTree)
 
 	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "test-group", groupTree)
@@ -221,7 +221,7 @@ func TestValidatePluginReferences_GroupPeerValidPlugin(t *testing.T) {
 
 	processTree := config.NewTree()
 	processTree.Set("send", "update")
-	peerTree.AddListEntry("process", "my-plugin", processTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", "my-plugin", processTree)
 
 	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "test-group", groupTree)
@@ -255,7 +255,7 @@ func TestValidatePluginReferences_GroupPeerInlinePlugin(t *testing.T) {
 	processTree := config.NewTree()
 	processTree.Set("run", "/usr/local/bin/my-process")
 	processTree.Set("send", "update")
-	peerTree.AddListEntry("process", "inline-proc", processTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", "inline-proc", processTree)
 
 	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "test-group", groupTree)

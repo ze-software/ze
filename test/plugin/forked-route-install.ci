@@ -157,9 +157,8 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process forked-route {
-		}
-		process rib {
+		attach process forked-route {
+			receive [ update state ]
 		}
 	}
 }

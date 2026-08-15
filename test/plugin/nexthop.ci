@@ -132,7 +132,8 @@ bgp {
 			receive-hold-time 30
 		}
 
-		process announce-routes {
+		attach process announce-routes {
+			send [ update ]
 		}
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -122,9 +123,12 @@ var engineOps = []engineOp{
 	{
 		method: rpc.MethodRelayStoredRoute,
 		handle: (*Server).opRelayStoredRoute,
-		typedWire: func(s *Server, _ *process.Process, b *rpc.DirectBridge) {
+		// proc names the sender here for the same reason opRelayStoredRoute does:
+		// the Direct bridge is the in-process rail of the same RPC, so leaving it
+		// unnamed would gate the forked plugin and let an in-process one through.
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
-				return s.relayStoredRoute(destination, routes)
+				return s.relayStoredRoute(procSender(proc), destination, routes)
 			})
 		},
 	},
@@ -255,6 +259,7 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 		// configured, hits the now-fail-closed "denied: empty identity" branch --
 		// silently breaking route propagation (RS/OSPF/IS-IS `update text`).
 		Username: internalPluginIdentity(proc.Name()),
+		Sender:   plugin.ProcessSender(proc.Name()),
 	}
 	// Route injection commands are always peer-scoped subcommands
 	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.

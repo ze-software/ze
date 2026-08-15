@@ -154,7 +154,9 @@ bgp {
 			group-updates disable
 		}
 
-		process rfc7606-test {
+		attach process rfc7606-test {
+			receive [ state ]
+			send [ update ]
 		}
 	}
 }

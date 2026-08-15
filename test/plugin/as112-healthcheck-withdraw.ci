@@ -135,6 +135,10 @@ bgp {
 				withdraw true
 			}
 		}
+		attach process bgp-watchdog {
+			receive [ state ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF

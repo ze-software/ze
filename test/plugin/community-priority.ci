@@ -141,11 +141,8 @@ bgp {
 				}
 			}
 		}
-		process test-priority {
-			receive [ update state ]
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

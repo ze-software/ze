@@ -211,9 +211,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process ddos-direction-probe {
-		}
 	}
 }
 EOF_CONF

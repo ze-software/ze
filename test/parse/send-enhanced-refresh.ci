@@ -24,7 +24,7 @@ bgp {
 				remote 65001
 			}
 		}
-		process my-process {
+		attach process my-process {
 			send [ update refresh enhanced-refresh ]
 		}
 	}

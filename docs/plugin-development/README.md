@@ -88,11 +88,16 @@ plugin {
 }
 
 peer transit-a {
-    process my-plugin {
+    attach process my-plugin {
         receive [ update state ];
     }
 }
 ```
+
+The `attach process` block is what feeds the plugin. A plugin the config loads
+and no peer attaches runs, subscribes, and is handed no peer event. Say in your
+plugin's documentation which `receive` list it needs, because the operator
+writes it. See `docs/guide/plugins.md`, "Binding Plugins to Peers".
 
 The engine sets these environment variables before launching the plugin process:
 

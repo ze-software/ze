@@ -116,8 +116,12 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what `nhop self` puts on the
+			# wire. Deliberately NOT the peer's 127.0.0.1: RFC 4271 Section 5.1.3
+			# forbids advertising a peer an address of that peer as NEXT_HOP, so a
+			# fixture sharing one address would have every accepted add withheld.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.4
 				accept false
 			}
 		}
@@ -136,6 +140,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 }

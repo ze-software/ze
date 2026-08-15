@@ -116,7 +116,7 @@ bgp {
     	}
 
         # No graceful-restart - prevents auto EOR
-        process test-plugin {
+        attach process test-plugin {
             send [ update ]
         }
     }

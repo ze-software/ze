@@ -77,9 +77,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process rfc7606-test {
-		}
 	}
 }
 EOF_CONF

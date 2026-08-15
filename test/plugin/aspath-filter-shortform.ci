@@ -85,10 +85,6 @@ bgp {
 		filter {
 			import [ as-path-list:CUSTOMERS ]
 		}
-
-		process test-aspath-short {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

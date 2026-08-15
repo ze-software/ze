@@ -271,7 +271,8 @@ func TestMigrateAPIBlocks_NilTree(t *testing.T) {
 }
 
 // TestMigrateAPIBlocks_AnonymousProcess verifies anonymous process block migration.
-// api { processes [ foo ]; neighbor-changes; } becomes process foo { receive [ state ]; }.
+// api { processes [ foo ]; neighbor-changes; } becomes
+// attach process foo { receive [ state ]; }.
 func TestMigrateAPIBlocks_AnonymousProcess(t *testing.T) {
 	tree := config.NewTree()
 	peerTree := config.NewTree()
@@ -279,14 +280,14 @@ func TestMigrateAPIBlocks_AnonymousProcess(t *testing.T) {
 	apiTree := config.NewTree()
 	apiTree.SetSlice("processes", []string{"foo"})
 	apiTree.Set("neighbor-changes", "")
-	peerTree.AddListEntry("process", config.KeyDefault, apiTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
 	tree.AddListEntry("peer", "10.0.0.1", peerTree)
 
 	result, err := MigrateAPIBlocks(tree)
 	require.NoError(t, err)
 
 	peer := result.GetList("peer")["10.0.0.1"]
-	processList := peer.GetList("process")
+	processList := peer.GetContainer("attach").GetList("process")
 
 	// Old anonymous block should be gone
 	_, hasDefault := processList[config.KeyDefault]
@@ -313,14 +314,14 @@ func TestMigrateAPIBlocks_FormatParsed(t *testing.T) {
 	recv.Set("parsed", "")
 	recv.Set("update", "")
 	apiTree.SetContainer("receive", recv)
-	peerTree.AddListEntry("process", config.KeyDefault, apiTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
 	tree.AddListEntry("peer", "10.0.0.1", peerTree)
 
 	result, err := MigrateAPIBlocks(tree)
 	require.NoError(t, err)
 
 	peer := result.GetList("peer")["10.0.0.1"]
-	fooBlock := peer.GetList("process")["foo"]
+	fooBlock := peer.GetContainer("attach").GetList("process")["foo"]
 	require.NotNil(t, fooBlock)
 
 	content := fooBlock.GetContainer("content")
@@ -341,14 +342,14 @@ func TestMigrateAPIBlocks_FormatRaw(t *testing.T) {
 	recv.Set("packets", "")
 	recv.Set("update", "")
 	apiTree.SetContainer("receive", recv)
-	peerTree.AddListEntry("process", config.KeyDefault, apiTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
 	tree.AddListEntry("peer", "10.0.0.1", peerTree)
 
 	result, err := MigrateAPIBlocks(tree)
 	require.NoError(t, err)
 
 	peer := result.GetList("peer")["10.0.0.1"]
-	barBlock := peer.GetList("process")["bar"]
+	barBlock := peer.GetContainer("attach").GetList("process")["bar"]
 	content := barBlock.GetContainer("content")
 	require.NotNil(t, content)
 	format, ok := content.Get("format")
@@ -366,14 +367,14 @@ func TestMigrateAPIBlocks_FormatFull(t *testing.T) {
 	recv := config.NewTree()
 	recv.Set("consolidate", "")
 	apiTree.SetContainer("receive", recv)
-	peerTree.AddListEntry("process", config.KeyDefault, apiTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
 	tree.AddListEntry("peer", "10.0.0.1", peerTree)
 
 	result, err := MigrateAPIBlocks(tree)
 	require.NoError(t, err)
 
 	peer := result.GetList("peer")["10.0.0.1"]
-	bazBlock := peer.GetList("process")["baz"]
+	bazBlock := peer.GetContainer("attach").GetList("process")["baz"]
 	content := bazBlock.GetContainer("content")
 	require.NotNil(t, content)
 	format, ok := content.Get("format")
@@ -388,7 +389,7 @@ func TestMigrateAPIBlocks_DuplicateProcess(t *testing.T) {
 
 	apiTree := config.NewTree()
 	apiTree.SetSlice("processes", []string{"foo", "foo"})
-	peerTree.AddListEntry("process", config.KeyDefault, apiTree)
+	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
 	tree.AddListEntry("peer", "10.0.0.1", peerTree)
 
 	_, err := MigrateAPIBlocks(tree)

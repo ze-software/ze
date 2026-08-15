@@ -27,13 +27,13 @@ import (
 
 var errPort0IsNotValidIn = errors.New("port 0 is not valid in port spec")
 
-// baseSendTypes are the built-in send types (handled by dedicated bool fields
-// in peer config, not plugin-registered). Used by SendMessageValidator for completion.
-var baseSendTypes = []string{"update", "refresh"}
-
-// ReceiveEventValidator returns a validator that checks if a value is a valid event type
-// for the receive leaf-list. Queries the BGP event namespace at call time so it reflects
-// plugin-registered event types (e.g., "update-rpki").
+// ReceiveEventValidator returns a validator for one token of the receive
+// leaf-list. A token names an event type, and the type may carry the direction
+// it is granted in: "update" means both directions, "update-received" and
+// "update-sent" mean one. The wildcard "*" names every type. Resolution reads
+// the BGP event registry at call time, so a plugin-registered type such as
+// "update-rpki" validates, and it reads the whole token before any direction
+// suffix, so a registered name that ends in "-sent" keeps its name.
 func ReceiveEventValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
@@ -41,18 +41,25 @@ func ReceiveEventValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if !events.IsValidEvent(bgpevents.Namespace, str) {
-				return fmt.Errorf("%q is not a valid receive event type (valid: %s)",
-					str, events.ValidEventNames(bgpevents.Namespace))
+			if str == events.TokenWildcard {
+				return nil
 			}
-			return nil
+			if _, _, ok := events.SplitTypeToken(bgpevents.Namespace, str); ok {
+				return nil
+			}
+			if hint := events.DirectionWordHint(str); hint != "" {
+				return fmt.Errorf("%q is not a valid receive event type: %s", str, hint)
+			}
+			return fmt.Errorf("%q is not a valid receive event type (valid: %s, %s, or a type with -received or -sent)",
+				str, events.TokenWildcard, events.ValidEventNames(bgpevents.Namespace))
 		},
 		CompleteFn: allBGPEventNames,
 	}
 }
 
-// SendMessageValidator returns a validator that checks if a value is a valid send type.
-// Base types (update, refresh) plus any plugin-registered send types.
+// SendMessageValidator returns a validator for one token of the send
+// leaf-list. Built-in types plus any plugin-registered send type, and the
+// wildcard "*" for a program whose contract is whatever the API can express.
 func SendMessageValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
@@ -60,7 +67,10 @@ func SendMessageValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if slices.Contains(baseSendTypes, str) {
+			if str == events.TokenWildcard {
+				return nil
+			}
+			if slices.Contains(bgpevents.BaseSendTypes(), str) {
 				return nil
 			}
 			if events.IsValidSendType(str) {
@@ -69,38 +79,32 @@ func SendMessageValidator() yang.CustomValidator {
 			return fmt.Errorf("%q is not a valid send type (valid: %s)",
 				str, allSendTypeNames())
 		},
-		CompleteFn: func() []string {
-			names := append([]string{}, baseSendTypes...)
-			extra := events.ValidSendTypeNames()
-			if extra != "" {
-				for part := range strings.SplitSeq(extra, ", ") {
-					names = append(names, part)
-				}
-			}
-			sort.Strings(names)
-			return names
-		},
+		CompleteFn: allSendTypeCompletions,
 	}
 }
 
-// allBGPEventNames returns sorted BGP event type names from the event registry.
+// allBGPEventNames returns the sorted receive tokens: the wildcard, every
+// registered BGP event type, and each type in each single direction.
 func allBGPEventNames() []string {
 	raw := events.ValidEventNames(bgpevents.Namespace)
 	if raw == "" {
 		return nil
 	}
-	var names []string
+	names := []string{events.TokenWildcard}
 	for part := range strings.SplitSeq(raw, ", ") {
-		names = append(names, part)
+		names = append(names,
+			part,
+			events.DirectionToken(part, events.DirReceived),
+			events.DirectionToken(part, events.DirSent))
 	}
 	sort.Strings(names)
 	return names
 }
 
-// allSendTypeNames returns a comma-separated string of all valid send types
-// (base + plugin-registered) for error messages.
-func allSendTypeNames() string {
-	names := append([]string{}, baseSendTypes...)
+// allSendTypeCompletions returns the sorted send tokens: the wildcard, the
+// built-in types, and every plugin-registered send type.
+func allSendTypeCompletions() []string {
+	names := append([]string{events.TokenWildcard}, bgpevents.BaseSendTypes()...)
 	extra := events.ValidSendTypeNames()
 	if extra != "" {
 		for part := range strings.SplitSeq(extra, ", ") {
@@ -108,7 +112,13 @@ func allSendTypeNames() string {
 		}
 	}
 	sort.Strings(names)
-	return textbuf.Join(names, ", ")
+	return names
+}
+
+// allSendTypeNames returns a comma-separated string of all valid send tokens
+// for error messages.
+func allSendTypeNames() string {
+	return textbuf.Join(allSendTypeCompletions(), ", ")
 }
 
 // AddressFamilyValidator returns a validator that checks if a value is a registered address family.

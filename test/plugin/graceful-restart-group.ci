@@ -50,7 +50,8 @@ bgp {
 			group-updates disable
 		}
 
-		process gr {
+		attach process gr {
+			receive [ open-received state eor ]
 			send [ update ]
 		}
 

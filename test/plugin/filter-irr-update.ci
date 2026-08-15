@@ -122,10 +122,6 @@ bgp {
 		filter {
 			import [ bgp-filter-irr:65001 ]
 		}
-
-		process test-filter-irr-update {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

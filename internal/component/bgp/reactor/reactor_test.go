@@ -22,6 +22,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
@@ -840,12 +842,16 @@ func TestGetPeerProcessBindingsNotFound(t *testing.T) {
 	require.Nil(t, bindings, "unknown peer should return nil")
 }
 
-// TestGetPeerProcessBindingsReceiveNegotiated verifies ReceiveNegotiated passes through.
+// TestGetPeerProcessBindingsGrants verifies the grants pass through, per
+// binding and per direction.
 //
-// VALIDATES: ReceiveNegotiated flag is copied from reactor.ProcessBinding to plugin.PeerProcessBinding.
+// VALIDATES: the receive grants and their directions are copied from
+// reactor.ProcessBinding to plugin.PeerProcessBinding, and one binding's
+// grants do not leak into another's.
 //
-// PREVENTS: Config setting receive [ negotiated ]; having no effect.
-func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
+// PREVENTS: Config setting `receive [ negotiated ]` having no effect, and a
+// direction being dropped on the way to the plugin side.
+func TestGetPeerProcessBindingsGrants(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
 		Plugins:    []PluginConfig{{Name: "test-proc", Run: "./test"}},
@@ -858,8 +864,11 @@ func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
 		65000, 65001, 0x01010101,
 	)
 	settings.ProcessBindings = []ProcessBinding{
-		{PluginName: "test-proc", ReceiveNegotiated: true},
-		{PluginName: "test-proc", ReceiveNegotiated: false},
+		{PluginName: "test-proc", Receive: map[string]events.Direction{
+			bgpevents.EventNegotiated: events.DirBoth,
+			bgpevents.EventUpdate:     events.DirSent,
+		}},
+		{PluginName: "test-proc"},
 	}
 
 	err := reactor.AddPeer(settings)
@@ -869,8 +878,11 @@ func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
 	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
 
 	require.Len(t, bindings, 2)
-	require.True(t, bindings[0].ReceiveNegotiated, "first binding should have ReceiveNegotiated=true")
-	require.False(t, bindings[1].ReceiveNegotiated, "second binding should have ReceiveNegotiated=false")
+	require.Equal(t, events.DirBoth, bindings[0].Receive[bgpevents.EventNegotiated],
+		"negotiated must reach the plugin side")
+	require.Equal(t, events.DirSent, bindings[0].Receive[bgpevents.EventUpdate],
+		"the direction must reach the plugin side")
+	require.Empty(t, bindings[1].Receive, "a binding that grants nothing must stay empty")
 }
 
 // =============================================================================

@@ -762,9 +762,14 @@ func parseFamilyMode(s string) familyMode {
 	return familyModeEnable
 }
 
-// parseProcessBindingsFromTree parses process bindings from the peer tree.
+// parseProcessBindingsFromTree parses the peer's process attachments, written
+// `attach process <name> { ... }` and held under the peer's attach container.
 func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
-	procMap, ok := mapMap(tree, "process")
+	attachMap, ok := mapMap(tree, "attach")
+	if !ok {
+		return nil
+	}
+	procMap, ok := mapMap(attachMap, "process")
 	if !ok {
 		return nil
 	}
@@ -806,10 +811,9 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 	return nil
 }
 
-// parseReceiveFlags sets receive flags on a ProcessBinding from a space-separated list.
-// Base event types are mapped to bool fields. Plugin-registered event types (validated
-// against events.IsValidEvent) are stored in ReceiveCustom.
-// Unknown event types cause a config parse error (fail-on-unknown per config.md).
+// parseReceiveFlags grants event types on a ProcessBinding from a
+// space-separated list. Unknown event types cause a config parse error
+// (fail-on-unknown per config.md).
 func parseReceiveFlags(s string, b *ProcessBinding) error {
 	for token := range strings.FieldsSeq(s) {
 		if err := parseOneReceiveFlag(token, b); err != nil {
@@ -819,42 +823,41 @@ func parseReceiveFlags(s string, b *ProcessBinding) error {
 	return nil
 }
 
-// parseOneReceiveFlag handles a single receive token.
-// "all" is not accepted: list event types explicitly to avoid silently receiving
-// new event types when plugins register them (e.g., "rpki", "update-rpki").
+// parseOneReceiveFlag handles a single receive token. A token names an event
+// type, and the type carries the direction it is granted in: "update" means
+// both directions, "update-received" and "update-sent" mean one each. The
+// token is resolved against the event registry whole before any suffix is cut,
+// so a registered name ending in "-sent" keeps its name (R-11).
+//
+// "*" grants every type. "all" is not accepted: a word that reads like a type
+// would grant a type a plugin registers later, which is the silent-inclusion
+// case "*" makes deliberate.
 func parseOneReceiveFlag(token string, b *ProcessBinding) error {
-	switch token {
-	case "update":
-		b.ReceiveUpdate = true
-	case "open":
-		b.ReceiveOpen = true
-	case "notification":
-		b.ReceiveNotification = true
-	case "keepalive":
-		b.ReceiveKeepalive = true
-	case "refresh":
-		b.ReceiveRefresh = true
-	case "state":
-		b.ReceiveState = true
-	case "sent":
-		b.ReceiveSent = true
-	case "negotiated":
-		b.ReceiveNegotiated = true
-	default: // Plugin-registered event types (e.g., "rpki", "update-rpki"). Fail on truly unknown.
-		if !events.IsValidEvent(bgpevents.Namespace, token) {
-			return fmt.Errorf("invalid value for receive: %q (valid: %s)",
-				token, events.ValidEventNames(bgpevents.Namespace))
-		}
-		if b.ReceiveCustom == nil {
-			b.ReceiveCustom = make(map[string]bool)
-		}
-		b.ReceiveCustom[token] = true
+	if token == events.TokenWildcard {
+		b.ReceiveAll = true
+		return nil
 	}
+	eventType, dir, ok := events.SplitTypeToken(bgpevents.Namespace, token)
+	if !ok {
+		if hint := events.DirectionWordHint(token); hint != "" {
+			return fmt.Errorf("invalid value for receive: %s", hint)
+		}
+		return fmt.Errorf("invalid value for receive: %q (valid: %s, %s, or a type with -received or -sent)",
+			token, events.TokenWildcard, events.ValidEventNames(bgpevents.Namespace))
+	}
+	if b.Receive == nil {
+		b.Receive = make(map[string]events.Direction)
+	}
+	// Naming one type in both single directions grants both.
+	if prev, seen := b.Receive[eventType]; seen && prev != dir {
+		dir = events.DirBoth
+	}
+	b.Receive[eventType] = dir
 	return nil
 }
 
-// parseSendFlags sets send flags on a ProcessBinding from a space-separated enum list.
-// "all" is not accepted: list send types explicitly.
+// parseSendFlags grants send permissions on a ProcessBinding from a
+// space-separated list.
 func parseSendFlags(s string, b *ProcessBinding) error {
 	for token := range strings.FieldsSeq(s) {
 		if err := parseOneSendFlag(token, b); err != nil {
@@ -864,32 +867,28 @@ func parseSendFlags(s string, b *ProcessBinding) error {
 	return nil
 }
 
-// parseOneSendFlag handles a single send token.
-// Base types (update, refresh) have dedicated bool fields.
-// Plugin-registered types (e.g., enhanced-refresh) are validated against
-// the dynamic ValidSendTypes registry and stored in the SendCustom map.
+// parseOneSendFlag handles a single send token. Built-in types, plus any type
+// a plugin registered (e.g. enhanced-refresh), plus "*" for a program whose
+// contract is whatever the API can express. "all" is not accepted, for the
+// same reason it is not accepted in a receive list.
 func parseOneSendFlag(token string, b *ProcessBinding) error {
-	switch token {
-	case "update":
-		b.SendUpdate = true
-		return nil
-	case "refresh":
-		b.SendRefresh = true
+	if token == events.TokenWildcard {
+		b.SendAll = true
 		return nil
 	}
-	// Plugin-registered send types: validate against dynamic registry.
-	if events.IsValidSendType(token) {
-		if b.SendCustom == nil {
-			b.SendCustom = make(map[string]bool)
+	if !slices.Contains(bgpevents.BaseSendTypes(), token) && !events.IsValidSendType(token) {
+		var tb textbuf.Buffer
+		tb.Str(events.TokenWildcard).Str(", ").Join(bgpevents.BaseSendTypes(), ", ")
+		if extra := events.ValidSendTypeNames(); extra != "" {
+			tb.Str(", ").Str(extra)
 		}
-		b.SendCustom[token] = true
-		return nil
+		return fmt.Errorf("invalid value for send: %q (valid: %s)", token, tb.String())
 	}
-	valid := "update, refresh"
-	if extra := events.ValidSendTypeNames(); extra != "" {
-		valid += ", " + extra
+	if b.Send == nil {
+		b.Send = make(map[string]bool)
 	}
-	return fmt.Errorf("invalid value for send: %q (valid: %s)", token, valid)
+	b.Send[token] = true
+	return nil
 }
 
 // --- Map navigation helpers ---

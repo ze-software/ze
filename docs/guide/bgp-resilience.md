@@ -19,20 +19,32 @@ Graceful Restart requires the `bgp-gr` and `bgp-rib` plugins. The restarting spe
 
 ```text
 plugin {
-    internal rib { use bgp-rib }
-    internal gr { use bgp-gr }
+    internal rib {
+        use bgp-rib
+    }
+    internal gr {
+        use bgp-gr
+    }
 }
 
 bgp {
     peer upstream1 {
-        capability {
-            graceful-restart {
-                restart-time 120
-                long-lived-stale-time 3600
+        session {
+            capability {
+                graceful-restart {
+                    restart-time 120
+                    long-lived-stale-time 3600
+                }
             }
         }
-        process gr { receive [ state eor ] }
-        process rib { receive [ state ]; send [ update ] }
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+        attach process rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
     }
 }
 ```

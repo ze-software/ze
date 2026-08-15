@@ -174,9 +174,6 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process bmp-disconnect {
-            receive [ state ];
-        }
     }
 }
 EOF_CONF

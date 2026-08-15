@@ -58,7 +58,8 @@ bgp {
 			group-updates disable
 		}
 
-		process persist {
+		attach process persist {
+			receive [ update-sent state open-received ]
 			send [ update ]
 		}
 
@@ -112,7 +113,8 @@ bgp {
 			group-updates disable
 		}
 
-		process persist {
+		attach process persist {
+			receive [ update-sent state open-received ]
 			send [ update ]
 		}
 

@@ -126,7 +126,9 @@ bgp {
 				withdraw true
 			}
 		}
-		process service-watchdog {
+		attach process bgp-watchdog {
+			receive [ state ]
+			send [ update ]
 		}
 	}
 }

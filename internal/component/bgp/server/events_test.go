@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +81,45 @@ func newTestServer(t *testing.T) *pluginserver.Server {
 	return srv
 }
 
+// TestMain registers the bgp event namespace, which the delivery graph resolves
+// every granted token against (pluginserver.newDeliveryGraph). The daemon
+// registers it from internal/component/bgp/plugin's init, and this package does
+// not import that one, so without this a config grant would resolve to no type
+// and every attachment below would be an empty edge.
+func TestMain(m *testing.M) {
+	_ = events.RegisterNamespace(bgpevents.Namespace,
+		bgpevents.EventUpdate, bgpevents.EventOpen, bgpevents.EventNotification,
+		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
+		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
+		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
+		bgpevents.EventUpdateNotification,
+	)
+	os.Exit(m.Run())
+}
+
+// attachForDelivery publishes the CONFIG half of the edges a delivery test
+// needs: the peer's `attach process <name>` blocks, granting every registered
+// event type in both directions (`receive [ * ]`).
+//
+// Delivery is the overlap of what a process subscribed to and what the peer's
+// config grants it (pluginserver.Server.PeerScopedProcs), so a test that
+// registers a subscription and expects delivery must state the attachment an
+// operator would have written. Without it the peer feeds nobody, which is the
+// point of the filter rather than a defect in it.
+func attachForDelivery(t *testing.T, srv *pluginserver.Server, peer *plugin.PeerInfo, names ...string) {
+	t.Helper()
+
+	bindings := make([]plugin.PeerProcessBinding, 0, len(names))
+	for _, name := range names {
+		bindings = append(bindings, plugin.PeerProcessBinding{PluginName: name, ReceiveAll: true})
+	}
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+		Addr:     peer.AddrStr(),
+		Name:     peer.Name,
+		Bindings: bindings,
+	}})
+}
+
 // keepaliveMsg returns a simple KEEPALIVE RawMessage for testing.
 func keepaliveMsg() bgptypes.RawMessage {
 	return bgptypes.RawMessage{
@@ -117,6 +157,8 @@ func TestParallelPluginFanOut(t *testing.T) {
 
 	peer := testPeerInfo()
 	msg := keepaliveMsg()
+
+	attachForDelivery(t, srv, peer, "slow-0", "slow-1", "slow-2")
 
 	start := time.Now()
 	count := onMessageReceived(srv, encoder, peer, msg)
@@ -175,6 +217,7 @@ func TestPartialDeliveryFailure(t *testing.T) {
 
 	peer := testPeerInfo()
 	msg := keepaliveMsg()
+	attachForDelivery(t, srv, peer, "good-1", "broken", "good-2")
 
 	count := onMessageReceived(srv, encoder, peer, msg)
 
@@ -239,6 +282,7 @@ func TestPreFormatOptimization(t *testing.T) {
 
 	peer := testPeerInfo()
 	msg := keepaliveMsg()
+	attachForDelivery(t, srv, peer, "fmt-plugin-0", "fmt-plugin-1", "fmt-plugin-2")
 
 	count := onMessageReceived(srv, encoder, peer, msg)
 	require.Equal(t, 3, count, "all plugins should succeed")
@@ -290,6 +334,7 @@ func TestOnMessageBatchReceivedSingle(t *testing.T) {
 
 	peer := testPeerInfo()
 	msgs := []bgptypes.RawMessage{keepaliveMsg()}
+	attachForDelivery(t, srv, peer, "single-batch")
 
 	// Single-message batch should return same result as per-message call
 	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
@@ -323,6 +368,7 @@ func TestOnMessageBatchReceivedMultiple(t *testing.T) {
 	for i := range msgs {
 		msgs[i] = keepaliveMsg()
 	}
+	attachForDelivery(t, srv, peer, "batch-multi")
 
 	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
 	require.Len(t, counts, 5, "batch returns one count per message")
@@ -386,6 +432,7 @@ func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
 
 	peer := testPeerInfo()
 	msgs := []bgptypes.RawMessage{keepaliveMsg(), keepaliveMsg(), keepaliveMsg()}
+	attachForDelivery(t, srv, peer, "cache-0", "cache-1", "non-cache")
 
 	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
 	require.Len(t, counts, 3, "batch returns one count per message")

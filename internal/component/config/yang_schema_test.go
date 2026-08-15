@@ -385,7 +385,7 @@ func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Navigate to bgp -> peer -> process -> receive (a leaf-list)
+	// Navigate to bgp -> peer -> attach -> process -> receive (a leaf-list)
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
 	bgp, ok := bgpNode.(*ContainerNode)
@@ -394,7 +394,11 @@ func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
 	require.NotNil(t, peerNode)
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
-	processNode := peer.Get("process")
+	attachNode := peer.Get("attach")
+	require.NotNil(t, attachNode)
+	attach, ok := attachNode.(*ContainerNode)
+	require.True(t, ok)
+	processNode := attach.Get("process")
 	require.NotNil(t, processNode)
 	process, ok := processNode.(*ListNode)
 	require.True(t, ok)
@@ -703,7 +707,7 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
                 remote 65001
             }
         }
-        process rib {
+        attach process rib {
             receive [ update state ]
         }
     }
@@ -729,7 +733,7 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
                 remote 65001
             }
         }
-        process rib {
+        attach process rib {
             receive update
         }
     }
@@ -755,7 +759,7 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
                 remote 65001
             }
         }
-        process rib {
+        attach process rib {
             receive update state
         }
     }
@@ -776,7 +780,9 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 			require.Len(t, peers, 1)
 			peer := peers["upstream"]
 			require.NotNil(t, peer)
-			processes := peer.GetList("process")
+			attach := peer.GetContainer("attach")
+			require.NotNil(t, attach)
+			processes := attach.GetList("process")
 			require.Len(t, processes, 1)
 			proc := processes["rib"]
 			require.NotNil(t, proc)
@@ -1164,7 +1170,7 @@ func TestProcessReceiveAcceptsStrings(t *testing.T) {
                 remote 65001
             }
         }
-        process rib {
+        attach process rib {
             
             ` + tt.field + `
         }

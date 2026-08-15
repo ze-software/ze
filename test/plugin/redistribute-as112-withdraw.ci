@@ -13,11 +13,11 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000014005040000006418C0AF30
-expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000014005040000006418C01FC4
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000024005040000006418C0AF30
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000024005040000006418C01FC4
 expect=bgp:conn=1:seq=2:contains=000418C0AF300000
 expect=bgp:conn=1:seq=2:contains=000418C01FC40000
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.2"}]}
 expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"ipv4/unicast":[{"action":"del","nlri":["192.175.48.0/24"]}]}
 expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"ipv4/unicast":[{"action":"del","nlri":["192.31.196.0/24"]}]}
 EOF_PEER
@@ -118,8 +118,13 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what `nhop self` puts on the
+			# wire. It is deliberately NOT peer1's 127.0.0.1: RFC 4271 Section
+			# 5.1.3 forbids a peer its own address as NEXT_HOP, and
+			# originatedNextHopIsPeerOwn (reactor/forward_next_hop.go) withholds
+			# the route when the two match.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -138,6 +143,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 }

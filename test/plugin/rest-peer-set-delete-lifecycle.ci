@@ -6,9 +6,10 @@
 
 option=timeout:value=60s
 
-# ze-peer in sink mode: accept any connection, respond with keepalive
+# ze-peer in sink mode: accept any connection, respond with keepalive. The mode
+# is declared by --mode sink on the cmd= exec line below, which is the only
+# place ze-peer reads it from; there is no option=mode directive.
 stdin=peer:terminator=EOF_PEER
-option=mode:value=sink
 option=bind:value=0.0.0.0
 EOF_PEER
 
@@ -253,9 +254,6 @@ bgp {
         }
         behavior {
             group-updates false
-        }
-
-        process lifecycle-driver {
         }
     }
 }

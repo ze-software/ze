@@ -1,4 +1,4 @@
-# Test: process receive with leaf-list bracket syntax
+# Test: attach process receive with leaf-list bracket syntax
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
@@ -22,7 +22,7 @@ bgp {
 				remote 65533
 			}
 		}
-		process my-process {
+		attach process my-process {
 			receive [ update state negotiated ]
 		}
 	}

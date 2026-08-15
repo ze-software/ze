@@ -160,9 +160,6 @@ bgp {
 				graceful-restart disable
 			}
 		}
-
-		process rr-ipv6-test {
-		}
 	}
 }
 EOF_CONF

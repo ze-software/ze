@@ -89,9 +89,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process show-system-update-backend {
-		}
 	}
 }
 EOF_CONF

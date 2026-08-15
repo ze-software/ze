@@ -36,14 +36,7 @@ func bgpEventTypes() []string {
 	if names == "" {
 		return nil
 	}
-	types := strings.Split(names, ", ")
-	result := types[:0]
-	for _, t := range types {
-		if t != events.DirectionSent {
-			result = append(result, t)
-		}
-	}
-	return result
+	return strings.Split(names, ", ")
 }
 
 func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {

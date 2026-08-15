@@ -318,6 +318,17 @@ Useful for reconstructing what happened before an incident.";
 Tells you which subsystems are generating events and how active
 they are.";
             }
+
+            container delivery {
+                config false;
+                ze:command "ze-show:event-delivery";
+                description "Show which peers feed which attached processes.
+One block per peer, one row per `attach process` block on it: the
+event types that process is fed, and the message types it may send
+toward that peer. A token the event registry does not know is listed
+as unresolved and carries no edge. Answer to 'why does my program
+see nothing from this peer'.";
+            }
         }
 
         // NOTE: the entire `show bgp ...` subtree is owned by the BGP command

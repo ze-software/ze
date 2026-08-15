@@ -1171,7 +1171,12 @@ type mockReactorBatch struct {
 	noPeersAcceptedFor family.Family
 }
 
-func (m *mockReactorBatch) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+// Same reason as the assertion in mock_reactor_test.go: requireBGPReactor
+// asserts at runtime, so drift out of the interface would silently reroute every
+// test below to the "BGP reactor not available" branch.
+var _ bgptypes.BGPReactor = (*mockReactorBatch)(nil)
+
+func (m *mockReactorBatch) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	if m.noPeersMatching {
 		return route.ErrNoPeersMatch
 	}
@@ -1183,7 +1188,7 @@ func (m *mockReactorBatch) AnnounceNLRIBatch(sel *selector.Selector, batch bgpty
 	return m.announceError
 }
 
-func (m *mockReactorBatch) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+func (m *mockReactorBatch) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	if m.noPeersMatching {
 		return route.ErrNoPeersMatch
 	}
@@ -1196,24 +1201,26 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(sel *selector.Selector, batch bgpty
 }
 
 // Stub implementations for other ReactorLifecycle methods.
-func (m *mockReactorBatch) Peers() []plugin.PeerInfo                                  { return nil }
-func (m *mockReactorBatch) Stats() plugin.ReactorStats                                { return plugin.ReactorStats{} }
-func (m *mockReactorBatch) Stop()                                                     {}
-func (m *mockReactorBatch) Reload() error                                             { return nil }
-func (m *mockReactorBatch) DrainPeerSync(_ context.Context) error                     { return nil }
-func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                       { return nil }
-func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                    { return nil }
-func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                             { return nil }
-func (m *mockReactorBatch) AddDynamicPeer(_ netip.Addr, _ map[string]any) error       { return nil }
-func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8, _ string) error        { return nil }
-func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                              { return nil }
-func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                             { return nil }
-func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error                  { return nil }
-func (m *mockReactorBatch) FlushForwardPoolPeer(_ context.Context, _ string) error    { return nil }
-func (m *mockReactorBatch) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8) error { return nil }
-func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                      { return nil }
-func (m *mockReactorBatch) RIBStats() bgptypes.RIBStatsInfo                           { return bgptypes.RIBStatsInfo{} }
-func (m *mockReactorBatch) SendRoutes(_ *selector.Selector, _ []*rib.Route, _ []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+func (m *mockReactorBatch) Peers() []plugin.PeerInfo                               { return nil }
+func (m *mockReactorBatch) Stats() plugin.ReactorStats                             { return plugin.ReactorStats{} }
+func (m *mockReactorBatch) Stop()                                                  {}
+func (m *mockReactorBatch) Reload() error                                          { return nil }
+func (m *mockReactorBatch) DrainPeerSync(_ context.Context) error                  { return nil }
+func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                    { return nil }
+func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                 { return nil }
+func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                          { return nil }
+func (m *mockReactorBatch) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { return nil }
+func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8, _ string) error     { return nil }
+func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                           { return nil }
+func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                          { return nil }
+func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error               { return nil }
+func (m *mockReactorBatch) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
+func (m *mockReactorBatch) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
+func (m *mockReactorBatch) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
+func (m *mockReactorBatch) SendRoutes(_ *selector.Selector, _ []*rib.Route, _ []nlri.NLRI, _ bool, _ plugin.Sender) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{}, nil
 }
 func (m *mockReactorBatch) ClearRIBIn() int { return 0 }
@@ -1224,39 +1231,49 @@ func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCon
 func (m *mockReactorBatch) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }
-func (m *mockReactorBatch) GetConfigTree() map[string]any                                { return nil }
-func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                               {}
-func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string) error { return nil }
-func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                                  { return nil }
-func (m *mockReactorBatch) RetainUpdate(_ uint64) error                                  { return nil }
-func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error                       { return nil }
-func (m *mockReactorBatch) ListUpdates() []uint64                                        { return nil }
-func (m *mockReactorBatch) SignalAPIReady()                                              {}
-func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                     {}
-func (m *mockReactorBatch) SignalPluginStartupComplete()                                 {}
-func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                                  {}
-func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)                             {}
-func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)                                 {}
-func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool)                       {}
-func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)                             {}
-func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
+func (m *mockReactorBatch) GetConfigTree() map[string]any  { return nil }
+func (m *mockReactorBatch) SetConfigTree(_ map[string]any) {}
+func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string, _ plugin.Sender) error {
+	return nil
+}
+func (m *mockReactorBatch) DeleteUpdate(_ uint64) error            { return nil }
+func (m *mockReactorBatch) RetainUpdate(_ uint64) error            { return nil }
+func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error { return nil }
+func (m *mockReactorBatch) ListUpdates() []uint64                  { return nil }
+func (m *mockReactorBatch) SignalAPIReady()                        {}
+func (m *mockReactorBatch) AddAPIProcessCount(_ int)               {}
+func (m *mockReactorBatch) SignalPluginStartupComplete()           {}
+func (m *mockReactorBatch) SignalPeerAPIReady(_ string)            {}
+func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)       {}
+func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)           {}
+func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool) {}
+func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)       {}
+func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }
 
 // RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
 // nothing because these tests exercise command dispatch, not the forward rail.
-func (m *mockReactorBatch) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute) error {
+func (m *mockReactorBatch) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute, _ plugin.Sender) error {
 	return nil
 }
 func (m *mockReactorBatch) ReleaseUpdates(_ []uint64, _ string) error { return nil }
-func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
+func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte, _ plugin.Sender) error {
 	return nil
 }
 
-func (m *mockReactorBatch) SendRefresh(_ *selector.Selector, _ uint16, _ uint8) error { return nil }
-func (m *mockReactorBatch) SendBoRR(_ *selector.Selector, _ uint16, _ uint8) error    { return nil }
-func (m *mockReactorBatch) SendEoRR(_ *selector.Selector, _ uint16, _ uint8) error    { return nil }
-func (m *mockReactorBatch) SoftClearPeer(_ *selector.Selector) ([]string, error)      { return nil, nil }
+func (m *mockReactorBatch) SendRefresh(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+func (m *mockReactorBatch) SendBoRR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+func (m *mockReactorBatch) SendEoRR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+func (m *mockReactorBatch) SoftClearPeer(_ *selector.Selector, _ plugin.Sender) ([]string, error) {
+	return nil, nil
+}
 
 // mustNewServer creates a server, panicking on error (test helper).
 func mustNewServer(config *pluginserver.ServerConfig, reactor plugin.ReactorLifecycle) *pluginserver.Server {

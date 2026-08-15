@@ -248,11 +248,20 @@ func (a *reactorAPIAdapter) PeerNegotiatedCapabilities(addr netip.Addr) *plugin.
 
 // SoftClearPeer sends ROUTE-REFRESH for all negotiated families of matching peers.
 // RFC 2918 Section 3: soft reset via route refresh.
-func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector) ([]string, error) {
+//
+// sender is who asks for the clear: an attached process, or the operator. It
+// is gated on `send [ refresh ]` and not on `send [ update ]`: a
+// soft clear puts ROUTE-REFRESH messages on the wire and originates no route of
+// its own. A process that may ask a peer to re-advertise is not thereby allowed
+// to announce to it, and the two permissions are separately writable.
+func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector, sender plugin.Sender) ([]string, error) {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	peers := a.getMatchingPeersSel(sel)
+	peers, err := a.getMatchingPeersSel(sel, refreshOrigin(sender))
+	if err != nil {
+		return nil, err
+	}
 	if len(peers) == 0 {
 		return nil, ErrPeerNotFound
 	}
@@ -690,6 +699,26 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 		}
 	}
 
+	// One publish for the whole apply (delivery_graph.go). AddPeer republishes
+	// per peer it adds, and that is not enough on its own: the remove loop above
+	// deletes from r.peers INLINE rather than through doRemovePeer, so a reload
+	// that only removes peers would leave their edges in the index.
+	r.mu.Lock()
+	if r.deliveryPublished {
+		r.publishDeliveryGraphLocked()
+	}
+	r.mu.Unlock()
+
+	// This is the APPLY, and it is the only thing that discards an operator's
+	// live `subscribe` overrides: a reload's job is to make the daemon match the
+	// document (R-10). It is unconditional, unlike the publish above, because an
+	// operator can subscribe before any peer exists. It used to hang off the
+	// publish instead, which meant a dynamic peer connecting deleted the
+	// subscription too.
+	if r.api != nil {
+		r.api.DiscardRuntimeSubscriptions()
+	}
+
 	return nil
 }
 
@@ -1044,21 +1073,13 @@ func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin
 		}
 
 		result = append(result, plugin.PeerProcessBinding{
-			PluginName:          b.PluginName,
-			Encoding:            encoding,
-			Format:              format,
-			ReceiveUpdate:       b.ReceiveUpdate,
-			ReceiveOpen:         b.ReceiveOpen,
-			ReceiveNotification: b.ReceiveNotification,
-			ReceiveKeepalive:    b.ReceiveKeepalive,
-			ReceiveRefresh:      b.ReceiveRefresh,
-			ReceiveState:        b.ReceiveState,
-			ReceiveSent:         b.ReceiveSent,
-			ReceiveNegotiated:   b.ReceiveNegotiated,
-			ReceiveCustom:       maps.Clone(b.ReceiveCustom),
-			SendUpdate:          b.SendUpdate,
-			SendRefresh:         b.SendRefresh,
-			SendCustom:          maps.Clone(b.SendCustom),
+			PluginName: b.PluginName,
+			Encoding:   encoding,
+			Format:     format,
+			ReceiveAll: b.ReceiveAll,
+			Receive:    maps.Clone(b.Receive),
+			SendAll:    b.SendAll,
+			Send:       maps.Clone(b.Send),
 		})
 	}
 	return result
@@ -1074,24 +1095,69 @@ func (a *reactorAPIAdapter) getPluginEncoder(name string) string {
 	return ""
 }
 
-// getMatchingPeersSel resolves peers matching a typed selector.
+// getMatchingPeersSel resolves the peers a send command may reach: the peers
+// the selector names, minus the peers whose config does not permit this process
+// to generate this message type toward them.
+//
+// The permission is applied HERE rather than at the six commands that resolve a
+// selector, because the selector is what makes the hole: `peer *` from a
+// process reached every peer, including peers that never attached it, so a
+// process could inject routes into a session the operator never linked it to.
+// One resolver closes it once for every command that uses one.
+//
+// It is not the only rail, and treating it as one was the defect the Review Gate
+// found: ForwardUpdate, ForwardUpdatesDirect, RelayStoredRoute and SendRawMessage
+// reach a peer's wire without resolving a selector. Each of those applies the
+// same guard through filterPermittedPeers (send_permission.go).
+//
+// The error says the whole selector was refused, so a caller can tell "you may
+// not send to these peers" from "no peer matched" and from "no peer is
+// established". A partial refusal is NOT an error: peer A that grants the
+// permission is served, peer B that does not is dropped and reported, which is
+// what an operator asking for `peer *` means (AC-9).
+//
+// A command that names no sender is refused whole, before the selector runs.
+// That is a defect in the dispatch path rather than a permission decision, and
+// errSendNoSender says so.
+//
 // Caller must hold a.r.mu (read or write).
-func (a *reactorAPIAdapter) getMatchingPeersSel(sel *selector.Selector) []*Peer {
+func (a *reactorAPIAdapter) getMatchingPeersSel(sel *selector.Selector, origin sendOrigin) ([]*Peer, error) {
+	// Refused before the selector runs, and before the operator exemption below.
+	// A command nobody claimed has no attach block to consult, and the operator's
+	// exemption is the operator's: granting it here would give a dispatch path
+	// that forgot to name its sender the authority this guard exists to withhold
+	// (ai/rules/evidence.md, send_permission.go).
+	if !origin.sender.IsSet() {
+		sendNoSenderDenied(selectorTarget(sel), origin)
+		return nil, fmt.Errorf("%w: selector %s, send type %s", errSendNoSender, sel, origin.sendType)
+	}
+
+	var matched []*Peer
 	if sel.IsExclude() {
 		included := a.matchPositive(sel)
 		excludeSet := make(map[*Peer]struct{}, len(included))
 		for _, p := range included {
 			excludeSet[p] = struct{}{}
 		}
-		peers := make([]*Peer, 0, len(a.r.peers)-len(included))
+		matched = make([]*Peer, 0, len(a.r.peers)-len(included))
 		for _, peer := range a.r.peers {
 			if _, skip := excludeSet[peer]; !skip {
-				peers = append(peers, peer)
+				matched = append(matched, peer)
 			}
 		}
-		return peers
+	} else {
+		matched = a.matchPositive(sel)
 	}
-	return a.matchPositive(sel)
+
+	// An operator said this, so there is no attach block to consult and nothing
+	// to filter; filterPermittedPeers returns the set unchanged for one. See
+	// sendOrigin.sender.
+	permitted, refused := filterPermittedPeers(matched, origin)
+	if len(permitted) == 0 && refused > 0 {
+		return nil, fmt.Errorf("%w: selector %s, process %s, send type %s",
+			errSendNotPermitted, sel, origin.sender, origin.sendType)
+	}
+	return permitted, nil
 }
 
 // matchPositive resolves the positive (non-excluded) peers for a selector.
@@ -1212,13 +1278,37 @@ func (a *reactorAPIAdapter) SignalPeerUpBarrier(peerAddr string) {
 // SendRawMessage sends raw bytes to a peer.
 // If msgType is 0, payload is a full BGP packet (user provides marker+header).
 // If msgType is non-zero, payload is message body (we add the header).
-func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error {
+//
+// A process must be ATTACHED to the peer, and that is the whole permission: raw
+// carries a message of the caller's choosing, so no `send` type describes it and
+// the guard asks the weaker question the vocabulary already supports
+// (send_permission.go, rawOrigin). It is strictly more than the nothing this
+// rail checked before, which let any connected process put arbitrary bytes,
+// a forged NOTIFICATION included, on any peer's socket. An operator is exempt,
+// as on every other rail, and an unnamed sender is refused.
+func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte, sender plugin.Sender) error {
+	origin := rawOrigin(sender)
+	if !origin.sender.IsSet() {
+		sendNoSenderDenied(peerTarget(peerAddr), origin)
+		return fmt.Errorf("%w: peer %s, send type %s", errSendNoSender, peerAddr, origin.sendType)
+	}
+
 	a.r.mu.RLock()
 	peer, exists := a.r.findPeerByAddr(peerAddr)
+	permitted := false
+	if exists {
+		var kept []*Peer
+		kept, _ = filterPermittedPeers([]*Peer{peer}, origin)
+		permitted = len(kept) == 1
+	}
 	a.r.mu.RUnlock()
 
 	if !exists {
 		return ErrPeerNotFound
+	}
+	if !permitted {
+		return fmt.Errorf("%w: peer %s, process %s, send type %s",
+			errSendNotPermitted, peerAddr, origin.sender, origin.sendType)
 	}
 
 	return peer.SendRawMessage(msgType, payload)

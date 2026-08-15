@@ -56,9 +56,9 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process bgp-rib {
-		}
-		process rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }

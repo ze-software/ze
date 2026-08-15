@@ -1,0 +1,175 @@
+# Test: a running program that no peer attaches is fed nothing, while the peer
+#       that does attach one is served.
+# Exercises: peer config -> DeliveryGraph -> Server.PeerScopedProcs -> the
+#            peer-scoped delivery sites in internal/component/bgp/server/events.go.
+# VALIDATES: AC-2, both halves in one run. The two programs declare the SAME
+#            subscription, so what separates them is the config alone.
+# PREVENTS: the fail-open reading of an empty edge set. A peer that names no
+#           process must feed nobody, and an index that cannot find an edge must
+#           never answer "everything" (ai/rules/evidence.md).
+
+# ze-peer: one session, then one UPDATE, so both an update and a state event
+# exist for the unattached program to be wrongly handed.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+EOF_PEER
+
+# The program the peer attaches. It drives the run.
+tmpfs=unattached-served.run:mode=755:terminator=EOF_SERVED
+#!/usr/bin/env python3
+import json
+import sys
+
+from ze_api import API, runtime_fail
+
+
+def event_type(raw):
+    try:
+        decoded = json.loads(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return ""
+    return decoded.get("bgp", decoded).get("message", {}).get("type", "")
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return (resp or {}).get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.subscribe(["update", "state"])
+    api.ready()
+
+    seen = set()
+    while "state" not in seen or "update" not in seen:
+        event = api.wait_for_event(timeout=20.0)
+        if event is None:
+            runtime_fail(f"UNATTACHED-SERVED: the peer attaches this program and fed it {sorted(seen)}")
+            return
+        kind = event_type(event)
+        if kind:
+            seen.add(kind)
+
+    print("UNATTACHED-SERVED: fed by the peer that attaches it", file=sys.stderr, flush=True)
+    # The SILENT program ends the run, because its assertion is the one with a
+    # window: it must outlive every event ze could wrongly hand it.
+    api.wait_for_shutdown(timeout=30.0)
+
+
+if __name__ == '__main__':
+    main()
+EOF_SERVED
+
+# The program NO peer attaches. It declares the same subscription and must be
+# fed nothing at all.
+tmpfs=unattached-silent.run:mode=755:terminator=EOF_SILENT
+#!/usr/bin/env python3
+import sys
+
+from ze_api import API, runtime_fail
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.subscribe(["update", "state"])
+    api.ready()
+
+    # The window is bounded on purpose and the line is printed INSIDE the run
+    # rather than at shutdown: the other program ends the run the moment it has
+    # been fed, so a statement held back until the "bye" is cut off with it.
+    # None means no event arrived, which is this program's whole assertion.
+    first = api.wait_for_event(timeout=5.0)
+    if first is not None:
+        runtime_fail(f"UNATTACHED-SILENT: fed an event no peer attached it for: {first[:200]}")
+        return
+    print("UNATTACHED-SILENT: fed nothing, as no peer attaches it", file=sys.stderr, flush=True)
+
+    # This program ends the run, because its assertion is the one with a window.
+    # Fire and forget, so the refusal below stays armed until ze says "bye":
+    # an event that arrives during the shutdown is as wrong as an early one.
+    api.shutdown_fire_and_forget()
+
+    # Still refuses anything that arrives later, until ze stops.
+    while True:
+        event = api.wait_for_event(timeout=20.0)
+        if event is None:
+            break
+        runtime_fail(f"UNATTACHED-SILENT: fed a late event no peer attached it for: {event[:200]}")
+        return
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_SILENT
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external unattached-served {
+		run ./unattached-served.run
+		encoder json
+	}
+	external unattached-silent {
+		run ./unattached-silent.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process unattached-served {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+expect=stderr:pattern=UNATTACHED-SERVED: fed by the peer that attaches it
+expect=stderr:pattern=UNATTACHED-SILENT: fed nothing, as no peer attaches it
+# The daemon SAYS it, and this is the assertion for the one disagreement that
+# names no peer. The per-edge report walks the index's edges, so the process no
+# peer attaches HAS no edge and was reported nowhere, which is the case where
+# nothing is delivered at all (reconcileDelivery, delivery_reconcile.go). The
+# pattern pins the process name: every other unattached program in this daemon
+# gets its own line, and the one under test must be among them.
+expect=stderr:pattern=no peer attaches it.*process=unattached-silent
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0

@@ -95,6 +95,13 @@ def main():
     # Shutdown
     if failures > 0:
         print(f'\n{failures} failures', file=sys.stderr)
+    # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
+    # documents for that shape before shutting the daemon down: this peer
+    # attaches a process permitted to send updates, so the initial-sync gate
+    # holds the marker and a prompt shutdown closes the session under it.
+    if not api.wait_peer_eor_sent():
+        print('FAIL: ze did not send the End-of-RIB to the peer before shutdown', file=sys.stderr)
+        sys.exit(1)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
@@ -146,9 +153,9 @@ bgp {
 			group-updates disable
 		}
 
-		process fib-rib-event-test {
-		}
-		process bgp-rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }

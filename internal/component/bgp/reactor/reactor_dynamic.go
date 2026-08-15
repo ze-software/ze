@@ -95,6 +95,16 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 		r.rmetrics.peersAddedTotal.Inc()
 	}
 
+	// The index is keyed on the peer ADDRESS and this peer has one, so it enters
+	// it like any other peer: buildDynamicPeerSettings copies the whole
+	// template, ProcessBindings included, so its group's attach blocks are
+	// already on it. Without this republish delivery finds no edges for it and
+	// feeds it to nobody, which is the fail-closed guard reading as a dead
+	// session (delivery_graph.go).
+	if r.deliveryPublished {
+		r.publishDeliveryGraphLocked()
+	}
+
 	if r.running {
 		peer.StartWithContext(r.ctx)
 	}
@@ -200,6 +210,11 @@ func (r *Reactor) removeDynamicPeer(peer *Peer) {
 			dg.ActivePeers.Add(-1)
 			break
 		}
+	}
+
+	// Republish without this peer's edges, for the reason doRemovePeer does.
+	if r.deliveryPublished {
+		r.publishDeliveryGraphLocked()
 	}
 }
 

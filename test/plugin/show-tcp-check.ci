@@ -100,9 +100,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process show-tcp-check-test {
-		}
 	}
 }
 EOF_CONF

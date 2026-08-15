@@ -218,7 +218,12 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
-	if err := r.ForwardUpdate(sel, id, cacheConsumerNameFromCtx(ctx)); err != nil {
+	// ctx.Sender is the authority and cacheConsumerNameFromCtx is the accounting
+	// name; they answer different questions and the second is empty for a process
+	// that did not declare cache-consumer. Forwarding puts a whole UPDATE on each
+	// matched peer's wire, so the peers that do not attach this process with
+	// `send [ update ]` are dropped by the reactor and reported.
+	if err := r.ForwardUpdate(sel, id, cacheConsumerNameFromCtx(ctx), ctx.Sender); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("forward failed: %v", err),

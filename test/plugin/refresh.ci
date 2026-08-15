@@ -125,10 +125,13 @@ bgp {
 			group-updates disable
 		}
 	
-		process announce-routes {
+		attach process announce-routes {
+			receive [ state ]
+			send [ update ]
 		}
-		process bgp-rib {
-			send [ update refresh enhanced-refresh ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update refresh ]
 		}
 	}
 }

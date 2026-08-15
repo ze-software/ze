@@ -82,9 +82,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process cache-ops-test {
-		}
 	}
 }
 EOF_CONF

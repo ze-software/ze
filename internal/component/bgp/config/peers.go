@@ -21,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -496,7 +497,7 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 }
 
 // validatePeerProcessCaps checks that peers with route-refresh or graceful-restart
-// capabilities have at least one process binding with SendUpdate=true.
+// capabilities attach at least one process permitted to send updates.
 // These capabilities require a process to resend routes on demand.
 func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	for _, ps := range peers {
@@ -526,7 +527,7 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 
 		hasValidProcess := false
 		for _, b := range ps.ProcessBindings {
-			if b.SendUpdate {
+			if b.MaySend(bgpevents.SendUpdate) {
 				hasValidProcess = true
 				break
 			}
@@ -536,14 +537,14 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 		}
 
 		if len(ps.ProcessBindings) == 0 {
-			return fmt.Errorf("peer %s: %s requires process with send [ update ]\n  no process bindings configured",
+			return fmt.Errorf("peer %s: %s requires an attached process with send [ update ]\n  the peer attaches no process",
 				ps.Address, capName)
 		}
 		var names []string
 		for _, b := range ps.ProcessBindings {
-			names = append(names, "process "+b.PluginName)
+			names = append(names, "attach process "+b.PluginName)
 		}
-		return fmt.Errorf("peer %s: %s requires process with send [ update ]\n  configured: %s - none have send [ update ]",
+		return fmt.Errorf("peer %s: %s requires an attached process with send [ update ]\n  configured: %s - none have send [ update ]",
 			ps.Address, capName, textbuf.Join(names, ", "))
 	}
 	return nil

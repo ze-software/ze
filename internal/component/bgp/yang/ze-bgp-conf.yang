@@ -891,64 +891,85 @@ module ze-bgp-conf {
 
         uses update-block;
 
-        // Process bindings
-        list process {
-            key "name";
-            description "External process that receives BGP events and can inject messages.
-                         Ze spawns the process and communicates via stdin/stdout JSON.";
+        // Process attachments
+        container attach {
+            ze:flatten;
+            description "Programs this peer attaches. Each attachment names one
+                         program declared under plugin/external and states what
+                         that program receives from this peer and what it may
+                         send to it. Written as one statement per program:
+                         `attach process <name> { ... }`.";
 
-            leaf name {
-                type string;
-                description "Unique identifier for this process binding. Used in logs and status output.";
-            }
+            list process {
+                key "name";
+                description "External process that receives BGP events and can inject messages.
+                             Ze spawns the process and communicates via stdin/stdout JSON.";
 
-            leaf run {
-                type string;
-                description "Shell command to spawn the external process. Ze pipes BGP events to its
-                             stdin and reads commands from its stdout.";
-            }
+                leaf name {
+                    type string;
+                    description "Unique identifier for this process binding. Used in logs and status output.";
+                }
 
-            // Old syntax fields
-            leaf-list processes {
-                type string;
-                description "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.";
-            }
+                leaf run {
+                    type string;
+                    description "Shell command to spawn the external process. Ze pipes BGP events to its
+                                 stdin and reads commands from its stdout.";
+                }
 
-            leaf-list processes-match {
-                type string;
-                description "Legacy ExaBGP process match patterns for event filtering.";
-            }
+                // Old syntax fields
+                leaf-list processes {
+                    type string;
+                    description "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.";
+                }
 
-            container neighbor-changes {
-                presence "Neighbor change notifications enabled";
-                description "Send session state change events (up/down/reset) to this process.
-                             Enables the process to react to peer lifecycle transitions.";
-            }
+                leaf-list processes-match {
+                    type string;
+                    description "Legacy ExaBGP process match patterns for event filtering.";
+                }
 
-            // New syntax fields
-            container content {
-                description "Controls the encoding and filtering of events sent to this process.";
-                leaf encoding { type string; description "Wire encoding for events sent to the process (e.g., json, text)."; }
-                leaf format { type string; description "Output format template for event rendering."; }
-                leaf attribute { type string; description "Filter expression to select which BGP attributes are included in events."; }
-            }
+                container neighbor-changes {
+                    presence "Neighbor change notifications enabled";
+                    description "Send session state change events (up/down/reset) to this process.
+                                 Enables the process to react to peer lifecycle transitions.";
+                }
 
-            leaf-list receive {
-                type string;
-                ze:validate "receive-event-type";
-                description "Event types to receive. Base types: update, open,
-                    notification, keepalive, refresh, state, sent, negotiated.
-                    Plugins may register additional types (e.g., update-rpki).
-                    List types explicitly; 'all' is not accepted.
-                    Validated at runtime against registered event types.";
-            }
+                // New syntax fields
+                container content {
+                    description "Controls the encoding and filtering of events sent to this process.";
+                    leaf encoding { type string; description "Wire encoding for events sent to the process (e.g., json, text)."; }
+                    leaf format { type string; description "Output format template for event rendering."; }
+                    leaf attribute { type string; description "Filter expression to select which BGP attributes are included in events."; }
+                }
 
-            leaf-list send {
-                type string;
-                ze:validate "send-message-type";
-                description "Message types to send. Valid: update, refresh,
-                    enhanced-refresh (BORR/EORR markers, RFC 7313).
-                    Validated at runtime against known send types.";
+                leaf-list receive {
+                    type string;
+                    ze:validate "receive-event-type";
+                    description "Event types this peer feeds the program. Base
+                        types: update, open, notification, keepalive, refresh,
+                        state, negotiated. Plugins register more (e.g.
+                        update-rpki).
+                        A type carries the direction it is fed in: 'update'
+                        means both directions, 'update-received' and
+                        'update-sent' mean one. A registered type keeps its
+                        whole name, so a plugin type that ends in -sent is
+                        never read as a direction.
+                        '*' feeds every type, in both directions. 'all' is not
+                        accepted: a word that reads like a type would grant a
+                        type a plugin registers later, which '*' says on
+                        purpose.
+                        Validated at runtime against registered event types.";
+                }
+
+                leaf-list send {
+                    type string;
+                    ze:validate "send-message-type";
+                    description "Message types this program may send toward the
+                        peer. Valid: update, refresh, enhanced-refresh
+                        (BORR/EORR markers, RFC 7313), and '*' for every type.
+                        A direction has no meaning here, because every send
+                        type is sent.
+                        Validated at runtime against known send types.";
+                }
             }
         }
 

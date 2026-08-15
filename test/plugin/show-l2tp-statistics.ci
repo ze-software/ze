@@ -268,8 +268,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-l2tp-statistics-test {
-		}
 	}
 }
 EOF_CONF

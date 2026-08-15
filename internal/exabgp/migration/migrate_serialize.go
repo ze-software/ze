@@ -356,15 +356,20 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
-	// Write process bindings.
-	for _, entry := range tree.GetListOrdered("process") {
-		buf.WriteString(indent)
-		buf.WriteString("process ")
-		buf.WriteString(entry.Key)
-		buf.WriteString(" {\n")
-		serializeTreeIndent(entry.Value, buf, indent+"\t", false)
-		buf.WriteString(indent)
-		buf.WriteString("}\n")
+	// Write process attachments. Ze-native syntax is `attach process <name>`,
+	// and the bindings live under the peer's attach container.
+	if attach := tree.GetContainer("attach"); attach != nil {
+		var tb textbuf.Buffer
+		bodyIndent := tb.Str(indent).Byte('\t').String()
+		for _, entry := range attach.GetListOrdered("process") {
+			buf.WriteString(indent)
+			buf.WriteString("attach process ")
+			buf.WriteString(entry.Key)
+			buf.WriteString(" {\n")
+			serializeTreeIndent(entry.Value, buf, bodyIndent, false)
+			buf.WriteString(indent)
+			buf.WriteString("}\n")
+		}
 	}
 
 	// send/receive are now bracket leaf-lists (e.g. "receive [ update ];")

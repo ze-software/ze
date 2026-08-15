@@ -388,6 +388,14 @@ type Reactor struct {
 	sessionCaptures   map[*sessionCapture]struct{}
 
 	running bool
+	// deliveryPublished is set by the first publishDeliveryGraphLocked and read
+	// under r.mu by every later peer change. Before it, the startup load's
+	// AddPeer calls skip the publish so one build covers the whole configured
+	// set; after it, every add and every remove republishes. It is NOT running:
+	// StartWithContext publishes before the peers start and sets running after
+	// they do, and a peer added in between would otherwise leave the index
+	// stale with nothing to say so.
+	deliveryPublished bool
 	// stopping is set by stop() and cleared by Reactor.StartWithContext, both
 	// under r.mu, which is also the one place Peer.stopping is cleared. It is
 	// the reactor-tier twin of Peer.stopping (peer.go): between the
@@ -835,6 +843,12 @@ func (r *Reactor) ExecuteCommand(input string) (string, error) {
 	if r.api == nil {
 		return "", errServerNotReady
 	}
+	// Sender stays unset: this entry point takes a command string and no caller,
+	// so it cannot say whether a process or an operator produced it. A command
+	// that would put a message on a peer's wire is refused here by name rather
+	// than granted the operator's authority (send_permission.go). A caller that
+	// needs one must reach the dispatcher through a surface that states its
+	// sender (cmd/ze/hub/main_servers.go).
 	ctx := &pluginserver.CommandContext{Server: r.api}
 	resp, err := r.api.Dispatcher().Dispatch(ctx, input)
 	if err != nil {
@@ -1123,6 +1137,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// are free functions with no Reactor to read rmetrics off
 		// (announce_metrics.go).
 		setAnnounceMetricsRegistry(r.metricsRegistry)
+		// The send permission's refusal counter, same reason again: the refusal
+		// is reported from a free function reached by the selector resolver
+		// (send_permission.go).
+		setSendPermissionMetricsRegistry(r.metricsRegistry)
 		go r.metricsUpdateLoop()
 	}
 
@@ -1172,6 +1190,23 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	if !r.externalServer {
 		r.startSignalHandler()
 	}
+
+	// Publish the peer-to-process index once for the whole configured set
+	// (delivery_graph.go). The startup load calls AddPeer once per peer and
+	// AddPeer skips the publish until the index is live, so this is the one
+	// build the config load pays for. Every later change republishes from
+	// AddPeer or RemovePeer, which is every path a changed attach block can
+	// take: ProcessBindings sits outside hotSwappableSettings
+	// (peer_settings_apply.go), so a peer whose block changed is torn down and
+	// re-added.
+	//
+	// BEFORE the peers start, and that ordering is the whole point. Delivery
+	// reads this index and an empty one feeds nobody, so a peer that reached
+	// its first state change ahead of the publish would have that event
+	// dropped -- a fail-closed guard reading as a dead daemon. In external
+	// server mode the peers start later still, from StartPeers (bgp/plugin/
+	// register.go, OnPostStartup).
+	r.publishDeliveryGraphLocked()
 
 	// Copy peer map before releasing lock — map alias would race with
 	// concurrent AddDynamicPeer (concurrent map read+write panics in Go).

@@ -97,10 +97,6 @@ bgp {
 		filter {
 			import [ bgp-filter-prefix:CUSTOMERS ]
 		}
-
-		process test-prefix-accept {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

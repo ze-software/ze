@@ -143,6 +143,10 @@ bgp {
 				withdraw true
 			}
 		}
+		attach process bgp-watchdog {
+			receive [ state ]
+			send [ update ]
+		}
 	}
 	# Peer-group B -- e.g. a bilateral peering session for AS112 anycast.
 	# Distinct peer, distinct session (own remote IP -- ze rejects duplicate
@@ -184,6 +188,10 @@ bgp {
 				name as112-shared
 				withdraw true
 			}
+		}
+		attach process bgp-watchdog {
+			receive [ state ]
+			send [ update ]
 		}
 	}
 }

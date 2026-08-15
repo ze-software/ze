@@ -73,7 +73,8 @@ bgp {
 			group-updates disable
 		}
 
-		process wire-edit-api-origin-order {
+		attach process wire-edit-api-origin-order {
+			send [ update ]
 		}
 	}
 }

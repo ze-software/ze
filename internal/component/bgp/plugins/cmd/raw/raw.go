@@ -98,7 +98,11 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if bgpErr != nil {
 		return errResp2, bgpErr
 	}
-	if err := r.SendRawMessage(peerAddr, msgType, payload); err != nil {
+	// ctx.Sender is the authority. A process must be attached to this peer, which
+	// is the whole permission raw asks for: the payload is a message of the
+	// caller's choosing, so the `send` list has no word for it
+	// (bgp/reactor/send_permission.go, rawOrigin). An operator is not gated.
+	if err := r.SendRawMessage(peerAddr, msgType, payload, ctx.Sender); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("send error: %v", err),

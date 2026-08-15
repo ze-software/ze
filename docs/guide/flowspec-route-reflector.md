@@ -54,7 +54,8 @@ set bgp peer mitigation-upstream session cluster-id 10.0.0.1
 set bgp peer mitigation-upstream session next-hop unchanged
 set bgp peer mitigation-upstream session family ipv4/flow mode enable
 set bgp peer mitigation-upstream session family ipv4/flow prefix maximum 1000
-set bgp peer mitigation-upstream process bgp-rr
+set bgp peer mitigation-upstream attach process bgp-rr receive [ update-received state open-received ]
+set bgp peer mitigation-upstream attach process bgp-rr send [ update ]
 
 set bgp peer edge-a description "FlowSpec client edge-a"
 set bgp peer edge-a connection remote ip 10.0.0.11
@@ -66,7 +67,8 @@ set bgp peer edge-a session cluster-id 10.0.0.1
 set bgp peer edge-a session next-hop unchanged
 set bgp peer edge-a session family ipv4/flow mode enable
 set bgp peer edge-a session family ipv4/flow prefix maximum 1000
-set bgp peer edge-a process bgp-rr
+set bgp peer edge-a attach process bgp-rr receive [ update-received state open-received ]
+set bgp peer edge-a attach process bgp-rr send [ update ]
 
 set bgp peer edge-b description "FlowSpec client edge-b"
 set bgp peer edge-b connection remote ip 10.0.0.12
@@ -78,7 +80,8 @@ set bgp peer edge-b session cluster-id 10.0.0.1
 set bgp peer edge-b session next-hop unchanged
 set bgp peer edge-b session family ipv4/flow mode enable
 set bgp peer edge-b session family ipv4/flow prefix maximum 1000
-set bgp peer edge-b process bgp-rr
+set bgp peer edge-b attach process bgp-rr receive [ update-received state open-received ]
+set bgp peer edge-b attach process bgp-rr send [ update ]
 EOF
 
 /usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
@@ -97,8 +100,8 @@ What matters:
 
 | Config | Why |
 | --- | --- |
-| `plugin internal bgp-rr { use bgp-rr }` | Starts the in-process route reflector plugin. |
-| `process bgp-rr { }` on each peer | Binds the peer to the declared plugin name. |
+| `plugin { internal bgp-rr { use bgp-rr; } }` | Starts the in-process route reflector plugin. |
+| `attach process bgp-rr { receive [ update-received state open-received ]; send [ update ]; }` on each peer | Feeds the reflector what it declares it handles, and lets it reflect back. The received direction is not a preference: reflecting an UPDATE raises the sent event the reflection is waiting on, so a plain `update` deadlocks it. |
 | `family ipv4/flow` | Negotiates FlowSpec NLRI with the peer. |
 | `route-reflector-client enable` on edge clients | Routes from clients are reflected to all clients and non-clients. |
 | `next-hop unchanged` | Keeps the mitigation next-hop unchanged. Change this only when your design requires next-hop rewrite. |
@@ -168,6 +171,6 @@ Common mistakes:
 | Symptom | Check |
 | --- | --- |
 | Peer up but no FlowSpec routes | Confirm `ipv4/flow` was negotiated on both sides. |
-| Updates are reflected back to the origin | Confirm the source peer is bound to `process bgp-rr` and is visible in `show rr peers`. |
+| Updates are reflected back to the origin | Confirm the source peer is bound to `attach process bgp-rr` and is visible in `show rr peers`. |
 | Clients do not receive non-client routes | Confirm client peers have `route-reflector-client true`. |
 | Config validates but plugin is absent at runtime | Confirm the binary was built with the default plugin set and the `plugin internal bgp-rr` block was imported into the active config. |

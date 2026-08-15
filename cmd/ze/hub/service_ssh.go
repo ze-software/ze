@@ -95,6 +95,8 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 				Server:     apiServer,
 				Username:   username,
 				RemoteAddr: remoteAddr,
+				// An SSH session is an operator, authenticated as Username above.
+				Sender: plugin.OperatorSender(),
 			}
 			resp, err := d.Dispatch(ctx, input)
 			if err != nil {
@@ -117,6 +119,8 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 				Server:     apiServer,
 				Username:   username,
 				RemoteAddr: remoteAddr,
+				// An SSH session is an operator, authenticated as Username above.
+				Sender: plugin.OperatorSender(),
 			}
 			// Streaming commands are currently monitor-style read-only commands.
 			// They still must pass through the same AAA authorizer/accountant as

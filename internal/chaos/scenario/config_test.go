@@ -7,6 +7,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"    // registers ze-bgp-conf.yang
+	_ "github.com/ze-software/ze/internal/component/hub/yang"    // ze-bgp-conf.yang imports ze-hub-conf
+	_ "github.com/ze-software/ze/internal/component/plugin/yang" // the config's own plugin block
 )
 
 // TestConfigGenStructure verifies the generated config has the required
@@ -309,4 +315,52 @@ func TestConfigGenerateMCPPort(t *testing.T) {
 	params.MCPPort = 0
 	config = GenerateConfig(params)
 	assert.NotContains(t, config, "mcp {")
+}
+
+// TestConfigGenAttachesEveryPluginItRuns verifies each generated peer attaches
+// the plugins the same config starts, and that the generated text parses against
+// the real schema.
+//
+// VALIDATES: every peer carries an attach block for bgp-rs, and for bgp-rib when
+// the plugin block declares it.
+// PREVENTS: the silent daemon. A peer that attaches no process is fed nothing
+// and may announce nothing (pluginserver.Server.PeerScopedProcs), so chaos
+// route forwarding stops with no parse error and no log line.
+func TestConfigGenAttachesEveryPluginItRuns(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+		{Index: 1, ASN: 65000, RouterID: netip.MustParseAddr("10.255.0.2"), IsIBGP: true, Mode: ModePassive, RouteCount: 100, HoldTime: 90, Port: 1891},
+	}
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	// One attach block per peer, for each plugin the plugin block declares.
+	assert.Equal(t, len(profiles), strings.Count(config, "attach process bgp-rs {"))
+	assert.Equal(t, len(profiles), strings.Count(config, "attach process bgp-rib {"))
+	// bgp-rs takes UPDATEs in the received direction alone: both directions are
+	// the delivery loop bgp/plugins/rr/rr.go describes.
+	assert.Contains(t, config, "receive [ update-received state open-received refresh ];")
+	assert.NotContains(t, config, "attach process bgp-rs {\n            receive [ update ];")
+	// Both plugins announce toward the peer, so both need the send permission.
+	assert.Equal(t, 2*len(profiles), strings.Count(config, "send [ update ];"))
+
+	// In-process mode starts bgp-rs alone, so the RIB is attached nowhere.
+	params.NoPlugin = true
+	inProcess := GenerateConfig(params)
+	assert.Equal(t, len(profiles), strings.Count(inProcess, "attach process bgp-rs {"))
+	assert.NotContains(t, inProcess, "attach process bgp-rib")
+
+	// The generated text is schema-valid: the receive and send leaf-lists are
+	// validated at parse, so an unregistered token would fail here.
+	_, err := zeconfig.ParseTreeWithYANG(config, nil)
+	require.NoError(t, err)
+	_, err = zeconfig.ParseTreeWithYANG(inProcess, nil)
+	require.NoError(t, err)
 }

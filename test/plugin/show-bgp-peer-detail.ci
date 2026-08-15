@@ -141,9 +141,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process detail-test {
-		}
 	}
 }
 EOF_CONF

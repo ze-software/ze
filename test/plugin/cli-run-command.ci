@@ -97,9 +97,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process cli-dispatch-test {
-		}
 	}
 }
 EOF_CONF

@@ -69,7 +69,9 @@ plugin {
 
 ## Binding Plugins to Peers
 
-Each peer declares which plugins receive its events via `process` blocks. The process name must match the plugin's `internal` or `external` name in the `plugin { }` block:
+Each peer declares which plugins receive its events, in `attach process` blocks.
+The process name must match the plugin's `internal` or `external` name in the
+`plugin { }` block:
 
 ```
 plugin {
@@ -80,7 +82,7 @@ peer transit-a {
 }
 ```
 
-Plugins receive BGP events through process bindings on each peer:
+Plugins receive BGP events through the attach blocks on each peer:
 
 ```
 peer transit-a {
@@ -94,6 +96,12 @@ peer transit-a {
     }
 }
 ```
+
+**A peer that attaches nothing feeds nothing.** The block is the whole
+statement of the relationship: a plugin that no peer attaches runs and is fed
+no peer event, and a peer that attaches one plugin feeds that plugin and no
+other. Loading a plugin and attaching it are two separate acts, and the second
+is the one that moves data.
 
 ### Event Types
 
@@ -161,6 +169,108 @@ both directions, so `receive [ update ]` feeds the program the UPDATEs ze sends
 as well as the ones it gets. `send` carries no direction, because every send type
 is sent.
 
+The two lists are independent. A program with `send` and no `receive` announces
+to the peer and is told nothing by it. A program with `receive` and no `send`
+watches the peer and may not answer it.
+
+### Groups and dynamic peers
+
+Write the block once on a group and every peer that group produces carries it.
+A member that restates the block REPLACES the group's list for itself, and the
+other members keep the group's.
+
+```
+plugin {
+    external looking-glass {
+        run ./looking-glass.py
+        encoder json
+    }
+}
+
+bgp {
+    group transit {
+        attach process looking-glass {
+            receive [ update-received state ]
+        }
+
+        peer transit-a { }                    # updates and state
+        peer transit-b { }                    # updates and state
+        peer transit-c {
+            attach process looking-glass {
+                receive [ state ]             # state ONLY
+            }
+        }
+    }
+}
+```
+
+`transit-c` is fed state and no update. Its own list stands in for the group's
+rather than adding to it, which is how every leaf-list in a group merges. To
+widen one member, restate the whole list you want it to have.
+
+A peer a DYNAMIC group creates carries the group's blocks too. Such a peer is
+named by no config: ze generates `dyn-<address>` when it accepts the
+connection. Nothing needs to name it, because ze reads each peer's blocks after
+the group merge, not from the text of the config file.
+
+```
+bgp {
+    group ix {
+        connection {
+            remote {
+                ip dynamic
+                connect false
+                range 198.51.100.0/24
+            }
+            local {
+                ip 198.51.100.1
+                accept true
+            }
+        }
+        attach process looking-glass {
+            receive [ update-received state ]
+        }
+    }
+}
+```
+
+Every member that connects from `198.51.100.0/24` feeds `looking-glass` its
+received UPDATEs and its session state. `show event delivery` lists them by the
+address each one connected from.
+
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
+
+### The send permission
+
+`send` is a permission, and ze enforces it on the peers a command resolves to.
+A program that issues `peer * update ...` reaches the peers that attach it with
+`send [ update ]`, and no others. A peer the program is not attached to is
+dropped from the command, and ze writes one WARN naming the peer, the process
+and the message type. When the selector names ONLY peers that refuse it, the
+whole command fails and the program is told why.
+
+The two BASE message types are separate permissions. A plugin registers more,
+and naming one auto-loads the plugin that enables it, `enhanced-refresh` from
+bgp-route-refresh among them:
+
+| Type | Permits | Commands |
+|------|---------|----------|
+| `update` | originating routes toward the peer | `update text ... add`, `update text ... del`, an End-of-RIB marker, a named commit |
+| `refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
+
+`send [ * ]` grants both, and every send type registered later.
+
+An operator at the CLI, over SSH or through the REST API is not a process and is
+not gated by this: their authority is the one AAA already checked.
+
+Counter: `ze_bgp_send_refused_total{process,type}` counts messages the permission
+refused. A non-zero value with no config change means a program is asking for a
+peer it was never attached to.
+
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendPermissionDenied, ze_bgp_send_refused_total -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+
 ### Reading the delivery graph
 
 `show event delivery` prints the peer-to-process edges the running config
@@ -173,7 +283,19 @@ peer inherits from its group is shown on the peer. A token the event registry
 does not know is listed under `unresolved` and carries no edge, which is what an
 operator sees when a custom event type names a plugin that did not load.
 
-<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect -->
+These edges DECIDE delivery. A peer hands a program an event when the peer's
+block grants the type and the program subscribed to it; a peer that attaches no
+block for a program feeds it nothing, whatever the program asked for at startup.
+That holds for ze's own plugins as well: a config that loads `bgp-rib` and
+attaches it to no peer stores no route. When the two halves disagree, the daemon
+names each peer, process and event type in the log rather than dropping the
+event in silence.
+
+The name in `attach process <name>` is the name the program runs under: the one
+in its `plugin { external <name> }` or `plugin { internal <name> }` block, or the
+registry name of a plugin loaded with `--plugin`.
+
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
 
@@ -182,8 +304,8 @@ operator sees when a custom event type names a plugin that did not load.
 
 | Mode | Config Syntax | Description |
 |------|--------------|-------------|
-| Internal | `internal rib { use bgp-rib }` | Compiled-in plugin using `net.Pipe` for startup and DirectBridge for hot paths |
-| External | `external feed { run "/usr/local/bin/my-plugin" }` | External binary or script using TLS connect-back |
+| Internal | `internal rib { use bgp-rib; }` | Compiled-in plugin using `net.Pipe` for startup and DirectBridge for hot paths |
+| External | `external feed { run "/usr/local/bin/my-plugin"; }` | External binary or script using TLS connect-back |
 
 Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within the ze process. Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. External mode starts a separate process; that process connects back to the plugin hub over TLS and authenticates with its per-plugin token.
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
@@ -200,15 +322,17 @@ ze --plugins
 
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
-| `bgp-rib` | Route Information Base | `receive [ update state refresh ] send [ update ]` |
+| `bgp-rib` | Route Information Base | `receive [ update state refresh ] send [ update refresh ]` |
 | `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update-received state ]` |
 | `bgp-persist` | Route persistence across restarts | `receive [ update-sent state open-received ] send [ update ]` |
 | `bgp-rs` | Route server (forward-all) | `receive [ update-received state open-received refresh ] send [ update ]` |
+| `bgp-rr` | Route reflector (RFC 4456) | `receive [ update-received state open-received ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ state ] send [ update ]` |
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in registration -->
 <!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist registration -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration -->
+<!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr registration -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog registration -->
 
 ### Protocol
@@ -402,7 +526,7 @@ An import is scoped to its enclosing `destination`: an `import` under
 `destination bgp` feeds only BGP, not OSPF/IS-IS.
 
 The orchestrator **auto-loads** when `redistribute {}` appears in the
-config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator } }`
+config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }`
 block is required.
 
 Reactor per-peer NEXT_HOP substitution applies: when the producer leaves

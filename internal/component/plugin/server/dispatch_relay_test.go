@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -38,7 +39,7 @@ func TestRelayStoredRouteReachesCoordinator(t *testing.T) {
 		},
 	}
 
-	err := s.relayStoredRoute("192.0.2.7", routes)
+	err := s.relayStoredRoute(plugin.ProcessSender("adj-rib-in"), "192.0.2.7", routes)
 	require.NoError(t, err)
 
 	require.Len(t, reactor.relayCalls, 1, "the RPC must dispatch exactly one relay call")
@@ -64,7 +65,7 @@ func TestRelayStoredRouteRejectsBadDestination(t *testing.T) {
 
 	routes := []rpc.StoredRoute{{SourcePeer: "10.0.0.1", Family: "ipv4/unicast", NLRIHex: "180a0000"}}
 
-	err := s.relayStoredRoute("not-an-address", routes)
+	err := s.relayStoredRoute(plugin.ProcessSender("adj-rib-in"), "not-an-address", routes)
 
 	require.Error(t, err, "a destination that does not parse must be an error, not a dropped entry")
 	assert.Contains(t, err.Error(), "not-an-address", "the error must name the offending value")
@@ -79,7 +80,7 @@ func TestRelayStoredRouteEmptyIsNoOp(t *testing.T) {
 	reactor := &mockReactor{}
 	s := &Server{reactor: reactor}
 
-	require.NoError(t, s.relayStoredRoute("192.0.2.7", nil))
+	require.NoError(t, s.relayStoredRoute(plugin.ProcessSender("adj-rib-in"), "192.0.2.7", nil))
 	assert.Empty(t, reactor.relayCalls)
 }
 

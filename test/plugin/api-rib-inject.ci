@@ -130,10 +130,8 @@ bgp {
 			group-updates disable
 		}
 
-		process rib-inject-test {
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

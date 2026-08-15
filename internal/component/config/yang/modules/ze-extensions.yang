@@ -36,6 +36,17 @@ module ze-extensions {
         description "Specifies the parsing syntax mode for this node.";
     }
 
+    // Extension: flatten
+    // Writes a container's children with the container name as a leading
+    // keyword, so `attach { process foo { ... } }` is written and printed as
+    // `attach process foo { ... }`. The parser accepts both spellings for
+    // every container (automatic brace insertion); this extension makes the
+    // flat one the form ze prints back.
+    extension flatten {
+        description "Serialize this container's children with the container
+                     name as a leading keyword instead of a nested block.";
+    }
+
     // Extension: key-type
     // For inline-list nodes, specifies the key type.
     //

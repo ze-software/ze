@@ -145,18 +145,67 @@ func TestReceiveEventValidator_Validate(t *testing.T) {
 	v := ReceiveEventValidator()
 
 	// Valid base event types.
-	assert.NoError(t, v.ValidateFn("bgp/peer/process.receive", "update"))
-	assert.NoError(t, v.ValidateFn("bgp/peer/process.receive", "state"))
-	assert.NoError(t, v.ValidateFn("bgp/peer/process.receive", "open"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", "update"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", "state"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", "open"))
 
 	// Invalid event type.
-	err := v.ValidateFn("bgp/peer/process.receive", "nonexistent")
+	err := v.ValidateFn("bgp/peer/attach/process.receive", "nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonexistent")
 	assert.Contains(t, err.Error(), "not a valid receive event type")
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp/peer/process.receive", 42))
+	assert.Error(t, v.ValidateFn("bgp/peer/attach/process.receive", 42))
+}
+
+// TestReceiveEventValidatorAcceptsDirectionAndWildcard verifies the vocabulary
+// the receive list needs to say what a plugin declares: a type in one
+// direction, and the wildcard.
+//
+// The refusals matter as much as the acceptances. A validator that accepts
+// everything grants an event type that can never be delivered, which is the
+// fail-open case ai/rules/evidence.md exists to catch.
+//
+// VALIDATES: `update-received`, `update-sent` and `*` validate; an
+// unregistered type is still refused, with or without a direction suffix.
+// PREVENTS: eight in-tree plugins staying inexpressible in the config leaf,
+// and a typo being accepted because the leaf learned a wildcard.
+func TestReceiveEventValidatorAcceptsDirectionAndWildcard(t *testing.T) {
+	v := ReceiveEventValidator()
+	const path = "bgp/peer/attach/process.receive"
+
+	for _, token := range []string{"update", "update-received", "update-sent", "open-received", "state-sent", "*"} {
+		assert.NoError(t, v.ValidateFn(path, token), "%q must validate", token)
+	}
+
+	for _, token := range []string{"nonexistent", "nonexistent-sent", "update-bogus", "all", "*-sent"} {
+		err := v.ValidateFn(path, token)
+		require.Error(t, err, "%q must be refused", token)
+		assert.Contains(t, err.Error(), token)
+	}
+
+	// The retired token. It named a direction, never a type.
+	err := v.ValidateFn(path, "sent")
+	require.Error(t, err, "the bare direction word must be refused")
+	assert.Contains(t, err.Error(), "update-sent", "the refusal must name the spelling that replaces it")
+}
+
+// TestSendMessageValidatorAcceptsWildcard verifies the send list can grant
+// every message type, which is what the ExaBGP bridge declares.
+//
+// VALIDATES: `*` validates, and an unregistered send type is still refused.
+// PREVENTS: a program whose contract is "whatever the API can express" being
+// inexpressible in the send list.
+func TestSendMessageValidatorAcceptsWildcard(t *testing.T) {
+	v := SendMessageValidator()
+	const path = "bgp/peer/attach/process.send"
+
+	assert.NoError(t, v.ValidateFn(path, "*"))
+
+	err := v.ValidateFn(path, "nonexistent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
 }
 
 // TestReceiveEventValidator_Complete verifies completion returns event type names.
@@ -188,17 +237,17 @@ func TestSendMessageValidator_Validate(t *testing.T) {
 	v := SendMessageValidator()
 
 	// Valid base types.
-	assert.NoError(t, v.ValidateFn("bgp/peer/process.send", "update"))
-	assert.NoError(t, v.ValidateFn("bgp/peer/process.send", "refresh"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.send", "update"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.send", "refresh"))
 
 	// Invalid type.
-	err := v.ValidateFn("bgp/peer/process.send", "nonexistent")
+	err := v.ValidateFn("bgp/peer/attach/process.send", "nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonexistent")
 	assert.Contains(t, err.Error(), "not a valid send type")
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp/peer/process.send", 42))
+	assert.Error(t, v.ValidateFn("bgp/peer/attach/process.send", 42))
 }
 
 // TestSendMessageValidator_Complete verifies completion returns send type names.
@@ -223,13 +272,24 @@ func TestSendMessageValidator_Complete(t *testing.T) {
 
 // TestAllBGPEventNames verifies the helper that extracts sorted event names.
 //
-// VALIDATES: Returns sorted, non-empty list from ValidBgpEvents.
-// PREVENTS: Empty or unsorted completion lists.
+// VALIDATES: Returns a sorted list carrying every token the validator accepts:
+// the wildcard, each type, and each type in each single direction.
+// PREVENTS: Empty or unsorted completion lists, and a vocabulary an operator
+// can only discover by reading the YANG.
 func TestAllBGPEventNames(t *testing.T) {
 	names := allBGPEventNames()
-	require.NotEmpty(t, names, "should return event names from ValidBgpEvents")
-	assert.Contains(t, names, "update")
-	assert.Contains(t, names, "state")
+	require.NotEmpty(t, names, "should return event names from the registry")
+	for _, want := range []string{"*", "update", "state", "update-received", "update-sent", "state-received"} {
+		assert.Contains(t, names, want)
+	}
+
+	// Every offered token must validate: completion and validation read the
+	// same registry, so an offer the parser refuses is a defect.
+	v := ReceiveEventValidator()
+	for _, token := range names {
+		assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", token),
+			"completion offered %q", token)
+	}
 
 	// Verify sorted.
 	for i := 1; i < len(names); i++ {
@@ -240,12 +300,13 @@ func TestAllBGPEventNames(t *testing.T) {
 
 // TestAllSendTypeNames verifies the helper that formats send type names.
 //
-// VALIDATES: Returns comma-separated base types.
-// PREVENTS: Malformed error messages.
+// VALIDATES: Returns comma-separated base types plus the wildcard.
+// PREVENTS: Malformed error messages, and an error that hides a valid token.
 func TestAllSendTypeNames(t *testing.T) {
 	result := allSendTypeNames()
 	assert.Contains(t, result, "update")
 	assert.Contains(t, result, "refresh")
+	assert.Contains(t, result, "*")
 }
 
 // TestMACAddressValidator_Validate verifies MAC address format validation.

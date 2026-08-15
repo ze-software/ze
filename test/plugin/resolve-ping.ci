@@ -139,9 +139,6 @@ bgp {
 				graceful-restart disable
 			}
 		}
-
-		process ping-test {
-		}
 	}
 }
 EOF_CONF

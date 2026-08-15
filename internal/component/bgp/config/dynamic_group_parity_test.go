@@ -76,7 +76,7 @@ bgp {
 		filter {
 			import [ MEMBERS ];
 		}
-		process rib {
+		attach process rib {
 			receive [ update ];
 			send [ update ];
 		}
@@ -114,7 +114,7 @@ bgp {
 		filter {
 			import [ MEMBERS ];
 		}
-		process rib {
+		attach process rib {
 			receive [ update ];
 			send [ update ];
 		}

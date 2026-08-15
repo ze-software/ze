@@ -51,7 +51,7 @@ type MigrateResult struct {
 // Transformations applied:
 //   - neighbor -> peer
 //   - process -> plugin (wrapped with ze exabgp plugin bridge)
-//   - process { processes [...] } -> process NAME { ... } inside peer
+//   - process { processes [...] } -> attach process NAME { ... } inside peer
 //   - capability { route-refresh; } -> capability { route-refresh enable; }
 //   - template { neighbor X { } } + inherit X -> expanded peer
 //   - If GR or route-refresh: inject RIB plugin
@@ -236,7 +236,12 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 			bindRIBProcess(peer, expandedTree)
 		}
 
-		// Migrate process bindings (old: process { processes [...] } -> new: process NAME { ... }).
+		// A watchdog-controlled route needs bgp-watchdog fed this peer's state.
+		if peerHasWatchdogRoute(peer) {
+			bindWatchdogProcess(result.Tree, peer)
+		}
+
+		// Migrate process bindings (old: process { processes [...] } -> new: attach process NAME { ... }).
 		migrateProcessBindings(expandedTree, peer, processMap)
 
 		// Get or create group tree.
@@ -361,6 +366,8 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 
 	// Merge list entries (append neighbor's to template's).
 	// For static routes, we want template routes + neighbor routes.
+	// Both trees are ExaBGP input, which keeps its own `process` list
+	// (exabgp.yang); the rename applies to ze-native output alone.
 	listFields := []string{"process", "static"}
 	for _, key := range listFields {
 		for _, entry := range neighbor.GetListOrdered(key) {
@@ -777,7 +784,10 @@ func copyContainers(src, dst *config.Tree) {
 func bindRIBProcess(peer, src *config.Tree) {
 	ribProcess := config.NewTree()
 
-	// Send flags: update, plus refresh if route-refresh is enabled.
+	// Send flags: what bgp-rib ORIGINATES toward the peer. UPDATEs always, and
+	// ROUTE-REFRESH when the peer negotiated the capability: answering a refresh
+	// request, bgp-rib dispatches the RFC 7313 BoRR and EoRR markers, which are
+	// ROUTE-REFRESH messages on the wire (rib.go, dispatchPeerAction).
 	sendFlags := "[ update"
 	if cap := src.GetContainer("capability"); cap != nil {
 		if _, ok := cap.GetFlex("route-refresh"); ok {
@@ -787,15 +797,71 @@ func bindRIBProcess(peer, src *config.Tree) {
 	sendFlags += " ]"
 	ribProcess.Set("send", sendFlags)
 
-	// Receive flags.
-	ribProcess.Set("receive", "[ update ]")
+	// Receive flags: what bgp-rib DECLARES it consumes (rib.go
+	// SetStartupSubscriptions -- update in both directions, state, refresh).
+	// Delivery is the overlap of the declaration and this grant
+	// (pluginserver.Server.PeerScopedProcs), so a narrower grant here silently
+	// costs the plugin the peer-up replay that `state` drives.
+	ribProcess.Set("receive", "[ update state refresh ]")
 
-	peer.AddListEntry("process", "bgp-rib", ribProcess)
+	attachedProcesses(peer).AddListEntry("process", "bgp-rib", ribProcess)
 }
 
-// migrateProcessBindings converts ExaBGP api block and process blocks to ZeBGP named bindings.
+// watchdogPluginName is the plugin that owns watchdog-controlled routes.
+const watchdogPluginName = "bgp-watchdog"
+
+// peerHasWatchdogRoute reports whether any update this peer carries is
+// watchdog-controlled (migrate_routes.go writes the block).
+func peerHasWatchdogRoute(peer *config.Tree) bool {
+	for _, entry := range peer.GetListOrdered("update") {
+		if entry.Value.GetContainer("watchdog") != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// bindWatchdogProcess attaches bgp-watchdog to a peer whose migrated config
+// carries a watchdog-controlled route, and declares the plugin once.
+//
+// The plugin announces and withdraws those routes on the operator's command,
+// and it can only do that for a session it has been told about: it defers an
+// announce for a peer it has not seen come up (watchdog/server.go
+// handleStateUp). Delivery is per peer and per event type, so without this the
+// peer feeds it nothing, `request bgp watchdog announce` reports success, and
+// no UPDATE reaches the wire.
+func bindWatchdogProcess(tree, peer *config.Tree) {
+	attached := attachedProcesses(peer)
+	if attached.GetList("process")[watchdogPluginName] == nil {
+		wdProcess := config.NewTree()
+		wdProcess.Set("receive", "[ state ]")
+		// The send half is what makes the migrated config WORK. bgp-watchdog
+		// originates the peer's watchdog routes through update-route, and ze
+		// refuses a process the peer does not attach with `send [ update ]`
+		// (reactor/send_permission.go). Emitting the receive half alone
+		// converted a working ExaBGP config into a silent one.
+		wdProcess.Set("send", "[ update ]")
+		attached.AddListEntry("process", watchdogPluginName, wdProcess)
+	}
+	if tree.GetList("plugin")[watchdogPluginName] != nil {
+		return
+	}
+	wdPlugin := config.NewTree()
+	wdPlugin.Set("use", watchdogPluginName)
+	tree.AddListEntry("plugin", watchdogPluginName, wdPlugin)
+}
+
+// attachedProcesses returns the attach container of a ze-native peer tree,
+// creating it. Ze-native output writes `attach process <name> { ... }`, so
+// every binding this package emits lives one level down from the peer.
+func attachedProcesses(peer *config.Tree) *config.Tree {
+	return peer.GetOrCreateContainer("attach")
+}
+
+// migrateProcessBindings converts ExaBGP api block and process blocks to ze
+// named attachments.
 // ExaBGP syntax: api { processes [ foo bar ]; }.
-// ZeBGP syntax: process foo-compat { send [ update ]; }.
+// Ze syntax: attach process foo-compat { send [ update ]; }.
 func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string) {
 	// First, handle ExaBGP-style api block.
 	if api := src.GetContainer("api"); api != nil {
@@ -832,7 +898,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 			if !ok {
 				continue // No plugin created -- skip binding.
 			}
-			dst.AddListEntry("process", newName, procTree.Clone())
+			attachedProcesses(dst).AddListEntry("process", newName, procTree.Clone())
 		}
 	}
 }
@@ -856,11 +922,11 @@ func extractProcessNames(tree *config.Tree) []string {
 	return nil
 }
 
-// addProcessBinding adds a process binding with default send flags.
+// addProcessBinding attaches one process with default send flags.
 func addProcessBinding(dst *config.Tree, name string) {
 	proc := config.NewTree()
 	proc.Set("send", "[ update ]")
-	dst.AddListEntry("process", name, proc)
+	attachedProcesses(dst).AddListEntry("process", name, proc)
 }
 
 // checkUnsupported adds warnings for features that need manual migration.

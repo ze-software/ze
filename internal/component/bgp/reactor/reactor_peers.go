@@ -198,6 +198,14 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 		peer.StartWithContext(r.ctx)
 	}
 
+	// Republish the peer-to-process index, which this peer's attach blocks have
+	// just changed (delivery_graph.go). Only once the index is live: the
+	// startup load calls AddPeer once per peer, and StartWithContext publishes
+	// once for the whole set rather than once per peer.
+	if r.deliveryPublished {
+		r.publishDeliveryGraphLocked()
+	}
+
 	return nil
 }
 
@@ -370,6 +378,13 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 				delete(r.listeners, lkey)
 			}
 		}
+	}
+
+	// Republish the peer-to-process index without this peer's edges: a process
+	// it fed must stop being fed for it (delivery_graph.go). Guarded on the
+	// index being live for the same reason AddPeer is.
+	if r.deliveryPublished {
+		r.publishDeliveryGraphLocked()
 	}
 
 	// Build the removed peer's identity for the post-unlock plugin notification.

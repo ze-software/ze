@@ -109,7 +109,9 @@ bgp {
 			group-updates disable
 		}
 
-		process event-predicate-test {
+		attach process event-predicate-test {
+			receive [ update ]
+			send [ update ]
 		}
 	}
 }

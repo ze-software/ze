@@ -38,6 +38,12 @@ def main():
         if status not in ('done', 'error'):
             runtime_fail(f'cache forward: unexpected status={status!r}')
         print('OK: cache forward dispatched', file=sys.stderr)
+        # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
+        # documents for that shape before shutting the daemon down. This peer
+        # attaches a process permitted to send updates, so the marker waits on
+        # the initial-sync gate and a prompt shutdown closes the session under it.
+        if not api.wait_peer_eor_sent():
+            runtime_fail('ze did not send the End-of-RIB to the peer before shutdown')
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
@@ -83,7 +89,8 @@ bgp {
 			group-updates disable
 		}
 
-		process cache-forward-test {
+		attach process cache-forward-test {
+			send [ update ]
 		}
 	}
 }

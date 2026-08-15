@@ -168,10 +168,6 @@ bgp {
 				graceful-restart disable
 			}
 		}
-
-		process watch-down {
-			receive [ state ]
-		}
 	}
 }
 EOF_CONF

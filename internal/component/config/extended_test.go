@@ -233,7 +233,7 @@ bgp {
                 remote 65001
             }
         }
-        process {
+        attach process {
             processes [ watcher ]
         }
     }
@@ -251,7 +251,7 @@ bgp {
 	n := neighbors["peer1"]
 
 	// process is now List(TypeString, ...), so use GetList with KeyDefault key
-	processList := n.GetList("process")
+	processList := n.GetContainer("attach").GetList("process")
 	require.NotNil(t, processList)
 	processBlock := processList[KeyDefault]
 	require.NotNil(t, processBlock, "anonymous process block should exist")
@@ -281,7 +281,7 @@ bgp {
                 remote 65001
             }
         }
-        process {
+        attach process {
             processes [ watcher announcer receiver ]
         }
     }
@@ -299,7 +299,7 @@ bgp {
 	n := neighbors["peer1"]
 
 	// api is now List(TypeString, ...), so use GetList with KeyDefault key
-	apiList := n.GetList("process")
+	apiList := n.GetContainer("attach").GetList("process")
 	require.NotNil(t, apiList)
 	api := apiList[KeyDefault]
 	require.NotNil(t, api, "anonymous process block should exist")
@@ -329,7 +329,7 @@ bgp {
                 remote 65001
             }
         }
-        process {
+        attach process {
             processes [ watcher ]
         }
     }

@@ -177,9 +177,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process show-errors-config-abort-test {
-		}
 	}
 }
 EOF_CONF
@@ -225,9 +222,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-
-		process show-errors-config-abort-test {
 		}
 	}
 }

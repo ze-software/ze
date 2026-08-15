@@ -19,8 +19,9 @@
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=30s
 # UPDATE for 10.0.0.1/32, origin incomplete, empty AS_PATH (iBGP), LOCAL_PREF 100,
-# NEXT_HOP 127.0.0.1. EOR is silently accepted whenever it arrives.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000140050400000064200A000001
+# NEXT_HOP 127.0.0.2 (ze's own address on the session, not peer1's). EOR is
+# silently accepted whenever it arrives.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000240050400000064200A000001
 EOF_PEER
 
 # Python observer: inject the route while there are NO peers, before the reload.
@@ -131,8 +132,13 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and the NEXT_HOP the replayed
+			# route carries. It is deliberately NOT peer1's 127.0.0.1: RFC 4271
+			# Section 5.1.3 forbids a peer its own address as NEXT_HOP, and
+			# originatedNextHopIsPeerOwn (reactor/forward_next_hop.go) withholds
+			# the route when the two match.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -151,6 +157,10 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			receive [ state ]
+			send [ update ]
 		}
 	}
 }

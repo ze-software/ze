@@ -68,8 +68,8 @@ func getOrInitRegistry(ctx *pluginserver.CommandContext) *Registry {
 	if err != nil {
 		return nil
 	}
-	globalRegistry = NewRegistry(func(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
-		return bgpReactor.WithdrawNLRIBatch(sel, batch)
+	globalRegistry = NewRegistry(func(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+		return bgpReactor.WithdrawNLRIBatch(sel, batch, sender)
 	})
 	return globalRegistry
 }
@@ -180,8 +180,8 @@ func prefixToFamily(prefix netip.Prefix) family.Family {
 	return family.IPv4Unicast
 }
 
-func announceAndTrack(reg *Registry, bgpReactor bgptypes.BGPReactor, sel *selector.Selector, batch bgptypes.NLRIBatch, opts announceOpts, source string) (*plugin.Response, error) {
-	if err := bgpReactor.AnnounceNLRIBatch(sel, batch); err != nil {
+func announceAndTrack(reg *Registry, bgpReactor bgptypes.BGPReactor, sel *selector.Selector, batch bgptypes.NLRIBatch, opts announceOpts, source string, sender plugin.Sender) (*plugin.Response, error) {
+	if err := bgpReactor.AnnounceNLRIBatch(sel, batch, sender); err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
@@ -192,7 +192,7 @@ func announceAndTrack(reg *Registry, bgpReactor bgptypes.BGPReactor, sel *select
 		}, nil
 	}
 
-	id, err := reg.Announce(opts.tagKey, opts.tagValue, sel, batch, source, opts.duration)
+	id, err := reg.Announce(opts.tagKey, opts.tagValue, sel, batch, source, sender, opts.duration)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
@@ -294,7 +294,7 @@ parseOpts:
 		Attrs:   builder,
 	}
 
-	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli")
+	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 func handleAnnounceBlackhole(ctx *pluginserver.CommandContext, bgpReactor bgptypes.BGPReactor, reg *Registry, args []string) (*plugin.Response, error) {
@@ -348,7 +348,7 @@ parseOpts:
 		Attrs:   builder,
 	}
 
-	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli")
+	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 // handleAnnounceFlowspec originates a tracked FlowSpec rule on demand. Grammar:
@@ -401,7 +401,7 @@ func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptype
 		NextHop: bgptypes.NewNextHopSelf(),
 		Attrs:   builder,
 	}
-	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli")
+	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 // splitFlowspecArgs separates the match components from the traffic action and
@@ -530,7 +530,7 @@ func handleWithdrawID(reg *Registry, args []string) (*plugin.Response, error) {
 		return nil, fmt.Errorf("invalid id: %w", err)
 	}
 
-	found := reg.withdrawEntryByID(id)
+	found, wErr := reg.withdrawEntryByID(id)
 	if !found {
 		var tb textbuf.Buffer
 		msg := tb.Str("announcement id ").Uint(id).Str(" not found").String()
@@ -538,6 +538,17 @@ func handleWithdrawID(reg *Registry, args []string) (*plugin.Response, error) {
 			Status: plugin.StatusError,
 			Error:  msg,
 		}, errors.New(msg)
+	}
+	// The entry is gone from the registry either way, so a refused withdraw must
+	// reach the caller here or reach nobody at all. Reporting it as done would
+	// tell an operator a route was retracted while it is still on the peer.
+	if wErr != nil {
+		var tb textbuf.Buffer
+		msg := tb.Str("announcement id ").Uint(id).Str(" was dropped from the registry but its withdraw failed: ").Err(wErr).String()
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  msg,
+		}, wErr
 	}
 
 	return &plugin.Response{

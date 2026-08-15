@@ -143,7 +143,7 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process bmp-client {
+        attach process bmp-client {
             receive [ state ];
         }
     }

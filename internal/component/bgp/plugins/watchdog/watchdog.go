@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -77,6 +78,17 @@ func runWatchdogPlugin(conn net.Conn) int {
 		_, _, err := p.UpdateRoute(ctx, peer, cmd)
 		if err != nil {
 			logger().Warn("update-route failed", "peer", peer, "error", err)
+		}
+	}, func(peer string) {
+		// `plugin session ready` releases this peer's End-of-RIB hold. bgp-rib
+		// is the other producer (rib_replay.go); the engine waits for one
+		// signal per process the peer grants `send [ update ]`
+		// (reactor/peer_run.go, peer_initial_sync.go).
+		var tb textbuf.Buffer
+		command := tb.Str("request peer ").Str(peer).Str(" plugin session ready").String()
+		ctx := context.Background()
+		if _, _, err := p.DispatchCommand(ctx, command); err != nil {
+			logger().Warn("plugin session ready failed", "peer", peer, "error", err)
 		}
 	})
 

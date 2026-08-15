@@ -718,6 +718,7 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 
 	// Check for YANG presence statement — enables flag/value/block modes
 	container.Presence = hasPresenceStatement(entry)
+	container.Flatten = hasFlattenExtension(entry)
 	container.Description = entry.Description
 	container.Backend = getBackendExtension(entry)
 	container.Related = extractRelatedTools(entry, path)

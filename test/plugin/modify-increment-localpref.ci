@@ -82,10 +82,6 @@ bgp {
 		filter {
 			import [ modify:INC-LP ]
 		}
-
-		process test-modify-inc {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

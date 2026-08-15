@@ -116,14 +116,12 @@ bgp {
 			group-updates disable
 		}
 
-		process adj-rib-test {
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

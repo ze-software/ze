@@ -154,7 +154,9 @@ func (c *formatCache) reset() {
 }
 
 // onMessageReceived handles raw BGP messages from peers.
-// Forwards to processes based on API subscriptions.
+// Forwards to the processes this peer feeds: the ones its config attaches with
+// a matching receive grant, that also subscribed to the event
+// (pluginserver.Server.PeerScopedProcs).
 // Returns the count of cache-consumer plugins that successfully received the event.
 // Only plugins that declared cache-consumer: true during registration AND where
 // delivery succeeded are counted. Non-cache-consumer plugins receive the event
@@ -182,7 +184,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	dirStr := msg.Direction.String()
 	etID := eventKindToID(eventType)
 	dirID := rpcDirToDir(msg.Direction)
-	procs := s.Subscriptions().GetMatching(bgpNS(), etID, dirID, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), etID, dirID, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return 0
@@ -277,7 +279,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	etID := eventKindToID(eventType)
-	procs := s.Subscriptions().GetMatching(bgpNS(), etID, rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), etID, rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return counts
@@ -553,7 +555,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 
 	peerAddr := peer.AddrStr()
 	stateETID := events.LookupEventTypeID(bgpevents.EventState)
-	procs := s.Subscriptions().GetMatching(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -683,7 +685,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 
 	peerAddr := peer.AddrStr()
 	negETID := events.LookupEventTypeID(bgpevents.EventNegotiated)
-	procs := s.Subscriptions().GetMatching(bgpNS(), negETID, events.DirUnspecified, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), negETID, events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -722,7 +724,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 
 	peerAddr := peer.AddrStr()
 	eorETID := events.LookupEventTypeID(bgpevents.EventEOR)
-	procs := s.Subscriptions().GetMatching(bgpNS(), eorETID, events.DirReceived, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), eorETID, events.DirReceived, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -785,7 +787,9 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 }
 
 // onMessageSent handles BGP messages sent to peers.
-// Forwards to processes that subscribed to sent events.
+// Forwards to the processes this peer feeds in the sent direction: a plain
+// receive token grants both directions, `update-received` grants only the
+// inbound half, and a process granted neither is not fed here.
 // Uses the JSONEncoder for non-UPDATE messages (same as onMessageReceived),
 // and FormatSentMessage for UPDATEs (which adds the "type":"sent" marker).
 //
@@ -804,7 +808,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	sentETID := eventKindToID(eventType)
-	procs := s.Subscriptions().GetMatching(bgpNS(), sentETID, events.DirSent, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), sentETID, events.DirSent, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -882,7 +886,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 
 	peerAddr := peer.AddrStr()
 	congETID := events.LookupEventTypeID(eventType)
-	procs := s.Subscriptions().GetMatching(bgpNS(), congETID, events.DirUnspecified, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), congETID, events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return

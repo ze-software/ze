@@ -188,8 +188,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process reload-listener-rejected-test {
-		}
 	}
 }
 EOF_CONF2
@@ -254,8 +252,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		process reload-listener-rejected-test {
 		}
 	}
 }

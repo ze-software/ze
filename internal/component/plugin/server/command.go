@@ -154,6 +154,22 @@ type CommandContext struct {
 	Surface        string            // Trusted caller surface for audit attribution.
 	Meta           map[string]any    // Route metadata from UpdateRoute RPC; nil if not set.
 	Selectors      map[string]string // Extracted typed selector values, keyed by selector keyword.
+
+	// Sender says who issued this command, and every path that builds a
+	// CommandContext states it: plugin.ProcessSender(proc.Name()) on the plugin
+	// server's own dispatch paths, plugin.OperatorSender() on the operator
+	// surfaces (dispatch.go, dispatch_registry.go, cmd/ze/hub).
+	//
+	// A peer's `attach process <name> { send [ ... ] }` block is written against
+	// it, so a guard that puts a message on a peer's wire reads THIS field and
+	// nothing else. Process above answers a different question, which is the RPC
+	// session the command arrived on, and no guard consults it.
+	//
+	// The zero value means nobody said. It is refused rather than read as the
+	// operator, so a dispatch path added later cannot inherit the operator's
+	// authority by omission (ai/rules/evidence.md,
+	// internal/component/bgp/reactor/send_permission.go).
+	Sender plugin.Sender
 }
 
 // Reactor returns the BGP reactor lifecycle interface via Server.

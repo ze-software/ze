@@ -23,12 +23,12 @@ bgp {
 
         family { ipv4/unicast; }
 
-        process rs {
-            receive [ update ]
+        attach process rs {
+            receive [ update-received state open-received refresh ]
             send [ update ]
         }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 
@@ -39,12 +39,12 @@ bgp {
 
         family { ipv4/unicast; }
 
-        process rs {
-            receive [ update ]
+        attach process rs {
+            receive [ update-received state open-received refresh ]
             send [ update ]
         }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -84,8 +84,14 @@ When a peer reconnects, the route server replays all stored routes from other pe
 ## Plugin Bindings
 
 The `bgp-rs` plugin requires:
-- `receive [ update ]` -- receives route updates from the peer
+- `receive [ update-received state open-received refresh ]` -- the UPDATEs the peer
+  sends, its session state, the capabilities in its OPEN, and route refresh
 - `send [ update ]` -- sends forwarded routes back to the peer
+
+The received direction is not a preference. A route server that also receives the
+UPDATEs ze sends deadlocks: forwarding one raises the sent event that the forward
+is waiting on.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- SetStartupSubscriptions and the deadlock rationale -->
 
 The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
 <!-- source: internal/component/bgp/plugins/rs/ -- RunRouteServer; internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in for replay -->

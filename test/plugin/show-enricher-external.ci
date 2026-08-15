@@ -136,10 +136,6 @@ bgp {
         behavior {
             group-updates disable
         }
-        process enricher-provider {
-        }
-        process enricher-checker {
-        }
     }
 }
 EOF_CONF

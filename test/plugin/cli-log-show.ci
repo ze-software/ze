@@ -118,9 +118,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process log-show-test {
-		}
 	}
 }
 EOF_CONF

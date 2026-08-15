@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -129,7 +130,7 @@ func TestAnnounceNLRIBatch_NextHopUnencodableIsNotFamilyMismatch(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.Addr{}),
 	}
 
-	err := a.AnnounceNLRIBatch(selector.All(), batch)
+	err := a.AnnounceNLRIBatch(selector.All(), batch, plugin.OperatorSender())
 	require.ErrorIs(t, err, errAnnounceNextHopUnencodable)
 	assert.NotErrorIs(t, err, route.ErrNoPeersAcceptedFamily,
 		"the family IS negotiated; a failure of this speaker must not be reported as a peer declining it")

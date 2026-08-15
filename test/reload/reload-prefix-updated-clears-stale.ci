@@ -172,9 +172,6 @@ bgp {
 			group-updates disable
 		}
 
-
-		process prefix-stale-reload {
-		}
 	}
 }
 EOF_CONF
@@ -224,9 +221,6 @@ bgp {
 			group-updates disable
 		}
 
-
-		process prefix-stale-reload {
-		}
 	}
 }
 EOF_CONF2

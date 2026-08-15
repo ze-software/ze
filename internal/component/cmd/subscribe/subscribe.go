@@ -50,6 +50,11 @@ func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 		}, ErrNoSubscriptionManager
 	}
 
+	// An operator typed this at a RUNNING daemon, so it is a live override: it
+	// is delivered whether or not the peer's config grants the type, and the
+	// next config apply discards it (pluginserver.Server.DiscardRuntimeSubscriptions).
+	// The config document stays the durable truth about what the daemon feeds.
+	sub.Runtime = true
 	ctx.Subscriptions().Add(ctx.Process, sub)
 
 	return &plugin.Response{

@@ -109,9 +109,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process show-uptime-test {
-		}
 	}
 }
 EOF_CONF

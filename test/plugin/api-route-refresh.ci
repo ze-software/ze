@@ -61,6 +61,12 @@ plugin {
 	internal route-refresh {
 		use bgp-route-refresh
 	}
+	# The peer advertises route-refresh, so ze must be able to re-advertise its
+	# Adj-RIB-Out when the peer asks (RFC 2918 Section 3). bgp-rib is what does
+	# that, and validatePeerProcessCaps refuses the config without it.
+	internal bgp-rib {
+		use bgp-rib
+	}
 }
 
 bgp {
@@ -92,9 +98,14 @@ bgp {
 			group-updates disable
 		}
 
-		process route-refresh-test {
+		attach process route-refresh-test {
+			send [ refresh ]
 		}
-		process route-refresh {
+		attach process route-refresh {
+			send [ refresh ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

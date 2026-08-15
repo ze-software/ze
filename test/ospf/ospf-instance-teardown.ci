@@ -107,8 +107,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process ospf-instance-teardown {
-		}
 	}
 }
 EOF_CONF

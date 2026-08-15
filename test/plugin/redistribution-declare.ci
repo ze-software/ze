@@ -78,9 +78,6 @@ bgp {
                 remote 65001
             }
         }
-        process filter-declare-test {
-            receive [ update state ];
-        }
     }
 }
 EOF_CONF

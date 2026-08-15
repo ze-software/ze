@@ -108,9 +108,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process anomaly-show-test {
-		}
 	}
 }
 EOF_CONF

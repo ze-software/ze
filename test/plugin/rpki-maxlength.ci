@@ -132,13 +132,14 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-maxlen-test {
-		}
-		process rpki {
-			receive [ update ]
-		}
-		process adj-rib-in {
+		attach process rpki-maxlen-test {
 			receive [ update state ]
+		}
+		attach process rpki {
+			receive [ update-received ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

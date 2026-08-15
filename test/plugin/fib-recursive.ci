@@ -111,6 +111,12 @@ def main():
     except (json.JSONDecodeError, TypeError):
         runtime_fail(f'show ecmp-groups parse error: {data_str[:200]}')
 
+    # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
+    # documents for that shape before shutting the daemon down: this peer
+    # attaches a process permitted to send updates, so the initial-sync gate
+    # holds the marker and a prompt shutdown closes the session under it.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('ze did not send the End-of-RIB to the peer before shutdown')
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
@@ -161,11 +167,9 @@ bgp {
 			group-updates disable
 		}
 
-		process fib-recursive-test {
-		}
-		process bgp-rib {
-		}
-		process rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }

@@ -207,8 +207,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process iface-verbs {
-		}
 	}
 }
 EOF_CONF

@@ -103,7 +103,7 @@ bgp {
 			import [ bgp-filter-aspath:ALLOW-PEER ]
 		}
 
-		process test-aspath-reject {
+		attach process test-aspath-reject {
 			receive [ update state ]
 		}
 	}

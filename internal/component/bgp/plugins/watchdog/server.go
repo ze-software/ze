@@ -29,15 +29,31 @@ type watchdogServer struct {
 	// In production this calls plugin.UpdateRoute; in tests it's a hook.
 	sendRoute func(peer, cmd string)
 
+	// sessionReady tells the engine this plugin has finished its initial
+	// contribution for one peer. In production it dispatches
+	// `request peer <addr> plugin session ready`; in tests it is a hook.
+	//
+	// It is OWED, not optional. A peer that grants a process
+	// `send [ update ]` holds its End-of-RIB until that process says it is
+	// done, so that the marker means "the initial routing update is complete"
+	// (RFC 4724 Section 2). A process that never says it holds the marker for
+	// the whole sync timeout, and an unrelated event-driven announce raised
+	// inside that window is queued AHEAD of the marker -- which makes the
+	// marker claim a route that was never part of the initial update. Measured
+	// on the healthcheck fixtures, whose probe rises inside the window.
+	sessionReady func(peer string)
+
 	mu sync.RWMutex
 }
 
-// newWatchdogServer creates a watchdog server with the given route sender.
-func newWatchdogServer(sendRoute func(peer, cmd string)) *watchdogServer {
+// newWatchdogServer creates a watchdog server with the given route sender and
+// readiness signal. Either hook may be nil in a test that asserts neither.
+func newWatchdogServer(sendRoute func(peer, cmd string), sessionReady func(peer string)) *watchdogServer {
 	return &watchdogServer{
-		peerPools: make(map[string]*poolSet),
-		peerUp:    make(map[string]bool),
-		sendRoute: sendRoute,
+		peerPools:    make(map[string]*poolSet),
+		peerUp:       make(map[string]bool),
+		sendRoute:    sendRoute,
+		sessionReady: sessionReady,
 	}
 }
 
@@ -279,6 +295,7 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 	}
 
 	if pools == nil {
+		s.signalReady(peerAddr)
 		return
 	}
 
@@ -323,6 +340,21 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 			}
 			logger().Debug("watchdog resent on reconnect", "peer", peerAddr, "pool", poolName, "count", len(announced))
 		}
+	}
+
+	s.signalReady(peerAddr)
+}
+
+// signalReady tells the engine this plugin has put everything it owes this peer
+// on the wire, so the End-of-RIB may follow. See watchdogServer.sessionReady.
+//
+// Sent on EVERY peer-up, including the peer that has no pool and the pool whose
+// routes are all withdrawn: "I have nothing for this peer" completes the initial
+// update exactly as a route does, and staying silent would hold the marker for
+// the sync timeout on precisely the peers that need it least.
+func (s *watchdogServer) signalReady(peerAddr string) {
+	if s.sessionReady != nil {
+		s.sessionReady(peerAddr)
 	}
 }
 

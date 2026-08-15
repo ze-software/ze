@@ -145,7 +145,8 @@ bgp {
 				ipv4/unicast add 127.0.0.1/32
 			}
 		}
-		process summary-check {
+		attach process summary-check {
+			receive [ update ]
 			send [ update ]
 		}
 

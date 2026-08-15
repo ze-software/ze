@@ -23,7 +23,7 @@ bgp {
 				remote 65001
 			}
 		}
-		process my-process {
+		attach process my-process {
 			send [ unknown-send-type ]
 		}
 	}

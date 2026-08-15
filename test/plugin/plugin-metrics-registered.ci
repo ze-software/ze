@@ -123,9 +123,6 @@ bgp {
 			import customer
 			export default
 		}
-		process plugin-metrics {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

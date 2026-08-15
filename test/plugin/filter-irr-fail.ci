@@ -128,7 +128,7 @@ bgp {
 			import [ bgp-filter-irr:65100 ]
 		}
 
-		process test-filter-irr-fail {
+		attach process test-filter-irr-fail {
 			receive [ update state ]
 		}
 	}

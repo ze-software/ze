@@ -77,7 +77,7 @@ bgp {
 		filter {
 			export [ remove-private-as:STRIP ]
 		}
-		process remove-private-as-export-originated {
+		attach process remove-private-as-export-originated {
 			send update
 		}
 	}

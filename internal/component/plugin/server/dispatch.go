@@ -165,7 +165,7 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 		// resolves to EventTypeUnknown (0) and can never match an event whose
 		// ID starts at 1.
 		if event == "*" {
-			for _, et := range allEventTypes()[namespace] {
+			for _, et := range events.AllEventTypes()[namespace] {
 				s.subscriptions.Add(proc, &Subscription{
 					Namespace:  nsID,
 					EventType:  events.LookupEventTypeID(et),
@@ -183,6 +183,13 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 			PeerFilter: peerFilter,
 		})
 	}
+
+	// Both halves of every edge this process sits on are now known, which is
+	// the one moment they can be compared (delivery_reconcile.go). Config load
+	// precedes a plugin's declaration, so this is the later of the two
+	// moments for a process that starts after the index is published, and the
+	// earlier one for a process that declares before it.
+	s.reconcileDelivery(proc)
 }
 
 // resolveSubscriptionNamespace resolves the namespace for a subscribe block.
@@ -291,7 +298,28 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		return 0, nil
 	}
 
-	procs := s.subscriptions.GetMatching(nsID, etID, dirID, peerAddress, "")
+	// A peer-scoped event goes through the delivery graph, exactly as the seven
+	// reactor entry points do (bgp/server/events.go). An emitted event is
+	// peer-scoped when it carries a peer ADDRESS, which is the key the graph is
+	// built on; the peer NAME is empty on this path and is not needed, because
+	// PeerScopedProcs matches on the address.
+	//
+	// This path used to call GetMatching directly, so `attach process <name>
+	// { receive [ update-rpki ] }` decided nothing for the two bgp events that
+	// travel it, bgp/update-rpki from bgp-rpki-decorator and bgp/rpki from
+	// bgp-rpki. It was left unfiltered because the peer name is empty, which is
+	// a true statement about a field the lookup does not read.
+	//
+	// An event with NO peer address is not peer-scoped, no attach block can
+	// describe it, and it keeps flowing to everything subscribed. That branch is
+	// written out rather than reached by accident, because a graph miss and "this
+	// event has no peer" must never be the same answer (ai/rules/evidence.md).
+	var procs []*process.Process
+	if peerAddress == "" {
+		procs = s.subscriptions.GetMatching(nsID, etID, dirID, "", "")
+	} else {
+		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
+	}
 	if len(procs) == 0 {
 		return 0, nil
 	}
@@ -477,6 +505,7 @@ func (s *Server) handleUpdateRouteSelDirect(proc *process.Process, sel *selector
 		// must authorize like opUpdateRoute rather than fail closed on an empty
 		// username when authorization is configured.
 		Username: internalPluginIdentity(proc.Name()),
+		Sender:   plugin.ProcessSender(proc.Name()),
 	}
 
 	var tb textbuf.Buffer
@@ -540,6 +569,7 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 		RequestContext: s.Context(),
 		Peer:           peer,
 		Username:       internalPluginIdentity(proc.Name()),
+		Sender:         plugin.ProcessSender(proc.Name()),
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
@@ -575,6 +605,7 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 		Process:        proc,
 		RequestContext: s.Context(),
 		Username:       internalPluginIdentity(proc.Name()),
+		Sender:         plugin.ProcessSender(proc.Name()),
 	}
 
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)

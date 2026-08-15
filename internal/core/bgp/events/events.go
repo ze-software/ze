@@ -23,3 +23,17 @@ const (
 	EventListenerReady      = "listener-ready"      // BGP reactor: TCP listener bound and accepting
 	EventUpdateNotification = "update-notification" // Lightweight observability notification for UPDATE arrivals
 )
+
+// Built-in send types. A send type names a message kind a process may generate
+// toward a peer, which is a permission rather than a subscription. Plugins add
+// more through events.RegisterSendType (e.g. "enhanced-refresh").
+const (
+	SendUpdate  = "update"
+	SendRefresh = "refresh"
+)
+
+// BaseSendTypes returns the built-in send types. The config parser and the
+// YANG validator both read this list, so a type added here reaches both.
+func BaseSendTypes() []string {
+	return []string{SendUpdate, SendRefresh}
+}

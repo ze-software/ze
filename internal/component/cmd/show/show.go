@@ -90,10 +90,33 @@ func init() {
 			Handler:    handleShowEventNamespaces,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:event-delivery",
+			Handler:    handleShowEventDelivery,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:health",
 			Handler:    handleShowHealth,
 		},
 	)
+}
+
+// handleShowEventDelivery returns the peer-to-process delivery graph the running
+// config produced: for every peer, the processes it attaches, what each one is
+// fed, and what each one may send toward it.
+//
+// It reads the index delivery reads, not the config document, so an operator
+// asking "why is my program not fed" sees the answer the daemon acts on. A
+// granted token the event registry does not know appears under `unresolved`,
+// which is the one way an edge can go missing.
+func handleShowEventDelivery(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Server == nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: "delivery graph not available"}, nil
+	}
+	peers := ctx.Server.DeliveryGraph().Inspect()
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   plugin.Map{"peers": peers, "count": len(peers)},
+	}, nil
 }
 
 // handleShowWarnings returns the snapshot of all active warnings on the report bus.

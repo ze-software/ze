@@ -85,10 +85,6 @@ bgp {
 		filter {
 			import [ community-match:ALLOW-CUSTOMER ]
 		}
-
-		process test-cm-accept {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

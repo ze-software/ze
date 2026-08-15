@@ -88,10 +88,6 @@ bgp {
 		filter {
 			import [ modify:PREFER-LOCAL ]
 		}
-
-		process test-modify-lp {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

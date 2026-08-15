@@ -24,7 +24,8 @@ bgp {
 			router-id 198.111.227.39
 		}
 		description "will announce a route to a service"
-		process service-nginx {
+		attach process service-nginx {
+			send [ update ]
 		}
 	}
 }

@@ -134,9 +134,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process diag-capture-test {
-		}
 	}
 }
 EOF_CONF

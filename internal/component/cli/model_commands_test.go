@@ -2076,7 +2076,7 @@ bgp {
         behavior {
             group-updates disable
         }
-        process cli-reject-plugin { }
+        attach process cli-reject-plugin { }
     }
 }`
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))

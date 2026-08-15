@@ -78,7 +78,8 @@ bgp {
 			group-updates disable
 		}
 	
-		process teardown-test {
+		attach process teardown-test {
+			send [ update ]
 		}
 	}
 }

@@ -177,6 +177,10 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF

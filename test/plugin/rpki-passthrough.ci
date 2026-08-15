@@ -112,10 +112,8 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-passthrough-test {
-		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

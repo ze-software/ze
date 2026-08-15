@@ -117,7 +117,7 @@ bgp {
 			import [ bgp-filter-prefix:ONLY_V6 ]
 		}
 
-		process test-prefix-reject {
+		attach process test-prefix-reject {
 			receive [ update state ]
 		}
 	}

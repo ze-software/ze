@@ -88,7 +88,7 @@ bgp {
 			import [ bgp-filter-family:NoFlow ]
 		}
 
-		process test-family-remove {
+		attach process test-family-remove {
 			receive [ update state ]
 		}
 	}

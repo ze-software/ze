@@ -19,11 +19,13 @@ package reactor
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
@@ -154,9 +156,19 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 //
 // An empty routes slice is a success no-op. A destination matching no
 // established peer returns errNoPeersMatch without dispatching.
-func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error {
+//
+// sender is the AUTHORITY, gated on `send [ update ]`: every relayed route
+// leaves as an UPDATE on the destination's wire, and both the destination and
+// the route bytes come from the CALLER, so this rail could put a plugin's stored
+// routes into a peer that never attached it.
+func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
 	if len(routes) == 0 {
 		return nil
+	}
+	origin := announceOrigin(sender)
+	if !origin.sender.IsSet() {
+		sendNoSenderDenied(peerTarget(destination), origin)
+		return fmt.Errorf("%w: destination %s, send type %s", errSendNoSender, destination, origin.sendType)
 	}
 
 	// Resolve the destination once, reusing the batch resolver so this call
@@ -168,6 +180,16 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 			"destination", destination, "routes", len(routes), "err", err)
 		return err
 	}
+
+	// One destination, so the permission is all or nothing here.
+	a.r.mu.RLock()
+	permitted, refused := filterPermittedPeers(matchingPeers, origin)
+	a.r.mu.RUnlock()
+	if refused > 0 {
+		return fmt.Errorf("%w: destination %s, process %s, send type %s",
+			errSendNotPermitted, destination, origin.sender, origin.sendType)
+	}
+	matchingPeers = permitted
 
 	// Cache source facts per distinct source address: a peer-up replay is
 	// dominated by a handful of sources, so this avoids re-resolving per route.

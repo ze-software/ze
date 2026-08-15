@@ -218,7 +218,6 @@ bgp {
         behavior {
             group-updates disable
         }
-        process slow-commit { }
     }
 }
 EOF_CONF

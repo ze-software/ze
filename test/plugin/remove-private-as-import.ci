@@ -71,9 +71,6 @@ bgp {
 		filter {
 			import [ remove-private-as:STRIP ]
 		}
-		process test-remove-private-as {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

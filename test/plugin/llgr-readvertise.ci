@@ -94,10 +94,12 @@ bgp {
 			}
 		}
 
-		process gr {
+		attach process gr {
+			receive [ open-received state eor ]
 			send [ update ]
 		}
-		process bgp-rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

@@ -132,10 +132,8 @@ bgp {
 			group-updates disable
 		}
 
-		process rib-clear-out-family-test {
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

@@ -166,7 +166,7 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process bmp-sessions-test {
+        attach process bmp-sessions-test {
             receive [ state ];
         }
     }

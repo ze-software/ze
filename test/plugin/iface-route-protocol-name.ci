@@ -200,8 +200,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process iface-route-protocol-name {
-		}
 	}
 }
 EOF_CONF

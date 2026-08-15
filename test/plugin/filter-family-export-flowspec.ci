@@ -1,24 +1,149 @@
-# Export filter (family-filter NoFlow, action remove) on an edge peer: a FlowSpec
-# route injected toward the peer is SUPPRESSED on egress, while the End-of-RIB
-# marker for the same family is still DELIVERED (RFC 4724 markers are not routes).
+# Test: an export-direction family-filter (NoFlow, action remove) withholds an
+#       ipv4/flow route from the peer that carries it, and that same peer still
+#       receives the per-family End-of-RIB marker.
 #
 # VALIDATES: export-direction family-filter removes ipv4/flow from originated
 #            routes (the FlowSpec-route-reflector use case), and the MP-family EoR
-#            exemption (IsEndOfRIBAnyFamily) keeps graceful-restart signalling.
+#            exemption keeps graceful-restart signalling.
 # PREVENTS:  originated/injected routes bypassing the egress export-filter gate;
 #            the per-family EoR being wrongly suppressed by the same gate.
+#
+# Both claims are answered by one predicate, writeUpdateGated
+# (internal/component/bgp/reactor/session_write.go): an originated UPDATE is
+# offered to the peer's export chain unless update.IsEndOfRIBAnyFamily()
+# (internal/component/bgp/message/eor.go) says it is a marker. The filter's
+# remove action strips the ipv4/flow MP attribute, and an UPDATE that carries
+# nothing else is suppressed whole (handleFilterUpdate,
+# internal/component/bgp/plugins/filter_family/handler.go).
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). This file used to state
+# both claims and prove neither: its route injections were cmd=api: lines inside
+# the peer block, which ze-peer records as documentation and nobody executes, so
+# no route was ever announced and its rejection could not fire. The design below
+# makes each claim fail on its own:
+#
+#   TWO PEERS, ONE ANNOUNCE. The observer announces one ipv4/flow route to both
+#   peers with one command. filtered-peer carries the export filter and
+#   unfiltered-peer does not, so the SAME bytes from the SAME producer in the
+#   SAME run must reach one and not the other. The needle 01180A0100 is the
+#   FlowSpec destination component for 10.1.0.0/24 (type 1, length 24, three
+#   prefix bytes). It is a strict PREFIX of the 01180A010003 this file forbade
+#   before, so it matches everything that pattern matched and more: the
+#   rejection got stricter, not looser. unfiltered-peer's expect rule asserts
+#   the same needle arrives, so a run in which the route was never produced, or
+#   in which the needle is wrong, fails there rather than passing
+#   filtered-peer's rejection for the wrong reason.
+#
+#   LINGER, BECAUSE A SATISFIED PEER STOPS ASSERTING. filtered-peer's expect rule
+#   is the End-of-RIB, which arrives BEFORE the route. Without option=linger the
+#   peer would finish at that frame and read no further (Peer.completed,
+#   internal/test/peer/peer.go), so the route could arrive one frame late and the
+#   rejection would never see it. The linger loop re-checks every frame it reads
+#   against the rejections (internal/test/peer/reject.go).
+#
+#   THE DAEMON'S OWN COUNTERS, AS THE SECOND HALF. The observer asserts
+#   updates-sent minus eor-sent on each peer. Those counters are bumped from
+#   onMessageReceived, which writeUpdateGated reaches only after the socket write
+#   succeeds, so a suppressed UPDATE never counts.
+#
+# THE TWO ADDRESSES OF A SESSION ARE DISTINCT (ai/rules/testing.md). A route
+# whose NEXT_HOP is the destination peer's own address is withheld by RFC 4271
+# Section 5.1.3 (originatedNextHopIsPeerOwn, reactor/forward_next_hop.go), which
+# would suppress the subject route for a reason this test does not name.
 
-stdin=peer:terminator=EOF_PEER
-# Inject a FlowSpec route toward the peer. The export filter must drop it, so the
-# peer must NOT receive the destination component (10.1.0.0/24 = 01180A010003).
-cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80
-reject=bgp:conn=1:pattern=01180A010003
-# The ipv4/flow End-of-RIB marker IS delivered (gate exempts EoR of any family).
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
+# The peer under the export filter. Ze dials it, so it listens on 127.0.0.1.
+stdin=filtered:terminator=EOF_FILTERED
+option=tcp_connections:value=1
+option=timeout:value=30s
+# Hold the session open so the rejection below outlives the marker it follows.
+option=linger:value=true
+# CLAIM 2: the ipv4/flow End-of-RIB crosses the export gate. MP_UNREACH_NLRI
+# (type 15) carrying AFI 1 SAFI 133 and no withdrawn NLRI, and nothing else.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
-EOF_PEER
+# CLAIM 1: the FlowSpec route does not. 01180A0100 is the destination component
+# for 10.1.0.0/24, which unfiltered-peer proves is on the wire in this run.
+reject=bgp:conn=1:pattern=01180A0100
+EOF_FILTERED
+
+# The control peer. Same family, same announce, no export filter. Listens on
+# 127.0.0.2.
+stdin=unfiltered:terminator=EOF_UNFILTERED
+option=tcp_connections:value=1
+option=timeout:value=30s
+# Hold this session open too. Without it the peer closes the moment its second
+# expect rule matches, and the observer then reads per-peer state from a daemon
+# that is tearing a session down underneath it.
+option=linger:value=true
+# A distinct BGP Identifier. ze-peer defaults to ze's own identifier with the
+# last octet incremented, so both peers would present 1.2.3.5 and the second
+# OPEN in AS 1 is refused by the RFC 6286 Section 2.1 uniqueness check
+# (routerIDClaims.claim, reactor/routerid_unique.go).
+option=open:value=router-id:id=1.2.3.6
+# The same marker, so the two peers' End-of-RIB results are comparable: a build
+# that stops sending the marker altogether fails here as well as on the filtered
+# peer, and the difference between the two files stays the filter.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+# THE CONTROL: the announced route, on the wire, byte for byte the needle the
+# filtered peer forbids.
+expect=bgp:conn=1:seq=1:contains=01180A0100
+EOF_UNFILTERED
+
+# Observer: announces the route to both peers and holds the daemon up until each
+# peer's outcome has been read from the daemon.
+tmpfs=export-flowspec.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Announce one ipv4/flow route to a filtered peer and an unfiltered one."""
+import sys
+from ze_api import API, runtime_fail
+
+FILTERED = '127.0.0.1'
+UNFILTERED = '127.0.0.2'
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Both peers assert the marker first and the route second, so the announce
+    # goes on the far side of the initial sync. Inside that window the order on
+    # the wire would be decided by how promptly the host scheduled the daemon.
+    if not api.wait_peer_eor_sent(expected_peers=2):
+        runtime_fail('ze never sent its initial-sync End-of-RIB to both peers')
+
+    # THE SUBJECT: one FlowSpec route, offered to both peers by one command.
+    api.send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 '
+             'nlri ipv4/flow add destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80')
+
+    # The control, read from the daemon: the route reached the peer with no
+    # export filter. Without it the rejection below holds for a daemon that
+    # announced nothing at all.
+    api.assert_peer_received_beyond_eor(UNFILTERED, minimum=1, expected_peers=2)
+    print('OK: the unfiltered peer was sent the ipv4/flow route', file=sys.stderr)
+
+    # THE SUBJECT, read from the daemon: nothing beyond the End-of-RIB reached
+    # the filtered peer. Its wire rejection is the other half of the same claim.
+    api.assert_peer_received_only_eor(FILTERED, expected_peers=2)
+    print('OK: the filtered peer was sent nothing beyond its End-of-RIB', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external export-flowspec {
+		run ./export-flowspec.run
+		encoder json
+	}
+}
 bgp {
 	policy {
 		family-filter NoFlow {
@@ -26,13 +151,13 @@ bgp {
 			action remove
 		}
 	}
-	peer peer1 {
+	peer filtered-peer {
 		connection {
 			remote {
 				ip 127.0.0.1
 			}
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.3
 				accept false
 			}
 		}
@@ -52,9 +177,45 @@ bgp {
 		filter {
 			export [ bgp-filter-family:NoFlow ]
 		}
+		attach process export-flowspec {
+			send [ update ]
+		}
+	}
+
+	peer unfiltered-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.4
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process export-flowspec {
+			send [ update ]
+		}
 	}
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-family --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=filtered
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=unfiltered
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-family --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

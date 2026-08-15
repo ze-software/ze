@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -22,13 +23,14 @@ type withdrawRecorder struct {
 }
 
 type withdrawCall struct {
-	sel   *selector.Selector
-	batch types.NLRIBatch
+	sel    *selector.Selector
+	batch  types.NLRIBatch
+	sender plugin.Sender
 }
 
-func (w *withdrawRecorder) record(sel *selector.Selector, batch types.NLRIBatch) error {
+func (w *withdrawRecorder) record(sel *selector.Selector, batch types.NLRIBatch, sender plugin.Sender) error {
 	w.mu.Lock()
-	w.calls = append(w.calls, withdrawCall{sel: sel, batch: batch})
+	w.calls = append(w.calls, withdrawCall{sel: sel, batch: batch, sender: sender})
 	w.mu.Unlock()
 	return nil
 }
@@ -56,7 +58,7 @@ func testSel(s string) *selector.Selector {
 
 func mustAnnounce(t *testing.T, r *Registry, key, value, sel string, fam family.Family, source string, dur time.Duration) uint64 {
 	t.Helper()
-	id, err := r.Announce(key, value, testSel(sel), testBatch(fam), source, dur)
+	id, err := r.Announce(key, value, testSel(sel), testBatch(fam), source, plugin.OperatorSender(), dur)
 	require.NoError(t, err)
 	return id
 }
@@ -64,7 +66,7 @@ func mustAnnounce(t *testing.T, r *Registry, key, value, sel string, fam family.
 func TestRegistryAnnounceCreatesEntry(t *testing.T) {
 	r, _ := newTestRegistry()
 
-	id, err := r.Announce("mitigation", "ddos-udp", testSel("upstream"), testBatch(family.IPv4Unicast), "cli", 0)
+	id, err := r.Announce("mitigation", "ddos-udp", testSel("upstream"), testBatch(family.IPv4Unicast), "cli", plugin.OperatorSender(), 0)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), id)
 	assert.Equal(t, 1, r.Len())
@@ -139,13 +141,17 @@ func TestRegistrywithdrawEntryByID(t *testing.T) {
 	id1 := mustAnnounce(t, r, "a", "1", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "a", "2", "*", family.IPv4Unicast, "cli", 0)
 
-	// test-relax: withdrawEntryByID no longer returns error (unparam lint fix)
-	found := r.withdrawEntryByID(id1)
+	// The error return came back when the send permission made a withdraw
+	// refusable. It was dropped as an always-nil value to satisfy unparam, which
+	// was true of the reactor of the day and is not true of this one.
+	found, err := r.withdrawEntryByID(id1)
+	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, 1, rec.count())
 	assert.Equal(t, 1, r.Len())
 
-	found = r.withdrawEntryByID(999)
+	found, err = r.withdrawEntryByID(999)
+	require.NoError(t, err, "an id that was never tracked is not-found, not a failed withdraw")
 	assert.False(t, found)
 }
 
@@ -210,7 +216,7 @@ func TestRegistryMultipleEntriesSameTag(t *testing.T) {
 func TestRegistryDurationAutoWithdraw(t *testing.T) {
 	r, rec := newTestRegistry()
 
-	_, err := r.Announce("mitigation", "ddos", testSel("upstream"), testBatch(family.IPv4Unicast), "cli", 50*time.Millisecond)
+	_, err := r.Announce("mitigation", "ddos", testSel("upstream"), testBatch(family.IPv4Unicast), "cli", plugin.OperatorSender(), 50*time.Millisecond)
 	require.NoError(t, err)
 	assert.Equal(t, 1, r.Len())
 
@@ -229,8 +235,8 @@ func TestRegistryDurationCancelledByExplicitWithdraw(t *testing.T) {
 
 	id := mustAnnounce(t, r, "mitigation", "ddos", "upstream", family.IPv4Unicast, "cli", 500*time.Millisecond)
 
-	// test-relax: withdrawEntryByID no longer returns error (unparam lint fix)
-	found := r.withdrawEntryByID(id)
+	found, err := r.withdrawEntryByID(id)
+	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, 0, r.Len())
 	assert.Equal(t, 1, rec.count())

@@ -187,9 +187,6 @@ bgp {
 			group-updates disable
 			rs-fast-path enable
 		}
-		process rs-community-withdraw {
-			receive [ update state ]
-		}
 	}
 
 	peer excluded-client {

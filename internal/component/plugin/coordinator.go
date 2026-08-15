@@ -422,12 +422,12 @@ func (c *Coordinator) UnregisterCacheConsumer(name string) {
 
 // ForwardUpdatesDirect forwards cached UPDATEs to explicit destinations.
 // Returns ErrNoReactor when no BGP reactor is registered.
-func (c *Coordinator) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error {
+func (c *Coordinator) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender Sender) error {
 	r := c.getReactor()
 	if r == nil {
 		return ErrNoReactor
 	}
-	return r.ForwardUpdatesDirect(updateIDs, destinations, pluginName)
+	return r.ForwardUpdatesDirect(updateIDs, destinations, pluginName, sender)
 }
 
 // ReleaseUpdates acks cached UPDATEs for pluginName without forwarding.
@@ -450,10 +450,10 @@ func (c *Coordinator) ReleaseUpdates(updateIDs []uint64, pluginName string) erro
 // exist makes the server's type assertion fail and the whole replay degrade to a
 // per-route warning. ReactorLifecycle now composes ReactorRelayCoordinator so
 // that omission is a compile error rather than a runtime one.
-func (c *Coordinator) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error {
+func (c *Coordinator) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender Sender) error {
 	r := c.getReactor()
 	if r == nil {
 		return ErrNoReactor
 	}
-	return r.RelayStoredRoute(destination, routes)
+	return r.RelayStoredRoute(destination, routes, sender)
 }

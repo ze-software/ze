@@ -121,6 +121,8 @@ func TestOnPeerStateChangeArmsBarrierBeforeDelivering(t *testing.T) {
 	subscribeState(srv, plainProc)
 	go recordingResponder(t.Context(), plainConn, rec, plainName)
 
+	attachForDelivery(t, srv, testPeerInfo(), barrierName, plainName)
+
 	onPeerStateChange(srv, testPeerInfo(), pluginrpc.SessionStateUp, "")
 
 	steps := rec.recorded()
@@ -145,6 +147,8 @@ func TestOnPeerStateChangeDownArmsNoBarrier(t *testing.T) {
 	subscribeState(srv, proc)
 	go recordingResponder(t.Context(), conn, rec, barrierName)
 
+	attachForDelivery(t, srv, testPeerInfo(), barrierName)
+
 	onPeerStateChange(srv, testPeerInfo(), pluginrpc.SessionStateDown, "tcp-failure")
 
 	for _, step := range rec.recorded() {
@@ -168,6 +172,8 @@ func TestOnPeerStateChangeFailedDeliveryReleasesBarrier(t *testing.T) {
 	subscribeState(srv, proc)
 	// No responder, and the plugin side is closed: the delivery RPC fails.
 	require.NoError(t, conn.Close())
+
+	attachForDelivery(t, srv, testPeerInfo(), barrierName)
 
 	onPeerStateChange(srv, testPeerInfo(), pluginrpc.SessionStateUp, "")
 

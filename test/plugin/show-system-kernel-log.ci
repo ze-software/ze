@@ -152,9 +152,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process show-system-kernel-log-test {
-		}
 	}
 }
 EOF_CONF

@@ -102,7 +102,7 @@ bgp {
     	}
 
 
-        process acme-traffic-filter {
+        attach process acme-traffic-filter {
             send [ update ]
         }
     }

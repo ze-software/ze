@@ -147,9 +147,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process plugin-health-metrics-test {
-		}
 	}
 }
 EOF_CONF

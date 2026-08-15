@@ -295,11 +295,11 @@ neighbor 10.0.0.1 {
 	_, ok := plugins["bgp-rib"]
 	assert.True(t, ok, "expected plugin bgp-rib to be injected for GR")
 
-	// Check peer has RIB process binding (peer is inside a group)
+	// Check the peer attaches the RIB process (peer is inside a group)
 	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 
-	processes := peerTree.GetList("process")
+	processes := peerTree.GetContainer("attach").GetList("process")
 	_, ok = processes["bgp-rib"]
 	assert.True(t, ok, "expected process bgp-rib binding in peer")
 
@@ -360,10 +360,10 @@ neighbor 10.0.0.1 {
 	_, ok := plugins["bgp-rib"]
 	assert.True(t, ok, "expected plugin bgp-rib to be injected for route-refresh")
 
-	// Check process binding includes refresh (peer is inside a group)
+	// Check the attached process includes refresh (peer is inside a group)
 	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
-	processes := peerTree.GetList("process")
+	processes := peerTree.GetContainer("attach").GetList("process")
 	ribProcess := processes["bgp-rib"]
 	require.NotNil(t, ribProcess, "expected process bgp-rib binding")
 
@@ -1463,4 +1463,45 @@ neighbor 10.0.0.1 {
 	val, ok := reactor.Get("update-groups")
 	require.True(t, ok, "update-groups key must exist")
 	assert.Equal(t, "false", val, "update-groups must be false for migrated ExaBGP configs")
+}
+
+// TestExabgpConverterEmitsAttachProcess pins the converter's output keyword.
+// An ExaBGP config keeps its own `process` grammar on the way in; what ze
+// writes on the way out is the current ze-native spelling.
+//
+// VALIDATES: phase 1 of spec-fixit-peer-process-event-filter — the converter
+// emits `attach process <name>`.
+// PREVENTS: a migrated config that the parser then refuses.
+func TestExabgpConverterEmitsAttachProcess(t *testing.T) {
+	input := `
+process my-plugin {
+	run /path/to/plugin.py
+	encoder json
+}
+
+neighbor 10.0.0.1 {
+	router-id 1.1.1.1
+	local-as 65001
+	peer-as 65002
+	capability {
+		graceful-restart 120
+	}
+	api {
+		processes [ my-plugin ]
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	output := SerializeTree(result.Tree)
+	assert.Contains(t, output, "attach process bgp-rib {",
+		"converter must emit the current keyword, got:\n%s", output)
+	assert.NotContains(t, output, "\nprocess ",
+		"converter must not emit the retired keyword, got:\n%s", output)
+	assert.NotContains(t, output, "\tprocess ",
+		"converter must not emit the retired keyword, got:\n%s", output)
 }

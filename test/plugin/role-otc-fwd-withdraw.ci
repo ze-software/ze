@@ -147,6 +147,12 @@ EOF_RUN
 # ze: Provider (ASN 65000) with two Customer peers on separate loopbacks.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
 	external test-withdraw {
 		run ./test-withdraw.run
 		encoder json
@@ -178,8 +184,16 @@ bgp {
 			import provider
 			export default
 		}
-		process test-withdraw {
-			receive [ update state ]
+		attach process test-withdraw {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
 		}
 	}
 
@@ -208,13 +222,21 @@ bgp {
 			import provider
 			export default
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
-cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

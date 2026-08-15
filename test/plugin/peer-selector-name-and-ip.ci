@@ -71,7 +71,8 @@ bgp {
 			group-updates disable
 		}
 
-		process peer-selector {
+		attach process peer-selector {
+			send [ update ]
 		}
 	}
 }

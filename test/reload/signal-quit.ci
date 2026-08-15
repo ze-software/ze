@@ -87,9 +87,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process quit-test {
-		}
 	}
 }
 EOF_CONF

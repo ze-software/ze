@@ -97,10 +97,6 @@ bgp {
 		filter {
 			import [ bgp-filter-aspath:ALLOW-PEER ]
 		}
-
-		process test-aspath-accept {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

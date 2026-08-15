@@ -81,8 +81,9 @@ bgp {
 	        }
 	    }
 	
-	    process gr {
-	        send [ update ]
+	    attach process gr {
+	    	receive [ open-received state eor ]
+	    	send [ update ]
 	    }
 	}
 }

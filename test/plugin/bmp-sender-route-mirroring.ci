@@ -222,6 +222,9 @@ bgp {
         behavior {
             group-updates disable;
         }
+    	attach process bgp-bmp {
+    		receive [ state update open notification keepalive refresh ]
+    	}
     }
 }
 plugin {

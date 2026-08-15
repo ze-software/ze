@@ -138,7 +138,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        process cos-dynamic-session-test { }
     }
 }
 EOF_CONF

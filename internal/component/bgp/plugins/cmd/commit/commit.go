@@ -268,7 +268,7 @@ func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
-	result, err := bgpReactor.SendRoutes(selector.ParseDefault(tx.PeerSelector()), routes, withdrawals, sendEOR)
+	result, err := bgpReactor.SendRoutes(selector.ParseDefault(tx.PeerSelector()), routes, withdrawals, sendEOR, ctx.Sender)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

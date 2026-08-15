@@ -181,6 +181,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
 	}
 	peer client-a {
 		connection {
@@ -210,6 +217,13 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
 		}
 	}
 	peer client-b {
@@ -242,6 +256,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
 	}
 	peer client-c {
 		connection {
@@ -272,6 +293,13 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
 		}
 	}
 }

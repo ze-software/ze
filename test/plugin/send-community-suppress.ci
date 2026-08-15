@@ -134,6 +134,12 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
 	external test-sendcomm {
 		run ./test-sendcomm.run
 		encoder json
@@ -160,9 +166,13 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-
-		process test-sendcomm {
-			receive [ update state ]
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
 		}
 	}
 
@@ -189,6 +199,14 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 
 	peer dest-standard-peer {
@@ -214,6 +232,14 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF
@@ -221,7 +247,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest-none
 cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=dest-standard
-cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

@@ -31,6 +31,15 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
+# A check-mode peer closes the instant its expectations are met, and the only
+# one here is ze's End-of-RIB, which ze owes immediately (it has nothing to
+# announce). That close reaches ze as a peer-down, and a peer-down with
+# graceful-restart disabled DELETES the peer's Adj-RIB-In
+# (rib.go handleState -> delete(r.bgpPeers, peerAddr), RFC 4271 section 9), so
+# every `show bgp rib received` below would read an empty table. linger holds
+# the session open until teardown, which is what makes the five injected routes
+# observable for the length of the script.
+option=linger:value=true
 option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
@@ -148,12 +157,12 @@ def main():
         print('OK: all pipe first/last tests passed', file=sys.stderr)
 
         # Do not tear ze down before it has sent its End-of-RIB to the peer, or
-        # the peer's expect=bgp EOR can never be met. ze gates EOR behind its
-        # initial-sync wait (a 500ms minimum for API plugins that send routes,
-        # then the apiSync channel -- reactor/peer_initial_sync.go
-        # sendInitialRoutes), and `process bgp-rib { send [ update ] }` arms that
-        # wait. The pipe checks
-        # above finish in ~250ms, well inside it. Poll the eor-sent counter that
+        # the peer's expect=bgp EOR can never be met. ze gates the EOR behind its
+        # initial-sync wait (one bounded wait on the apiSync channel --
+        # reactor/peer_initial_sync.go sendInitialRoutes), and
+        # `attach process bgp-rib { send [ update ] }` arms that wait. The wait
+        # ends when bgp-rib signals `plugin session ready`, which is prompt but
+        # is not ordered against the pipe checks above. Poll the eor-sent counter that
         # peer_initial_sync.go's sendInitialRoutes bumps (peer_stats.go
         # IncrEORSent) only once the EOR write has succeeded and been flushed, so
         # the bytes are on the socket before shutdown closes it. Deterministic: no
@@ -223,14 +232,12 @@ bgp {
 			group-updates disable
 		}
 
-		process pipe-first-last-test {
-		}
-		process bgp-rib {
-			receive [ state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

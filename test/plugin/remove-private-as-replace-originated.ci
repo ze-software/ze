@@ -92,7 +92,7 @@ bgp {
 		filter {
 			export [ remove-private-as:REPLACE ]
 		}
-		process remove-private-as-replace-originated {
+		attach process remove-private-as-replace-originated {
 			send update
 		}
 	}

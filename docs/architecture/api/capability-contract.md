@@ -135,21 +135,27 @@ See `docs/architecture/config/syntax.md` for full plugin config options.
 
 ## Config Validation (✅ DONE)
 
-> **Status:** Implemented in `internal/component/config/bgp.go:validateProcessCapabilities`.
+> **Status:** Implemented in `validatePeerProcessCaps`.
+<!-- source: internal/component/bgp/config/peers.go -- validatePeerProcessCaps -->
 
-If peer has `graceful-restart` or `route-refresh` but no process with `send { update; }`:
-
-```
-peer 192.168.1.1: route-refresh requires process with send { update; }
-  no process bindings configured
-```
-
-Or if process bindings exist but none have `send { update; }`:
+If a peer has `graceful-restart` or `route-refresh` and attaches no process:
 
 ```
-peer 192.168.1.1: route-refresh requires process with send { update; }
-  configured: process logger, process monitor - none have send { update; }
+peer 192.168.1.1: route-refresh requires an attached process with send [ update ]
+  the peer attaches no process
 ```
+
+Or if it attaches processes and none of them carries `send [ update ]`:
+
+```
+peer 192.168.1.1: route-refresh requires an attached process with send [ update ]
+  configured: attach process logger, attach process monitor - none have send [ update ]
+```
+
+The capability needs a program that can re-advertise the routes a refresh asks
+for, and `send [ update ]` is the permission to do it. It is the same
+permission the reactor enforces at the peer-selector resolver, so a config that
+passes this check is a config whose announce will not be refused.
 
 ---
 

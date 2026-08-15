@@ -75,7 +75,9 @@ bgp {
 			group-updates disable
 		}
 
-		process exabgp-bridge {
+		attach process exabgp-bridge {
+			receive [ * ]
+			send [ * ]
 		}
 	}
 }

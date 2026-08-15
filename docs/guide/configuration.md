@@ -895,7 +895,9 @@ Tuning is idempotent: only changed parameters are written. Write failures are re
 
 ## Process Bindings
 
-Plugins are bound to peers via `process` blocks. Each process block names a plugin and configures what events it receives.
+A peer attaches a program in an `attach process` block. The block names a
+plugin and states the relationship in two directions: `receive` is what the
+program is fed for this peer, and `send` is what it may originate toward it.
 
 ```
 peer transit-a {
@@ -909,8 +911,27 @@ peer transit-a {
 }
 ```
 
-Base event types for `receive`: `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated`, `eor`, `rpki`. Plugins may register additional types (e.g., `update-rpki` from bgp-rpki-decorator). Validated at config parse time against registered event types.
+**A peer that attaches nothing feeds nothing.** These blocks decide delivery.
+A running plugin that a peer does not attach receives no event from that peer,
+whatever the plugin asked for when it started, and it may send that peer
+nothing. Loading a plugin and attaching it to a peer are two separate acts.
+
+Base event types for `receive`: `update`, `open`, `notification`, `keepalive`,
+`refresh`, `state`, `negotiated`, `eor`, `rpki`. Plugins may register more (for
+example `update-rpki` from bgp-rpki-decorator). A plain type is fed in both
+directions; `update-received` and `update-sent` name one. `*` names every
+registered type. Values are validated at config parse time.
+
+Base message types for `send`: `update` to originate routes, `refresh` to ask
+the peer to re-advertise. `*` grants both, and every send type registered
+later. A send a peer's block does not grant is refused and reported.
+
+Write the block on a group and every peer of that group carries it, dynamic
+members included. A member that restates the block replaces the group's list
+for itself alone. `show event delivery` prints the edges the running config
+produces, peer by peer.
 <!-- source: internal/component/bgp/event.go -- event type definitions; internal/component/plugin/registry/registry.go -- EventTypes registration -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
 
 ## Route Filters
 

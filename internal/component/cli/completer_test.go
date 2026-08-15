@@ -557,7 +557,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 
 	// receive leaf-list has ze:validate "receive-event-type" with CompleteFn
 	// -- should show actionable values, not hints.
-	recvComps := c.Complete("set receive ", []string{"bgp", "peer", "process"})
+	recvComps := c.Complete("set receive ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, recvComps, "expected completions from CompleteFn for ze:validate leaf")
 	for _, comp := range recvComps {
 		if comp.Text == "<string>" || comp.Text == "<value>" {
@@ -570,7 +570,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 	assert.Contains(t, texts, "update", "should show event types from CompleteFn")
 
 	// send leaf-list also has ze:validate with CompleteFn -- verify separately
-	sendComps := c.Complete("set send ", []string{"bgp", "peer", "process"})
+	sendComps := c.Complete("set send ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, sendComps, "expected completions from CompleteFn for send")
 	for _, comp := range sendComps {
 		assert.Equal(t, "value", comp.Type, "send completions should be actionable")
@@ -585,7 +585,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 func TestCompleterReceiveEventCompletion(t *testing.T) {
 	c := NewCompleter()
 
-	completions := c.Complete("set receive ", []string{"bgp", "peer", "process"})
+	completions := c.Complete("set receive ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, completions, "expected completions from CompleteFn for receive leaf-list")
 
 	texts := completionTexts(completions)
@@ -605,8 +605,8 @@ func TestCompleterReceiveEventCompletion(t *testing.T) {
 func TestCompleterSendMessageCompletion(t *testing.T) {
 	c := NewCompleter()
 
-	// Navigate to bgp > peer > process > send
-	completions := c.Complete("set send ", []string{"bgp", "peer", "process"})
+	// Navigate to bgp > peer > attach > process > send
+	completions := c.Complete("set send ", []string{"bgp", "peer", "attach", "process"})
 
 	require.NotEmpty(t, completions, "expected completions from CompleteFn for send leaf-list")
 
@@ -639,7 +639,7 @@ func TestCompleterValidatePrefixFilter(t *testing.T) {
 	c := NewCompleter()
 
 	// Type "up" prefix at receive leaf-list position
-	completions := c.Complete("set receive up", []string{"bgp", "peer", "process"})
+	completions := c.Complete("set receive up", []string{"bgp", "peer", "attach", "process"})
 
 	require.NotEmpty(t, completions, "prefix filter should return matching completions")
 	for _, comp := range completions {

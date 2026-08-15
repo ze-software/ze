@@ -237,7 +237,7 @@ func managedConfig(routerID string, hubPort, pluginPort int, reject bool) string
         b.WriteString("    connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
         b.WriteString("    session { asn { remote 1; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }\n")
         b.WriteString("    behavior { group-updates disable; }\n")
-        b.WriteString("    process managed-reject-plugin { }\n")
+        b.WriteString("    attach process managed-reject-plugin { }\n")
         b.WriteString("  }\n")
     }
     b.WriteString("}\n")

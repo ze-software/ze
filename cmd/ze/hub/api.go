@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zeconfigcmd "github.com/ze-software/ze/internal/component/config/cli"
+	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -144,6 +145,10 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 			Username:       caller.Username,
 			RemoteAddr:     caller.RemoteAddr,
 			Surface:        caller.Surface,
+			// An API client streaming a monitor command is an operator, and AAA
+			// checks that operator against Username above (main_servers.go says
+			// the same for the command path).
+			Sender: plugin.OperatorSender(),
 		}
 		// Streaming commands are monitor-style read-only commands today.
 		// If write-capable streams are added, the registry must carry metadata.

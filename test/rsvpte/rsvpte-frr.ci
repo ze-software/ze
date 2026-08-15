@@ -145,8 +145,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process rsvpte-frr {
-		}
 	}
 }
 EOF_CONF

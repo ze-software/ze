@@ -105,6 +105,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
 	}
 	peer rs-client-receiver {
 		connection {
@@ -138,6 +145,13 @@ bgp {
 		# EXPORT, which is the direction the mechanism is not honored on.
 		filter {
 			export [ modify:DROP-MED ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
 		}
 	}
 }

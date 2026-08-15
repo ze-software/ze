@@ -50,16 +50,33 @@ func (s *Server) opReleaseCached(proc *process.Process, params json.RawMessage) 
 // opRelayStoredRoute is the shared handler for relay-stored-route (JSON +
 // Direct), registered as the engineOp for rpc.MethodRelayStoredRoute.
 // spec-fixit-bgp-egress-rail-divergence.
-func (s *Server) opRelayStoredRoute(_ *process.Process, params json.RawMessage) (any, error) {
+//
+// proc is what names the SENDER. It used to be discarded, so the relay reached
+// the reactor with no authority and any connected process could replay routes it
+// supplied into any peer it named.
+func (s *Server) opRelayStoredRoute(proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.RelayStoredRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid relay-stored-route params: ").Err(err).String()}
 	}
-	if err := s.relayStoredRoute(input.Destination, input.Routes); err != nil {
+	if err := s.relayStoredRoute(procSender(proc), input.Destination, input.Routes); err != nil {
 		return nil, err
 	}
 	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+}
+
+// procSender names the process an engine op arrived from.
+//
+// A nil process is the zero Sender, not the operator: these ops arrive on a
+// plugin's own RPC connection, so a nil one means the caller could not say who
+// it was, and the send guard refuses that rather than reading it as operator
+// authority (plugin.Sender, bgp/reactor/send_permission.go).
+func procSender(proc *process.Process) plugin.Sender {
+	if proc == nil {
+		return plugin.Sender{}
+	}
+	return plugin.ProcessSender(proc.Name())
 }
 
 // relayStoredRoute is the shared implementation of the relay-stored-route RPC.
@@ -71,7 +88,7 @@ func (s *Server) opRelayStoredRoute(_ *process.Process, params json.RawMessage) 
 // targets exactly ONE peer, so a destination that does not parse means the whole
 // replay has nowhere to go and must fail closed rather than silently relay
 // nothing (ai/rules/evidence.md).
-func (s *Server) relayStoredRoute(destination string, routes []rpc.StoredRoute) error {
+func (s *Server) relayStoredRoute(sender plugin.Sender, destination string, routes []rpc.StoredRoute) error {
 	if len(routes) == 0 {
 		return nil
 	}
@@ -84,7 +101,7 @@ func (s *Server) relayStoredRoute(destination string, routes []rpc.StoredRoute) 
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("relay-stored-route: invalid destination ").Quoted(destination).Str(": ").Err(err).String())
 	}
-	return rc.RelayStoredRoute(addr, routes)
+	return rc.RelayStoredRoute(addr, routes, sender)
 }
 
 // forwardCached is the shared implementation of the forward-cached RPC. It
@@ -101,7 +118,12 @@ func (s *Server) forwardCached(proc *process.Process, ids []uint64, destinations
 		return errors.New("forward-cached: no reactor available")
 	}
 	addrPorts := parseForwardDestinations(proc.Name(), destinations)
-	return rc.ForwardUpdatesDirect(ids, addrPorts, proc.Name())
+	// proc.Name() twice, for two different questions: the cache consumer whose
+	// acks are tracked, and the authority each destination's `send [ update ]`
+	// grant is written against. They agree here and must not be conflated -- the
+	// consumer name is empty for a non-consumer on the ForwardUpdate rail, while
+	// the authority is never optional.
+	return rc.ForwardUpdatesDirect(ids, addrPorts, proc.Name(), procSender(proc))
 }
 
 // releaseCached is the shared implementation of the release-cached RPC.

@@ -61,7 +61,8 @@ bgp {
 			group-updates disable
 		}
 
-		process peer-selector-asn {
+		attach process peer-selector-asn {
+			send [ update ]
 		}
 	}
 }

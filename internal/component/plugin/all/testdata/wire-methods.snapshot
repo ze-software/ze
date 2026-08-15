@@ -165,6 +165,7 @@ ze-show:dns-cache-stats
 ze-show:dns-lookup
 ze-show:doctor
 ze-show:errors
+ze-show:event-delivery
 ze-show:event-namespaces
 ze-show:event-recent
 ze-show:firewall-group

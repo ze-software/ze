@@ -23,6 +23,8 @@
 | Adj-RIB-In plugin | ✅ Done | `internal/component/bgp/plugins/adj_rib_in/` |
 | Shared BGP types | ✅ Done | `internal/component/bgp/` |
 | borr/eorr markers | ✅ Done | RFC 7313 full support |
+| Peer-to-process delivery index | ✅ Done | `internal/component/plugin/server/delivery_graph.go` |
+| Send permission per peer | ✅ Done | `internal/component/bgp/reactor/send_permission.go` |
 <!-- source: internal/component/plugin/server/server.go -- Server -->
 <!-- source: internal/component/plugin/process/process.go -- Process -->
 
@@ -39,6 +41,7 @@
 | **RIB** | Owned by API program (use `internal/component/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
 | **Cache Control** | API controls cache via `bgp cache` commands |
+| **Who gets what** | The peer's `attach process` block. A peer that attaches no block for a program feeds it nothing and refuses its sends |
 
 **When to read full doc:** Writing API programs, understanding engine/API split.
 
@@ -110,84 +113,165 @@ bgp cache forward 123 !10.0.0.1  # Forward to all except source
 
 ---
 
-## Process and Peer API Binding
+## Attaching a Process to a Peer
 
-### Design Principles
+### The model
 
 ```
-Process = unique program (runs once, defined globally)
-Peer API binding = which process, what messages, what format (per-peer)
+Process    = one program, declared once under plugin { }, started once
+Attachment = one peer's relationship with that program, stated per peer
 ```
 
-One process can serve multiple peers. Each peer-binding can have different:
-- Message types (update, notification, etc.)
-- Format (parsed, raw, full)
-- Encoding (json, text)
+One process serves many peers, and each peer states its own relationship with
+it. An attachment carries two independent directions:
+
+| Direction | Leaf | Meaning |
+|-----------|------|---------|
+| Inbound | `receive [ ... ]` | the event types ze hands the program for this peer |
+| Outbound | `send [ ... ]` | the message types the program may originate toward this peer |
+
+A peer that attaches no block for a program is fed to it never, and refuses
+every message the program aims at that peer. Silence is the default, and the
+config is what breaks it. This holds for ze's own plugins as it holds for an
+operator's program: a config that loads `bgp-rib` and attaches it to no peer
+stores no route.
 
 ### Configuration Syntax
 
 ```
-# Global process definition (program runs once)
-process <name> {
-    run <command>;
-    respawn <bool>;
+# The program, declared once. One process runs, whatever number of peers
+# attach it.
+plugin {
+    external looking-glass {
+        run ./looking-glass.py;
+        encoder json;
+    }
 }
 
-# Per-peer API binding
-peer <address> {
-    api <process-name> {
-        content {
-            encoding json;       # json | text
-            format parsed;       # parsed | raw | full
-        }
-        receive {
-            update;              # route announcements
-            notification;        # errors
-            state;               # up/down events
-            all;                 # shorthand
-        }
-        send {
-            update;              # can inject routes
-        }
+# The relationship, stated per peer.
+peer 198.51.100.1 {
+    attach process looking-glass {
+        receive [ update-received state ]   # what the program is fed
+        send    [ update ]                  # what it may originate here
     }
 }
 ```
+
+`receive` names an event type and the direction it is fed in. A plain type
+means both directions, `update-received` names the UPDATEs the peer sends to
+ze, and `update-sent` names the ones ze sends to the peer. `*` names every
+registered type. `send` carries no direction, because every send type is sent.
+
+### Groups and Dynamic Peers
+
+A group's `attach process` block reaches every peer that group produces,
+because the delivery index is built from RESOLVED peer settings and not from
+the config document. Three cases and one rule:
+
+| The peer | What it gets |
+|----------|--------------|
+| A member that states no block of its own | its group's list |
+| A member that restates the block | its own list, which replaces the group's for that member alone |
+| A peer created by a dynamic group | its group's list, under the address its connection arrived from |
+
+A dynamic member is named by no config document: ze generates the name
+`dyn-<address>` when it accepts the connection. The index needs no such name,
+because it is keyed on the peer address and the member carries its group's
+bindings by inheritance.
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
 ### Key Differences from ExaBGP
 
 | Aspect | ExaBGP | Ze |
 |--------|--------|-------|
 | Keyword | `neighbor {` | `peer {` |
-| API binding | `api { processes [foo]; }` | `api foo { ... }` in peer |
-| Format location | `receive { parsed; packets; }` | `content { format ...; }` per binding |
+| Binding | `api { processes [foo]; }` | `attach process foo { ... }` in the peer |
+| Direction | `receive { parsed; packets; }` | part of the type name: `update-received` |
 | Output syntax | `neighbor X announce route ...` | `update text nlri <family> ...` |
 
-### Data Flow: Config → Server
+### Data Flow: Config to Delivery
 
 ```
-config.PeerConfig.APIBindings
+the config document
         │
-        ▼ (loader.go)
-reactor.PeerSettings.APIBindings
+        ▼ ResolveBGPTree: the group's block merged into each member
+PeerSettings.ProcessBindings
         │
-        ▼ (stored in Reactor.peers)
-Server.OnMessageReceived()
-        │ calls reactor.GetPeerAPIBindings(addr)
-        ▼
-Per-binding format/encoding applied
+        ▼ DeliveryPeersFromSettings
+Server.UpdateDeliveryGraph -> DeliveryGraph, swapped under one atomic pointer
+        │
+        ▼ Server.PeerScopedProcs
+the seven peer-scoped delivery sites in bgp/server/events.go
 ```
 
-**Server queries Reactor via ReactorInterface:**
-- No data duplication (bindings live in PeerSettings)
-- Server doesn't track peer lifecycle
-- Encoding inheritance resolved at query time
-<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor -->
+The reactor pushes a new index after every peer change: `AddPeer`,
+`doRemovePeer`, `createDynamicPeer`, `removeDynamicPeer`, the end of a
+journaled config apply, and once inside `StartWithContext` before any peer
+starts. A reader takes a pointer snapshot, so no reader sees a half-built index
+and no surviving edge misses an event across a reload.
 
-### Encoding Inheritance
+The lookup is one index read and it allocates nothing per event. It replaced a
+scan of every process and every subscription on every delivered message.
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings, publishDeliveryGraphLocked -->
 
-1. Peer binding specifies `content { encoding json; }` → use JSON
-2. Peer binding empty → inherit from process `encoder json;`
-3. Both empty → default to "text"
+The outbound half is enforced at the command rather than in the index: each peer
+a command reached is asked whether it grants this process the message type that
+command puts on the wire. A peer the command names and the permission refuses is
+dropped and reported. A command whose every peer refuses fails. Both halves read
+the same resolved settings, so `show event delivery` cannot disagree with what
+the daemon does.
+
+Ten commands reach a peer's wire and every one applies that check, but they do
+not all get there the same way, and reading "the selector resolver" as the whole
+guard is what left four of them open until the review that found it. Six resolve
+their peers through `getMatchingPeersSel`: announce, withdraw, End-of-RIB,
+commit, route refresh and soft clear. Four do not. `cache forward` parses a
+selector of its own and matches it inside `ForwardUpdate`; the `forward-cached`
+and `relay-stored-route` plugin RPCs and `peer <addr> raw` name their
+destinations directly, as an address list, one address, or one peer. All ten
+share one filter, `filterPermittedPeers`.
+
+Raw is gated on ATTACHMENT rather than on a send type. It carries a whole BGP
+message the caller chose, so no `send` word describes it; the peer must attach
+the process, and any `attach process <name> { }` block does.
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendOrigin, filterPermittedPeers -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate -->
+
+### What the Plugin Declares and What the Peer Grants
+
+A plugin declares what it CAN handle, in its ready RPC. The peer's config
+decides what it GETS. A peer-scoped event reaches a process when both halves
+name it. At plugin ready, and again after every config apply, ze names each
+peer, process and event type the two halves disagree about, and says nothing
+when they agree.
+
+A process that NO peer attaches gets its own line, because it has no peer to
+name: it declared events and no `attach process` block anywhere in the config
+mentions it, so no peer-scoped event reaches it. Loading a plugin does not
+attach it. A config path that starts one (`rs-client`, `route-reflector-client`,
+`watchdog { }`, a custom receive token) creates no delivery edge, so the peers
+it must serve MUST also name it.
+
+A `request subscribe` typed at a running daemon is a live override. It is
+delivered whether or not the peer's block grants the type, and the next config
+apply discards it: the config is durable truth and a reload rebuilds the index
+from the document.
+<!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
+
+### Encoding
+
+Encoding belongs to the PROCESS, not to the attachment. It comes from the
+`encoder` leaf in the program's own `plugin { }` block, and the ready RPC can
+set it. One process therefore has one encoding for every peer it serves.
+
+The `content { encoding format }` block inside an attachment parses and is not
+read. Honoring it per peer needs a per-peer format cache, which is a separate
+change with its own design question.
+<!-- source: internal/component/config/loader.go -- ExtractPluginsFromTree -->
+<!-- source: internal/component/plugin/process/process.go -- Process.SetEncoding -->
 
 ---
 
@@ -756,33 +840,33 @@ Transaction flow:
 3. `commit transaction` - Flush all queued, send EOR
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager, Transaction -->
 
-## ReactorInterface
+## The Reactor Interface
 
-```go
-type ReactorInterface interface {
-    // Route injection
-    AnnounceRoute(peerSelector string, route RouteSpec) error
-    WithdrawRoute(peerSelector string, prefix netip.Prefix) error
+The seam between a command handler and the BGP engine is `BGPReactor`. Read the
+declaration rather than a copy of it: a copy here goes stale on the next method
+added, and this one did.
 
-    // Transactions
-    BeginTransaction(peerSelector, label string) error
-    CommitTransaction(peerSelector) (TransactionResult, error)
-    RollbackTransaction(peerSelector) (TransactionResult, error)
+Most methods that reach a peer take the peer selector the command carried;
+`SendRawMessage` takes one peer address instead. Every method that puts a
+message on a peer's wire also takes the issuer: the attached process that asked,
+or the operator who typed the command at the CLI, SSH or REST surface. The issuer
+is what the send permission is checked against. Two further wire-writing rails
+are not on this interface and carry the issuer the same way,
+`ReactorCacheCoordinator.ForwardUpdatesDirect` and
+`ReactorRelayCoordinator.RelayStoredRoute`.
 
-    // RIB access
-    RIBInRoutes(peerID string) []RIBRoute
-    RIBOutRoutes() []RIBRoute
-    RIBStats() RIBStatsInfo
+A method that carries a `pluginName` beside the issuer is not naming a second
+identity. That string is cache accounting, it names the consumer whose acks are
+tracked, and it is empty for a caller that is not one. Nothing checks a
+permission against it.
+<!-- source: internal/component/bgp/types/reactor.go -- BGPReactor -->
+<!-- source: internal/component/plugin/types_bgp.go -- ReactorCacheCoordinator, ReactorRelayCoordinator -->
 
-    // Peer management
-    GetPeerByIP(ip string) (Peer, bool)
-    GetPeers() []Peer
-
-    // API bindings (Phase 1)
-    GetPeerAPIBindings(addr netip.Addr) []PeerAPIBinding
-    // ... etc
-}
-```
+The issuer is a `plugin.Sender`, and it has a third state. Its zero value means
+no dispatch path said who issued the command, and the reactor refuses such a
+command instead of reading it as the operator. A new dispatch path therefore
+sets `CommandContext.Sender`, or every send it makes is denied and logged.
+<!-- source: internal/component/plugin/sender.go -- Sender -->
 
 ## Output Format: UPDATE Events
 
@@ -1120,24 +1204,17 @@ bgp cache forward 12345 10.0.0.2
 
 ### Attribute Filtering (Partial Parse)
 
-API bindings can limit which attributes are parsed:
+The engine can render an event with a subset of the path attributes parsed,
+which costs less CPU, stores fewer parsed attributes, and leaves the wire bytes
+whole for forwarding. `ContentConfig.Attributes` carries that selection.
 
-```
-api foo {
-    content {
-        attribute as-path community next-hop;  # Only parse these
-        nlri ipv4/unicast;                     # Only include IPv4 unicast
-        nlri ipv6/unicast;                     # Also include IPv6 unicast
-    }
-    receive { update; }
-}
-```
-
-Benefits:
-- Reduced CPU (parse only what's needed)
-- Reduced memory (don't store parsed attributes long-term)
-- Wire bytes preserved for forwarding
-- NLRI filtering reduces output to relevant families only
+The `content` block inside an attachment states `encoding`, `format` and
+`attribute`, and ze reads none of the three per peer. Encoding and format are
+process-wide (see "Encoding" above), and `attribute` reaches no field of
+`ProcessBinding` at all. Do not write an attachment expecting one peer's events
+to be rendered differently from another's.
+<!-- source: internal/component/bgp/types/contentconfig.go -- ContentConfig -->
+<!-- source: internal/component/bgp/reactor/peersettings.go -- ProcessBinding -->
 
 ### RFC 9234 Role Tagging (Planned)
 

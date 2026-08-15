@@ -39,11 +39,11 @@ bgp {
             ipv4/unicast
         }
 
-        process rpki {
-            receive [ update ]
+        attach process rpki {
+            receive [ update-received ]
         }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -108,7 +108,7 @@ every session that group accepts inherits.
 
 ### Plugin Bindings
 
-The rpki plugin must be bound to peers with `process rpki { receive [ update ] }`. The adj-rib-in plugin must also be bound with `process adj-rib-in { receive [ update state ] }` -- it provides the validation gate that holds routes pending validation.
+The rpki plugin must be bound to peers with `attach process rpki { receive [ update-received ]; }`. It validates what the peer announces, so it asks for one direction. The adj-rib-in plugin must also be bound with `attach process adj-rib-in { receive [ update-received state ]; }` -- it provides the validation gate that holds routes pending validation.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 
 ## How It Works
@@ -210,17 +210,17 @@ plugin {
 
 bgp {
     peer peer1 {
-        process my-consumer {
+        attach process my-consumer {
             receive [ update-rpki ]
         }
-        process rpki {
-            receive [ update ]
+        attach process rpki {
+            receive [ update-received ]
         }
-        process rpki-decorator {
-            receive [ update rpki ]
+        attach process rpki-decorator {
+            receive [ update-received rpki ]
         }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -365,4 +365,4 @@ When the rpki plugin is not loaded, routes flow directly into the adj-rib-in wit
 | Routes delayed 30s then accepted | RTR cache server unreachable | Check connectivity to cache server, verify port |
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
 | No VRPs loaded | RTR session not established | Check `show bgp rpki status`, verify cache server is running |
-| Routes accepted without validation | rpki plugin not bound to peer | Add `process rpki { receive [ update ] }` to peer config |
+| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received ]; }` to peer config |

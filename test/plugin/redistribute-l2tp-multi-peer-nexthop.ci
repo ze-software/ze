@@ -1,6 +1,6 @@
 # Test: redistribute-l2tp-multi-peer-nexthop -- Two BGP peers get distinct NEXT_HOP.
-# VALIDATES: AC-1 -- peer1 (local 127.0.0.1) receives NEXT_HOP=127.0.0.1;
-#            peer2 (local 127.0.0.2) receives NEXT_HOP=127.0.0.2.
+# VALIDATES: AC-1 -- peer1 (ze local 127.0.0.4) receives NEXT_HOP=127.0.0.4;
+#            peer2 (ze local 127.0.0.5) receives NEXT_HOP=127.0.0.5.
 # PREVENTS: resolveNextHop regression where all peers get the same NEXT_HOP
 #           regardless of their local session address.
 
@@ -14,18 +14,21 @@
 # and is now enforced on the wire instead.
 #
 # ze-peer 1 (127.0.0.1) expectations
-# UPDATE: ORIGIN incomplete, empty AS_PATH (iBGP), NEXT_HOP 127.0.0.1,
-# LOCAL_PREF 100, NLRI 10.0.0.1/32. LOCAL_PREF is well-known mandatory on an iBGP
-# session (RFC 4271 5.1.5), emitted by reactor_api_batch.go buildWireModeUpdate.
+# UPDATE: ORIGIN incomplete, empty AS_PATH (iBGP), NEXT_HOP 127.0.0.4 -- ze's OWN
+# address on this session, never the peer's own 127.0.0.1 (RFC 4271 Section
+# 5.1.3). LOCAL_PREF 100, NLRI 10.0.0.1/32. LOCAL_PREF is well-known mandatory on
+# an iBGP session (RFC 4271 5.1.5), emitted by reactor_api_batch.go
+# buildWireModeUpdate.
 stdin=peer1:terminator=EOF_PEER1
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000140050400000064200A000001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000440050400000064200A000001
 EOF_PEER1
 
 # ze-peer 2 (127.0.0.2) expectations
-# Same UPDATE but NEXT_HOP 127.0.0.2 -- the per-peer substitution this test exists
-# to prove. Byte-identical to peer1's apart from the NEXT_HOP attribute value.
+# Same UPDATE but NEXT_HOP 127.0.0.5, ze's own address on THAT session -- the
+# per-peer substitution this test exists to prove. Byte-identical to peer1's
+# apart from the NEXT_HOP attribute value, and neither value is its own peer's.
 # Both peers are in AS 65533 and ze-peer's default OPEN mirrors ze's router-id with the
 # last octet incremented, so without an explicit identifier BOTH would present 1.2.3.5 --
 # two distinct routers of one AS sharing a BGP Identifier, which ze rejects by default
@@ -34,7 +37,7 @@ stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=open:value=router-id:id=1.2.3.6
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000240050400000064200A000001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000540050400000064200A000001
 EOF_PEER2
 
 # Python observer: wait for all plugins ready, drive fakel2tp emit, shut down.
@@ -139,8 +142,11 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what `nhop self` puts on the
+			# wire. Deliberately NOT the peer's 127.0.0.1: RFC 4271 Section 5.1.3
+			# forbids advertising a peer an address of that peer as NEXT_HOP.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.4
 				accept false
 			}
 		}
@@ -159,6 +165,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 
@@ -167,8 +176,11 @@ bgp {
 			remote {
 				ip 127.0.0.2
 			}
+			# Ze's own address on this session, and what `nhop self` puts on the
+			# wire. Deliberately NOT the peer's 127.0.0.2: RFC 4271 Section 5.1.3
+			# forbids advertising a peer an address of that peer as NEXT_HOP.
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.5
 				accept false
 			}
 		}
@@ -187,6 +199,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 }

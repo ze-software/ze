@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -387,7 +388,7 @@ func forwardOneBody(t *testing.T, srcPeerAS uint32, destSettings *PeerSettings, 
 
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
-	require.NoError(t, adapter.ForwardUpdate(sel, updateID, "relay-shape-test"))
+	require.NoError(t, adapter.ForwardUpdate(sel, updateID, "relay-shape-test", plugin.OperatorSender()))
 
 	select {
 	case <-done:

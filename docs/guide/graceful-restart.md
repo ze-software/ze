@@ -25,11 +25,12 @@ bgp {
             }
         }
 
-        process gr {
-            receive [ state eor ]
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
         }
-        process rib {
-            receive [ state ]
+        attach process rib {
+            receive [ update state refresh ]
             send [ update ]
         }
     }
@@ -74,8 +75,8 @@ If the GR plugin crashes or fails to issue `purge-stale`, the RIB automatically 
 ## Plugin Bindings
 
 The GR plugin requires:
-- `receive [ state eor ]` -- needs peer up/down events and End-of-RIB markers
-- The RIB plugin must also be loaded with `receive [ state ]` and `send [ update ]`
+- `receive [ open-received state eor ]` -- needs the peer's OPEN, its up/down events, and End-of-RIB markers
+- The RIB plugin must also be loaded with `receive [ update state refresh ]` and `send [ update ]`
 
 The GR plugin depends on `bgp-rib` (declared in its registration). The engine ensures bgp-rib starts first.
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->

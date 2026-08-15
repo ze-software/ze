@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -86,7 +87,7 @@ func BenchmarkForwardDirect(b *testing.B) {
 	b.ResetTimer()
 	for i := range b.N {
 		ids[0] = uint64(i + 1) //nolint:gosec // bench loop
-		_ = adapter.ForwardUpdatesDirect(ids, dests, "rs")
+		_ = adapter.ForwardUpdatesDirect(ids, dests, "rs", plugin.OperatorSender())
 	}
 }
 
@@ -166,6 +167,6 @@ func BenchmarkForwardDirect_Batch(b *testing.B) {
 		for j := range batchSize {
 			ids[j] = uint64(i*batchSize + j + 1) //nolint:gosec // bench loop
 		}
-		_ = adapter.ForwardUpdatesDirect(ids, dests, "rs")
+		_ = adapter.ForwardUpdatesDirect(ids, dests, "rs", plugin.OperatorSender())
 	}
 }

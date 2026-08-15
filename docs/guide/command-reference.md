@@ -2274,6 +2274,8 @@ active after enabling debug or applying a profile.
 | `show command help <name>` | read-only | Detailed help for a command |
 | `show event list` | read-only | List available event types |
 <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
+| `show event delivery` | read-only | Show which peers feed which attached processes |
+<!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery -->
 
 ---
 

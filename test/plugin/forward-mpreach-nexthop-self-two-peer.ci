@@ -1,9 +1,9 @@
 # Test: forward-mpreach-nexthop-self-two-peer -- a redistributed route fans out to
 # two peers, each receiving it in an MP_REACH_NLRI attribute with a distinct,
 # per-session next-hop (next-hop-self on the wire, not just RIB state).
-# VALIDATES: peer1 (local 127.0.0.1) and peer2 (local 127.0.0.2) each observe the
-#            224.1.1.0/24 UPDATE carried in MP_REACH with the next-hop resolved to
-#            their OWN session address (7f000001 vs 7f000002 on the wire).
+# VALIDATES: peer1 (ze local 127.0.0.4) and peer2 (ze local 127.0.0.5) each observe
+#            the 224.1.1.0/24 UPDATE carried in MP_REACH with the next-hop resolved
+#            to ze's own address on THAT session (7f000004 vs 7f000005 on the wire).
 # PREVENTS:  an MP_REACH next-hop-self regression where every peer gets the same
 #            next-hop regardless of its session, or the route is only in the RIB
 #            and never re-encoded onto the wire.
@@ -20,15 +20,16 @@
 # (a native-IPv6 two-peer variant would need a second bindable IPv6 loopback the
 # darwin/no-root harness cannot supply). The wire hex below is captured from ze.
 
-# ze-peer 1 (127.0.0.1): the per-session MP_REACH next-hop is 7f000001.
+# ze-peer 1 (127.0.0.1): the per-session MP_REACH next-hop is 7f000004, ze's own
+# address on this session and never the peer's own (RFC 4271 Section 5.1.3).
 stdin=peer1:terminator=EOF_PEER1
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000010018E00101
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.1"}]}
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000040018E00101
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.4"}]}
 EOF_PEER1
 
-# ze-peer 2 (127.0.0.2): the per-session MP_REACH next-hop is 7f000002 (distinct).
+# ze-peer 2 (127.0.0.2): the per-session MP_REACH next-hop is 7f000005 (distinct).
 # Both peers are in AS 65533 and ze-peer's default OPEN mirrors ze's router-id with the
 # last octet incremented, so without an explicit identifier BOTH would present 1.2.3.5 --
 # two distinct routers of one AS sharing a BGP Identifier, which ze rejects by default
@@ -37,8 +38,8 @@ stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=open:value=router-id:id=1.2.3.6
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000020018E00101
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.2"}]}
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000050018E00101
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.5"}]}
 EOF_PEER2
 
 # Python observer: wait for all plugins ready, drive fakel2tp emit, shut down.
@@ -116,8 +117,11 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what next-hop-self puts in
+			# MP_REACH. Deliberately NOT the peer's 127.0.0.1: RFC 4271 Section
+			# 5.1.3 forbids a peer's own address as NEXT_HOP.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.4
 				accept false
 			}
 		}
@@ -136,6 +140,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 
@@ -144,8 +151,11 @@ bgp {
 			remote {
 				ip 127.0.0.2
 			}
+			# Ze's own address on this session, and what next-hop-self puts in
+			# MP_REACH. Deliberately NOT the peer's 127.0.0.2: RFC 4271 Section
+			# 5.1.3 forbids a peer's own address as NEXT_HOP.
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.5
 				accept false
 			}
 		}
@@ -164,6 +174,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 }

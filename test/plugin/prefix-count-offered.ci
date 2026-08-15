@@ -206,6 +206,10 @@ bgp {
 				ipv4/unicast add 192.168.1.0/24
 			}
 		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF

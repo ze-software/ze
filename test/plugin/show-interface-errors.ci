@@ -162,8 +162,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-interface-errors-test {
-		}
 	}
 }
 EOF_CONF

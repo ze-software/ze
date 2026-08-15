@@ -162,7 +162,7 @@ bgp {
 			group-updates disable
 		}
 
-		process cli-grammar-test {
+		attach process cli-grammar-test {
 			send [ update ]
 		}
 	}

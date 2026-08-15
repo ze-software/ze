@@ -50,6 +50,15 @@ call-sync ze_show_bgp {"action":"rib"}
 EOF_MCP
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal bgp-adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
 bgp {
 	peer peer1 {
 		connection {
@@ -73,6 +82,13 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }

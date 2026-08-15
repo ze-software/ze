@@ -292,10 +292,8 @@ bgp {
 			}
 		}
 
-		process pipe-test {
-		}
-		process bgp-rib {
-			receive [ update sent state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

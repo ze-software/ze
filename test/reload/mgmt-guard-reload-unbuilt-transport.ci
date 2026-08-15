@@ -174,8 +174,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process mgmt-unbuilt-transport-test {
-		}
 	}
 }
 EOF_CONF2
@@ -239,8 +237,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		process mgmt-unbuilt-transport-test {
 		}
 	}
 }

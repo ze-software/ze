@@ -302,7 +302,7 @@ Symptom: session establishes briefly then NOTIFICATION received
    ze --plugins                  # list compiled-in plugins
    ```
 
-2. **Check plugin is bound to peer:** Config must have `process <name> { receive [...] }` on the peer
+2. **Check plugin is bound to peer:** Config must have `attach process <name> { receive [...] }` on the peer
 
 3. **Check plugin logs:** Set `ZE_LOG_PLUGIN_RELAY=debug` to see plugin stderr output
 

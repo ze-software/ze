@@ -76,7 +76,8 @@ bgp {
 			group-updates disable
 		}
 
-		process bgp-watchdog {
+		attach process bgp-watchdog {
+			receive [ state ]
 		}
 
 		update {
@@ -130,7 +131,8 @@ bgp {
 			group-updates disable
 		}
 
-		process bgp-watchdog {
+		attach process bgp-watchdog {
+			receive [ state ]
 		}
 
 		update {

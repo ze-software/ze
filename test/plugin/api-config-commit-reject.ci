@@ -145,7 +145,6 @@ bgp {
         behavior {
             group-updates disable
         }
-        process api-commit-reject { }
     }
 }
 EOF_CONF

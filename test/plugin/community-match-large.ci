@@ -85,10 +85,6 @@ bgp {
 		filter {
 			import [ community-match:ALLOW-LARGE ]
 		}
-
-		process test-cm-large {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

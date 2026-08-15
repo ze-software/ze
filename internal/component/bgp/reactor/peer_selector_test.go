@@ -3,6 +3,7 @@ package reactor
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/selector"
 
 	"github.com/stretchr/testify/assert"
@@ -31,12 +32,18 @@ func setupSelectorReactor() *reactorAPIAdapter {
 	return &reactorAPIAdapter{r: r}
 }
 
-// matchPeers is a test helper: parses a selector string and resolves matching peers.
+// matchPeers is a test helper: parses a selector string and resolves matching
+// peers on the operator surface, where no send permission applies. The
+// permission's own tests are in send_permission_test.go.
 func matchPeers(adapter *reactorAPIAdapter, s string) []*Peer {
 	sel := selector.ParseDefault(s)
 	adapter.r.mu.RLock()
 	defer adapter.r.mu.RUnlock()
-	return adapter.getMatchingPeersSel(sel)
+	peers, err := adapter.getMatchingPeersSel(sel, announceOrigin(plugin.OperatorSender()))
+	if err != nil {
+		return nil
+	}
+	return peers
 }
 
 // TestPeerSelectorByName verifies that a peer can be resolved by its Name field.

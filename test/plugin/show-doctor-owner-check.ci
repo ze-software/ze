@@ -108,8 +108,6 @@ bgp {
         behavior {
             group-updates disable
         }
-        process show-doctor-owner-check {
-        }
     }
 }
 EOF_CONF

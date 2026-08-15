@@ -75,11 +75,12 @@ type Server struct {
 	rpcHandlersOnce   sync.Once
 	commitManager     any
 	procManager       atomic.Pointer[process.ProcessManager]
-	spawner           plugin.ProcessSpawner   // PluginManager for process lifecycle
-	subscriptions     *SubscriptionManager    // API-driven event subscriptions (plugin processes)
-	engineSubscribers *engineEventSubscribers // Engine-side stream subscribers (orchestrator etc.)
-	monitors          *MonitorManager         // CLI monitor subscriptions
-	quiescers         QuiescerRegistry        // Subsystem drains invoked by `request quiesce`
+	spawner           plugin.ProcessSpawner         // PluginManager for process lifecycle
+	subscriptions     *SubscriptionManager          // API-driven event subscriptions (plugin processes)
+	deliveryGraph     atomic.Pointer[DeliveryGraph] // config-derived peer-to-process edges (delivery_graph.go)
+	engineSubscribers *engineEventSubscribers       // Engine-side stream subscribers (orchestrator etc.)
+	monitors          *MonitorManager               // CLI monitor subscriptions
+	quiescers         QuiescerRegistry              // Subsystem drains invoked by `request quiesce`
 
 	// Plugin registration protocol
 	coordinator       *plugin.StartupCoordinator             // Stage synchronization
@@ -149,6 +150,12 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 			// authorization configured. The reserved prefix is un-typeable, so no
 			// authenticated client can present it.
 			Username: internalRPCIdentity,
+			// Sender stays unset, and a command that puts a message on a peer's
+			// wire is refused here by name (send_permission.go). An RPCHandler is
+			// handed the method and the params and no caller identity, so this
+			// path cannot say whether a process or an operator called it. Nothing
+			// dispatches through s.rpcDispatcher today. Whoever wires it must
+			// carry the caller down to here and state the sender.
 		}
 
 		var rpcParams RPCParams

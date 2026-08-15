@@ -195,6 +195,9 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal rs {
+		use bgp-rs
+	}
 	external observer {
 		run ./observer.run
 		encoder json
@@ -240,12 +243,16 @@ bgp {
 			group-updates disable
 		}
 
-		process observer {
-		}
-		process gr {
+		attach process gr {
+			receive [ open-received state eor ]
 			send [ update ]
 		}
-		process bgp-rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
 	}
@@ -279,9 +286,12 @@ bgp {
 			group-updates disable
 		}
 
-		process observer {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
-		process bgp-rib {
+		attach process rs {
+			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
 	}

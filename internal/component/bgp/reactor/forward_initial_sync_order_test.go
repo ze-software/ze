@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
@@ -275,7 +276,7 @@ func TestForwardedWithdrawWaitsForQueuedAnnounceCoreRail(t *testing.T) {
 
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
-	require.NoError(t, adapter.ForwardUpdate(sel, updateID, "test-plugin"))
+	require.NoError(t, adapter.ForwardUpdate(sel, updateID, "test-plugin", plugin.OperatorSender()))
 
 	assertAnnounceThenWithdraw(t, dst, conn)
 }
@@ -524,9 +525,9 @@ func TestForwardedAnnounceThenWithdrawKeepOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	syncOrderPublish(t, r, ctxID, announceID, syncOrderAnnounceBody)
-	require.NoError(t, adapter.ForwardUpdate(sel, announceID, "test-plugin"))
+	require.NoError(t, adapter.ForwardUpdate(sel, announceID, "test-plugin", plugin.OperatorSender()))
 	syncOrderPublish(t, r, ctxID, withdrawID, syncOrderWithdrawBody)
-	require.NoError(t, adapter.ForwardUpdate(sel, withdrawID, "test-plugin"))
+	require.NoError(t, adapter.ForwardUpdate(sel, withdrawID, "test-plugin", plugin.OperatorSender()))
 
 	// Both are parked behind the sync, so neither may reach the peer yet.
 	require.Never(t, func() bool {

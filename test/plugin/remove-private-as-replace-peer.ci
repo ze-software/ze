@@ -145,6 +145,10 @@ bgp {
 			group-updates disable
 			rs-fast-path enable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
 	}
 	peer receiver-peer {
 		connection {
@@ -174,6 +178,10 @@ bgp {
 		}
 		filter {
 			export [ remove-private-as:REPLACE ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
 		}
 	}
 }

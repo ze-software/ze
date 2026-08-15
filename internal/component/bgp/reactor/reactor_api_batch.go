@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -29,10 +30,17 @@ import (
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
-func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+//
+// sender is who makes the announce: an attached process, or the operator. It
+// is gated on `send [ update ]`: this rail originates routes, which
+// is the permission an operator grants when they write that word.
+func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
 	a.r.mu.RLock()
-	peers := a.getMatchingPeersSel(sel)
+	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
 	a.r.mu.RUnlock()
+	if permErr != nil {
+		return permErr
+	}
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
 	}
@@ -270,10 +278,18 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 // WithdrawNLRIBatch withdraws a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+//
+// sender is who makes the withdrawal: an attached process, or the operator. It
+// is gated on `send [ update ]`, the same permission the announce
+// takes: a withdrawal is an UPDATE, and a program allowed to put a route into a
+// peer must be allowed to take it out again.
+func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
 	a.r.mu.RLock()
-	peers := a.getMatchingPeersSel(sel)
+	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
 	a.r.mu.RUnlock()
+	if permErr != nil {
+		return permErr
+	}
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
 	}
@@ -980,10 +996,17 @@ func logWithdrawTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 
 // SendRoutes sends routes directly to matching peers using CommitService.
 // This bypasses OutgoingRIB transaction and is used for named commits.
-func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (bgptypes.TransactionResult, error) {
+//
+// sender is who commits: an attached process, or the operator. It is gated on
+// `send [ update ]`: a named commit announces routes, withdraws
+// them and can close with an End-of-RIB marker, and all three are UPDATEs.
+func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool, sender plugin.Sender) (bgptypes.TransactionResult, error) {
 	a.r.mu.RLock()
-	peers := a.getMatchingPeersSel(sel)
+	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
 	a.r.mu.RUnlock()
+	if permErr != nil {
+		return bgptypes.TransactionResult{}, permErr
+	}
 	if len(peers) == 0 {
 		return bgptypes.TransactionResult{}, errors.New("no peers match selector")
 	}

@@ -34,7 +34,7 @@ func TestCommandAnnounce(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	// Simulate config delivery: one peer, one pool "dnsr", one route
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -81,7 +81,7 @@ func TestCommandWithdraw(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.2"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
@@ -116,7 +116,7 @@ func TestCommandWithdraw(t *testing.T) {
 // PREVENTS: Silent success on typo'd group name
 
 func TestCommandUnknownGroup(t *testing.T) {
-	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr := newWatchdogServer(func(_, _ string) {}, nil)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	mgr.peerUp["10.0.0.1"] = true
 
@@ -140,7 +140,7 @@ func TestReconnectResend(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	// Setup: peer has one route, already announced
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -180,7 +180,7 @@ func TestDisconnectedStateUpdate(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	// Setup: peer with route, initially withdrawn (withdraw=true)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -226,7 +226,7 @@ func TestInitiallyAnnouncedRoutes(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
@@ -257,7 +257,7 @@ func TestInitiallyWithdrawnRoutes(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.3"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
@@ -288,7 +288,7 @@ func TestStateDownPreventsRoutesSending(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.4"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
@@ -330,7 +330,7 @@ func TestStateUpMixedInitialState(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.5"] = newPoolSet()
 
@@ -377,7 +377,7 @@ func TestRapidFlap(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
@@ -430,7 +430,7 @@ func TestWildcardMixedPeerStates(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	// Peer 1: up, has pool "dnsr"
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -492,7 +492,7 @@ func TestMultiPoolIndependence(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
@@ -558,7 +558,7 @@ func TestExplicitWithdrawSurvivesReconnect(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	// Route is NOT initiallyAnnounced — requires explicit command
@@ -615,7 +615,7 @@ func TestInitiallyAnnouncedRestoredOnReconnect(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
@@ -672,7 +672,7 @@ func TestReconnectResendAfterEstablished(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	// Route starts withdrawn (not initiallyAnnounced)
@@ -723,7 +723,7 @@ func TestReconnectResendAfterEstablished(t *testing.T) {
 // PREVENTS: Error or panic when no peers have the requested pool
 
 func TestWildcardNonexistentPool(t *testing.T) {
-	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr := newWatchdogServer(func(_, _ string) {}, nil)
 
 	// Add peers with pools, but none have "missing-pool"
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -770,7 +770,7 @@ func TestMEDOverrideProducesOneOffCommand(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -823,7 +823,7 @@ func TestMEDOverrideBypassesDedup(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -870,7 +870,7 @@ func TestNoMEDPreservesDedup(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
@@ -907,7 +907,7 @@ func TestMEDOverrideFromWithdrawn(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -949,7 +949,7 @@ func TestMEDOverrideWildcard(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	for _, peer := range []string{"10.0.0.1", "10.0.0.2"} {
@@ -991,7 +991,7 @@ func TestMEDOverrideWithExplicitPeer(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	for _, peer := range []string{"10.0.0.1", "10.0.0.2"} {
@@ -1032,7 +1032,7 @@ func TestMEDOverrideWithExplicitPeer(t *testing.T) {
 // PREVENTS: Ambiguity between group name "med" and med keyword
 
 func TestMEDGroupNameRejected(t *testing.T) {
-	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr := newWatchdogServer(func(_, _ string) {}, nil)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	mgr.peerUp["10.0.0.1"] = true
 
@@ -1049,7 +1049,7 @@ func TestMEDGroupNameRejected(t *testing.T) {
 // PREVENTS: Non-numeric or missing MED accepted
 
 func TestMEDInvalidValue(t *testing.T) {
-	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr := newWatchdogServer(func(_, _ string) {}, nil)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
 		newPoolEntry("10.0.0.0/24#0", "a", "w")); err != nil {
@@ -1089,7 +1089,7 @@ func TestNoMEDAfterMEDOverride(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -1124,7 +1124,7 @@ func TestWithdrawAfterMEDOverride(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -1165,7 +1165,7 @@ func TestReconnectUsesStoredNotOverride(t *testing.T) {
 		mu.Lock()
 		sent = append(sent, sentRoute{peer, cmd})
 		mu.Unlock()
-	})
+	}, nil)
 
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
@@ -1209,7 +1209,7 @@ func TestReconnectUsesStoredNotOverride(t *testing.T) {
 // PREVENTS: Overflow or invalid large MED values accepted
 
 func TestMEDOverrideBoundary(t *testing.T) {
-	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr := newWatchdogServer(func(_, _ string) {}, nil)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	configMED := uint32(100)
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
@@ -1241,4 +1241,50 @@ func TestMEDOverrideBoundary(t *testing.T) {
 type sentRoute struct {
 	peer string
 	cmd  string
+}
+
+// TestPeerUpSignalsSessionReady pins the readiness signal, on every peer-up and
+// whatever the peer's pools hold.
+//
+// VALIDATES: bgp-watchdog tells the engine when it has finished its initial
+// contribution for a peer, which is what releases that peer's End-of-RIB hold.
+// A peer that grants a process `send [ update ]` waits for one signal per such
+// process (reactor/peer_run.go, peer_initial_sync.go).
+// PREVENTS: the marker waiting out the whole sync timeout, during which an
+// unrelated event-driven announce is queued AHEAD of it and the End-of-RIB then
+// claims a route that was never part of the initial routing update (RFC 4724
+// Section 2). Measured on the healthcheck fixtures, whose probe rises inside
+// that window.
+func TestPeerUpSignalsSessionReady(t *testing.T) {
+	var mu sync.Mutex
+	var ready []string
+	mgr := newWatchdogServer(func(_, _ string) {}, func(peer string) {
+		mu.Lock()
+		ready = append(ready, peer)
+		mu.Unlock()
+	})
+
+	// A peer with an announced route: the signal must follow the route.
+	mgr.peerPools["10.0.0.1"] = newPoolSet()
+	entry := newPoolEntry("10.0.0.0/24#0",
+		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+		"update text nlri ipv4/unicast del 10.0.0.0/24")
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
+		t.Fatal(err)
+	}
+	mgr.handleStateUp("10.0.0.1")
+
+	// A peer this plugin holds no pool for. "I have nothing for this peer"
+	// completes the initial update exactly as a route does, so it signals too:
+	// staying silent would hold the marker on the peers that need it least.
+	mgr.handleStateUp("10.0.0.9")
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(ready) != 2 {
+		t.Fatalf("session-ready signals = %v, want one per peer-up", ready)
+	}
+	if ready[0] != "10.0.0.1" || ready[1] != "10.0.0.9" {
+		t.Errorf("session-ready peers = %v, want [10.0.0.1 10.0.0.9]", ready)
+	}
 }

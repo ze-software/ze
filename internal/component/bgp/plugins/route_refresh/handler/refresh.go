@@ -63,7 +63,7 @@ func handleRefreshMarker(
 	ctx *pluginserver.CommandContext,
 	args []string,
 	cmd string,
-	send func(*selector.Selector, uint16, uint8) error,
+	send func(*selector.Selector, uint16, uint8, plugin.Sender) error,
 ) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -83,7 +83,7 @@ func handleRefreshMarker(
 
 	sel := selector.ParseDefault(ctx.PeerSelector())
 
-	if err := send(sel, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
+	if err := send(sel, uint16(fam.AFI), uint8(fam.SAFI), ctx.Sender); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("%s failed: %v", cmd, err),

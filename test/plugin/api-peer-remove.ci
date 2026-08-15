@@ -106,9 +106,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process peer-remove-test {
-		}
 	}
 }
 EOF_CONF

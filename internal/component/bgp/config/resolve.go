@@ -546,7 +546,12 @@ func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix str
 				srcSlice := toAnySlice(srcVal)
 				dstSlice := toAnySlice(dst[k])
 				if srcSlice != nil && dstSlice != nil {
-					dst[k] = append(dstSlice, srcSlice...)
+					// A fresh slice, never an append in place: dst's slice can
+					// share its backing array with a sibling's, and an append
+					// with spare capacity overwrites what the sibling holds.
+					merged := make([]any, 0, len(dstSlice)+len(srcSlice))
+					merged = append(merged, dstSlice...)
+					dst[k] = append(merged, srcSlice...)
 					continue
 				}
 			}
@@ -555,8 +560,14 @@ func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix str
 		}
 		dstMap, dstIsMap := dst[k].(map[string]any)
 		if !dstIsMap {
-			// dst doesn't have a map here -- copy src map.
-			dst[k] = srcVal
+			// dst holds no map here, so it takes a COPY of src's. Assigning
+			// src's map would leave dst ALIASING it, and the next merge into
+			// dst would write through into src. That is what let one group
+			// member's own `attach process` block rewrite the group's block,
+			// which every sibling then inherited: the group map reaches each
+			// member as layer 2 (ResolveBGPTree), so it is shared by
+			// construction (AC-6b, spec-fixit-peer-process-event-filter).
+			dst[k] = deepCopyMap(srcMap)
 			continue
 		}
 		// Both are maps -- recurse.

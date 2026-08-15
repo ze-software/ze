@@ -377,7 +377,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				}
 				continue
 			}
-			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.Line)
 		}
 
 		if markInactive {

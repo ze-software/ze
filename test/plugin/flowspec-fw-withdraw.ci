@@ -98,7 +98,8 @@ bgp {
 		# nothing about the external process API. The observer is now the only
 		# producer, and the withdraw this file is named for is asserted for the
 		# first time.
-		process flowspec-fw-process {
+		attach process flowspec-fw-process {
+			send [ update ]
 		}
 	}
 }

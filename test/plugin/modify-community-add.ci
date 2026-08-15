@@ -82,10 +82,6 @@ bgp {
 		filter {
 			import [ modify:TAG-CUSTOMER ]
 		}
-
-		process test-modify-comm {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

@@ -158,7 +158,7 @@ bgp {
 			group-updates disable
 		}
 
-		process cursor-test {
+		attach process cursor-test {
 			send [ update ]
 		}
 	}

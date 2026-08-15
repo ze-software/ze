@@ -144,9 +144,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-
-		process metrics-list-test {
-		}
 	}
 }
 EOF_CONF

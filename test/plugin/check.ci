@@ -147,10 +147,11 @@ bgp {
 				ipv6/unicast add ::1/128
 			}
 		}
-		process check-and-announce {
+		attach process check-and-announce {
 			content {
 				format parsed
 			}
+			receive [ update ]
 			send [ update ]
 		}
 

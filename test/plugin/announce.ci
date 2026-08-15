@@ -77,7 +77,8 @@ bgp {
 			group-updates disable
 		}
 	
-		process add-remove {
+		attach process add-remove {
+			send [ update ]
 		}
 	}
 }

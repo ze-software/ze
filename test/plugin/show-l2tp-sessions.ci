@@ -346,8 +346,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process show-l2tp-sessions-test {
-		}
 	}
 }
 EOF_CONF

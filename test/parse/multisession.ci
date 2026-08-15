@@ -50,7 +50,7 @@ bgp {
 				ipv6/unicast add 2A02:B80:0:1::/64
 			}
 		}
-		process parsed-route-backend {
+		attach process parsed-route-backend {
 		}
 	}
 }

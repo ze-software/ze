@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -253,7 +254,7 @@ func TestAnnounceNLRIBatchStaleFailureIsNotFamilyMismatch(t *testing.T) {
 			}
 			a := &reactorAPIAdapter{r: r}
 
-			err := a.AnnounceNLRIBatch(selector.All(), staleReadvertiseBatch(t))
+			err := a.AnnounceNLRIBatch(selector.All(), staleReadvertiseBatch(t), plugin.OperatorSender())
 			assert.ErrorIs(t, err, tc.wantErr)
 
 			// The two failures must not ALSO read as a family mismatch, and

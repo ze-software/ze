@@ -122,13 +122,14 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-event-test {
+		attach process rpki-event-test {
+			receive [ rpki-received ]
 		}
-		process rpki {
-			receive [ update ]
+		attach process rpki {
+			receive [ update-received ]
 		}
-		process adj-rib-in {
-			receive [ update state ]
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

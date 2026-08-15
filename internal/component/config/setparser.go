@@ -196,7 +196,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
 	}
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
@@ -464,7 +464,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
 	}
 
 	if _, ok := node.(*LeafNode); ok {
@@ -573,7 +573,7 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
 	}
 
 	// Leaf-list member delete: `delete <path> <member>` removes one member.

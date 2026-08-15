@@ -250,9 +250,11 @@ peer peer-east {
     }
 }
 
-process announce-routes {
-    run "/usr/bin/python3 /path/to/script.py";
-    encoder json;
+plugin {
+    external announce-routes {
+        run "/usr/bin/python3 /path/to/script.py";
+        encoder json;
+    }
 }
 ```
 

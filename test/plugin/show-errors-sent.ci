@@ -160,9 +160,6 @@ bgp {
 			group-updates disable
 		}
 
-
-		process show-errors-sent-test {
-		}
 	}
 }
 EOF_CONF

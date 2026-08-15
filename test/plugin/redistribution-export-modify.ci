@@ -104,9 +104,6 @@ bgp {
         filter {
             export [ filter-export-modify-test:set-export-localpref ];
         }
-        process filter-export-modify-test {
-            receive [ update state ];
-        }
     }
 }
 EOF_CONF

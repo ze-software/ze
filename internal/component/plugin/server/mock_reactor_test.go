@@ -30,12 +30,30 @@ type mockReactor struct {
 	// intact rather than merely returning nil.
 	relayCalls []mockRelayCall
 	relayErr   error
+
+	// forwardCalls records every ForwardUpdatesDirect the server dispatched, for
+	// the same reason.
+	forwardCalls []mockForwardCall
 }
 
 // mockRelayCall is one recorded RelayStoredRoute dispatch.
+//
+// sender is recorded because it is the AUTHORITY the reactor judges: the peer's
+// attach block is looked up by that name (bgp/reactor/send_permission.go,
+// filterPermittedPeers). An op that dropped it, or that named the operator
+// instead of the calling process, would look identical here without this field.
 type mockRelayCall struct {
 	destination netip.Addr
 	routes      []rpc.StoredRoute
+	sender      plugin.Sender
+}
+
+// mockForwardCall is one recorded ForwardUpdatesDirect dispatch.
+type mockForwardCall struct {
+	ids          []uint64
+	destinations []netip.AddrPort
+	pluginName   string
+	sender       plugin.Sender
 }
 
 func (m *mockReactor) Peers() []plugin.PeerInfo {
@@ -117,7 +135,12 @@ func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 
 func (m *mockReactor) UnregisterCacheConsumer(_ string) {}
 
-func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
+// ForwardUpdatesDirect implements plugin.ReactorCacheCoordinator, recording the
+// dispatch so a wiring test can assert what crossed the RPC boundary.
+func (m *mockReactor) ForwardUpdatesDirect(ids []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender) error {
+	m.forwardCalls = append(m.forwardCalls, mockForwardCall{
+		ids: ids, destinations: destinations, pluginName: pluginName, sender: sender,
+	})
 	return nil
 }
 
@@ -125,7 +148,7 @@ func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 
 // RelayStoredRoute implements plugin.ReactorRelayCoordinator, recording the
 // dispatch so a wiring test can assert the payload survived the RPC boundary.
-func (m *mockReactor) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error {
-	m.relayCalls = append(m.relayCalls, mockRelayCall{destination: destination, routes: routes})
+func (m *mockReactor) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
+	m.relayCalls = append(m.relayCalls, mockRelayCall{destination: destination, routes: routes, sender: sender})
 	return m.relayErr
 }

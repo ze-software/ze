@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -120,7 +121,7 @@ func TestAnnounceEOR_SkipsPeerInInitialRouteSync(t *testing.T) {
 	peer.sendingInitialRoutes.Store(1)
 	require.True(t, peer.ShouldQueue(), "precondition: peer must be in initial-sync state")
 
-	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast))
+	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.OperatorSender())
 	require.NoError(t, err)
 	require.Empty(t, conn.written(),
 		"no End-of-RIB may reach the wire while the peer drains its initial-route queue")
@@ -137,7 +138,7 @@ func TestAnnounceEOR_SendsWhenNotInInitialSync(t *testing.T) {
 
 	require.False(t, peer.ShouldQueue(), "precondition: peer must NOT be in initial-sync state")
 
-	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast))
+	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.OperatorSender())
 	require.NoError(t, err)
 	require.Equal(t, eorWire(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}), conn.written(),
 		"a not-syncing peer must receive the End-of-RIB on the wire")

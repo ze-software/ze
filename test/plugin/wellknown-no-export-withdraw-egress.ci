@@ -151,6 +151,12 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
 	external wellknown-withdraw {
 		run ./wellknown-withdraw.run
 		encoder json
@@ -177,8 +183,13 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		process wellknown-withdraw {
-			receive [ update state ]
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
 		}
 	}
 
@@ -202,6 +213,14 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 
 	peer external-peer {
@@ -224,6 +243,14 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF
@@ -236,7 +263,7 @@ EOF_CONF
 # removed and none is weakened: every expect= and the reject= survive on conn=2 / conn=3 of
 # the one peer, byte for byte, and the file gains a barrier it was asserting without.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

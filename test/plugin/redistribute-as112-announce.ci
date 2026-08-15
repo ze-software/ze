@@ -12,36 +12,42 @@
 #            a host address instead would fail the covering-prefix match here.
 # PREVENTS: origin-as being dropped on redistribution; host addresses leaking.
 #
-# Two peers: a v4 session (127.0.0.1) carries the two v4 covering prefixes and a
-# v6 session (::1) carries the two v6 covering prefixes -- `nhop self` resolves
-# the next-hop from each session's own local address, so each family's covering
-# prefixes reach the peer sharing its transport family. The block named "peer"
-# holds all four JSON expectations; the runner's JSON validator matches each by
-# NLRI content against every peer's received UPDATEs, so all four are gated.
+# Two peers: a v4 session (peer 127.0.0.1, ze 127.0.0.2) carries the two v4
+# covering prefixes and a v6 session (peer ::1, ze fd00::2) carries the two v6
+# covering prefixes -- `nhop self` resolves the next-hop from each session's own
+# local address, so each family's covering prefixes reach the peer sharing its
+# transport family, and each end of each session needs its own address. The
+# block named "peer" holds all four JSON expectations; the runner's JSON
+# validator matches each by NLRI content against every peer's received UPDATEs,
+# so all four are gated.
 
-# ze-peer 1 -- IPv4 session (127.0.0.1). The bgp contains= rules match the
-# AS_PATH [112] + NEXT_HOP 127.0.0.1 + LOCAL_PREF 100 + NLRI tail of each v4
-# UPDATE (origin-as -> single-ASN AS_PATH for an iBGP peer); matching both
-# completes the peer so the runner runs the JSON validator over all four.
+# ze-peer 1 -- IPv4 session (peer address 127.0.0.1). The bgp contains= rules
+# match the AS_PATH [112] + NEXT_HOP 127.0.0.2 + LOCAL_PREF 100 + NLRI tail of
+# each v4 UPDATE (origin-as -> single-ASN AS_PATH for an iBGP peer); matching
+# both completes the peer so the runner runs the JSON validator over all four.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000014005040000006418C0AF30
-expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000014005040000006418C01FC4
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.1"}]}
-expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.31.196.0/24"],"next-hop":"127.0.0.1"}]}
-expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv6/unicast":[{"action":"add","nlri":["2620:4f:8000::/48"],"next-hop":"::1"}]}
-expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv6/unicast":[{"action":"add","nlri":["2001:4:112::/48"],"next-hop":"::1"}]}
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000024005040000006418C0AF30
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000024005040000006418C01FC4
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.2"}]}
+expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.31.196.0/24"],"next-hop":"127.0.0.2"}]}
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv6/unicast":[{"action":"add","nlri":["2620:4f:8000::/48"],"next-hop":"fd00::2"}]}
+expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv6/unicast":[{"action":"add","nlri":["2001:4:112::/48"],"next-hop":"fd00::2"}]}
 EOF_PEER
 
-# ze-peer 2 -- IPv6 session (::1): receives + records the two v6 covering
-# prefixes so the JSON validator can match seq=3/seq=4 above.
+# ze-peer 2 -- IPv6 session (peer ::1): receives + records the two v6 covering
+# prefixes so the JSON validator can match seq=3/seq=4 above. The contains=
+# rules match the MP_REACH_NLRI attribute of each v6 UPDATE: 800E1C = optional
+# attribute 14, 28 bytes; 0002 01 = AFI IPv6 / SAFI unicast; 10 = a 16-byte
+# next-hop, ze's own fd00::2 rather than the peer's ::1 (see the peer6 block
+# below); then the reserved 00 and the /48 covering prefix.
 stdin=peer6:terminator=EOF_PEER6
 option=bind:value=ipv6
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:contains=800E1C000201100000000000000000000000000000000100302620004F8000
-expect=bgp:conn=1:seq=1:contains=800E1C00020110000000000000000000000000000000010030200100040112
+expect=bgp:conn=1:seq=1:contains=800E1C00020110FD00000000000000000000000000000200302620004F8000
+expect=bgp:conn=1:seq=1:contains=800E1C00020110FD0000000000000000000000000000020030200100040112
 EOF_PEER6
 
 # Python observer plugin: drive `fakeas112 emit add asn 112`, then exit.
@@ -146,8 +152,13 @@ bgp {
 			remote {
 				ip 127.0.0.1
 			}
+			# Ze's own address on this session, and what `nhop self` puts on the
+			# wire. It is deliberately NOT peer4's 127.0.0.1: RFC 4271 Section
+			# 5.1.3 forbids a peer its own address as NEXT_HOP, and
+			# originatedNextHopIsPeerOwn (reactor/forward_next_hop.go) withholds
+			# the route when the two match.
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -167,6 +178,9 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process redistribute-orchestrator {
+			send [ update ]
+		}
 	}
 
 	peer peer6 {
@@ -174,8 +188,23 @@ bgp {
 			remote {
 				ip ::1
 			}
+			# The two ends differ for the same reason peer4's do: `nhop self`
+			# puts this local address on the wire, and RFC 4271 Section 5.1.3
+			# forbids handing a peer its own address as NEXT_HOP. A host has one
+			# IPv6 loopback address, so ze takes fd00::2 -- unique-local (RFC
+			# 4193) and never globally routable. `make ze-setup` adds it; the
+			# runner cannot (internal/test/runner/loopback.go).
+			#
+			# THE TWO ENDS SIT IN DIFFERENT IPv6 SCOPES, and that was measured
+			# rather than assumed. fd00::2 is global scope and ::1 is host
+			# scope (RFC 4007), so a kernel refusing the pair would break this
+			# session and not the guard it exercises. A source bound to fd00::2
+			# connects to ::1 on macOS and on Linux, and the listener sees
+			# fd00::2 as the peer on both. Swapping the address onto the peer
+			# side instead would need a second provisioned address and would
+			# hide the config-declared local from the runner's probe.
 			local {
-				ip ::1
+				ip fd00::2
 				accept false
 			}
 		}
@@ -194,6 +223,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process redistribute-orchestrator {
+			send [ update ]
 		}
 	}
 }

@@ -93,10 +93,6 @@ bgp {
 		filter {
 			import [ as-path-list:ALLOW-AS bgp-filter-prefix:ALLOW-PREFIX ]
 		}
-
-		process test-aspath-chain {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

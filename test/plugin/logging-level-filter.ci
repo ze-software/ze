@@ -18,7 +18,10 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# DEBUG messages should NOT appear (server subsystem logs at DEBUG level)
+# DEBUG messages should NOT appear (server subsystem logs at DEBUG level).
+# The runner reads this line where it stands. option=env above is the one
+# directive a peer block refuses, because it sets the environment of every
+# process the test starts rather than of this peer.
 reject=stderr:pattern=level=DEBUG
 EOF_PEER
 
@@ -76,8 +79,9 @@ bgp {
 	        }
 	    }
 	
-	    process gr {
-	        send [ update ]
+	    attach process gr {
+	    	receive [ open-received state eor ]
+	    	send [ update ]
 	    }
 	}
 }

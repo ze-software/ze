@@ -107,6 +107,9 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process redistribute-orchestrator {
+			send [ update ]
+		}
 	}
 }
 EOF_CONF

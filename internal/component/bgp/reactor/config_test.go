@@ -756,7 +756,7 @@ func TestParsePeerProcessBindings(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
 		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
-		"process":    map[string]any{"my-rib": map[string]any{"content": map[string]any{"encoding": "json", "format": "parsed"}, "receive": "update open notification state", "send": "update"}},
+		"attach":     map[string]any{"process": map[string]any{"my-rib": map[string]any{"content": map[string]any{"encoding": "json", "format": "parsed"}, "receive": "update open notification state", "send": "update"}}},
 	}
 
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
@@ -767,14 +767,288 @@ func TestParsePeerProcessBindings(t *testing.T) {
 	assert.Equal(t, "my-rib", b.PluginName)
 	assert.Equal(t, "json", b.Encoding)
 	assert.Equal(t, "parsed", b.Format)
-	assert.True(t, b.ReceiveUpdate)
-	assert.True(t, b.ReceiveOpen)
-	assert.True(t, b.ReceiveNotification)
-	assert.True(t, b.ReceiveState)
-	assert.False(t, b.ReceiveKeepalive)
-	assert.False(t, b.ReceiveRefresh)
-	assert.True(t, b.SendUpdate)
-	assert.False(t, b.SendRefresh)
+	// test-relax: the per-type booleans became one map, so one equality now
+	// covers what six separate true/false assertions covered, and it covers
+	// more: a granted type this list does not name fails the comparison.
+	assert.Equal(t, map[string]events.Direction{
+		"update":       events.DirBoth,
+		"open":         events.DirBoth,
+		"notification": events.DirBoth,
+		"state":        events.DirBoth,
+	}, b.Receive)
+	assert.False(t, b.ReceiveAll)
+	assert.Equal(t, map[string]bool{"update": true}, b.Send)
+	assert.True(t, b.MaySend(bgpevents.SendUpdate))
+	assert.False(t, b.MaySend(bgpevents.SendRefresh))
+}
+
+// TestParseReceiveDirectionTokens verifies that a receive token carries the
+// direction the type is granted in, and that a plain token grants both.
+//
+// VALIDATES: "update-received" and "update-sent" each grant one direction, a
+// plain type grants both, and naming a type in both single directions grants
+// both. The wildcard grants every type.
+// PREVENTS: the vocabulary gap that leaves eight in-tree plugins unable to
+// state their subscription in a peer's receive list.
+func TestParseReceiveDirectionTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		list     string
+		wantAll  bool
+		expected map[string]events.Direction
+	}{
+		{
+			name:     "plain type means both directions",
+			list:     "update state",
+			expected: map[string]events.Direction{"update": events.DirBoth, "state": events.DirBoth},
+		},
+		{
+			name:     "received only",
+			list:     "update-received",
+			expected: map[string]events.Direction{"update": events.DirReceived},
+		},
+		{
+			name:     "sent only",
+			list:     "update-sent",
+			expected: map[string]events.Direction{"update": events.DirSent},
+		},
+		{
+			name:     "one type each way, another both",
+			list:     "update-sent open-received state",
+			expected: map[string]events.Direction{"update": events.DirSent, "open": events.DirReceived, "state": events.DirBoth},
+		},
+		{
+			name:     "the same type in both single directions means both",
+			list:     "update-received update-sent",
+			expected: map[string]events.Direction{"update": events.DirBoth},
+		},
+		{
+			name:     "wildcard",
+			list:     "*",
+			wantAll:  true,
+			expected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var b ProcessBinding
+			require.NoError(t, parseReceiveFlags(tc.list, &b))
+			assert.Equal(t, tc.wantAll, b.ReceiveAll, "wildcard")
+			assert.Equal(t, tc.expected, b.Receive)
+		})
+	}
+}
+
+// TestParseReceiveTokenRegistryWinsOverDirectionSplit verifies R-11 at the
+// config parser: a registered event type whose name ends in a direction word
+// keeps its whole name.
+//
+// The test registers both "test-flap" and "test-flap-sent", so a parser that
+// cut the suffix first would find "test-flap" registered and grant that. Only
+// registry-first resolution grants "test-flap-sent".
+//
+// VALIDATES: R-11, the whole token is resolved before any suffix is cut.
+// PREVENTS: `receive [ update-rpki ]` losing its plugin auto-load the day a
+// plugin registers a type ending in "-sent".
+func TestParseReceiveTokenRegistryWinsOverDirectionSplit(t *testing.T) {
+	require.NoError(t, events.RegisterEventType(bgpevents.Namespace, "test-flap"))
+	require.NoError(t, events.RegisterEventType(bgpevents.Namespace, "test-flap-sent"))
+
+	var b ProcessBinding
+	require.NoError(t, parseReceiveFlags("test-flap-sent", &b))
+	assert.Equal(t, map[string]events.Direction{"test-flap-sent": events.DirBoth}, b.Receive,
+		"the registry must be consulted before the direction suffix is cut")
+}
+
+// TestParseReceiveRefusesRetiredSentToken verifies that the retired `sent`
+// receive token is refused and the refusal names its replacement.
+//
+// `sent` was a direction registered as a BGP event type so the leaf would
+// validate it. The direction now belongs to the type, so the fake type is gone.
+//
+// VALIDATES: `receive [ sent ]` fails with a message naming "update-sent".
+// PREVENTS: a config keeping a spelling that no longer means anything.
+func TestParseReceiveRefusesRetiredSentToken(t *testing.T) {
+	var b ProcessBinding
+	err := parseReceiveFlags("sent", &b)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "update-sent")
+}
+
+// TestEveryStartupSubscriptionIsExpressible verifies that every in-tree
+// plugin's startup declaration can be stated in a peer's receive list.
+//
+// Each row was read from the plugin's own SetStartupSubscriptions call. Ten of
+// the fifteen could not be stated before this vocabulary: eight need a
+// direction, and two need the wildcard. This is the acceptance evidence for
+// the vocabulary phase.
+//
+// VALIDATES: A-2, every event type an in-tree plugin needs is expressible.
+// PREVENTS: shipping a config-driven delivery filter that cannot describe the
+// plugins ze itself runs.
+func TestEveryStartupSubscriptionIsExpressible(t *testing.T) {
+	tests := []struct {
+		plugin   string   // the plugin whose SetStartupSubscriptions call this states
+		declares []string // its subscription strings, verbatim
+		list     string   // the receive list that says the same thing
+		wantAll  bool
+		expected map[string]events.Direction
+	}{
+		{
+			plugin:   "bgp-adj-rib-in",
+			declares: []string{"update direction received", "state"},
+			list:     "update-received state",
+			expected: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
+		},
+		{
+			plugin: "bgp-bmp",
+			declares: []string{"state", "update direction received", "update direction sent",
+				"open direction received", "open direction sent",
+				"notification direction received", "notification direction sent",
+				"keepalive direction received", "keepalive direction sent",
+				"refresh direction received", "refresh direction sent"},
+			list: "state update open notification keepalive refresh",
+			expected: map[string]events.Direction{
+				"state": events.DirBoth, "update": events.DirBoth, "open": events.DirBoth,
+				"notification": events.DirBoth, "keepalive": events.DirBoth, "refresh": events.DirBoth,
+			},
+		},
+		{
+			plugin:   "bgp-gr",
+			declares: []string{"open direction received", "state", "eor"},
+			list:     "open-received state eor",
+			expected: map[string]events.Direction{"open": events.DirReceived, "state": events.DirBoth, "eor": events.DirBoth},
+		},
+		{
+			plugin:   "bgp-persist",
+			declares: []string{"update direction sent", "state", "open direction received"},
+			list:     "update-sent state open-received",
+			expected: map[string]events.Direction{"update": events.DirSent, "state": events.DirBoth, "open": events.DirReceived},
+		},
+		{
+			plugin:   "bgp-redistribute-egress",
+			declares: []string{"state"},
+			list:     "state",
+			expected: map[string]events.Direction{"state": events.DirBoth},
+		},
+		{
+			plugin:   "bgp-rib",
+			declares: []string{"update direction sent", "update direction received", "state", "refresh"},
+			list:     "update state refresh",
+			expected: map[string]events.Direction{"update": events.DirBoth, "state": events.DirBoth, "refresh": events.DirBoth},
+		},
+		{
+			plugin:   "bgp-rpki",
+			declares: []string{"update direction received"},
+			list:     "update-received",
+			expected: map[string]events.Direction{"update": events.DirReceived},
+		},
+		{
+			plugin:   "bgp-rpki-decorator",
+			declares: []string{"update direction received", "rpki"},
+			list:     "update-received rpki",
+			expected: map[string]events.Direction{"update": events.DirReceived, "rpki": events.DirBoth},
+		},
+		{
+			plugin:   "bgp-rr",
+			declares: []string{"update direction received", "state", "open direction received"},
+			list:     "update-received state open-received",
+			expected: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth, "open": events.DirReceived},
+		},
+		{
+			plugin:   "bgp-rs",
+			declares: []string{"update direction received", "state", "open direction received", "refresh"},
+			list:     "update-received state open-received refresh",
+			expected: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth, "open": events.DirReceived, "refresh": events.DirBoth},
+		},
+		{
+			plugin:   "bgp-watchdog",
+			declares: []string{"state"},
+			list:     "state",
+			expected: map[string]events.Direction{"state": events.DirBoth},
+		},
+		{
+			plugin:   "flowspec-firewall",
+			declares: []string{"update direction received", "state"},
+			list:     "update-received state",
+			expected: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
+		},
+		{
+			plugin:   "exabgp",
+			declares: []string{"*"},
+			list:     "*",
+			wantAll:  true,
+		},
+		{
+			plugin:   "exabgp-bridge",
+			declares: []string{"*"},
+			list:     "*",
+			wantAll:  true,
+		},
+		{
+			plugin:   "cli text plugin",
+			declares: []string{"update"},
+			list:     "update",
+			expected: map[string]events.Direction{"update": events.DirBoth},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.plugin, func(t *testing.T) {
+			var b ProcessBinding
+			require.NoError(t, parseReceiveFlags(tc.list, &b),
+				"%s declares %v, which the receive list must be able to state", tc.plugin, tc.declares)
+			assert.Equal(t, tc.wantAll, b.ReceiveAll)
+			assert.Equal(t, tc.expected, b.Receive)
+		})
+	}
+}
+
+// TestParseSendWildcard verifies the send list can grant every message type.
+//
+// VALIDATES: `send [ * ]` sets the wildcard, and MaySend answers for any type.
+// PREVENTS: a program whose contract is whatever the API can express having no
+// way to say so in the send list.
+func TestParseSendWildcard(t *testing.T) {
+	var b ProcessBinding
+	require.NoError(t, parseSendFlags("*", &b))
+	assert.True(t, b.SendAll)
+	assert.True(t, b.MaySend(bgpevents.SendUpdate), "the wildcard grants update")
+	assert.True(t, b.MaySend("anything-a-plugin-registers"))
+
+	var narrow ProcessBinding
+	require.NoError(t, parseSendFlags("refresh", &narrow))
+	assert.False(t, narrow.MaySend(bgpevents.SendUpdate), "refresh alone does not grant update")
+	assert.True(t, narrow.MaySend(bgpevents.SendRefresh))
+}
+
+// TestAutoLoadTypesSkipBaseTokens verifies which granted types drive plugin
+// auto-loading.
+//
+// VALIDATES: a type no base token names is offered for auto-load, whatever
+// direction it carries; a base type is not; the wildcard names no type.
+// PREVENTS: `receive [ update-rpki ]` losing the auto-load of
+// bgp-rpki-decorator, and `receive [ update ]` gaining one.
+func TestAutoLoadTypesSkipBaseTokens(t *testing.T) {
+	require.NoError(t, events.RegisterEventType(bgpevents.Namespace, "test-autoload"))
+
+	var b ProcessBinding
+	require.NoError(t, parseReceiveFlags("update state test-autoload eor", &b))
+	assert.Equal(t, []string{"eor", "test-autoload"}, b.AutoLoadReceiveTypes())
+
+	var directed ProcessBinding
+	require.NoError(t, parseReceiveFlags("test-autoload-received", &directed))
+	assert.Equal(t, []string{"test-autoload"}, directed.AutoLoadReceiveTypes())
+
+	var wild ProcessBinding
+	require.NoError(t, parseReceiveFlags("*", &wild))
+	assert.Empty(t, wild.AutoLoadReceiveTypes(), "the wildcard names no type to load a plugin for")
+
+	require.NoError(t, events.RegisterSendType("test-send-autoload"))
+	var send ProcessBinding
+	require.NoError(t, parseSendFlags("update test-send-autoload", &send))
+	assert.Equal(t, []string{"test-send-autoload"}, send.AutoLoadSendTypes())
 }
 
 // TestParsePeerProcessBindingsReceiveAllRejected verifies "all" is not accepted.
@@ -787,7 +1061,7 @@ func TestParsePeerProcessBindingsReceiveAllRejected(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
 		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
-		"process":    map[string]any{"my-plugin": map[string]any{"receive": "all"}},
+		"attach":     map[string]any{"process": map[string]any{"my-plugin": map[string]any{"receive": "all"}}},
 	}
 
 	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
@@ -803,7 +1077,7 @@ func TestParsePeerProcessBindingsSendAllRejected(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
 		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
-		"process":    map[string]any{"my-plugin": map[string]any{"send": "all"}},
+		"attach":     map[string]any{"process": map[string]any{"my-plugin": map[string]any{"send": "all"}}},
 	}
 
 	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
@@ -813,13 +1087,14 @@ func TestParsePeerProcessBindingsSendAllRejected(t *testing.T) {
 
 // TestParsePeerProcessBindingsExplicitAll verifies explicit listing of all base types.
 //
-// VALIDATES: All base receive/send types accepted when listed explicitly.
+// VALIDATES: All base receive/send types accepted when listed explicitly, and
+// the wildcard is the only shorthand.
 // PREVENTS: Regression from removing "all" shorthand.
 func TestParsePeerProcessBindingsExplicitAll(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
 		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
-		"process":    map[string]any{"my-plugin": map[string]any{"receive": "update open notification keepalive refresh state sent negotiated", "send": "update refresh"}},
+		"attach":     map[string]any{"process": map[string]any{"my-plugin": map[string]any{"receive": "update open notification keepalive refresh state update-sent negotiated", "send": "update refresh"}}},
 	}
 
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
@@ -827,16 +1102,22 @@ func TestParsePeerProcessBindingsExplicitAll(t *testing.T) {
 
 	require.Len(t, ps.ProcessBindings, 1)
 	b := ps.ProcessBindings[0]
-	assert.True(t, b.ReceiveUpdate)
-	assert.True(t, b.ReceiveOpen)
-	assert.True(t, b.ReceiveNotification)
-	assert.True(t, b.ReceiveKeepalive)
-	assert.True(t, b.ReceiveRefresh)
-	assert.True(t, b.ReceiveState)
-	assert.True(t, b.ReceiveSent)
-	assert.True(t, b.ReceiveNegotiated)
-	assert.True(t, b.SendUpdate)
-	assert.True(t, b.SendRefresh)
+	// test-relax: the per-type booleans became one map. `sent` is retired: the
+	// direction now belongs to the type, so the list says `update-sent`, and
+	// naming update both plainly and sent-only still grants both.
+	assert.Equal(t, map[string]events.Direction{
+		"update":       events.DirBoth,
+		"open":         events.DirBoth,
+		"notification": events.DirBoth,
+		"keepalive":    events.DirBoth,
+		"refresh":      events.DirBoth,
+		"state":        events.DirBoth,
+		"negotiated":   events.DirBoth,
+	}, b.Receive)
+	assert.False(t, b.ReceiveAll, "an explicit list is not the wildcard")
+	assert.True(t, b.MaySend(bgpevents.SendUpdate))
+	assert.True(t, b.MaySend(bgpevents.SendRefresh))
+	assert.False(t, b.SendAll, "an explicit list is not the wildcard")
 }
 
 // TestParseOneSendFlagRejectsUnknown verifies that parseOneSendFlag returns an error
@@ -851,8 +1132,8 @@ func TestParseOneSendFlagRejectsUnknown(t *testing.T) {
 	assert.Contains(t, err.Error(), "updat")
 	assert.Contains(t, err.Error(), "update")
 	assert.Contains(t, err.Error(), "refresh")
-	assert.False(t, b.SendUpdate, "SendUpdate should remain false")
-	assert.False(t, b.SendRefresh, "SendRefresh should remain false")
+	assert.False(t, b.MaySend(bgpevents.SendUpdate), "update must remain ungranted")
+	assert.False(t, b.MaySend(bgpevents.SendRefresh), "refresh must remain ungranted")
 }
 
 // TestParseSendFlagsMixedValidInvalid verifies that parseSendFlags fails on the first
@@ -879,7 +1160,9 @@ func TestParseOneSendFlagDynamic(t *testing.T) {
 	var b ProcessBinding
 	err := parseOneSendFlag("enhanced-refresh", &b)
 	require.NoError(t, err, "registered send type should be accepted")
-	assert.True(t, b.SendCustom["enhanced-refresh"], "enhanced-refresh should be in SendCustom map")
+	assert.True(t, b.MaySend("enhanced-refresh"), "enhanced-refresh should be granted")
+	assert.Equal(t, []string{"enhanced-refresh"}, b.AutoLoadSendTypes(),
+		"a plugin-registered send type drives auto-loading")
 }
 
 // TestParseOneSendFlagRejectsUnregistered verifies that parseOneSendFlag rejects
@@ -907,7 +1190,7 @@ func TestParseReceiveFlagsRejectsUnknown(t *testing.T) {
 }
 
 // TestParseReceiveFlagsAcceptsRegistered verifies that parseReceiveFlags accepts
-// plugin-registered custom event types and stores them in ReceiveCustom.
+// plugin-registered custom event types and grants them like any other type.
 //
 // VALIDATES: AC-1: registered event types accepted in receive config.
 // PREVENTS: Plugin-registered types incorrectly rejected.
@@ -917,32 +1200,35 @@ func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
 	var b ProcessBinding
 	err := parseReceiveFlags("update test-custom-event", &b)
 	require.NoError(t, err)
-	assert.True(t, b.ReceiveUpdate, "base type should be set")
-	assert.True(t, b.ReceiveCustom["test-custom-event"], "custom type should be in ReceiveCustom")
+	// test-relax: base and plugin-registered types share one map now, so both
+	// grants are read the same way. What tells them apart is auto-loading,
+	// which TestAutoLoadTypesSkipBaseTokens covers.
+	assert.Equal(t, events.DirBoth, b.Receive["update"], "base type should be granted")
+	assert.Equal(t, events.DirBoth, b.Receive["test-custom-event"], "custom type should be granted")
 }
 
-// TestReceiveCustomMapInit verifies that parseReceiveFlags correctly initializes and
-// reuses the ReceiveCustom map for plugin-registered custom event types.
+// TestReceiveMapInit verifies that parseReceiveFlags initializes the grant map
+// from nil and then reuses it.
 //
-// VALIDATES: First custom event type initializes ReceiveCustom from nil; second reuses existing map.
-// PREVENTS: Nil map panic on first custom event or map re-creation losing earlier entries.
-func TestReceiveCustomMapInit(t *testing.T) {
+// VALIDATES: The first token initializes Receive from nil; the second reuses it.
+// PREVENTS: Nil map panic on the first token, or map re-creation losing earlier grants.
+func TestReceiveMapInit(t *testing.T) {
 	events.RegisterEventType(bgpevents.Namespace, "test-map-init-1") //nolint:errcheck // test setup
 	events.RegisterEventType(bgpevents.Namespace, "test-map-init-2") //nolint:errcheck // test setup
 
 	var b ProcessBinding
-	assert.Nil(t, b.ReceiveCustom, "ReceiveCustom should be nil before any custom event")
+	assert.Nil(t, b.Receive, "Receive should be nil before any token")
 
 	err := parseReceiveFlags("test-map-init-1", &b)
 	require.NoError(t, err)
-	require.NotNil(t, b.ReceiveCustom, "ReceiveCustom should be initialized after first custom event")
-	assert.True(t, b.ReceiveCustom["test-map-init-1"])
+	require.NotNil(t, b.Receive, "Receive should be initialized after the first token")
+	assert.Equal(t, events.DirBoth, b.Receive["test-map-init-1"])
 
 	err = parseReceiveFlags("test-map-init-2", &b)
 	require.NoError(t, err)
-	assert.True(t, b.ReceiveCustom["test-map-init-1"], "first custom event should still be present")
-	assert.True(t, b.ReceiveCustom["test-map-init-2"], "second custom event should be added")
-	assert.Len(t, b.ReceiveCustom, 2, "exactly two custom events should be in the map")
+	assert.Equal(t, events.DirBoth, b.Receive["test-map-init-1"], "first grant should still be present")
+	assert.Equal(t, events.DirBoth, b.Receive["test-map-init-2"], "second grant should be added")
+	assert.Len(t, b.Receive, 2, "exactly two types should be granted")
 }
 
 // TestParsePeerCapabilityConfigJSON verifies CapabilityConfigJSON is populated.

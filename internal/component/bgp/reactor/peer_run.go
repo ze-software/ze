@@ -12,6 +12,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 )
 
 // run is the main peer loop.
@@ -440,18 +441,27 @@ func (p *Peer) runOnce() error {
 
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
-			// Reset per-session API sync: count plugins with SendUpdate permission.
-			// They will signal "plugin session ready" after replaying routes.
+			// Reset per-session API sync: count plugins permitted to send
+			// updates. They will signal "plugin session ready" after replaying
+			// routes.
 			//
 			// This count is ALSO what gates the initial-sync hold that keeps ze's
-			// End-of-RIB behind plugin-injected routes, and for that it is the
-			// wrong key: nothing on the injection path reads SendUpdate, so a
-			// plugin bound as a bare `process X { }` never appears here and its
-			// routes can land after the marker. See the KNOWN DEFECT note in
-			// sendInitialRoutes (peer_initial_sync.go) before changing either.
+			// End-of-RIB behind plugin-injected routes, and the two agree on
+			// every rail that BUILDS an UPDATE: the send permission gates the six
+			// selector-resolving commands, ForwardUpdate, ForwardUpdatesDirect
+			// and RelayStoredRoute on this same declaration
+			// (send_permission.go). They do NOT agree on ze-bgp:peer-raw, which
+			// is gated on attachment alone because its payload is a message of
+			// the caller's choosing: a bare-bound process can put a hand-built
+			// UPDATE on this peer's wire and is not counted here. Two halves of
+			// the KNOWN DEFECT in sendInitialRoutes (peer_initial_sync.go)
+			// therefore survive -- that raw rail, and the overcount where the
+			// hold waits out its whole timeout for a permitted plugin that never
+			// signals plugin-session-ready while keeping ShouldQueue true. Read
+			// that note before changing either.
 			apiSendCount := 0
 			for _, binding := range p.settings.ProcessBindings {
-				if binding.SendUpdate {
+				if binding.MaySend(bgpevents.SendUpdate) {
 					apiSendCount++
 				}
 			}

@@ -23,7 +23,7 @@ bgp {
 				}
 			}
 		}
-		process gr {
+		attach process gr {
 			send [ update ]
 		}
 	}

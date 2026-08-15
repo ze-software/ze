@@ -289,7 +289,7 @@ func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 		if n.Hidden || n.Ephemeral {
 			break
 		}
-		serializeAnnotatedList(b, tree, meta, name, n, columns, indent)
+		serializeAnnotatedList(b, tree, meta, name, n, columns, indent, "")
 
 	case *FreeformNode:
 		serializeAnnotatedFreeform(b, tree, meta, name, columns, indent)
@@ -320,11 +320,15 @@ func serializeAnnotatedContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, 
 	}
 	if child := tree.containers[name]; child != nil {
 		childMeta := metaContainerChild(meta, name)
-		if canInlineContainer(child) {
+		switch {
+		case node.Flatten && canFlattenContainer(child, node):
+			// Flat form: "attach process looking-glass { ... }" (flatten.go).
+			serializeAnnotatedFlattenedContainer(b, child, childMeta, name, node, columns, indent)
+		case canInlineContainer(child):
 			// Inline form: write gutter + "containerName childName value"
 			writeAnnotatedOpenBraceGutter(b, childMeta, columns)
 			serializeContainerInline(b, child, name, node, indent)
-		} else {
+		default:
 			writeAnnotatedOpenBraceGutter(b, childMeta, columns)
 			b.Str(prefix)
 			if child.IsInactive() {
@@ -341,7 +345,9 @@ func serializeAnnotatedContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, 
 }
 
 // serializeAnnotatedList handles list nodes in annotated tree view.
-func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ListNode, columns ShowColumns, indent int) {
+// keyword is empty for a plain list, and holds the parent container's name for
+// a child of a ze:flatten container (flatten.go).
+func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ListNode, columns ShowColumns, indent int, keyword string) {
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -368,6 +374,10 @@ func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 		b.Str(prefix)
 		if entry.IsInactive() {
 			b.Str("inactive: ")
+		}
+		if keyword != "" {
+			b.Str(keyword)
+			b.Str(" ")
 		}
 		b.Str(name)
 		if key != KeyDefault {

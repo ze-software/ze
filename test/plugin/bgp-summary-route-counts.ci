@@ -174,10 +174,8 @@ bgp {
 			group-updates disable
 		}
 
-		process summary-counts-test {
-		}
-		process bgp-rib {
-			receive [ update state ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

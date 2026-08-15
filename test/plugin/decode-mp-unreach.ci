@@ -104,7 +104,8 @@ bgp {
     		group-updates disable
     	}
 
-        process decode-test {
+        attach process decode-test {
+            send [ update ]
         }
     }
 }

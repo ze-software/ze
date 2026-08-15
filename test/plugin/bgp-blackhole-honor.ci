@@ -98,9 +98,9 @@ bgp {
 			communities [ blackhole 65001:666 ]
 			prefixes    10.0.0.0/24
 		}
-		process bgp-rib {
-		}
-		process rib {
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }

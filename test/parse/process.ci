@@ -1,4 +1,4 @@
-# Valid config: process with group
+# Valid config: attach process on a group
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
@@ -8,7 +8,7 @@ plugin {
 }
 bgp {
 	group default {
-		process my-process {
+		attach process my-process {
 			receive [ state ]
 		}
 

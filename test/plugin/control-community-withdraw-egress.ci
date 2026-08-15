@@ -161,6 +161,12 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
 	external control-community-withdraw {
 		run ./control-community-withdraw.run
 		encoder json
@@ -193,8 +199,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		process control-community-withdraw {
-			receive [ update state ]
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
 		}
 	}
 
@@ -228,6 +239,14 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 
 	peer included-client {
@@ -257,6 +276,14 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF
@@ -267,7 +294,7 @@ EOF_CONF
 # they need to be sound. The barrier is per accepted BATCH (peer_connmap.go), so it cannot
 # span processes -- one process is the only shape in which these assertions are not a race.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

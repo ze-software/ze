@@ -43,10 +43,10 @@ func hasStaticBlocks(tree *config.Tree) bool {
 	return false
 }
 
-// hasOldAPIBlocks returns true if any peer or template block has old-style api syntax.
-// Old style includes:
-//   - Anonymous process block: api { processes [ foo ]; } - uses KeyDefault as key
-//   - Named block with processes: api speaking { processes [ foo ]; }
+// hasOldAPIBlocks returns true if any peer or template block has an old-style
+// attachment body. Old style includes:
+//   - Anonymous block: attach process { processes [ foo ]; } - uses KeyDefault as key
+//   - Named block with processes: attach process speaking { processes [ foo ]; }
 //   - Format flags in receive/send: receive [ parsed packets consolidate ];
 //   - State flag: neighbor-changes
 func hasOldAPIBlocks(tree *config.Tree) bool {
@@ -81,9 +81,14 @@ func hasOldAPIBlocks(tree *config.Tree) bool {
 	return false
 }
 
-// hasOldStyleAPI returns true if any process block in the tree uses old syntax.
+// hasOldStyleAPI returns true if any attached process in the tree uses the old
+// block body. tree is a peer, group, or template entry.
 func hasOldStyleAPI(tree *config.Tree) bool {
-	apiList := tree.GetList("process")
+	attach := tree.GetContainer("attach")
+	if attach == nil {
+		return false
+	}
+	apiList := attach.GetList("process")
 	for _, apiTree := range apiList {
 		if isOldStyleAPIBlock(apiTree) {
 			return true
@@ -92,7 +97,7 @@ func hasOldStyleAPI(tree *config.Tree) bool {
 	return false
 }
 
-// isOldStyleAPIBlock returns true if an process block uses old syntax.
+// isOldStyleAPIBlock returns true if one attached process uses the old body.
 func isOldStyleAPIBlock(apiTree *config.Tree) bool {
 	// Check for processes/processes-match field (leaf-list, stored in multiValues)
 	if items := apiTree.GetSlice("processes"); len(items) > 0 {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -144,7 +145,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
 
-	err = adapter.ForwardUpdate(sel, 42, "test-plugin")
+	err = adapter.ForwardUpdate(sel, 42, "test-plugin", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	// Wait for worker to process dispatched item
@@ -258,7 +259,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	require.NoError(t, err)
 
 	// ForwardUpdate dispatches to 2 peers, each with Retain + done=Release
-	err = adapter.ForwardUpdate(sel, 100, "test-plugin")
+	err = adapter.ForwardUpdate(sel, 100, "test-plugin", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	// Wait for both workers to be inside handler (blocked)
@@ -347,7 +348,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	require.NoError(t, err)
 
 	// ForwardUpdate should fail (no dispatches succeeded)
-	err = adapter.ForwardUpdate(sel, 200, "test-plugin")
+	err = adapter.ForwardUpdate(sel, 200, "test-plugin", plugin.OperatorSender())
 	assert.Error(t, err, "should error when no peers dispatched")
 	assert.ErrorIs(t, err, errNoEstablishedPeersToForwardTo,
 		"the error must come from the stopped pool, not from an unresolved source")
@@ -450,7 +451,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
 
-	err = adapter.ForwardUpdate(sel, 300, "test-plugin")
+	err = adapter.ForwardUpdate(sel, 300, "test-plugin", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	select {
@@ -571,7 +572,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	// Must not panic -- safeAttrModHandler catches it.
 	// Every destination is suppressed, so the forward reaches nobody. That is
 	// the point: a recovered panic must not leak an unmodified route.
-	err = adapter.ForwardUpdate(sel, 301, "test-plugin")
+	err = adapter.ForwardUpdate(sel, 301, "test-plugin", plugin.OperatorSender())
 	require.Error(t, err, "a suppressed-for-all forward must report that it reached nobody")
 
 	mu.Lock()
@@ -669,7 +670,7 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 
 	// Every destination is suppressed, so the forward reaches nobody. That is
 	// the point: the route does not go out with the policy unapplied.
-	err = adapter.ForwardUpdate(sel, 302, "test-plugin")
+	err = adapter.ForwardUpdate(sel, 302, "test-plugin", plugin.OperatorSender())
 	require.Error(t, err, "a suppressed-for-all forward must report that it reached nobody")
 
 	mu.Lock()
@@ -853,7 +854,7 @@ func TestForwardUpdateRefusesAfterSourcePeerRemoved(t *testing.T) {
 	// Without this the phase-2 refusal would be indistinguishable from a fixture
 	// that could never forward at all.
 	cacheReflectableUpdate(t, env.cache, 1000)
-	require.NoError(t, env.api.ForwardUpdate(sel, 1000, "test-plugin"))
+	require.NoError(t, env.api.ForwardUpdate(sel, 1000, "test-plugin", plugin.OperatorSender()))
 
 	select {
 	case <-env.saw:
@@ -881,7 +882,7 @@ func TestForwardUpdateRefusesAfterSourcePeerRemoved(t *testing.T) {
 	require.NoError(t, env.r.RemovePeer(netip.MustParseAddr(forwardSourceAddr)))
 
 	cacheReflectableUpdate(t, env.cache, 1001)
-	err = env.api.ForwardUpdate(sel, 1001, "test-plugin")
+	err = env.api.ForwardUpdate(sel, 1001, "test-plugin", plugin.OperatorSender())
 	require.ErrorIs(t, err, errForwardNoSource,
 		"a forward whose source peer is gone must fail closed, not forward unreflected")
 
@@ -915,7 +916,7 @@ func TestForwardUpdateRefusesUnestablishedSource(t *testing.T) {
 	require.NoError(t, err)
 
 	cacheReflectableUpdate(t, env.cache, 1002)
-	require.ErrorIs(t, env.api.ForwardUpdate(sel, 1002, "test-plugin"), errForwardNoSource,
+	require.ErrorIs(t, env.api.ForwardUpdate(sel, 1002, "test-plugin", plugin.OperatorSender()), errForwardNoSource,
 		"a source peer that is present but not established must fail closed")
 
 	assert.Empty(t, env.items(), "nothing may be dispatched for a torn-down source")
@@ -937,7 +938,7 @@ func TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved(t *testing.T) {
 
 	// Phase 1: source present -> the batch forwards.
 	cacheReflectableUpdate(t, env.cache, 2000)
-	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2000}, dests, "rs"))
+	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2000}, dests, "rs", plugin.OperatorSender()))
 	select {
 	case <-env.saw:
 	case <-time.After(2 * time.Second):
@@ -948,7 +949,7 @@ func TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved(t *testing.T) {
 	require.NoError(t, env.r.RemovePeer(netip.MustParseAddr(forwardSourceAddr)))
 
 	cacheReflectableUpdate(t, env.cache, 2001)
-	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2001}, dests, "rs"),
+	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2001}, dests, "rs", plugin.OperatorSender()),
 		"the batch contract keeps per-id outcomes out of the return value")
 
 	select {
@@ -1069,7 +1070,7 @@ func TestForwardUpdateDirectRefcount(t *testing.T) {
 		netip.AddrPortFrom(peers[1].Settings().Address, 0),
 	}
 
-	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool { return handlerCalls.Load() == 2 },
@@ -1186,7 +1187,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		netip.AddrPortFrom(peerA.Settings().Address, 0),
 		netip.AddrPortFrom(peerB.Settings().Address, 0),
 	}
-	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	select {
@@ -1263,7 +1264,7 @@ func TestForwardUpdateDirectOrdering(t *testing.T) {
 	}
 	dests := []netip.AddrPort{netip.AddrPortFrom(peers[0].Settings().Address, 0)}
 
-	err := adapter.ForwardUpdatesDirect(ids, dests, "rs")
+	err := adapter.ForwardUpdatesDirect(ids, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	select {
@@ -1306,7 +1307,7 @@ func TestForwardBackpressureThroughFastPath(t *testing.T) {
 	dests := []netip.AddrPort{netip.AddrPortFrom(peers[0].Settings().Address, 0)}
 
 	// First call enters the handler and blocks.
-	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return handlerCalls.Load() == 1 },
 		time.Second, time.Millisecond, "first dispatch should reach handler")
@@ -1321,7 +1322,7 @@ func TestForwardBackpressureThroughFastPath(t *testing.T) {
 	})
 	cache.Activate(601, 1)
 
-	err = adapter.ForwardUpdatesDirect([]uint64{601}, dests, "rs")
+	err = adapter.ForwardUpdatesDirect([]uint64{601}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err, "fast path must not drop on full channel -- overflow path")
 
 	close(blocker)
@@ -1365,7 +1366,7 @@ func TestFwdBodyCacheHoistsSupersede(t *testing.T) {
 		netip.AddrPortFrom(peers[0].Settings().Address, 0),
 		netip.AddrPortFrom(peers[1].Settings().Address, 0),
 	}
-	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{msgID}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	select {
@@ -1419,7 +1420,7 @@ func TestForwardUpdateDirectMissingMsgIDIsLogged(t *testing.T) {
 	dests := []netip.AddrPort{netip.AddrPortFrom(peers[0].Settings().Address, 0)}
 
 	// Pass missing id first, then valid id.
-	err := adapter.ForwardUpdatesDirect([]uint64{missingID, validID}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{missingID, validID}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err, "valid id in batch should succeed despite missing id")
 
 	select {
@@ -1440,7 +1441,7 @@ func TestForwardUpdateDirectAllMissingReturnsError(t *testing.T) {
 	defer cache.Stop()
 
 	dests := []netip.AddrPort{netip.AddrPortFrom(peers[0].Settings().Address, 0)}
-	err := adapter.ForwardUpdatesDirect([]uint64{9001, 9002}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{9001, 9002}, dests, "rs", plugin.OperatorSender())
 	require.Error(t, err, "all-missing batch should return the last lookup error")
 }
 
@@ -1490,7 +1491,7 @@ func TestForwardUpdateDirectEmptyDestinationsRefusesBroadcast(t *testing.T) {
 	adapter.r.fwdPool = testPool
 	_ = peers
 
-	err := adapter.ForwardUpdatesDirect([]uint64{1234}, nil, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{1234}, nil, "rs", plugin.OperatorSender())
 	require.Error(t, err, "empty destinations MUST return an error, not broadcast")
 	assert.Contains(t, err.Error(), "empty destination list",
 		"error string should guide plugin authors to ReleaseCached")
@@ -1509,7 +1510,7 @@ func TestForwardUpdateDirectExceedsCapRejects(t *testing.T) {
 		tooMany[i] = netip.AddrPortFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 0)
 	}
 
-	err := adapter.ForwardUpdatesDirect([]uint64{5678}, tooMany, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{5678}, tooMany, "rs", plugin.OperatorSender())
 	require.Error(t, err, "exceeding cap MUST return an error")
 	assert.Contains(t, err.Error(), "exceeds cap")
 }
@@ -1562,7 +1563,7 @@ func TestForwardUpdateDirectRefusalAcksTheBatch(t *testing.T) {
 
 			require.True(t, cache.Contains(tc.msgID), "entry must be cached before the refusal")
 
-			err := adapter.ForwardUpdatesDirect([]uint64{tc.msgID}, tc.destinations(), "rs")
+			err := adapter.ForwardUpdatesDirect([]uint64{tc.msgID}, tc.destinations(), "rs", plugin.OperatorSender())
 			require.Error(t, err, "the batch must be refused")
 			assert.False(t, cache.Contains(tc.msgID),
 				"refused batch left id %d in the cache; rs has no cumulative ack to sweep it", tc.msgID)
@@ -1594,7 +1595,7 @@ func TestForwardUpdateDirectDedupsDuplicateIDs(t *testing.T) {
 
 	dests := []netip.AddrPort{netip.AddrPortFrom(peers[0].Settings().Address, 0)}
 	// Pass the same id three times.
-	err := adapter.ForwardUpdatesDirect([]uint64{2222, 2222, 2222}, dests, "rs")
+	err := adapter.ForwardUpdatesDirect([]uint64{2222, 2222, 2222}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err)
 
 	select {
@@ -1810,7 +1811,7 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
-	require.NoError(t, adapter.ForwardUpdate(sel, 700, "test-plugin"))
+	require.NoError(t, adapter.ForwardUpdate(sel, 700, "test-plugin", plugin.OperatorSender()))
 
 	got := make(map[string][]byte, 3)
 	for range 3 {

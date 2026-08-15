@@ -138,6 +138,12 @@ EOF_RUN
 # is an exact number.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
 	external relay-rr {
 		run ./relay-rr.run
 		encoder json
@@ -166,8 +172,16 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		process relay-rr {
-			receive [ update state ]
+		attach process relay-rr {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
 		}
 	}
 
@@ -196,13 +210,21 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 }
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
-cmd=foreground:seq=3:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

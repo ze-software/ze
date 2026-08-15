@@ -733,7 +733,7 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	sel := selector.ParseDefault(peerSelector)
 	var eorSent int
 	for _, fam := range result.EORFamilies {
-		if err := bgpReactor.AnnounceEOR(sel, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
+		if err := bgpReactor.AnnounceEOR(sel, uint16(fam.AFI), uint8(fam.SAFI), ctx.Sender); err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 		}
 		eorSent++
@@ -797,7 +797,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				OriginAS: group.OriginAS,
 				Stale:    staleLevel,
 			}
-			if err := bgpReactor.AnnounceNLRIBatch(sel, batch); err != nil {
+			if err := bgpReactor.AnnounceNLRIBatch(sel, batch, ctx.Sender); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
@@ -811,7 +811,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Family: group.Family,
 				NLRIs:  group.Withdraw,
 			}
-			if err := bgpReactor.WithdrawNLRIBatch(sel, batch); err != nil {
+			if err := bgpReactor.WithdrawNLRIBatch(sel, batch, ctx.Sender); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue
