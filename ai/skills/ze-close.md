@@ -15,18 +15,26 @@ See also: `/ze-implement` (produces the diff this closes), `/ze-review` (the BLO
 `ai/rules/planning.md`: the main thread supervises, it does not run this
 phase itself.
 
-- **If you are the main thread:** spawn an agent to run this skill, hand it the
-  spec path and the phase, then stop. Leave `subagent_type` unset here, alone
-  among the phase skills. Step 5 loops the Review Gate, which spawns reviewer
-  subagents. Neither `ze-read` nor `ze-work` holds the Agent tool
-  (`ai/rules/context-economy.md`), and the higher startup is the correct trade
-  against a closure that cannot reach its own gate. Do not run the steps below
-  inline. You do
-  not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
-  Independent work goes out in ONE message with parallel `Agent` calls.
-- **If you are that agent:** run the steps below. Resolve symbols with the LSP
-  tool if your registry carries it and with `gopls` from Bash if it does not
-  (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
+- **If you are the main thread:** spawn ONE agent to run this skill, on
+  `subagent_type: ze-read` or `ze-work`, hand it the spec path, then stop. Do not
+  run the steps below inline. You do not need to ask permission first
+  (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+- **CLOSE ONE SPEC AT A TIME.** Closure is the most expensive phase in this
+  repository and it ends in a commit, so two closures running at once contend for
+  the build cache, the ports and the index files, and each one's `--unverified`
+  attribution has to describe a tree the other is moving. Wait for one to land
+  before starting the next.
+- **This skill MUST NOT spawn a subagent, and the agent running it MUST NOT
+  either (owner directive, 2026-08-15).** Every step below, the Review Gate at
+  step 5 included, runs INLINE in the one agent that owns the closure. Neither
+  `ze-read` nor `ze-work` carries the Agent tool
+  (`ai/rules/context-economy.md`), so the constraint is enforced by the agent
+  type as well as stated here: pick one of those two and the tool is simply
+  absent. A closure that fans out multiplies token spend without adding a lens
+  the same agent cannot apply by reading.
+- **If you are that agent:** run the steps below yourself. Resolve symbols with
+  the LSP tool if your registry carries it and with `gopls` from Bash if it does
+  not (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
   STOP-and-ask condition, halt and put the question in your report for the main
   thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
@@ -126,7 +134,8 @@ spec). The handoff commit is neither of them. Get the handoff SHA from
    - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, update the matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`, and reconcile `docs/comparison.md` / `docs/features.md` when the support level changes. Per `ai/rules/repo-maintenance.md`.
    - Write the doc updates, run `make ze-doc-test`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 5. **/ze-review gate (BLOCKING -- the final review before closure):** `/ze-implement`'s inline reviews check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
-   - Invoke `/ze-review` on the uncommitted changes. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
+   - Run `/ze-review`'s steps YOURSELF over the uncommitted changes. Its own Delegation section tells a main thread to spawn a reviewer; you are not a main thread, so that paragraph does not apply to you and you MUST NOT spawn one (see Delegation above). Read the skill, then work its steps in this context. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
+   - **Independence still holds, and it is satisfied by the PHASE boundary, not by a fresh agent.** `ai/rules/planning.md` requires the review not be run by the context that WROTE the code. This skill is that separate context: `/ze-implement` produced the diff and ended, and you are judging work you did not author. Reading the diff from source is what makes the review independent; spawning another reader adds a hop, not a lens.
    - **Record the machine artifact, not just prose:** `python3 scripts/dev/review_gate.py record --spec <spec> --rounds <N> ...`, then `check`. `commit_helper.py` runs that same `check` on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path, the `check` result and the round count in the Review Gate table.
    - **`--rounds` is required and more than three is refused without `--rounds-reason`.** The reason must name the PRODUCT defect a later round found. A false statement in the spec's own closure prose is not one: those are NOTEs, they are fixed in ONE edit, and they never earn another round (`ai/rules/planning.md`, "A finding in the record is not a finding in the product"). A round whose findings are all record defects is the last round.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by). NOTEs do not block: record and proceed.
@@ -210,6 +219,7 @@ spec). The handoff commit is neither of them. Get the handoff SHA from
         After the script has run, `make ze-spec-citation-check` is green. A
         closure that leaves it red is not closed.
       - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/journal/<class>.md` when step 6a wrote a journal row, and `plan/<spec-name>` to preserve all implementation edits in git history.
+      - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and `--file` each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
       - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
       - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.

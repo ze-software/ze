@@ -83,6 +83,7 @@ recording ## Recording
   ask-what-did-i-fix-before-writing-a-record
   what-never-earns-a-shard
   the-gate-that-refuses-a-load-excuse-in-a-shard
+  a-row-that-is-not-committed-does-not-exist
 length-is-not-evidence ## Length is not evidence
   a-record-earns-its-length-from-what-a-future-reader-must-do
   where-the-length-budgets-live
