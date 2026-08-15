@@ -16,6 +16,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // sockaddrIn is the BSD sockaddr_in layout (16 bytes).
@@ -35,23 +37,33 @@ type inIfaliasreq struct {
 	Mask      sockaddrIn
 }
 
-// ensureLoopbackAlias adds ip as an alias on lo0 if not already present.
-// Requires root. If the alias already exists, this is a no-op.
-// If the ioctl fails (e.g., no root), returns an error but does not panic --
-// the caller should log a warning and let the test fail on bind with a clear error.
+// ensureLoopbackAlias makes ip usable on lo0, or says how to make it usable.
+//
+// IPv4: adds the alias through SIOCAIFADDR when the address is not already
+// bindable. That needs root, so an unprivileged run gets EPERM back; the error
+// then carries the command an operator can run.
+//
+// IPv6: probes only, and never adds. The IPv6 sibling ioctl (SIOCAIFADDR_IN6)
+// returns EPERM to an unprivileged process just the same, and unlike IPv4 there
+// is no second loopback address to fall back on -- see loopback.go for why the
+// privilege lives in `make ze-setup` instead.
+//
+// The caller fails the test on any error: a missing address surfaces later as a
+// bind failure or a whole-test timeout with nothing pointing at the cause.
 func ensureLoopbackAlias(ip net.IP) error {
 	ip4 := ip.To4()
 	if ip4 == nil {
-		return fmt.Errorf("ensureLoopbackAlias: %v is not IPv4", ip)
+		if loopbackBindable(ip) {
+			return nil
+		}
+		return loopbackMissing(ip)
 	}
 	if ip4[0] != 127 {
 		return fmt.Errorf("ensureLoopbackAlias: %v is not in 127.0.0.0/8", ip)
 	}
 
 	// Check if the address is already usable.
-	ln, err := net.Listen("tcp", net.JoinHostPort(ip.String(), "0")) //nolint:noctx // probe-only, no cancellation needed
-	if err == nil {
-		ln.Close() //nolint:errcheck // probe listener, result irrelevant
+	if loopbackBindable(ip) {
 		return nil // Already available.
 	}
 
@@ -76,8 +88,18 @@ func ensureLoopbackAlias(ip net.IP) error {
 	// for custom struct arguments -- only typed wrappers (Winsize, Termios, etc.).
 	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), //nolint:staticcheck,gosec // no generic ioctl-with-pointer in x/sys/unix; unsafe required for ioctl struct
 		uintptr(unix.SIOCAIFADDR), uintptr(unsafe.Pointer(&req))); errno != 0 {
-		return fmt.Errorf("ensureLoopbackAlias: ioctl SIOCAIFADDR %v on lo0: %w", ip, errno)
+		return fmt.Errorf("ensureLoopbackAlias: ioctl SIOCAIFADDR %v on lo0: %w:"+
+			" run `make ze-setup`, or add it by hand with `sudo ifconfig lo0 alias %v`", ip, errno, ip)
 	}
 
 	return nil
+}
+
+// loopbackIPv6AddCommand is the command an operator runs to put an IPv6 address
+// on the loopback interface. `alias` is what BSD ifconfig calls a second address
+// on an interface that already has one, and /128 keeps it a host address so no
+// route toward the rest of its block is created.
+func loopbackIPv6AddCommand(ip net.IP) string {
+	var tb textbuf.Buffer
+	return tb.Str("sudo ifconfig lo0 inet6 ").Str(ip.String()).Str("/128 alias").String()
 }

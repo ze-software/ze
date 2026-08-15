@@ -72,6 +72,13 @@ const (
 	// fault. Its own failure type keeps it from being grouped with a real
 	// connection_refused against a live peer.
 	FailTypePeerNeverBound = "peer_never_bound"
+
+	// FailTypeLoopbackMissing marks a test whose fixture binds an address this
+	// host does not carry. The runner adds an IPv4 loopback alias itself where
+	// it can, and can never add an IPv6 one, so this is an environment fault
+	// rather than a product fault: rec.Error names the command that fixes it
+	// (internal/test/runner/loopback.go).
+	FailTypeLoopbackMissing = "loopback_address_missing"
 )
 
 const (

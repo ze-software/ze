@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -543,23 +542,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Ensure loopback aliases exist for any ze-peer --bind addresses.
-	// On Linux this is a no-op (127.0.0.0/8 routes to lo automatically).
-	// On macOS/FreeBSD this adds aliases via SIOCAIFADDR ioctl on lo0.
-	for _, cmd := range cmds {
-		if !strings.Contains(cmd.Exec, "ze-peer") {
-			continue
-		}
-		parts := strings.Fields(cmd.Exec)
-		for i, p := range parts {
-			if p == "--bind" && i+1 < len(parts) {
-				if ip := net.ParseIP(parts[i+1]); ip != nil {
-					if err := ensureLoopbackAlias(ip); err != nil {
-						logger().Warn("loopback alias setup failed", "ip", ip, "error", err)
-					}
-				}
-			}
-		}
+	// Make every address this fixture binds usable before anything starts: the
+	// ones ze-peer takes from --bind, and the ones ze takes from the config the
+	// .ci embeds (connection > local > ip).
+	//
+	// This FAILS the test. It used to log a warning and carry on, so a host
+	// missing the address paid for it later as a bind failure or a whole-test
+	// timeout, with nothing on the way naming the cause or the fix.
+	if err := ensureBindAddresses(rec); err != nil {
+		rec.Error = err
+		rec.FailureType = FailTypeLoopbackMissing
+		return false
 	}
 
 	// Execute commands in order

@@ -21,6 +21,7 @@ import os
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -651,6 +652,104 @@ def apply_kvm_fix() -> bool:
     return in_kvm_group()
 
 
+# --- Loopback addresses the functional suite binds ------------------------
+#
+# A `.ci` fixture with two BGP speakers gives each end its own address, and it
+# has to: RFC 4271 Section 5.1.3 forbids a peer its own address as NEXT_HOP, so
+# a session whose two ends share one address has every originated route withheld
+# (originatedNextHopIsPeerOwn, internal/component/bgp/reactor/forward_next_hop.go).
+#
+# IPv4 has 127.0.0.0/8 to spend. Linux routes all of it to lo, so only macOS
+# needs aliases, and only for the addresses the suite actually uses.
+#
+# IPv6 has exactly one loopback address, ::1, on every platform. A second one is
+# real configuration, and fd00::2 is what the suite uses: fd00::/8 is unique-local
+# (RFC 4193), which is never globally routable, so a fixture that leaks a packet
+# toward it can never reach a real destination on a real network. A documentation
+# prefix (2001:db8::/32) is globally scoped and would not carry that property.
+#
+# This is setup work rather than runner work because the runner cannot do it:
+# SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin, and the
+# Linux route needs CAP_NET_ADMIN, while `make ze-verify` runs as an ordinary
+# user (internal/test/runner/loopback.go reports the miss and names this script).
+#
+# Neither addition survives a reboot on either platform. That is deliberate: the
+# persistent forms (a launchd plist, a netplan or systemd-networkd unit) edit
+# files a developer's machine owns for other reasons. `make ze-setup` is cheap to
+# re-run, and CHECK=1 says when it is needed.
+LOOPBACK_IPV6 = "fd00::2"
+
+# 127.0.0.2 through 127.0.0.5: the addresses multi-peer fixtures bind today, plus
+# the ones docs/guide/chaos-testing.md asks a human to add by hand for FRR and
+# BIRD chaos runs (those daemons identify peers by source address, not by port).
+LOOPBACK_IPV4_DARWIN = [f"127.0.0.{i}" for i in range(2, 6)]
+
+
+def loopback_addresses() -> list[str]:
+    """The addresses this host must carry for the functional suite to run.
+
+    Linux is IPv6-only here: 127.0.0.0/8 already routes to lo, so an IPv4 alias
+    would be work with no effect.
+    """
+    if platform.system() == "Darwin":
+        return [*LOOPBACK_IPV4_DARWIN, LOOPBACK_IPV6]
+    return [LOOPBACK_IPV6]
+
+
+def loopback_bindable(addr: str) -> bool:
+    """Whether a socket can bind addr right now.
+
+    A bind, not a scan of the interface list, because a bind is what every
+    fixture needs to succeed and the two answers differ: an IPv6 address is
+    listed while duplicate-address detection still refuses it. The test runner
+    decides the same way (loopbackBindable, internal/test/runner/loopback.go).
+    """
+    family = socket.AF_INET6 if ":" in addr else socket.AF_INET
+    try:
+        with socket.socket(family, socket.SOCK_STREAM) as probe:
+            probe.bind((addr, 0))
+    except OSError:
+        return False
+    return True
+
+
+def missing_loopback_addresses() -> list[str]:
+    """The subset of loopback_addresses() this host does not carry."""
+    return [addr for addr in loopback_addresses() if not loopback_bindable(addr)]
+
+
+def loopback_add_argv(addr: str) -> list[str]:
+    """The root command that puts addr on the loopback interface."""
+    if platform.system() == "Darwin":
+        if ":" in addr:
+            return ["ifconfig", "lo0", "inet6", f"{addr}/128", "alias"]
+        return ["ifconfig", "lo0", "alias", addr]
+    # Linux reaches here for IPv6 only; /128 keeps it a host address, so no
+    # route toward the rest of fd00::/8 is created.
+    return ["ip", "-6", "addr", "add", f"{addr}/128", "dev", "lo"]
+
+
+def print_loopback_fix(missing: list[str]) -> None:
+    """Print the commands that add the missing addresses."""
+    for addr in missing:
+        print(f"  Run: sudo {' '.join(loopback_add_argv(addr))}")
+
+
+def apply_loopback_fix(missing: list[str]) -> bool:
+    """Print, then run, the commands that add the missing addresses.
+
+    Idempotent by construction: only addresses that failed the bind probe are
+    passed in, so a re-run of `make ze-setup` on a configured host runs nothing.
+    Returns True only when every address binds afterwards.
+    """
+    for addr in missing:
+        ok, detail = run_privileged(loopback_add_argv(addr))
+        if not ok:
+            print(f"  FAIL: {detail}")
+            return False
+    return not missing_loopback_addresses()
+
+
 def detect_os() -> str | None:
     if platform.system() == "Darwin":
         if shutil.which("brew"):
@@ -1083,6 +1182,26 @@ def main() -> int:
             print("  Could not apply automatically; run manually:")
             print_kvm_fix()
             pending_manual.append("kvm-access")
+
+    # Not a binary and not a kernel tunable: addresses the functional fixtures
+    # bind. Runs on every platform -- macOS needs the IPv4 aliases too, Linux
+    # only the IPv6 one. The runner cannot add either, so a host that skips this
+    # fails the fixtures that need them.
+    missing_loopback = missing_loopback_addresses()
+    if not missing_loopback:
+        print("  [present]   loopback-addresses")
+    elif args.check:
+        print(
+            f"  [missing]   loopback-addresses ({', '.join(missing_loopback)}) (REQUIRED)"
+        )
+        missing_required.append("loopback-addresses")
+    elif apply_loopback_fix(missing_loopback):
+        print(f"  [installed] loopback-addresses ({', '.join(missing_loopback)})")
+        installed.append("loopback-addresses")
+    else:
+        print("  Could not apply automatically; run manually:")
+        print_loopback_fix(missing_loopback)
+        pending_manual.append("loopback-addresses")
 
     if not args.check:
         print()
