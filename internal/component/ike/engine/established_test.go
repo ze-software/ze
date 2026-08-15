@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -431,5 +432,70 @@ func TestMaintainSARelinquishesOnSupersede(t *testing.T) {
 	}
 	if ps.getChildSA() != nil {
 		t.Error("old Child SA not cleaned up after supersede")
+	}
+}
+
+// VALIDATES: a session that ends with an IKE-SA rekey still outstanding leaves no
+// Diffie-Hellman private value behind. runEstablished clears ps.pendingRekey in a
+// deferred call, and that call is the only one that covers this exit: the exchange never
+// got its answer, so no inbound path retires it.
+// PREVENTS: the private half of an unanswered CREATE_CHILD_SA surviving the close of the
+// session that started it. RFC 7296 Section 2.12 asks a closing endpoint to forget the
+// keys AND anything that could recompute them; pendingRekey.dh is exactly that, and it
+// lives on the SESSION, so erasing the SA does not reach it.
+//
+// The pending slot is filled directly rather than through startIKERekey, because what is
+// under test is the EXIT, not the rekey. What the slot holds is a real DH exchange, so
+// HasPrivate is answered by crypto rather than by a fixture.
+//
+// Discrimination, measured 2026-08-15: with the `ps.pendingRekey.clear()` defer deleted
+// from runEstablished, this test fails on both assertions -- the slot is still occupied
+// and the private value is still there. Restoring the defer turns it green. Deleting only
+// the `clear()` call and keeping `ps.pendingRekey = nil` fails the HasPrivate assertion
+// alone, so each half of the defer has its own oracle.
+func TestRunEstablishedClearsPendingRekeyOnExit(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	_, resp, ps := establishPSK(t)
+	ps.stopCh = make(chan struct{})
+	ps.supersede = make(chan struct{}, 1)
+
+	dh, err := crypto.NewDHExchange(crypto.DH_MODP_2048)
+	if err != nil {
+		t.Fatalf("NewDHExchange: %v", err)
+	}
+	if !dh.HasPrivate() {
+		t.Fatal("setup: a fresh DH exchange holds no private value, the assertion would be vacuous")
+	}
+	ps.pendingRekey = &pendingRekey{
+		kind:       rekeyIKE,
+		messageID:  7,
+		sentAt:     time.Now(),
+		localNonce: []byte("Ni"),
+		dh:         dh,
+	}
+
+	// Closed before the call, so the owner loop's first select takes the stop case and
+	// the session ends with the rekey still outstanding.
+	close(ps.stopCh)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- ps.runEstablished(resp, ps.peerCfg, testIKEGroup(), NewSATable(), nil, nil, log)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("runEstablished returned %v on stop, want nil", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("runEstablished did not return after the session was stopped")
+	}
+
+	if ps.pendingRekey != nil {
+		t.Error("the session still holds a pending rekey after runEstablished returned")
+	}
+	if dh.HasPrivate() {
+		t.Error("the DH private value of an unanswered rekey survived the close of its session")
 	}
 }

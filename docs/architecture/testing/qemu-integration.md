@@ -94,6 +94,22 @@ to avoid interfering with other tests or the VM's network. See
 `internal/component/iface/integration_helpers_linux_test.go` for the
 `withNetNS` helper pattern.
 
+### Dataplane Counters Need a Real Remote Peer
+
+<!-- source: ai/rules/platform-linux.md -- Dataplane counters need a real remote peer -->
+
+A test that asserts on a kernel counter sitting behind state written for a
+remote peer, such as `ip xfrm` bytes, sends its traffic to a real remote peer
+and pairs the assertion with a run known to move the counter. A VM addressing
+its own address matches no policy that names a peer, so no security association
+encrypts the packet and the counter stays at zero. The reading is then zero for
+a working path and zero for a broken one. Two namespaces, two VMs, or two
+containers are what make the counter readable.
+
+The selector is the reason, not the interface. A plain nftables rule counter in
+an input or output chain does advance for a self-addressed packet, so this
+constraint does not reach it.
+
 ### Graceful Degradation
 
 Use `t.Skip()` when a capability is missing, not `t.Fatal()`:

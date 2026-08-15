@@ -227,7 +227,7 @@ was retired with the learned corpus, so they need a live design target
     `internal/core/network/netns_integration_linux_test.go` tagged `integration && linux` is
     picked up by `make ze-qemu-integration-test` with NO Makefile edit. This partially answers
     Q12 (see Open Questions): the rail for the netns BIND exists today. Note
-    `ai/rules/platform-linux.md` step 4 ("Register the package in the Makefile", showing an
+    `ai/rules/platform-linux.md` step 5 ("Register the package in the Makefile", showing an
     explicit `--run` list) is stale for this target; the explicit list is now only
     `./internal/plugins/firewall/vpp/...` on line 325.
 
@@ -603,7 +603,7 @@ None deferred. Scope is set above and every AC is assigned.
 | 1 | New user-facing feature? | [ ] Yes (BGP netns binding) | `docs/features.md` |
 | 2 | Config syntax changed? | [ ] Yes, if a netns leaf lands (Q3) | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
 | 6 | Has a user guide page? | [ ] Yes. The guide documents the netns constraint as a hard limit; it becomes a configurable capability | `docs/guide/vpp.md` |
-| 10 | Test infrastructure changed? | [ ] Check. A new `needs-linux` `.ci` and a new integration package are additive, but `ai/rules/platform-linux.md` step 4 is stale for `ze-qemu-integration-test` (the list auto-discovers, `mk/test-integration.mk`) | `docs/functional-tests.md`, `ai/rules/platform-linux.md` |
+| 10 | Test infrastructure changed? | [ ] Check. A new `needs-linux` `.ci` and a new integration package are additive, but `ai/rules/platform-linux.md` step 5 is stale for `ze-qemu-integration-test` (the list auto-discovers, `mk/test-integration.mk`) | `docs/functional-tests.md`, `ai/rules/platform-linux.md` |
 | 12 | Internal architecture changed? | [ ] Yes. `network.go`'s package doc and `listener.go`'s `// Design:` anchor both describe listener creation; a namespace concept changes that contract | `docs/architecture/core-design.md` |
 | 15 | Registered diagnostic code changed? | [ ] Yes: `doctor-vpp-lcp-netns` description reworded for the narrowed check | `internal/core/diagnostic/codes.go`, `docs/guide/vpp.md` |
 | 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `scripts/dev/check_doc_links.py --design-only` | per grep |

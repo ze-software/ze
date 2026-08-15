@@ -44,8 +44,9 @@ questions below are his to answer, and `## Open Questions for Thomas` is the
 first thing a design session reads.
 
 **What this spec is not.** It is not `plan/spec-fixit-ike-resource-lifetime-leaks.md`
-(nothing leaks here) and it is not `plan/spec-fixit-ike-test-discrimination.md`
-(the behavior is missing, not the test). The deferral row rules both out by name.
+(nothing leaks here) and it is not `spec-fixit-ike-test-discrimination`, which
+closed on 2026-08-15 (the behavior is missing, not the test). The deferral row
+rules both out by name.
 
 ## Required Reading
 
@@ -317,7 +318,7 @@ Path B, the Child SA liveness signal that does not exist:
 |----------|--------|
 | What breaks if this is wrong? | A dead peer is not detected, so a tunnel black-holes traffic until an operator notices. That is the exact failure S-3 and S-5 exist to prevent, and it is worse than the over-probing being fixed. The opposite error, over-suppression, is silent |
 | How is it reverted? | Single commit revert. No wire format changes, no config migration, no peer-visible state. The probe's wire form is untouched |
-| Who else touches this path? | `plan/spec-fixit-ike-resource-lifetime-leaks.md` (the `sendDPD` request-window row, resolved 2026-08-07) and `plan/spec-fixit-ike-test-discrimination.md` (the `.ci` that now guards the tunnel). `plan/spec-ipsec-dataplane-inspection.md` owns the SAD read surface. Another agent was editing `internal/component/ike/engine/dpd.go` on 2026-08-07 |
+| Who else touches this path? | `plan/spec-fixit-ike-resource-lifetime-leaks.md` (the `sendDPD` request-window row, resolved 2026-08-07) and `spec-fixit-ike-test-discrimination`, closed 2026-08-15, which added `test/ipsec/ipsec-dpd-holds-tunnel.ci` to assert a healthy tunnel outlives more than one DPD interval. `plan/spec-ipsec-dataplane-inspection.md` owns the SAD read surface. Another agent was editing `internal/component/ike/engine/dpd.go` on 2026-08-07 |
 
 ## Open Questions for Thomas
 

@@ -21,10 +21,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from lab import (
     StrongSwan,
     SWAN_CONTAINER,
+    SWAN_IP,
     ZE_CONTAINER,
+    assert_esp_accepted,
+    docker_exec_quiet,
     docker_logs,
     log_pass,
     wait_xfrm_sa,
+    xfrm_sa_bytes_by_spi,
 )
 
 
@@ -72,4 +76,41 @@ def check():
     wait_xfrm_sa(SWAN_CONTAINER)
     wait_xfrm_sa(ZE_CONTAINER)
 
-    log_pass("EAP-TLS tunnel established over TLS 1.3 with no GODEBUG on ze")
+    # 5. Data plane: the SAs carry ESP that the peer ACCEPTS.
+    #
+    # This matters more here than anywhere else in the tree. The scenario's own claim is
+    # about the MSK: on TLS 1.3 it comes from the RFC 9190 Section 2.3 exporter, and on
+    # TLS 1.2 from the RFC 5216 Section 2.3 one. Export the wrong 64 octets and the IKE
+    # AUTH still verifies on both sides, the Child SA still installs, and the XFRM SAs
+    # still appear on both ends holding keys that do not match. Only a decrypt at the
+    # peer separates the two outcomes, and until 2026-08-15 this scenario stopped one
+    # step short of asking for it.
+    #
+    # The counter is the oracle, not the ping: both containers share a Docker bridge, so
+    # ICMP crosses with the tunnel down. The counters are read before and after a blocking
+    # ping rather than after a sleep, so nothing here waits on elapsed time (spec R-2).
+    #
+    # Discrimination, measured 2026-08-15: with one octet of the outbound ESP key flipped
+    # in installChildSA (internal/component/ike/engine/child.go), the two wait_xfrm_sa
+    # calls above still passed and so did ze's own counter. Only the strongSwan assertion
+    # below went red.
+    ze_before = xfrm_sa_bytes_by_spi(ZE_CONTAINER)
+    swan_before = xfrm_sa_bytes_by_spi(SWAN_CONTAINER)
+
+    docker_exec_quiet(ZE_CONTAINER, ["ping", "-c", "4", "-W", "2", SWAN_IP])
+
+    assert_esp_accepted(
+        ZE_CONTAINER,
+        ze_before,
+        xfrm_sa_bytes_by_spi(ZE_CONTAINER),
+        "no traffic through the TLS 1.3 EAP-TLS tunnel",
+    )
+
+    assert_esp_accepted(
+        SWAN_CONTAINER,
+        swan_before,
+        xfrm_sa_bytes_by_spi(SWAN_CONTAINER),
+        "strongSwan accepted no ESP from the RFC 9190 exported MSK",
+    )
+
+    log_pass("EAP-TLS over TLS 1.3 established with no GODEBUG on ze, ESP accepted")

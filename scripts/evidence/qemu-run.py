@@ -12,6 +12,13 @@ Usage:
         --packages "xl2tpd ppp iproute2 iputils-ping nftables kmod"
 
 The ISO is cached at tmp/qemu/ and reused. Each run boots fresh from ISO.
+
+Before writing a probe that asserts on a dataplane counter, read
+`ai/rules/platform-linux.md`, section "4. Dataplane counters need a real remote
+peer". A VM addressing its own address moves no xfrm counter, so such a probe
+reads zero whether the dataplane works or not.
+`test/ipsec-interop/scenarios/01-psk-site-to-site/check.py` is the in-tree
+pattern, over `assert_esp_accepted` in `test/ipsec-interop/lab.py`.
 """
 
 from __future__ import annotations

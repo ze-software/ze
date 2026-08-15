@@ -38,6 +38,8 @@ how-to-write-a-qemu-integration-test ## How to Write a QEMU Integration Test
   skip-not-fail-when-a-prerequisite-is-absent
   skip-example-for-a-missing-pty
   skip-example-for-a-missing-net-admin-capability
+  dataplane-counters-need-a-real-remote-peer
+  a-dataplane-counter-owes-an-egress-and-a-positive-control
   register-the-package-in-the-makefile
   add-your-package-to-the-qemu-run-argument
   where-to-add-a-package-in-the-target
