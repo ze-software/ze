@@ -1,0 +1,18 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+<h3>Chaos Events</h3><div class="chaos-events-table">
+<table class="peer-table">
+  <thead><tr>
+    <th>Time</th>
+    <th>Peer</th>
+    <th>Action</th>
+  </tr></thead>
+  <tbody><tr><td>1h56m40s</td><td>p1</td><td style="color:var(--text-secondary)">corrupt</td></tr><tr><td>1h6m40s</td><td>p3</td><td style="color:var(--text-secondary)">delay</td></tr><tr><td>16m40s</td><td>p1</td><td style="color:var(--text-secondary)">disconnect</td></tr></tbody></table></div>
+<div class="histogram-stats">
+  <span class="stat"><span class="stat-label">Total </span><span class="stat-value">3</span></span>
+  <span class="stat"><span class="stat-label">Showing </span><span class="stat-value">3</span></span>
+</div>
+<p class="viz-desc">Table of chaos actions injected during the run. Shows the most recent 200 actions with timestamps relative to run start, target peer, and action type.</p>
+</div>

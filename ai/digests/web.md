@@ -95,8 +95,12 @@ unmarshal it back into a `map[string]any` for template rendering.
    `handler_config_form.go`) plus an OOB commit-bar `oob_save_ok`
    (`handler_config_form.go`); no breadcrumb/detail OOB, unlike step 6.
    Validation failures use `WriteOOBError`
-   (`internal/component/web/fragment.go`), OOB-appending into `#error-list`
-   (`component_oob_error.templ:6-7`).
+   (`internal/component/web/error_fragment.go`), which writes the error fragment
+   for the request's target (`errorfragment.Render`,
+   `internal/core/errorfragment`) and then OOB-appends the same error into
+   `#error-list` (`component_oob_error.templ:6-7`). A value the schema marks
+   secret is masked out of the message first (`maskSecretInMessage`,
+   `secret.go`).
 8. **Commit.** `POST /config/commit` →
    `HandleConfigCommitWithAuthorizerAndAudit`
    (`internal/component/web/handler_config_commit.go`) →
@@ -193,7 +197,9 @@ unmarshal it back into a `map[string]any` for template rendering.
 | `internal/component/web/handler.go` | `ParseURL`/`Tier`/`NegotiateContentType`; `RegisterRoutes` (test-only, see gotchas) |
 | `internal/component/web/handler_workbench.go` | `HandleWorkbench`: Workbench GET/HTMX entry point |
 | `internal/component/web/workbench_pages.go` | `renderPageContent`: purpose-built page dispatch by path prefix |
-| `internal/component/web/fragment.go` | `HandleFragment` (Finder), `buildFragmentData`, `WriteOOBError` |
+| `internal/component/web/fragment.go` | `HandleFragment` (Finder), `buildFragmentData` |
+| `internal/component/web/error_fragment.go` | `WriteOOBError` (fragment first, then the out-of-band error item) |
+| `internal/core/errorfragment` | `Middleware` (turns a plain-text 4xx/5xx into a fragment for an htmx request) and `Render` (the markup). Shared by the web UI, the looking glass and the chaos dashboard, each of which wraps its own mux with it once |
 | `internal/component/web/render.go` | `Renderer`: template parsing, `RenderWorkbench`/`RenderFragment`/`RenderLayout`/`RenderField` |
 | `internal/component/web/handler_config_walk.go` | `walkSchema`/`walkTree`/`buildConfigViewData`: generic YANG tree walk |
 | `internal/component/web/handler_config_form.go`, `handler_config_commit.go` | Leaf set/form save; commit/discard + `BroadcastConfigChange` |

@@ -1,0 +1,25 @@
+# Test: each page loads the assets its own markup needs, and no others
+# VALIDATES: AC-8 and AC-11 of spec-web-htmx4-prepare -- the head block renders
+#            the set scripts/codegen/web_assets.go derived from the markup that
+#            page reaches, so a page rendering no htmx attribute loads no htmx
+# PREVENTS: the union shipping to every page, and the opposite failure. A page
+#           missing an asset it needs still renders and still answers 200, and
+#           only the browser sees that nothing works.
+#
+# The sign-in page renders no htmx attribute at all: its form is a plain POST.
+# The workbench renders several, so it loads the library.
+#
+# option=auth forces real authentication, so an unauthenticated GET renders the
+# sign-in page rather than redirecting. web-i18n-fr.wb carries the same note.
+
+option=timeout:value=30s
+option=auth:user=admin:password=ze-web-admin
+
+action=open:path=/login
+expect=element:id=username
+expect=head:not-contains=htmx.min.js
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/
+expect=element:text=bgp
+expect=head:contains=/assets/htmx.min.js

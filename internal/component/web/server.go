@@ -135,11 +135,8 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 		server: &http.Server{
 			// Addr is informational; a multi-listener server binds via Serve(ln)
 			// and does not use Server.Addr for ListenAndServe.
-			Addr: configured[0],
-			// Every response carries the security headers, whatever route
-			// served it. Setting them per handler left the root redirect, the
-			// favicon and every asset with none.
-			Handler:   SecurityHeaders(mux),
+			Addr:      configured[0],
+			Handler:   serverHandler(mux),
 			TLSConfig: tlsCfg,
 			// Timeouts prevent slow clients from holding connections indefinitely.
 			ReadHeaderTimeout: 10 * time.Second,

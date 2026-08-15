@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/errorfragment"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
 )
@@ -511,6 +512,20 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		setSecurityHeaders(w)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// serverHandler wraps a mux with every middleware a response passes through,
+// whatever route served it.
+//
+// It exists so the daemon and the golden capture cannot disagree about that
+// chain. Both wrap their own mux, and a middleware added to one of them alone
+// is a middleware the other's tests never see (server.go, handler_golden_test.go).
+//
+// It is unexported because every caller is in this package: the daemon builds
+// its server here (server.go) and the captures live beside it. An exported name
+// with no cross-package caller is what `make ze-validate` refuses.
+func serverHandler(mux http.Handler) http.Handler {
+	return SecurityHeaders(errorfragment.Middleware(mux))
 }
 
 // generateToken creates a cryptographically random 32-byte token, hex-encoded

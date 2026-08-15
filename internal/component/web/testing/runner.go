@@ -347,9 +347,19 @@ func (b *Browser) Screenshot(path string) error {
 	return b.runAgent("screenshot", path)
 }
 
-// getHTML returns the full page HTML.
+// getHTML returns the page BODY's HTML. The head is fetched on its own, by
+// getHeadHTML: `get html <selector>` returns one element's inner HTML, so no
+// single call answers for both.
 func (b *Browser) getHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "body")
+}
+
+// getHeadHTML returns the page HEAD's HTML, which is where a page states what
+// it loads. Each page loads the assets its own markup needs
+// (scripts/codegen/web_assets.go), so what a head does NOT carry is as much a
+// property of the page as what it does.
+func (b *Browser) getHeadHTML() (string, error) {
+	return b.runAgentOutput("get", "html", "head")
 }
 
 // Close closes the browser session. When the browser is bound to a session,

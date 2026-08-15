@@ -1,0 +1,9 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div id="route-control-panel" class="card">
+<h3>Route Dynamics</h3>
+<div class="control-row">
+  <span class="dot status-down"></span> <span>Stopped</span>
+</div>
+</div>

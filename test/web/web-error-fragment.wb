@@ -1,0 +1,37 @@
+# Test: a refused edit answers a fragment and the operator still sees the message
+# VALIDATES: POST /config/set/ refused at 400 answers markup, htmx 2.0.4 swaps
+# none of it, and assets/notification.js still shows the message as a toast
+# PREVENTS: AC-7 breaking. The response body became a fragment for htmx 4, and
+# under htmx 2 the toast is the ONLY feedback a failed action has. A toast
+# reading the raw markup, or no toast at all, is the regression this catches.
+
+option=timeout:value=60s
+
+action=open:path=/show/system/dns/
+expect=element:id=input-system-sdns-stimeout
+
+# 70000 is one above the uint16 ceiling, so config.ValidateValue refuses it and
+# the handler answers 400.
+#
+# Enter is what sends it. The field also posts on "input changed delay:1s", and
+# waiting for that debounce alone made this test spend its whole 15s expectation
+# budget under load: initEnterSubmit (cli.js) dispatches ze-enter, which the
+# input's hx-trigger names, so the post leaves on the keystroke instead.
+action=fill:id=input-system-sdns-stimeout:value=70000
+action=press:key=Enter
+action=wait:ms=2000
+
+# The toast an operator reads. The message is the handler's sentence, not the
+# markup around it, which is what errorMessageFromBody (notification.js) buys.
+# The last two assertions are what makes this test discriminate: a toast built
+# from the raw body would read the class name and the escaped quote instead.
+expect=element:text=Error 400
+expect=element:text=invalid uint16
+expect=element:text="70000"
+expect=element:not-text=error-fragment
+
+# htmx 2.0.4 swaps no 4xx, so neither half of the body reached the page: not the
+# fragment into the field, and not the out-of-band item into the error list.
+# This is assumption A-1 held against the running daemon.
+expect=html:not-contains=error-fragment
+expect=html:not-contains=error-item

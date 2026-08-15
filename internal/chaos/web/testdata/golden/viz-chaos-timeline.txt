@@ -1,0 +1,14 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+<h3>Chaos Timeline</h3><div class="chaos-timeline-label">Overall</div><div class="chaos-timeline">
+<div class="chaos-timeline-track" style="position:relative"><div class="warmup-region" style="width:2%" title="Warmup: 5m0s"></div><div class="chaos-marker" style="left:9%;background:#8b949e" title="p1: disconnect at 16m40s" hx-get="/peer/1" hx-target="#peer-detail" hx-swap="outerHTML"></div><div class="chaos-marker" style="left:37%;background:#8b949e" title="p3: delay at 1h6m40s" hx-get="/peer/3" hx-target="#peer-detail" hx-swap="outerHTML"></div><div class="chaos-marker" style="left:64%;background:#8b949e" title="p1: corrupt at 1h56m40s" hx-get="/peer/1" hx-target="#peer-detail" hx-swap="outerHTML"></div></div></div><div class="chaos-timeline-label">Last 60s</div><div class="chaos-timeline">
+<div class="chaos-timeline-track" style="position:relative"></div></div><div class="chaos-legend"><span class="legend-item"><span class="legend-swatch" style="background:#79c0ff"></span>config-reload</span><span class="legend-item"><span class="legend-swatch" style="background:#d2a8ff"></span>connection-collision</span><span class="legend-item"><span class="legend-swatch" style="background:#ff7b72"></span>disconnect-during-burst</span><span class="legend-item"><span class="legend-swatch" style="background:#d29922"></span>hold-timer-expiry</span><span class="legend-item"><span class="legend-swatch" style="background:#bc8cff"></span>malformed-update</span><span class="legend-item"><span class="legend-swatch" style="background:#ffa657"></span>notification-cease</span><span class="legend-item"><span class="legend-swatch" style="background:#db6d28"></span>reconnect-storm</span><span class="legend-item"><span class="legend-swatch" style="background:#f85149"></span>tcp-disconnect</span></div>
+<div class="histogram-stats">
+  <span class="stat"><span class="stat-label">Total actions </span><span class="stat-value">3</span></span>
+  <span class="stat"><span class="stat-label">Last 60s </span><span class="stat-value">0</span></span>
+  <span class="stat"><span class="stat-label">Duration </span><span class="stat-value"><DURATION></span></span>
+</div>
+<p class="viz-desc">Two timelines: Overall shows all chaos actions across the full run; Last 60s is a rolling window showing recent activity. Each vertical mark is one action; color indicates the action type. The shaded region on the overall track is the warmup period.</p>
+</div>

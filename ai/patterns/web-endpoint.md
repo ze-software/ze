@@ -182,7 +182,22 @@ detail panel, breadcrumb, CLI path bar, sidebar (sometimes), commit bar.
 WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
 ```
 
-Renders `oob_error.html` with `hx-swap-oob="true"` to append to `#error-list`.
+Writes the error fragment (`errorfragment.Render`, `internal/core/errorfragment`)
+for the request's target, then appends the same error to `#error-list` through
+`component_oob_error.templ` and its `hx-swap-oob`.
+
+A handler with no renderer answers `http.Error` instead, and
+`errorfragment.Middleware` turns that plain-text body into the same fragment when
+the request carries `HX-Request`. So an endpoint needs no renderer to answer a
+refusal the browser can swap. Only a text/plain body is converted: an answer the
+handler wrote as html or JSON reaches the client untouched. The middleware is
+wrapped around the mux in ONE place per interface: `ServerHandler` (`auth.go`)
+here, `NewLGServer` in the looking glass, and `fragmentMux` in the chaos
+dashboard.
+
+A message built from an operator value goes through `maskSecretInMessage`
+(`secret.go`) when the leaf is in hand. `config.LeafHoldsSecret` is the one
+predicate for that question.
 
 ### Monitor Pages
 

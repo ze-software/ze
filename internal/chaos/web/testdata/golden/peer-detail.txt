@@ -1,0 +1,38 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="detail-pane" id="peer-detail">
+<h2>
+  <span>Peer 2</span>
+  <span>
+    <span class="badge" hx-post="/peers/2/pin" hx-swap="none">Pin</span>
+    <span class="close-btn" hx-get="/peer/close" hx-target="#peer-detail" hx-swap="outerHTML">&times;</span>
+  </span>
+</h2>
+<div class="detail-section">
+  <h4>State</h4>
+  <div class="detail-grid">
+    <div class="detail-item"><span class="label">Status: </span><span class="value"><span class="dot status-up"></span>up</span></div>
+    <div class="detail-item"><span class="label">Msgs Sent: </span><span class="value">1</span></div>
+    <div class="detail-item"><span class="label">Msgs Recv: </span><span class="value">5</span></div>
+    <div class="detail-item"><span class="label">Missing: </span><span class="value">0</span></div>
+    <div class="detail-item"><span class="label">Bytes Sent: </span><span class="value">202 B</span></div>
+    <div class="detail-item"><span class="label">Bytes Recv: </span><span class="value">520 B</span></div>
+    <div class="detail-item"><span class="label">Rate Out: </span><span class="value">0 bps</span></div>
+    <div class="detail-item"><span class="label">Rate In: </span><span class="value">0 bps</span></div>
+    <div class="detail-item"><span class="label">Chaos: </span><span class="value">0</span></div>
+    <div class="detail-item"><span class="label">Reconnects: </span><span class="value">0</span></div>
+  </div>
+</div>
+<div class="detail-section">
+  <h4>Families</h4>
+  <table class="family-table">
+    <tr><th>Family</th><th></th><th>Sent</th><th>Recv</th></tr><tr><td>ipv4/unicast</td><td class="family-check">&#x2713;</td><td>1</td><td>5</td></tr><tr class="family-disabled"><td>ipv4/vpn</td><td class="family-cross">&#x2717;</td><td>-</td><td>-</td></tr><tr><td>ipv6/unicast</td><td class="family-check">&#x2713;</td><td>0</td><td>0</td></tr>
+  </table>
+</div>
+<div class="detail-section">
+  <h4>Recent Events</h4>
+  <div class="event-list"><div class="event-row"><span class="event-time">2h51m ago</span><span class="event-type event-type-route">withdrawal-sent</span><span>4</span></div><div class="event-row"><span class="event-time">2h58m ago</span><span class="event-type event-type-route">route-recv</span><span>10.0.5.0/24</span></div><div class="event-row"><span class="event-time">2h58m ago</span><span class="event-type event-type-route">route-recv</span><span>10.0.4.0/24</span></div><div class="event-row"><span class="event-time">2h58m ago</span><span class="event-type event-type-route">route-recv</span><span>10.0.3.0/24</span></div><div class="event-row"><span class="event-time">2h58m ago</span><span class="event-type event-type-route">route-sent</span><span>10.0.2.0/24</span></div><div class="event-row"><span class="event-time">2h58m ago</span><span class="event-type event-type-route">route-recv</span><span>10.0.1.0/24</span></div><div class="event-row"><span class="event-time">2h58m ago</span><span class="event-type event-type-route">route-recv</span><span>10.0.0.0/24</span></div><div class="event-row"><span class="event-time">2h59m ago</span><span class="event-type event-type-route">eor</span><span>1</span></div><div class="event-row"><span class="event-time">2h59m ago</span><span class="event-type event-type-established">established</span><span></span></div>
+  </div>
+</div>
+</div>

@@ -1,0 +1,9 @@
+status: 400
+header: Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'
+header: Content-Type: text/html; charset=utf-8
+header: Referrer-Policy: no-referrer
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<div class="error-fragment" role="alert" data-error-status="400"><span class="error-fragment-reason">Bad Request</span> <span class="error-fragment-message">invalid prefix</span></div>

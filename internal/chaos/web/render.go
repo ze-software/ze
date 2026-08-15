@@ -55,9 +55,16 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ze Chaos</title>
 <link rel="stylesheet" href="/assets/style.css">
-<script src="/assets/htmx.min.js"></script>
-<script src="/assets/sse.js"></script>
-<script>
+`)
+
+	// The dashboard loads the assets its own markup needs.
+	// scripts/codegen/web_assets.go derives the set from every htmx attribute
+	// this package renders, and page_assets.go is what it writes.
+	for _, src := range pageAssets(pgWriteLayout) {
+		h.writef("<script src=%q></script>\n", src)
+	}
+
+	h.write(`<script>
 // Track which peer detail is currently shown (-1 = none).
 var _shownPeer=-1;
 // Toggle peer detail: if already shown, close it; otherwise let htmx load it.

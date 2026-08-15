@@ -866,6 +866,26 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .error-dismiss:hover { color: var(--text-primary); }
 
+/* The body a handler answers a refused action with. It is styled like an error
+   item because it lands in the page, where the operator was looking, rather
+   than in the drawer. */
+.error-fragment {
+  padding: 1.5rem 2rem;
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #fff;
+  background: #2a0a0e;
+  border: 2px solid var(--error);
+  border-radius: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.error-fragment-reason { color: var(--error); white-space: nowrap; }
+
 /* --- Commit bar (above CLI) --- */
 .commit-bar {
   grid-area: commit;

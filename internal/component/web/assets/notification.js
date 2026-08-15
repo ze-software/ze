@@ -94,14 +94,32 @@
     area.appendChild(toast);
   }
 
-  // Global htmx error handler: htmx does not swap on non-2xx responses and fires
-  // htmx:responseError instead. Without this, failed actions (commit validation
-  // errors, tool 400s) vanish with no UI feedback. Surface the response body as
-  // a retained error toast so no action fails silently.
+  // errorMessageFromBody reads the sentence out of a refusal. A handler answers
+  // a failed htmx action with an error fragment (component_error_fragment.templ),
+  // so the body is markup and the toast must not repeat it verbatim.
+  //
+  // DOMParser runs no script and loads no subresource, and only textContent is
+  // read, so the markup never becomes live nodes. A body that is not markup is
+  // returned unchanged, which is what every non-htmx client and any handler
+  // writing plain text still sends.
+  function errorMessageFromBody(body) {
+    if (body.charAt(0) !== '<') return body;
+
+    var parsed = new DOMParser().parseFromString(body, 'text/html');
+    var message = parsed.querySelector('.error-fragment-message');
+    if (message) return message.textContent.trim();
+
+    return (parsed.body.textContent || '').trim();
+  }
+
+  // Global htmx error handler: htmx 2 does not swap on non-2xx responses and
+  // fires htmx:responseError instead. Without this, failed actions (commit
+  // validation errors, tool 400s) vanish with no UI feedback. Surface the
+  // response body as a retained error toast so no action fails silently.
   function handleResponseError(evt) {
     var xhr = evt.detail && evt.detail.xhr;
     if (!xhr) return;
-    var body = (xhr.responseText || '').trim();
+    var body = errorMessageFromBody((xhr.responseText || '').trim());
     var prefix = 'Error ' + xhr.status + ': ';
     showErrorToast(body ? prefix + body : prefix + 'request failed');
   }

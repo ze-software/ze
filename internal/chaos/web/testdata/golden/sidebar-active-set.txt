@@ -1,0 +1,7 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
+  <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">5/40</span></span>
+  <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">2m0s</span></span>
+</div>

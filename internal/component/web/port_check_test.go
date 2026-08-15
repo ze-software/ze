@@ -77,6 +77,11 @@ const (
 	portDeadNoCaller   = "deleted: no page rendered it, and none had since before this migration"
 )
 
+// The four below are one deliberate change: a page loads the assets its own
+// markup needs. The L2TP pages render no htmx attribute at all, so neither one
+// loads htmx any more (scripts/codegen/web_assets.go, page_assets.go).
+const portPageAssets = "the page renders no htmx attribute, so its head loads no htmx"
+
 var webPortTemplates = map[string]string{
 	"terminal.html":            portDeadNeverParsed,
 	"notification_banner.html": portDeadNeverParsed,
@@ -92,6 +97,11 @@ var webPortTemplates = map[string]string{
 	"component/sidebar--root.html":              portDeadNoCaller,
 	"component/sidebar_section--list.html":      portDeadNoCaller,
 	"component/sidebar_section--container.html": portDeadNoCaller,
+
+	"l2tp/detail.html--events.html":    portPageAssets,
+	"l2tp/detail.html--no-events.html": portPageAssets,
+	"l2tp/list.html--empty.html":       portPageAssets,
+	"l2tp/list.html--sessions.html":    portPageAssets,
 
 	"input/field_wrapper_start--bare.html":      webPortWrapperPair,
 	"input/field_wrapper_start--annotated.html": webPortWrapperPair,

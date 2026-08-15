@@ -1,0 +1,5 @@
+status: 400
+header: Content-Type: text/html; charset=utf-8
+header: X-Content-Type-Options: nosniff
+
+<div class="error-fragment" role="alert" data-error-status="400"><span class="error-fragment-reason">Bad Request</span> <span class="error-fragment-message">invalid max-visible value</span></div>

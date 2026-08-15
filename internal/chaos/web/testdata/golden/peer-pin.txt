@@ -1,0 +1,4 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<tr id="peer-3" hx-swap-oob="outerHTML"><td><span class="pin pinned" hx-post="/peers/3/pin" hx-swap="none"></span></td><td>3</td><td><span class="dot status-up"></span> up</td><td>1</td><td>5</td><td>211 B</td><td>540 B</td><td>0 bps</td><td>0 bps</td><td>1</td></tr>

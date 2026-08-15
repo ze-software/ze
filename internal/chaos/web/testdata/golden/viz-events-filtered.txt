@@ -1,0 +1,26 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+     hx-include="[name='peer'],[name='type']">
+<div class="viz-header">
+  <h3>Event Stream</h3>
+  <div class="filters">
+    <label>Peer:</label>
+    <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML"
+            name="peer" hx-include="[name='type']">
+      <option value="">All</option><option value="0">Peer 0</option><option value="1">Peer 1</option><option value="2" selected>Peer 2</option><option value="3">Peer 3</option><option value="4">Peer 4</option><option value="5">Peer 5</option>
+    </select>
+    <label>Type:</label>
+    <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML"
+            name="type" hx-include="[name='peer']">
+      <option value="">All</option><option value="established">established</option><option value="disconnected">disconnected</option><option value="error">error</option><option value="chaos" selected>chaos</option><option value="reconnecting">reconnecting</option><option value="route-sent">route-sent</option><option value="route-recv">route-recv</option><option value="route-withdrawn">route-withdrawn</option><option value="eor">eor</option><option value="withdrawal-sent">withdrawal-sent</option>
+    </select>
+    <label class="auto-scroll-toggle">
+      <input type="checkbox" id="auto-scroll" checked onchange="window._autoScroll=this.checked"> Auto-scroll
+    </label>
+  </div>
+</div>
+<div class="event-feed" id="event-feed"></div>
+<p class="viz-desc">Live feed of BGP session and routing events across all peers. Filter by peer index or event type. Timestamps show how long ago each event occurred.</p>
+</div>

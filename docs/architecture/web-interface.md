@@ -13,7 +13,8 @@ All source files in `internal/component/web/` reference this document via `// De
 | `server.go` | HTTPS server, TLS config, self-signed cert generation, cert persistence |
 | `auth.go` | Session store, auth middleware, login handler, Basic Auth, `GetUsernameFromRequest` |
 | `handler.go` | URL parsing, content negotiation, route registration |
-| `fragment.go` | HTMX fragment handler, `FragmentData`, `FieldMeta`, sidebar builder, OOB error writer |
+| `fragment.go` | HTMX fragment handler, `FragmentData`, `FieldMeta`, sidebar builder |
+| `error_fragment.go` | What a refused request is answered with: `WriteOOBError`, which writes the error fragment for the request's target and then the out-of-band error item. The fragment itself, and the middleware that renders one from the plain-text body `http.Error` writes, are shared: `errorfragment.Render` and `errorfragment.Middleware` (`internal/core/errorfragment`). The middleware converts a 4xx or 5xx answer only when the request carries `HX-Request` and the body is text/plain, so a JSON client, a plain browser navigation and a handler's own markup each reach the client untouched. `ServerHandler` (`auth.go`) is the one place it wraps the mux |
 | `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
 | `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `configViewComponent`, breadcrumbs |
@@ -216,7 +217,7 @@ All source files in `internal/component/lg/` reference this document via `// Des
 
 | File | Responsibility |
 |------|---------------|
-| `server.go` | HTTP server lifecycle, mux setup, TLS support, CommandDispatcher |
+| `server.go` | HTTP server lifecycle, mux setup, TLS support, CommandDispatcher. `NewLGServer` builds the one handler chain: security headers over `errorfragment.Middleware` over the bearer gate over the mux |
 | `handler_api.go` | Birdwatcher-compatible REST API (JSON, snake_case), input validation |
 | `handler_ui.go` | HTMX pages (peers, lookup, search), SSE events, asset serving |
 | `handler_graph.go` | AS path topology SVG endpoint |
@@ -233,6 +234,16 @@ All source files in `internal/component/lg/` reference this document via `// Des
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers, SSE -->
 <!-- source: internal/component/lg/graph.go -- buildGraph, extractASPath -->
 <!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
+
+### LG Refused Requests
+
+A handler refuses with `http.Error`, which writes a bare status line. The chain
+in `NewLGServer` carries `errorfragment.Middleware`
+(`internal/core/errorfragment`), so a request carrying `HX-Request` receives the
+same error fragment the web UI answers with, and htmx can swap it into the
+element the request named. Everything else is untouched: the JSON API refuses
+through `writeJSONError`, and a plain browser or a script still reads the status
+line. `.error-fragment` in `assets/style.css` is what an operator sees.
 
 ### LG Bearer Token
 

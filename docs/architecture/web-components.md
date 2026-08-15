@@ -57,6 +57,48 @@ Hidden overlays (shown on demand):
 - `#diff-modal` -- diff review with Confirm Commit / Cancel
 - `#error-panel` -- collapsible right-side panel for validation errors
 
+## Per-page asset imports
+
+Each page loads the vendored assets its own markup needs, and no others. The set
+is derived at build time, never at request time.
+
+`scripts/codegen/web_assets.go` reads the `.templ` sources of
+`internal/component/web` and `internal/component/lg`, and the Go string literals
+of `internal/chaos/web`. From each page it walks the `@component(...)`
+invocations transitively and collects the `hx-*` and `sse-*` attributes every
+component it reaches names. It writes one `page_assets.go` per package, and the
+head block renders that set:
+
+```
+for _, src := range pageAssets(pgPageLayout) {
+	<script src={ src }></script>
+}
+```
+
+A page is one of two shapes. A SHELL renders `<head>` and names itself, as
+`pageAssets(pgL2tpList)`. A BODY carries the `//ze:page` marker and renders
+inside a shell that names its page at render time, as `pageAssets(v.Page)`. The
+looking glass is why the second shape exists: one layout serves every page, and
+only the peers page opens an SSE stream, so the other pages stopped loading the
+extension.
+
+An unknown page gets every asset the package renders. One file too many costs
+bytes; one missing gives a page that renders correctly and does nothing in the
+browser.
+
+<!-- source: scripts/codegen/web_assets.go -- templPages, closure, render -->
+<!-- source: internal/component/lg/layout.templ -- pageAssets(v.Page), the one shell -->
+
+Two checks hold the set honest, from opposite directions, and neither is relaxed
+to make the other pass.
+
+| Check | Reads | Error direction |
+|-------|-------|-----------------|
+| `make ze-web-assets-check` | the sources | OVER-approximates: a branch no request takes still contributes its asset |
+| `TestPageImportsCoverRenderedAttributes` (web), `TestLGPageImportsCoverRenderedAttributes`, `TestChaosPageImportsCoverRenderedAttributes` | the captured fixtures | UNDER-approximates: a branch no fixture exercises is invisible |
+
+<!-- source: internal/test/markupcheck/head.go -- HeadCoverageFindings, the fixture side -->
+
 ## Component Filesystem
 
 Every unit below is a templ component in `internal/component/web`. The file name

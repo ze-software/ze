@@ -47,6 +47,12 @@ func webErrorData() ErrorData {
 	}
 }
 
+// webErrorFragmentMessage is the refusal a handler answers an htmx request
+// with. It carries a quote and an angle bracket, so a test that renders it
+// shows what the escaping does: the same text reaches the browser through
+// assets/notification.js and must never be markup there either.
+const webErrorFragmentMessage = `invalid uint16: "<b>3x</b>"`
+
 func webToolOutput() toolPageData {
 	return toolPageData{Output: "5 packets transmitted, 5 received"}
 }

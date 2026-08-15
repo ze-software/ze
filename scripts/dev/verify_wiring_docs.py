@@ -113,6 +113,14 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     # compiler cannot check a field name against. internal/component/lg calls it
     # from view_test.go and internal/component/web joins in phase 3, so its
     # entry points are exported and no production caller exists by design.
+    # internal/test/markupcheck reads the CAPTURED pages of a package and reports
+    # each htmx attribute whose asset that page's own head does not load. Its
+    # callers are TestLGPageImportsCoverRenderedAttributes and
+    # TestChaosPageImportsCoverRenderedAttributes, one in each capturing package,
+    # and each one asserts the floor itself: the report returns findings rather
+    # than taking a *testing.T, so the count a package expects stays with the
+    # package that knows its own fixtures. No production caller exists by design.
+    ("internal/test/markupcheck/head.go", "HeadCoverageFindings"),
     ("internal/test/templcheck/templcheck.go", "Report"),
     ("internal/test/templcheck/templcheck.go", "AssertTyped"),
 }

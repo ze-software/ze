@@ -355,6 +355,17 @@ All CSS uses custom properties (variables) defined on `:root`, making future the
 | Peer timeline | GET | /viz/peer-timeline?page=1 | HTML fragment: bars | #viz-peer-timeline |
 | Route matrix | GET | /viz/route-matrix?top=20 | HTML fragment: heatmap | #viz-route-matrix |
 
+### Refused Requests
+
+Every route is registered through `fragmentMux` (`route_mux.go`), which puts
+`errorfragment.Middleware` (`internal/core/errorfragment`) in front of the
+handler. A request carrying `HX-Request` that a handler refuses with
+`http.Error` is answered with the error fragment the web UI and the looking
+glass answer with, so htmx can swap it into the element the request named. Every
+other client still reads the status line. The wrap is per route because a run
+started with `--metrics-addr` mounts the dashboard on a shared ServeMux
+(`internal/chaos/orchestrator/run.go`) and owns no chain of its own.
+
 ### SSE Event Types
 
 The SSE stream sends targeted HTML fragments. Each SSE event includes `hx-swap-oob="true"` attributes so HTMX replaces specific DOM elements without full page re-render.
@@ -393,6 +404,19 @@ This gives ~5 SSE updates/second -- smooth visual updates without overload.
 All files are vendored into `internal/chaos/web/` and embedded via `go:embed` directives. The binary is self-contained — no CDN, no internet, works in air-gapped lab environments.
 
 Served at `/assets/htmx.min.js`, `/assets/sse.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
+
+The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `scripts/codegen/web_assets.go` derives from the attributes this package renders and writes into `page_assets.go`. `make ze-web-assets-check` refuses a set that disagrees with the markup. `internal/chaos/web/assets/` also holds `htmx4.min.js` and `hx-sse.min.js`, which the vendor sync copies and no page loads.
+<!-- source: internal/chaos/web/render.go -- writeLayout, the head block -->
+<!-- source: internal/chaos/web/page_assets.go -- pageAssets, generated -->
+
+## Rendered Bytes
+
+Every response this package writes is pinned by a golden fixture under `internal/chaos/web/testdata/golden/`. `TestChaosGoldenOutput` serves each case through a real mux built by `registerRoutes` and compares the status, the sorted headers and the body byte for byte. A `<case>.txt` file holds a captured response and a `sse-<name>.html` file holds one broadcast fragment, which carries no response head.
+
+Two lists are machine-derived rather than hand-maintained, so a route or a renderer cannot be added without a fixture: `golden.RoutePatterns` reads the registrations in `handlers.go`, and the renderer list is read from the `render*` declarations in `dashboard.go` and `render.go`. A route or renderer that no case reaches fails the test by name.
+
+Two spans are normalized because they are clock-derived: the uptime in `writeLayout` and the Duration stat in `writeChaosTimeline`. Everything else is pinned by seeding the dashboard state. Recapture after a deliberate markup change with `make ze-chaos-golden-update`, then read the diff.
+<!-- source: internal/chaos/web/golden_test.go -- TestChaosGoldenOutput, chaosLiveRoutes, chaosSSERenderers -->
 
 ## WebDashboard Internal State
 

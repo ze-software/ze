@@ -1,0 +1,41 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="viz-panel" hx-get="/viz/all-peers" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+     hx-include="[name='sort'],[name='dir']">
+<div class="viz-header">
+  <h3>All Peers</h3>
+</div>
+<div class="all-peers-scroll"><table class="peer-table">
+<thead><tr>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"id","dir":"asc"}'>ID</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"status","dir":"asc"}'>Status</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"sent","dir":"desc"}' title="BGP messages (routes) sent to Ze">Msgs&#x2192;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"received","dir":"desc"}' title="BGP messages (routes) received from Ze">Msgs&#x2190;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"bytes-out","dir":"desc"}' title="Total bytes sent to Ze">Bytes&#x2192;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"bytes-in","dir":"desc"}' title="Total bytes received from Ze">Bytes&#x2190;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"rate-out","dir":"desc"}' title="Current send bit rate to Ze">Rate&#x2192;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"rate-in","dir":"desc"}' title="Current receive bit rate from Ze">Rate&#x2190;</th>
+  <th>Missing</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"chaos","dir":"desc"}'>Chaos</th>
+  <th>Reconn</th>
+  <th>Families</th>
+</tr></thead>
+<tbody><tr hx-get="/peer/0" hx-target="#peer-detail" hx-swap="outerHTML"><td>0</td><td><span class="dot status-up"></span>up</td><td>1</td><td>5</td><td>184 B</td><td>480 B</td><td>0 bps</td><td>0 bps</td><td>0</td><td>0</td><td>0</td><td class="fm-families">ipv4/unicast, ipv6/unicast</td></tr><tr hx-get="/peer/1" hx-target="#peer-detail" hx-swap="outerHTML"><td>1</td><td><span class="dot status-up"></span>up</td><td>0</td><td>0</td><td>193 B</td><td>500 B</td><td>0 bps</td><td>0 bps</td><td>0</td><td>2</td><td>1</td><td class="fm-families">ipv4/unicast, ipv6/unicast</td></tr><tr hx-get="/peer/2" hx-target="#peer-detail" hx-swap="outerHTML"><td>2</td><td><span class="dot status-up"></span>up</td><td>1</td><td>5</td><td>202 B</td><td>520 B</td><td>0 bps</td><td>0 bps</td><td>0</td><td>0</td><td>0</td><td class="fm-families">ipv4/unicast, ipv6/unicast</td></tr><tr hx-get="/peer/3" hx-target="#peer-detail" hx-swap="outerHTML"><td>3</td><td><span class="dot status-up"></span>up</td><td>1</td><td>5</td><td>211 B</td><td>540 B</td><td>0 bps</td><td>0 bps</td><td>0</td><td>1</td><td>0</td><td class="fm-families">ipv4/unicast, ipv6/unicast</td></tr><tr hx-get="/peer/4" hx-target="#peer-detail" hx-swap="outerHTML"><td>4</td><td><span class="dot status-up"></span>up</td><td>1</td><td>5</td><td>220 B</td><td>560 B</td><td>0 bps</td><td>0 bps</td><td>0</td><td>0</td><td>0</td><td class="fm-families">ipv4/unicast, ipv6/unicast, ipv4/vpn</td></tr><tr hx-get="/peer/5" hx-target="#peer-detail" hx-swap="outerHTML"><td>5</td><td><span class="dot status-down"></span>down</td><td>1</td><td>5</td><td>229 B</td><td>580 B</td><td>0 bps</td><td>0 bps</td><td>0</td><td>0</td><td>0</td><td class="fm-families">ipv4/unicast, ipv6/unicast</td></tr></tbody></table></div><div class="histogram-stats">
+  <span class="stat"><span class="stat-label">Total </span><span class="stat-value">6</span></span>
+  <span class="stat"><span class="stat-label">Up </span><span class="stat-value" style="color:var(--green)">5</span></span>
+  <span class="stat"><span class="stat-label">Syncing </span><span class="stat-value" style="color:var(--accent)">0</span></span>
+  <span class="stat"><span class="stat-label">Down </span><span class="stat-value" style="color:var(--red)">1</span></span>
+  <span class="stat"><span class="stat-label">Reconnecting </span><span class="stat-value" style="color:var(--yellow)">0</span></span>
+  <span class="stat"><span class="stat-label">Idle </span><span class="stat-value">0</span></span>
+</div><p class="viz-desc">Complete list of all peers, not just the active set. Click a row to view peer details. Sortable by column headers.</p>
+</div>

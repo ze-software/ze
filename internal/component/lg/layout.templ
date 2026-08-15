@@ -1,6 +1,11 @@
 package lg
 
 // pageLayout wraps one page's content in the looking glass chrome.
+//
+// The head loads the assets v.Page needs, not the union every page needs: one
+// layout serves every looking-glass page and only the peers page opens an SSE
+// stream. scripts/codegen/web_assets.go derives each set from the markup that
+// page reaches, and an unnamed page gets every asset rather than none.
 templ pageLayout(v layoutView, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -9,8 +14,9 @@ templ pageLayout(v layoutView, content templ.Component) {
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<title>{ v.Title } - Ze Looking Glass</title>
 			<link rel="stylesheet" href="/lg/assets/style.css">
-			<script src="/lg/assets/htmx.min.js"></script>
-			<script src="/lg/assets/sse.js"></script>
+			for _, src := range pageAssets(v.Page) {
+				<script src={ src }></script>
+			}
 			<script src="/lg/assets/theme.js"></script>
 			<script src="/lg/assets/graph-mode.js"></script>
 		</head>

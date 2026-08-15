@@ -174,7 +174,8 @@ a `.wb` test above that: `option=timeout` is inert (see Options).
 |-------------|------|-------------|
 | `element` | `id` / `not-id` | element with that id is present / absent in the DOM |
 | `element` | `text` / `not-text` | text is present / absent in the accessibility snapshot (case-insensitive) |
-| `html` | `contains` / `not-contains` | the page HTML contains / does not contain the substring |
+| `html` | `contains` / `not-contains` | the page BODY contains / does not contain the substring |
+| `head` | `contains` / `not-contains` | the page HEAD contains / does not contain the substring. `html` cannot answer for it: `get html <selector>` returns one element's inner HTML, and it reads the body. The head is where a page states which assets it loads, and each page loads what its own markup needs (`scripts/codegen/web_assets.go`), so what a head does NOT carry is a property of the page |
 | `breadcrumb` | `contains` / `not-contains` (CSV) | each segment is present / absent |
 | `url` | `contains` | the page snapshot contains the substring |
 | `title` | `contains` | the page text contains the substring (case-insensitive) |
@@ -183,7 +184,8 @@ A POSITIVE expectation polls until it holds or `expectDeadline` expires, so it i
 state wait as well as an assertion. A NEGATIVE one judges absence on one answer,
 because retrying an absence can only ever turn a real failure into a pass. So an
 absence proves something only when the step before it made the state current.
-<!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/html/url/title; retryPositive vs retryFetch -->
+<!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/html/head/url/title; retryPositive vs retryFetch -->
+<!-- source: internal/component/web/testing/runner.go -- getHTML reads body, getHeadHTML reads head -->
 
 ### Browser integration (agent-browser)
 

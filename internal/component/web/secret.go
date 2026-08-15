@@ -5,6 +5,9 @@
 package web
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/ze-software/ze/internal/component/config"
 )
 
@@ -49,4 +52,35 @@ func maskSecretLeaf(leaf *config.LeafNode, value string) string {
 	}
 
 	return config.SecretDataPlaceholder
+}
+
+// maskSecretInMessage answers the error text a refusal may publish about one
+// leaf. A refused write reaches the browser twice, as the error fragment in the
+// response body and as the toast assets/notification.js builds from it, so an
+// error message is a display path and this is its entry point.
+//
+// The rejected value is what has to go. config.ValidateValue quotes it
+// verbatim ("invalid uint16: %q"), and so does every validator that names what
+// it refused, which would publish the credential the operator just typed.
+// Replacement rather than truncation keeps the rest of the sentence, so the
+// operator still reads which rule the value broke.
+func maskSecretInMessage(leaf *config.LeafNode, message, value string) string {
+	if value == "" || !config.LeafHoldsSecret(leaf) {
+		return message
+	}
+
+	masked := strings.ReplaceAll(message, value, config.SecretDataPlaceholder)
+
+	// A message built with %q carries the ESCAPED value, so a secret holding a
+	// quote, a backslash or a control character survives the replacement above:
+	// `pa"ss` is written `"pa\"ss"` and the raw text appears nowhere in it.
+	// strconv.Quote produces exactly what %q wrote, and the outer quotes belong
+	// to the message rather than to the value, so only what sits between them is
+	// replaced. A guard that covers the easy values and not the awkward ones
+	// publishes the credential precisely when it is least guessable.
+	if quoted := strconv.Quote(value); len(quoted) > 2 {
+		masked = strings.ReplaceAll(masked, quoted[1:len(quoted)-1], config.SecretDataPlaceholder)
+	}
+
+	return masked
 }

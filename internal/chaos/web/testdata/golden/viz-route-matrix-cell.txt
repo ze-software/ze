@@ -1,0 +1,11 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="cell-detail" id="cell-detail">
+<h4>p0 → p2</h4>
+<div class="detail-grid">
+  <div class="detail-item"><span class="label">Routes: </span><span class="value">1</span></div>
+  <div class="detail-item"><span class="label">Avg latency: </span><span class="value">37ms</span></div>
+</div>
+<span class="close-btn" onclick="this.parentElement.remove()">&times;</span>
+</div>

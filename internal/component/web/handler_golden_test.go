@@ -656,7 +656,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 		t.Fatalf("create the capture session: %v", err)
 	}
 
-	return &webGoldenEnv{mux: mux, handler: SecurityHeaders(mux), session: session.Token}
+	return &webGoldenEnv{mux: mux, handler: serverHandler(mux), session: session.Token}
 }
 
 // webGoldenRequest builds one case's request.

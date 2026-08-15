@@ -1,0 +1,247 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ze Chaos</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/sse.js"></script>
+<script>
+// Track which peer detail is currently shown (-1 = none).
+var _shownPeer=-1;
+// Toggle peer detail: if already shown, close it; otherwise let htmx load it.
+function togglePeer(idx){
+  if(_shownPeer===idx){
+    document.getElementById('peer-detail').outerHTML='<div id="peer-detail"></div>';
+    _shownPeer=-1;
+    return false;
+  }
+  _shownPeer=idx;
+  return true;
+}
+// [+] cell in grid: re-add an excluded peer by removing -N from search.
+function gridAddPeer(){
+  var grid=document.getElementById('peer-grid');
+  if(!grid)return;
+  var ex=grid.querySelector('.gp-input');
+  if(ex){ex.focus();return}
+  var cell=grid.querySelector('.peer-cell-add');
+  if(!cell)return;
+  var inp=document.createElement('input');
+  inp.type='number';inp.min='0';inp.className='gp-input';
+  inp.placeholder='#';
+  inp.onkeydown=function(e){
+    if(e.key==='Enter'&&this.value!==''){
+      gridRestorePeer(parseInt(this.value));
+      this.remove();
+    } else if(e.key==='Escape'){this.remove()}
+  };
+  inp.onblur=function(){var self=this;setTimeout(function(){self.remove()},150)};
+  cell.after(inp);
+  inp.focus();
+}
+// [-] on a cell: add -N to search bar and refresh grid.
+function gridRemovePeer(idx){
+  var s=document.querySelector('[name="search"]');
+  if(!s)return;
+  var v=s.value.trim();
+  if(v==='')v='-'+idx;
+  else v+=(',-'+idx);
+  s.value=v;
+  htmx.trigger(s,'keyup');
+}
+// [+] re-add: remove -N from search bar and refresh grid.
+function gridRestorePeer(idx){
+  var s=document.querySelector('[name="search"]');
+  if(!s)return;
+  var parts=s.value.split(',').map(function(t){return t.trim()}).filter(function(t){return t!=='-'+idx});
+  s.value=parts.join(',');
+  htmx.trigger(s,'keyup');
+}
+// Trigger peer picker (sidebar).
+function tpAddVal(n){
+  var c=document.getElementById('trigger-peers');
+  if(!c)return;
+  if(c.querySelector('[data-peer="'+n+'"]'))return;
+  var b=document.createElement('span');
+  b.className='trigger-peer-badge';b.setAttribute('data-peer',n);
+  var x=document.createElement('span');
+  x.className='tp-remove';x.textContent='\u2212';
+  x.onclick=function(){b.remove();tpSync()};
+  b.appendChild(x);
+  b.appendChild(document.createTextNode(' '+n));
+  c.insertBefore(b,c.querySelector('.tp-add'));
+  tpSync();
+}
+function tpSync(){
+  var bs=document.querySelectorAll('#trigger-peers [data-peer]');
+  var v=[];bs.forEach(function(b){v.push(b.getAttribute('data-peer'))});
+  var el=document.getElementById('trigger-peers-value');
+  if(el)el.value=v.join(',');
+  var h=document.getElementById('tp-hint');
+  if(h){h.style.display=v.length?'none':''}
+}
+</script>
+</head>
+<body>
+<div class="layout" hx-ext="sse" sse-connect="/events">
+
+<div class="header">
+  <h1><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"> Ze Chaos</h1>
+  <span class="run-info">peers: 6 | uptime: <span id="uptime" data-start="10800"><UPTIME></span></span>
+</div><div id="control-strip" class="control-strip"><span class="dot status-up"></span><span class="strip-label">Running</span><span class="badge btn-stop" hx-post="/control/stop" hx-target="#control-strip" hx-swap="outerHTML" title="Stop chaos">Stop</span><span class="badge btn-ctrl" hx-post="/control/pause" hx-target="#control-strip" hx-swap="outerHTML" title="Pause chaos">Pause</span><span class="strip-sep"></span><span class="badge" hx-post="/control/speed" hx-target="#control-strip" hx-swap="outerHTML" hx-vals='{"factor":"1"}' title="Real-time (1s/step)">1x</span><span class="badge" style="border-color:#22c55e;font-weight:bold" hx-post="/control/speed" hx-target="#control-strip" hx-swap="outerHTML" hx-vals='{"factor":"10"}' title="10x (100ms/step)">10x</span><span class="badge" hx-post="/control/speed" hx-target="#control-strip" hx-swap="outerHTML" hx-vals='{"factor":"100"}' title="100x (10ms/step)">100x</span><span class="badge" hx-post="/control/speed" hx-target="#control-strip" hx-swap="outerHTML" hx-vals='{"factor":"1000"}' title="1000x (1ms/step)">1000x</span><span style="flex:1"></span><label class="stat-label">Rate</label><input type="range" min="0" max="100" value="35" class="rate-slider" hx-post="/control/rate" hx-target="#control-strip" hx-swap="outerHTML" hx-trigger="change" name="rate" hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}' title="Chaos event probability (0% = paused, 100% = max)"><span class="stat-value">35%</span><span class="strip-sep"></span><span class="strip-label">seed: 4242</span><input type="number" name="seed" min="1" placeholder="new" class="control-input"><span class="badge" hx-post="/control/restart" hx-target="#control-strip" hx-swap="outerHTML" hx-include="[name='seed']">New Seed</span></div>
+<div class="content">
+<div class="sidebar">
+  <div class="card">
+    <h3>Stats</h3>
+    <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms"><div class="donut-container"><svg class="donut" viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="10"/><circle cx="60" cy="60" r="50" fill="none" stroke="var(--green)" stroke-width="10" stroke-dasharray="261.80 52.36" stroke-dashoffset="-0.00" transform="rotate(-90 60 60)"/><circle cx="60" cy="60" r="50" fill="none" stroke="var(--red)" stroke-width="10" stroke-dasharray="52.36 261.80" stroke-dashoffset="-261.80" transform="rotate(-90 60 60)"/><text x="60" y="60" text-anchor="middle" dominant-baseline="central" class="donut-center">6</text></svg><div class="donut-legend"><span class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--green)"></span>Up <span class="donut-legend-count">5</span></span><span class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--red)"></span>Down <span class="donut-legend-count">1</span></span><span class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--yellow)"></span>Reconn <span class="donut-legend-count">0</span></span><span class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--accent)"></span>Syncing <span class="donut-legend-count">0</span></span><span class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--text-muted)"></span>Idle <span class="donut-legend-count">0</span></span></div></div>
+      <div class="stat-grid">
+        <span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>
+        <span class="stat-label">Msgs</span><span class="stat-value">5</span><span class="stat-value">25</span>
+        <span class="stat-label">Bytes</span><span class="stat-value">1.2 KB</span><span class="stat-value">3.1 KB</span>
+        <span class="stat-label">Rate</span><span class="stat-value">0 bps</span><span class="stat-value">0 bps</span>
+        <span class="stat-label">Wdraw</span><span class="stat-value">1</span><span class="stat-value">4</span>
+      </div>
+      <span class="stat"><span class="stat-label">Churn </span><span class="stat-value">1</span></span>
+      <span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">3</span></span>
+      <span class="stat"><span class="stat-label">Reconn </span><span class="stat-value">1</span></span><span class="stat" title="Time for all peers to complete initial route announcement (EOR)"><span class="stat-label">Sync </span><span class="stat-value">4.5s</span></span>
+    </div>
+  </div>
+
+
+  <div class="card">
+    <h3>Trigger</h3>
+    <label class="stat-label">Target Peers</label><div class="trigger-peers" id="trigger-peers">
+<input type="hidden" name="peers" id="trigger-peers-value">
+<input type="number" min="0" class="tp-input control-input" id="tp-number-input" placeholder="peer #"
+       onkeydown="if(event.key==='Enter'&&this.value!==''){tpAddVal(parseInt(this.value));this.value=''}">
+<span class="tp-add" title="Add peer" onclick="var i=document.getElementById('tp-number-input');if(i&&i.value!==''){tpAddVal(parseInt(i.value));i.value='';i.focus()}">+</span>
+</div>
+<span class="tp-hint" id="tp-hint">All peers (type peer # + Enter to target specific peers)</span><div class="trigger-grid"><span class="badge trigger-btn" title="Drops the TCP connection immediately. Peer loses session and all routes until reconnection." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"tcp-disconnect"}'><span class="trigger-icon">⚡</span> Disconnect</span><span class="badge trigger-btn" title="Sends a BGP NOTIFICATION (Cease) then closes. Graceful shutdown — peer knows why the session ended." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"notification-cease"}'><span class="trigger-icon">⛔</span> Cease</span><span class="badge trigger-btn" title="Stops sending KEEPALIVEs. Peer detects expiry after hold-time (typically 90s). Slow disruption." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"hold-timer-expiry"}'><span class="trigger-icon">⏳</span> Hold Expire</span><span class="badge trigger-btn" title="Drops connection while routes are still being announced (before EOR). Ze has partial routing state." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"disconnect-during-burst"}'><span class="trigger-icon">💥</span> Burst Drop</span><span class="badge trigger-btn" title="Disconnects and rapidly reconnects 2 times. Stresses session setup and route re-announcement." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"reconnect-storm"}'><span class="trigger-icon">🌀</span> Storm</span><span class="badge trigger-btn" title="Opens a second TCP connection while the first is active. Tests RFC 4271 collision resolution. No route loss." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"connection-collision"}'><span class="trigger-icon">💢</span> Collision</span><span class="badge trigger-btn" title="Sends an UPDATE with invalid attributes. Tests RFC 7606 error handling. Session may or may not drop." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"malformed-update"}'><span class="trigger-icon">⚠</span> Malformed</span><span class="badge trigger-btn" title="Sends SIGHUP to the Ze process. Triggers config re-read. Sessions stay up unless config changed." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"config-reload"}'><span class="trigger-icon">🔄</span> Reload</span><span class="badge trigger-btn" title="Toggles slow reading on this peer. TCP backpressure blocks Ze&#39;s writes, testing forward pool overflow and congestion callbacks. Click again to restore normal speed." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"slow-read"}'><span class="trigger-icon">🐢</span> Slow Read</span><span class="badge trigger-btn" title="Skews keepalive timing by a configurable drift. Positive = late, negative = early. Tests hold-timer tolerance." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"clock-drift"}'><span class="trigger-icon">⏰</span> Clock Drift</span><span class="badge trigger-btn" title="Announces extra routes in rapid succession. Tests throughput and backpressure handling." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"route-burst"}'><span class="trigger-icon">📨</span> Route Burst</span><span class="badge trigger-btn" title="Withdraws a configurable number of routes rapidly. Clamped to announced count." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"withdrawal-burst"}'><span class="trigger-icon">🗑</span> WD Burst</span><span class="badge trigger-btn" title="Withdraws and re-announces routes in cycles. Tests rapid state change handling." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"route-flap"}'><span class="trigger-icon">🔃</span> Route Flap</span><span class="badge trigger-btn" title="Reduces TCP write buffer for a duration, creating write-side backpressure. Restores after duration." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"slow-peer"}'><span class="trigger-icon">🐌</span> Slow Peer</span><span class="badge trigger-btn" title="Sets TCP receive buffer to minimum for a duration, simulating zero-window. Tests Ze&#39;s write buffering." hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"zero-window"}'><span class="trigger-icon">🚫</span> Zero Window</span></div>
+    <div id="trigger-result"></div>
+  </div><div id="route-control-panel" class="card">
+<h3>Route Dynamics</h3>
+<div class="control-row">
+  <span class="dot status-up"></span> <span>Running</span>
+</div>
+<div class="control-row">
+  <span class="badge" hx-post="/control/route/pause" hx-target="#route-control-panel" hx-swap="outerHTML" title="Pause route dynamics (no new route changes)">Pause</span>
+  <span class="badge" hx-post="/control/route/stop" hx-target="#route-control-panel" hx-swap="outerHTML" title="Stop route dynamics entirely">Stop</span>
+</div>
+<div class="control-row">
+  <label class="stat-label">Rate: </label>
+  <input type="range" min="0" max="100" value="20" class="rate-slider"
+         hx-post="/control/route/rate" hx-target="#route-control-panel" hx-swap="outerHTML"
+         hx-trigger="change" name="rate"
+         hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}'
+         title="Adjust route dynamics frequency (0% = no changes, 100% = maximum rate)">
+  <span class="stat-value">20%</span>
+</div>
+</div>
+  <div class="card">
+    <h3>Properties</h3><div id="property-badges"><div class="property-badge badge-pass" onclick="this.querySelector('.violations').classList.toggle('hidden')"> //nolint:errcheck // output
+  <span>no-route-leak: PASS</span></div><div class="property-badge badge-fail" onclick="this.querySelector('.violations').classList.toggle('hidden')"> //nolint:errcheck // output
+  <span>eor-after-establish: FAIL</span><div class="violations hidden"><div class="violation-row">p1 sent EOR before establish</div></div></div></div>
+  </div>
+  <div class="card">
+    <h3>Recent Events</h3>
+    <div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms"><div class="event-row"><span class="event-time">1h50m</span><span class="event-type event-type-disconnected">p5 error</span></div><div class="event-row"><span class="event-time">2h39m</span><span class="event-type event-type-route">p1 eor</span></div><div class="event-row"><span class="event-time">2h40m</span><span class="event-type event-type-established">p1 established</span></div><div class="event-row"><span class="event-time">2h41m</span><span class="event-type event-type-chaos">p1 reconnecting</span></div><div class="event-row"><span class="event-time">2h43m</span><span class="event-type event-type-disconnected">p1 disconnected</span></div><div class="event-row"><span class="event-time">1h3m</span><span class="event-type event-type-chaos">p1 chaos</span></div><div class="event-row"><span class="event-time">1h53m</span><span class="event-type event-type-chaos">p3 chaos</span></div><div class="event-row"><span class="event-time">2h43m</span><span class="event-type event-type-chaos">p1 chaos</span></div><div class="event-row"><span class="event-time">2h51m</span><span class="event-type event-type-disconnected">p0 dropped</span></div><div class="event-row"><span class="event-time">2h51m</span><span class="event-type event-type-chaos">p3 route-action</span></div><div class="event-row"><span class="event-time">2h51m</span><span class="event-type event-type-route">p2 withdrawal-sent</span></div><div class="event-row"><span class="event-time">2h51m</span><span class="event-type event-type-route">p1 route-withdrawn</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p4 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p3 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p2 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p1 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p0 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p5 route-sent</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p5 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p3 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p2 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p1 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p0 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p4 route-sent</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p5 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p4 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p2 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p1 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p0 route-recv</span></div><div class="event-row"><span class="event-time">2h58m</span><span class="event-type event-type-route">p3 route-sent</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="toast-container" class="toast-container" sse-swap="toast" hx-swap="beforeend"></div>
+  <div class="filters"><label class="stat-label" for="promote-id">Track </label><input type="number" id="promote-id" name="id" min="0" max="5" placeholder="peer #" class="control-input" title="Add a peer to the table by number — tracked peers appear in Table view" onkeydown="if(event.key==='Enter'){event.preventDefault();this.nextElementSibling.click()}"><span class="badge" hx-post="/peers/promote" hx-target="#peer-tbody" hx-swap="outerHTML" hx-include="#promote-id" title="Start tracking this peer in the table">Add</span><span class="strip-sep"></span>
+    <input type="text" name="search" placeholder="Search peers..." autocomplete="off"
+           hx-get="/peers/grid" hx-target="#peer-display" hx-swap="innerHTML"
+           hx-trigger="keyup changed delay:200ms" hx-include="[name='status']">
+    <label>Status:</label>
+    <select hx-get="/peers/grid" hx-target="#peer-display" hx-swap="innerHTML" name="status"
+            hx-include="[name='search']">
+      <option value="" selected>All</option>
+      <option value="fault">With Fault</option>
+      <option value="up">Up</option>
+      <option value="syncing">Syncing</option>
+      <option value="down">Down</option>
+      <option value="reconnecting">Reconnecting</option>
+      <option value="idle">Idle</option>
+    </select><span class="strip-sep"></span><div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML"><span class="stat" title="Number of peers currently tracked in the table vs maximum allowed"><span class="stat-label">Visible </span><span class="stat-value">5/40</span></span><span class="stat" title="Adaptive time-to-live: inactive peers are removed from the table after this duration"><span class="stat-label">TTL </span><span class="stat-value">2m0s</span></span></div><label class="stat-label" for="max-visible-input">Max </label><input type="number" id="max-visible-input" name="n" min="1" max="6" value="40" class="control-input" title="Maximum number of peers tracked in the table"><span class="badge" hx-post="/active-set/max-visible" hx-target="#active-set-info" hx-swap="outerHTML" hx-include="#max-visible-input" title="Update max visible">Set</span>
+    <span class="view-toggle">
+      <button class="view-btn" hx-get="/peers/table" hx-target="#peer-display" hx-swap="innerHTML"
+              hx-include="[name='search'],[name='status']"
+              onclick="document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+              title="Show peers as a detailed table (active set only)">Table</button>
+      <button class="view-btn active" hx-get="/peers/grid" hx-target="#peer-display" hx-swap="innerHTML"
+              onclick="document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+              title="Show all peers as a compact color-coded grid">Grid</button>
+    </span>
+  </div>
+
+  <div id="peer-display"><div id="peer-grid" class="peer-grid" hx-get="/peers/grid" hx-trigger="every 2s" hx-swap="outerHTML" hx-include="[name='search'],[name='status']"><div class="peer-cell peer-cell-add" onclick="gridAddPeer()" title="Add peer by number"><span class="pc-id">+</span></div><div id="peer-cell-0" class="peer-cell status-up" title="Peer 0: up | Sent: 1/60 Recv: 5/4 | 0 bps | Chaos: 0" hx-get="/peer/0" hx-target="#peer-detail" hx-swap="outerHTML" onclick="return togglePeer(0)"><span class="pc-remove" onclick="event.stopPropagation();gridRemovePeer(0)" title="Hide peer 0">&minus;</span><span class="pc-id">0</span><span class="pc-row"><span class="pc-label">S</span><span class="pc-pct">1%</span></span><span class="pc-row"><span class="pc-label">R</span><span class="pc-pct">100%</span></span></div><div id="peer-cell-1" class="peer-cell status-up pulse" title="Peer 1: up | Sent: 0/60 Recv: 0/5 | 0 bps | Chaos: 2" hx-get="/peer/1" hx-target="#peer-detail" hx-swap="outerHTML" onclick="return togglePeer(1)"><span class="pc-remove" onclick="event.stopPropagation();gridRemovePeer(1)" title="Hide peer 1">&minus;</span><span class="pc-id">1</span><span class="pc-row"><span class="pc-label">S</span><span class="pc-pct">0%</span></span><span class="pc-row"><span class="pc-label">R</span><span class="pc-pct">0%</span></span></div><div id="peer-cell-2" class="peer-cell status-up" title="Peer 2: up | Sent: 1/60 Recv: 5/4 | 0 bps | Chaos: 0" hx-get="/peer/2" hx-target="#peer-detail" hx-swap="outerHTML" onclick="return togglePeer(2)"><span class="pc-remove" onclick="event.stopPropagation();gridRemovePeer(2)" title="Hide peer 2">&minus;</span><span class="pc-id">2</span><span class="pc-row"><span class="pc-label">S</span><span class="pc-pct">1%</span></span><span class="pc-row"><span class="pc-label">R</span><span class="pc-pct">100%</span></span></div><div id="peer-cell-3" class="peer-cell status-up pulse" title="Peer 3: up | Sent: 1/60 Recv: 5/4 | 0 bps | Chaos: 1" hx-get="/peer/3" hx-target="#peer-detail" hx-swap="outerHTML" onclick="return togglePeer(3)"><span class="pc-remove" onclick="event.stopPropagation();gridRemovePeer(3)" title="Hide peer 3">&minus;</span><span class="pc-id">3</span><span class="pc-row"><span class="pc-label">S</span><span class="pc-pct">1%</span></span><span class="pc-row"><span class="pc-label">R</span><span class="pc-pct">100%</span></span></div><div id="peer-cell-4" class="peer-cell status-up" title="Peer 4: up | Sent: 1/60 Recv: 5/4 | 0 bps | Chaos: 0" hx-get="/peer/4" hx-target="#peer-detail" hx-swap="outerHTML" onclick="return togglePeer(4)"><span class="pc-remove" onclick="event.stopPropagation();gridRemovePeer(4)" title="Hide peer 4">&minus;</span><span class="pc-id">4</span><span class="pc-row"><span class="pc-label">S</span><span class="pc-pct">1%</span></span><span class="pc-row"><span class="pc-label">R</span><span class="pc-pct">100%</span></span></div><div id="peer-cell-5" class="peer-cell status-down pulse" title="Peer 5: down | Sent: 1/60 Recv: 5/4 | 0 bps | Chaos: 0" hx-get="/peer/5" hx-target="#peer-detail" hx-swap="outerHTML" onclick="return togglePeer(5)"><span class="pc-remove" onclick="event.stopPropagation();gridRemovePeer(5)" title="Hide peer 5">&minus;</span><span class="pc-id">5</span><span class="pc-row"><span class="pc-label">S</span><span class="pc-pct">1%</span></span><span class="pc-row"><span class="pc-label">R</span><span class="pc-pct">100%</span></span></div></div>
+  </div>
+
+  <div id="peer-detail"></div>
+
+  <div id="peer-swap" sse-swap="peer-update" hx-swap="innerHTML" style="display:none"></div>
+  <div id="peer-remove-swap" sse-swap="peer-remove" hx-swap="innerHTML" style="display:none"></div>
+  <div id="peer-add-swap" sse-swap="peer-add" hx-swap="innerHTML" style="display:none"></div>
+
+  <div class="tab-bar">
+    <span class="tab-group-label">Peer</span>
+    <button class="active" hx-get="/viz/families" hx-target="#viz-content" hx-swap="innerHTML" hx-trigger="load, click"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Per-family sent/received route counts for all peers">Families</button>
+    <button hx-get="/viz/convergence" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Route propagation latency distribution">Convergence</button>
+    <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Heatmap of route announce/withdraw flow between peers">Route Matrix</button>
+    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Peer session state changes over time">Timeline</button>
+    <button hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Live feed of all BGP session and routing events">Events</button>
+    <button hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Complete list of all peers (not just the active set)">All Peers</button>
+    <span class="tab-separator"></span>
+    <span class="tab-group-label">Chaos</span>
+    <button hx-get="/viz/chaos-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Visual timeline of chaos actions over time">Timeline</button>
+    <button hx-get="/viz/chaos-events" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Table of chaos actions injected during the run">Events</button>
+    <span class="tab-separator"></span>
+    <button hx-get="/viz/panels" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Show multiple visualizations simultaneously in a 2×2 grid">Panels</button>
+    <label class="freeze-toggle" title="Pause all live updates (for screenshots or copy/paste)">
+      <input type="checkbox" id="freeze-updates" onchange="window._frozen=this.checked"> Freeze
+    </label>
+  </div>
+  <div id="viz-content"></div>
+</div>
+
+</div>
+</div>
+<div id="conn-error" style="display:none;position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:#b91c1c;color:#fff;text-align:center;font-size:14px;z-index:999">
+  Server disconnected
+</div>
+<script>
+document.body.addEventListener('htmx:sendError',function(){document.getElementById('conn-error').style.display='block'});
+document.body.addEventListener('htmx:responseError',function(){document.getElementById('conn-error').style.display='block'});
+document.body.addEventListener('htmx:sseError',function(){document.getElementById('conn-error').style.display='block'});
+document.body.addEventListener('htmx:afterRequest',function(e){if(!e.detail.failed)document.getElementById('conn-error').style.display='none'});
+document.body.addEventListener('htmx:sseOpen',function(){document.getElementById('conn-error').style.display='none'});
+(function(){var el=document.getElementById('uptime');if(!el)return;var s=parseInt(el.dataset.start,10)||0;function fmt(t){var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),sec=t%60;if(h>0)return h+'h'+m+'m'+sec+'s';if(m>0)return m+'m'+sec+'s';return sec+'s';}setInterval(function(){s++;el.textContent=fmt(s)},1000)})();
+</script>
+</body>
+</html>

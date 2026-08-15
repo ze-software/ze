@@ -1,0 +1,6 @@
+status: 200
+header: Cache-Control: no-cache
+header: Connection: keep-alive
+header: Content-Type: text/event-stream
+header: X-Accel-Buffering: no
+

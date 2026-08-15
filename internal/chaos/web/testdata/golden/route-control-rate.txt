@@ -1,0 +1,22 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div id="route-control-panel" class="card">
+<h3>Route Dynamics</h3>
+<div class="control-row">
+  <span class="dot status-up"></span> <span>Running</span>
+</div>
+<div class="control-row">
+  <span class="badge" hx-post="/control/route/pause" hx-target="#route-control-panel" hx-swap="outerHTML" title="Pause route dynamics (no new route changes)">Pause</span>
+  <span class="badge" hx-post="/control/route/stop" hx-target="#route-control-panel" hx-swap="outerHTML" title="Stop route dynamics entirely">Stop</span>
+</div>
+<div class="control-row">
+  <label class="stat-label">Rate: </label>
+  <input type="range" min="0" max="100" value="40" class="rate-slider"
+         hx-post="/control/route/rate" hx-target="#route-control-panel" hx-swap="outerHTML"
+         hx-trigger="change" name="rate"
+         hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}'
+         title="Adjust route dynamics frequency (0% = no changes, 100% = maximum rate)">
+  <span class="stat-value">40%</span>
+</div>
+</div>

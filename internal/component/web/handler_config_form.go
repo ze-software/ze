@@ -101,14 +101,21 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 				}
 			}
 
+			// A refusal names the value it refused, and this one is a value the
+			// operator typed into a form. maskSecretInMessage (secret.go) is
+			// what keeps a credential out of the three messages below: each
+			// reaches the browser as an error fragment and as a toast.
+			leafNode := findLeafNode(schema, path, leaf)
+
 			// Validate YANG type for the leaf.
-			if leafNode := findLeafNode(schema, path, leaf); leafNode != nil {
+			if leafNode != nil {
 				if valErr := config.ValidateValue(leafNode.Type, value); valErr != nil {
 					errPath := textbuf.Join(append(path, leaf), "/")
+					message := maskSecretInMessage(leafNode, valErr.Error(), value)
 					if renderer != nil {
-						WriteOOBError(w, renderer, errPath, valErr.Error(), http.StatusBadRequest)
+						WriteOOBError(w, renderer, errPath, message, http.StatusBadRequest)
 					} else {
-						http.Error(w, valErr.Error(), http.StatusBadRequest)
+						http.Error(w, message, http.StatusBadRequest)
 					}
 					return
 				}
@@ -117,20 +124,23 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			// Check unique constraints for inline table edits.
 			if uniqueErr := validateUniqueOnSet(mgr.Tree(username), schema, path, leaf, value); uniqueErr != "" {
 				errPath := textbuf.Join(append(path, leaf), "/")
+				message := maskSecretInMessage(leafNode, uniqueErr, value)
 				if renderer != nil {
-					WriteOOBError(w, renderer, errPath, uniqueErr, http.StatusConflict)
+					WriteOOBError(w, renderer, errPath, message, http.StatusConflict)
 				} else {
-					http.Error(w, uniqueErr, http.StatusConflict)
+					http.Error(w, message, http.StatusConflict)
 				}
 				return
 			}
 
 			if err := mgr.SetValue(username, path, leaf, value); err != nil {
 				errPath := textbuf.Join(append(path, leaf), "/")
+				message := maskSecretInMessage(leafNode, err.Error(), value)
 				if renderer != nil {
-					WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
+					WriteOOBError(w, renderer, errPath, message, http.StatusBadRequest)
 				} else {
-					http.Error(w, fmt.Sprintf("set value: %v", err), http.StatusBadRequest)
+					var setMsg textbuf.Buffer
+					http.Error(w, setMsg.Str("set value: ").Str(message).String(), http.StatusBadRequest)
 				}
 				return
 			}
@@ -288,7 +298,11 @@ func parseConfigFormFields(form map[string][]string, basePath []string, schema *
 			continue
 		}
 		if valErr := config.ValidateValue(leafNode.Type, value); valErr != nil {
-			return nil, fmt.Errorf("invalid %s: %w", textbuf.Join(fullPath, "/"), valErr)
+			// The refusal quotes the value the form posted, and this form posts
+			// secrets. maskSecretInMessage (secret.go) is why one that fails
+			// validation is not published back to the browser.
+			return nil, fmt.Errorf("invalid %s: %s", textbuf.Join(fullPath, "/"),
+				maskSecretInMessage(leafNode, valErr.Error(), value))
 		}
 		fields = append(fields, configFormField{path: path, leaf: leaf, value: value})
 	}

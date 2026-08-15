@@ -16,6 +16,12 @@ type layoutView struct {
 	Title string
 	// ActiveTab marks which tab in the header carries tab-active.
 	ActiveTab string
+	// Page names the body the layout wraps, so the head loads that page's
+	// assets rather than every page's. page_assets.go carries the sets and
+	// scripts/codegen/web_assets.go derives them. A zero Page is a page nobody
+	// named, and it gets every asset: an extra file costs bytes, while a
+	// missing one gives a page that renders correctly and does nothing.
+	Page pageID
 }
 
 // peerRow is one row of the BGP peer table. Every counter is a string,

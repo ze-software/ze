@@ -1,0 +1,29 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div class="viz-panel">
+<div class="viz-header">
+  <h3>Route Flow Matrix</h3>
+  <div class="filters">
+    <label>Top:</label>
+    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
+            name="top" hx-include="[name='mode'],[name='family'],[name='peers']"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option>
+    </select>
+    <label>Mode:</label>
+    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
+            name="mode" hx-include="[name='top'],[name='family'],[name='peers']"><option value="" selected>Count</option><option value="latency">Latency</option>
+    </select>
+    <label>Family:</label>
+    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
+            name="family" hx-include="[name='top'],[name='mode'],[name='peers']">
+      <option value="">All</option><option value="ipv4/unicast">ipv4/unicast</option>
+    </select>
+    <label>Peers:</label>
+    <input type="text" name="peers" placeholder="e.g. 0,1,3" class="control-input"
+           hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
+           hx-trigger="change" hx-include="[name='top'],[name='mode'],[name='family']"
+           value="">
+  </div>
+</div><div class="stat-label" style="padding:16px">No route flow data yet.</div>
+<p class="viz-desc">Traffic volume between peers (cumulative). Counts increase after reconnections as routes are re-announced. In latency mode, warmer colors mean slower propagation.</p>
+</div>

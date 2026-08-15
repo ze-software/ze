@@ -73,8 +73,8 @@ var lgGoldenSpec = golden.Spec{
 		Name:    "pageLayout",
 		Fixture: "layout",
 		Variants: []golden.Variant{
-			{Name: "peers", Data: lgLayoutFixture("Peers", "peers")},
-			{Name: "search", Data: lgLayoutFixture("Route Search", "search")},
+			{Name: "peers", Data: lgLayoutFixture("Peers", "peers", pgPeersPage)},
+			{Name: "search", Data: lgLayoutFixture("Route Search", "search", pgSearchPage)},
 		},
 	}},
 	"peers.templ": {
@@ -121,8 +121,13 @@ var lgGoldenSpec = golden.Spec{
 
 // lgLayoutFixture reproduces what renderPage composes: one page's chrome
 // around already-rendered content.
-func lgLayoutFixture(title, tab string) templ.Component {
-	return pageLayout(layoutView{Title: title, ActiveTab: tab}, lgRawComponent("<p>page content</p>"))
+//
+// page is what the head loads its assets from, so the two variants capture two
+// different heads: the peers page opens an SSE stream and the search page does
+// not. The content stands in for the body, which is why the peers capture
+// carries the extension with no attribute using it.
+func lgLayoutFixture(title, tab string, page pageID) templ.Component {
+	return pageLayout(layoutView{Title: title, ActiveTab: tab, Page: page}, lgRawComponent("<p>page content</p>"))
 }
 
 // lgRawComponent writes fixed markup, standing in for the page component the

@@ -379,6 +379,11 @@ var webTemplGoldenSpec = golden.Spec{
 			{Data: notificationError(notificationErrorData{Message: webNotificationErrorText})},
 		},
 	}},
+	// test-relax: the errorFragment component is gone. The looking glass and the
+	// chaos dashboard needed the same fragment, so the markup moved to
+	// internal/core/errorfragment, whose own tests hold its shape and its
+	// escaping. No template capture can reach it from here, and this package
+	// still proves it through serverHandler in handler_error_test.go.
 	"component_oob_error.templ": {
 		{Name: "oobError", Fixture: "component/oob_error", Variants: []golden.Variant{
 			{Data: oobError(webErrorData())},

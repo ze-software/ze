@@ -105,6 +105,8 @@ func checkExpectation(b *Browser, e *WBExpectation) error {
 		return checkBreadcrumb(b, e)
 	case "html":
 		return checkHTML(b, e)
+	case "head":
+		return checkHead(b, e)
 	case "url":
 		return checkURL(b, e)
 	case "title":
@@ -204,6 +206,43 @@ func checkHTML(b *Browser, e *WBExpectation) error {
 			return fmt.Errorf("HTML unexpectedly contains %q", sub)
 		}
 	}
+	return nil
+}
+
+// checkHead validates one expectation against the page head, which is where a
+// page states which assets it loads. checkHTML cannot answer for it: `get html
+// <selector>` returns one element's inner HTML, and it reads the body.
+//
+// The head is written once per navigation and no swap rewrites it, so the
+// positive form still polls: the wait is for the NAVIGATION to land, not for
+// the head to change.
+func checkHead(b *Browser, e *WBExpectation) error {
+	head, err := retryFetch(b.getHeadHTML)
+	if err != nil {
+		return fmt.Errorf("head: %w", err)
+	}
+
+	if sub, ok := e.Values["contains"]; ok {
+		if err := retryPositive(func() error {
+			current, headErr := b.getHeadHTML()
+			if headErr != nil {
+				return fmt.Errorf("head: %w", headErr)
+			}
+			if !strings.Contains(current, sub) {
+				return fmt.Errorf("the page head does not contain %q; it holds:\n%s", sub, current)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	if sub, ok := e.Values["not-contains"]; ok {
+		if strings.Contains(head, sub) {
+			return fmt.Errorf("the page head unexpectedly contains %q; it holds:\n%s", sub, head)
+		}
+	}
+
 	return nil
 }
 

@@ -1,14 +1,18 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os"
+	osexec "os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 	"github.com/stretchr/testify/assert"
@@ -715,4 +719,168 @@ func TestErrorDrawerWiringHoldsTogether(t *testing.T) {
 	}
 
 	assert.Positive(t, lookups, "no selector was checked; the patterns have stopped matching")
+}
+
+// webAssetsGeneratorTimeout bounds the generator subprocess.
+const webAssetsGeneratorTimeout = 60 * time.Second
+
+// webPackagePrefix is how the generator names a template of this package. The
+// key is the source file's path from the repository root, because that is what
+// the generator walks and what a reader greps for.
+const webPackagePrefix = "internal/component/web/"
+
+// htmxAttributePattern finds one htmx attribute in rendered markup: a
+// whitespace byte, the attribute name, then the equals sign a value follows.
+// Requiring both ends keeps a file name such as sse-client.js out of the match.
+var htmxAttributePattern = regexp.MustCompile(`\s(hx-[a-z-]+|sse-[a-z-]+)=`)
+
+// scriptSrcPattern finds one served asset in a page's head.
+var scriptSrcPattern = regexp.MustCompile(`<script src="/assets/([^"]+)"`)
+
+// htmxAssetFor names the asset that implements one rendered attribute, or "".
+//
+// The core attributes are htmx itself. The SSE attributes come from a separate
+// extension file, which is the reason the import set is per page rather than
+// one list for the whole UI.
+func htmxAssetFor(attribute string) string {
+	switch {
+	case strings.HasPrefix(attribute, "sse-"):
+		return "sse.js"
+	case strings.HasPrefix(attribute, "hx-"):
+		return "htmx.min.js"
+	default:
+		return ""
+	}
+}
+
+// matchedGroups returns the first capture of every match, sorted and without
+// repeats.
+func matchedGroups(pattern *regexp.Regexp, body []byte) []string {
+	var found []string
+
+	for _, match := range pattern.FindAllSubmatch(body, -1) {
+		found = append(found, string(match[1]))
+	}
+
+	slices.Sort(found)
+
+	return slices.Compact(found)
+}
+
+// derivedPageAssets returns the per-page asset sets the generator derives,
+// keyed by the page template's path from the repository root.
+func derivedPageAssets(t *testing.T) map[string][]string {
+	t.Helper()
+
+	root, err := filepath.Abs("../../..")
+	require.NoError(t, err, "resolve the repository root")
+
+	ctx, cancel := context.WithTimeout(context.Background(), webAssetsGeneratorTimeout)
+	defer cancel()
+
+	cmd := osexec.CommandContext(ctx, "go", "run",
+		filepath.Join(root, "scripts", "codegen", "web_assets.go"), "--json")
+	cmd.Dir = root
+
+	var out, errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+
+	require.NoErrorf(t, cmd.Run(),
+		"scripts/codegen/web_assets.go --json must print the per-page asset sets: %s", errOut.String())
+
+	derived := map[string][]string{}
+	require.NoErrorf(t, json.Unmarshal(out.Bytes(), &derived),
+		"read the derived per-page asset sets: %s", out.String())
+
+	return derived
+}
+
+// webPageFixture is one captured page and the template that rendered it.
+type webPageFixture struct {
+	// Template is the templ source, from the repository root.
+	Template string
+	// Path is the fixture on disk.
+	Path string
+	// Body is the rendered markup.
+	Body []byte
+}
+
+// webPageFixtures returns every captured fixture that renders a whole page.
+//
+// A page is a fixture carrying a head, because the head is where a page states
+// what it loads. Every other fixture is a fragment served into a page that has
+// already loaded its assets.
+func webPageFixtures(t *testing.T) []webPageFixture {
+	t.Helper()
+
+	root := filepath.Join("testdata", "golden")
+
+	files := make([]string, 0, len(webTemplGoldenSpec))
+	for file := range webTemplGoldenSpec {
+		files = append(files, file)
+	}
+
+	slices.Sort(files)
+
+	var pages []webPageFixture
+
+	for _, file := range files {
+		for _, unit := range webTemplGoldenSpec[file] {
+			for _, variant := range unit.Variants {
+				path := webTemplGolden.FixturePath(root, file, unit.FixtureName(variant))
+
+				body, err := os.ReadFile(path)
+				require.NoErrorf(t, err, "read the captured fixture %s", path)
+
+				if !bytes.Contains(body, []byte("<head>")) {
+					continue
+				}
+
+				pages = append(pages, webPageFixture{
+					Template: webPackagePrefix + file,
+					Path:     path,
+					Body:     body,
+				})
+			}
+		}
+	}
+
+	require.NotEmptyf(t, pages, "no captured fixture renders a head, so this check would pass over nothing")
+
+	return pages
+}
+
+// VALIDATES: every htmx attribute a page renders has its asset in the set the
+// generator derived for that page, and in the set that page's head loads.
+// PREVENTS: a page that renders correctly and does nothing in the browser. The
+// generator derives the import set from source and over-approximates; this
+// reads the rendered bytes and reports an attribute the set does not cover.
+func TestPageImportsCoverRenderedAttributes(t *testing.T) {
+	derived := derivedPageAssets(t)
+
+	for _, page := range webPageFixtures(t) {
+		t.Run(filepath.Base(page.Path), func(t *testing.T) {
+			assets, ok := derived[page.Template]
+			require.Truef(t, ok,
+				"the generator derived no asset set for %s; it must name every template that renders a head",
+				page.Template)
+
+			loaded := matchedGroups(scriptSrcPattern, page.Body)
+
+			for _, attribute := range matchedGroups(htmxAttributePattern, page.Body) {
+				want := htmxAssetFor(attribute)
+				if want == "" {
+					continue
+				}
+
+				assert.Containsf(t, assets, want,
+					"%s renders %s, which %s implements, but the generator derived %v for it",
+					page.Path, attribute, want, assets)
+				assert.Containsf(t, loaded, want,
+					"%s renders %s, which %s implements, but its head loads %v",
+					page.Path, attribute, want, loaded)
+			}
+		})
+	}
 }

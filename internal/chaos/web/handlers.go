@@ -18,7 +18,13 @@ import (
 var assetsFS embed.FS
 
 // registerRoutes wires all HTTP routes for the dashboard.
-func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
+//
+// Every route is registered through fragmentMux (route_mux.go), which puts the
+// error-fragment middleware in front of it. The registration lines below are
+// therefore also the route list a capture reads out of this file.
+func registerRoutes(base *http.ServeMux, d *Dashboard) error {
+	mux := fragmentMux{base: base}
+
 	assetsDir, err := fs.Sub(assetsFS, "assets")
 	if err != nil {
 		return fmt.Errorf("embedded assets sub-fs: %w", err)
@@ -435,6 +441,13 @@ func (d *Dashboard) handleSidebarEvents(w http.ResponseWriter, _ *http.Request) 
 }
 
 // sortPeers sorts peer indices by the given column and direction.
+//
+// Every column ties: five peers are "up", most carry zero chaos events. The
+// indices arrive from a map range (ActiveSet.Indices, or the Peers map in
+// writeAllPeers) and slices.SortFunc is not stable, so a tie kept whatever
+// order that range gave. The table polls twice a second, so an operator sorting
+// by anything but the peer index watched the tied rows shuffle under the
+// cursor. Breaking the tie by index makes the order total.
 func sortPeers(indices []int, state *DashboardState, col, dir string) {
 	desc := strings.EqualFold(dir, "desc")
 
@@ -466,6 +479,12 @@ func sortPeers(indices []int, state *DashboardState, col, dir string) {
 		}
 		if desc {
 			cmp = -cmp
+		}
+		// The tie-break is ascending in both directions. It orders rows the
+		// column cannot separate; it is not a second sort key the operator
+		// asked to reverse.
+		if cmp == 0 {
+			cmp = a - b
 		}
 		return cmp
 	})

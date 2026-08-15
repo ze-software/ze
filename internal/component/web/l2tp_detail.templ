@@ -11,7 +11,9 @@ templ l2tpDetail(v l2tpDetailView) {
 			<title>L2TP Session { intText(int(v.Session.LocalSID)) }</title>
 			<link rel="stylesheet" href="/assets/style.css">
 			<link rel="stylesheet" href="/assets/uPlot.min.css">
-			<script src="/assets/htmx.min.js"></script>
+			for _, src := range pageAssets(pgL2tpDetail) {
+				<script src={ src }></script>
+			}
 			<script src="/assets/uPlot.min.js"></script>
 		</head>
 		<body>

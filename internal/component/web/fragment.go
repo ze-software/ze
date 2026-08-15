@@ -34,31 +34,6 @@ type FieldMeta struct {
 	Decoration    string // Resolved display-time annotation (e.g., AS org name)
 }
 
-// ErrorData holds the data for rendering an error item via the oob_error template.
-type ErrorData struct {
-	ID      string
-	Path    string
-	Message string
-}
-
-// WriteOOBError sends an error as an HTMX OOB swap appended to #error-list
-// and opens the error panel. Renders via the oob_error template.
-func WriteOOBError(w http.ResponseWriter, renderer *Renderer, path, message string, status int) {
-	var bID textbuf.Buffer
-	data := ErrorData{
-		ID:      bID.Reset().Int(int64(len(message) + len(path))).String(),
-		Path:    path,
-		Message: message,
-	}
-	html := renderer.renderComponent("oob_error", oobError(data))
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	if _, writeErr := w.Write([]byte(html)); writeErr != nil {
-		return // client disconnected
-	}
-}
-
 // GetType returns the field type string for template dispatch.
 func (f FieldMeta) GetType() string { return f.Type }
 

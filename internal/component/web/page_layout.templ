@@ -10,7 +10,9 @@ templ pageLayout(v LayoutData) {
 			<title>{ v.Title }</title>
 			<link rel="stylesheet" href="/assets/style.css">
 			<script src="/assets/cli.js"></script>
-			<script src="/assets/htmx.min.js"></script>
+			for _, src := range pageAssets(pgPageLayout) {
+				<script src={ src }></script>
+			}
 			<script src="/assets/sse-client.js"></script>
 			<script src="/assets/notification.js"></script>
 		</head>

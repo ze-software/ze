@@ -40,6 +40,10 @@ type lgHandlerCase struct {
 	Auth string
 	// Gated requests the token-gated server without an Authorization header.
 	Gated bool
+	// HTMX sends the header htmx puts on every request it issues. It selects
+	// the answer a refused request receives: a fragment for the target the
+	// request named, rather than the bare status line http.Error writes.
+	HTMX bool
 	// Stream marks a route that writes until the client goes away. The request
 	// carries a canceled context, so the capture holds what the handler emits
 	// before it returns rather than blocking on a ticker.
@@ -99,6 +103,14 @@ var lgHandlerGoldenCases = []lgHandlerCase{
 	{Name: "ui-peer-routes", Method: http.MethodGet, Target: "/lg/peer/10.0.0.1"},
 	{Name: "ui-peer-download", Method: http.MethodGet, Target: "/lg/peer/10.0.0.1/download"},
 	{Name: "ui-route-detail", Method: http.MethodGet, Target: "/lg/route/detail?prefix=10.0.0.0%2F24&peer=10.0.0.1"},
+
+	// A refused request, captured twice. Route detail is reached by an hx-get on
+	// a route row (routeDetailURL, render.go), so both answers below are bytes
+	// an operator's browser receives. The pair is the whole conversion: the
+	// second is markup htmx can swap into the row, the first is the bare status
+	// line every other client still gets.
+	{Name: "ui-route-detail-invalid", Method: http.MethodGet, Target: "/lg/route/detail?prefix=not-a-prefix&peer=10.0.0.1"},
+	{Name: "ui-route-detail-invalid-htmx", Method: http.MethodGet, Target: "/lg/route/detail?prefix=not-a-prefix&peer=10.0.0.1", HTMX: true},
 	{Name: "ui-events", Method: http.MethodGet, Target: "/lg/events", Stream: true},
 	{Name: "ui-graph-aspath", Method: http.MethodGet, Target: "/lg/graph?prefix=10.0.0.0%2F24"},
 	{Name: "ui-graph-nexthop", Method: http.MethodGet, Target: "/lg/graph?prefix=10.0.0.0%2F24&mode=nexthop"},
@@ -222,6 +234,10 @@ func lgGoldenRequest(t *testing.T, c lgHandlerCase) *http.Request {
 
 	if c.Auth != "" {
 		req.Header.Set("Authorization", c.Auth)
+	}
+
+	if c.HTMX {
+		req.Header.Set("HX-Request", "true")
 	}
 
 	if c.Stream {

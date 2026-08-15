@@ -43,6 +43,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/errorfragment"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
 )
@@ -189,7 +190,13 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 			// bearerAuth sits between the headers and the mux, so it gates
 			// every route the mux serves -- including any registered later.
 			// With no token it returns the mux unchanged (public looking glass).
-			Handler: securityHeaders(bearerAuth(cfg.Token, mux)),
+			//
+			// errorfragment.Middleware wraps both, so the 17 http.Error sites in
+			// this package answer an htmx request with markup it can swap into
+			// the target rather than a bare status line. It is written ONCE
+			// here: handler_golden_test.go captures through this same chain, so
+			// the daemon and the capture cannot disagree about it.
+			Handler: securityHeaders(errorfragment.Middleware(bearerAuth(cfg.Token, mux))),
 			// Timeouts prevent slow clients from holding connections indefinitely.
 			ReadHeaderTimeout: 10 * time.Second,
 			ReadTimeout:       30 * time.Second,

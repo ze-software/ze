@@ -9,7 +9,9 @@ templ l2tpList(v l2tpListView) {
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<title>L2TP Sessions</title>
 			<link rel="stylesheet" href="/assets/style.css">
-			<script src="/assets/htmx.min.js"></script>
+			for _, src := range pageAssets(pgL2tpList) {
+				<script src={ src }></script>
+			}
 		</head>
 		<body>
 			<div class="layout">

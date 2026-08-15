@@ -40,24 +40,30 @@ const (
 	lgPortGraphHandler = "the graph-mode buttons dropped an onclick no browser ran"
 )
 
+// The eight below are one deliberate change: pageLayout stopped loading the
+// SSE extension on every page. It loads the assets of the page it wraps
+// instead, and only the peers page opens a stream. The sets are derived from
+// the markup each page reaches (scripts/codegen/web_assets.go, page_assets.go).
+const lgPortPageAssets = "the head loads what this page needs, and this page opens no SSE stream"
+
 var lgPortTemplates = map[string]string{
 	"layout--peers.html":  lgPortGraphScript,
-	"layout--search.html": lgPortGraphScript,
+	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
 
 	"route_results--routes.html": lgPortGraphHandler,
 	"search--filled.html":        lgPortGraphHandler,
 }
 
 var lgPortHandlers = map[string]string{
-	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript,
-	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript,
-	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript,
+	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 
 	"gated-peers-authorized.txt": lgPortGraphScript,
-	"ui-help.txt":                lgPortGraphScript,
-	"ui-peer-routes.txt":         lgPortGraphScript,
+	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
 	"ui-peers.txt":               lgPortGraphScript,
-	"ui-search-form.txt":         lgPortGraphScript,
+	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
 }
 
 // TestLGTemplPortFidelity compares every captured unit against the bytes it

@@ -32,7 +32,7 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 	bmpData := parseJSON(bmpResult)
 
 	v := peersView{
-		layoutView: layoutView{Title: "Peers", ActiveTab: "peers"},
+		layoutView: layoutView{Title: "Peers", ActiveTab: "peers", Page: pgPeersPage},
 		Peers:      s.extractPeers(zeData),
 		BMPPeers:   s.extractBMPPeers(bmpData),
 		Error:      engineError(zeData),
@@ -51,7 +51,7 @@ func (s *LGServer) handleUIHelp(w http.ResponseWriter, r *http.Request) {
 		s.renderFragment(w, helpPage())
 		return
 	}
-	s.renderPage(w, layoutView{Title: "Help", ActiveTab: "help"}, helpPage())
+	s.renderPage(w, layoutView{Title: "Help", ActiveTab: "help", Page: pgHelpPage}, helpPage())
 }
 
 // handleUISearchForm renders the route search form.
@@ -66,7 +66,7 @@ func (s *LGServer) handleUISearchForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // searchLayout is the chrome every search response carries.
-var searchLayout = layoutView{Title: "Route Search", ActiveTab: "search"}
+var searchLayout = layoutView{Title: "Route Search", ActiveTab: "search", Page: pgSearchPage}
 
 // handleUISearch processes the route search form with stackable filters.
 // All filter fields are optional but at least one must be provided.
@@ -231,6 +231,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		layoutView: layoutView{
 			Title:     tb.Reset().Str("Routes from ").Str(address).String(),
 			ActiveTab: "peers",
+			Page:      pgPeerRoutesPage,
 		},
 		Address:       address,
 		Peer:          peerInfoFrom(peerInfo),

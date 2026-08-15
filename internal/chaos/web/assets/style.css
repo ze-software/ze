@@ -1286,6 +1286,11 @@ span.fm-complete {
 .peer-cell.pulse { animation: chaos-pulse 0.5s ease-out 1; }
 @keyframes chaos-pulse { 0% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 8px 4px currentColor; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
+/* Refused request. The server answers this fragment (internal/core/errorfragment)
+   when a handler refuses an htmx request, and htmx swaps it into the target. */
+.error-fragment { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); background: #552426; border-left: 3px solid var(--red); color: var(--text-primary); }
+.error-fragment-reason { color: var(--red); font-weight: 700; white-space: nowrap; }
+
 /* Toast Notifications */
 .toast-container { position: fixed; top: 8px; right: 8px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
 .toast { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); pointer-events: auto; cursor: pointer; animation: toast-in 0.3s ease-out, toast-out 0.5s ease-in 4.5s forwards; }

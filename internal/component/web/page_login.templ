@@ -34,6 +34,9 @@ templ loginFullPage(v LoginData) {
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<title>{ Translate(v.Locale, "login.title") }</title>
 			<link rel="stylesheet" href="/assets/style.css">
+			for _, src := range pageAssets(pgLoginFullPage) {
+				<script src={ src }></script>
+			}
 		</head>
 		<body>
 			<div class="login-page">

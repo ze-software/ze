@@ -499,6 +499,7 @@ var goldenStagesZeVerify = []string{
 	"ze-doc-links",
 	"ze-validate-tree",
 	"ze-regen-check-readonly",
+	"ze-check-vendor-web",
 	"ze-vet-evidence",
 	"ze-hook-test",
 	"ze-unit-test-cached",
@@ -528,6 +529,7 @@ var goldenStagesZeVerifyChanged = []string{
 	"ze-doc-links",
 	"ze-validate-tree",
 	"ze-regen-check-readonly",
+	"ze-check-vendor-web",
 	"ze-hook-test",
 	"ze-unit-test-changed",
 	"ze-functional-test",
@@ -854,6 +856,8 @@ var regenCheckPrereqs = map[string]string{
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
 	"ze-templ-generate-check":  "templ generate -> internal/**/*_templ.go",
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
+	"ze-check-vendor-web":      "sync_web.go -> the vendored asset copy in each internal/**/assets/",
+	"ze-web-assets-check":      "web_assets.go -> the per-page asset set in each internal/**/page_assets.go",
 	"ze-doc-check-stale":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
 	"ze-rules-render-check":    "rules_points.py -> ai/rules/<rule>.md, rendered from ai/rules/points/",
 	"ze-rules-index-check":     "rules_index.py -> ai/rules/INDEX.md",
@@ -879,6 +883,8 @@ var generatorChecks = map[string]string{
 	"scripts/codegen/feature_tags.go":   "ze-feature-tags-check",
 	"github.com/a-h/templ/cmd/templ":    "ze-templ-generate-check",
 	"scripts/dev/fuzz-targets.py":       "ze-fuzz-targets-check",
+	"scripts/vendor/sync_web.go":        "ze-check-vendor-web",
+	"scripts/codegen/web_assets.go":     "ze-web-assets-check",
 	// `ze-regen:` prerequisite targets
 	"ze-ai-instructions": "ze-arch-map-check",
 	"ze-ai-sync":         "", // gitignored outputs -- excluded on purpose
@@ -1123,8 +1129,8 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	var producers []string
 	_, genBody := recipeBody(t, corpus, "generate")
 	producers = append(producers, producerScripts(strings.Join(genBody, "\n"))...)
-	if len(producers) != 5 {
-		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 5; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
+	if len(producers) != 7 {
+		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 7; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
 	}
 
 	regenHead, _ := recipeBody(t, corpus, "ze-regen")
@@ -1469,4 +1475,90 @@ func shippedFeatureTags(t *testing.T) []string {
 		t.Fatalf("feature-gates.txt yielded no ze_ feature tags; parser or file changed")
 	}
 	return tags
+}
+
+// integrationLintPass reports whether a recipe body carries the second
+// golangci-lint invocation: GOOS=linux plus the integration build tag.
+func integrationLintPass(body []string) bool {
+	for _, ln := range body {
+		if strings.Contains(ln, "GOOS=linux") && strings.Contains(ln, "golangci-lint") &&
+			strings.Contains(ln, "--build-tags integration") {
+			return true
+		}
+	}
+	return false
+}
+
+// TestLintCoversIntegrationTaggedFiles guards the full lint's coverage of the
+// two file populations golangci-lint's single analyzed build cannot reach.
+//
+// VALIDATES: `ze-lint` runs a second golangci-lint pass under GOOS=linux with
+// the integration build tag, and that `integration` reached the linter WITHOUT
+// entering either manifest it does not belong in.
+// PREVENTS: the regression this gate was written for. golangci-lint analyses ONE
+// build -- the host GOOS with .golangci.yml's build-tags -- so 77 tracked files
+// behind //go:build integration were reported on by nothing, in CI or locally,
+// and carried 132 findings when first measured. Delete the second pass and they
+// go silent again with every gate still green.
+//
+// It also pins the two shapes the fix must NOT take. `.golangci.yml` build-tags
+// is GENERATED from feature-gates.txt (scripts/codegen/feature_tags.go), so a
+// hand-added `integration` there is reverted by the next `make generate` and
+// fails dep_audit.py --check in between; and `integration` gates tests by
+// capability, so in feature-gates.txt every other consumer of that manifest
+// would read it as a shippable feature.
+func TestLintCoversIntegrationTaggedFiles(t *testing.T) {
+	_, body := recipeBody(t, makefileCorpus(t), "ze-lint")
+	if !integrationLintPass(body) {
+		t.Errorf("ze-lint runs no `GOOS=linux golangci-lint run --build-tags integration` pass: "+
+			"every //go:build integration file is unlinted again. Recipe:\n%s", strings.Join(body, "\n"))
+	}
+
+	golangci := readFile(t, repoRootFromScriptsStatus(), ".golangci.yml")
+	if !strings.Contains(golangci, "\n    - ze_core\n") {
+		t.Fatalf(".golangci.yml has no `- ze_core` build-tags entry: the list shape changed and this test must not pass vacuously")
+	}
+	for line := range strings.SplitSeq(golangci, "\n") {
+		if strings.TrimSpace(line) == "- integration" {
+			t.Errorf(".golangci.yml lists `integration` in build-tags. That file is GENERATED by " +
+				"scripts/codegen/feature_tags.go: the entry is reverted by the next `make generate`. " +
+				"The integration tag reaches the linter from the ze-lint recipe instead")
+		}
+	}
+
+	for _, tag := range shippedFeatureTags(t) {
+		if tag == "integration" {
+			t.Errorf("feature-gates.txt lists `integration`: it gates tests by capability, not a " +
+				"compile-out-able feature, so every consumer of the manifest would treat it as shippable")
+		}
+	}
+}
+
+// TestChangedLintCoversIntegrationTaggedFiles is TestLintCoversIntegrationTaggedFiles
+// for the path most edits actually face.
+//
+// VALIDATES: `ze-lint-changed` runs the same second pass, and that a failure in
+// the first pass cannot be masked by a clean second one.
+// PREVENTS: a new QEMU integration test landing unlinted. `ai/rules/commands.md`
+// makes ze-lint-changed the gate before claiming done, and ze-verify-changed
+// runs it in place of ze-lint (stagesForMode), so full-lint-only coverage would
+// leave exactly the new files uncovered.
+func TestChangedLintCoversIntegrationTaggedFiles(t *testing.T) {
+	_, body := recipeBody(t, makefileCorpus(t), "ze-lint-changed")
+	if !integrationLintPass(body) {
+		t.Errorf("ze-lint-changed runs no `GOOS=linux golangci-lint run --build-tags integration` pass: "+
+			"a new //go:build integration file passes the changed-file gate unlinted. Recipe:\n%s", strings.Join(body, "\n"))
+	}
+	// Fail-closed chaining: the recipe is one shell, so a `;` between the two
+	// passes would make the recipe's status the SECOND pass's -- a real finding
+	// in the first pass would exit 0.
+	for _, ln := range body {
+		if !strings.Contains(ln, "golangci-lint") || strings.Contains(ln, "GOOS=linux") {
+			continue
+		}
+		if !strings.HasSuffix(strings.TrimRight(ln, " \t"), "&& \\") {
+			t.Errorf("ze-lint-changed chains its first golangci-lint pass without `&&`, so its exit "+
+				"status is discarded when the integration pass is clean. Line: %q", ln)
+		}
+	}
 }

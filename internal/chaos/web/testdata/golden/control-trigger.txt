@@ -1,0 +1,4 @@
+status: 200
+header: Content-Type: text/html; charset=utf-8
+
+<div id="trigger-result" class="trigger-result"><span class="event-type event-type-chaos">triggered</span> disconnect on peer(s) [1 4]</div>
