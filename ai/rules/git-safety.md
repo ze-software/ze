@@ -613,6 +613,30 @@ not evidence. Run the whole suite that owns the surface.
 of the rail at once, including the callers whose fixtures were written before it
 existed and assert the answer it now refuses.
 
+**A surface is usually observed by MORE THAN ONE suite, so "the" suite is the
+wrong question.** Naming the suite you already know about is a guess, and it
+answers only for the fixtures that suite happens to hold. DERIVE the set instead:
+search the whole fixture corpus for what exercises the rail, by the configuration
+that reaches it or by the bytes it emits, and run every suite that turns up. A
+guard on an egress rail is reached by the announce fixtures, the relay fixtures
+and the encoding fixtures alike, and they do not live together.
+
+**A gate's population is defined by where a file LIVES, not by what you edited, so
+before commit you MUST run the repo-wide counters, inventories and ratchets whose
+population your NEW files join.** Adding a file to a directory such a gate walks
+puts you inside it, even when the gate was written for a concern your change has
+nothing to do with, and even when every gate for the surface you edited is green.
+
+**Scoped evidence is keyed on the surface; the gate that catches you is keyed on
+the directory.** That asymmetry is why a careful, fully verified commit can still
+turn a shared gate red for every other session: the author ran what their change
+was about, and the gate counts what their change added.
+
+**Ask it as a question about paths.** For each path in the commit that did not
+exist before, name the repo-wide checks that walk its directory, and run them. A
+new test fixture, a new scenario, a new script and a new generated artifact are
+the usual carriers, because each lands in a tree something else counts.
+
 **When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
 target and what it runs, `make help` lists them, and `ai/rules/repo-maintenance.md` maps
 each gate to the rule it enforces. When a surface has no owning target, you SHOULD say so

@@ -235,6 +235,7 @@ mutation-testing ## Mutation Testing
   the-mutation-testing-targets
   the-environment-variables-that-tune-gomu
   what-is-excluded-because-gomu-has-no-tag-support
+  mutate-a-file-you-own-never-a-shared-one
 pre-commit ## Pre-Commit
   where-the-full-pre-commit-workflow-lives
   ze-verify-is-the-only-acceptable-pre-commit-check

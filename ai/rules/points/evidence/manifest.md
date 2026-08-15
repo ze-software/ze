@@ -16,6 +16,7 @@ no-fabrication ## No Fabrication
   verify-runtime-behavior-against-the-producing-code
   read-the-decision-record-before-asserting-intent
   a-self-consistent-story-is-a-hypothesis-not-a-finding
+  a-pending-result-is-not-a-result
   one-instance-is-not-a-population
   the-named-example-is-the-worst-sample
   paste-the-command-output-never-a-prose-summary-of-it

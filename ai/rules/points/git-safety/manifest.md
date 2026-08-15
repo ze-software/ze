@@ -91,6 +91,7 @@ before-any-commit ## Before Any Commit
   ze-test-pkg-examples
   which-target-owns-each-surface
   a-wire-behaviour-change-owes-its-functional-suite
+  run-the-gates-your-new-files-join
   derive-the-owning-target-when-the-table-has-no-row
   read-the-whole-failure-summary-before-re-running
   traps-that-misread-a-verify-log

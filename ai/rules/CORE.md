@@ -150,6 +150,10 @@ time, when the work is finished and you are about to prepare the commit script.*
 **A change to what the daemon PUTS ON THE WIRE, installs, or shows MUST run the
 **The fixture that catches the regression is named after ANOTHER feature.** A rail
 **A guard is the case this bites hardest.** It changes the answer for every caller
+**A surface is usually observed by MORE THAN ONE suite, so "the" suite is the
+**A gate's population is defined by where a file LIVES, not by what you edited, so
+**Scoped evidence is keyed on the surface; the gate that catches you is keyed on
+**Ask it as a question about paths.** For each path in the commit that did not
 **When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
 **YOU MUST READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
 - **`tail` on the log of a run that is still going.** The stage banner tells you
