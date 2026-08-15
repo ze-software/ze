@@ -15,6 +15,7 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
@@ -196,9 +197,10 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "empty", Data: configFreeform(&ConfigViewData{CurrentPath: "system/banner"})},
 		},
 	}},
-	// configViewComponent (handler_config_leaf.go) answers nothing for
-	// config.NodeFlex, so no live path reaches this. The capture keeps its
-	// markup on record. Recorded in plan/journal/silent-fall-through.md.
+	// No live path reaches this. A flex node renders through configContainer,
+	// which reads the Children and LeafFields buildConfigViewData fills. No
+	// producer builds a configFlexData. The capture keeps the markup on record
+	// until phase 5 of plan/spec-web-templ-migration.md decides its fate.
 	"config_flex.templ": {{
 		Name: "configFlex", Fixture: "flex.html",
 		Variants: []golden.Variant{
@@ -978,7 +980,10 @@ func webWorkbenchForm(full bool) WorkbenchFormData {
 		{Name: "disabled-toggle", Label: "Locked", Type: "toggle", Value: "false", Disabled: true},
 		{Name: "log-level", Path: "system/log", Label: "Log level", Type: "dropdown", Value: "info", Options: []string{"debug", "info", "warning"}},
 		{Name: "port", Label: "Port", Type: "number", Value: "179", Required: true},
-		{Name: "secret", Label: "Secret", Type: "password", Value: "hunter2"},
+		// A page never hands this component a stored secret. renderPageContent
+		// (workbench_pages.go) masks the display tree the page reads. The value
+		// that arrives here is already the placeholder (secret.go).
+		{Name: "secret", Label: "Secret", Type: "password", Value: config.SecretDataPlaceholder},
 		{Name: "router-id", Label: "Router ID", Type: "ip", Value: "192.0.2.1"},
 		{Name: "servers", Label: "Servers", Type: "list", Items: []string{"192.0.2.53", "192.0.2.54"}},
 	}

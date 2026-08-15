@@ -130,6 +130,12 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			if value == "" {
 				continue
 			}
+			// The overlay prefills a secret field with the display placeholder
+			// (inheritedFieldValue). Posting it back means the operator supplied
+			// no value, so the placeholder text must not become one.
+			if value == config.SecretDataPlaceholder {
+				continue
+			}
 
 			// Validate value against YANG type.
 			if ln, ok := listNode.(*config.ListNode); ok {
@@ -228,7 +234,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			tableHTML := renderer.renderComponent("list_table", listTable(data))
 
 			count := mgr.ChangeCount(username)
-			commitHTML := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: count}))
+			commitHTML := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOK(r, authorizer, count)))
 
 			// OOB finder update so the peer count refreshes.
 			finderHTML := renderer.renderComponent("finder_oob", finderOOB(data))
@@ -464,7 +470,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 				Path:        field,
 				Placeholder: resolveLeafDescription(listNode, field),
 				Category:    "required",
-				Inherited:   resolveInheritedValue(parentTree, field),
+				Inherited:   inheritedFieldValue(listNode, parentTree, field),
 			})
 		}
 
@@ -477,7 +483,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 				Path:        field,
 				Placeholder: resolveLeafDescription(listNode, field),
 				Category:    "suggest",
-				Inherited:   resolveInheritedValue(parentTree, field),
+				Inherited:   inheritedFieldValue(listNode, parentTree, field),
 			})
 		}
 
@@ -531,6 +537,17 @@ func resolveParentDefaults(tree *config.Tree, listPath []string) *config.Tree {
 		return nil
 	}
 	return current
+}
+
+// inheritedFieldValue is the value the add-entry overlay prefills for one
+// field. It is the parent's value for that leaf, so the operator does not
+// retype a setting the surrounding context already carries.
+//
+// A secret is masked (secret.go). The overlay posts what it holds.
+// parseConfigFormFields (handler_config_form.go) reads the placeholder back as
+// "not touched". The new entry then inherits nothing rather than the mask text.
+func inheritedFieldValue(listNode *config.ListNode, parentTree *config.Tree, field string) string {
+	return maskSecretLeaf(resolveListLeaf(listNode, field), resolveInheritedValue(parentTree, field))
 }
 
 // resolveInheritedValue looks up a slash-separated field path in a config tree.

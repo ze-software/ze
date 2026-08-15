@@ -424,8 +424,14 @@ func webLiveRoutes(t *testing.T) []string {
 }
 
 // webGoldenEnv is one server: the mux the hub builds, and a signed-in session.
+//
+// handler is what a request is served through, and it is not the mux. NewWebServer
+// (server.go) puts SecurityHeaders over its mux, so the bytes a browser reads
+// carry those headers on every route. mux stays because Handler(req) is how a
+// case reports which route pattern it reached.
 type webGoldenEnv struct {
 	mux     *http.ServeMux
+	handler http.Handler
 	session string
 }
 
@@ -599,7 +605,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	mux.Handle("POST /config/add/", mutationWrap(HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("GET /config/add-form/", editWrap(HandleConfigAddForm(editorMgr, schema, renderer)))
 	mux.Handle("POST /config/rename/", mutationWrap(HandleConfigRenameWithAuthorizer(editorMgr, schema, authorizer)))
-	mux.Handle("GET /config/changes", authWrap(HandleConfigChanges(editorMgr, renderer)))
+	mux.Handle("GET /config/changes", authWrap(HandleConfigChanges(editorMgr, renderer, authorizer)))
 	mux.Handle("POST /config/delete/", mutationWrap(HandleConfigDeleteWithAuthorizer(editorMgr, authorizer)))
 	mux.Handle("/config/diff", authWrap(webGoldenDiffHandler(renderer, editorMgr)))
 	mux.Handle("/config/diff-close", authWrap(webGoldenDiffCloseHandler(renderer)))
@@ -650,7 +656,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 		t.Fatalf("create the capture session: %v", err)
 	}
 
-	return &webGoldenEnv{mux: mux, session: session.Token}
+	return &webGoldenEnv{mux: mux, handler: SecurityHeaders(mux), session: session.Token}
 }
 
 // webGoldenRequest builds one case's request.
@@ -706,7 +712,7 @@ func webGoldenServe(t *testing.T, c webHandlerCase) []byte {
 	env := newWebGoldenEnv(t, c.ReadOnly)
 
 	rec := httptest.NewRecorder()
-	env.mux.ServeHTTP(rec, webGoldenRequest(t, env, c))
+	env.handler.ServeHTTP(rec, webGoldenRequest(t, env, c))
 
 	// addSecurityHeaders puts the build's version header on every authenticated
 	// response. The rewrite that drops it therefore belongs to every case, not

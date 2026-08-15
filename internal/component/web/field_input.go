@@ -27,22 +27,30 @@ type fieldInputBuilder func(FieldMeta) templ.Component
 // The literal is the registration. Go refuses a duplicate key in a map literal.
 // Two editors claiming one type is therefore a build failure, not an init-order
 // race over which one renders.
+// Every key here is a string valueTypeToFieldType (fragment.go) can answer, or
+// the "enum" buildFieldMeta writes over it. A key no producer emits is an
+// editor no leaf can reach, which is the defect this registry replaced rather
+// than a spare slot.
 var fieldInputs = map[string]fieldInputBuilder{
 	"bool":   inputBool,
 	"enum":   inputEnum,
-	"number": inputNumber,
-	"text":   inputText,
+	"uint16": inputNumber,
+	"uint32": inputNumber,
+	"int":    inputNumber,
 }
 
-// fieldInputFor resolves a leaf's editor. A type with no editor of its own gets
-// the text editor. Seven of the nine types a leaf can carry reach it: string,
-// uint16, uint32, int, ip, prefix and duration. None of them shows a range or a
-// mask in the browser.
+// fieldInputFor resolves a leaf's editor. A type with no editor of its own
+// gets the text editor. Four types reach it: string, ip, prefix and duration.
+// None of them has a range to show.
 //
-// The number editor is registered and no leaf reaches it, because
-// valueTypeToFieldType (fragment.go) answers uint16, uint32 or int for a
-// numeric leaf. The pre-port template lookup missed input_number for the same
-// reason. Recorded in plan/journal/unwired-feature.md.
+// The three integer types reach inputNumber. It renders the min and the max
+// buildFieldMeta computes from the YANG range.
+//
+// They used to reach inputText. The registry keyed the number editor as
+// "number", and no leaf carries that string. The pre-port template lookup built
+// its name the same way. It missed input_number for the same reason, so the
+// port kept the behavior rather than the intent. Recorded in
+// plan/journal/unwired-feature.md.
 func fieldInputFor(f FieldMeta) templ.Component {
 	if build, ok := fieldInputs[f.GetType()]; ok {
 		return build(f)

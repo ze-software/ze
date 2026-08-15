@@ -1,7 +1,6 @@
 package web
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -94,54 +93,78 @@ func buildTestSchemaAndTree() (*config.Schema, *config.Tree) {
 }
 
 // TestConfigViewComponentResolvesEachKind verifies that each NodeKind reaches
-// the component that renders it. The two kinds with no component of their own
-// are reported rather than guessed at.
+// the component that renders it, and that the data the schema walk filled shows
+// up in the markup.
 //
 // VALIDATES: AC-2 (container), AC-3 (list), AC-21 (flex), AC-22 (freeform),
 // AC-23 (inline list). The dispatch is a switch over the kind, so a kind that
 // falls to the wrong branch renders the wrong page.
 // PREVENTS: the string lookup this replaced. Two of its six names could not
 // render at all and the config editor answered both with a blank panel
-// (plan/journal/silent-fall-through.md). The nil rows below pin that state, so
-// the fix pass has to change this test to change the behavior.
+// (plan/journal/silent-fall-through.md). config.NodeLeaf and config.NodeFlex
+// render through configContainer, which reads the LeafFields and the Children
+// buildConfigViewData (handler_config_walk.go) fills for exactly those two.
+//
+// Each row asserts a VALUE as well as the layout class. A component that
+// resolves and then renders an empty frame is the same blank panel with a
+// wrapper on it. The class on its own would call that fixed.
 func TestConfigViewComponentResolvesEachKind(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	view := &ConfigViewData{CurrentPath: "bgp"}
-
 	tests := []struct {
-		name    string
-		kind    config.NodeKind
-		want    string
-		resolve bool
+		name     string
+		kind     config.NodeKind
+		view     *ConfigViewData
+		want     string
+		wantData string
 	}{
-		{name: "container renders the container view", kind: config.NodeContainer, want: "config-container", resolve: true},
-		{name: "list renders the list view", kind: config.NodeList, want: "config-list-layout", resolve: true},
-		{name: "freeform renders the freeform view", kind: config.NodeFreeform, want: "config-freeform", resolve: true},
-		{name: "inline list renders the inline list view", kind: config.NodeInlineList, want: "config-list-layout", resolve: true},
-		{name: "leaf has no view component", kind: config.NodeLeaf},
-		{name: "flex has no view component", kind: config.NodeFlex},
+		{name: "container renders the container view", kind: config.NodeContainer,
+			view: &ConfigViewData{CurrentPath: "bgp", Children: []ChildEntry{
+				{Name: "peer", Kind: "list", URL: "/show/bgp/peer/"},
+			}},
+			want: "config-container", wantData: "peer"},
+		{name: "list renders the list view", kind: config.NodeList,
+			view: &ConfigViewData{CurrentPath: "bgp/peer", Keys: []string{"london"}, BasePath: "/show/bgp/peer/"},
+			want: "config-list-layout", wantData: "london"},
+		{name: "freeform renders the freeform view", kind: config.NodeFreeform,
+			view: &ConfigViewData{CurrentPath: "system/banner", Entries: []string{"hello"}},
+			want: "config-freeform", wantData: "hello"},
+		{name: "inline list renders the inline list view", kind: config.NodeInlineList,
+			view: &ConfigViewData{CurrentPath: "bgp/family", Keys: []string{"ipv4 unicast"}},
+			want: "config-list-layout", wantData: "ipv4 unicast"},
+		{name: "leaf renders its own field", kind: config.NodeLeaf,
+			view: &ConfigViewData{CurrentPath: "bgp/router-id", LeafFields: []LeafField{
+				{Name: "router-id", InputType: "text", Value: "1.2.3.4"},
+			}},
+			want: "config-container", wantData: "1.2.3.4"},
+		{name: "flex renders its fields and its children", kind: config.NodeFlex,
+			view: &ConfigViewData{CurrentPath: "bgp/graceful-restart",
+				LeafFields: []LeafField{{Name: "restart-time", InputType: "text", Value: "120"}},
+				Children: []ChildEntry{
+					{Name: "notification", Kind: "container", URL: "/show/bgp/graceful-restart/notification/"},
+				}},
+			want: "config-container", wantData: "120"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := configViewComponent(tt.kind, view)
+			require.NotNil(t, configViewComponent(tt.kind, tt.view),
+				"every node kind must resolve to a component")
 
-			if !tt.resolve {
-				assert.Nil(t, got)
-				assert.Empty(t, string(renderConfigContent(renderer, &ConfigViewData{NodeKind: tt.kind})))
+			tt.view.NodeKind = tt.kind
 
-				return
-			}
-
-			require.NotNil(t, got)
-
-			var buf bytes.Buffer
-			require.NoError(t, got.Render(context.Background(), &buf))
-			assert.Contains(t, buf.String(), tt.want)
+			html := string(renderConfigContent(renderer, tt.view))
+			require.NotEmpty(t, html, "node kind %q must render markup", tt.name)
+			assert.Contains(t, html, tt.want)
+			assert.Contains(t, html, tt.wantData, "the view must show the data the walk filled")
 		})
 	}
+
+	// A kind outside the switch reaches the container view rather than nothing,
+	// so a node kind added later cannot render a blank panel unnoticed.
+	beyond := config.NodeKind(int(config.NodeInlineList) + 1)
+	assert.NotNil(t, configViewComponent(beyond, &ConfigViewData{CurrentPath: "bgp"}))
 }
 
 // TestBuildBreadcrumbs verifies that URL path segments are converted into
@@ -1443,4 +1466,85 @@ func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
 	value, ok := sys.Get("host")
 	require.True(t, ok)
 	assert.Equal(t, "web-host-1", value)
+}
+
+// TestConfigFormKeepsASecretTheOperatorDidNotTouch verifies the two halves of
+// the secret-masking pair: the form renders a placeholder, and posting that
+// placeholder back changes nothing.
+// VALIDATES: a save that leaves a password field alone leaves the stored value
+// alone, and neither writes the placeholder nor deletes the leaf.
+// PREVENTS: two failures at once. The stored secret used to reach the browser
+// in the page source. Masking it alone would then have destroyed it.
+// parseConfigFormFields reads an empty value as a delete, and it would have
+// written the placeholder text as the new value.
+//
+// The leaf is environment/api-server/token, which ze-api-conf.yang marks
+// ze:sensitive. The display half is the schema's decision. Over a leaf the
+// schema says nothing about, this would prove only that a test can hand a
+// component a string.
+//
+// test-relax: the render half built a WorkbenchFormData by hand over a plain
+// system leaf and asserted the component masked it. The component no longer
+// decides that, and the leaf was never a secret. Both halves now run over a
+// real sensitive leaf, through the page that renders it.
+func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
+	const storedSecret = "api-bearer-59f2c1"
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(""), 0o600))
+
+	store := storage.NewFilesystem()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
+
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	handler := HandleConfigFormWithAuthorizer(mgr, schema, renderer, nil)
+
+	// Store the secret through the same form the operator uses.
+	first := postConfigRequest(t, "/config/form/environment/api-server/", url.Values{
+		"field:token": {storedSecret},
+	}, "alice")
+	first.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, first)
+	require.Equal(t, http.StatusOK, rec.Code, "first save: %s", rec.Body.String())
+
+	stored := getConfigValue(mgr.Tree("alice"), "environment/api-server/token")
+	require.Equal(t, storedSecret, stored, "the first save must store the value")
+
+	// The page the operator now reads carries the placeholder, not the secret.
+	page := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	content, handled := renderPageContent(renderer, page, []string{segAPI}, mgr.Tree("alice"), schema, nil, nil, nil)
+	require.True(t, handled, "the workbench must serve the API page")
+	require.NotContains(t, string(content), storedSecret, "the secret must not reach the browser")
+	require.Contains(t, string(content), config.SecretDataPlaceholder)
+
+	// Saving the form back untouched posts the placeholder. The secret survives.
+	second := postConfigRequest(t, "/config/form/environment/api-server/", url.Values{
+		"field:token": {config.SecretDataPlaceholder},
+	}, "alice")
+	second.Header.Set("HX-Request", "true")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, second)
+	require.Equal(t, http.StatusOK, rec.Code, "second save: %s", rec.Body.String())
+
+	after := mgr.Tree("alice")
+	assert.Equal(t, storedSecret, getConfigValue(after, "environment/api-server/token"),
+		"an untouched secret field must leave the stored value alone")
+
+	// Clearing the field is still a delete. The mask reads as "not touched"
+	// and nothing else, so it must not swallow the one edit that empties a leaf.
+	third := postConfigRequest(t, "/config/form/environment/api-server/", url.Values{
+		"field:token": {""},
+	}, "alice")
+	third.Header.Set("HX-Request", "true")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, third)
+	require.Equal(t, http.StatusOK, rec.Code, "third save: %s", rec.Body.String())
+	assert.Empty(t, getConfigValue(mgr.Tree("alice"), "environment/api-server/token"),
+		"an emptied secret field must delete the leaf")
 }

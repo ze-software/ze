@@ -29,7 +29,7 @@ templ leafInput(f LeafField) {
 					}
 					title={ f.Description }
 				>
-			case "select":
+			case leafInputSelect:
 				<select
 					class={ leafSelectClass(f.IsConfigured) }
 					id={ "field-" + f.Name }

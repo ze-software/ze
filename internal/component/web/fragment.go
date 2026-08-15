@@ -445,15 +445,12 @@ func populateFragmentFields(data *FragmentData, provider childLister, subtree *c
 
 // buildFieldMeta creates a FieldMeta from a LeafNode with full YANG metadata.
 func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, parentPath string) FieldMeta {
-	// Never prefill the form input with a stored ze:bcrypt hash: mask it for
-	// display. A resubmitted placeholder is filtered on the write path.
-	if leaf.Bcrypt && value != "" {
-		value = config.SecretDataPlaceholder
-	}
 	meta := FieldMeta{
-		Leaf:          name,
-		Path:          parentPath,
-		Value:         value,
+		Leaf: name,
+		Path: parentPath,
+		// Never prefill the input with a stored secret (secret.go). A
+		// resubmitted placeholder is filtered on the write path.
+		Value:         maskSecretLeaf(leaf, value),
 		Default:       leaf.Default,
 		Description:   leaf.Description,
 		DecoratorName: leaf.Decorate,
@@ -832,7 +829,9 @@ func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, l
 			}
 			cellPath := tb.String()
 			row.Cells = append(row.Cells, ListTableCell{
-				Value:       resolveNestedValue(entryTree, field),
+				// A unique column can name a secret leaf. The cell is an
+				// editable input, so it carries the value (secret.go).
+				Value:       maskSecretLeaf(resolveListLeaf(listNode, field), resolveNestedValue(entryTree, field)),
 				Leaf:        leaf,
 				Path:        cellPath,
 				Placeholder: resolveLeafDescription(listNode, field),
@@ -855,49 +854,56 @@ func splitFieldPath(field string) (leaf, parentSuffix string) {
 	return field[idx+1:], field[:idx]
 }
 
-// resolveLeafDescription walks the YANG list schema to find the description of a unique field leaf.
-// field is a slash-separated path like "remote/ip".
-func resolveLeafDescription(listNode *config.ListNode, field string) string {
+// resolveListField walks the YANG list schema to the node one field path names.
+// field is a slash-separated path like "remote/ip". It answers nil when the
+// path names nothing.
+//
+// A list's unique, required and suggest fields are all spelled this way.
+// Three callers need a different property of the same node. They read its
+// description, its value type, and whether it holds a secret.
+func resolveListField(listNode *config.ListNode, field string) config.Node {
 	parts := strings.Split(field, "/")
+
 	var current schemaGetter = listNode
+
 	for i, part := range parts {
 		child := current.Get(part)
 		if child == nil {
-			return ""
+			return nil
 		}
 		if i == len(parts)-1 {
-			return nodeDescription(child)
+			return child
 		}
-		if next, ok := child.(schemaGetter); ok {
-			current = next
-		} else {
-			return ""
+
+		next, ok := child.(schemaGetter)
+		if !ok {
+			return nil
 		}
+		current = next
 	}
-	return ""
+
+	return nil
 }
 
-// resolveLeafType walks the YANG list schema to find the ValueType of a unique field leaf.
+// resolveListLeaf answers the LeafNode one field path names, or nil when the
+// path names a node that is not a leaf.
+func resolveListLeaf(listNode *config.ListNode, field string) *config.LeafNode {
+	leaf, _ := resolveListField(listNode, field).(*config.LeafNode)
+
+	return leaf
+}
+
+// resolveLeafDescription answers the description of a unique field leaf.
+func resolveLeafDescription(listNode *config.ListNode, field string) string {
+	return nodeDescription(resolveListField(listNode, field))
+}
+
+// resolveLeafType answers the ValueType of a unique field leaf.
 func resolveLeafType(listNode *config.ListNode, field string) config.ValueType {
-	parts := strings.Split(field, "/")
-	var current schemaGetter = listNode
-	for i, part := range parts {
-		child := current.Get(part)
-		if child == nil {
-			return config.TypeString
-		}
-		if i == len(parts)-1 {
-			if leaf, ok := child.(*config.LeafNode); ok {
-				return leaf.Type
-			}
-			return config.TypeString
-		}
-		if next, ok := child.(schemaGetter); ok {
-			current = next
-		} else {
-			return config.TypeString
-		}
+	if leaf := resolveListLeaf(listNode, field); leaf != nil {
+		return leaf.Type
 	}
+
 	return config.TypeString
 }
 

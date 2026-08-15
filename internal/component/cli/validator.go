@@ -163,9 +163,10 @@ func (v *ConfigValidator) validateCore(content string) (ConfigValidationResult, 
 		})
 	}
 
-	// Fail closed on a masked bcrypt leaf: the display placeholder must never be
-	// accepted as a real hash on commit.
-	if maskErr := config.RejectMaskedBcryptLeaves(tree, v.schema); maskErr != nil {
+	// Fail closed on a masked secret leaf: the display placeholder must never be
+	// accepted as a real value on commit. The guard reads config.LeafHoldsSecret,
+	// so it covers a ze:sensitive leaf as well as a ze:bcrypt one.
+	if maskErr := config.RejectMaskedSecretLeaves(tree, v.schema); maskErr != nil {
 		result.Errors = append(result.Errors, ConfigValidationError{
 			Message:  maskErr.Error(),
 			Severity: severityError,

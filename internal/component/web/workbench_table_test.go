@@ -147,3 +147,53 @@ func TestRenderWorkbenchTable_FlagColors(t *testing.T) {
 	r4Section := html[r4Idx:min(r4Idx+200, len(html))]
 	assert.Contains(t, r4Section, `class="wb-table-flag"`, "empty flag class should have no modifier")
 }
+
+// TestWorkbenchTableEmptyRowSpansEveryColumn verifies the empty-state cell spans
+// the flag column, every data column, and the action column.
+// VALIDATES: colspan counts the columns the header actually drew.
+// PREVENTS: colspan="0". HTML gives colspan a minimum of 1, and a browser reads
+// 0 as "to the end of the column group", so the empty message sat under the flag
+// column instead of across the table.
+func TestWorkbenchTableEmptyRowSpansEveryColumn(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	// The count is derived, so two column counts discriminate: a fixed number
+	// would pass one case and fail the other.
+	for _, tc := range []struct {
+		name    string
+		columns []WorkbenchTableColumn
+		want    string
+	}{
+		{
+			name:    "three-columns",
+			columns: []WorkbenchTableColumn{{Label: "Name"}, {Label: "State"}, {Label: "Uptime"}},
+			want:    `colspan="5"`,
+		},
+		{
+			name:    "one-column",
+			columns: []WorkbenchTableColumn{{Label: "Name"}},
+			want:    `colspan="3"`,
+		},
+		{
+			name:    "no-columns",
+			columns: nil,
+			want:    `colspan="2"`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := WorkbenchTableData{
+				Title:        "BGP Peers",
+				Columns:      tc.columns,
+				EmptyMessage: "No peers configured",
+			}
+
+			html := string(renderer.renderComponent("workbench_table", workbenchTable(data)))
+			require.NotEmpty(t, html, "table fragment must render")
+
+			assert.Contains(t, html, tc.want, "the empty cell must span every column the header drew")
+			assert.NotContains(t, html, `colspan="0"`, "colspan has a minimum of 1")
+			assert.Contains(t, html, "No peers configured")
+		})
+	}
+}

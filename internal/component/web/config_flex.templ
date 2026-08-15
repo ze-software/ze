@@ -3,12 +3,13 @@ package web
 // configFlex is the config view of a YANG flex node. A flex node is a flag, a
 // single value, or a block, and the shape of its data decides which.
 //
-// NO LIVE PATH REACHES THIS. configViewComponent (handler_config_leaf.go)
-// answers nothing for config.NodeFlex, because the caller passes a
-// ConfigViewData and this markup reads Name, Value and LeafField, which that
-// type does not carry. The defect is recorded in
-// plan/journal/silent-fall-through.md and is not fixed here: the port lands the
-// markup, byte for byte, so the fix pass has it.
+// NO LIVE PATH REACHES THIS. A flex node renders through configContainer:
+// buildConfigViewData (handler_config_walk.go) calls populateContainerView for
+// one, which fills the Children and LeafFields that component reads. This
+// markup reads Name, Value and LeafField off a configFlexData, and no producer
+// builds that value. The blank flex panel it used to cause is fixed in
+// configViewComponent (handler_config_leaf.go); the orphan markup itself is
+// phase 5 of plan/spec-web-templ-migration.md.
 templ configFlex(v configFlexData) {
 	<div class="config-flex">
 		if len(v.Children) == 0 && v.Value == "" {

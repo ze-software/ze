@@ -30,22 +30,24 @@ func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 	return crumbs
 }
 
+// leafInputSelect is the LeafField.InputType of an enum leaf. The editor
+// component switches on it and buildLeafField writes it, so both read one name.
+const leafInputSelect = "select"
+
 // buildLeafField maps a LeafNode to an HTML input field description.
 func buildLeafField(name string, leaf *config.LeafNode, value string, configured bool) LeafField {
 	info := leafInputType(leaf.Type)
 	info.Name = name
-	// Never prefill the form input with a stored ze:bcrypt hash: mask it. A new
-	// password is set via the plaintext-<name> sibling; a resubmitted placeholder
-	// is filtered on the write path (EditorManager.SetValue).
-	if leaf.Bcrypt && value != "" {
-		value = config.SecretDataPlaceholder
-	}
-	info.Value = value
+	// Never prefill the form input with a stored secret (secret.go). A new
+	// bcrypt password is set through the plaintext-<name> sibling. A
+	// resubmitted placeholder is filtered on the write path
+	// (EditorManager.SetValue).
+	info.Value = maskSecretLeaf(leaf, value)
 	info.Default = leaf.Default
 	info.IsConfigured = configured
 	info.Description = leaf.Description
 	if len(leaf.Enums) > 0 {
-		info.InputType = "select"
+		info.InputType = leafInputSelect
 		info.Options = leaf.Enums
 	}
 
@@ -105,19 +107,15 @@ func leafInputType(vt config.ValueType) LeafField {
 
 // configViewComponent resolves the component that renders one config node.
 //
-// This replaced a lookup by template name. The renderer held a map keyed on
-// that name. A name it did not hold rendered nothing. Two of the six names this
-// function used to answer reach no markup, and the config editor answers both
-// with a blank panel:
+// EVERY node kind reaches markup. Two used to reach none. config.NodeLeaf
+// named a template the renderer did not hold. config.NodeFlex named one whose
+// markup read fields the caller never filled. Both rendered a blank panel. For
+// a config editor that means the operator cannot read the configuration.
 //
-//   - config.NodeLeaf named leaf.html, which is in neither the embedded tree
-//     nor the parsed set.
-//   - config.NodeFlex named flex.html, whose markup reads Name, Value and
-//     LeafField. The caller passes a ConfigViewData, which carries none.
-//
-// Both are recorded in plan/journal/silent-fall-through.md and neither is fixed
-// here: this phase ports markup and changes no rendered byte. They answer nil,
-// which renderConfigContent reports at debug rather than swallowing.
+// Both are answered by configContainer, and neither needs markup of its own.
+// buildConfigViewData (handler_config_walk.go) fills LeafFields for a leaf, and
+// calls populateContainerView for a flex node, which fills Children and
+// LeafFields. configContainer renders exactly those two.
 func configViewComponent(kind config.NodeKind, v *ConfigViewData) templ.Component {
 	switch kind {
 	case config.NodeList:
@@ -126,27 +124,23 @@ func configViewComponent(kind config.NodeKind, v *ConfigViewData) templ.Componen
 		return configFreeform(v)
 	case config.NodeInlineList:
 		return configInlineList(v)
-	case config.NodeLeaf, config.NodeFlex:
-		return nil
-	case config.NodeContainer:
+	case config.NodeContainer, config.NodeLeaf, config.NodeFlex:
 		return configContainer(v)
 	}
 
 	return configContainer(v)
 }
 
-// renderConfigContent renders the config view of one node. A node kind with no
-// component of its own yields empty markup, which is what the operator saw
-// before the port. It says so in the log.
+// renderConfigContent renders the config view of one node.
 //
-// AT DEBUG, because a leaf is a routine view. Two of the six node kinds reach
-// no markup. A warning here is one line for each such view, on a path an
-// operator walks all day. The defect belongs to
-// plan/journal/silent-fall-through.md, and a log level cannot fix it.
+// The nil branch is unreachable today: configViewComponent answers a component
+// for every node kind. It stays because a node kind added without a case would
+// otherwise render an empty panel with nothing said about it, which is the
+// defect this function used to carry for two of the six kinds.
 func renderConfigContent(renderer *Renderer, v *ConfigViewData) template.HTML {
 	component := configViewComponent(v.NodeKind, v)
 	if component == nil {
-		serverLogger.Debug("config node kind has no view component",
+		serverLogger.Warn("config node kind has no view component",
 			"kind", nodeKindString(v.NodeKind), "path", v.CurrentPath)
 
 		return ""

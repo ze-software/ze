@@ -77,7 +77,7 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	// Both run AFTER the validators, so they judge the tree the operator wrote,
 	// and BEFORE plugin extraction and everything downstream that reads a
 	// credential.
-	if err := RejectMaskedBcryptLeaves(tree, schema); err != nil {
+	if err := RejectMaskedSecretLeaves(tree, schema); err != nil {
 		return nil, err
 	}
 

@@ -998,7 +998,7 @@ func (e *Editor) commitContent() (string, error) {
 	// Hash any plaintext-password siblings of ze:bcrypt leaves before
 	// serialization. Mirrors the commit-time hashing done in CommitSession.
 	if e.treeValid && e.tree != nil && e.schema != nil {
-		if err := config.RejectMaskedBcryptLeaves(e.tree, e.schema); err != nil {
+		if err := config.RejectMaskedSecretLeaves(e.tree, e.schema); err != nil {
 			return "", err
 		}
 		if _, err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {

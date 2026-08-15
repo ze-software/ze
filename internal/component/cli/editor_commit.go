@@ -144,9 +144,10 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("backup: %w", err)
 	}
 
-	// Fail closed if a ze:bcrypt leaf holds the display placeholder: a masked
-	// `show config` pasted back must never clobber the stored hash.
-	if err := config.RejectMaskedBcryptLeaves(committedTree, e.schema); err != nil {
+	// Fail closed if a secret leaf holds the display placeholder: a masked
+	// `show config` pasted back must never clobber the stored secret. The guard
+	// reads config.LeafHoldsSecret, so ze:sensitive counts as well as ze:bcrypt.
+	if err := config.RejectMaskedSecretLeaves(committedTree, e.schema); err != nil {
 		return nil, err
 	}
 
@@ -315,7 +316,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 		}
 	}
 
-	if err := config.RejectMaskedBcryptLeaves(committedTree, e.schema); err != nil {
+	if err := config.RejectMaskedSecretLeaves(committedTree, e.schema); err != nil {
 		return nil, "", err
 	}
 	if _, err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {

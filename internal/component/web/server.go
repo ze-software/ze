@@ -1,4 +1,6 @@
 // Design: docs/architecture/web-interface.md -- Web server infrastructure
+// Related: doctor.go -- the doctor check over this listener's TLS material
+// Related: auth.go -- SecurityHeaders, the wrapper this server puts over its mux
 
 // Package web provides the HTTPS web interface for ze.
 //
@@ -133,8 +135,11 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 		server: &http.Server{
 			// Addr is informational; a multi-listener server binds via Serve(ln)
 			// and does not use Server.Addr for ListenAndServe.
-			Addr:      configured[0],
-			Handler:   mux,
+			Addr: configured[0],
+			// Every response carries the security headers, whatever route
+			// served it. Setting them per handler left the root redirect, the
+			// favicon and every asset with none.
+			Handler:   SecurityHeaders(mux),
 			TLSConfig: tlsCfg,
 			// Timeouts prevent slow clients from holding connections indefinitely.
 			ReadHeaderTimeout: 10 * time.Second,

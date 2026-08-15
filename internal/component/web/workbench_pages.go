@@ -25,14 +25,34 @@ const (
 // content. Returns the rendered HTML and true if the path was handled, or
 // empty HTML and false if the path should fall through to the generic YANG
 // detail view.
+//
+// Every page below reads its own values out of the tree by path. The leaf the
+// schema marks secret is unidentifiable by the time a value reaches a field.
+// The tree they read is masked instead (secret.go), and display() is the only
+// way a page below receives one. No branch passes viewTree, which is the raw
+// working tree, and TestWorkbenchPagesReceiveOnlyTheMaskedTree reads this
+// function's source to keep that true.
+//
+// The mask deep-copies the configuration, so display() computes it at most once
+// and only for a branch that reads config. A tools, logs, firewall or VPN page
+// reads none, and neither does the fall-through to the generic YANG view, which
+// masks per leaf.
 func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema, dispatch CommandDispatcher, broker *EventBroker, powerUsers []string) (template.HTML, bool) {
 	if len(path) == 0 {
 		return "", false
 	}
 
+	var masked *config.Tree
+	display := func() *config.Tree {
+		if masked == nil {
+			masked = config.MaskSecrets(viewTree, schema)
+		}
+		return masked
+	}
+
 	switch path[0] {
 	case "iface":
-		return handleInterfacesPage(renderer, r, path[1:], viewTree), true
+		return handleInterfacesPage(renderer, r, path[1:], display()), true
 	case "ip":
 		if len(path) < 2 {
 			return "", false
@@ -43,20 +63,20 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 		case "routes":
 			return HandleRoutesPage(renderer, r), true
 		case "dns":
-			return handleDNSPage(renderer, viewTree), true
+			return handleDNSPage(renderer, display()), true
 		}
 	case segBGP:
-		return renderBGPPageContent(renderer, r, path[1:], viewTree, schema, dispatch)
+		return renderBGPPageContent(renderer, r, path[1:], display(), schema, dispatch)
 	case segFirewall:
 		return renderFirewallPageContent(renderer, r, path[1:])
 	case segSystem:
-		return renderSystemPageContent(renderer, path[1:], viewTree)
+		return renderSystemPageContent(renderer, path[1:], display())
 	case "users":
-		return handleUsersPage(renderer, viewTree, powerUsers), true
+		return handleUsersPage(renderer, display(), powerUsers), true
 	case segL2TP:
-		return renderL2TPPageContent(renderer, path[1:], viewTree)
+		return renderL2TPPageContent(renderer, path[1:], display())
 	case segSSH, segWeb, segTelemetry, segTACACS, segMCP, segLG, segAPI:
-		return renderServicePageContent(renderer, path[0], viewTree)
+		return renderServicePageContent(renderer, path[0], display())
 	case "vpn":
 		return renderVPNPageContent(renderer, r, path[1:])
 	case segTools:
@@ -64,7 +84,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 	case segLogs:
 		return renderLogPageContent(renderer, r, path[1:], dispatch, broker)
 	case segHealth:
-		return handleDashboardHealthPage(renderer, viewTree, r, dispatch), true
+		return handleDashboardHealthPage(renderer, display(), r, dispatch), true
 	case segEvents:
 		return handleDashboardEventsPage(renderer, r, dispatch), true
 	}

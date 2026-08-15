@@ -126,13 +126,14 @@ func (m *EditorManager) CreateEntry(username string, path []string) error {
 
 // SetValue sets a leaf value at the given path in the user's working tree.
 func (m *EditorManager) SetValue(username string, path []string, key, value string) error {
-	// Never write the display placeholder back onto a ze:bcrypt leaf: the web
-	// form prefills a masked hash with SecretDataPlaceholder, so submitting a
-	// bcrypt field unchanged must be a no-op, not a clobber of the stored hash.
-	// A new password is set through the plaintext-<name> sibling instead. The
-	// commit-time guard (config.RejectMaskedBcryptLeaves) is the backstop.
+	// Never write the display placeholder back onto a secret leaf: the web form
+	// prefills one with SecretDataPlaceholder (secret.go), so submitting the
+	// field unchanged must be a no-op, not a clobber of the stored value. A new
+	// bcrypt password is set through the plaintext-<name> sibling instead. The
+	// commit-time guard (config.RejectMaskedSecretLeaves) is the backstop, and
+	// it covers every secret leaf this one does.
 	if value == config.SecretDataPlaceholder && m.schema != nil {
-		if leaf := findLeafNode(m.schema, path, key); leaf != nil && leaf.Bcrypt {
+		if config.LeafHoldsSecret(findLeafNode(m.schema, path, key)) {
 			return nil
 		}
 	}
@@ -296,9 +297,15 @@ func (m *EditorManager) Discard(username string) error {
 	return nil
 }
 
-// Diff returns a textual diff of the user's pending changes.
-// For session-based editing, formats the change entries as a readable diff.
+// Diff returns a textual diff of the user's pending changes, with every secret
+// value masked. It is the ONE diff the web renders: the commit page, the review
+// modal, the audit detail and the terminal all read it.
 // Returns an empty string if no session exists or no changes are pending.
+//
+// The editor's own text diff is NOT used. That one compares serialized config
+// content, so it carries the stored value of every ze:sensitive leaf, and no
+// leaf identity survives in it to mask by. Every editor this manager creates is
+// given a session (GetOrCreate), and a session change names the leaf it edited.
 func (m *EditorManager) Diff(username string) (string, error) {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
@@ -311,12 +318,6 @@ func (m *EditorManager) Diff(username string) (string, error) {
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	// Try text diff first (non-session mode).
-	if d := us.editor.Diff(); d != "" {
-		return d, nil
-	}
-
-	// Session mode: build diff from tracked changes.
 	sid := us.editor.SessionID()
 	if sid == "" {
 		return "", nil
@@ -327,44 +328,60 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		return "", nil
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	for _, change := range changes {
+		previous := m.maskChangeValue(change.Path, change.Previous)
+		value := m.maskChangeValue(change.Path, change.Value)
+
 		switch change.Kind {
 		case contract.PendingChangeRename:
-			fmt.Fprintf(&b, "~ rename %s to %s\n", change.OldPath, change.NewPath) //nolint:errcheck // buffer output
+			b.Str("~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
 		case contract.PendingChangeDelete:
-			b.WriteString("- ")
-			b.WriteString(change.Path)
-			b.WriteString(" ")
+			b.Str("- ").Str(change.Path).Byte(' ')
 			if change.Member != "" {
-				b.WriteString(change.Member)
+				b.Str(change.Member)
 			} else {
-				b.WriteString(change.Previous)
+				b.Str(previous)
 			}
-			b.WriteString("\n")
+			b.Byte('\n')
 		case contract.PendingChangeDeactivate:
 			writeMemberDiffLine(&b, "~ deactivate ", change)
 		case contract.PendingChangeActivate:
 			writeMemberDiffLine(&b, "~ activate ", change)
 		default:
 			if change.Previous != "" {
-				fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", change.Path, change.Previous, change.Path, change.Value) //nolint:errcheck // buffer output
-			} else {
-				fmt.Fprintf(&b, "+ %s %s\n", change.Path, change.Value) //nolint:errcheck // buffer output
+				b.Str("- ").Str(change.Path).Byte(' ').Str(previous).Byte('\n')
 			}
+			b.Str("+ ").Str(change.Path).Byte(' ').Str(value).Byte('\n')
 		}
 	}
 	return b.String(), nil
 }
 
+// maskChangeValue answers the value one pending change renders. The change
+// names the leaf it edited, so the schema decides, exactly as it does for a
+// rendered field (secret.go). Without it a commit review publishes the secret
+// the operator replaced, and the new one beside it.
+//
+// A leaf-list member needs no mask: ValueOrArrayNode carries neither
+// ze:sensitive nor ze:bcrypt, so the schema cannot mark one as a secret.
+func (m *EditorManager) maskChangeValue(path, value string) string {
+	if value == "" || m.schema == nil {
+		return value
+	}
+
+	segments := strings.Fields(path)
+	if len(segments) == 0 {
+		return value
+	}
+
+	return maskSecretLeaf(findLeafNode(m.schema, segments[:len(segments)-1], segments[len(segments)-1]), value)
+}
+
 // writeMemberDiffLine writes a "<verb> <path> <member>" diff line for a
 // leaf-list member deactivation or activation.
-func writeMemberDiffLine(b *strings.Builder, verb string, change contract.PendingChange) {
-	b.WriteString(verb)
-	b.WriteString(change.Path)
-	b.WriteString(" ")
-	b.WriteString(change.Member)
-	b.WriteString("\n")
+func writeMemberDiffLine(b *textbuf.Buffer, verb string, change contract.PendingChange) {
+	b.Str(verb).Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
 }
 
 // pendingChangePaths returns the YANG paths of every pending change in the
@@ -457,10 +474,14 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 }
 
 // ContentAtPath returns the serialized config content at the given context path
-// for the user's working tree, with ze:bcrypt leaves masked for display.
-// Returns an empty string if no session exists. This is a DISPLAY path (the web
-// CLI-bar `show` verb), so it uses the masked DisplayContentAtPath: the raw hash
-// must never reach the browser, and this route is not edit-authz gated.
+// for the user's working tree, with every secret leaf masked for display.
+// Returns an empty string if no session exists.
+//
+// This is a DISPLAY path (the web CLI-bar `show` verb) and it is not edit-authz
+// gated, so no secret MUST reach it. It serializes the tree here rather than
+// through the editor's DisplayContentAtPath, which masks the ze:bcrypt half
+// alone and published every ze:sensitive leaf. A session with no tree to mask
+// gets nothing, which is the fail-closed answer.
 func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
@@ -473,7 +494,24 @@ func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.DisplayContentAtPath(path)
+	tree, _ := us.editor.Tree().(*config.Tree)
+	if tree == nil || m.schema == nil {
+		// Fail closed. Without a tree and a schema nothing decides which leaf
+		// holds a secret, so this path answers nothing. Editor.DisplayContentAtPath
+		// was the old answer, and its first branch returns e.workingContent with
+		// no mask at all (internal/component/cli/editor_mask.go). newEditor
+		// substitutes an empty tree when the config does not parse, so only
+		// another editor implementation reaches this today. The guard does not
+		// rest on that.
+		serverLogger.Warn("cli show: the session has no tree to mask, answering nothing",
+			"user", username, "schema", m.schema != nil)
+		return ""
+	}
+
+	// A path that resolves to nothing renders nothing, which is what the web CLI
+	// terminal answers for the same input. DisplayContentAtPath rendered the
+	// whole configuration there, so a mistyped path dumped every section.
+	return serializeTreeAtPath(tree, m.schema, path)
 }
 
 // CopyListEntry copies a list entry in the user's working tree.
@@ -552,22 +590,6 @@ func (m *EditorManager) Rollback(username, backupPath string) error {
 	defer us.mu.Unlock()
 
 	return us.editor.Rollback(backupPath)
-}
-
-// Compare returns the diff between original and working config.
-func (m *EditorManager) Compare(username string) string {
-	m.mu.RLock()
-	us, ok := m.sessions[username]
-	m.mu.RUnlock()
-
-	if !ok {
-		return ""
-	}
-
-	us.mu.Lock()
-	defer us.mu.Unlock()
-
-	return us.editor.Diff()
 }
 
 // DisconnectSession disconnects another editing session.

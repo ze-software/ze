@@ -2,6 +2,11 @@ package web
 
 // workbenchTable is the workbench's list view: a flag column, the data
 // columns, and a row action column.
+//
+// The toolbar add control carries addEntryContentID, the same name the Finder
+// list table reads. One document holds one content area, so one of the two
+// renders and the id stays unique.
+//
 // templ writes no whitespace between two turns of a loop. A space expression
 // ends each action, which is where the markup this replaced put a newline.
 templ workbenchTable(v WorkbenchTableData) {
@@ -15,7 +20,7 @@ templ workbenchTable(v WorkbenchTableData) {
 					<button type="button" class="wb-table-add" data-action="add-entry" data-base-url={ a.URL }>{ a.Label }</button>
 				}
 			} else if v.AddURL != "" {
-				<button type="button" class="wb-table-add" id="btn-add-entry" data-action="add-entry" data-base-url={ v.AddURL }>{ addButtonLabel(v.AddLabel) }</button>
+				<button type="button" class="wb-table-add" id={ addEntryContentID } data-action="add-entry" data-base-url={ v.AddURL }>{ addButtonLabel(v.AddLabel) }</button>
 			}
 			<div class="wb-table-toolbar-right">
 				<input type="search" class="wb-table-search" placeholder="Search..." aria-label="Search table">
@@ -59,7 +64,7 @@ templ workbenchTable(v WorkbenchTableData) {
 					}
 				} else {
 					<tr class="wb-table-empty-row">
-						<td colspan="0" class="wb-table-empty">
+						<td colspan={ wbTableEmptyColspan(v) } class="wb-table-empty">
 							<div class="wb-table-empty-content">
 								<p class="wb-table-empty-message">{ v.EmptyMessage }</p>
 								if v.EmptyHint != "" {

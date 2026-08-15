@@ -816,3 +816,103 @@ func TestWebServerReconfigureBindFails(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status, "original listener must still serve")
 	assert.Equal(t, "pong", body)
 }
+
+// TestWebServerSetsSecurityHeadersOnEveryRoute verifies the headers reach a
+// response served by a handler that never touches the authentication
+// middleware.
+//
+// VALIDATES: the four browser-facing security headers on a route registered
+// straight onto the mux, which is what "/", "GET /favicon.ico" and "/assets/"
+// are in the hub.
+// PREVENTS: the root document, the favicon and every static asset shipping with
+// no Content-Security-Policy, X-Frame-Options, X-Content-Type-Options or HSTS.
+// addSecurityHeaders was called inside AuthMiddlewareWithAudit alone, so a route
+// outside it carried none while every sibling page carried all four.
+//
+// It drives the real entry point: NewWebServer builds the handler chain, and a
+// test over SecurityHeaders alone would pass with the server still unwrapped.
+func TestWebServerSetsSecurityHeadersOnEveryRoute(t *testing.T) {
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
+	require.NoError(t, err)
+
+	srv, err := NewWebServer(WebConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		CertPEM:     certPEM,
+		KeyPEM:      keyPEM,
+	})
+	require.NoError(t, err)
+
+	// No auth wrapper: this is the shape of the asset and favicon routes.
+	srv.HandleFunc("/assets/ze.svg", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		if _, writeErr := w.Write([]byte("<svg/>")); writeErr != nil {
+			t.Logf("write: %v", writeErr)
+		}
+	})
+
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErr := srv.ListenAndServe(context.Background())
+		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			serveErrCh <- serveErr
+			return
+		}
+		close(serveErrCh)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	require.NoError(t, srv.WaitReady(readyCtx))
+
+	resp := httpsHead(t, fmt.Sprintf("https://%s/assets/ze.svg", srv.Address()))
+
+	assert.Equal(t, "DENY", resp.Get("X-Frame-Options"))
+	assert.Equal(t, "nosniff", resp.Get("X-Content-Type-Options"))
+	assert.Equal(t, "default-src 'self'; script-src 'self'; style-src 'self'",
+		resp.Get("Content-Security-Policy"))
+	assert.Equal(t, "max-age=63072000; includeSubDomains", resp.Get("Strict-Transport-Security"))
+
+	// An asset stays cacheable. no-store belongs to an authenticated page, and
+	// putting it here would refetch the stylesheet on every page load.
+	assert.Equal(t, "public, max-age=86400", resp.Get("Cache-Control"))
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer shutdownCancel()
+	require.NoError(t, srv.Shutdown(shutdownCtx))
+	require.NoError(t, <-serveErrCh)
+}
+
+// httpsHead fetches a URL over TLS and returns the response headers.
+func httpsHead(t *testing.T, url string) http.Header {
+	t.Helper()
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint:gosec // test client against self-signed cert
+			},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("body close: %v", closeErr)
+		}
+	}()
+
+	if _, readErr := io.ReadAll(resp.Body); readErr != nil {
+		t.Logf("body read: %v", readErr)
+	}
+
+	return resp.Header
+}

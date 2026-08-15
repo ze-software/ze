@@ -29,6 +29,13 @@ func canEdit(r *http.Request, authorizer aaa.Authorizer) bool {
 	return authorizer.Authorize(GetUsernameFromRequest(r), r.RemoteAddr, webCommandConfigEdit, false)
 }
 
+// saveOK builds the out-of-band commit bar one edit answers with. The
+// read-only flag comes from canEdit, the gate the page's own commit bar reads.
+// One function decides it for every producer, so no call site can forget it.
+func saveOK(r *http.Request, authorizer aaa.Authorizer, count int) saveOKData {
+	return saveOKData{ChangeCount: count, ReadOnly: !canEdit(r, authorizer)}
+}
+
 // RequireEditAuthz wraps next so only users authorized to edit configuration
 // reach it. Read-only users receive 403 with a plain message, so edit-only
 // pages (config editor, admin console) are hidden from them (AC-1). Fail-open

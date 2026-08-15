@@ -11,6 +11,10 @@ import templruntime "github.com/a-h/templ/runtime"
 // errorPanel is the collapsed error drawer every full page carries. The list
 // inside it is filled by the oob_error fragment over HTMX, so the component
 // reads nothing.
+//
+// The toggle carries data-action, which is how initActions (assets/cli.js)
+// reaches it. Without it the button had no handler at all, and the CSP forbids
+// an inline one, so the drawer could not be opened or closed by hand.
 func errorPanel() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -32,7 +36,7 @@ func errorPanel() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<aside id=\"error-panel\" class=\"error-panel collapsed\"><button class=\"error-toggle\" id=\"error-toggle\">Errors</button><div class=\"error-list\" id=\"error-list\"></div></aside>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<aside id=\"error-panel\" class=\"error-panel collapsed\"><button class=\"error-toggle\" id=\"error-toggle\" data-action=\"toggle-error-panel\">Errors</button><div class=\"error-list\" id=\"error-list\"></div></aside>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

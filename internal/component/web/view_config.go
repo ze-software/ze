@@ -139,14 +139,3 @@ func namedRouter(identity string) bool {
 // defaultRouterIdentity is the name the resolver falls back to when neither
 // system/host nor bgp/router-id is set.
 const defaultRouterIdentity = "ze"
-
-// cellAt reads one table cell, answering empty text for a row that is shorter
-// than its header. See dashboardHealth (component_dashboard_health.templ) for
-// why the read is guarded rather than indexed.
-func cellAt(cells []string, i int) string {
-	if i < 0 || i >= len(cells) {
-		return ""
-	}
-
-	return cells[i]
-}

@@ -17,7 +17,12 @@ import (
 
 // HandleConfigChanges returns a GET handler for /config/changes that returns
 // the commit bar HTML reflecting current pending change count.
-func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFunc {
+//
+// It takes the authorizer because refreshCommitBar (assets/cli.js) calls this
+// route on every page load and swaps the answer over #commit-bar. Without the
+// gate a read-only session was handed the commit and discard buttons its page
+// had withheld, one fetch after the page rendered.
+func HandleConfigChanges(mgr *EditorManager, renderer *Renderer, authorizer aaa.Authorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
 		if username == "" {
@@ -26,7 +31,7 @@ func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFun
 		}
 
 		count := mgr.ChangeCount(username)
-		html := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: count}))
+		html := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOK(r, authorizer, count)))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return
@@ -72,7 +77,7 @@ func HandleConfigCommitWithAuthorizerAndAudit(mgr *EditorManager, renderer *Rend
 			if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigCommit) {
 				return
 			}
-			handleCommitPost(w, r, mgr, renderer, username, broker, recorder)
+			handleCommitPost(w, r, mgr, renderer, username, broker, authorizer, recorder)
 			return
 		}
 
@@ -112,7 +117,12 @@ type commitModalData struct {
 
 // handleCommitPost applies pending changes and redirects or re-renders on conflict.
 // On successful commit (no conflicts), broadcasts a config-change SSE event.
-func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, recorder audit.Recorder) {
+//
+// It takes the authorizer to answer the commit bar it writes back. The caller
+// has already authorized this request for the same command canEdit reads, so
+// the read-only branch cannot fire here today. Reading the gate rather than
+// assuming it keeps the answer correct if those two commands ever differ.
+func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, authorizer aaa.Authorizer, recorder audit.Recorder) {
 	detail, _ := mgr.Diff(username)
 	result, err := mgr.Commit(username)
 	if err != nil {
@@ -192,7 +202,7 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		bar := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: 0}))
+		bar := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOK(r, authorizer, 0)))
 		if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
 			return
 		}

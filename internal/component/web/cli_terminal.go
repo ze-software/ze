@@ -25,6 +25,10 @@ import (
 const (
 	terminalOutputCommitSuccessful = "commit successful"
 	terminalOutputChangesDiscarded = "changes discarded"
+	// terminalOutputNoChanges is what compare answers when the two texts match.
+	// compareTreesAtPath reads it back, because a changed secret is invisible in
+	// the text and still owes the operator a line.
+	terminalOutputNoChanges = "(no changes)"
 )
 
 // terminalResponse is the JSON envelope returned by the terminal endpoint.
@@ -508,7 +512,15 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		var tb textbuf.Buffer
 		return nil, tb.Str("activated ").Join(cmd.Args, " ").String()
 	case verbErrors:
-		return nil, mgr.Compare(username)
+		// The masked pending-change diff, which is the one diff the web renders.
+		// The editor's text diff carried the stored value of every ze:sensitive
+		// leaf, and this verb needs no config authorization (secret.go).
+		diff, err := mgr.Diff(username)
+		if err != nil {
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
+		}
+		return nil, diff
 	case verbDisconnect:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: disconnect <session-id>"
@@ -561,7 +573,11 @@ func compareTargetAtPath(committed *config.Tree, mgr *EditorManager, username st
 }
 
 // compareTreesAtPath diffs two in-memory trees at a path.
-// baseline is the selected reference tree; working is the editor's tree.
+// baseline is the selected reference tree, working is the editor's tree.
+//
+// Both texts are masked, so a rotated secret reads as the same placeholder on
+// each side and the text diff cannot see it. changedSecretLines names those
+// paths and publishes neither value.
 func compareTreesAtPath(baseline, working *config.Tree, schema *config.Schema, path []string, format string) string {
 	if baseline == nil || working == nil || schema == nil {
 		return "(no configuration)"
@@ -572,10 +588,45 @@ func compareTreesAtPath(baseline, working *config.Tree, schema *config.Schema, p
 		baseText = serializeSetAtPath(baseline, schema, path)
 		workText = serializeSetAtPath(working, schema, path)
 	}
-	if baseText == workText {
-		return "(no changes)"
+	diff := terminalOutputNoChanges
+	if baseText != workText {
+		diff = textDiff(baseText, workText)
 	}
-	return textDiff(baseText, workText)
+	secrets := changedSecretLines(baseline, working, schema, path)
+	switch {
+	case secrets == "":
+		return diff
+	case diff == terminalOutputNoChanges:
+		return secrets
+	default:
+		return diff + secrets
+	}
+}
+
+// changedSecretLines reports one line per secret leaf whose value differs
+// between the two trees, under the compared path. Each line names the leaf and
+// stands its value in as the display placeholder, which is the shape
+// EditorManager.Diff writes for the same change. That is what the operator
+// needs, and all they get. The compare verb needs no config authorization
+// (secret.go).
+func changedSecretLines(baseline, working *config.Tree, schema *config.Schema, path []string) string {
+	var changed []string
+	if len(path) == 0 {
+		changed = config.ChangedSecretPaths(baseline, working, schema)
+	} else {
+		node, err := walkSchema(schema, path)
+		if err != nil || node == nil {
+			return ""
+		}
+		changed = config.ChangedSecretPathsSubtree(
+			walkTree(baseline, schema, path), walkTree(working, schema, path), node)
+	}
+
+	var b textbuf.Buffer
+	for _, leafPath := range changed {
+		b.Str("~ ").Str(leafPath).Byte(' ').Str(config.SecretDataPlaceholder).Str(" (secret changed)").Byte('\n')
+	}
+	return b.String()
 }
 
 func compareBaselineTree(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, target string) (*config.Tree, error) {
@@ -680,7 +731,7 @@ func textDiff(original, modified string) string {
 		mi++
 	}
 	if buf.Len() == 0 {
-		return "(no changes)"
+		return terminalOutputNoChanges
 	}
 	return buf.String()
 }
@@ -749,9 +800,11 @@ func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string
 	if tree == nil || schema == nil {
 		return ""
 	}
-	// Mask ze:bcrypt leaves for display (web CLI terminal show/nav/compare).
-	// MaskBcrypt clones, so the working/committed tree keeps the real hash.
-	tree = config.MaskBcrypt(tree, schema)
+	// Mask every secret leaf for display (web CLI terminal show/nav/compare).
+	// MaskSecrets clones, so the working/committed tree keeps the real value.
+	// The verb that reaches here needs no config authorization, so this text
+	// goes to any authenticated session (secret.go).
+	tree = config.MaskSecrets(tree, schema)
 	if len(path) == 0 {
 		return config.Serialize(tree, schema)
 	}
@@ -770,8 +823,8 @@ func serializeSetAtPath(tree *config.Tree, schema *config.Schema, path []string)
 	if tree == nil || schema == nil {
 		return ""
 	}
-	// Mask ze:bcrypt leaves for display; MaskBcrypt clones the tree.
-	tree = config.MaskBcrypt(tree, schema)
+	// Mask every secret leaf for display; MaskSecrets clones the tree.
+	tree = config.MaskSecrets(tree, schema)
 	return config.FilterSetByPath(config.SerializeSet(tree, schema), path)
 }
 

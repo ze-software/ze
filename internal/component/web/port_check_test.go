@@ -26,10 +26,51 @@ import (
 // carries the `class="ze-field" id="field-hold-time"` frame on both sides.
 const webPortWrapperPair = "the start and end pair became fieldWrapper, one component taking its children"
 
+// The interface defect pass changes rendered bytes ON PURPOSE. Ten defects the
+// port recorded rather than fixed are fixed after it, so each unit below now
+// differs from its pre-port form. Each reason names what a reader would see.
+//
+// The defects and their journal rows are listed in
+// plan/spec-web-templ-migration.md. Nothing here excuses a difference the pass
+// did not intend. This table is fail-closed, so an entry naming a unit that no
+// longer differs is itself a finding.
+const (
+	portSecretMasked     = "a password field renders the display placeholder, never the stored secret"
+	portEmptyRowColspan  = "the empty-state cell spans every column the header drew, where it wrote colspan 0"
+	portAddEntryID       = "the add-entry control has a DOM id unique within one document"
+	portErrorToggle      = "the error drawer's toggle carries data-action, which is what opens it"
+	portErrorSwapRemoved = "the panel element naming a swap htmx does not implement is gone"
+	portListRowClass     = "a list-table row names a base class, where it wrote an empty class attribute"
+	portSecurityHeaders  = "the response carries the four security headers every response owes"
+	portNumberEditor     = "an integer leaf reaches the number editor and shows its schema range"
+)
+
 var webPortTemplates = map[string]string{
 	"input/field_wrapper_start--bare.html":      webPortWrapperPair,
 	"input/field_wrapper_start--annotated.html": webPortWrapperPair,
 	"input/field_wrapper_end.html":              webPortWrapperPair,
+
+	"component/detail--fields.html":               portNumberEditor,
+	"component/detail--list-table.html":           portListRowClass,
+	"component/error_panel.html":                  portErrorToggle,
+	"component/finder--columns.html":              portAddEntryID,
+	"component/full_content--fields.html":         portAddEntryID + ", " + portNumberEditor,
+	"component/full_content--monitor.html":        portAddEntryID + ", " + portNumberEditor,
+	"component/list_table--editable.html":         portListRowClass,
+	"component/list_table--readonly.html":         portListRowClass,
+	"component/oob_error.html":                    portErrorSwapRemoved,
+	"component/oob_response--fields.html":         portAddEntryID + ", " + portNumberEditor,
+	"component/oob_response--monitor.html":        portAddEntryID + ", " + portNumberEditor,
+	"component/sidebar--nested.html":              portAddEntryID,
+	"component/sidebar--root.html":                portAddEntryID,
+	"component/sidebar_section--list.html":        portAddEntryID,
+	"component/workbench_form--fields.html":       portSecretMasked,
+	"component/workbench_table--add-actions.html": portEmptyRowColspan,
+	"component/workbench_table--empty.html":       portEmptyRowColspan,
+	"page/layout.html--cli.html":                  portErrorToggle,
+	"page/layout.html--finder.html":               portErrorToggle,
+	"page/workbench.html--full.html":              portErrorToggle,
+	"page/workbench.html--readonly.html":          portErrorToggle,
 }
 
 // webPortHandlers explains the ONE response whose content changed on purpose.
@@ -42,6 +83,62 @@ var webPortTemplates = map[string]string{
 // escape is deleted, and templ escapes the value once.
 var webPortHandlers = map[string]string{
 	"nav-show-events.txt": "AC-5: the event payload was escaped twice before the port",
+
+	"get-admin-subtree.txt":             portErrorToggle,
+	"get-admin.txt":                     portErrorToggle,
+	"get-assets-missing.txt":            portSecurityHeaders,
+	"get-assets-ze-svg.txt":             portSecurityHeaders,
+	"get-cli.txt":                       portErrorToggle,
+	"get-favicon.txt":                   portSecurityHeaders,
+	"get-fragment-detail-page.txt":      portErrorToggle,
+	"get-monitor.txt":                   portErrorToggle,
+	"get-root.txt":                      portSecurityHeaders,
+	"get-show-bgp-finder.txt":           portErrorToggle + ", " + portListRowClass,
+	"get-show-finder.txt":               portErrorToggle,
+	"nav-show-api.txt":                  portErrorToggle,
+	"nav-show-bgp-family.txt":           portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-bgp-group.txt":            portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-bgp-peer.txt":             portErrorToggle,
+	"nav-show-bgp-policy.txt":           portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-bgp-summary.txt":          portErrorToggle,
+	"nav-show-firewall-chain.txt":       portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-firewall-connections.txt": portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-firewall-rule.txt":        portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-firewall-set.txt":         portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-firewall.txt":             portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-health.txt":               portErrorToggle,
+	"nav-show-iface-traffic.txt":        portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-iface-type-bridge.txt":    portErrorToggle,
+	"nav-show-iface-type-ethernet.txt":  portErrorToggle,
+	"nav-show-iface-type-tunnel.txt":    portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-iface-type-vlan.txt":      portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-iface.txt":                portErrorToggle,
+	"nav-show-ip-addresses.txt":         portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-ip-dns.txt":               portErrorToggle,
+	"nav-show-ip-routes.txt":            portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-l2tp-health.txt":          portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-l2tp-sessions.txt":        portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-l2tp.txt":                 portErrorToggle,
+	"nav-show-lg.txt":                   portErrorToggle,
+	"nav-show-logs-errors.txt":          portErrorToggle,
+	"nav-show-logs-live.txt":            portErrorToggle,
+	"nav-show-logs-warnings.txt":        portErrorToggle,
+	"nav-show-mcp.txt":                  portErrorToggle,
+	"nav-show-ssh.txt":                  portErrorToggle,
+	"nav-show-system-hardware.txt":      portErrorToggle,
+	"nav-show-system-identity.txt":      portErrorToggle,
+	"nav-show-system-resources.txt":     portErrorToggle,
+	"nav-show-system-sysctl.txt":        portEmptyRowColspan + ", " + portErrorToggle,
+	"nav-show-tacacs.txt":               portErrorToggle,
+	"nav-show-telemetry.txt":            portErrorToggle,
+	"nav-show-tools-bgp-decode.txt":     portErrorToggle,
+	"nav-show-tools-capture.txt":        portErrorToggle,
+	"nav-show-tools-metrics.txt":        portErrorToggle,
+	"nav-show-tools-ping.txt":           portErrorToggle,
+	"nav-show-users.txt":                portErrorToggle,
+	"nav-show-web.txt":                  portErrorToggle,
+	"nav-show.txt":                      portErrorToggle,
+	"post-login-ok.txt":                 portSecurityHeaders,
 }
 
 // TestWebTemplPortFidelity compares every captured unit against the bytes it

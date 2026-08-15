@@ -96,6 +96,12 @@ var builtinCodes = []CodeMeta{
 		Description: "Two listeners in the config conflict on the same address and port.",
 	},
 	{
+		Code:        "config-secret-masked",
+		Title:       "Secret holds the display placeholder",
+		Description: "A ze:sensitive or ze:bcrypt leaf holds the placeholder a display path writes over a secret. The value was masked for display and cannot be stored. Restore the real value, or set it through the plaintext-<name> sibling.",
+		Examples:    []string{"ze config validate ze.conf", "ze explain config-secret-masked"},
+	},
+	{
 		Code:        "config-warning",
 		Title:       "Config warning",
 		Description: "A warning from semantic validation without a more specific diagnostic code.",

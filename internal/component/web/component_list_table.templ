@@ -101,7 +101,7 @@ templ listTable(v *FragmentData) {
 		if !v.ReadOnly {
 			<button
 				class="finder-item finder-add"
-				id="btn-add-entry"
+				id={ addEntryContentID }
 				hx-get={ v.ListTable.FormURL }
 				hx-target="body"
 				hx-swap="beforeend"

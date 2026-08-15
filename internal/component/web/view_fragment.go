@@ -4,7 +4,11 @@
 
 package web
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
 
 // chromeData is the page chrome's view model: who is signed in, where they
 // are, and which shells they can switch to.
@@ -44,9 +48,19 @@ func (d *FragmentData) chrome() chromeData {
 	}
 }
 
-// saveOKData is what oobSaveOK renders: the pending-change count after an edit.
+// saveOKData is what oobSaveOK renders. It carries the pending-change count
+// after an edit, and whether the authorizer lets this session commit it.
+//
+// ReadOnly is the gate commitBar reads from LayoutData. Both components render
+// the one element #commit-bar. The out-of-band one replaces what the page one
+// drew, so a flag on one half is a flag the other half undoes.
+//
+// The route gate (RequireEditAuthz) authorizes "config commit". A set or a form
+// post authorizes "config set". A session denied the first and allowed the
+// second reaches this component with the buttons the page withheld.
 type saveOKData struct {
 	ChangeCount int
+	ReadOnly    bool
 }
 
 // notificationErrorData is what notificationError renders.
@@ -88,6 +102,35 @@ type addFormData struct {
 // It is the one category the overlay marks with an asterisk and enforces in the
 // browser.
 const addFieldRequired = "required"
+
+// addEntryContentID is the DOM id of the add control in the content area.
+//
+// A document holds one content area, and one component fills it. That is the
+// list table of the Finder detail panel, or the workbench table of a workbench
+// page. Both read this name. The shape a reader checks is "one content area per
+// document" rather than "two components that happen to agree".
+// TestRenderedPageCarriesNoDuplicateDOMID renders both compositions.
+//
+// The id is a stable hook the .wb suite clicks by name.
+const addEntryContentID = "btn-add-entry"
+
+// addEntryButtonID is the DOM id of an "add an entry" control OUTSIDE the
+// content area.
+//
+// An id is unique per document, and two shells draw such a control beside the
+// content area. The finder column sits next to the detail panel, and the
+// sidebar flyout draws one per list section. The content-area control keeps
+// addEntryContentID, so these two name their shell here. Each shell can draw
+// one control per list on screen, so the list's own URL follows the shell name.
+//
+// The sidebar is legacy markup: sidebar (component_sidebar.templ) has no
+// caller outside a golden capture, so of the two shells only the finder is
+// live today.
+func addEntryButtonID(shell, addURL string) string {
+	var tb textbuf.Buffer
+
+	return tb.Str("btn-add-entry-").Str(shell).Byte('-').Str(formFieldID(strings.Trim(addURL, "/"))).String()
+}
 
 // finderAddItemName is the display name of the synthetic "add an entry" item
 // buildListColumn (fragment.go) puts at the head of a list column. The finder
@@ -165,13 +208,19 @@ func toolOverlayClass(state ToolOverlayState) string {
 	return "tool-overlay tool-overlay--result"
 }
 
-// listRowClass is one list-table row's class list.
+// listRowClass is one list-table row's class list. A pending row holds an edit
+// the operator has not committed.
+//
+// The base class is always written. The markup this replaced emitted class=""
+// for a row with no pending change, which names no class at all and leaves the
+// row with no styling hook. wbTablePendingClass is the sibling that gets it
+// right.
 func listRowClass(pending bool) string {
 	if pending {
-		return "row--pending"
+		return "finder-table-row row--pending"
 	}
 
-	return ""
+	return "finder-table-row"
 }
 
 // listRowDetailURL is the fragment URL a list-table row navigates to. The
@@ -255,6 +304,19 @@ func wbTablePendingClass(pending bool) string {
 	}
 
 	return "wb-table-row"
+}
+
+// wbTableEmptyColspan is how many columns the empty-state cell spans. The
+// table draws a flag column before the data columns and an action column after
+// them, so the span is the data-column count plus two.
+//
+// HTML gives colspan a minimum of 1, and the markup this replaced wrote 0. A
+// browser reads 0 as "span the rest of the column group", which put the empty
+// message under the flag column alone.
+func wbTableEmptyColspan(v WorkbenchTableData) string {
+	const flagAndActionColumns = 2
+
+	return intText(len(v.Columns) + flagAndActionColumns)
 }
 
 // wbTableFlagClass is one workbench table flag cell's class list.

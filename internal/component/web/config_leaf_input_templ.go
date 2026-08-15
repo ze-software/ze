@@ -199,7 +199,7 @@ func leafInput(f LeafField) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "select":
+		case leafInputSelect:
 			var templ_7745c5c3_Var13 = []any{leafSelectClass(f.IsConfigured)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var13...)
 			if templ_7745c5c3_Err != nil {

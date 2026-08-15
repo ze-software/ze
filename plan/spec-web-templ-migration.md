@@ -493,6 +493,154 @@ renderer.
      writes. Proven to discriminate: one renamed class reddens `log-table-rows`,
      and one dropped `{ "\n" }` inside `<pre>` reddens `commit-diff`
    - **ONE rendered byte moved on purpose**, and it is AC-5: see A-2
+3b. **Phase: the interface defect pass** -- DONE 2026-08-15. Ten defects the
+   port RECORDED rather than fixed are fixed, each with a test that would have
+   caught it. Thomas ruled the ports land byte-faithful first and the defects
+   follow as their own commits, so the golden diff shows what changes on screen
+   - Files: `component_workbench_form.templ`, `component_workbench_table.templ`,
+     `component_finder.templ`, `component_sidebar.templ`,
+     `component_oob_error.templ`, `component_error_panel.templ`,
+     `component_oob_save.templ`, `component_dashboard_health.templ`,
+     `workbench_form.go`, `view_fragment.go`, `view_config.go`, `field_input.go`,
+     `rbac.go`, `auth.go`, `server.go`, `handler_config_form.go`,
+     `handler_config_leaf.go`, `handler_config_commit.go`,
+     `handler_config_entry.go`, `assets/cli.js`, `cmd/ze/hub/service_web.go`
+   - **Each fix has its own test, and each test was proven to discriminate.**
+     The defect was restored and the named test went red. The four that are not
+     obvious from the assertion are the security-header wrapper, the duplicate
+     DOM id, the error drawer and the commit-bar pair
+   - **The captured bytes moved, deliberately.** 79 fixtures: 23 template and 56
+     handler. `make ze-templ-port-check REF=80f0b8b57` names each moved unit and
+     the reason, in `webPortTemplates` and `webPortHandlers`
+     (`port_check_test.go`). That table is fail-closed. An entry naming a unit
+     that stops differing is itself a finding
+   - **Two findings the journal rows had not seen.** The security-header row
+     said three responses carried none. The capture found FIVE. The extra two
+     are `/assets/` on a miss, and the login redirect that hands out the session
+     cookie. `HandleConfigChanges` also took no authorizer at all, and it is the
+     live path for the commit-bar defect: `refreshCommitBar` (`assets/cli.js`)
+     fetches `/config/changes` on every page load
+   - Verify: `ze-web-golden-check`, `ze-templ-port-check`,
+     `ze-templ-generate-check`, `ze-test-pkg PKG=./internal/component/web`,
+     `ze-web-test` (87/87) and `ze-ui-test` (169/169) are green
+3c. **Phase: the defect pass reviewed** -- DONE 2026-08-15. Four review
+   findings closed. One was a live secret exposure the pass had reported closed
+   - **The mask reads the schema, not the field type.** `maskSecretLeaf`
+     (`secret.go`) answers on `Sensitive || Bcrypt`. Masking on bcrypt alone
+     rendered every `ze:sensitive` leaf in plaintext on the generic config
+     path, `l2tp/shared-secret` among them. `formFieldValue` is deleted. It was
+     a second rule for one property, and it hid this one
+   - **A page holds no leaf node**, so `renderPageContent` (`workbench_pages.go`)
+     masks the display tree each page reads. One door, and a page added later
+     inherits it
+   - Files: `secret.go` (new), `fragment.go`, `handler_config_leaf.go`,
+     `handler_config_entry.go`, `workbench_pages.go`, `workbench_form.go`,
+     `editor.go`, `page_dashboard.go`, `view_fragment.go`,
+     `component_list_table.templ`, `component_workbench_table.templ`,
+     `component_workbench_form.templ`, `component_dashboard_health.templ`,
+     `config_leaf_input.templ`
+   - Tests: `TestNoRenderPathEmitsAStoredSecret` and
+     `TestSecretMaskingFollowsTheSchemaMarking` (six render paths each),
+     `TestAnUntouchedSecretIsNeitherRewrittenNorDeleted`,
+     `TestErrorDrawerWiringHoldsTogether`,
+     `TestDashboardHealthDrawsOneCellPerHeaderColumn`,
+     `TestCapturedTableRowsCoverTheirHeader`, and the workbench composition
+     added to `TestRenderedPageCarriesNoDuplicateDOMID`
+   - **No captured byte moved.** The one fixture that would have, the workbench
+     form, is fed the placeholder by its builder. That is what a real page now
+     passes, so `ze-templ-port-check REF=80f0b8b57` needed no new entry
+   - Verify: `ze-web-golden-check`, `ze-templ-port-check`,
+     `ze-templ-generate-check`, `ze-test-pkg PKG=./internal/component/web`,
+     `ze-web-test` (87/87) and `ze-ui-test` (169/169) are green
+3d. **Phase: the masking property closed in both directions** -- DONE
+   2026-08-15. Round 2 found the mask still incomplete. Seven findings closed
+   - **The property is one sentence.** No path renders a secret the schema
+     marks, and no path stores the placeholder as a value. Every finding below
+     was that one property failing somewhere
+   - **One predicate, exported.** `config.LeafHoldsSecret`
+     (`internal/component/config/mask.go`) is the only answer to "does this leaf
+     hold a secret". `config.MaskSecrets` is the only whole-tree display mask,
+     and `web.maskedDisplayTree` is deleted for it. `MaskBcrypt` stays narrow
+     because `ze config dump` calls it before it writes `$9$`, and widening it
+     would replace an encoded secret with the placeholder
+   - **The web CLI published secrets on two routes.** `serializeTreeAtPath` and
+     `serializeSetAtPath` (`cli_terminal.go`) masked through `MaskBcrypt`, and
+     `EditorManager.ContentAtPath` (`editor.go`) reached the editor's
+     bcrypt-only `DisplayContentAtPath`. The `show` verb needs no config
+     authorization, so both reached any authenticated session
+   - **The write guard widened with the read half.**
+     `config.RejectMaskedBcryptLeaves` keyed on `leaf.Bcrypt`, so a
+     `ze config dump --strip` uploaded back stored the placeholder as the
+     secret. It reads `config.LeafHoldsSecret` now, and phase 3e renamed it
+   - **`ze:ephemeral` is NOT in the predicate.** It answers whether a value is
+     persisted. `plaintext-password` holds a cleartext secret, so the two YANG
+     modules say so with `ze:sensitive` now
+   - **`EditorManager.Compare` is deleted.** It returned the editor's raw text
+     diff, secrets included. `EditorManager.Diff` masks each change against the
+     schema and is the one diff the web renders
+   - **The page mask is lazy and its door is enforced.** `renderPageContent`
+     builds the masked tree at most once, and only for a branch that reads
+     config. `TestWorkbenchPagesReceiveOnlyTheMaskedTree` reads the function's
+     own source, so a page handed the raw tree is a red test
+   - Files: `internal/component/config/mask.go`, `secret.go`, `editor.go`,
+     `cli_terminal.go`, `workbench_pages.go`, `page_dashboard.go`,
+     `internal/component/ssh/yang/ze-ssh-conf.yang`,
+     `internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang`
+   - Tests: `TestNoRenderPathEmitsAStoredSecret` and
+     `TestSecretMaskingFollowsTheSchemaMarking` (nine render paths each),
+     `TestUploadedConfigWithAMaskedSecretIsRefused`,
+     `TestAWriteOnlyPasswordLeafIsMarkedSensitive`,
+     `TestWorkbenchPagesReceiveOnlyTheMaskedTree`,
+     `TestBalancedBlockReadsPastTextAndComments`,
+     `TestMarkupHasClassReadsOneClassInsideTheAttribute`,
+     `TestMaskSecretsCoversEverySecretLeaf`,
+     `TestRejectMaskedSecretLeavesCoversTheSameLeavesAsTheMask`,
+     `TestLeafHoldsSecretReadsTheTwoSecretExtensions`
+   - **No captured byte moved**, so `ze-templ-port-check REF=80f0b8b57` needed
+     no new entry
+   - Verify: `ze-web-golden-check`, `ze-templ-port-check`,
+     `ze-templ-generate-check`, `ze-test-pkg` on `./internal/component/web`,
+     `./internal/component/config`, `./internal/component/cli`,
+     `./internal/component/config/cli` and `./internal/component/ssh`,
+     `ze-web-test` (87/87) and `ze-ui-test` (179/179) are green
+3e. **Phase: the six interface-defect findings of round 3** -- DONE
+   - **A masked compare stated something false.** `compareTreesAtPath`
+     (`cli_terminal.go`) diffs two masked texts, so a rotated secret read as the
+     same placeholder on each side and the verb answered `(no changes)`. New
+     `config.ChangedSecretPaths` and `config.ChangedSecretPathsSubtree`
+     (`internal/component/config/mask.go`) walk the two trees together and name
+     each leaf that moved. `changedSecretLines` writes one line per leaf, with
+     the display placeholder standing in for the value, which is the shape
+     `EditorManager.Diff` already writes
+   - **The guard's name and its diagnostic code follow its predicate.**
+     `config.RejectMaskedSecretLeaves` replaces `RejectMaskedBcryptLeaves` at
+     all nine call sites, and the code `config-bcrypt-masked` becomes
+     `config-secret-masked`, registered in `internal/core/diagnostic/codes.go`.
+     A code is a contract surface that `ze explain` reads
+   - **`EditorManager.ContentAtPath` fails closed.** Its fallback called
+     `Editor.DisplayContentAtPath`, whose first branch answers the raw working
+     content. It now answers nothing and logs at Warn
+   - Two comments corrected: `parseConfigFormFields` cited the deleted
+     `formFieldValue`, and `cmd/ze/hub/service_web.go` called the config
+     download a read path for any authenticated session. `editWrap` gates it
+   - The surviving CLI hole is recorded in
+     `plan/journal/secret-echoed-to-the-client.md`, with all six producers
+   - Files: `internal/component/config/mask.go`,
+     `internal/core/diagnostic/codes.go`,
+     `internal/component/config/cli/cmd_validate.go`,
+     `internal/component/web/{cli_terminal,editor,handler_config_form}.go`,
+     `internal/component/cli/{validator,editor_commit,editor_commands}.go`,
+     `internal/component/cli/contract/contract.go`, `cmd/ze/hub/service_web.go`
+   - Tests: `TestChangedSecretPathsNamesARotatedSecret`,
+     `TestChangedSecretPathsReportsOnlyWhatTheMaskHides`,
+     `TestChangedSecretPathsSubtreeIsRelativeToItsNode`,
+     `TestCompareNamesARotatedSecretAndPublishesNeitherValue`,
+     `TestContentAtPathAnswersNothingWhenItCannotMask`, the new
+     `cli-terminal-compare` case of `TestNoRenderPathEmitsAStoredSecret` and
+     `TestSecretMaskingFollowsTheSchemaMarking`, plus
+     `test/parse/bcrypt-placeholder-rejected.ci` seq 2 for the code
+   - **No captured byte moved**, so `ze-templ-port-check REF=80f0b8b57` needed
+     no new entry
 4. **Phase: Type-safety proof and docs**
    - Tests: `TestTemplComponentTypeSafety` (new), proving AC-1
    - Files: the three web architecture docs and their 9 source anchors

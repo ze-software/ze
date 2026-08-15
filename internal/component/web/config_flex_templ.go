@@ -11,12 +11,13 @@ import templruntime "github.com/a-h/templ/runtime"
 // configFlex is the config view of a YANG flex node. A flex node is a flag, a
 // single value, or a block, and the shape of its data decides which.
 //
-// NO LIVE PATH REACHES THIS. configViewComponent (handler_config_leaf.go)
-// answers nothing for config.NodeFlex, because the caller passes a
-// ConfigViewData and this markup reads Name, Value and LeafField, which that
-// type does not carry. The defect is recorded in
-// plan/journal/silent-fall-through.md and is not fixed here: the port lands the
-// markup, byte for byte, so the fix pass has it.
+// NO LIVE PATH REACHES THIS. A flex node renders through configContainer:
+// buildConfigViewData (handler_config_walk.go) calls populateContainerView for
+// one, which fills the Children and LeafFields that component reads. This
+// markup reads Name, Value and LeafField off a configFlexData, and no producer
+// builds that value. The blank flex panel it used to cause is fixed in
+// configViewComponent (handler_config_leaf.go); the orphan markup itself is
+// phase 5 of plan/spec-web-templ-migration.md.
 func configFlex(v configFlexData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -50,7 +51,7 @@ func configFlex(v configFlexData) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(v.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 17, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 18, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -107,7 +108,7 @@ func configFlex(v configFlexData) templ.Component {
 					var templ_7745c5c3_Var3 string
 					templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.URL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 46, Col: 50}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 47, Col: 50}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 					if templ_7745c5c3_Err != nil {
@@ -120,7 +121,7 @@ func configFlex(v configFlexData) templ.Component {
 					var templ_7745c5c3_Var4 templ.SafeURL
 					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(c.URL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 46, Col: 110}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 47, Col: 110}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 					if templ_7745c5c3_Err != nil {
@@ -133,7 +134,7 @@ func configFlex(v configFlexData) templ.Component {
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 46, Col: 121}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/config_flex.templ`, Line: 47, Col: 121}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {

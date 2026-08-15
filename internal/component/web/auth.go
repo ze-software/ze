@@ -479,12 +479,38 @@ func isSameOriginPath(raw string) bool {
 
 // addSecurityHeaders sets standard security headers on authenticated responses.
 func addSecurityHeaders(w http.ResponseWriter) {
+	setSecurityHeaders(w)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Ze-Version", version.HTTPHeader())
+}
+
+// setSecurityHeaders sets the four headers every response owes the browser,
+// authenticated or not. SecurityHeaders applies them to the whole mux and
+// addSecurityHeaders adds the two that belong to an authenticated page.
+func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'")
 	w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("X-Ze-Version", version.HTTPHeader())
+}
+
+// SecurityHeaders wraps next so every response carries the security headers,
+// whatever route served it.
+//
+// The headers used to be set per handler, inside the authentication
+// middleware. Five responses never reach that middleware. They are the redirect
+// at "/", "GET /favicon.ico", a hit and a miss under "/assets/", and the login
+// redirect that hands out the session cookie. The root document is among them.
+// The policy that constrains every sibling page did not constrain it.
+//
+// Cache-Control and the version header stay with addSecurityHeaders. A static
+// asset is cacheable, and no-store over it would refetch the stylesheet and the
+// scripts on every page load.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setSecurityHeaders(w)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // generateToken creates a cryptographically random 32-byte token, hex-encoded

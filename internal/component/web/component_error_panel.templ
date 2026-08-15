@@ -3,9 +3,13 @@ package web
 // errorPanel is the collapsed error drawer every full page carries. The list
 // inside it is filled by the oob_error fragment over HTMX, so the component
 // reads nothing.
+//
+// The toggle carries data-action, which is how initActions (assets/cli.js)
+// reaches it. Without it the button had no handler at all, and the CSP forbids
+// an inline one, so the drawer could not be opened or closed by hand.
 templ errorPanel() {
 	<aside id="error-panel" class="error-panel collapsed">
-		<button class="error-toggle" id="error-toggle">Errors</button>
+		<button class="error-toggle" id="error-toggle" data-action="toggle-error-panel">Errors</button>
 		<div class="error-list" id="error-list"></div>
 	</aside>
 }

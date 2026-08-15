@@ -158,8 +158,11 @@ type Editor interface {
 	Tree() any
 	ContentAtPath(path []string) string
 	// DisplayContentAtPath is ContentAtPath with ze:bcrypt leaves masked for
-	// display. Use it on read/display surfaces (e.g. the web CLI show verb);
-	// ContentAtPath stays unmasked for validation/persistence.
+	// display. It masks that half alone, so a ze:sensitive leaf still reads in
+	// the clear. Its callers are the SSH CLI display paths, which hold the
+	// concrete editor. The web CLI show verb masks the whole tree with
+	// config.MaskSecrets instead. ContentAtPath stays unmasked for validation
+	// and persistence.
 	DisplayContentAtPath(path []string) string
 	OriginalContentAtPath(path []string) string
 	Dirty() bool

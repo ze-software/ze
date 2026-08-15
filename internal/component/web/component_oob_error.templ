@@ -1,10 +1,17 @@
 package web
 
-// oobError appends one error to the error list and opens the panel. Both
-// swaps travel out of band, so a handler answers with this and nothing else.
+// oobError appends one error to the error list. The swap travels out of band,
+// so a handler answers with this and nothing else.
+//
+// It carries ONE swap. The markup this replaced added a second element over the
+// panel, whose out-of-band swap value was the word className, to open the
+// drawer. htmx has no swap by that name: it implements innerHTML, outerHTML,
+// beforebegin, afterbegin, beforeend, afterend, delete and none. The value named
+// nothing and the panel never opened. No htmx swap can set a class, and
+// outerHTML over the panel would discard every error already in the list. The
+// drawer is opened by cli.js instead, on htmx:oobAfterSwap over #error-list.
 templ oobError(v ErrorData) {
 	<div id="error-list" hx-swap-oob="beforeend">@errorItem(v)</div>
-	<aside id="error-panel" hx-swap-oob="className" class="error-panel"></aside>
 }
 
 // errorItem is one line in the error list.

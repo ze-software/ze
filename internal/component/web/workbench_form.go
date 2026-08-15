@@ -71,6 +71,18 @@ type WorkbenchFormField struct {
 	Disabled    bool
 }
 
+// wbFormPasswordType is the WorkbenchFormField.Type that renders an
+// <input type="password">. It hides the characters on screen and does nothing
+// to the response body, so it is a display choice and never the mask.
+//
+// Masking is the schema's decision, and it happens before a value reaches a
+// field. renderPageContent (workbench_pages.go) hands every page a masked
+// display tree (secret.go). This constant used to drive a second mask here,
+// which was a rule the schema did not write. It hid the defect it looked like
+// it was preventing. A form typed a sensitive leaf as text, and the value went
+// out in the clear.
+const wbFormPasswordType = "password"
+
 func formFieldName(f WorkbenchFormField) string {
 	if f.Path != "" {
 		return "field:" + f.Path

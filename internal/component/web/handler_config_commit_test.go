@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/core/audit"
 )
 
@@ -176,5 +178,77 @@ func TestBackToRefererOrShowKeepsLegitimatePath(t *testing.T) {
 
 	if got := backToRefererOrShow(req); got != "/show/bgp/peer/" {
 		t.Errorf("backToRefererOrShow = %q, want %q", got, "/show/bgp/peer/")
+	}
+}
+
+// TestCommitBarHalvesAgreeOnReadOnly verifies the page component and its
+// out-of-band replacement hide the commit bar under the same condition.
+// VALIDATES: commitBar and oobSaveOK render nothing for a read-only session.
+// Both render the bar for a session the authorizer clears to commit.
+// PREVENTS: a guard on one half of a pair. Both components own the one element
+// #commit-bar, and the swap replaces what the page drew, so a flag on the page
+// half alone is a flag the swap undoes.
+func TestCommitBarHalvesAgreeOnReadOnly(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	page := func(readOnly bool) string {
+		return string(renderer.renderComponent("commit_bar", commitBar(LayoutData{ChangeCount: 3, ReadOnly: readOnly})))
+	}
+	oob := func(readOnly bool) string {
+		return string(renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: 3, ReadOnly: readOnly})))
+	}
+
+	assert.Contains(t, page(false), "commit-review-btn", "an editing session sees the page bar")
+	assert.Contains(t, oob(false), "commit-review-btn", "an editing session sees the swapped-in bar")
+
+	assert.NotContains(t, page(true), "commit-review-btn", "a read-only session gets no page bar")
+	assert.NotContains(t, oob(true), "commit-review-btn", "a read-only session gets no swapped-in bar")
+	assert.NotContains(t, oob(true), "commit-discard-btn", "the discard button goes with it")
+	assert.Empty(t, strings.TrimSpace(oob(true)), "a read-only swap carries no element at all")
+}
+
+// TestConfigChangesHidesTheCommitBarFromAReadOnlySession verifies the route
+// cli.js polls applies the same gate the page applied.
+// VALIDATES: GET /config/changes answers a read-only session with no commit
+// controls.
+// PREVENTS: refreshCommitBar (assets/cli.js) handing back the buttons the page
+// withheld. It fetches this route on every page load. It swaps the answer over
+// #commit-bar. The handler took no authorizer at all, so a read-only session
+// recovered the commit and discard buttons one fetch after the page rendered.
+func TestConfigChangesHidesTheCommitBarFromAReadOnlySession(t *testing.T) {
+	mgr := newTestEditorManager(t)
+
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name       string
+		authorizer aaa.Authorizer
+		wantBar    bool
+	}{
+		{"editing session", nil, true},
+		{"read-only session", readOnlyWebAuthorizer(), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := HandleConfigChanges(mgr, renderer, tc.authorizer)
+
+			req := httptest.NewRequest(http.MethodGet, "/config/changes", http.NoBody)
+			req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+
+			if tc.wantBar {
+				assert.Contains(t, rec.Body.String(), "commit-review-btn")
+
+				return
+			}
+
+			assert.NotContains(t, rec.Body.String(), "commit-review-btn")
+			assert.NotContains(t, rec.Body.String(), "commit-discard-btn")
+		})
 	}
 }

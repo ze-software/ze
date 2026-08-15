@@ -1,6 +1,10 @@
 status: 200
 header: Cache-Control: public, max-age=86400
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 header: Content-Type: image/svg+xml
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
 
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"

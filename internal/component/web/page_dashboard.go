@@ -30,6 +30,30 @@ type dashboardHealthData struct {
 	EmptyMessage string
 }
 
+// healthRowCells is the cells one health row renders, one per header column.
+//
+// The header and the body used to range two different slices. The two agreed
+// only by the habit of every producer. A short row ended before the last th,
+// and a zero-cell row drew an empty tr. A long row put a td under no header at
+// all. The table an operator reads is the header's shape, so a short row is
+// padded and a long one is cut here.
+//
+// Either resize is a producer defect rather than a display choice, so both are
+// logged. A short row leaves a blank cell under a heading that names data. An
+// operator reads that blank as "no value", never as a missing column, so the
+// short row is as quiet a failure as the long one.
+func healthRowCells(v dashboardHealthData, row WorkbenchTableRow) []string {
+	if len(row.Cells) != len(v.Columns) {
+		serverLogger.Warn("health row does not carry one cell per table column",
+			"row", row.Key, "cells", len(row.Cells), "columns", len(v.Columns))
+	}
+
+	cells := make([]string, len(v.Columns))
+	copy(cells, row.Cells)
+
+	return cells
+}
+
 // dashboardEventsData is the template payload for the recent events table.
 type dashboardEventsData struct {
 	Title        string

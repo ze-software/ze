@@ -8,8 +8,16 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// oobError appends one error to the error list and opens the panel. Both
-// swaps travel out of band, so a handler answers with this and nothing else.
+// oobError appends one error to the error list. The swap travels out of band,
+// so a handler answers with this and nothing else.
+//
+// It carries ONE swap. The markup this replaced added a second element over the
+// panel, whose out-of-band swap value was the word className, to open the
+// drawer. htmx has no swap by that name: it implements innerHTML, outerHTML,
+// beforebegin, afterbegin, beforeend, afterend, delete and none. The value named
+// nothing and the panel never opened. No htmx swap can set a class, and
+// outerHTML over the panel would discard every error already in the list. The
+// drawer is opened by cli.js instead, on htmx:oobAfterSwap over #error-list.
 func oobError(v ErrorData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -39,7 +47,7 @@ func oobError(v ErrorData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><aside id=\"error-panel\" hx-swap-oob=\"className\" class=\"error-panel\"></aside>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -76,7 +84,7 @@ func errorItem(v ErrorData) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("error-" + v.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_oob_error.templ`, Line: 12, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_oob_error.templ`, Line: 19, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -89,7 +97,7 @@ func errorItem(v ErrorData) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(v.Path)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_oob_error.templ`, Line: 13, Col: 13}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_oob_error.templ`, Line: 20, Col: 13}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -102,7 +110,7 @@ func errorItem(v ErrorData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(v.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_oob_error.templ`, Line: 14, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_oob_error.templ`, Line: 21, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {

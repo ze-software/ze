@@ -37,10 +37,13 @@ module ze-ssh-conf {
                 leaf plaintext-password {
                     type string;
                     ze:ephemeral;
+                    ze:sensitive;
                     description "Write-only plaintext password. On commit, the config
                                  system bcrypt-hashes this value into the canonical
                                  password leaf and removes this one from the tree.
-                                 Never persisted to the config file.";
+                                 The value is never written to the config file, and
+                                 a display path renders the secret placeholder for
+                                 it.";
                 }
 
                 leaf-list profile {

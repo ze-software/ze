@@ -298,6 +298,30 @@
     // Retained as no-op; CLI is now a dedicated page at /cli.
   }
 
+  // The error drawer opens itself when an error lands in it and closes itself
+  // when the last one is dismissed. A handler answers a rejected edit with the
+  // oob_error fragment, whose only swap appends to #error-list. No htmx swap
+  // can set a class, so the collapsed state is held here.
+  function syncErrorPanel() {
+    var panel = document.getElementById('error-panel');
+    var list = document.getElementById('error-list');
+    if (!panel || !list) return;
+    panel.classList.toggle('collapsed', list.querySelectorAll('.error-item').length === 0);
+  }
+
+  function initErrorPanel() {
+    // dismiss-error dispatches this after removing an item.
+    document.addEventListener('ze-error-update', syncErrorPanel);
+    // htmx reports every out-of-band swap it applies. The swapped element is
+    // detail.target, not event.target: htmx dispatches this on the settle set
+    // and names the target in the detail. #error-list is the one the error
+    // fragment targets.
+    document.addEventListener('htmx:oobAfterSwap', function(e) {
+      var target = e.detail && e.detail.target;
+      if (target && target.id === 'error-list') syncErrorPanel();
+    });
+  }
+
   // Refresh the detail panel via fragment endpoint without full page reload.
   function refreshCommitBar() {
     fetch('/config/changes', { credentials: 'same-origin' })
@@ -344,6 +368,9 @@
         var item = btn.parentNode;
         if (item) item.remove();
         document.dispatchEvent(new Event('ze-error-update'));
+      } else if (action === 'toggle-error-panel') {
+        var panel = document.getElementById('error-panel');
+        if (panel) panel.classList.toggle('collapsed');
       } else if (action === 'dismiss-login') {
         var overlay = document.getElementById('login-overlay');
         if (overlay) overlay.remove();
@@ -845,6 +872,7 @@
     initViewToggle();
     initNumberInputs();
     initActions();
+    initErrorPanel();
     initFlyout();
     initToolOverlay();
     refreshCommitBar();

@@ -2,10 +2,17 @@ package web
 
 // oobSaveOK is the commit bar delivered as an out-of-band swap. A save answers
 // with it so the pending-change count follows the edit without a page reload.
+//
+// A read-only session renders nothing, which is what commitBar
+// (component_commit_bar.templ) does for the same element on a full page. The
+// guard used to be on the page half alone, so this swap handed a read-only user
+// the commit and discard buttons the page withheld.
 templ oobSaveOK(v saveOKData) {
-	<div id="commit-bar" class={ commitBarClass(v.ChangeCount) } hx-swap-oob="outerHTML">
-		<span id="commit-count" class="commit-count">{ pendingChangeLabel(v.ChangeCount) }</span>
-		<button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
-		<button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
-	</div>
+	if !v.ReadOnly {
+		<div id="commit-bar" class={ commitBarClass(v.ChangeCount) } hx-swap-oob="outerHTML">
+			<span id="commit-count" class="commit-count">{ pendingChangeLabel(v.ChangeCount) }</span>
+			<button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+			<button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+		</div>
+	}
 }

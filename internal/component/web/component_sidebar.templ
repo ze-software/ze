@@ -21,7 +21,11 @@ templ sidebar(v *FragmentData) {
 }
 
 // sidebarSection is one level of the sidebar. A list shows its entries in a
-// flyout and an add button; a container shows its heading alone.
+// flyout and an add button. A container shows its heading alone.
+//
+// The flyout's add button takes its id from addEntryButtonID, not from the
+// literal btn-add-entry. Each list section renders one, so the page carried the
+// id once per list even before the list table added its own.
 templ sidebarSection(s SidebarSection) {
 	<div class="sidebar-section">
 		if s.IsList {
@@ -49,7 +53,7 @@ templ sidebarSection(s SidebarSection) {
 							hx-push-url={ e.URL }
 						>{ e.Key }</a>
 					}
-					<button class="sidebar-flyout-add" id="btn-add-entry" data-action="add-entry" data-base-url={ s.AddURL }>+ new</button>
+					<button class="sidebar-flyout-add" id={ addEntryButtonID("sidebar", s.AddURL) } data-action="add-entry" data-base-url={ s.AddURL }>+ new</button>
 				</div>
 			</div>
 		} else {

@@ -158,7 +158,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 
 			// OOB commit bar with change count.
 			count := mgr.ChangeCount(username)
-			oob := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: count}))
+			oob := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOK(r, authorizer, count)))
 			if _, writeErr := w.Write([]byte(oob)); writeErr != nil {
 				return
 			}
@@ -244,7 +244,7 @@ func HandleConfigFormWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			oob := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOKData{ChangeCount: mgr.ChangeCount(username)}))
+			oob := renderer.renderComponent("oob_save_ok", oobSaveOK(saveOK(r, authorizer, mgr.ChangeCount(username))))
 			if _, writeErr := w.Write([]byte(oob)); writeErr != nil {
 				return
 			}
@@ -269,6 +269,17 @@ func parseConfigFormFields(form map[string][]string, basePath []string, schema *
 		fullPath := append(append([]string{}, path...), leaf)
 
 		value := strings.TrimSpace(lastFormValue(values))
+		// A secret input is prefilled with the display placeholder. Two
+		// producers write it: maskSecretLeaf (secret.go), where the schema node
+		// is in hand, and the masked tree renderPageContent
+		// (workbench_pages.go) hands a purpose-built page. Posting it back
+		// means the operator did not touch the field. It is neither an edit nor
+		// a delete. Without this the stored secret would be overwritten with
+		// the placeholder text. EditorManager.SetValue guards the same value on
+		// the other write path, and the two must stay in step.
+		if value == config.SecretDataPlaceholder {
+			continue
+		}
 		if leafNode.Type == config.TypeBool {
 			value = normalizeBoolFormValue(value)
 		}

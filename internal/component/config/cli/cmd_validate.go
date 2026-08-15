@@ -263,12 +263,13 @@ func runValidation(input, path string) *validationResult {
 		result.addWarning("config-warning", w)
 	}
 
-	// Fail closed if a ze:bcrypt leaf carries the display placeholder: a masked
+	// Fail closed if a secret leaf carries the display placeholder: a masked
 	// `show config` pasted into a file (or a web upload) must not clobber the
-	// stored hash with the placeholder. This guards the web upload path
-	// (ValidateContent) and `ze config validate` at once.
-	if maskErr := config.RejectMaskedBcryptLeaves(tree, schema); maskErr != nil {
-		result.addError("config-bcrypt-masked", maskErr.Error())
+	// stored secret with the placeholder. The guard reads config.LeafHoldsSecret,
+	// so it covers a ze:sensitive leaf as well as a ze:bcrypt one. This guards
+	// the web upload path (ValidateContent) and `ze config validate` at once.
+	if maskErr := config.RejectMaskedSecretLeaves(tree, schema); maskErr != nil {
+		result.addError("config-secret-masked", maskErr.Error())
 	}
 
 	// Prune inactive nodes before resolution so the validation summary

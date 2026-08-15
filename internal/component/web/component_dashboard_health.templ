@@ -2,16 +2,16 @@ package web
 
 // dashboardHealth is the component health table of the dashboard.
 //
-// THE BODY READS THREE FIXED CELLS while the header ranges every column. A row
-// with fewer than three cells failed the index under html/template and
-// RenderFragment answered with an empty panel. A fourth column still renders a
-// header with no cell under it. Both halves are recorded in
-// plan/journal/rendered-markup-invalid.md and neither is fixed here.
+// THE BODY DRAWS ONE CELL PER HEADER COLUMN, because healthRowCells
+// (page_dashboard.go) resizes each row to the header. The header and the body
+// used to range two independent slices, and before that the body read cells 0,
+// 1 and 2 by index. Each shape broke on a row of another length: an index
+// failure emptied the whole panel, and two loops drew a td under no th.
 //
-// cellAt is what the index became: templ has no execution error to swallow, so
-// an out-of-range index would panic in the handler instead. Every producer
-// (buildHealthRows, page_dashboard.go) writes exactly three cells today, so the
-// rendered bytes do not move.
+// The first cell carries the health status badge, so the loop gives index 0 the
+// span and every later cell a plain td. Every producer (handleDashboardHealthPage,
+// page_dashboard.go) writes exactly one cell per column today, so the rendered
+// bytes do not move for them.
 templ dashboardHealth(v dashboardHealthData) {
 	<div class="wb-table-container">
 		<h2 class="wb-form-title">Component Health</h2>
@@ -27,9 +27,13 @@ templ dashboardHealth(v dashboardHealthData) {
 				<tbody>
 					for _, row := range v.Rows {
 						<tr class="wb-table-row">
-							<td class="wb-table-cell"><span class={ "wb-health-status wb-health-status--" + row.FlagClass }>{ cellAt(row.Cells, 0) }</span></td>
-							<td class="wb-table-cell">{ cellAt(row.Cells, 1) }</td>
-							<td class="wb-table-cell">{ cellAt(row.Cells, 2) }</td>
+							for i, cell := range healthRowCells(v, row) {
+								if i == 0 {
+									<td class="wb-table-cell"><span class={ "wb-health-status wb-health-status--" + row.FlagClass }>{ cell }</span></td>
+								} else {
+									<td class="wb-table-cell">{ cell }</td>
+								}
+							}
 						</tr>
 					}
 				</tbody>

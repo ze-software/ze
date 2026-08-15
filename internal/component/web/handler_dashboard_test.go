@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -195,4 +196,96 @@ func TestDashboardEventsNamespaceFilter(t *testing.T) {
 	// The handler dispatches both "show event namespaces" and "show event recent".
 	// The last captured command should include the namespace filter.
 	assert.Contains(t, capturedCmd, "namespace bgp")
+}
+
+// TestDashboardHealthRendersEveryCellOfEveryRow verifies a short row renders
+// what it has and every header column keeps a cell under it.
+// VALIDATES: a short row renders what it has, and every cell the header names
+// reaches the page.
+// PREVENTS: one malformed row emptying the whole panel. The markup read cells
+// 0, 1 and 2 by index. Under html/template a two-cell row failed the index,
+// RenderFragment discarded the error, and the operator got a blank health panel
+// rather than one bad line. A four-column header also drew a column with no
+// cell under it.
+func TestDashboardHealthRendersEveryCellOfEveryRow(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	data := dashboardHealthData{
+		Title: "Component Health",
+		Columns: []WorkbenchTableColumn{
+			{Label: "Status"}, {Label: "Component"}, {Label: "Detail"}, {Label: "Since"},
+		},
+		Rows: []WorkbenchTableRow{
+			{FlagClass: "green", Cells: []string{"UP", "BGP", "3 peers", "12:04"}},
+			{FlagClass: "grey", Cells: []string{"DOWN", "L2TP"}},
+			{FlagClass: "green", Cells: []string{"UP", "Web", "serving"}},
+		},
+		EmptyMessage: "No components",
+	}
+
+	html := string(renderer.renderComponent("dashboard_health", dashboardHealth(data)))
+	require.NotEmpty(t, html, "the health panel must render")
+
+	// The short row does not empty the panel.
+	assert.Contains(t, html, "BGP", "the long row must render")
+	assert.Contains(t, html, "L2TP", "the short row must render")
+	assert.Contains(t, html, "Web", "the row after the short one must render")
+
+	// The fourth cell has a header, so it must have a cell under it.
+	assert.Contains(t, html, "12:04", "a fourth cell must render under its fourth column")
+
+	// The status badge stays on the first cell only.
+	assert.Contains(t, html, `wb-health-status wb-health-status--green`)
+	assert.Equal(t, 3, strings.Count(html, "wb-health-status wb-health-status--"),
+		"exactly one status badge per row")
+}
+
+// healthRowCellCounts answers the number of td in each rendered body row.
+func healthRowCellCounts(html string) []int {
+	var counts []int
+
+	for _, row := range strings.Split(html, `<tr class="wb-table-row">`)[1:] {
+		body, _, _ := strings.Cut(row, "</tr>")
+		counts = append(counts, strings.Count(body, "<td"))
+	}
+
+	return counts
+}
+
+// TestDashboardHealthDrawsOneCellPerHeaderColumn verifies every body row is as
+// wide as the header, whatever its producer wrote.
+//
+// VALIDATES: one td per th, for a short row, an exact row, an empty row and a
+// row longer than the header.
+// PREVENTS: a table whose columns stop lining up. The header ranged Columns and
+// the body ranged the row's own Cells, so the two agreed only by the habit of
+// the one producer. A zero-cell row drew an empty tr. A longer row drew a cell
+// under no header, which reads as the value of the column beside it.
+func TestDashboardHealthDrawsOneCellPerHeaderColumn(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	data := dashboardHealthData{
+		Title: "Component Health",
+		Columns: []WorkbenchTableColumn{
+			{Label: "Status"}, {Label: "Component"}, {Label: "Detail"}, {Label: "Since"},
+		},
+		Rows: []WorkbenchTableRow{
+			{Key: "exact", FlagClass: "green", Cells: []string{"UP", "BGP", "3 peers", "12:04"}},
+			{Key: "short", FlagClass: "grey", Cells: []string{"DOWN", "L2TP"}},
+			{Key: "empty", FlagClass: "grey"},
+			{Key: "long", FlagClass: "green", Cells: []string{"UP", "Web", "serving", "09:00", "unheaded-cell"}},
+		},
+		EmptyMessage: "No components",
+	}
+
+	html := string(renderer.renderComponent("dashboard_health", dashboardHealth(data)))
+	require.NotEmpty(t, html, "the health panel must render")
+
+	assert.Equal(t, 4, strings.Count(html, "<th "), "the header must draw one th per column")
+	assert.Equal(t, []int{4, 4, 4, 4}, healthRowCellCounts(html),
+		"every row must draw one td per header column")
+	assert.NotContains(t, html, "unheaded-cell",
+		"a cell past the last column has no header to name it and must not render")
 }

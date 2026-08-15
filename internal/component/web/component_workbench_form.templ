@@ -2,6 +2,11 @@ package web
 
 // workbenchForm is the workbench's singleton configuration form. The editor
 // shape follows WorkbenchFormField.Type.
+//
+// Every input reads f.Value, the password input included. A stored secret is
+// masked before it reaches a field, by the display tree renderPageContent
+// hands each page (secret.go). A mask here would be a second rule for the same
+// property, and the second rule is the one that rots.
 templ workbenchForm(v WorkbenchFormData) {
 	<div class="wb-form">
 		if v.Title != "" {
@@ -62,7 +67,7 @@ templ workbenchForm(v WorkbenchFormData) {
 										disabled
 									}
 								>
-							case "password":
+							case wbFormPasswordType:
 								<input
 									type="password"
 									id={ "field-" + f.Name }

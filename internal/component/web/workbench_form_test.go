@@ -1,10 +1,14 @@
 package web
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // TestHumanizeFieldLabel verifies raw YANG field paths become friendly labels
@@ -153,4 +157,54 @@ func TestRenderWorkbenchForm_DisabledField(t *testing.T) {
 	html := string(renderer.renderComponent("workbench_form", workbenchForm(data)))
 	require.NotEmpty(t, html, "form fragment must render")
 	assert.Contains(t, html, `disabled`)
+}
+
+// TestWorkbenchFormNeverRendersAStoredSecret verifies a form the workbench
+// serves carries the display placeholder and never the stored value.
+// VALIDATES: the response body of a form holding a secret carries no secret.
+// PREVENTS: the stored password reaching the browser in the page source,
+// where view-source, the disk cache and any proxy reading the document can read
+// it. type="password" masks the characters on screen and nothing else.
+//
+// test-relax: this drove workbenchForm with a hand-built password field. It
+// proved the component masked what a test handed it, which is not the property.
+// The page builds its own fields out of tree reads. A sensitive leaf typed as
+// text went out in the clear underneath a green bar here. The producer is
+// renderPageContent (workbench_pages.go), so the producer is what runs now.
+func TestWorkbenchFormNeverRendersAStoredSecret(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	schema, tree := secretSchemaAndTree(true)
+	req := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	content, handled := renderPageContent(renderer, req, []string{segAPI}, tree, schema, nil, nil, nil)
+	require.True(t, handled, "the workbench must serve the API page")
+
+	html := string(content)
+	require.NotEmpty(t, html, "form fragment must render")
+
+	assert.NotContains(t, html, storedSecret, "the stored secret must not reach the response body")
+	assert.Contains(t, html, config.SecretDataPlaceholder, "the password input must carry the display placeholder")
+	assert.Contains(t, html, `type="password"`, "the input must stay a password input")
+	// A non-secret field is untouched, so the mask is not a blanket over the form.
+	assert.Contains(t, html, `id="field-rest-cors-origin"`, "a text field still renders")
+}
+
+// TestWorkbenchFormRendersAnEmptySecretAsEmpty verifies an unset password field
+// stays empty rather than showing a placeholder that stands for nothing.
+// VALIDATES: the mask fires on a stored value, never on the absence of one.
+// PREVENTS: an operator reading the placeholder as evidence that a password is
+// set, and a save writing the placeholder into a leaf that had no value.
+func TestWorkbenchFormRendersAnEmptySecretAsEmpty(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	schema, _ := secretSchemaAndTree(true)
+	req := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	content, handled := renderPageContent(renderer, req, []string{segAPI}, config.NewTree(), schema, nil, nil, nil)
+	require.True(t, handled, "the workbench must serve the API page")
+
+	html := string(content)
+	require.NotEmpty(t, html, "form fragment must render")
+	assert.NotContains(t, html, config.SecretDataPlaceholder, "an unset secret renders no placeholder")
 }

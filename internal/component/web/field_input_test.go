@@ -8,10 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// fieldEditorMarkers is the markup each field type must reach. Two types have
+// fieldEditorMarkers is the markup each field type must reach. Five types have
 // an editor of their own. Every other type the schema produces falls back to
 // the text editor, which reads neither Min nor Max.
 //
@@ -21,9 +24,9 @@ var fieldEditorMarkers = map[string]string{
 	"bool":     `class="ze-tristate"`,
 	"enum":     `class="ze-field-select"`,
 	"string":   `type="text"`,
-	"uint16":   `type="text"`,
-	"uint32":   `type="text"`,
-	"int":      `type="text"`,
+	"uint16":   `type="number"`,
+	"uint32":   `type="number"`,
+	"int":      `type="number"`,
 	"ip":       `type="text"`,
 	"prefix":   `type="text"`,
 	"duration": `type="text"`,
@@ -129,16 +132,16 @@ func assertFieldEditor(t *testing.T, fieldType, want string) {
 
 // TestFieldInputRegistryCoversTheDeclaredSet verifies the registry holds every
 // type that has an editor of its own, and no more.
-// VALIDATES: a new editor is reachable only once it is registered.
-// PREVENTS: an editor added as a component and never wired, which renders as
-// the text fallback and looks like a styling bug.
-//
-// "number" is in this set and no leaf reaches it: valueTypeToFieldType answers
-// uint16, uint32 or int for a numeric leaf. The pre-port lookup missed
-// input_number for the same reason, so the port preserved the behavior rather
-// than the intent. Recorded in plan/journal/unwired-feature.md.
+// VALIDATES: a new editor is reachable only once it is registered, and every
+// registered key is a string a leaf can carry.
+// PREVENTS: an editor added as a component and never wired. It renders as the
+// text fallback and looks like a styling bug. It also prevents the reverse,
+// which is what shipped. "number" was registered and no leaf ever carried that
+// string, because valueTypeToFieldType answers uint16, uint32 or int for a
+// numeric leaf. The pre-port template lookup built "input_" + type and missed
+// input_number for the same reason. Recorded in plan/journal/unwired-feature.md.
 func TestFieldInputRegistryCoversTheDeclaredSet(t *testing.T) {
-	want := map[string]bool{"bool": true, "enum": true, "number": true, "text": true}
+	want := map[string]bool{"bool": true, "enum": true, "uint16": true, "uint32": true, "int": true}
 
 	for name := range fieldInputs {
 		if !want[name] {
@@ -151,4 +154,38 @@ func TestFieldInputRegistryCoversTheDeclaredSet(t *testing.T) {
 	for name := range want {
 		t.Errorf("registry is missing the %q editor", name)
 	}
+
+	// Derived, so no hand-typed key can outlive its producer. A registered
+	// editor a leaf cannot reach is an editor nobody sees.
+	produced := producedFieldTypes(t)
+	for name := range fieldInputs {
+		if !slices.Contains(produced, name) {
+			t.Errorf("registry holds %q and no leaf can carry it", name)
+		}
+	}
+}
+
+// TestNumericLeafEditorRendersItsSchemaRange verifies an integer leaf reaches
+// the number editor and that the editor renders the bounds buildFieldMeta
+// computed.
+// VALIDATES: the min and the max the YANG range produces reach the browser.
+// PREVENTS: a numeric leaf falling back to a plain text box. The bounds were
+// computed and thrown away, so the browser accepted 70000 for a uint16 and the
+// operator learned of it from the POST.
+func TestNumericLeafEditorRendersItsSchemaRange(t *testing.T) {
+	leaf := config.Leaf(config.TypeUint16)
+	meta := buildFieldMeta("hold-time", leaf, "180", true, "bgp/timer")
+
+	require.Equal(t, "uint16", meta.Type, "buildFieldMeta must type a uint16 leaf as uint16")
+	require.Equal(t, "0", meta.Min)
+	require.Equal(t, "65535", meta.Max)
+
+	var buf bytes.Buffer
+	require.NoError(t, fieldInputFor(meta).Render(context.Background(), &buf))
+
+	html := buf.String()
+	assert.Contains(t, html, `type="number"`, "a uint16 leaf must reach the number editor")
+	assert.Contains(t, html, `min="0"`, "the schema minimum must reach the browser")
+	assert.Contains(t, html, `max="65535"`, "the schema maximum must reach the browser")
+	assert.Contains(t, html, `inputmode="numeric"`)
 }

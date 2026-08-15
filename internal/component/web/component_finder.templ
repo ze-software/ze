@@ -5,13 +5,20 @@ package web
 //
 // templ writes no whitespace between two turns of a loop, and none around a
 // component call. Each loop carries a space expression to keep two items apart.
+//
+// The add button's id comes from addEntryButtonID, not from the literal
+// btn-add-entry. The finder column sits beside the detail panel in one document
+// (mainSplit, component_oob_response.templ), and the list table inside that
+// panel carries btn-add-entry. Two elements shared the id, and getElementById
+// answers the first, so the content-area control was unreachable by id. A page
+// can also show one add button per list column, so the id carries the list URL.
 templ finder(v *FragmentData) {
 	<div class="finder-columns" id="finder">
 		for _, col := range v.Columns {
 			<div class="finder-col">
 				for _, it := range col.NamedItems {
 					if it.IsList && it.Name == finderAddItemName {
-						<button class="finder-item finder-add" id="btn-add-entry" data-action="add-entry" data-base-url={ it.AddURL }>+ new</button>
+						<button class="finder-item finder-add" id={ addEntryButtonID("finder", it.AddURL) } data-action="add-entry" data-base-url={ it.AddURL }>+ new</button>
 					} else {
 						@finderItem(it)
 					}

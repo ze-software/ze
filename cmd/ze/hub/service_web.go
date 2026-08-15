@@ -470,8 +470,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	discardHandler := zeweb.HandleConfigDiscardWithAuthorizerAndAudit(editorMgr, authorizer, recorder)
 
 	// Config download/upload: full-config export/import via browser (AC-3/AC-4).
-	// Download is a read path (any authenticated session, audit-logged); upload
-	// validates through the same validator as commit and reloads on success.
+	// Both go out behind the authz edit permission, download through editWrap
+	// and upload through editMutationWrap. The download is the raw config, so it
+	// carries every secret a display path masks (internal/component/web/secret.go).
+	// Upload validates through the same validator as commit and reloads on
+	// success. Both are audit-logged.
 	downloadHandler := zeweb.HandleConfigDownload(editorMgr, recorder)
 	uploadHandler := zeweb.HandleConfigUpload(editorMgr, zeconfigcmd.ValidateContent, configPath, authorizer, recorder)
 
@@ -593,7 +596,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("POST /config/add/", mutationWrap(addHandler))
 	srv.Handle("GET /config/add-form/", editWrap(addFormHandler))
 	srv.Handle("POST /config/rename/", mutationWrap(renameHandler))
-	srv.Handle("GET /config/changes", authWrap(zeweb.HandleConfigChanges(editorMgr, renderer)))
+	srv.Handle("GET /config/changes", authWrap(zeweb.HandleConfigChanges(editorMgr, renderer, authorizer)))
 	srv.Handle("POST /config/delete/", mutationWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
