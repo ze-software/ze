@@ -203,6 +203,45 @@ expect=json:json={ "type": "update", ... }
 stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
 ```
 
+### What a ze-peer block may carry
+
+A block handed to `ze-peer` (named on a `cmd=...:exec=ze-peer ...:stdin=<name>`
+line) is read first by ze-peer and then by the test runner. The block named
+`peer` is validated by the same rules even with no such line, because a `.ci`
+with no `cmd=` at all feeds its `expect=` lines to ze-peer by another route. **A line neither of them
+acts on fails the file at parse time**, naming the block, the line number and the
+directive.
+
+| Line | Read by |
+|------|---------|
+| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`) | ze-peer |
+| `expect=json`, `expect=stderr`, `expect=syslog`, `reject=stderr`, `reject=stdout`, `reject=syslog` | the test runner, where the line stands |
+| `cmd=api` | nobody. It documents the command that produced the expected bytes |
+| `option=timeout` | the test runner parses it, and **adopts it only when the file declares none.** Its scope is the whole test, not this peer, so a file-level value always wins. 450 tracked peer blocks carry one. Write the one that governs outside the block |
+| `option=env` | **refused.** It sets the environment of every process the test starts, not of this peer, so it must be written outside the block |
+| a line neither parser accepts | **refused** |
+
+Any OTHER directive the runner parses is accepted where it stands and applies to
+the whole test. `option=file`, `expect=exit`, `await=` and `http=` all work
+inside a peer block, and none of them is peer-scoped. Only `option=env` and
+`option=timeout` are singled out. Those two read as peer scope and are not.
+
+A value the named option does not have is refused as well, not just an unknown
+option name. `option=update:value=inspect-update-message` and
+`option=asn:value=abc` each used to parse into nothing, which is the same silent
+drop one level down.
+
+The accepted set is derived from the two parsers rather than written out a third
+time (`peer.ClaimLine` reports what ze-peer did with the line, and the runner's
+own line parser answers for the rest), so a directive added to either one cannot
+start being dropped here. Before the guard existed the block forwarded only
+`expect=` and `action=` lines and discarded everything else in silence: eleven
+`reject=bgp` directives across nine RFC-behaviour tests, and the `reject=stderr`
+of a tenth, asserted nothing while reading as the negative half of the proof.
+
+<!-- source: internal/test/runner/peer_contract.go -- validatePeerBlockDirectives, the guard -->
+<!-- source: internal/test/peer/expect.go -- ClaimLine, ze-peer's own answer -->
+
 ## Tmpfs (Virtual File System)
 
 Tmpfs allows embedding multiple files within a single `.ci` file. Files are extracted to a temp directory at runtime.
@@ -600,8 +639,27 @@ next command.
 
 On Linux, 127.0.0.2 works automatically (127.0.0.0/8 routes to lo). On macOS
 and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
-<!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux -->
+
+IPv6 works differently, because a host carries exactly one IPv6 loopback
+address. A fixture that needs a second one uses `fd00::2`, which is unique-local
+(RFC 4193) and never globally routable. `make ze-setup` adds it, and
+`make ze-setup CHECK=1` reports whether it is there. The runner never adds it:
+the ioctl returns EPERM to an unprivileged process, and `make ze-verify` runs as
+an ordinary user. A test that binds an address this host does not carry fails at
+once with `loopback_address_missing` and the command to run, rather than timing
+out on a bind that could not succeed.
+
+The check reads both places a fixture names an address it binds. One is
+`ze-peer --bind <ip>` on a `cmd=` line. The other is `connection { local { ip
+<addr> } }` in the config the fixture embeds: Ze sends from that address and
+listens on it when `accept` is true, so the host must carry it too. A local
+address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
+fixture names a routable one (`local { ip 192.0.2.1 }`), the daemon exits before
+it binds anything, and `make ze-setup` adds no such address.
+<!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
+<!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
+<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
 
 ## Expectations
 
@@ -757,6 +815,7 @@ reject=stderr:pattern=<regex>
 reject=stdout:contains=<text>
 reject=stdout:pattern=<regex>
 reject=syslog:pattern=<regex>
+reject=bgp:conn=<N>:pattern=<hex>
 ```
 
 Inverse of `expect=` -- the test **fails** if the pattern matches. Used to verify that unwanted output (e.g., deprecated warnings, ERROR-level messages) does NOT appear.
@@ -767,8 +826,51 @@ Inverse of `expect=` -- the test **fails** if the pattern matches. Used to verif
 | `reject=stdout:contains=<text>` | Fail if stdout contains substring |
 | `reject=stdout:pattern=<regex>` | Fail if stdout matches regex |
 | `reject=syslog:pattern=<regex>` | Fail if syslog output matches regex |
+| `reject=bgp:conn=<N>:pattern=<hex>` | Fail if connection N of a ze-peer receives a frame carrying these wire bytes |
 <!-- source: internal/test/runner/runner_exec.go -- stdout reject handling -->
 <!-- source: internal/test/runner/runner_validate.go -- stderr/syslog reject handling -->
+<!-- source: internal/test/peer/reject.go -- reject=bgp, the wire rejection -->
+
+#### `reject=bgp` -- bytes a peer must never receive
+
+`reject=bgp` is the only reject type ze-peer reads, because ze-peer is what sees
+the wire. It goes inside the peer's stdin block, beside the `expect=bgp` lines.
+The hex needle is matched on wire bytes at a byte BOUNDARY, which
+`expect=bgp:contains=` is not: that one is a plain substring match over the hex
+text, so it can also match at an odd nibble offset.
+
+Four properties make it an assertion rather than a hope:
+
+- It is never consumed. Every frame the peer's message loop reads is checked
+  against it. The `option=linger` loop keeps checking after completion. Pair the
+  rejection with `option=linger:value=true` to hold it open for the whole test.
+- **Check mode only.** Sink and echo peers read every accepted connection
+  concurrently against one checker, so a `conn=` could not select the session the
+  frame arrived on. The runner refuses the file, and ze-peer refuses to start.
+- The block MUST also carry an `expect=bgp:conn=<N>` on the same connection, and
+  the runner refuses the file otherwise. That rule is necessary and it is not
+  sufficient. It bounds how long the rejection is checked. It cannot say whether
+  the forbidden bytes would have arrived inside that window.
+  **The author owes the second half.** Send the delivery LAST on that connection,
+  so a leak of the governed route arrives ahead of it. Or hold the session open
+  with `option=linger`. A connection stops being read once its expectations
+  complete, and its rejection then passes for the one reason a rejection must not.
+- An odd-length or non-hexadecimal needle is a parse error, because a needle
+  that can never match would pass for that same reason. The runner reads the
+  line with ze-peer's own parser (`peer.ParseRejectRule`), so a typo fails the
+  FILE rather than the peer: a rejection rejected inside ze-peer would stop it
+  binding, and the runner would report that as a bind timeout.
+
+```
+stdin=external:terminator=EOF_EXTERNAL
+option=tcp_connections:value=1
+option=linger:value=true
+# The delivery that makes the rejection an assertion rather than an empty session.
+expect=bgp:conn=1:seq=1:contains=18C00002
+# 180A0100 is 10.1.0.0/24, which NO_ADVERTISE forbids on any peer.
+reject=bgp:conn=1:pattern=180A0100
+EOF_EXTERNAL
+```
 
 ## Assertion Strength: accept-only tests and readback
 

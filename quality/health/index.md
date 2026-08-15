@@ -11,10 +11,11 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 170** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **136 / 22605 (floor 135)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
-| Logged known-failing tests | Q3 | **1** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
+| Tests with no reachable failure call | Q1 | **144 / 22977 (floor 135)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| Test files that expect a specific error | Q2 | **1063 / 3156** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Logged known-failing tests | Q3 | **2** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-7 further metric(s) are within threshold and are listed in full below.
+6 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -22,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 22605 (floor 135)** (attention)
+**144 / 22977 (floor 135)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -33,13 +34,13 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | cmd/ze/hub/aaa_lifecycle_test.go | TestCloseAAABundleNoBundle |
 | internal/chaos/chaos_test.go | TestChaosConcurrency |
 | internal/chaos/watchdog/watchdog_test.go | TestWatchdogRouteRegression |
+| internal/chaos/web/golden_test.go | TestChaosPortFidelity |
 | internal/component/bfd/api/registry_test.go | TestSetGetService_ConcurrentNoRace |
 | internal/component/bfd/metrics_test.go | TestMetricsHookStateChangeCounters |
 | internal/component/bfd/metrics_test.go | TestRefreshSessionsGauge |
 | internal/component/bgp/plugins/bmp/event_test.go | TestBMPPeerUpSkippedOnCacheMiss |
 | internal/component/bgp/plugins/bmp/event_test.go | TestHandleSenderNoSenders |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB |
-| internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_ShortUpdate_Skipped |
 
 ### Mutants killed, latest sample per package
 
@@ -82,11 +83,32 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 *Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
+### Test files that expect a specific error
+
+**1063 / 3156** (attention)
+
+Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
+
+*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
+
+| area | negative | files | percent |
+|---|---|---|---|
+| internal/chaos/report | 0 | 6 | 0.0 |
+| internal/chaos/web | 0 | 9 | 0.0 |
+| internal/core/rib | 0 | 11 | 0.0 |
+| internal/core/stats | 0 | 5 | 0.0 |
+| internal/plugins/completion | 0 | 5 | 0.0 |
+| internal/test/mock | 0 | 7 | 0.0 |
+| internal/component/doctor | 1 | 17 | 5.9 |
+| internal/component/lg | 1 | 16 | 6.2 |
+| internal/component/sysrib | 1 | 12 | 8.3 |
+| internal/chaos/peer | 1 | 11 | 9.1 |
+
 ### RFC MUST requirements proven by a positive+negative test pair
 
-**1231 / 2967** (ok)
+**1237 / 2965** (ok)
 
-41.5% carry both polarities. Of the remaining 1736: 841 not-applicable (ze deliberately does not do it, so no test is owed), 524 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
+41.7% carry both polarities. Of the remaining 1728: 840 not-applicable (ze deliberately does not do it, so no test is owed), 518 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
 
 *Action if this degrades:* Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.
 
@@ -105,32 +127,11 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**22636 test functions** (ok)
+**23009 test functions** (ok)
 
-3091 Go test files, 78 fuzz targets, 137 benchmarks, 1636 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3156 Go test files, 78 fuzz targets, 137 benchmarks, 1654 .ci scenarios, 165 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
-
-### Test files that expect a specific error
-
-**1054 / 3091** (ok)
-
-Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
-
-*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
-
-| area | negative | files | percent |
-|---|---|---|---|
-| internal/chaos/report | 0 | 6 | 0.0 |
-| internal/chaos/web | 0 | 7 | 0.0 |
-| internal/core/rib | 0 | 11 | 0.0 |
-| internal/core/stats | 0 | 5 | 0.0 |
-| internal/plugins/completion | 0 | 5 | 0.0 |
-| internal/test/mock | 0 | 7 | 0.0 |
-| internal/component/doctor | 1 | 17 | 5.9 |
-| internal/component/sysrib | 1 | 12 | 8.3 |
-| internal/chaos/peer | 1 | 11 | 9.1 |
-| internal/component/lg | 1 | 10 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -143,7 +144,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 497 | 31 | 98 | 31 |
+| 2026 | 501 | 31 | 98 | 31 |
 
 ## Integrity
 
@@ -151,7 +152,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 
 ### Logged known-failing tests
 
-**1** (attention)
+**2** (attention)
 
 Reds logged rather than fixed, one shard file per live failure (42 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
 

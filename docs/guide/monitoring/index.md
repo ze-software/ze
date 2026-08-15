@@ -123,7 +123,7 @@ All events follow the ze-bgp JSON envelope:
 Plugins can subscribe to events via the SDK:
 
 ```
-process my-plugin {
+attach process my-plugin {
     receive [ update state ]
 }
 ```
@@ -175,7 +175,7 @@ telemetry {
 | `basic-auth/realm` | `ze prometheus` | Basic Auth realm |
 | `basic-auth/username` | unset | Basic Auth username |
 | `basic-auth/password` | unset | Bcrypt-hashed Basic Auth password |
-| `basic-auth/plaintext-password` | unset | Write-only password input, hashed on commit |
+| `basic-auth/plaintext-password` | unset | Write-only password input, hashed at commit and at load |
 | `netdata/enabled` | true | Enable Netdata-compatible OS collectors |
 | `netdata/prefix` | `netdata` | Prefix for Netdata-compatible OS collector metrics only |
 | `netdata/interval` | 1 | Netdata-compatible OS collector sampling interval (1-60s) |
@@ -185,7 +185,10 @@ Deprecated compatibility aliases remain accepted: `prefix`, `interval`, and `col
 
 ### HTTP Basic Authentication
 
-When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when editing the config and the commit hook will replace it with `password`. If automation already has a hash from `ze passwd`, set `password` directly.
+When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when you edit the config and Ze replaces it with `password` at commit. If automation already has a hash from `ze passwd`, set `password` directly.
+
+A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 
 Prometheus scrape configuration:
 
@@ -433,6 +436,31 @@ A `batch` increment also reaches the caller: `AnnounceNLRIBatch` returns
 so a plugin sees its own announce refused. A `queued` increment has no such
 channel and the counter is the only signal besides the log line. Act on either by
 sending fewer prefixes per announce, or by reducing the attributes on the route.
+
+#### Sends Refused By The Attach Permission
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_send_refused_total` | counter | `process`, `type` | A process asked to generate a message toward a peer whose config does not attach it with that send type. Nothing reached the peer |
+
+A peer feeds and is fed by the processes its `attach process <name>` blocks
+name, and the `send` list inside a block is the permission to originate toward
+that peer. An increment means a program addressed a peer it was never attached
+to: the peer was dropped from that command and nothing went on its wire. `type`
+is `update` for a route, a withdrawal or an End-of-RIB marker, and `refresh` for
+a route refresh or a soft clear.
+
+A steady non-zero rate with no config change is usually a program that widened
+its selector to `peer *` and is now reaching for peers the operator never linked
+it to. A step at reload is usually the opposite: an attach block was removed
+while the program kept announcing. The WARN line beside each increment names the
+peer, which this counter deliberately does not (an error path should not carry
+peer-driven cardinality), and it prints the exact block to add.
+
+An operator at the CLI, over SSH or through the REST API never appears here:
+their authority is checked by AAA, and `send` grants authority to a program.
+<!-- source: internal/component/bgp/reactor/send_permission.go -- recordSendRefused, sendPermissionDenied -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
 
 #### Prefix Limits (RFC 4486)
 

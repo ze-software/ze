@@ -387,6 +387,28 @@
       {
         "children": [
           {
+            "description": "Discard traffic sent toward a prefix this peer announces\ncarrying one of these communities. Ze installs that prefix as\na discard route directly. There is no next-hop to allocate and\nno static route to pre-create.\n\nWrite ASN:VAL, for example 65001:666, or a well-known name.\nblackhole and 65535:666 are one value, the one RFC 7999\nregisters. Section 4 suggests that keyword. An operator's own\ncommunity is the common case, which is why this is a list.\n\nA listed community IS the agreement RFC 7999 Section 3.3\nrequires the receiving party to make 'on that particular BGP\nsession'.\n\nAn empty list beside a set prefixes list means the well-known\nvalue alone. Stating the prefixes a peer CAN blackhole within\nIS the explicit configuration directive Section 4 asks for.\nThe same act is Section 3.3's agreement on that session, so\nstandard RTBH takes one line. Section 4's default holds: a\ncontainer with neither list discards nothing, and so does a\npeer with no container.\n\nA STATED list is taken exactly. The well-known value is NOT\nadded to it. An operator who names 65001:666 and not 65535:666\nmeans it, and Section 3.1 makes that their choice.\n\nThe parser applies that default, not a YANG default statement.\nThe default is conditional on a SIBLING leaf, which a leaf-list\ndefault cannot express. A value materialised into the schema\nwould also make every peer read as having agreed to 65535:666\non the send side.\n\nOne community is not enough on its own. RFC 7999 Section 3.3\nstates two conditions, and the prefixes list is the other. A\npeer with a community and no covering prefix blackholes\nnothing.\n\nThe list governs the SEND side too. RFC 7999 Section 3.1\nrequires the two networks to agree on use of the BLACKHOLE\ncommunity before a speaker advertises it. Naming it here is\nthis speaker's half. `announce blackhole` reaches only the\nsessions that hold 65535:666, under either spelling. A session\nthat named its own value alone is left out of the\nannouncement, and is not sent the prefix untagged.",
+            "kind": "leaf-list",
+            "name": "communities",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The prefixes this PEER is authorized to advertise. Ze honors a\nreceived blackhole announcement only when one of them covers\nit and is equal or shorter. That is RFC 7999 Section 3.3's\nfirst condition, in the RFC's own words. The announced prefix\nis 'covered by an equal or shorter IP prefix that the\nneighboring network is authorized to advertise'.\n\nThe container already says blackhole, so the leaf does not\nrepeat it.\n\nCoverage is not prefix-list membership. A list entry\n192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,\nbecause the /24 is a shorter covering prefix the neighbor may\nadvertise. That is the RFC test, and it does not depend on any\nge or le bound.\n\nAn empty list authorizes nothing, so honoring never happens.\nThat is the closed state on purpose: RFC 7999 Section 6 names\nunauthorized addition of BLACKHOLE as a denial-of-reachability\nvector, and an open default would let any peer discard traffic\nfor any prefix it names.",
+            "kind": "leaf-list",
+            "name": "prefixes",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "The RFC 7999 agreement on this BGP session, in both directions.\nIt states what this speaker does with a received route carrying\nthe BLACKHOLE community, 65535:666. It also states whether this\nspeaker CAN advertise that community to this peer. Section 4 uses\nthe suggested shorthand keyword for the value.\n\nA later revision adds an as-sets leaf-list here. It answers a\nDIFFERENT question from session/irr/as-set. That one states what\nthe peer CAN advertise at all. This one would state what the peer\nCAN blackhole within. Whether one deployment puts the same set in\nboth is the operator's business, not this model's.",
+        "kind": "container",
+        "name": "blackhole",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
             "children": [
               {
                 "children": [
@@ -558,6 +580,41 @@
               {
                 "children": [
                   {
+                    "description": "Community to add to a route received carrying BLACKHOLE\n(65535:666). It stops the prefix propagating outside the\nlocal AS. RFC 7999 Section 3.2. The choice between the two\nfollows the operator routing policy, so neither is forced.\nThis adds the community. It does not discard traffic.",
+                    "kind": "leaf",
+                    "name": "blackhole-propagation",
+                    "source": "config",
+                    "type": "enumeration"
+                  },
+                  {
+                    "description": "Function number of the relation tag. RFC 8195 Section 3.2\nleaves this number to each AS and gives 3 as its example.\nThe number is a local convention, not a protocol\nconstant. Change it here when the AS already uses 3 for\nsomething else.",
+                    "kind": "leaf",
+                    "name": "relation-function",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "Write the RFC 8195 Section 3.2 relation-to-origin large\ncommunity on each route received from this peer. The\nGlobal Administrator is the session local AS. The\nparameter comes from what the peer IS to us: 2 for a\ncustomer, 3 for a peer, 4 for a provider. A route-server\nor route-server-client session writes nothing, because\nRFC 7947 requires transparency there. An iBGP session\nwrites nothing. Its sender is inside the local AS and has\nno such relation.",
+                    "kind": "leaf",
+                    "name": "relation-tag",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "Function numbers a peer may send with the local AS as the\nGlobal Administrator. This is RFC 7454 Section 11\ncarve-out for what customers and peers use as a signaling\nmechanism. An empty list keeps nothing. The relation-tag\nfunction number is never kept, whatever this list says: a\nkept relation function would let a peer state its own\nrelation to this AS.",
+                    "kind": "leaf-list",
+                    "name": "scrub-keep-function",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "Remove inbound communities whose Global Administrator is\nthe local AS. Only the function numbers listed in\nscrub-keep-function survive. RFC 7454 Section 11. It\ncovers standard and large communities. It runs on eBGP\nsessions only. On an iBGP session an own-AS value is this\nnetwork's own signal to itself. Well-known communities are\nnever reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE\nalways survive.",
+                    "kind": "leaf",
+                    "name": "scrub-own-ga",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
                     "description": "Named communities to remove on ingress",
                     "kind": "leaf-list",
                     "name": "strip",
@@ -594,6 +651,92 @@
           {
             "children": [
               {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "description": "Filter expression to select which BGP attributes are included in events.",
+                        "kind": "leaf",
+                        "name": "attribute",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Wire encoding for events sent to the process (e.g., json, text).",
+                        "kind": "leaf",
+                        "name": "encoding",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Output format template for event rendering.",
+                        "kind": "leaf",
+                        "name": "format",
+                        "source": "config",
+                        "type": "string"
+                      }
+                    ],
+                    "description": "Controls the encoding and filtering of events sent to this process.",
+                    "kind": "container",
+                    "name": "content",
+                    "source": "config"
+                  },
+                  {
+                    "description": "Send session state change events (up/down/reset) to this process.\nEnables the process to react to peer lifecycle transitions.",
+                    "kind": "container",
+                    "name": "neighbor-changes",
+                    "source": "config"
+                  },
+                  {
+                    "description": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
+                    "kind": "leaf-list",
+                    "name": "processes",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Legacy ExaBGP process match patterns for event filtering.",
+                    "kind": "leaf-list",
+                    "name": "processes-match",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Event types this peer feeds the program. Base\ntypes: update, open, notification, keepalive, refresh,\nstate, negotiated. Plugins register more (e.g.\nupdate-rpki).\nA type carries the direction it is fed in: 'update'\nmeans both directions, 'update-received' and\n'update-sent' mean one. A registered type keeps its\nwhole name, so a plugin type that ends in -sent is\nnever read as a direction.\n'*' feeds every type, in both directions. 'all' is not\naccepted: a word that reads like a type would grant a\ntype a plugin registers later, which '*' says on\npurpose.\nValidated at runtime against registered event types.",
+                    "kind": "leaf-list",
+                    "name": "receive",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Shell command to spawn the external process. Ze pipes BGP events to its\nstdin and reads commands from its stdout.",
+                    "kind": "leaf",
+                    "name": "run",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Message types this program may send toward the\npeer. Valid: update, refresh, enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
+                    "kind": "leaf-list",
+                    "name": "send",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "External process that receives BGP events and can inject messages.\nZe spawns the process and communicates via stdin/stdout JSON.",
+                "kind": "list[name]",
+                "name": "process",
+                "source": "config"
+              }
+            ],
+            "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process <name> { ... }`.",
+            "kind": "container",
+            "name": "attach",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Automatically withdraw all routes advertised to this peer when the session\ngoes down. When disabled, routes remain until explicitly withdrawn or the\nhold timer expires. Legacy ExaBGP option, retained for migration.",
                 "kind": "leaf",
                 "name": "auto-flush",
@@ -625,6 +768,28 @@
             "description": "Operational knobs that control how the reactor processes and forwards\nUPDATE messages for this peer. Most users can leave these at defaults.",
             "kind": "container",
             "name": "behavior",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "Discard traffic sent toward a prefix this peer announces\ncarrying one of these communities. Ze installs that prefix as\na discard route directly. There is no next-hop to allocate and\nno static route to pre-create.\n\nWrite ASN:VAL, for example 65001:666, or a well-known name.\nblackhole and 65535:666 are one value, the one RFC 7999\nregisters. Section 4 suggests that keyword. An operator's own\ncommunity is the common case, which is why this is a list.\n\nA listed community IS the agreement RFC 7999 Section 3.3\nrequires the receiving party to make 'on that particular BGP\nsession'.\n\nAn empty list beside a set prefixes list means the well-known\nvalue alone. Stating the prefixes a peer CAN blackhole within\nIS the explicit configuration directive Section 4 asks for.\nThe same act is Section 3.3's agreement on that session, so\nstandard RTBH takes one line. Section 4's default holds: a\ncontainer with neither list discards nothing, and so does a\npeer with no container.\n\nA STATED list is taken exactly. The well-known value is NOT\nadded to it. An operator who names 65001:666 and not 65535:666\nmeans it, and Section 3.1 makes that their choice.\n\nThe parser applies that default, not a YANG default statement.\nThe default is conditional on a SIBLING leaf, which a leaf-list\ndefault cannot express. A value materialised into the schema\nwould also make every peer read as having agreed to 65535:666\non the send side.\n\nOne community is not enough on its own. RFC 7999 Section 3.3\nstates two conditions, and the prefixes list is the other. A\npeer with a community and no covering prefix blackholes\nnothing.\n\nThe list governs the SEND side too. RFC 7999 Section 3.1\nrequires the two networks to agree on use of the BLACKHOLE\ncommunity before a speaker advertises it. Naming it here is\nthis speaker's half. `announce blackhole` reaches only the\nsessions that hold 65535:666, under either spelling. A session\nthat named its own value alone is left out of the\nannouncement, and is not sent the prefix untagged.",
+                "kind": "leaf-list",
+                "name": "communities",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The prefixes this PEER is authorized to advertise. Ze honors a\nreceived blackhole announcement only when one of them covers\nit and is equal or shorter. That is RFC 7999 Section 3.3's\nfirst condition, in the RFC's own words. The announced prefix\nis 'covered by an equal or shorter IP prefix that the\nneighboring network is authorized to advertise'.\n\nThe container already says blackhole, so the leaf does not\nrepeat it.\n\nCoverage is not prefix-list membership. A list entry\n192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,\nbecause the /24 is a shorter covering prefix the neighbor may\nadvertise. That is the RFC test, and it does not depend on any\nge or le bound.\n\nAn empty list authorizes nothing, so honoring never happens.\nThat is the closed state on purpose: RFC 7999 Section 6 names\nunauthorized addition of BLACKHOLE as a denial-of-reachability\nvector, and an open default would let any peer discard traffic\nfor any prefix it names.",
+                "kind": "leaf-list",
+                "name": "prefixes",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "The RFC 7999 agreement on this BGP session, in both directions.\nIt states what this speaker does with a received route carrying\nthe BLACKHOLE community, 65535:666. It also states whether this\nspeaker CAN advertise that community to this peer. Section 4 uses\nthe suggested shorthand keyword for the value.\n\nA later revision adds an as-sets leaf-list here. It answers a\nDIFFERENT question from session/irr/as-set. That one states what\nthe peer CAN advertise at all. This one would state what the peer\nCAN blackhole within. Whether one deployment puts the same set in\nboth is the operator's business, not this model's.",
+            "kind": "container",
+            "name": "blackhole",
             "source": "config"
           },
           {
@@ -902,6 +1067,41 @@
                   {
                     "children": [
                       {
+                        "description": "Community to add to a route received carrying BLACKHOLE\n(65535:666). It stops the prefix propagating outside the\nlocal AS. RFC 7999 Section 3.2. The choice between the two\nfollows the operator routing policy, so neither is forced.\nThis adds the community. It does not discard traffic.",
+                        "kind": "leaf",
+                        "name": "blackhole-propagation",
+                        "source": "config",
+                        "type": "enumeration"
+                      },
+                      {
+                        "description": "Function number of the relation tag. RFC 8195 Section 3.2\nleaves this number to each AS and gives 3 as its example.\nThe number is a local convention, not a protocol\nconstant. Change it here when the AS already uses 3 for\nsomething else.",
+                        "kind": "leaf",
+                        "name": "relation-function",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Write the RFC 8195 Section 3.2 relation-to-origin large\ncommunity on each route received from this peer. The\nGlobal Administrator is the session local AS. The\nparameter comes from what the peer IS to us: 2 for a\ncustomer, 3 for a peer, 4 for a provider. A route-server\nor route-server-client session writes nothing, because\nRFC 7947 requires transparency there. An iBGP session\nwrites nothing. Its sender is inside the local AS and has\nno such relation.",
+                        "kind": "leaf",
+                        "name": "relation-tag",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Function numbers a peer may send with the local AS as the\nGlobal Administrator. This is RFC 7454 Section 11\ncarve-out for what customers and peers use as a signaling\nmechanism. An empty list keeps nothing. The relation-tag\nfunction number is never kept, whatever this list says: a\nkept relation function would let a peer state its own\nrelation to this AS.",
+                        "kind": "leaf-list",
+                        "name": "scrub-keep-function",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Remove inbound communities whose Global Administrator is\nthe local AS. Only the function numbers listed in\nscrub-keep-function survive. RFC 7454 Section 11. It\ncovers standard and large communities. It runs on eBGP\nsessions only. On an iBGP session an own-AS value is this\nnetwork's own signal to itself. Well-known communities are\nnever reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE\nalways survive.",
+                        "kind": "leaf",
+                        "name": "scrub-own-ga",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
                         "description": "Named communities to remove on ingress",
                         "kind": "leaf-list",
                         "name": "strip",
@@ -938,6 +1138,92 @@
               {
                 "children": [
                   {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Filter expression to select which BGP attributes are included in events.",
+                            "kind": "leaf",
+                            "name": "attribute",
+                            "source": "config",
+                            "type": "string"
+                          },
+                          {
+                            "description": "Wire encoding for events sent to the process (e.g., json, text).",
+                            "kind": "leaf",
+                            "name": "encoding",
+                            "source": "config",
+                            "type": "string"
+                          },
+                          {
+                            "description": "Output format template for event rendering.",
+                            "kind": "leaf",
+                            "name": "format",
+                            "source": "config",
+                            "type": "string"
+                          }
+                        ],
+                        "description": "Controls the encoding and filtering of events sent to this process.",
+                        "kind": "container",
+                        "name": "content",
+                        "source": "config"
+                      },
+                      {
+                        "description": "Send session state change events (up/down/reset) to this process.\nEnables the process to react to peer lifecycle transitions.",
+                        "kind": "container",
+                        "name": "neighbor-changes",
+                        "source": "config"
+                      },
+                      {
+                        "description": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
+                        "kind": "leaf-list",
+                        "name": "processes",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Legacy ExaBGP process match patterns for event filtering.",
+                        "kind": "leaf-list",
+                        "name": "processes-match",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Event types this peer feeds the program. Base\ntypes: update, open, notification, keepalive, refresh,\nstate, negotiated. Plugins register more (e.g.\nupdate-rpki).\nA type carries the direction it is fed in: 'update'\nmeans both directions, 'update-received' and\n'update-sent' mean one. A registered type keeps its\nwhole name, so a plugin type that ends in -sent is\nnever read as a direction.\n'*' feeds every type, in both directions. 'all' is not\naccepted: a word that reads like a type would grant a\ntype a plugin registers later, which '*' says on\npurpose.\nValidated at runtime against registered event types.",
+                        "kind": "leaf-list",
+                        "name": "receive",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Shell command to spawn the external process. Ze pipes BGP events to its\nstdin and reads commands from its stdout.",
+                        "kind": "leaf",
+                        "name": "run",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Message types this program may send toward the\npeer. Valid: update, refresh, enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
+                        "kind": "leaf-list",
+                        "name": "send",
+                        "source": "config",
+                        "type": "string"
+                      }
+                    ],
+                    "description": "External process that receives BGP events and can inject messages.\nZe spawns the process and communicates via stdin/stdout JSON.",
+                    "kind": "list[name]",
+                    "name": "process",
+                    "source": "config"
+                  }
+                ],
+                "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process <name> { ... }`.",
+                "kind": "container",
+                "name": "attach",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
                     "description": "Automatically withdraw all routes advertised to this peer when the session\ngoes down. When disabled, routes remain until explicitly withdrawn or the\nhold timer expires. Legacy ExaBGP option, retained for migration.",
                     "kind": "leaf",
                     "name": "auto-flush",
@@ -969,6 +1255,28 @@
                 "description": "Operational knobs that control how the reactor processes and forwards\nUPDATE messages for this peer. Most users can leave these at defaults.",
                 "kind": "container",
                 "name": "behavior",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
+                    "description": "Discard traffic sent toward a prefix this peer announces\ncarrying one of these communities. Ze installs that prefix as\na discard route directly. There is no next-hop to allocate and\nno static route to pre-create.\n\nWrite ASN:VAL, for example 65001:666, or a well-known name.\nblackhole and 65535:666 are one value, the one RFC 7999\nregisters. Section 4 suggests that keyword. An operator's own\ncommunity is the common case, which is why this is a list.\n\nA listed community IS the agreement RFC 7999 Section 3.3\nrequires the receiving party to make 'on that particular BGP\nsession'.\n\nAn empty list beside a set prefixes list means the well-known\nvalue alone. Stating the prefixes a peer CAN blackhole within\nIS the explicit configuration directive Section 4 asks for.\nThe same act is Section 3.3's agreement on that session, so\nstandard RTBH takes one line. Section 4's default holds: a\ncontainer with neither list discards nothing, and so does a\npeer with no container.\n\nA STATED list is taken exactly. The well-known value is NOT\nadded to it. An operator who names 65001:666 and not 65535:666\nmeans it, and Section 3.1 makes that their choice.\n\nThe parser applies that default, not a YANG default statement.\nThe default is conditional on a SIBLING leaf, which a leaf-list\ndefault cannot express. A value materialised into the schema\nwould also make every peer read as having agreed to 65535:666\non the send side.\n\nOne community is not enough on its own. RFC 7999 Section 3.3\nstates two conditions, and the prefixes list is the other. A\npeer with a community and no covering prefix blackholes\nnothing.\n\nThe list governs the SEND side too. RFC 7999 Section 3.1\nrequires the two networks to agree on use of the BLACKHOLE\ncommunity before a speaker advertises it. Naming it here is\nthis speaker's half. `announce blackhole` reaches only the\nsessions that hold 65535:666, under either spelling. A session\nthat named its own value alone is left out of the\nannouncement, and is not sent the prefix untagged.",
+                    "kind": "leaf-list",
+                    "name": "communities",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "The prefixes this PEER is authorized to advertise. Ze honors a\nreceived blackhole announcement only when one of them covers\nit and is equal or shorter. That is RFC 7999 Section 3.3's\nfirst condition, in the RFC's own words. The announced prefix\nis 'covered by an equal or shorter IP prefix that the\nneighboring network is authorized to advertise'.\n\nThe container already says blackhole, so the leaf does not\nrepeat it.\n\nCoverage is not prefix-list membership. A list entry\n192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,\nbecause the /24 is a shorter covering prefix the neighbor may\nadvertise. That is the RFC test, and it does not depend on any\nge or le bound.\n\nAn empty list authorizes nothing, so honoring never happens.\nThat is the closed state on purpose: RFC 7999 Section 6 names\nunauthorized addition of BLACKHOLE as a denial-of-reachability\nvector, and an open default would let any peer discard traffic\nfor any prefix it names.",
+                    "kind": "leaf-list",
+                    "name": "prefixes",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "The RFC 7999 agreement on this BGP session, in both directions.\nIt states what this speaker does with a received route carrying\nthe BLACKHOLE community, 65535:666. It also states whether this\nspeaker CAN advertise that community to this peer. Section 4 uses\nthe suggested shorthand keyword for the value.\n\nA later revision adds an as-sets leaf-list here. It answers a\nDIFFERENT question from session/irr/as-set. That one states what\nthe peer CAN advertise at all. This one would state what the peer\nCAN blackhole within. Whether one deployment puts the same set in\nboth is the operator's business, not this model's.",
+                "kind": "container",
+                "name": "blackhole",
                 "source": "config"
               },
               {
@@ -1246,6 +1554,41 @@
                       {
                         "children": [
                           {
+                            "description": "Community to add to a route received carrying BLACKHOLE\n(65535:666). It stops the prefix propagating outside the\nlocal AS. RFC 7999 Section 3.2. The choice between the two\nfollows the operator routing policy, so neither is forced.\nThis adds the community. It does not discard traffic.",
+                            "kind": "leaf",
+                            "name": "blackhole-propagation",
+                            "source": "config",
+                            "type": "enumeration"
+                          },
+                          {
+                            "description": "Function number of the relation tag. RFC 8195 Section 3.2\nleaves this number to each AS and gives 3 as its example.\nThe number is a local convention, not a protocol\nconstant. Change it here when the AS already uses 3 for\nsomething else.",
+                            "kind": "leaf",
+                            "name": "relation-function",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Write the RFC 8195 Section 3.2 relation-to-origin large\ncommunity on each route received from this peer. The\nGlobal Administrator is the session local AS. The\nparameter comes from what the peer IS to us: 2 for a\ncustomer, 3 for a peer, 4 for a provider. A route-server\nor route-server-client session writes nothing, because\nRFC 7947 requires transparency there. An iBGP session\nwrites nothing. Its sender is inside the local AS and has\nno such relation.",
+                            "kind": "leaf",
+                            "name": "relation-tag",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Function numbers a peer may send with the local AS as the\nGlobal Administrator. This is RFC 7454 Section 11\ncarve-out for what customers and peers use as a signaling\nmechanism. An empty list keeps nothing. The relation-tag\nfunction number is never kept, whatever this list says: a\nkept relation function would let a peer state its own\nrelation to this AS.",
+                            "kind": "leaf-list",
+                            "name": "scrub-keep-function",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Remove inbound communities whose Global Administrator is\nthe local AS. Only the function numbers listed in\nscrub-keep-function survive. RFC 7454 Section 11. It\ncovers standard and large communities. It runs on eBGP\nsessions only. On an iBGP session an own-AS value is this\nnetwork's own signal to itself. Well-known communities are\nnever reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE\nalways survive.",
+                            "kind": "leaf",
+                            "name": "scrub-own-ga",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
                             "description": "Named communities to remove on ingress",
                             "kind": "leaf-list",
                             "name": "strip",
@@ -1275,84 +1618,6 @@
                 "description": "Route filter chains for import and export.\nNames reference filter instances defined in bgp/policy.",
                 "kind": "container",
                 "name": "filter",
-                "source": "config"
-              },
-              {
-                "children": [
-                  {
-                    "children": [
-                      {
-                        "description": "Filter expression to select which BGP attributes are included in events.",
-                        "kind": "leaf",
-                        "name": "attribute",
-                        "source": "config",
-                        "type": "string"
-                      },
-                      {
-                        "description": "Wire encoding for events sent to the process (e.g., json, text).",
-                        "kind": "leaf",
-                        "name": "encoding",
-                        "source": "config",
-                        "type": "string"
-                      },
-                      {
-                        "description": "Output format template for event rendering.",
-                        "kind": "leaf",
-                        "name": "format",
-                        "source": "config",
-                        "type": "string"
-                      }
-                    ],
-                    "description": "Controls the encoding and filtering of events sent to this process.",
-                    "kind": "container",
-                    "name": "content",
-                    "source": "config"
-                  },
-                  {
-                    "description": "Send session state change events (up/down/reset) to this process.\nEnables the process to react to peer lifecycle transitions.",
-                    "kind": "container",
-                    "name": "neighbor-changes",
-                    "source": "config"
-                  },
-                  {
-                    "description": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
-                    "kind": "leaf-list",
-                    "name": "processes",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Legacy ExaBGP process match patterns for event filtering.",
-                    "kind": "leaf-list",
-                    "name": "processes-match",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Event types to receive. Base types: update, open,\nnotification, keepalive, refresh, state, sent, negotiated.\nPlugins may register additional types (e.g., update-rpki).\nList types explicitly; 'all' is not accepted.\nValidated at runtime against registered event types.",
-                    "kind": "leaf-list",
-                    "name": "receive",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Shell command to spawn the external process. Ze pipes BGP events to its\nstdin and reads commands from its stdout.",
-                    "kind": "leaf",
-                    "name": "run",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Message types to send. Valid: update, refresh,\nenhanced-refresh (BORR/EORR markers, RFC 7313).\nValidated at runtime against known send types.",
-                    "kind": "leaf-list",
-                    "name": "send",
-                    "source": "config",
-                    "type": "string"
-                  }
-                ],
-                "description": "External process that receives BGP events and can inject messages.\nZe spawns the process and communicates via stdin/stdout JSON.",
-                "kind": "list[name]",
-                "name": "process",
                 "source": "config"
               },
               {
@@ -1495,6 +1760,13 @@
                     "kind": "container",
                     "name": "aspa",
                     "source": "config"
+                  },
+                  {
+                    "description": "Keep a route that carries the RFC 7999 BLACKHOLE community when its\nonly origin-validation fault is that the prefix is longer than a\ncovering VRP allows.\n\nRFC 7999 Section 3.3 states that an operator MUST ensure origin\nvalidation does not inadvertently block legitimate announcements\ncarrying BLACKHOLE. A blackhole prefix is as long as possible,\ntypically a /32 or a /128, while a ROA for the covering block carries\nits maxLength at the aggregate. RFC 6811 then makes the announcement\nInvalid, and a session running action invalid reject drops it before\nanything can honor it.\n\nThe exemption is narrow. It applies only when a covering VRP names\nthe route's own origin AS and disagrees on nothing but length. A\nwrong origin AS stays Invalid, which is the hijack RFC 6811 exists to\ncatch. A prefix with no covering VRP is NotFound rather than Invalid,\nso this never reaches it.\n\nThe default is false. Turn it on together with the peer's blackhole\nhonor leaf, on the same session: on its own it accepts a route it\nwould have rejected and discards nothing.",
+                    "kind": "leaf",
+                    "name": "blackhole-exempt",
+                    "source": "config",
+                    "type": "boolean"
                   }
                 ],
                 "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
@@ -1767,6 +2039,13 @@
                       {
                         "children": [
                           {
+                            "description": "Which prefixes the count compared against maximum holds. offered counts wire events: every announcement raises the count and every withdrawal lowers it, so a peer that re-announces a prefix to change an attribute raises the count again although it holds the same route. The count can therefore sit above the maximum, and ze then drops every later announce of this family until the peer withdraws enough prefixes. installed counts the set of prefixes ze currently holds for this family, which no re-announcement and no unmatched withdrawal can move. installed keeps one entry per prefix for this family, so its memory is the size of what the peer sends up to the maximum. Neither value is the size of the RIB: import policy can reject a counted prefix.",
+                            "kind": "leaf",
+                            "name": "count",
+                            "source": "config",
+                            "type": "enumeration"
+                          },
+                          {
                             "description": "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.",
                             "kind": "leaf",
                             "name": "idle-timeout",
@@ -1850,7 +2129,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "IPv6 link-local address for next-hop (RFC 2545 Section 3)",
+                    "description": "IPv6 link-local address to advertise AFTER the global next hop\nin the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf\nsupplies the address. It does not decide that the address is\nsent: ze appends it only when this speaker shares a locally\nconnected subnet with the peer AND with the entity named by the\nglobal next hop, which is the 'if and only if' condition of\nSection 3. In every other case the field carries the global\naddress alone. Set it on a session that faces a peer on a shared\nlink. It has no effect on any other session.",
                     "kind": "leaf",
                     "name": "link-local",
                     "source": "config",
@@ -2134,84 +2413,6 @@
               {
                 "children": [
                   {
-                    "description": "Filter expression to select which BGP attributes are included in events.",
-                    "kind": "leaf",
-                    "name": "attribute",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Wire encoding for events sent to the process (e.g., json, text).",
-                    "kind": "leaf",
-                    "name": "encoding",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Output format template for event rendering.",
-                    "kind": "leaf",
-                    "name": "format",
-                    "source": "config",
-                    "type": "string"
-                  }
-                ],
-                "description": "Controls the encoding and filtering of events sent to this process.",
-                "kind": "container",
-                "name": "content",
-                "source": "config"
-              },
-              {
-                "description": "Send session state change events (up/down/reset) to this process.\nEnables the process to react to peer lifecycle transitions.",
-                "kind": "container",
-                "name": "neighbor-changes",
-                "source": "config"
-              },
-              {
-                "description": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
-                "kind": "leaf-list",
-                "name": "processes",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Legacy ExaBGP process match patterns for event filtering.",
-                "kind": "leaf-list",
-                "name": "processes-match",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Event types to receive. Base types: update, open,\nnotification, keepalive, refresh, state, sent, negotiated.\nPlugins may register additional types (e.g., update-rpki).\nList types explicitly; 'all' is not accepted.\nValidated at runtime against registered event types.",
-                "kind": "leaf-list",
-                "name": "receive",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Shell command to spawn the external process. Ze pipes BGP events to its\nstdin and reads commands from its stdout.",
-                "kind": "leaf",
-                "name": "run",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Message types to send. Valid: update, refresh,\nenhanced-refresh (BORR/EORR markers, RFC 7313).\nValidated at runtime against known send types.",
-                "kind": "leaf-list",
-                "name": "send",
-                "source": "config",
-                "type": "string"
-              }
-            ],
-            "description": "External process that receives BGP events and can inject messages.\nZe spawns the process and communicates via stdin/stdout JSON.",
-            "kind": "list[name]",
-            "name": "process",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "children": [
-                  {
                     "description": "Store received routes in Adj-RIB-In before policy. Enables soft\nreconfiguration inbound (re-apply import filters without session reset).\nUses additional memory proportional to received route count.",
                     "kind": "leaf",
                     "name": "in",
@@ -2347,6 +2548,13 @@
                 "kind": "container",
                 "name": "aspa",
                 "source": "config"
+              },
+              {
+                "description": "Keep a route that carries the RFC 7999 BLACKHOLE community when its\nonly origin-validation fault is that the prefix is longer than a\ncovering VRP allows.\n\nRFC 7999 Section 3.3 states that an operator MUST ensure origin\nvalidation does not inadvertently block legitimate announcements\ncarrying BLACKHOLE. A blackhole prefix is as long as possible,\ntypically a /32 or a /128, while a ROA for the covering block carries\nits maxLength at the aggregate. RFC 6811 then makes the announcement\nInvalid, and a session running action invalid reject drops it before\nanything can honor it.\n\nThe exemption is narrow. It applies only when a covering VRP names\nthe route's own origin AS and disagrees on nothing but length. A\nwrong origin AS stays Invalid, which is the hijack RFC 6811 exists to\ncatch. A prefix with no covering VRP is NotFound rather than Invalid,\nso this never reaches it.\n\nThe default is false. Turn it on together with the peer's blackhole\nhonor leaf, on the same session: on its own it accepts a route it\nwould have rejected and discards nothing.",
+                "kind": "leaf",
+                "name": "blackhole-exempt",
+                "source": "config",
+                "type": "boolean"
               }
             ],
             "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
@@ -2619,6 +2827,13 @@
                   {
                     "children": [
                       {
+                        "description": "Which prefixes the count compared against maximum holds. offered counts wire events: every announcement raises the count and every withdrawal lowers it, so a peer that re-announces a prefix to change an attribute raises the count again although it holds the same route. The count can therefore sit above the maximum, and ze then drops every later announce of this family until the peer withdraws enough prefixes. installed counts the set of prefixes ze currently holds for this family, which no re-announcement and no unmatched withdrawal can move. installed keeps one entry per prefix for this family, so its memory is the size of what the peer sends up to the maximum. Neither value is the size of the RIB: import policy can reject a counted prefix.",
+                        "kind": "leaf",
+                        "name": "count",
+                        "source": "config",
+                        "type": "enumeration"
+                      },
+                      {
                         "description": "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.",
                         "kind": "leaf",
                         "name": "idle-timeout",
@@ -2702,7 +2917,7 @@
                 "source": "config"
               },
               {
-                "description": "IPv6 link-local address for next-hop (RFC 2545 Section 3)",
+                "description": "IPv6 link-local address to advertise AFTER the global next hop\nin the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf\nsupplies the address. It does not decide that the address is\nsent: ze appends it only when this speaker shares a locally\nconnected subnet with the peer AND with the entity named by the\nglobal next hop, which is the 'if and only if' condition of\nSection 3. In every other case the field carries the global\naddress alone. Set it on a session that faces a peer on a shared\nlink. It has no effect on any other session.",
                 "kind": "leaf",
                 "name": "link-local",
                 "source": "config",
@@ -3172,6 +3387,92 @@
           {
             "children": [
               {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "description": "Filter expression to select which BGP attributes are included in events.",
+                        "kind": "leaf",
+                        "name": "attribute",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Wire encoding for events sent to the process (e.g., json, text).",
+                        "kind": "leaf",
+                        "name": "encoding",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Output format template for event rendering.",
+                        "kind": "leaf",
+                        "name": "format",
+                        "source": "config",
+                        "type": "string"
+                      }
+                    ],
+                    "description": "Controls the encoding and filtering of events sent to this process.",
+                    "kind": "container",
+                    "name": "content",
+                    "source": "config"
+                  },
+                  {
+                    "description": "Send session state change events (up/down/reset) to this process.\nEnables the process to react to peer lifecycle transitions.",
+                    "kind": "container",
+                    "name": "neighbor-changes",
+                    "source": "config"
+                  },
+                  {
+                    "description": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
+                    "kind": "leaf-list",
+                    "name": "processes",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Legacy ExaBGP process match patterns for event filtering.",
+                    "kind": "leaf-list",
+                    "name": "processes-match",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Event types this peer feeds the program. Base\ntypes: update, open, notification, keepalive, refresh,\nstate, negotiated. Plugins register more (e.g.\nupdate-rpki).\nA type carries the direction it is fed in: 'update'\nmeans both directions, 'update-received' and\n'update-sent' mean one. A registered type keeps its\nwhole name, so a plugin type that ends in -sent is\nnever read as a direction.\n'*' feeds every type, in both directions. 'all' is not\naccepted: a word that reads like a type would grant a\ntype a plugin registers later, which '*' says on\npurpose.\nValidated at runtime against registered event types.",
+                    "kind": "leaf-list",
+                    "name": "receive",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Shell command to spawn the external process. Ze pipes BGP events to its\nstdin and reads commands from its stdout.",
+                    "kind": "leaf",
+                    "name": "run",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Message types this program may send toward the\npeer. Valid: update, refresh, enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
+                    "kind": "leaf-list",
+                    "name": "send",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "External process that receives BGP events and can inject messages.\nZe spawns the process and communicates via stdin/stdout JSON.",
+                "kind": "list[name]",
+                "name": "process",
+                "source": "config"
+              }
+            ],
+            "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process <name> { ... }`.",
+            "kind": "container",
+            "name": "attach",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Automatically withdraw all routes advertised to this peer when the session\ngoes down. When disabled, routes remain until explicitly withdrawn or the\nhold timer expires. Legacy ExaBGP option, retained for migration.",
                 "kind": "leaf",
                 "name": "auto-flush",
@@ -3203,6 +3504,28 @@
             "description": "Operational knobs that control how the reactor processes and forwards\nUPDATE messages for this peer. Most users can leave these at defaults.",
             "kind": "container",
             "name": "behavior",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "Discard traffic sent toward a prefix this peer announces\ncarrying one of these communities. Ze installs that prefix as\na discard route directly. There is no next-hop to allocate and\nno static route to pre-create.\n\nWrite ASN:VAL, for example 65001:666, or a well-known name.\nblackhole and 65535:666 are one value, the one RFC 7999\nregisters. Section 4 suggests that keyword. An operator's own\ncommunity is the common case, which is why this is a list.\n\nA listed community IS the agreement RFC 7999 Section 3.3\nrequires the receiving party to make 'on that particular BGP\nsession'.\n\nAn empty list beside a set prefixes list means the well-known\nvalue alone. Stating the prefixes a peer CAN blackhole within\nIS the explicit configuration directive Section 4 asks for.\nThe same act is Section 3.3's agreement on that session, so\nstandard RTBH takes one line. Section 4's default holds: a\ncontainer with neither list discards nothing, and so does a\npeer with no container.\n\nA STATED list is taken exactly. The well-known value is NOT\nadded to it. An operator who names 65001:666 and not 65535:666\nmeans it, and Section 3.1 makes that their choice.\n\nThe parser applies that default, not a YANG default statement.\nThe default is conditional on a SIBLING leaf, which a leaf-list\ndefault cannot express. A value materialised into the schema\nwould also make every peer read as having agreed to 65535:666\non the send side.\n\nOne community is not enough on its own. RFC 7999 Section 3.3\nstates two conditions, and the prefixes list is the other. A\npeer with a community and no covering prefix blackholes\nnothing.\n\nThe list governs the SEND side too. RFC 7999 Section 3.1\nrequires the two networks to agree on use of the BLACKHOLE\ncommunity before a speaker advertises it. Naming it here is\nthis speaker's half. `announce blackhole` reaches only the\nsessions that hold 65535:666, under either spelling. A session\nthat named its own value alone is left out of the\nannouncement, and is not sent the prefix untagged.",
+                "kind": "leaf-list",
+                "name": "communities",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The prefixes this PEER is authorized to advertise. Ze honors a\nreceived blackhole announcement only when one of them covers\nit and is equal or shorter. That is RFC 7999 Section 3.3's\nfirst condition, in the RFC's own words. The announced prefix\nis 'covered by an equal or shorter IP prefix that the\nneighboring network is authorized to advertise'.\n\nThe container already says blackhole, so the leaf does not\nrepeat it.\n\nCoverage is not prefix-list membership. A list entry\n192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,\nbecause the /24 is a shorter covering prefix the neighbor may\nadvertise. That is the RFC test, and it does not depend on any\nge or le bound.\n\nAn empty list authorizes nothing, so honoring never happens.\nThat is the closed state on purpose: RFC 7999 Section 6 names\nunauthorized addition of BLACKHOLE as a denial-of-reachability\nvector, and an open default would let any peer discard traffic\nfor any prefix it names.",
+                "kind": "leaf-list",
+                "name": "prefixes",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "The RFC 7999 agreement on this BGP session, in both directions.\nIt states what this speaker does with a received route carrying\nthe BLACKHOLE community, 65535:666. It also states whether this\nspeaker CAN advertise that community to this peer. Section 4 uses\nthe suggested shorthand keyword for the value.\n\nA later revision adds an as-sets leaf-list here. It answers a\nDIFFERENT question from session/irr/as-set. That one states what\nthe peer CAN advertise at all. This one would state what the peer\nCAN blackhole within. Whether one deployment puts the same set in\nboth is the operator's business, not this model's.",
+            "kind": "container",
+            "name": "blackhole",
             "source": "config"
           },
           {
@@ -3480,6 +3803,41 @@
                   {
                     "children": [
                       {
+                        "description": "Community to add to a route received carrying BLACKHOLE\n(65535:666). It stops the prefix propagating outside the\nlocal AS. RFC 7999 Section 3.2. The choice between the two\nfollows the operator routing policy, so neither is forced.\nThis adds the community. It does not discard traffic.",
+                        "kind": "leaf",
+                        "name": "blackhole-propagation",
+                        "source": "config",
+                        "type": "enumeration"
+                      },
+                      {
+                        "description": "Function number of the relation tag. RFC 8195 Section 3.2\nleaves this number to each AS and gives 3 as its example.\nThe number is a local convention, not a protocol\nconstant. Change it here when the AS already uses 3 for\nsomething else.",
+                        "kind": "leaf",
+                        "name": "relation-function",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Write the RFC 8195 Section 3.2 relation-to-origin large\ncommunity on each route received from this peer. The\nGlobal Administrator is the session local AS. The\nparameter comes from what the peer IS to us: 2 for a\ncustomer, 3 for a peer, 4 for a provider. A route-server\nor route-server-client session writes nothing, because\nRFC 7947 requires transparency there. An iBGP session\nwrites nothing. Its sender is inside the local AS and has\nno such relation.",
+                        "kind": "leaf",
+                        "name": "relation-tag",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Function numbers a peer may send with the local AS as the\nGlobal Administrator. This is RFC 7454 Section 11\ncarve-out for what customers and peers use as a signaling\nmechanism. An empty list keeps nothing. The relation-tag\nfunction number is never kept, whatever this list says: a\nkept relation function would let a peer state its own\nrelation to this AS.",
+                        "kind": "leaf-list",
+                        "name": "scrub-keep-function",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Remove inbound communities whose Global Administrator is\nthe local AS. Only the function numbers listed in\nscrub-keep-function survive. RFC 7454 Section 11. It\ncovers standard and large communities. It runs on eBGP\nsessions only. On an iBGP session an own-AS value is this\nnetwork's own signal to itself. Well-known communities are\nnever reached, so NO_EXPORT, NO_ADVERTISE and BLACKHOLE\nalways survive.",
+                        "kind": "leaf",
+                        "name": "scrub-own-ga",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
                         "description": "Named communities to remove on ingress",
                         "kind": "leaf-list",
                         "name": "strip",
@@ -3509,84 +3867,6 @@
             "description": "Route filter chains for import and export.\nNames reference filter instances defined in bgp/policy.",
             "kind": "container",
             "name": "filter",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "description": "Filter expression to select which BGP attributes are included in events.",
-                    "kind": "leaf",
-                    "name": "attribute",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Wire encoding for events sent to the process (e.g., json, text).",
-                    "kind": "leaf",
-                    "name": "encoding",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Output format template for event rendering.",
-                    "kind": "leaf",
-                    "name": "format",
-                    "source": "config",
-                    "type": "string"
-                  }
-                ],
-                "description": "Controls the encoding and filtering of events sent to this process.",
-                "kind": "container",
-                "name": "content",
-                "source": "config"
-              },
-              {
-                "description": "Send session state change events (up/down/reset) to this process.\nEnables the process to react to peer lifecycle transitions.",
-                "kind": "container",
-                "name": "neighbor-changes",
-                "source": "config"
-              },
-              {
-                "description": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
-                "kind": "leaf-list",
-                "name": "processes",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Legacy ExaBGP process match patterns for event filtering.",
-                "kind": "leaf-list",
-                "name": "processes-match",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Event types to receive. Base types: update, open,\nnotification, keepalive, refresh, state, sent, negotiated.\nPlugins may register additional types (e.g., update-rpki).\nList types explicitly; 'all' is not accepted.\nValidated at runtime against registered event types.",
-                "kind": "leaf-list",
-                "name": "receive",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Shell command to spawn the external process. Ze pipes BGP events to its\nstdin and reads commands from its stdout.",
-                "kind": "leaf",
-                "name": "run",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Message types to send. Valid: update, refresh,\nenhanced-refresh (BORR/EORR markers, RFC 7313).\nValidated at runtime against known send types.",
-                "kind": "leaf-list",
-                "name": "send",
-                "source": "config",
-                "type": "string"
-              }
-            ],
-            "description": "External process that receives BGP events and can inject messages.\nZe spawns the process and communicates via stdin/stdout JSON.",
-            "kind": "list[name]",
-            "name": "process",
             "source": "config"
           },
           {
@@ -3729,6 +4009,13 @@
                 "kind": "container",
                 "name": "aspa",
                 "source": "config"
+              },
+              {
+                "description": "Keep a route that carries the RFC 7999 BLACKHOLE community when its\nonly origin-validation fault is that the prefix is longer than a\ncovering VRP allows.\n\nRFC 7999 Section 3.3 states that an operator MUST ensure origin\nvalidation does not inadvertently block legitimate announcements\ncarrying BLACKHOLE. A blackhole prefix is as long as possible,\ntypically a /32 or a /128, while a ROA for the covering block carries\nits maxLength at the aggregate. RFC 6811 then makes the announcement\nInvalid, and a session running action invalid reject drops it before\nanything can honor it.\n\nThe exemption is narrow. It applies only when a covering VRP names\nthe route's own origin AS and disagrees on nothing but length. A\nwrong origin AS stays Invalid, which is the hijack RFC 6811 exists to\ncatch. A prefix with no covering VRP is NotFound rather than Invalid,\nso this never reaches it.\n\nThe default is false. Turn it on together with the peer's blackhole\nhonor leaf, on the same session: on its own it accepts a route it\nwould have rejected and discards nothing.",
+                "kind": "leaf",
+                "name": "blackhole-exempt",
+                "source": "config",
+                "type": "boolean"
               }
             ],
             "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
@@ -4001,6 +4288,13 @@
                   {
                     "children": [
                       {
+                        "description": "Which prefixes the count compared against maximum holds. offered counts wire events: every announcement raises the count and every withdrawal lowers it, so a peer that re-announces a prefix to change an attribute raises the count again although it holds the same route. The count can therefore sit above the maximum, and ze then drops every later announce of this family until the peer withdraws enough prefixes. installed counts the set of prefixes ze currently holds for this family, which no re-announcement and no unmatched withdrawal can move. installed keeps one entry per prefix for this family, so its memory is the size of what the peer sends up to the maximum. Neither value is the size of the RIB: import policy can reject a counted prefix.",
+                        "kind": "leaf",
+                        "name": "count",
+                        "source": "config",
+                        "type": "enumeration"
+                      },
+                      {
                         "description": "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.",
                         "kind": "leaf",
                         "name": "idle-timeout",
@@ -4084,7 +4378,7 @@
                 "source": "config"
               },
               {
-                "description": "IPv6 link-local address for next-hop (RFC 2545 Section 3)",
+                "description": "IPv6 link-local address to advertise AFTER the global next hop\nin the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf\nsupplies the address. It does not decide that the address is\nsent: ze appends it only when this speaker shares a locally\nconnected subnet with the peer AND with the entity named by the\nglobal next hop, which is the 'if and only if' condition of\nSection 3. In every other case the field carries the global\naddress alone. Set it on a session that faces a peer on a shared\nlink. It has no effect on any other session.",
                 "kind": "leaf",
                 "name": "link-local",
                 "source": "config",
@@ -4583,6 +4877,35 @@
               {
                 "children": [
                   {
+                    "description": "Apply only to a route whose COMMUNITIES\nattribute (RFC 1997, type 8) carries this\nvalue.\nASN:VAL (e.g. 65001:666), or a well-known name\n(blackhole, no-export, no-advertise,\nno-export-subconfed, nopeer). The two spellings\nof a well-known value are equivalent: 65535:666\nand blackhole select the same community, which\nRFC 7999 registers and RFC 7999 Section 4 names\nwith that suggested keyword.",
+                    "kind": "leaf-list",
+                    "name": "community",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Apply only to a route whose EXTENDED\nCOMMUNITIES attribute (RFC 4360, type 16)\ncarries this value. target:ASN:NN,\norigin:ASN:NN, or a hex string.",
+                    "kind": "leaf-list",
+                    "name": "extended-community",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Apply only to a route whose LARGE COMMUNITIES\nattribute (RFC 8092, type 32) carries this\nvalue. GA:LD1:LD2 (e.g. 65001:100:200).",
+                    "kind": "leaf-list",
+                    "name": "large-community",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "Condition a route meets before the operations\napply. A route that meets none of the stated values\npasses through UNCHANGED, not rejected: the chain\ndrops a rejected route, and a conditional modifier\nexists so the routes it does not touch keep\nflowing.\nAn absent match container applies the operations to\nevery route that reaches the modifier.\nValues across the three leaf-lists are\nalternatives: any one present in the route\nsatisfies the condition.",
+                "kind": "container",
+                "name": "match",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
                     "description": "Prepend local AS to AS_PATH this many times.\nThe actual ASN prepended is the peer's local-as\n(from session config). Range 1-32 prevents\nexcessive path inflation.",
                     "kind": "leaf",
                     "name": "as-path-prepend",
@@ -4644,6 +4967,13 @@
                     "name": "med",
                     "source": "config",
                     "type": "uint32"
+                  },
+                  {
+                    "description": "Remove the MULTI_EXIT_DISC attribute (RFC 4271\ntype 4) from the route.\nRFC 4271 Section 5.1.4 requires a mechanism,\nbased on local configuration, that removes\nMULTI_EXIT_DISC from a route, and requires the\nremoval to happen before the route reaches\nDecision Process phases 1 and 2. This leaf is\nthat mechanism, so it applies on an IMPORT\nchain only: the route enters the decision\nprocess with no metric. On an export chain it\nis refused with a log line, because Section\n9.1.2.2 states that a comparison on\nMULTI_EXIT_DISC followed by advertisement\nwithout it causes route loops.\nMutually exclusive with set med, increment med\nand decrement med.\nA metric received from one neighboring AS is\nalready kept off another one without any\nconfiguration (RFC 4271 Section 5.1.4), so this\nleaf is for the operator who wants the metric\ngone from the route itself.",
+                    "kind": "leaf",
+                    "name": "med-remove",
+                    "source": "config",
+                    "type": "boolean"
                   },
                   {
                     "description": "Set NEXT_HOP attribute (RFC 4271 type 3).\nIPv4 address only (IPv6 next-hop is in MP_REACH).",
@@ -8140,7 +8470,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -8839,7 +9169,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -9531,7 +9861,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -9928,7 +10258,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -10047,6 +10377,13 @@
             "name": "os-name",
             "source": "config",
             "type": "string"
+          },
+          {
+            "description": "Route metric of the default route installed after\nIPCP completes. Lower values are preferred. The\ndefault 254 ranks this learned default below a\nstatic or protocol-learned one, and matches the\nroute-priority default on a unit. Write 0 to put it\non the kernel metric an operator's static default\nalso uses; the two then share one kernel route, and\nthe last writer owns it.",
+            "kind": "leaf",
+            "name": "route-priority",
+            "source": "config",
+            "type": "uint32"
           },
           {
             "description": "Desired PPPoE service name. Empty or absent\nmeans accept any service (RFC 2516 Section 5.1).",
@@ -11173,7 +11510,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -11872,7 +12209,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -12383,7 +12720,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -12822,7 +13159,7 @@
                 "source": "config"
               },
               {
-                "description": "Route metric for default routes installed via DHCP on\nthis unit. Lower values are preferred. On link-down,\nthe metric is increased by 1024 to deprioritize the\ninterface. 0 = kernel default.",
+                "description": "Route metric for default routes learned on this unit\n(DHCP, router advertisement). Lower values are\npreferred. On link-down, the metric is increased by\n1024 to deprioritize the interface. The default 254\nranks a learned default below a static or\nprotocol-learned one, the way rib admin-distance\nranks connected 0, static 10 and ebgp 20. Write 0 to\nput learned defaults on the kernel metric an\noperator's static default also uses; the two then\nshare one kernel route, and the last writer owns it.\nWriting this leaf above 0 also makes ze own the IPv6\ndefault routes of the interface: it sets\naccept_ra_defrtr=0 and installs the ::/0 routes\nitself.",
                 "kind": "leaf",
                 "name": "route-priority",
                 "source": "config",
@@ -12870,7 +13207,7 @@
   "isis": {
     "children": [
       {
-        "description": "Dynamic hostname to advertise (RFC 5301).",
+        "description": "Dynamic hostname to advertise (RFC 5301 section 3). Printable\n7-bit ASCII only, from space (0x20) to tilde (0x7e). Each\ndot-separated label is 1 to 63 octets and the whole name is at\nmost 255 octets, including the separators (RFC 2181 section 11).\nOne trailing dot is permitted. A non-ASCII name is refused, not\nconverted.",
         "kind": "leaf",
         "name": "hostname",
         "source": "config",
@@ -13608,7 +13945,7 @@
             "type": "uint16"
           },
           {
-            "description": "Per-remote CHAP-MD5 tunnel-authentication secret\n(RFC 2661 Section 4.2). Overrides the subsystem-level\nshared-secret for tunnels dialed to this remote. When\nempty, this dial carries no Challenge AVP. Masked in CLI\noutput.",
+            "description": "Per-remote CHAP-MD5 tunnel-authentication secret\n(RFC 2661 Section 5.1.1). Overrides the subsystem-level\nshared-secret for tunnels dialed to this remote. When\nempty, this dial carries no Challenge AVP. Masked in CLI\noutput.",
             "kind": "leaf",
             "name": "shared-secret",
             "source": "config",
@@ -13656,7 +13993,7 @@
         "source": "config"
       },
       {
-        "description": "Shared secret used to compute CHAP-MD5 Challenge\nResponses (RFC 2661 Section 4.2). When unset and a\npeer sends a Challenge AVP, the subsystem rejects the\ntunnel with StopCCN Result Code 4 (Not Authorized).\nValue is masked in CLI output and cleared from the\nprocess environment after first read.",
+        "description": "Shared secret used to compute CHAP-MD5 Challenge\nResponses (RFC 2661 Section 5.1.1; the AVPs are\ndefined in Section 4.4.3). When unset and a\npeer sends a Challenge AVP, the subsystem rejects the\ntunnel with StopCCN Result Code 4 (Not Authorized).\nValue is masked in CLI output and cleared from the\nprocess environment after first read.",
         "kind": "leaf",
         "name": "shared-secret",
         "source": "config",
@@ -17023,6 +17360,20 @@
         "type": "string"
       },
       {
+        "description": "Accept a subscriber whose LCP negotiation ends with no\nAuth-Protocol option. The default is false, so a client that\nrejects the configured method is disconnected instead of\nbeing admitted unauthenticated.",
+        "kind": "leaf",
+        "name": "allow-no-auth",
+        "source": "config",
+        "type": "boolean"
+      },
+      {
+        "description": "PPP Auth-Protocol method the access concentrator advertises\nin its LCP Configure-Request (RFC 1661 Section 6.2) for every\nsubscriber that completes PPPoE discovery. The credential is\nverified by the auth handler (l2tp-auth-local or\nl2tp-auth-radius). The default requires CHAP-MD5 (RFC 1994).\nSet to none only together with allow-no-auth true.",
+        "kind": "leaf",
+        "name": "auth-method",
+        "source": "config",
+        "type": "enumeration"
+      },
+      {
         "description": "AC-Cookie validity duration in seconds. Cookies older\nthan this are rejected in PADR validation.",
         "kind": "leaf",
         "name": "cookie-timeout",
@@ -17913,7 +18264,7 @@
                 "type": "uint32"
               },
               {
-                "description": "SOA minimum / negative-cache TTL seconds",
+                "description": "SOA minimum / negative-cache TTL seconds. 0..2147483647: the field is stamped as the SOA record's own TTL, so the RFC 2181 section 8 TTL range bounds it.",
                 "kind": "leaf",
                 "name": "minimum",
                 "source": "config",
@@ -18019,7 +18370,7 @@
             "source": "config"
           },
           {
-            "description": "Zones served (FQDN). A query name must end in one of these.",
+            "description": "Zones served (FQDN). A query name must be one of these or a name inside one, compared label by label. A name outside every zone draws REFUSED.",
             "kind": "leaf-list",
             "name": "zone",
             "source": "config",
@@ -18639,7 +18990,7 @@
                 "type": "string"
               },
               {
-                "description": "Write-only plaintext password. On commit, the config\nsystem bcrypt-hashes this value into the canonical\npassword leaf and removes this one from the tree.\nNever persisted to the config file.",
+                "description": "Write-only plaintext password. On commit, the config\nsystem bcrypt-hashes this value into the canonical\npassword leaf and removes this one from the tree.\nThe value is never written to the config file, and\na display path renders the secret placeholder for\nit.",
                 "kind": "leaf",
                 "name": "plaintext-password",
                 "source": "config",
@@ -19469,7 +19820,7 @@
                 "type": "string"
               },
               {
-                "description": "Write-only password. On commit, the config system hashes this value into password and removes this leaf.",
+                "description": "Write-only password. On commit, the config system hashes this value into password and removes this leaf. The value is never written to the config file, and a display path renders the secret placeholder for it.",
                 "kind": "leaf",
                 "name": "plaintext-password",
                 "source": "config",

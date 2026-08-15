@@ -69,7 +69,7 @@ set `tls false`). No authentication is required unless you set `token`.
 | Route detail | `/lg/route/detail` | Expanded route attributes (HTMX fragment, click-to-expand). |
 | AS path graph | `/lg/graph?prefix=X` | Server-side SVG topology from all peers (auto-loaded on lookup). |
 
-Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v2.0.4) and SSE extension are embedded.
+Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0-beta6) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.
 
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->

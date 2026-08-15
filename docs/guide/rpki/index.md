@@ -25,25 +25,34 @@ bgp {
     }
 
     peer peer1 {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip 10.0.0.2
+            }
         }
-        local {
-            as 65000
-            ip 10.0.0.2
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 10.0.0.2
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
         }
-        router-id 10.0.0.2
 
-        family {
-            ipv4/unicast
+        attach process rpki {
+            receive [ update-received ]
         }
-
-        process rpki {
-            receive [ update ]
-        }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -72,8 +81,14 @@ The `action` block (both the origin `action` and the ASPA `action`) can also be 
 `peer` or a `group`, overriding the global `rpki / action` for routes learned from that peer.
 Only the action blocks are per-peer; `cache-server`, `validation-timeout`, and `aspa / validation`
 remain global. Resolution is **peer > group > global, per leaf**: a leaf left unset on the peer
-inherits the group's value, then the global value. Peers with a static `connection / remote / ip`
-can be overridden; dynamically-addressed peers use the global actions.
+inherits the group's value, then the global value.
+
+A listen-range group states the actions for every session it accepts. Such a session is
+created from the group's template when the connection arrives, so it has no `peer` block of
+its own, and it inherits what the group states. A NAMED peer that gives no
+`connection / remote / ip` of its own is different: ze never builds it from the template, so
+it has no address at all and it uses the global actions. It is reported at startup with
+`rpki: per-peer action override ignored: no static remote ip`.
 
 ```
 bgp {
@@ -87,16 +102,22 @@ bgp {
             rpki { action { invalid log-only; } }  /* per-peer override; not-found inherits global */
         }
     }
+    group ix {                                     /* listen range: no peer blocks */
+        connection { remote { ip dynamic; range 192.0.2.0/24; } }
+        rpki { action { invalid reject; } }         /* every session this group accepts */
+    }
 }
 ```
 
 `show bgp rpki status` reports the effective global actions (`actions`) and the resolved per-peer
-overrides with the source of each leaf (`peer-actions`).
+overrides with the source of each leaf (`peer-actions`). An entry names what it is: `"peer"`
+carries a remote address, and `"group"` carries a listen-range group's name and states what
+every session that group accepts inherits.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
 
 ### Plugin Bindings
 
-The rpki plugin must be bound to peers with `process rpki { receive [ update ] }`. The adj-rib-in plugin must also be bound with `process adj-rib-in { receive [ update state ] }` -- it provides the validation gate that holds routes pending validation.
+The rpki plugin must be bound to peers with `attach process rpki { receive [ update-received ]; }`. It validates what the peer announces, so it asks for one direction. The adj-rib-in plugin must also be bound with `attach process adj-rib-in { receive [ update-received state ]; }` -- it provides the validation gate that holds routes pending validation.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 
 ## How It Works
@@ -198,17 +219,17 @@ plugin {
 
 bgp {
     peer peer1 {
-        process my-consumer {
+        attach process my-consumer {
             receive [ update-rpki ]
         }
-        process rpki {
-            receive [ update ]
+        attach process rpki {
+            receive [ update-received ]
         }
-        process rpki-decorator {
-            receive [ update rpki ]
+        attach process rpki-decorator {
+            receive [ update-received rpki ]
         }
-        process adj-rib-in {
-            receive [ update state ]
+        attach process adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -343,9 +364,9 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Play the WebM recording](../../../assets/demos/rpki.webm?v=e9f864daba) · [View the poster](../../../assets/demos/rpki.png?v=e67d7948bf) · [Plain-text transcript](../../../assets/demos/rpki.txt?v=bf49f52038)
+[Play the WebM recording](../../../assets/demos/rpki.webm?v=d07469afde) · [View the poster](../../../assets/demos/rpki.png?v=ee521ed133) · [Plain-text transcript](../../../assets/demos/rpki.txt?v=bf49f52038)
 
-Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 46 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 46 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'
@@ -371,4 +392,4 @@ When the rpki plugin is not loaded, routes flow directly into the adj-rib-in wit
 | Routes delayed 30s then accepted | RTR cache server unreachable | Check connectivity to cache server, verify port |
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
 | No VRPs loaded | RTR session not established | Check `show bgp rpki status`, verify cache server is running |
-| Routes accepted without validation | rpki plugin not bound to peer | Add `process rpki { receive [ update ] }` to peer config |
+| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received ]; }` to peer config |

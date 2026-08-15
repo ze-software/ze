@@ -88,6 +88,13 @@ for i in $(seq 2 $((peers+1))); do
 done
 ```
 
+`make ze-setup` adds 127.0.0.2 through 127.0.0.5 (and the IPv6 address the
+functional suite binds), so the loop above is needed only for a run with more
+than four peers. `make ze-setup CHECK=1` reports which addresses are missing.
+Neither route survives a reboot; re-run `make ze-setup` after one.
+
+<!-- source: scripts/dev/dev-setup.py -- LOOPBACK_IPV4_DARWIN, apply_loopback_fix -->
+
 #### Running via Docker
 
 When FRR or BIRD is not installed locally, use Docker. The `--network host`

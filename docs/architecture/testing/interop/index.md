@@ -150,7 +150,7 @@ for the IPsec lab.
 field, because 0 is a legitimate RIB size and a failed query is not
 (`ai/rules/evidence.md`). It returned 0 on failure until 2026-08-07 and three
 separate faults hid behind that one number for three days
-(`plan/spec-fixit-test-harness-fail-open-guards.md`, guard 3). Write new Ze
+(`spec-fixit-test-harness-fail-open-guards`, guard 3). Write new Ze
 helpers the same way.
 
 All session waiters poll with a configurable timeout (default 90s, override via `SESSION_TIMEOUT` env var).
@@ -198,7 +198,10 @@ Three call sites, and the first covers every failure the other two miss:
 The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
 reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
-max-prefix cease, GTSM, AS112, and full IS-IS (auth, convergence, dual-stack, LAN DIS,
+max-prefix cease, GTSM, AS112, ADD-PATH re-advertisement (`addpath-readvertise-collision-frr`
+proves a receiver keeps two paths whose sources both chose one Path Identifier, and
+`addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
+bytes for one path), and full IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
 

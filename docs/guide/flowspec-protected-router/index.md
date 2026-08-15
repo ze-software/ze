@@ -73,7 +73,7 @@ set bgp peer flowspec-rr session asn local 65010
 set bgp peer flowspec-rr session asn remote 65010
 set bgp peer flowspec-rr session family ipv4/flow mode enable
 set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
-set bgp peer flowspec-rr process flowspec-firewall
+set bgp peer flowspec-rr attach process flowspec-firewall receive [ update-received state ]
 EOF
 
 /usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
@@ -97,7 +97,7 @@ What each block does:
 | `control-plane-protection bgp` | Rate-limits new TCP connections to the protected BGP port. |
 | `trusted-source` | Bypasses CoPP for known BGP route reflectors or upstream routers. |
 | `family ipv4/flow` | Negotiates IPv4 FlowSpec with the route reflector. |
-| `process flowspec-firewall` | Binds this peer to the bridge plugin. |
+| `attach process flowspec-firewall { receive [ update-received state ]; }` | Feeds the plugin the FlowSpec routes this peer announces, and its session state. Without the receive list the peer feeds it nothing. |
 | `ddos flowspec` | Optional automatic upstream mitigation policy for the DDoS pipeline. |
 
 `over-limit-policy drop` is intentionally strict. During first turn-up you can use `accept` to observe without dropping, then switch to `drop` after counters and logs look correct.
@@ -176,4 +176,4 @@ sudo /usr/local/bin/ze config rollback 1 edge-01.conf
 sudo systemctl reload ze.service
 ```
 
-Use the revision number from `ze config history`. To stop enforcing received FlowSpec while keeping the BGP session, remove the `process flowspec-firewall` binding and the `plugin internal flowspec-firewall` line with the same zefs update pattern, validate, import, and reload.
+Use the revision number from `ze config history`. To stop enforcing received FlowSpec while keeping the BGP session, remove the `attach process flowspec-firewall` binding and the `plugin internal flowspec-firewall` line with the same zefs update pattern, validate, import, and reload.

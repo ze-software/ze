@@ -272,6 +272,29 @@ tab press, returning MAC addresses from currently active OS interfaces.
   BGP peer connection block, with `local { interface ... }` as an alternative when
   the source should be taken from another interface.
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
+- **The mirror shares its qdisc, so it owns only its filters.** Mirroring attaches a
+  tc mirred filter at priority 1 to the qdisc at handle `ffff:` on the source
+  interface. That qdisc is a shared attachment point: flow-export sampling attaches
+  its own filter at priority 100 to the same object, and both hooks, ingress and
+  egress, hang off it. So mirror setup accepts a qdisc another subsystem created
+  (`EEXIST` is not an error), and mirror teardown deletes its own filters and leaves
+  the qdisc standing, empty. A teardown cannot know who created a shared qdisc, and
+  the set of filters on it can change between the moment it is read and the moment
+  it is acted on. An empty qdisc carries no filter and classifies no packet, and the
+  next mirror or sampling setup adopts it. Only the rollback of a failed setup
+  deletes a qdisc, because it created that qdisc moments earlier and knows so. Ze always creates clsact, never the older ingress qdisc, because clsact
+  carries both hooks and can therefore serve a mirror with a different destination
+  per direction. `tc qdisc show` on an interface that once mirrored reports a clsact
+  qdisc with no filter on it, which is expected.
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- RemoveMirror, removeMirrorFilters, undoMirrorSetup, ensureClsactQdisc -->
+- **A mirror the config drops is torn down.** `applyConfig` compares the mirrors the
+  new config asks for against the mirrors the previous config installed, and removes
+  every one that was dropped or changed before it installs the new set. A changed
+  destination is a remove followed by an install, because tc filters are additive:
+  installing the new destination would otherwise leave the old one duplicating
+  traffic. A daemon restart starts from no previous config, so a mirror deleted from
+  the config file while ze was down is not reconciled away.
+<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, applyMirror -->
 
 ## Tunnel Configuration
 

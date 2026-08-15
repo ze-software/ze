@@ -68,6 +68,7 @@
 <li><a href="#syntax">Syntax</a></li>
 <li><a href="#parameters">Parameters</a></li>
 <li><a href="#examples">Examples</a></li>
+<li><a href="#what-a-ze-peer-block-may-carry">What a ze-peer block may carry</a></li>
 </ol></li>
 <li><a href="#tmpfs-virtual-file-system">Tmpfs (Virtual File System)</a>
 <ol>
@@ -109,7 +110,10 @@
 <li><a href="#await-deterministic-stderr-fence">Await (deterministic stderr fence)</a></li>
 <li><a href="#syslog-expectations">Syslog Expectations</a></li>
 <li><a href="#file-expectations">File Expectations</a></li>
-<li><a href="#negative-expectations-reject">Negative Expectations (reject)</a></li>
+<li><a href="#negative-expectations-reject">Negative Expectations (reject)</a>
+<ol>
+<li><a href="#rejectbgp-bytes-a-peer-must-never-receive">reject=bgp -- bytes a peer must never receive</a></li>
+</ol></li>
 </ol></li>
 <li><a href="#assertion-strength-accept-only-tests-and-readback">Assertion Strength: accept-only tests and readback</a>
 <ol>
@@ -460,6 +464,65 @@ expect=json:json={ &quot;type&quot;: &quot;update&quot;, ... }
 <p><strong>Single-line text:</strong></p>
 <pre><code>stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
 </code></pre>
+<h3 id="what-a-ze-peer-block-may-carry">What a ze-peer block may carry</h3>
+<p>A block handed to <code>ze-peer</code> (named on a <code>cmd=...:exec=ze-peer ...:stdin=&lt;name&gt;</code>
+line) is read first by ze-peer and then by the test runner. The block named
+<code>peer</code> is validated by the same rules even with no such line, because a <code>.ci</code>
+with no <code>cmd=</code> at all feeds its <code>expect=</code> lines to ze-peer by another route. <strong>A line neither of them
+acts on fails the file at parse time</strong>, naming the block, the line number and the
+directive.</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Read by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>expect=bgp</code>, <code>reject=bgp</code>, <code>action=*</code>, and the peer's own <code>option=</code> (<code>asn</code>, <code>bind</code>, <code>tcp_connections</code>, <code>conn_map</code>, <code>open</code>, <code>update</code>, <code>linger</code>, <code>silent</code>, <code>await_eor</code>)</td>
+<td>ze-peer</td>
+</tr>
+<tr>
+<td><code>expect=json</code>, <code>expect=stderr</code>, <code>expect=syslog</code>, <code>reject=stderr</code>, <code>reject=stdout</code>, <code>reject=syslog</code></td>
+<td>the test runner, where the line stands</td>
+</tr>
+<tr>
+<td><code>cmd=api</code></td>
+<td>nobody. It documents the command that produced the expected bytes</td>
+</tr>
+<tr>
+<td><code>option=timeout</code></td>
+<td>the test runner parses it, and <strong>adopts it only when the file declares none.</strong> Its scope is the whole test, not this peer, so a file-level value always wins. 450 tracked peer blocks carry one. Write the one that governs outside the block</td>
+</tr>
+<tr>
+<td><code>option=env</code></td>
+<td><strong>refused.</strong> It sets the environment of every process the test starts, not of this peer, so it must be written outside the block</td>
+</tr>
+<tr>
+<td>a line neither parser accepts</td>
+<td><strong>refused</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Any OTHER directive the runner parses is accepted where it stands and applies to
+the whole test. <code>option=file</code>, <code>expect=exit</code>, <code>await=</code> and <code>http=</code> all work
+inside a peer block, and none of them is peer-scoped. Only <code>option=env</code> and
+<code>option=timeout</code> are singled out. Those two read as peer scope and are not.</p>
+<p>A value the named option does not have is refused as well, not just an unknown
+option name. <code>option=update:value=inspect-update-message</code> and
+<code>option=asn:value=abc</code> each used to parse into nothing, which is the same silent
+drop one level down.</p>
+<p>The accepted set is derived from the two parsers rather than written out a third
+time (<code>peer.ClaimLine</code> reports what ze-peer did with the line, and the runner's
+own line parser answers for the rest), so a directive added to either one cannot
+start being dropped here. Before the guard existed the block forwarded only
+<code>expect=</code> and <code>action=</code> lines and discarded everything else in silence: eleven
+<code>reject=bgp</code> directives across nine RFC-behaviour tests, and the <code>reject=stderr</code>
+of a tenth, asserted nothing while reading as the negative half of the proof.</p>
+<!-- source: internal/test/runner/peer_contract.go -- validatePeerBlockDirectives, the guard -->
+<!-- source: internal/test/peer/expect.go -- ClaimLine, ze-peer's own answer -->
+
 <h2 id="tmpfs-virtual-file-system">Tmpfs (Virtual File System)</h2>
 <p>Tmpfs allows embedding multiple files within a single <code>.ci</code> file. Files are extracted to a temp directory at runtime.</p>
 <h3 id="syntax_1">Syntax</h3>
@@ -1019,8 +1082,25 @@ The runner waits for each peer's "listening on" message before starting the
 next command.</p>
 <p>On Linux, 127.0.0.2 works automatically (127.0.0.0/8 routes to lo). On macOS
 and FreeBSD, the test runner adds loopback aliases via the <code>SIOCAIFADDR</code> ioctl.</p>
-<!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux -->
+<p>IPv6 works differently, because a host carries exactly one IPv6 loopback
+address. A fixture that needs a second one uses <code>fd00::2</code>, which is unique-local
+(RFC 4193) and never globally routable. <code>make ze-setup</code> adds it, and
+<code>make ze-setup CHECK=1</code> reports whether it is there. The runner never adds it:
+the ioctl returns EPERM to an unprivileged process, and <code>make ze-verify</code> runs as
+an ordinary user. A test that binds an address this host does not carry fails at
+once with <code>loopback_address_missing</code> and the command to run, rather than timing
+out on a bind that could not succeed.</p>
+<p>The check reads both places a fixture names an address it binds. One is
+<code>ze-peer --bind &lt;ip&gt;</code> on a <code>cmd=</code> line. The other is <code>connection { local { ip
+&lt;addr&gt; } }</code> in the config the fixture embeds: Ze sends from that address and
+listens on it when <code>accept</code> is true, so the host must carry it too. A local
+address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
+fixture names a routable one (<code>local { ip 192.0.2.1 }</code>), the daemon exits before
+it binds anything, and <code>make ze-setup</code> adds no such address.</p>
+<!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
+<!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
+<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
 
 <h2 id="expectations">Expectations</h2>
 <pre><code>expect=&lt;type&gt;:key=value[:key=value...]
@@ -1135,6 +1215,7 @@ files, and logs. Do not write shell just to inspect files.</p>
 reject=stdout:contains=&lt;text&gt;
 reject=stdout:pattern=&lt;regex&gt;
 reject=syslog:pattern=&lt;regex&gt;
+reject=bgp:conn=&lt;N&gt;:pattern=&lt;hex&gt;
 </code></pre>
 <p>Inverse of <code>expect=</code> -- the test <strong>fails</strong> if the pattern matches. Used to verify that unwanted output (e.g., deprecated warnings, ERROR-level messages) does NOT appear.</p>
 <table>
@@ -1161,11 +1242,53 @@ reject=syslog:pattern=&lt;regex&gt;
 <td><code>reject=syslog:pattern=&lt;regex&gt;</code></td>
 <td>Fail if syslog output matches regex</td>
 </tr>
+<tr>
+<td><code>reject=bgp:conn=&lt;N&gt;:pattern=&lt;hex&gt;</code></td>
+<td>Fail if connection N of a ze-peer receives a frame carrying these wire bytes</td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/test/runner/runner_exec.go -- stdout reject handling -->
 <!-- source: internal/test/runner/runner_validate.go -- stderr/syslog reject handling -->
+<!-- source: internal/test/peer/reject.go -- reject=bgp, the wire rejection -->
 
+<h4 id="rejectbgp-bytes-a-peer-must-never-receive"><code>reject=bgp</code> -- bytes a peer must never receive</h4>
+<p><code>reject=bgp</code> is the only reject type ze-peer reads, because ze-peer is what sees
+the wire. It goes inside the peer's stdin block, beside the <code>expect=bgp</code> lines.
+The hex needle is matched on wire bytes at a byte BOUNDARY, which
+<code>expect=bgp:contains=</code> is not: that one is a plain substring match over the hex
+text, so it can also match at an odd nibble offset.</p>
+<p>Four properties make it an assertion rather than a hope:</p>
+<ul>
+<li>It is never consumed. Every frame the peer's message loop reads is checked
+  against it. The <code>option=linger</code> loop keeps checking after completion. Pair the
+  rejection with <code>option=linger:value=true</code> to hold it open for the whole test.</li>
+<li><strong>Check mode only.</strong> Sink and echo peers read every accepted connection
+  concurrently against one checker, so a <code>conn=</code> could not select the session the
+  frame arrived on. The runner refuses the file, and ze-peer refuses to start.</li>
+<li>The block MUST also carry an <code>expect=bgp:conn=&lt;N&gt;</code> on the same connection, and
+  the runner refuses the file otherwise. That rule is necessary and it is not
+  sufficient. It bounds how long the rejection is checked. It cannot say whether
+  the forbidden bytes would have arrived inside that window.
+  <strong>The author owes the second half.</strong> Send the delivery LAST on that connection,
+  so a leak of the governed route arrives ahead of it. Or hold the session open
+  with <code>option=linger</code>. A connection stops being read once its expectations
+  complete, and its rejection then passes for the one reason a rejection must not.</li>
+<li>An odd-length or non-hexadecimal needle is a parse error, because a needle
+  that can never match would pass for that same reason. The runner reads the
+  line with ze-peer's own parser (<code>peer.ParseRejectRule</code>), so a typo fails the
+  FILE rather than the peer: a rejection rejected inside ze-peer would stop it
+  binding, and the runner would report that as a bind timeout.</li>
+</ul>
+<pre><code>stdin=external:terminator=EOF_EXTERNAL
+option=tcp_connections:value=1
+option=linger:value=true
+# The delivery that makes the rejection an assertion rather than an empty session.
+expect=bgp:conn=1:seq=1:contains=18C00002
+# 180A0100 is 10.1.0.0/24, which NO_ADVERTISE forbids on any peer.
+reject=bgp:conn=1:pattern=180A0100
+EOF_EXTERNAL
+</code></pre>
 <h2 id="assertion-strength-accept-only-tests-and-readback">Assertion Strength: accept-only tests and readback</h2>
 <p>A test whose ONLY assertion is <code>expect=exit:code=0</code> is <strong>accept-only</strong> (weak): it
 proves a config or command was ACCEPTED, never that it parsed to the CORRECT tree.

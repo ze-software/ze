@@ -70,8 +70,8 @@ bgp {
         filter {
             import [ bgp-filter-irr:65001 ]
         }
-        process bgp-adj-rib-in {
-            receive [ update state ]
+        attach process bgp-adj-rib-in {
+            receive [ update-received state ]
         }
     }
 }
@@ -81,7 +81,7 @@ The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is n
 
 The suffix in `bgp-filter-irr:65001` is the peer's remote ASN. It selects the dynamic list associated with AS 65001. Use the corresponding ASN in each peer's filter reference. Prefixes that do not match that list are rejected by the implicit deny.
 
-No `process bgp-filter-irr` block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.
+No `attach process bgp-filter-irr` block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.
 
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
@@ -169,9 +169,9 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 
 Populate a stored configuration with the IRR plugin, server, AS-SET, and import filter, then prove registered routes pass and unregistered routes do not.
 
-[Play the WebM recording](../../../assets/demos/irr-filter.webm?v=fccd694124) · [View the poster](../../../assets/demos/irr-filter.png?v=4f0975525e) · [Plain-text transcript](../../../assets/demos/irr-filter.txt?v=3fd732070b)
+[Play the WebM recording](../../../assets/demos/irr-filter.webm?v=6d4db8f71b) · [View the poster](../../../assets/demos/irr-filter.png?v=fd5f3c7eae) · [Plain-text transcript](../../../assets/demos/irr-filter.txt?v=3fd732070b)
 
-Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 3 minutes 37 seconds.
+Recorded with Ze 26.07.20 on macOS and Linux using VHS 0.11.0. Duration: 3 minutes 37 seconds.
 
 ```console
 $ ze config cat ze.conf | grep -q bgp-filter-irr || echo 'IRR filtering is not configured'

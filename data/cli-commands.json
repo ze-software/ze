@@ -2005,6 +2005,13 @@
     "global-pipes": true
   },
   {
+    "path": "show event delivery",
+    "description": "Show which peers feed which attached processes.\nOne block per peer, one row per `attach process` block on it: the\nevent types that process is fed, and the message types it may send\ntoward that peer. A token the event registry does not know is listed\nas unresolved and carries no edge. Answer to 'why does my program\nsee nothing from this peer'.",
+    "mode": "read-only",
+    "wire-method": "ze-show:event-delivery",
+    "global-pipes": true
+  },
+  {
     "path": "show event list",
     "description": "List every event type you can subscribe to.\nShows event name, category, and payload structure. Use this to\ndiscover what events are available before subscribing.",
     "mode": "read-only",
@@ -2117,6 +2124,24 @@
     "mode": "read-only",
     "wire-method": "ze-show:health",
     "global-pipes": true
+  },
+  {
+    "path": "show host",
+    "description": "Hardware inventory for this box.\nSections: cpu, nic, dmi, memory, thermal, storage, kernel, platform.\nUse a subcommand for one section, or 'show host all' for everything.\nThe bare 'show host' is an alias of 'show host all'.",
+    "mode": "read-only",
+    "wire-method": "ze-show:host-all",
+    "global-pipes": true,
+    "subcommands": [
+      "all",
+      "cpu",
+      "dmi",
+      "kernel",
+      "memory",
+      "nic",
+      "platform",
+      "storage",
+      "thermal"
+    ]
   },
   {
     "path": "show host all",
@@ -2264,7 +2289,7 @@
   },
   {
     "path": "show isis database",
-    "description": "Show the IS-IS link-state database.\nLists each LSP with its LSP ID, sequence number, remaining lifetime,\nchecksum, and overload bit, across Level-1 and Level-2.",
+    "description": "Show the IS-IS link-state database.\nLists each LSP with its LSP ID, sequence number, remaining lifetime,\nchecksum, and overload bit, across Level-1 and Level-2. The own field\nis true on the LSPs this node originated and false on the LSPs it\nlearned from a neighbor.",
     "mode": "read-only",
     "wire-method": "ze-show:isis-database",
     "global-pipes": true,
@@ -2274,7 +2299,7 @@
   },
   {
     "path": "show isis database detail",
-    "description": "Show the IS-IS link-state database with TLV detail.\nExpands each LSP into its decoded TLVs (type, length, value) so you\ncan read exactly what each node advertises.",
+    "description": "Show the IS-IS link-state database with TLV detail.\nExpands each LSP into its decoded TLVs (type, length, value) so you\ncan read exactly what each node advertises. It carries the same fields\nas the summary view, the own field included.",
     "mode": "read-only",
     "wire-method": "ze-show:isis-database-detail",
     "global-pipes": true
