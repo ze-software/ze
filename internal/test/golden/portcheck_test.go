@@ -205,7 +205,7 @@ func TestPortFidelityAcceptsADeclaredDifference(t *testing.T) {
 // TestPortFidelityComparesAResponseHeadExactly pins the split.
 //
 // VALIDATES: a status line and a header are compared byte for byte, a body that
-// declares HTML is compared through NormalizeHTML, and a body that declares
+// declares HTML is compared through normalizeHTML, and a body that declares
 // anything else is compared byte for byte.
 // PREVENTS: an encoding fold reaching JSON or an event stream, where whitespace
 // is content and no engine rewrote it.

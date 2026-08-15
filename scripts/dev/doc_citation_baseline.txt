@@ -1247,7 +1247,6 @@ plan/spec-vrrp-deferred-accept-mode-dataplane.md	plan/spec-vrrp-0-umbrella.md
 plan/spec-vrrp-deferred-accept-mode-dataplane.md	test/vrrp/vrrp-accept-mode.ci
 plan/spec-vrrp-deferred-accept-mode-dataplane.md	test/vrrp/vrrp-track.ci
 plan/spec-vrrp-deferred-keepalived-interop-scenarios.md	plan/deferrals.md
-plan/spec-web-templ-migration.md	internal/component/lg/layout_test.go
 plan/spec-website-wiki-content-migration.md	tools/check-page-links.py
 plan/spec-website-wiki-content-migration.md	tools/page_registry.py
 plan/spec-website-wiki-content-migration.md	tools/render-llms-txt.py

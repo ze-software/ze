@@ -139,7 +139,7 @@ func assertPackageParsesNoTemplate(t *testing.T) {
 //
 // IT COUNTS WHAT IT VISITED. The port moved every file from templates/*.html to
 // *.templ. A walk filtered on the old suffix would pass over zero files and
-// report green (AC-6 of plan/spec-web-templ-migration.md). webTemplFileFloor is
+// report green (AC-6 of spec-web-templ-migration). webTemplFileFloor is
 // what makes the pass mean something.
 //
 // test-relax: the three assertions and the floor moved to

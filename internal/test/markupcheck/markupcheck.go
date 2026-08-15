@@ -1,6 +1,6 @@
 // Design: docs/architecture/web-components.md -- markup lives in .templ, never in Go
 // Related: internal/test/templcheck -- the sibling guard over component PARAMETERS
-// Related: plan/spec-web-templ-migration.md -- AC-7, the criterion this enforces
+// Related: spec-web-templ-migration -- AC-7, the criterion this enforces
 
 // Package markupcheck holds the static checks over a package that renders
 // markup. It asks three questions, one per exported assertion. Is markup

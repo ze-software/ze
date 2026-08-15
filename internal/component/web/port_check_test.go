@@ -31,7 +31,7 @@ const webPortWrapperPair = "the start and end pair became fieldWrapper, one comp
 // differs from its pre-port form. Each reason names what a reader would see.
 //
 // The defects and their journal rows are listed in
-// plan/spec-web-templ-migration.md. Nothing here excuses a difference the pass
+// spec-web-templ-migration. Nothing here excuses a difference the pass
 // did not intend. This table is fail-closed, so an entry naming a unit that no
 // longer differs is itself a finding.
 const (
@@ -147,7 +147,7 @@ const portSnapshotScript = "the snapshot page's live view is an external script,
 //
 // Nine responses moved, and each one moved to make a page work. Eight are the
 // snapshot views above. The ninth is AC-5, recorded against A-2 in
-// plan/spec-web-templ-migration.md.
+// spec-web-templ-migration.
 //
 // handleDashboardEventsPage (page_dashboard.go) ran each cell through
 // template.HTMLEscapeString and handed the result to markup that escapes
@@ -230,7 +230,7 @@ var webPortHandlers = map[string]string{
 // TestWebTemplPortFidelity compares every captured unit against the bytes it
 // held before the templ port.
 //
-// It is the evidence for AC-2 of plan/spec-web-templ-migration.md, and it takes
+// It is the evidence for AC-2 of spec-web-templ-migration, and it takes
 // the ref as a parameter so a reader can run the same comparison. The
 // comparison behind it was hand-run once. That left the acceptance criterion on
 // a measurement nobody can repeat.

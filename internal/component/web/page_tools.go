@@ -305,6 +305,6 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 
 	// No hand escape. The tool page writes Output into a <pre> through templ,
 	// which escapes it once. Escaping here as well rendered &lt; to the
-	// operator (AC-5 of plan/spec-web-templ-migration.md).
+	// operator (AC-5 of spec-web-templ-migration).
 	return toolPageData{Output: cleaned}
 }

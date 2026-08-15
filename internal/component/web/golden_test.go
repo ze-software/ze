@@ -196,7 +196,7 @@ var webTemplGoldenSpec = golden.Spec{
 	}},
 	// test-relax: configFlex, cliBar, dashboardOverview, sidebar, sidebarSection,
 	// terminalPage and notificationBannerOOB are DELETED in phase 5 of
-	// plan/spec-web-templ-migration.md. Their cases go with them. A capture of a
+	// spec-web-templ-migration. Their cases go with them. A capture of a
 	// component that no longer exists cannot compile, and the coverage is
 	// retired with the markup rather than lost. webPortTemplates records each
 	// vanished fixture and what proved the component dead.

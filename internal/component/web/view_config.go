@@ -6,7 +6,7 @@ package web
 
 // The config view's own view models and the text its components compute. A
 // class list, a URL and a label are values, so Go builds them and the markup
-// holds no tag literal (AC-7 of plan/spec-web-templ-migration.md).
+// holds no tag literal (AC-7 of spec-web-templ-migration).
 
 // configBreadcrumbData is what configBreadcrumb renders.
 type configBreadcrumbData struct {

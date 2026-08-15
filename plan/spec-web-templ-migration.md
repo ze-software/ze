@@ -230,7 +230,7 @@ route and no plugin emits HTML.
 | `TestRenderFieldResolvesDecoration` | `internal/component/web/render_test.go` | the input-type dispatch survives; A-4 | existing, must stay green |
 | `TestDecorationHTMLEscaped` | `internal/component/web/render_test.go` | AC-5, escaped exactly once | existing, must stay green |
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/component/web/render_test.go` | AC-6 over the ported set | existing, MUST BE EDITED. Its `fs.WalkDir` skips any path without a `.html` suffix, so after the port it walks zero files and passes vacuously. Change the suffix to `.templ` in the SAME commit that renames the templates, and confirm it still counts the files it visited |
-| `TestRenderSVG`, `TestRenderSVGWithNames` | `internal/component/lg/layout_test.go` | `lg` output unchanged; AC-2 | existing, must stay green |
+| `TestRenderSVG`, `TestRenderSVGWithNames` | `internal/component/lg/graph_test.go` | `lg` output unchanged; AC-2 | existing, must stay green |
 | `TestRouteTableData_Build`, `TestInterfaceTableData_Build` | `internal/component/web/page_*_test.go` | view models untouched by the port | existing, must stay green |
 | `TestTemplComponentTypeSafety` | `internal/component/web/templ_typesafety_test.go` | AC-1: a renamed field fails the build | WRITTEN 2026-08-14 in phase 1, because phase 4 needs the mechanism settled. The `go/packages` route was chosen over the `.ci` one: it needs no test runner and it reads structured type errors rather than compiler stderr. The fixture is `testdata/templtypesafety/`, one `.templ` plus its view model. The rename is an OVERLAY, so nothing broken reaches disk and two sessions can run it at once. Proven both ways: `go vet` on the fixture passes, and with `Title` renamed it fails inside `page_templ.go` on the generated read of `v.Title`. Proven to discriminate: markup that stops reading the field reds the test with "renaming the view-model field left the build clean". Phase 4 must repoint it at a real ported component |
 | `TestLGViewDataIsTyped` | `internal/component/lg/view_test.go` | AC-8: no `map[string]any` reaches a templ component | DONE 2026-08-14. The rules live in `internal/test/templcheck`, so phase 3 calls the same guard |
@@ -842,3 +842,260 @@ N-A. Scope is tooling.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+`html/template` is gone from both render paths. 58 `.templ` components in `web`
+and 9 in `lg`, each a Go function over a named view model, so a field the markup
+misspells is a build failure. The silent empty-HTML paths are gone with the
+engine. One remains and it is not silent: `renderComponent`
+(`internal/component/web/render.go`) logs at Warn and names the component, for
+the page builders that compose markup into `LayoutData.Content` and carry no
+error path of their own.
+
+Phases 1, 2, 3, 3b, 3c, 3d, 3e, 5 and 5b landed in earlier commits. This closure
+implements phase 4 and commits four files earlier phases wrote and did not carry.
+
+| Landed here | What |
+|-------------|------|
+| AC-1 repointed at the product | `TestTemplComponentTypeSafety` renames `LayoutData.Title` in `internal/component/web/render.go` and loads package `web` through a `go/packages` overlay. It requires a type error POSITIONED in a `*_templ.go` and naming `Title`. The two-file fixture under `internal/component/web/testdata/` is deleted |
+| The `ze:sensitive` marking phase 3d wrote | `internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang`. Its sibling module was committed and this one was not, so `TestAWriteOnlyPasswordLeafIsMarkedSensitive` was red at HEAD |
+| The doc anchors phase 5 repointed | `docs/guide/web-interface.md`, four anchors naming deleted `templates` files. `make ze-validate` reported all four |
+| The pattern doc phase 5 rewrote | `ai/patterns/web-endpoint.md`, the component hierarchy and the two checklist lines |
+| 28 spec citations restated | Every tracked file citing this spec by full path now writes the bare stem. Check 5 of `scripts/dev/check_doc_links.py` reads EVERY tracked file, so commit B would have stranded 28 dead path references |
+
+### Bugs Found/Fixed
+
+- **AC-1 was proven over a stand-in.** The only test for it renamed a field in a
+  fixture package and never touched a shipped component. Fixed, and journaled.
+- **Four files of this spec were never committed.** HEAD was red for
+  `TestAWriteOnlyPasswordLeafIsMarkedSensitive` and for four source anchors.
+  Fixed by committing them, and journaled: no gate reads the tracked test
+  population.
+- **`NormalizeHTML` was exported with no caller in any other package.** Not even
+  a `_test.go` one, so `check_cross_package_wiring` (`scripts/dev/validate.py`)
+  fired on anyone who edited the file. It is `normalizeHTML` now, and the
+  exemption entry in `scripts/dev/verify_wiring_docs.py` is deleted rather than
+  kept. `AssertPortFidelity` is the entry point the docs name.
+- **Two comments named a template the port deleted.** `internal/test/golden/normalize.go`
+  and its test cited the pre-port commit template. Both name `configCommit`
+  (`internal/component/web/config_commit.templ`) now, which is what carries the
+  `{ "\n" }` the comment is about.
+- **Two journal rows of this spec carried dead paths.** Rows 9 and 10 of
+  `plan/journal/closure-deletes-a-cited-document.md` record a deletion, so the
+  paths they name are the point. Each row carries a `doc-links: ignore` marker
+  with that reason, and both still parse into five cells.
+- **A dead test citation and its baseline pair.** This spec named an `lg` layout
+  test file that does not exist. The tests live in
+  `internal/component/lg/graph_test.go`. The row is corrected and the
+  grandfathering pair is removed from `scripts/dev/doc_citation_baseline.txt`.
+
+### Documentation Updates
+
+| File | What changed | Anchor |
+|------|--------------|--------|
+| `docs/guide/web-interface.md` | four source anchors repointed from deleted templates to their components | each anchor names the `.templ` that replaced it |
+| `ai/patterns/web-endpoint.md` | the template hierarchy became the component hierarchy, and the checklist names `fieldInputs` | prose, no anchor |
+| `ai/INDEX.md`, `docs/contributing/testing.md`, `Makefile` | the port-check description names `golden.AssertPortFidelity`, the exported entry point | prose |
+| `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | already committed by the port; every anchor resolves | `python3 scripts/dev/code_to_docs.py --check` reports all references valid |
+
+`ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` are regenerated and committed.
+They are generated from the isolated clone, so they describe exactly the tree
+these two commits produce. That matters: at HEAD `ai/CODE-TO-DOCS.md` still
+listed six deleted template files, and `scripts/dev/check_doc_links.py` reported
+each one. It reports ONE reference after this closure, and that one is this
+spec's own line 416 naming the deleted `lg` template directory. Commit B deletes
+the file that holds it.
+
+Regenerating them in this checkout produces a different answer, because the
+generators read another session's uncommitted sources. That is why the commit
+script passes `--stale-index-ok`: the committed index is right for the committed
+tree and cannot match a working tree holding 700 foreign edits.
+
+### Deviations from Plan
+
+- **A-3 broke and Thomas resolved it.** Byte identity is unreachable, so AC-2 is
+  a semantic comparison. Recorded in full under A-3 and AC-2.
+- **Phase 4's type-safety half ran at closure, not in phase 4.** Its doc half
+  landed with the port commits.
+- **Evidence was gathered in an isolated clone of HEAD.** This checkout does not
+  build: another session is mid-rename of `ctx.ProcessName` to `ctx.Sender`
+  (`internal/component/plugin/server/command.go`), which breaks every consumer in
+  `internal/component/bgp/plugins/cmd/`, and `internal/component/web` imports that
+  package transitively. The clone holds HEAD plus this closure's files and nothing
+  else, so every result below is attributable.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 assumed a faithful port keeps every byte | templ normalizes its own output and no flag turns that off | measured on a ported layout template in phase 2 | AC-2 became a semantic comparison Thomas approved, and `make ze-templ-port-check` makes it runnable |
+| approach | phase 1 proved AC-1 over a fixture, expecting phase 4 to repoint it | the port landed and the repoint did not, so AC-1's only proof never read a shipped component | this closure re-read the deliverable row against the test | repointed at package `web`, fixture deleted, journal row written |
+| escalation | four files were left uncommitted across three phases | the working tree was green and HEAD was red for every other session | a clean export of HEAD failed a test the working tree passed | committed here, and journaled against `make ze-tracked-build-check`, whose population excludes every test-only input |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A view-model and markup mismatch is a compile error | Done | `internal/component/web/templ_typesafety_test.go` | proven over `page_layout.templ` and `LayoutData.Title` |
+| The silent empty-HTML paths are gone | Done | `internal/component/web/render.go` | `NewRenderer` holds no template. The one remaining empty return logs at Warn and names the component |
+| `lg` stops passing `map[string]any` | Done | `internal/component/lg/view.go` | `TestLGViewDataIsTyped` refuses a map parameter |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTemplComponentTypeSafety` | renames a real view-model field and requires the error inside a generated component |
+| AC-2 | Done | `make ze-templ-port-check REF=80f0b8b57` | green over `web` and `lg`; `make ze-web-golden-check` green |
+| AC-3 | Done | `make ze-templ-generate-check` | exit 0 |
+| AC-4 | Done | `assertPackageParsesNoTemplate` (`internal/component/web/render_test.go`) | the surviving `html/template` imports are the `template.HTML` TYPE, which the walk allows and the Deliverables grep could not tell apart |
+| AC-5 | Done | `TestDecorationHTMLEscaped`, `TestNoRenderPathEmitsAStoredSecret` | nine render paths |
+| AC-6 | Done | `TestTemplatesAvoidInlineScriptAndStyle` | walks `.templ` and carries a file floor, so a vacuous walk reds it |
+| AC-7 | Done | `TestNoGoFileBuildsMarkup` in both packages | `web` exempts nothing; `lg` exempts the two drawing builders by rule |
+| AC-8 | Done | `TestLGViewDataIsTyped`, `TestWebViewDataIsTyped` | `internal/test/templcheck` is the one guard both call |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestTemplComponentTypeSafety` | Changed | `internal/component/web/templ_typesafety_test.go` | repointed from the fixture to package `web` |
+| `TestNewRenderer`, `TestRenderLayout`, `TestRenderLogin`, `TestRenderFieldResolvesDecoration`, `TestDecorationHTMLEscaped` | Done | `internal/component/web/render_test.go` | green in the package run |
+| `TestRenderSVG`, `TestRenderSVGWithNames` | Done | `internal/component/lg/graph_test.go` | green |
+| `TestLGViewDataIsTyped` | Done | `internal/component/lg/view_test.go` | green |
+| `TestWebTemplPortFidelity`, `TestLGTemplPortFidelity` | Done | `internal/component/web/port_check_test.go`, `internal/component/lg/port_check_test.go` | green against `80f0b8b57` |
+| golden captures | Done | `internal/component/web/golden_test.go`, `internal/component/lg/golden_test.go` | `make ze-web-golden-check` green |
+| the seven `.ci` | Done | `test/ui/`, `test/plugin/`, `test/ospf/` | `ze-ui-test` 169/169, `ze-web-test` 87/87 |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `tools.go`, `go.mod`, `go.sum`, `vendor/`, `Makefile`, `.gomuignore` | Done | phase 1 |
+| the `lg` components, `internal/component/lg/view.go`, `render.go` | Done | phase 2; the `lg` template directory is deleted |
+| the `web` components, `internal/component/web/render.go`, `fragment.go`, `sse.go` | Done | phases 3, 3b, 5 |
+| `cmd/ze/hub/service_web.go` | Done | all four renderer entry points ported |
+| `internal/test/golden/`, `internal/test/templcheck/`, `internal/test/markupcheck/` | Done | the AC-2, AC-8 and AC-7 instruments |
+| the three web architecture docs | Done | phase 4 doc half, committed with the port |
+| the type-safety fixture under `internal/component/web/testdata/` | Changed | deleted here; the test reads the real package instead |
+
+### Audit Summary
+- **Total items:** 24
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (the AC-1 test target and its fixture; both in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A view-model and markup mismatch is a compile error, not a blank panel | functional over the real package | `TestTemplComponentTypeSafety`: the clean load of package `web` reports no error, and the same load with `LayoutData.Title` renamed reports one inside `page_layout_templ.go` naming `Title`. Markup that stops reading the field fails the test by its own message |
+| No operator-visible byte changed | functional, against the pre-port bytes | `make ze-templ-port-check REF=80f0b8b57` exit 0 over both packages. It reads the fixtures at that ref with `git archive` and compares under the five AC-2 normalizations. `make ze-web-golden-check` exit 0 proves the fixtures ARE the current render |
+| The whole web surface still works through the daemon | functional `.ci` and `.wb` | `make ze-web-test` 87/87, `make ze-ui-test` 169/169 with 10 skipped, `make ze-parse-test` 275/275 with 35 skipped |
+| No engine coexists | unit | `assertPackageParsesNoTemplate` walks both packages for a parse call and finds none. `NewRenderer` holds no template |
+| No secret reaches the client | unit over nine render paths | `TestNoRenderPathEmitsAStoredSecret` and `TestSecretMaskingFollowsTheSchemaMarking`, plus `TestAWriteOnlyPasswordLeafIsMarkedSensitive`, which walks every YANG module and is what the committed marking answers |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The metadata carries no shard and `plan/deferrals/` holds no file for this stem. Nothing was deferred |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/web-templ-migration-bd3cb1c5-21a8-4146-a390-5190a37971e8.md`, 24 code files |
+| `review_gate.py check` | OK, clean, hashes match |
+| Rounds | 3 |
+| Reviewer lenses used | round 1 wiring and documentation drift over the whole uncommitted state; round 2 removed-behaviour and gate population over the round-1 fixes; round 3 the same over the round-2 fixes |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | four source anchors named templates the port deleted, and the repair was written but never committed | `docs/guide/web-interface.md` | committing the file; `make ze-validate` no longer reports them |
+| 2 | BLOCKER | AC-1's only proof ran over a fixture package, so no shipped component was ever type-checked by a test | `internal/component/web/templ_typesafety_test.go` | repointed at package `web`; fixture deleted; journal row |
+| 3 | BLOCKER | commit B would strand 28 full-path citations of this spec, and check 5 of the doc-link gate reads every tracked file | 20 files, `Makefile` and `test/relax-ceiling.txt` among them | each restated as the bare stem |
+| 4 | ISSUE | `TestAWriteOnlyPasswordLeafIsMarkedSensitive` was red at HEAD because one of the two YANG modules was never committed | `internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang` | committed; proven by a clean export of HEAD failing without it |
+| 5 | ISSUE | an exported symbol with no caller in any other package, so the wiring check fires on anyone who edits the file | `internal/test/golden/normalize.go` | unexported; the exemption entry deleted rather than kept |
+| 6 | NOTE | two comments cited a template the port deleted | `internal/test/golden/normalize.go`, `internal/test/golden/normalize_test.go` | both name `configCommit` now |
+| 7 | NOTE | two journal rows of this spec carried dead paths a gate reports | `plan/journal/closure-deletes-a-cited-document.md` | `doc-links: ignore` with the reason; both rows still parse into five cells |
+| 8 | NOTE | `ExemptionDrift` reads as unwired, and it is not: its caller is `package markupcheck_test`, in the SAME directory, and `_has_cross_pkg_ref` (`scripts/dev/validate.py`) skips a same-directory file before the test-caller inversion can count it | `internal/test/markupcheck/markupcheck.go` | NOT fixed. The symbol is correctly exported and the gate cannot see the caller. `changed_files` reads the working tree against HEAD, so the finding exists only while the file is uncommitted and lands on nobody. Journaled against the same population class |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/golden/normalize.go` | yes | `ls -1` returns it, 14K |
+| `internal/test/golden/portcheck.go` | yes | `ls -1` returns it, 12K |
+| `internal/test/templcheck/templcheck.go` | yes | `ls -1` returns it, 11K |
+| `internal/test/markupcheck/markupcheck.go` | yes | `ls -1` returns it, 13K |
+| `internal/component/web/field_input.go`, `internal/component/web/secret.go` | yes | `ls -1` returns both |
+| `internal/component/config/mask.go` | yes | `ls -1` returns it, 12K |
+| `internal/component/lg/view.go` | yes | `ls -1` returns it |
+| `internal/component/web/assets/snapshot-live.js`, `internal/component/lg/assets/graph-mode.js` | yes | `ls -1` returns both |
+| the `.templ` sources | yes | 58 under `internal/component/web`, 9 under `internal/component/lg` |
+| the seven `.ci` and `test/parse/bcrypt-placeholder-rejected.ci` | yes | `ls -1` returns all eight |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | a renamed view-model field fails the build | `TestTemplComponentTypeSafety` passes in the `ze-test-pkg` run of `internal/component/web`, which was `ok` at 266.594s |
+| AC-2 | no operator-visible byte moved | `make ze-templ-port-check REF=80f0b8b57` exit 0; `make ze-web-golden-check` exit 0 |
+| AC-3 | generated output is in sync | `make ze-templ-generate-check` exit 0, `updates=0` |
+| AC-4 | no template parse call in either package | `ze-test-pkg` on both packages green, which runs `assertPackageParsesNoTemplate` |
+| AC-5 | a value is escaped exactly once | same package run; `TestNoRenderPathEmitsAStoredSecret` covers nine paths |
+| AC-6 | no inline script or style in the ported set | same package run, over `.templ` with a file floor |
+| AC-7 | no Go file builds markup | `TestNoGoFileBuildsMarkup` green in `web` and in `lg` |
+| AC-8 | no `map[string]any` reaches a component | `TestLGViewDataIsTyped` and `TestWebViewDataIsTyped` green |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| HTMX POST deleting a list entry | `test/ui/web-delete-list-entry.ci` | yes, `ze-ui-test` 169/169 |
+| HTMX POST committing config | `test/ui/web-commit-transactional.ci` | yes, same run |
+| a rejected commit reported back | `test/ui/web-commit-reject.ci` | yes, same run |
+| login and session | `test/plugin/web-auth.ci`, `test/plugin/web-startup.ci` | file read: both drive the daemon over HTTP and assert the login path |
+| a looking-glass page with a bad filter | `test/plugin/lg-ui-pages.ci` | file read: it asserts the error banner element and the message inside it |
+| a masked secret refused on upload | `test/parse/bcrypt-placeholder-rejected.ci` | yes, `ze-parse-test` 275/275 |
+| a `.templ` edited and not regenerated | `make ze-templ-generate-check` | yes, exit 0 |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `du -sk vendor` moved 46688K to 51672K, a 4984K delta against an 8M stop condition |
+| A-2 | confirmed | phase 3b found five DOUBLE escapes and no under-escape; all five are deleted |
+| A-3 | broken | templ normalizes its own output. Thomas resolved it: keep templ and prove the port semantically. AC-2 carries the five normalizations and `make ze-templ-port-check` runs them |
+| A-4 | confirmed | `fieldInputs` is a map from a field type to a component constructor, and `producedFieldTypes` derives the nine types a leaf can reach |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| every source anchor resolves to a file and a symbol | `python3 scripts/dev/code_to_docs.py --check` reports 2077 code paths and all references valid | yes |
+| no doc names a deleted template | `make ze-validate` reports no anchor of this spec; the two it still reports name `delivery_graph.go`, which belongs to another session | yes |
+| the component hierarchy a new endpoint follows | `ai/patterns/web-endpoint.md` lists `page_*`, `component_*` and `input_*` files that exist | yes |
+| the port-check description names an exported symbol | `ai/INDEX.md`, `docs/contributing/testing.md` and `Makefile` name `golden.AssertPortFidelity`, which `gopls symbols` finds in `internal/test/golden/portcheck.go` | yes |
+| categories answered No | rows 1 to 11 and 13 to 15 of the Documentation Update Checklist: no config, CLI, API, plugin, wire or RFC surface changed, and `RegisterWebRoute` keeps its signature | yes |
+
+## Core Insight
+
+A proof built before the thing it proves exists will prove the scaffold unless
+somebody repoints it. Phase 1 was right to build the AC-1 mechanism against a
+fixture, because no component was ported yet, and the deliverable row even said
+phase 4 must repoint it. The port landed, the phases that followed each found
+real defects, and the one test that was supposed to guarantee the whole engine
+change kept passing over two files nobody ships. The scaffold is not the risk.
+Forgetting that a green test is aimed somewhere is.

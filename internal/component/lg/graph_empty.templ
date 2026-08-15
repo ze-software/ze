@@ -6,7 +6,7 @@ package lg
 // It is markup: two fixed elements and one message. renderGraphSVG and
 // renderNextHopGraphSVG are NOT markup in the same sense. Every attribute they
 // write is a coordinate computeLayout produced, so they stay in Go. AC-7 of
-// plan/spec-web-templ-migration.md states that boundary and why it holds.
+// spec-web-templ-migration states that boundary and why it holds.
 templ graphEmpty(msg string) {
 	<svg xmlns="http://www.w3.org/2000/svg" width="400" height="50"><text x="10" y="30" font-family="monospace" font-size="14" fill="currentColor">{ msg }</text></svg>
 }

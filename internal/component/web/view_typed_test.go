@@ -17,7 +17,7 @@ const webComponentCount = 93
 // TestWebViewDataIsTyped reads the generated components and requires every
 // parameter to be a type the compiler checks a field name against.
 //
-// VALIDATES: AC-8 of plan/spec-web-templ-migration.md for the web package. No
+// VALIDATES: AC-8 of spec-web-templ-migration for the web package. No
 // map reaches a templ component, so every field the markup reads is resolved by
 // the compiler.
 // PREVENTS: the failure html/template allowed. ExecuteTemplate on a

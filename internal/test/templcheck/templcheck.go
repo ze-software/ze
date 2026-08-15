@@ -3,7 +3,7 @@
 // Package templcheck reads the components templ generates and requires every
 // parameter to be a type the compiler checks a field name against.
 //
-// This is the guard behind AC-8 of plan/spec-web-templ-migration.md. Porting
+// This is the guard behind AC-8 of spec-web-templ-migration. Porting
 // markup to templ buys nothing on its own: an unchecked map key stays unchecked
 // inside a templ component, and html/template's failure survives the port.
 // ExecuteTemplate on a map[string]any returns no error for a key the markup

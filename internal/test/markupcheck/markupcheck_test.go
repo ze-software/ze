@@ -25,7 +25,7 @@ func writePackage(t *testing.T, name, body string) string {
 // TestReportNamesEachMarkupLiteral proves the scanner finds a tag in each string
 // form Go offers, and reports the file and the line.
 //
-// VALIDATES: AC-7 of plan/spec-web-templ-migration.md is checked by a scan, not
+// VALIDATES: AC-7 of spec-web-templ-migration is checked by a scan, not
 // by a grep in a checklist.
 // PREVENTS: markup returning to Go with every gate green.
 func TestReportNamesEachMarkupLiteral(t *testing.T) {

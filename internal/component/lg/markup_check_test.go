@@ -65,7 +65,7 @@ const lgAssetRefFloor = 5
 // TestNoGoFileBuildsMarkup requires every HTML tag in this package to live in a
 // .templ file, except the two drawings named above.
 //
-// It is the evidence for AC-7 of plan/spec-web-templ-migration.md over the lg
+// It is the evidence for AC-7 of spec-web-templ-migration over the lg
 // half.
 //
 // VALIDATES: no markup is built in Go here beyond the two named drawings.

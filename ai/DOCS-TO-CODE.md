@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 261 design docs, 3298 files
+Total: 262 design docs, 3315 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -674,6 +674,10 @@ Total: 261 design docs, 3298 files
 - `internal/component/doctor/checks_as112_coordination.go` -- AS112 advisory coordination checks
 - `internal/plugins/as112/redistribute.go` -- AS112 layering rule:
 
+## `docs/architecture/bgp/egress-attribute-rules.md`
+
+- `internal/component/bgp/reactor/forward_med.go` -- egress attribute modification on the forward rails
+
 ## `docs/architecture/bgp/fanout-dedup.md`
 
 - `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
@@ -728,6 +732,7 @@ Total: 261 design docs, 3298 files
 ## `docs/architecture/bgp/structural-forwarding.md`
 
 - `internal/component/bgp/reactor/forward_body.go` -- shared body-building for forwarding
+- `internal/component/bgp/reactor/forward_path_id.go` -- one egress transform, both rails
 - `internal/component/bgp/reactor/forward_rs.go` -- reactor-native RS forwarding
 
 ## `docs/architecture/chaos-web-dashboard.md`
@@ -1248,6 +1253,7 @@ Total: 261 design docs, 3298 files
 | `internal/component/bgp/reactor/forward_initial_sync_order_test.go` | BGP reactor event loop |
 | `internal/component/bgp/reactor/forward_local_pref.go` | egress attribute modification on the forward rails |
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
+| `internal/component/bgp/reactor/forward_next_hop.go` | egress route decisions on the forward rails |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
 | `internal/component/bgp/reactor/forward_update_bench_test.go` | Forwarding Path (section 9): per-UPDATE in-process hot path throughput. |
@@ -3012,6 +3018,7 @@ Total: 261 design docs, 3298 files
 | `internal/component/bgp/plugins/rib/rib_pipeline.go` | iterator pipeline for RIB show commands |
 | `internal/component/bgp/plugins/rib/rib_pipeline_best.go` | best-path pipeline for show bgp rib best commands |
 | `internal/component/bgp/plugins/rib/rib_pipeline_best_test.go` | tests for the |
+| `internal/component/bgp/plugins/rib/rib_self_nexthop.go` | best-path candidate eligibility |
 | `internal/component/bgp/plugins/rib/rib_structured.go` | RIB plugin structured delivery |
 | `internal/component/bgp/plugins/rib/rib_topology.go` | graph terminal for AS path topology |
 | `internal/component/bgp/plugins/rib/storage/attrparse.go` | RIB storage internals |
@@ -3259,8 +3266,8 @@ Total: 261 design docs, 3298 files
 
 | File | Topic |
 |------|-------|
-| `internal/component/cli/editor_mask.go` | mask ze:bcrypt leaves on display |
-| `internal/component/config/mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/cli/editor_mask.go` | mask secret leaves on display |
+| `internal/component/config/mask.go` | mask secret leaves on display |
 | `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
 | `internal/core/redact/redact.go` | credential-token redaction for logs |
 
@@ -3627,11 +3634,15 @@ Total: 261 design docs, 3298 files
 | `internal/component/web/fragment.go` | HTMX fragment handlers |
 | `internal/component/web/systemmem_darwin.go` | system memory for dashboard panel |
 | `internal/component/web/systemmem_linux.go` | system memory for dashboard panel |
+| `internal/component/web/view_fragment.go` | HTMX fragment handlers |
 | `internal/component/web/workbench_dashboard.go` | Workbench dashboard overview |
 | `internal/component/web/workbench_detail.go` | Workbench detail panel |
 | `internal/component/web/workbench_form.go` | Workbench form component |
 | `internal/component/web/workbench_sections.go` | Workbench left navigation |
 | `internal/component/web/workbench_table.go` | Workbench table component |
+| `internal/test/markupcheck/assets.go` | markup lives in .templ, never in Go |
+| `internal/test/markupcheck/inline.go` | markup lives in .templ, never in Go |
+| `internal/test/markupcheck/markupcheck.go` | markup lives in .templ, never in Go |
 
 ## `docs/architecture/web-interface.md`
 
@@ -3639,7 +3650,7 @@ Total: 261 design docs, 3298 files
 |------|-------|
 | `cmd/ze/hub/listener_migrate.go` | Graceful listener migration on config reload |
 | `internal/component/lg/auth.go` | optional looking-glass bearer gate |
-| `internal/component/lg/embed.go` | LG embedded assets and templates |
+| `internal/component/lg/embed.go` | LG embedded assets |
 | `internal/component/lg/graph.go` | AS path topology graph data model |
 | `internal/component/lg/graph_nexthop.go` | Next-hop forwarding topology graph |
 | `internal/component/lg/handler_api.go` | Birdwatcher REST API handlers |
@@ -3649,6 +3660,7 @@ Total: 261 design docs, 3298 files
 | `internal/component/lg/layout_nexthop.go` | Next-hop graph layout and SVG rendering |
 | `internal/component/lg/render.go` | LG template rendering |
 | `internal/component/lg/server.go` | Looking glass HTTP server |
+| `internal/component/lg/view.go` | LG view models |
 | `internal/component/web/auth.go` | Authentication and session management |
 | `internal/component/web/cli.go` | CLI bar and command handlers |
 | `internal/component/web/cli_terminal.go` | CLI terminal mode and rendering helpers |
@@ -3657,6 +3669,7 @@ Total: 261 design docs, 3298 files
 | `internal/component/web/decorator_community.go` | well-known BGP community name resolution |
 | `internal/component/web/decorator_reverse_dns.go` | reverse DNS (PTR) name resolution |
 | `internal/component/web/editor.go` | Per-user editor management |
+| `internal/component/web/field_input.go` | Template rendering |
 | `internal/component/web/handler.go` | URL routing and content negotiation |
 | `internal/component/web/handler_admin.go` | Admin command handlers |
 | `internal/component/web/handler_config.go` | Config tree view handlers |
@@ -3673,9 +3686,12 @@ Total: 261 design docs, 3298 files
 | `internal/component/web/rbac.go` | role-based access control |
 | `internal/component/web/related_resolver.go` | workbench related-tool resolver |
 | `internal/component/web/render.go` | Template rendering |
+| `internal/component/web/secret.go` | what a display path may render |
 | `internal/component/web/server.go` | Web server infrastructure |
 | `internal/component/web/sse.go` | Server-Sent Events for live updates |
 | `internal/component/web/ui_mode.go` | UI mode selection |
+| `internal/component/web/view.go` | Template rendering |
+| `internal/component/web/view_config.go` | Template rendering |
 | `internal/component/web/workbench_enrich.go` | workbench data enrichment |
 | `internal/core/selfcert/selfcert.go` | self-signed TLS certificate helpers |
 | `internal/graph/graph.go` | shared AS path topology graph data model |
@@ -3705,6 +3721,7 @@ Total: 261 design docs, 3298 files
 | `internal/component/web/page_tools.go` | Tool page handlers |
 | `internal/component/web/page_traffic.go` | Traffic monitoring page |
 | `internal/component/web/page_workbench_generic.go` | generic system/service workbench dispatch |
+| `internal/component/web/view_l2tp.go` | L2TP web management UI |
 | `internal/component/web/workbench_pages.go` | Workbench page dispatch |
 
 ## `docs/architecture/wire/attributes.md`
@@ -3733,6 +3750,7 @@ Total: 261 design docs, 3298 files
 | `internal/core/bgp/attribute/mpnlri.go` | path attribute encoding |
 | `internal/core/bgp/attribute/opaque.go` | path attribute encoding |
 | `internal/core/bgp/attribute/origin.go` | path attribute encoding |
+| `internal/core/bgp/attribute/partial.go` | path attribute encoding |
 | `internal/core/bgp/attribute/simple.go` | path attribute encoding |
 | `internal/core/bgp/attribute/span.go` | path attribute span index |
 | `internal/core/bgp/attribute/text.go` | path attribute encoding |
@@ -4073,8 +4091,9 @@ Total: 261 design docs, 3298 files
 | `internal/component/iface/cmd/show_interface.go` | `show interface` family handlers |
 | `internal/component/iface/config.go` | Interface config parsing and application |
 | `internal/component/iface/config_apply.go` | Interface reconciliation and application |
+| `internal/component/iface/config_mirror.go` | Traffic mirroring from interface config |
 | `internal/component/iface/config_ra.go` | per-unit Router Advertisement configuration |
-| `internal/component/iface/config_sysctl.go` | Sysctl and mirror application for interfaces |
+| `internal/component/iface/config_sysctl.go` | Sysctl application for interfaces |
 | `internal/component/iface/default_linux.go` | Per-OS backend default |
 | `internal/component/iface/default_other.go` | Per-OS backend default |
 | `internal/component/iface/device_owner.go` | plugin-owned devices (macvlan) |
@@ -4121,6 +4140,7 @@ Total: 261 design docs, 3298 files
 | `internal/plugins/iface/netlink/macvlan_linux.go` | plugin-owned macvlan devices via netlink |
 | `internal/plugins/iface/netlink/macvlan_linux_test.go` | pure macvlan link-builder tests |
 | `internal/plugins/iface/netlink/manage_linux.go` | Interface management via netlink |
+| `internal/plugins/iface/netlink/mirror_integration_linux_test.go` | the mirror shares the clsact qdisc, so |
 | `internal/plugins/iface/netlink/mirror_linux.go` | Traffic mirroring via tc mirred |
 | `internal/plugins/iface/netlink/monitor_linux.go` | Netlink interface monitor |
 | `internal/plugins/iface/netlink/neighbor_linux.go` | Kernel neighbor table (ARP/ND) readback |

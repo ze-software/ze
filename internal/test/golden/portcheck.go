@@ -23,7 +23,7 @@ import (
 
 // PrePortRef is the commit that captured every fixture before the templ port.
 // Both internal/component/web and internal/component/lg captured theirs there,
-// in the wiring phase of plan/spec-web-templ-migration.md.
+// in the wiring phase of spec-web-templ-migration.
 //
 // It is a default, not a baseline. The ref is a parameter of the comparison, so
 // a later port names its own commit and reuses the same instrument.
@@ -54,9 +54,9 @@ const (
 )
 
 // AssertPortFidelity compares every fixture under root against the bytes the
-// same path held at ref, through NormalizeHTML.
+// same path held at ref, through normalizeHTML.
 //
-// It is the instrument AC-2 of plan/spec-web-templ-migration.md requires, and
+// It is the instrument AC-2 of spec-web-templ-migration requires, and
 // the reason it exists is that the comparison was hand-run once. A hand-run
 // comparison cannot be repeated by a reader, and it cannot fail on the next
 // change. This one takes the ref as a parameter and reads the fixtures on disk,
@@ -222,7 +222,7 @@ func comparePortUnit(name string, kind PortKind, old, now []byte) []string {
 func portDifference(name, part, old, now string, markup bool) []string {
 	wantText, gotText := old, now
 	if markup {
-		wantText, gotText = NormalizeHTML(old), NormalizeHTML(now)
+		wantText, gotText = normalizeHTML(old), normalizeHTML(now)
 	}
 
 	if wantText == gotText {

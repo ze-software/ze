@@ -63,7 +63,7 @@ var lgPortHandlers = map[string]string{
 // TestLGTemplPortFidelity compares every captured unit against the bytes it
 // held before the templ port.
 //
-// It is the evidence for AC-2 of plan/spec-web-templ-migration.md over the lg
+// It is the evidence for AC-2 of spec-web-templ-migration over the lg
 // half. Phase 2 ran that comparison by hand and no caller kept it runnable.
 //
 // The lg port restructured no unit: every fixture the pre-port capture held has

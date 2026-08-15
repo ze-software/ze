@@ -46,7 +46,7 @@ var lgGolden = golden.Set{
 // would hide the byte delta of the port inside a rename.
 var lgGoldenSpec = golden.Spec{
 	// The empty-state drawing, ported in phase 5 of
-	// plan/spec-web-templ-migration.md. The two graph builders beside it stay in
+	// spec-web-templ-migration. The two graph builders beside it stay in
 	// Go: markup_check_test.go carries the reason.
 	"graph_empty.templ": {{
 		Name:    "graphEmpty",

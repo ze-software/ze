@@ -24,7 +24,7 @@ const lgComponentCount = 15
 // blank panel and nothing in the log.
 //
 // The rules live in internal/test/templcheck, because phase 3 of
-// plan/spec-web-templ-migration.md applies the same guard to the web package.
+// spec-web-templ-migration applies the same guard to the web package.
 // A named type is resolved through the package's own declarations, so
 // `type viewData map[string]any` is refused as the map it is.
 //

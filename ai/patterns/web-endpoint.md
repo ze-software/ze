@@ -95,39 +95,39 @@ func HandleMyFeature(renderer *Renderer, schema *config.Schema) http.HandlerFunc
 }
 ```
 
-## Template Hierarchy
+## Component Hierarchy
+
+Every unit is a templ component in `internal/component/web`. A component is a Go
+function, so a view-model field the markup misspells is a build failure.
 
 ```
-templates/
-  page/
-    layout.html              Document shell (CSS grid, scripts, layout)
-    login.html               Login form
+page_layout.templ            Document shell (CSS grid, scripts, layout)
+page_workbench.templ         Workbench shell
+page_login.templ             Login form
 
-  component/
-    breadcrumb.html          Breadcrumb trail + CLI toggle
-    sidebar.html             Left navigation panel
-    detail.html              Right panel (dispatches to content)
-    cli_bar.html             CLI prompt + autocomplete
-    commit_bar.html          Change counter + Review/Discard
-    error_panel.html         Collapsible error list
-    diff_modal.html          Commit preview modal
-    oob_response.html        HTMX partial with OOB swaps
-    oob_save.html            OOB commit bar after save
-    oob_error.html           OOB error item
-    finder.html              3-column finder navigation
-    list_table.html          Multi-row table for lists
-    command_result.html      Admin command result card
-    command_form.html        Admin command parameter form
+component_breadcrumb.templ   Breadcrumb trail + shell toggles
+component_sidebar.templ      Left navigation panel
+component_detail.templ       Right panel (dispatches to content)
+component_cli_bar.templ      CLI prompt + autocomplete
+component_commit_bar.templ   Change counter + Review/Discard
+component_error_panel.templ  Collapsible error list
+component_diff_modal.templ   Commit preview modal
+component_oob_response.templ HTMX partial with OOB swaps
+component_oob_save.templ     OOB commit bar after save
+component_oob_error.templ    OOB error item
+component_finder.templ       3-column finder navigation
+component_list_table.templ   Multi-row table for lists
+component_command_result.templ Admin command result card
+component_command_form.templ Admin command parameter form
 
-  input/
-    wrapper.html             Field container + label + tooltip
-    text.html                input type=text
-    bool.html                Tristate toggle (yes/default/no)
-    enum.html                <select> dropdown
-    number.html              input type=number
+input_wrapper.templ          Field container + label + tooltip
+input_text.templ             input type=text
+input_bool.templ             Tristate toggle (yes/default/no)
+input_enum.templ             select dropdown
+input_number.templ           input type=number
 ```
 
-**One file = one visual concern.** Adding a new input type = one new file in `input/`.
+**One file = one visual concern.** Adding a new input type is one new `input_<type>.templ` and one line in the `fieldInputs` registry (`field_input.go`).
 
 ### Template Naming Convention
 
@@ -231,8 +231,8 @@ All routes go through the auth dispatcher which calls `ParseURL()` to route by p
 ```
 [ ] Handler file: handler_<concern>.go
 [ ] Handler follows 6-step sequence (auth, parse URL, validate, build data, negotiate, render)
-[ ] Template(s) in templates/component/ with _fragment/_content naming
-[ ] If new input type: templates/input/<type>.html + fieldFor() picks it up automatically
+[ ] Component(s) in component_<concern>.templ, one visual region each
+[ ] If new input type: input_<type>.templ + one line in the fieldInputs registry (field_input.go)
 [ ] HTMX OOB swaps for mutation responses (breadcrumb, CLI bar, commit bar)
 [ ] Content-Type headers set before writing
 [ ] JSON format supported (?format=json)

@@ -127,7 +127,7 @@ When inside a list entry, the detail panel shows a context heading at the top wi
 
 Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"`) display as an interactive table in the detail panel. The table shows the list key and all unique fields as columns.
 <!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
-<!-- source: internal/component/web/templates/component/list_table.html -->
+<!-- source: internal/component/web/component_list_table.templ -->
 
 | Column | Behavior |
 |--------|----------|
@@ -138,7 +138,7 @@ Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"
 
 The `+ new` button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.
 <!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigAddForm -->
-<!-- source: internal/component/web/templates/component/add_form_overlay.html -->
+<!-- source: internal/component/web/component_add_form_overlay.templ -->
 
 ### Breadcrumb Navigation
 
@@ -195,12 +195,12 @@ Navigating to a non-existent list entry (e.g., `/show/bgp/peer/london/` when `lo
 ### Notifications
 
 Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.
-<!-- source: internal/component/web/templates/component/notification_error.html -->
+<!-- source: internal/component/web/component_notification_error.templ -->
 
 ### Input Auto-Save
 
 Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus.
-<!-- source: internal/component/web/templates/input/text.html -- hx-trigger with input changed delay:1s -->
+<!-- source: internal/component/web/input_text.templ -- hx-trigger with input changed delay:1s -->
 
 ### Conflict Detection
 

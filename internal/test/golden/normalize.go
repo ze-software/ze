@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// NormalizeHTML rewrites markup into the form a reader receives it as.
+// normalizeHTML rewrites markup into the form a reader receives it as.
 //
-// It is the instrument AC-2 of plan/spec-web-templ-migration.md requires. A
+// It is the instrument AC-2 of spec-web-templ-migration requires. A
 // port to templ is proven by rendering the same data through both engines and
 // comparing the normalized forms.
 //
@@ -62,15 +62,16 @@ import (
 // everywhere (generator/generator.go), and it writes nothing at all where the
 // next node is a block. A port that leaves a newline as source layout loses it.
 //
-// internal/component/web/templates/commit.html writes one newline after each
-// </span> inside <pre class="commit-diff-output">, and those newlines ARE the
-// line breaks of the config diff. A collapse here would call that port faithful
-// and ship the diff on one line. A port keeps such a newline by writing it as an
-// expression, { "\n" }, which reaches the output through templ.EscapeString.
+// configCommit (internal/component/web/config_commit.templ) writes one newline
+// after each </span> inside <pre class="commit-diff-output">, and those newlines
+// ARE the line breaks of the config diff. A collapse here would call that port
+// faithful and ship the diff on one line. A port keeps such a newline by
+// writing it as an expression, { "\n" }, which reaches the output through
+// templ.EscapeString.
 //
 // This function holds no baseline. The pre-port bytes are read out of git,
 // which is why nothing here can fossilize into a copy that outlives the port.
-func NormalizeHTML(src string) string {
+func normalizeHTML(src string) string {
 	tokens := tokenizeHTML(src)
 
 	var b strings.Builder

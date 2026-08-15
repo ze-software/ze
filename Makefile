@@ -264,7 +264,7 @@ ze-templ-orphan-check:
 # would descend into gokrazy/ and tmp/, which hold module and build caches.
 #
 # A deleted .templ whose generated file survives is drift, which is the thing
-# R-1 of plan/spec-web-templ-migration.md asks this target to catch.
+# R-1 of spec-web-templ-migration asks this target to catch.
 #
 # -path internal IS LOAD-BEARING FOR FILE CONTENT, not only for the walk.
 # FSEventHandler.generate computes each file name with filepath.Rel against the
@@ -319,8 +319,8 @@ ze-web-golden-check:
 	@$(GO_TEST) -run 'TestWebMarkupGoldenOutput' ./internal/component/web/
 
 # Compare every captured unit against the bytes it held BEFORE the templ port,
-# read out of git at REF, through golden.NormalizeHTML. It is the evidence for
-# AC-2 of plan/spec-web-templ-migration.md.
+# read out of git at REF, through golden.AssertPortFidelity. It is the evidence for
+# AC-2 of spec-web-templ-migration.
 #
 #   make ze-templ-port-check REF=80f0b8b57
 #

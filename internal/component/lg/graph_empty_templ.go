@@ -14,7 +14,7 @@ import templruntime "github.com/a-h/templ/runtime"
 // It is markup: two fixed elements and one message. renderGraphSVG and
 // renderNextHopGraphSVG are NOT markup in the same sense. Every attribute they
 // write is a coordinate computeLayout produced, so they stay in Go. AC-7 of
-// plan/spec-web-templ-migration.md states that boundary and why it holds.
+// spec-web-templ-migration states that boundary and why it holds.
 func graphEmpty(msg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

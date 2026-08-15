@@ -12,7 +12,7 @@ import (
 
 // The helpers below build TEXT and attribute values for the templ components
 // beside them. They build no markup: a tag literal in Go is what the port
-// removes (AC-7 of plan/spec-web-templ-migration.md). A class list, a URL and a
+// removes (AC-7 of spec-web-templ-migration). A class list, a URL and a
 // JSON payload are values, and Go is where a value is computed.
 
 // intText renders a count for a reader.

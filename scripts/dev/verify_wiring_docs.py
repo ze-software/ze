@@ -97,11 +97,10 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     ("internal/test/golden/routes.go", "RoutePatterns"),
     ("internal/test/golden/routes.go", "RepoFile"),
     ("internal/test/golden/response.go", "AssertResponseHasBody"),
-    # NormalizeHTML is the same package and the same shape. It is the AC-2
-    # instrument of plan/spec-web-templ-migration.md: a port to templ is proven
-    # by comparing normalized renders, and only a _test.go renders anything.
-    # portcheck.go calls it, which is the same package and not production code.
-    ("internal/test/golden/normalize.go", "NormalizeHTML"),
+    # The normalizer this file used to exempt is normalizeHTML now, and an
+    # unexported name needs no entry. It had no caller in any other package, not
+    # even a _test.go one, so the exemption was keeping a name exported that
+    # only its own package spelled. AssertPortFidelity below is the entry point.
     # portcheck.go runs that comparison. `make ze-templ-port-check REF=<sha>`
     # reads the pre-port fixtures out of git at REF and compares them against
     # the ones on disk. Its callers are TestWebTemplPortFidelity and

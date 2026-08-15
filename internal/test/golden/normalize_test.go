@@ -2,13 +2,13 @@ package golden
 
 import "testing"
 
-// TestNormalizeHTMLErasesLayoutOnly proves NormalizeHTML is not vacuous.
+// TestNormalizeHTMLErasesLayoutOnly proves normalizeHTML is not vacuous.
 //
-// VALIDATES: NormalizeHTML erases whitespace layout and doctype case, and
+// VALIDATES: normalizeHTML erases whitespace layout and doctype case, and
 // nothing else. Every content difference a port can introduce survives it.
 // PREVENTS: a normalizer that reports every port faithful because it erased the
 // content the port was supposed to preserve. This is the instrument AC-2 of
-// plan/spec-web-templ-migration.md rests on, so a vacuous one makes the whole
+// spec-web-templ-migration rests on, so a vacuous one makes the whole
 // comparison vacuous.
 func TestNormalizeHTMLErasesLayoutOnly(t *testing.T) {
 	same := []struct {
@@ -37,7 +37,7 @@ func TestNormalizeHTMLErasesLayoutOnly(t *testing.T) {
 
 	for _, tt := range same {
 		t.Run("same/"+tt.name, func(t *testing.T) {
-			if got, want := NormalizeHTML(tt.a), NormalizeHTML(tt.b); got != want {
+			if got, want := normalizeHTML(tt.a), normalizeHTML(tt.b); got != want {
 				t.Errorf("normalized forms differ\n  a: %q\n  b: %q", got, want)
 			}
 		})
@@ -68,8 +68,8 @@ func TestNormalizeHTMLErasesLayoutOnly(t *testing.T) {
 
 	for _, tt := range differ {
 		t.Run("differ/"+tt.name, func(t *testing.T) {
-			if got, want := NormalizeHTML(tt.a), NormalizeHTML(tt.b); got == want {
-				t.Errorf("NormalizeHTML erased a real difference; both became %q", got)
+			if got, want := normalizeHTML(tt.a), normalizeHTML(tt.b); got == want {
+				t.Errorf("normalizeHTML erased a real difference; both became %q", got)
 			}
 		})
 	}
@@ -81,8 +81,9 @@ func TestNormalizeHTMLErasesLayoutOnly(t *testing.T) {
 // VALIDATES: a newline against a space survives normalization inside <pre> and
 // inside <textarea>, and is still erased everywhere else. The rules outside the
 // element are unchanged, and they resume after the close tag.
-// PREVENTS: the port of internal/component/web/templates/commit.html reading as
-// faithful after it lost the newlines that break the config diff into lines.
+// PREVENTS: the port that produced configCommit
+// (internal/component/web/config_commit.templ) reading as faithful after it lost
+// the newlines that break the config diff into lines.
 // templ drops that newline unless the port writes it as { "\n" }, and a
 // collapsing normalizer cannot see the loss.
 func TestNormalizeHTMLKeepsWhitespaceInsidePre(t *testing.T) {
@@ -113,8 +114,8 @@ func TestNormalizeHTMLKeepsWhitespaceInsidePre(t *testing.T) {
 
 	for _, tt := range differ {
 		t.Run("differ/"+tt.name, func(t *testing.T) {
-			if got, want := NormalizeHTML(tt.a), NormalizeHTML(tt.b); got == want {
-				t.Errorf("NormalizeHTML erased a difference inside a preserved element; both became %q", got)
+			if got, want := normalizeHTML(tt.a), normalizeHTML(tt.b); got == want {
+				t.Errorf("normalizeHTML erased a difference inside a preserved element; both became %q", got)
 			}
 		})
 	}
@@ -132,7 +133,7 @@ func TestNormalizeHTMLKeepsWhitespaceInsidePre(t *testing.T) {
 
 	for _, tt := range same {
 		t.Run("same/"+tt.name, func(t *testing.T) {
-			if got, want := NormalizeHTML(tt.a), NormalizeHTML(tt.b); got != want {
+			if got, want := normalizeHTML(tt.a), normalizeHTML(tt.b); got != want {
 				t.Errorf("normalized forms differ\n  a: %q\n  b: %q", got, want)
 			}
 		})
@@ -153,15 +154,15 @@ func TestNormalizeHTMLKeepsAGreaterThanInAValue(t *testing.T) {
 	// that '>' leaves ` b"` outside the tag, where the text rules rewrite it.
 	// No whole element survives that.
 	want := `<div title="a &gt; b">x</div>`
-	if got := NormalizeHTML(withGT); got != want {
-		t.Errorf("NormalizeHTML rewrote a quoted '>': got %q, want %q", got, want)
+	if got := normalizeHTML(withGT); got != want {
+		t.Errorf("normalizeHTML rewrote a quoted '>': got %q, want %q", got, want)
 	}
 
-	if got := NormalizeHTML(want); got != want {
-		t.Errorf("NormalizeHTML is not idempotent over a quoted '>': got %q, want %q", got, want)
+	if got := normalizeHTML(want); got != want {
+		t.Errorf("normalizeHTML is not idempotent over a quoted '>': got %q, want %q", got, want)
 	}
 
-	if NormalizeHTML(withGT) == NormalizeHTML(`<div title="a > c">x</div>`) {
-		t.Error("NormalizeHTML erased a difference inside a quoted attribute value")
+	if normalizeHTML(withGT) == normalizeHTML(`<div title="a > c">x</div>`) {
+		t.Error("normalizeHTML erased a difference inside a quoted attribute value")
 	}
 }

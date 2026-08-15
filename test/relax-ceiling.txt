@@ -153,7 +153,7 @@
 # view_test.go, and the rest of this block.
 # NOTHING LEFT THE SUITE, AND THE CHECK GOT STRICTER. The AST walk in
 # internal/component/lg/view_test.go moved into internal/test/templcheck,
-# because phase 3 of plan/spec-web-templ-migration.md applies the same guard to
+# because phase 3 of spec-web-templ-migration applies the same guard to
 # internal/component/web. A guard that lives in one package's test file cannot
 # be called from another.
 #
@@ -172,7 +172,7 @@
 # leaving view_test.go and could not see them land in another package of the same
 # commit. That is the cross-file blindness the 2026-08-14 blackholecfg row above
 # records, in the same Go arm.
-# raised-for: 2026-08-14, plan/spec-web-templ-migration.md phase 3, one token in
+# raised-for: 2026-08-14, spec-web-templ-migration phase 3, one token in
 # internal/component/web/golden_test.go.
 #
 # NOTHING LEFT THE SUITE. Thirteen web templates became templ components in this

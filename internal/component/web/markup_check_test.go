@@ -43,7 +43,7 @@ const webAssetRefFloor = 15
 // TestNoGoFileBuildsMarkup requires every HTML tag in this package to live in a
 // .templ file.
 //
-// It is the evidence for AC-7 of plan/spec-web-templ-migration.md. The
+// It is the evidence for AC-7 of spec-web-templ-migration. The
 // criterion used to be a grep in a Deliverables checklist, which nothing ran.
 //
 // The scan reads Go string LITERALS. A tag in a comment is therefore not a
