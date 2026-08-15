@@ -323,6 +323,51 @@ class TestParseChecklistLine(unittest.TestCase):
             self.assertEqual(req.section, sec)
 
 
+class TestAnchorMismatchIsRefused(unittest.TestCase):
+    """spec-fixit-rfc-row-level-and-anchor-drift AC-4, over the real rows that drove it.
+
+    A row can name a section its obligation is NOT in. `RFC7296-3.3.6-1` cites §3.3.6
+    while the D-H mandate is the mandatory Transform Type table of §3.3.3. The obvious
+    repair -- leave the id, move the citation -- is the one `_validate_id` refuses, and
+    `check_retired_requirements` refuses the other one (renumber the id). Both doors
+    being shut is WHY the repair had to land in the row's TEXT, so a test that stops
+    proving it would let a later session reach for a move the gate rejects.
+
+    `test_id_section_must_match_cited_section` above states the general rule on a
+    synthetic id. This states it on the id that actually carries the mismatch, and pairs
+    it with the two forms that MUST still parse -- otherwise "always refuses" would pass.
+    """
+
+    def test_recited_without_renumber_is_refused(self):
+        """The move D-2 rejected: re-anchor §3.3.6 -> §3.3.3 keeping the id."""
+        with self.assertRaises(R.ParseError) as cm:
+            R.parse_checklist_line(
+                "- [ ] [RFC7296-3.3.6-1] [MUST] x (§3.3.3)", "rfc7296"
+            )
+        msg = str(cm.exception)
+        self.assertIn("disagrees with its section", msg)
+        self.assertIn("RFC7296-3.3.3-<n>", msg)
+
+    def test_row_as_it_stands_parses(self):
+        """Discrimination: the citation the row actually carries is accepted, so the
+        case above is refusing the re-anchor rather than refusing everything."""
+        req = R.parse_checklist_line(
+            "- [ ] [RFC7296-3.3.6-1] [MUST] x (§3.3.6)", "rfc7296"
+        )
+        self.assertEqual(req.section, "3.3.6")
+        self.assertTrue(req.gated)
+
+    def test_multi_section_citation_anchors_on_the_first(self):
+        """`RFC7296-2.8-1` cites (§2.8, §2.8.1): the id anchors to the FIRST section, so
+        naming the subsection that carries the sentence costs no renumber. This is the
+        room the level correction used, and it is why that row needed no id change."""
+        req = R.parse_checklist_line(
+            "- [ ] [RFC7296-2.8-1] [SHOULD] x (§2.8, §2.8.1)", "rfc7296"
+        )
+        self.assertEqual(req.rid, "RFC7296-2.8-1")
+        self.assertEqual(req.section, "2.8")
+
+
 # --------------------------------------------------------------------------
 # Annotations (AC-8, AC-9, AC-6b)
 # --------------------------------------------------------------------------
@@ -2357,6 +2402,80 @@ class TestCoverageRatchet(unittest.TestCase):
             {"RFC7606-2-1": {"positive"}},
         )
         self.assertEqual(len(errs), 1, errs)
+
+
+class TestLevelChangeUnderStableIdIsAccepted(unittest.TestCase):
+    """spec-fixit-rfc-row-level-and-anchor-drift AC-2, over the repair it actually made.
+
+    Correcting a misquoted level means a row leaves the gated MUST-level population
+    while keeping its id and every test that proves it. Two ratchets sit on that path
+    and NEITHER may fire, because the alternative route -- delete the row -- is the one
+    move they exist to refuse. `test_advisory_requirement_is_ratcheted_too` above shows
+    a SHOULD losing a polarity still fires; it says nothing about a level CHANGE, which
+    is the move here.
+
+    The demotion must stay costless only while the proof survives. The second case is
+    what keeps the first from being vacuous: demote AND drop the negative, and the
+    ratchet fires. So this pair says "a level may fall, its evidence may not".
+    """
+
+    def _ratchet(self, reqs, tags, baseline):
+        return R.check_coverage_ratchet(
+            requirements=reqs,
+            tags=tags,
+            enrolled={"rfc7296"},
+            baseline_polarities=baseline,
+            baseline_enrolled={"rfc7296"},
+        )
+
+    def test_demotion_keeping_both_polarities_is_silent(self):
+        """RFC7296-2.8-1 went [MUST] -> [SHOULD] on 2026-08-15 with all six tags in
+        place. The ratchet compares polarity sets, never levels, so it must say nothing."""
+        errs = self._ratchet(
+            [_req("RFC7296-2.8-1", level="SHOULD", rfc="rfc7296")],
+            [
+                _tag("RFC7296-2.8-1", "positive"),
+                _tag("RFC7296-2.8-1", "negative", line=9),
+            ],
+            {"RFC7296-2.8-1": {"positive", "negative"}},
+        )
+        self.assertEqual(errs, [])
+
+    def test_demotion_that_drops_a_polarity_still_fires(self):
+        """Discrimination: the level is not a licence to shed proof. Lowering the row
+        AND losing its negative is evidence loss, and the ratchet must still catch it."""
+        errs = self._ratchet(
+            [_req("RFC7296-2.8-1", level="SHOULD", rfc="rfc7296")],
+            [_tag("RFC7296-2.8-1", "positive")],
+            {"RFC7296-2.8-1": {"positive", "negative"}},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("negative", errs[0])
+
+    def _retired(self, requirements):
+        return R.check_retired_requirements(
+            requirements=requirements,
+            enrolled={"rfc7296"},
+            baseline_ids={"RFC7296-2.8-1"},
+            baseline_enrolled={"rfc7296"},
+            stems={"rfc7296"},
+        )
+
+    def test_demoted_id_is_not_read_as_retired(self):
+        """The other ratchet on the path. `check_retired_requirements` keys on ids, so a
+        row that changed level but is still listed must not read as a deleted one --
+        that verdict would push the next session toward deleting it for real."""
+        errs = self._retired([_req("RFC7296-2.8-1", level="SHOULD", rfc="rfc7296")])
+        self.assertEqual(errs, [])
+
+    def test_the_same_id_actually_deleted_is_still_caught(self):
+        """Discrimination for the case above, which asserts an ABSENCE and would pass
+        against a `check_retired_requirements` that returned nothing at all. Delete the
+        row instead of correcting its level and the ratchet must fire, so the silence
+        above is a verdict about THIS input rather than the function's only answer."""
+        errs = self._retired([_req("RFC7296-9.9-1", level="MUST", rfc="rfc7296")])
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC7296-2.8-1", errs[0])
 
 
 class TestBaselineReaders(unittest.TestCase):
@@ -12124,7 +12243,15 @@ class TestRealTree(unittest.TestCase):
     # 218 against a tree of 222 the four MUSTs the extraction walk had just found could
     # each be deleted without reding this case, which is the one move the floor exists to
     # refuse. Raise it in the commit that raises the count.
-    GATED_FLOOR = 222
+    #
+    # LOWERED 222 -> 221 on 2026-08-15, on the owner's authorisation, and this is the
+    # one shape of decrease the floor may take. No row was deleted and no id moved:
+    # RFC7296-2.8-1 recorded [MUST] over a sentence RFC 7296 Section 2.8.1 writes as
+    # "SHOULD be closed by the endpoint that created it", so correcting the quotation
+    # moved that row out of the gated MUST-level population. Ze's behaviour is
+    # unchanged and still meets it. A decrease that cannot name the row it corrected,
+    # and the RFC sentence that corrected it, is the deletion this floor refuses.
+    GATED_FLOOR = 221
 
     @classmethod
     def setUpClass(cls):
@@ -12203,13 +12330,17 @@ class TestRealTree(unittest.TestCase):
             )
 
     def test_rfc7296_every_gated_row_is_proven_in_both_polarities(self):
-        """AC-2 and AC-4: 222 gated rows, every one proven positive AND negative, and not
+        """AC-2 and AC-4: 221 gated rows, every one proven positive AND negative, and not
         one annotation in the file.
 
         Owner ruling OR-1 gave this spec no annotation budget. Nothing mechanical enforces
         that, because {gap} is a LEGAL annotation the gate accepts (umbrella R-9), so
         absorbing a newly extracted MUST into a fresh annotation is the cheapest way to
         keep the gate green over a row nobody implemented. This case is the catch.
+
+        221 rather than the pilot's 222 since 2026-08-15: see GATED_FLOOR above for the row
+        whose level was corrected and the RFC sentence that corrected it. The file still
+        carries 227 rows, so the count moved without a row moving.
         """
         gated = [r for r in self.reqs if r.gated]
         self.assertGreaterEqual(
@@ -12232,6 +12363,18 @@ class TestRealTree(unittest.TestCase):
         Feeding them the RECORDED pre-pilot baseline restores that reach. The polarity
         baseline claims BOTH for every gated pre-pilot id, which is the strongest claim a
         real loss could fail against.
+
+        WHAT "demoted" MEANS HERE, and what it does not. This case catches a pre-pilot id
+        that is RETIRED, and one that LOSES a polarity. It does NOT catch a level change:
+        `baseline` is built from `r.gated` over the CURRENT rows, so an id that stops being
+        MUST-level leaves the baseline rather than failing against it. RFC7296-2.8-1 went
+        [MUST] -> [SHOULD] on 2026-08-15 and passed straight through this case. That is not
+        a defect in the assertions below, which are all true; it is the reach of the name.
+        Six of the 23 pre-pilot ids sit at SHOULD today and five of them always did, so
+        "every pre-pilot id stays gated" is not the missing assertion. A real level ratchet
+        needs a recorded MUST-level subset and a place to record an authorised correction,
+        which is a decision rather than an edit. Recorded in
+        `plan/journal/reference-checked-claim-unchecked.md`.
         """
         live = {r.rid for r in self.reqs}
         self.assertEqual(

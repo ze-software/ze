@@ -24,8 +24,9 @@ relation would be stored on the route, and every policy keyed on it would then
 act on the guess. Three states reach it: the role plugin is not linked, the
 peer has neither a role capability nor a role config. The peer is a route
 server or a route-server client. The last is a decision rather than a failure:
-RFC 7947 requires route-server transparency, and a route server is not in the
-customer/peer/provider lattice RFC 8195 Section 3.2 describes.
+RFC 7947 recommends route-server transparency (Section 2.2.2.1 says in terms
+"This is a recommendation rather than a requirement"), and a route server is not
+in the customer/peer/provider lattice RFC 8195 Section 3.2 describes.
 
 <!-- source: internal/component/bgp/plugins/filter_community/relation.go -- relationParameterFor, relationPeerRoleFromMeta -->
 

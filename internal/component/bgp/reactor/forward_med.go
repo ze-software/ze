@@ -74,8 +74,12 @@ func payloadMED(payload []byte) medValue {
 // SHOULD be propagated to other route server clients, and the route server
 // SHOULD NOT modify its value." An IXP fabric exists to let clients discriminate
 // among each other's entry points, so a route server that stripped the metric
-// would break the service it provides. RFC7947-x-3 is a gated MUST in Ze's
-// ledger and TestReactorForwardRSTransparent is its proof.
+// would break the service it provides. RFC7947-x-3 carries that sentence in Ze's
+// ledger, at the SHOULD level RFC 7947 gives it, so it gates nothing. The predicate
+// below meets it anyway: the automatic Section 5.1.4 strip never fires toward a route
+// server client, and TestReactorForwardRSTransparent is its proof. An operator's own
+// med-remove policy still removes the metric, upstream of this predicate, which is the
+// RFC 4271 Section 5.1.4 mechanism rather than an exception to this one.
 //
 // The source AS is NOT an input. RFC 4271 permits the metric toward the AS it
 // came from ("other neighboring ASes"), and MULTI_EXIT_DISC is optional, so not

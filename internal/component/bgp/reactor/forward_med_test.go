@@ -207,9 +207,12 @@ func TestForwardKeepsFilterSetMED(t *testing.T) {
 // 2.2.3). An RS client is external, so the Section 5.1.4 rule would otherwise
 // strip the metric on every IXP route Ze forwards.
 //
-// PREVENTS: closing one gated MUST by breaking another. The exemption is gated
-// on the exact condition RFC 7947 names (the destination is a route server
-// client), never applied more widely (ai/rules/rfc-compliance.md).
+// PREVENTS: meeting one obligation by breaking another. RFC7947-x-3 is [SHOULD],
+// not a gated MUST: Section 2.2.3 states it as a recommendation, and the row was
+// corrected on 2026-08-15. RFC4271-5.1.4-1, a gated [MUST NOT], is the obligation
+// on the other side of the exemption.
+// The exemption is gated on the exact condition RFC 7947 names (the destination is
+// a route server client), never applied more widely (ai/rules/rfc-compliance.md).
 func TestForwardKeepsMEDForRouteServerClient(t *testing.T) {
 	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
 	src := payloadMED(s.payload)

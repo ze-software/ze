@@ -324,7 +324,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 // TestReactorForwardRSEBGPPrepend verifies EBGP AS-PATH prepend is applied
 // for EBGP destination peers.
 //
-// RFC requirement: RFC7947-x-1 negative -- the "MUST NOT prepend own AS" transparency is
+// RFC requirement: RFC7947-x-1 negative -- the "SHOULD NOT prepend own AS" transparency is
 // confined to RS clients: a plain (non-RS-client) EBGP destination DOES get the local AS
 // prepended (the forwarded body grows), so the no-prepend behavior is specific to RS clients,
 // not a blanket disable of AS-path prepending.
@@ -447,12 +447,17 @@ func rsTransparencyBody() []byte {
 // touching AS_PATH, NEXT_HOP, or MED: the forwarded body is byte-identical to the received body,
 // because an unfiltered RS client queues no attribute modification and the wire is written verbatim.
 //
-// RFC requirement: RFC7947-x-1 positive -- the route server MUST NOT prepend its own AS to
-// AS_PATH for an RS client; the forwarded AS_PATH equals the received AS_PATH.
+// RFC requirement: RFC7947-x-1 positive -- the route server SHOULD NOT prepend its own AS to
+// AS_PATH for an RS client (RFC 7947 Section 2.2.2.1 states it as a recommendation, and the
+// forward rail's automatic eBGP prepend never fires toward an RS client; an operator's own
+// as-path-prepend policy still inserts the local AS upstream, via ExtractASPathPrependOps);
+// the forwarded AS_PATH equals the received AS_PATH.
 // RFC requirement: RFC7947-x-2 positive -- the route server MUST NOT rewrite NEXT_HOP for an RS
 // client under the default (transparent) next-hop mode; the forwarded NEXT_HOP is unchanged.
-// RFC requirement: RFC7947-x-3 positive -- the route server MUST preserve MULTI_EXIT_DISC; the
-// forwarded MED is carried across unchanged.
+// RFC requirement: RFC7947-x-3 positive -- the route server SHOULD preserve MULTI_EXIT_DISC
+// (RFC 7947 Section 2.2.3 states it as a recommendation, and Ze's automatic RFC 4271 Section
+// 5.1.4 strip never fires toward an RS client; an operator's own med-remove policy still
+// removes the metric upstream); the forwarded MED is carried across unchanged.
 func TestReactorForwardRSTransparent(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)

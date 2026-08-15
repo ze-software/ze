@@ -339,7 +339,7 @@ of three per connection attempt, so two peers can never oscillate between them.
 
 Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries `N(REKEY_SA)` with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.
 
-Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. The endpoint that created the SA with the lowest of the four nonces closes that SA, so both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by `ze_ipsec_rekey_total{peer}` and streamed as `child-rekey` events by `monitor vpn ipsec`.
+Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. Section 2.8.1 states it as a recommendation: if redundant SAs are created, the endpoint that created the SA with the lowest of the four nonces SHOULD close that SA. Ze resolves the collision one step earlier and abandons its own pending exchange when its nonce is the lower one, so the redundant SA is never created and both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by `ze_ipsec_rekey_total{peer}` and streamed as `child-rekey` events by `monitor vpn ipsec`.
 
 ## Child SA and dataplane
 

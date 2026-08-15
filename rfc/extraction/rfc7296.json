@@ -928,7 +928,7 @@
       "quote": "This document adds the restriction in Section 2.13 that all pseudorandom functions (PRFs) used with IKEv2 MUST take variable- sized keys.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-1.7-2",
-      "reason": "The change list adds the Section 2.13 restriction that every PRF used with IKEv2 takes variable-sized keys. Row RFC7296-1.7-2 states it and cites Section 1.7 and Section 2.13."
+      "reason": "The change list adds the Section 2.13 restriction that every PRF used with IKEv2 takes variable-sized keys. Row RFC7296-1.7-2 states it and cites Section 1.7, which is the section this sentence is in. Section 2.13 states the same property as an assumption (\"It is assumed that PRFs accept keys of any length\"). Its own MUSTs are extracted as RFC7296-2.13-1 to RFC7296-2.13-4 and none is this obligation: its fixed-key-size MUST governs encryption and integrity algorithms. So the row no longer cites Section 2.13."
     },
     {
       "id": "1.7:7",
