@@ -61,6 +61,7 @@ records-you-author ## Records You Author
 fail-closed-guards ## Fail-Closed Guards
   rule
   what-counts-as-a-guard
+  put-the-guard-at-the-writer-not-the-producer
   what-fail-closed-requires
   the-zero-value-trap
   never-let-a-zero-value-look-like-a-valid-answer

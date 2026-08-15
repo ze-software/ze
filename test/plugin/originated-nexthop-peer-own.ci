@@ -1,0 +1,147 @@
+# Test: a route Ze ORIGINATES is not advertised to the peer whose own address it
+#       names as NEXT_HOP
+# VALIDATES: RFC 4271 Section 5.1.3 -- "A route originated by a BGP speaker SHALL
+#            NOT be advertised to a peer using an address of that peer as
+#            NEXT_HOP."
+#
+# RFC requirement: RFC4271-5.1.3-1 positive -- the announced route whose next hop
+# is the peer's own address never reaches that peer's wire.
+#
+# RFC requirement: RFC4271-5.1.3-1 negative -- the announced routes whose next hop
+# names another router reach it unchanged, so the refusal is about WHOSE address
+# the next hop is and not about origination.
+#
+# PREVENTS: the Section 5.1.3 guard living on the FORWARD rails alone.
+# egressNextHopIsPeerOwn (internal/component/bgp/reactor/forward_next_hop.go)
+# answers for a route another speaker sent. Nothing answered for the rails an
+# operator's own configuration reaches: static routes and default-originate
+# (peer_initial_sync.go), the RIB op-queue drain (peer_rib_routes.go), the announce
+# batch and the RFC 9494 stale re-advertise (reactor_api_batch.go). All five reach
+# the wire through Session.SendUpdate, where originatedNextHopIsPeerOwn is now
+# asked once.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). A reject rule passes on a
+# session that received nothing at all, so the two expect rules are what make it an
+# assertion: they are the routes announced BEFORE and AFTER the withheld one, on
+# the same session, in the same run, through the same rail. A build whose announce
+# rail is broken fails them. A build without the guard fails the reject.
+#
+# THE TWO ADDRESSES ARE DISTINCT ON PURPOSE (ai/rules/testing.md). The peer is
+# 127.0.0.1 and Ze is 127.0.0.2 on this session, because two ends of one session
+# never share an address.
+
+# The peer under test. Ze dials it, so it listens on 127.0.0.1.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=linger:value=true
+# BEFORE. 180A0000 is 10.0.0.0/24, next hop 203.0.113.1.
+expect=bgp:conn=1:seq=1:contains=180A0000
+# AFTER. 180A0200 is 10.2.0.0/24, next hop 203.0.113.1.
+expect=bgp:conn=1:seq=1:contains=180A0200
+# THE SUBJECT. 180A0100 is 10.1.0.0/24, announced with THIS peer's own address as
+# NEXT_HOP. It must not appear anywhere on this session.
+reject=bgp:conn=1:pattern=180A0100
+EOF_PEER
+
+# Observer: announces the three routes in order and holds the daemon up until the
+# peer has been written to.
+tmpfs=originated-nh.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Announce three routes; the middle one names the peer's own address."""
+import sys
+from ze_api import API, runtime_fail
+
+PEER = '127.0.0.1'
+
+
+def peer_updates(api):
+    """Real UPDATEs written to the peer, End-of-RIB markers excluded."""
+    return (api.peer_counter('updates-sent', peer=PEER)
+            - api.peer_counter('eor-sent', peer=PEER))
+
+
+def announce(api, next_hop, prefix):
+    """Announce one route and drain the forward pool before the next."""
+    api.send(f'peer {PEER} update text origin igp nhop {next_hop} '
+             f'nlri ipv4/unicast add {prefix}')
+    api.quiesce()
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    before = peer_updates(api)
+
+    # BEFORE: a third-party next hop. This one must reach the peer.
+    announce(api, '203.0.113.1', '10.0.0.0/24')
+    if not api.wait_until(lambda: peer_updates(api) >= before + 1, attempts=40):
+        runtime_fail('peer was never sent the route before the withheld one')
+    print('OK: peer was sent the route before the withheld one', file=sys.stderr)
+    middle = peer_updates(api)
+
+    # THE SUBJECT: the peer's OWN address as NEXT_HOP. RFC 4271 Section 5.1.3.
+    announce(api, PEER, '10.1.0.0/24')
+
+    # AFTER: a third-party next hop again, so the reject rule is asserted against a
+    # session that kept working rather than one that stopped.
+    announce(api, '203.0.113.1', '10.2.0.0/24')
+    if not api.wait_until(lambda: peer_updates(api) >= middle + 1, attempts=40):
+        runtime_fail('peer was never sent the route after the withheld one')
+    print('OK: peer was sent the route after the withheld one', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external originated-nh {
+		run ./originated-nh.run
+		encoder json
+	}
+}
+bgp {
+	peer under-test {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			# Ze's own address on this session. Distinct from the peer's.
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		attach process originated-nh {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

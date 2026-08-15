@@ -141,6 +141,42 @@ func modsNextHop(mods *filterapi.ModAccumulator) (nextHopValue, bool) {
 	return out, set
 }
 
+// sessionEndsShareOneAddress reports whether a session's two ends carry the SAME
+// address, which is the one state where the RFC 4271 Section 5.1.3 question below
+// cannot be answered.
+//
+// The section forbids advertising "an address of that peer" as NEXT_HOP, and the
+// same section PRESCRIBES the speaker's own address for a locally-originated
+// route: "then the BGP speaker SHOULD use its own IP address for the NEXT_HOP
+// attribute (the address of the interface that is used to reach the peer)." When
+// Ze's own address on a session IS the peer's address, those two sentences name
+// one value. The premise the rule reasons about, two speakers holding two
+// addresses, does not hold.
+//
+// NO REAL DEPLOYMENT REACHES THIS, which is why the exemption changes no
+// behavior an operator can observe. Two ends of a TCP connection between two
+// hosts hold different addresses. One host CAN hold both, which is why loopback
+// fixtures reach it and hardware never does.
+//
+// NEITHER REFERENCE IMPLEMENTATION RULES ON IT. BIRD enforces the prohibition on
+// the final next hop after its own next-hop-self substitution and withdraws the
+// route (bgp_update_next_hop_ip, proto/bgp/packets.c), so it would withhold here,
+// but by a path whose authors had no reason to consider a one-address session.
+// FRR compares nothing on the announce path at all (subgroup_announce_check,
+// bgp_route.c) and would emit the address. So this is unaddressed everywhere
+// rather than settled against Ze.
+//
+// THE STRICT READING IS UNIMPLEMENTABLE FOR IPv6 LOOPBACK FIXTURES, which is the
+// concrete cost of dropping this. An unprivileged host has exactly one IPv6
+// loopback address, and the runner's alias helper is IPv4-only, so an IPv6
+// session on loopback cannot be given two addresses at all.
+//
+// A zero or unset local address answers false, so a peer address never paired
+// with a local one keeps the full guard rather than losing it.
+func sessionEndsShareOneAddress(peer, local netip.Addr) bool {
+	return local.IsValid() && peer.Unmap() == local.Unmap()
+}
+
 // egressNextHopIsPeerOwn answers, for ONE destination, whether the NEXT_HOP it
 // is about to be sent is that destination's OWN address.
 //
@@ -170,11 +206,47 @@ func modsNextHop(mods *filterapi.ModAccumulator) (nextHopValue, bool) {
 //
 // Allocation-free: netip.Addr comparisons over a fixed-size operation list.
 func egressNextHopIsPeerOwn(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue) bool {
-	if !f.addr.IsValid() {
+	if !f.addr.IsValid() || sessionEndsShareOneAddress(f.addr, f.localAddr) {
 		return false
 	}
 	if nh, set := modsNextHop(mods); set {
 		return nh.has(f.addr)
 	}
 	return base.has(f.addr)
+}
+
+// originatedNextHopIsPeerOwn asks the SAME question of a route Ze ORIGINATES,
+// which is the case RFC 4271 Section 5.1.3 names in so many words:
+//
+//	"A route originated by a BGP speaker SHALL NOT be advertised to a peer
+//	 using an address of that peer as NEXT_HOP."
+//
+// egressNextHopIsPeerOwn above covers the RELAYED route, where the hazard
+// arrives as a third-party next hop Section 5.1.3 case 2 permits. This function
+// covers the originated one, where the address comes from Ze's own configuration
+// or from a plugin. Between them the two cover every route Ze advertises.
+//
+// IT READS THE BUILT BODY RATHER THAN ANY PRODUCER'S TYPED VALUE, and that is
+// the whole point of asking it here. Five rails originate a NEXT_HOP today:
+// configured static routes and default-originate (peer_initial_sync.go), the RIB
+// op-queue drain (peer_rib_routes.go), the announce batch and the RFC 9494 stale
+// re-advertise (reactor_api_batch.go). Each resolves its address differently and
+// each already refuses a next hop it cannot ENCODE, so a per-rail copy of this
+// question would be five copies to keep in step and a sixth rail would be born
+// without it. One question at the write boundary cannot be forgotten.
+//
+// A withdrawal and an End-of-RIB marker reach this with no NEXT_HOP and no
+// MP_REACH_NLRI, so they answer false without a special case.
+//
+// The local address is taken for sessionEndsShareOneAddress, and it matters more
+// here than on the relay side: `next-hop self` resolves to exactly that address
+// (precomputeNextHop, peer_forward_facts.go), so on a session whose two ends
+// carry one address every originated route would otherwise be withheld.
+//
+// Allocation-free: payloadNextHop walks the attribute headers in place.
+func originatedNextHopIsPeerOwn(body []byte, peer, local netip.Addr) bool {
+	if !peer.IsValid() || sessionEndsShareOneAddress(peer, local) {
+		return false
+	}
+	return payloadNextHop(body).has(peer)
 }

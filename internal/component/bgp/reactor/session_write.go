@@ -331,9 +331,29 @@ func (s *Session) writeUpdatePreFiltered(update *message.Update) error {
 
 // writeUpdateGated is the shared body of writeUpdate / writeUpdatePreFiltered.
 // Caller must hold writeMu.
+//
+// gate == true means the UPDATE carries a route Ze ORIGINATES, which is also the
+// subject of the RFC 4271 Section 5.1.3 refusal below. The flag already separated
+// the two populations for the export chain, so the refusal needs no second
+// discriminator: a relayed route arrives here with gate == false, or bypasses this
+// function entirely through writeRawUpdateBody, and is answered on the forward
+// rails by egressNextHopIsPeerOwn (forward_next_hop.go).
 func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	s.writeBuf.Reset()
 	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
+
+	// WriteTo refused to encode this UPDATE, so there is no message. Writing the
+	// buffer would put a truncated header on a live session, and every question
+	// below is about bytes that do not exist. The slice that follows made this
+	// implicit before, by panicking.
+	if n < message.HeaderLen {
+		return nil
+	}
+
+	// body is the bytes that will reach the peer. An export filter can replace it,
+	// so every question about what goes on the wire is asked AFTER that.
+	body := s.writeBuf.Buffer()[message.HeaderLen:n]
+	overridden := false
 
 	// Egress gate: originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, honor the peer's export filter chain here. Forwarded routes
@@ -341,7 +361,6 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// bgp-adj-rib-in stored-route replay. End-of-RIB markers of any family are
 	// exempt: RFC 4724 graceful-restart signals are not routes.
 	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
-		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		suppress, override := s.egressRouteFilter(body)
 		if suppress {
 			// Suppressed (e.g. export remove ipv4/flow): nothing written. The
@@ -351,8 +370,37 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 			return nil
 		}
 		if override != nil {
-			return s.writeRawUpdateBody(override)
+			body = override
+			overridden = true
 		}
+	}
+
+	// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be
+	// advertised to a peer using an address of that peer as NEXT_HOP." Telling a
+	// peer to reach a destination through itself is a blackhole: it resolves the
+	// next hop to one of its own interfaces and the traffic never leaves it.
+	//
+	// WITHHELD RATHER THAN REWRITTEN, like the forward rails. The section states a
+	// prohibition on advertising, so not advertising is the conformant act, and a
+	// rewrite would invent a next hop the operator never configured.
+	//
+	// Asked after the export chain, so an export policy cannot grant what the RFC
+	// refuses. Asked on `body`, so it reads the override when there is one.
+	//
+	// nil rather than an error: the caller's error paths tear the session down or
+	// abandon the route queue, and one unusable route is neither. The refusal is
+	// LOUD instead -- an operator who configured this next hop needs to hear that
+	// the route is not being advertised.
+	if gate && originatedNextHopIsPeerOwn(body, s.settings.Address, s.settings.LocalAddress) {
+		sessionLogger().Warn("withholding originated route: its next hop is this peer's own address",
+			"peer", s.settings.Address,
+			"rfc", "RFC 4271 Section 5.1.3",
+			"action", "route not advertised to this peer; configure a next hop this peer can reach")
+		return nil
+	}
+
+	if overridden {
+		return s.writeRawUpdateBody(body)
 	}
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
@@ -366,8 +414,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(n))
 	}
 
-	if s.onMessageReceived != nil && n >= message.HeaderLen {
-		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+	if s.onMessageReceived != nil {
 		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
 		// sentMeta and sentSourcePeerStr are the forward-pool per-write fields, both set
 		// under writeMu by fwdBatchHandler and read here in the same writeMu section.
@@ -597,22 +644,41 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// same pure function with the same two arguments and returned its error. The
 	// coupling is the reason the refusal lives in one function rather than two, and
 	// it is what makes this slice safe -- anyone splitting them owes this check.
+	body := s.writeBuf.Buffer()[message.HeaderLen:n]
+	overridden := false
 	if s.egressRouteFilter != nil {
-		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		suppress, override := s.egressRouteFilter(body)
 		if suppress {
 			return nil
 		}
 		if override != nil {
-			if err := s.writeRawUpdateBody(override); err != nil {
-				return err
-			}
-			if err := s.flushWrites(); err != nil {
-				return err
-			}
-			s.resetSendHoldTimer()
-			return nil
+			body = override
+			overridden = true
 		}
+	}
+
+	// The same RFC 4271 Section 5.1.3 refusal writeUpdateGated makes, on the other
+	// writer of an originated route. This rail encodes a RouteSpec straight into
+	// the session buffer instead of going through writeUpdate, so the question has
+	// to be asked again rather than inherited. Withheld, not rewritten, and asked
+	// after the export chain, for the reasons given there.
+	if originatedNextHopIsPeerOwn(body, s.settings.Address, s.settings.LocalAddress) {
+		sessionLogger().Warn("withholding originated route: its next hop is this peer's own address",
+			"peer", s.settings.Address,
+			"rfc", "RFC 4271 Section 5.1.3",
+			"action", "route not advertised to this peer; configure a next hop this peer can reach")
+		return nil
+	}
+
+	if overridden {
+		if err := s.writeRawUpdateBody(body); err != nil {
+			return err
+		}
+		if err := s.flushWrites(); err != nil {
+			return err
+		}
+		s.resetSendHoldTimer()
+		return nil
 	}
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
@@ -623,9 +689,9 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	}
 	s.resetSendHoldTimer()
 
-	// Notify callback after successful send
-	if s.onMessageReceived != nil && n >= message.HeaderLen {
-		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+	// Notify callback after successful send. body is the bytes that reached the
+	// peer, which the override branch returned before ever getting here.
+	if s.onMessageReceived != nil {
 		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
 	}
 

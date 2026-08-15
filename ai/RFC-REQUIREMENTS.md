@@ -80,7 +80,7 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 | `rfc4035` | 108 | 5 | 0 | 103 | 0 | 0 | 0 | **enrolled** |
 | `rfc4090` | 11 | 11 | 0 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc4213` | 23 | 0 | 0 | 23 | 0 | 0 | 0 | **enrolled** |
-| `rfc4271` | 100 | 68 | 0 | 32 | 0 | 0 | 0 | **enrolled** |
+| `rfc4271` | 100 | 74 | 0 | 26 | 0 | 0 | 0 | **enrolled** |
 | `rfc4301` | 15 | 1 | 0 | 14 | 0 | 0 | 0 | **enrolled** |
 | `rfc4303` | 17 | 1 | 0 | 16 | 0 | 0 | 0 | **enrolled** |
 | `rfc4360` | 6 | 2 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
@@ -159,7 +159,7 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 | `rfc7871` | 38 | 0 | 0 | 38 | 0 | 0 | 0 | **enrolled** |
 | `rfc7911` | 9 | 8 | 0 | 1 | 0 | 0 | 0 | **enrolled** |
 | `rfc792` | 6 | 1 | 0 | 5 | 0 | 0 | 0 | **enrolled** |
-| `rfc7947` | 3 | 1 | 0 | 2 | 0 | 0 | 0 | **enrolled** |
+| `rfc7947` | 3 | 2 | 0 | 1 | 0 | 0 | 0 | **enrolled** |
 | `rfc7950` | 9 | 4 | 0 | 5 | 0 | 0 | 0 | **enrolled** |
 | `rfc7999` | 4 | 4 | 0 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc8050` | 6 | 4 | 0 | 2 | 0 | 0 | 0 | **enrolled** |
@@ -206,13 +206,13 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 
 ## Audit coverage
 
-50 of 1603 auditable requirement(s) carry a `/ze-rfc-audit` verdict (3.12%), across 1 of 171 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
+50 of 1609 auditable requirement(s) carry a `/ze-rfc-audit` verdict (3.11%), across 1 of 171 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
 **Proven** (50) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 2 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
-The remaining 1553 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `make ze-rfc-check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
+The remaining 1559 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `make ze-rfc-check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1603) = `Audited` (50) + `Unaudited` (1553). **Records:** all 52 recorded verdict(s) = `Proven` (50) + `Not proven` (2), and the worklist below names every one of those 2. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1609) = `Audited` (50) + `Unaudited` (1559). **Records:** all 52 recorded verdict(s) = `Proven` (50) + `Not proven` (2), and the worklist below names every one of those 2. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
@@ -257,7 +257,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc3954` | 4 | 0 | 0 | 0 | 4 |
 | `rfc4035` | 14 | 0 | 0 | 0 | 14 |
 | `rfc4090` | 11 | 0 | 0 | 0 | 11 |
-| `rfc4271` | 71 | 0 | 0 | 0 | 71 |
+| `rfc4271` | 77 | 0 | 0 | 0 | 77 |
 | `rfc4301` | 8 | 0 | 0 | 0 | 8 |
 | `rfc4303` | 3 | 0 | 0 | 0 | 3 |
 | `rfc4360` | 2 | 0 | 0 | 0 | 2 |
