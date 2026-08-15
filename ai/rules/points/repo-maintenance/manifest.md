@@ -105,6 +105,10 @@ hook-to-rule-mapping ## Hook-to-Rule Mapping
   what-fires-on-a-python-file
   commits
   what-fires-on-a-commit
+gate-population ## Gate Population
+  rule
+  state-what-the-gate-cannot-see
+  compile-the-tests-before-you-call-it-committable
 ze-project-knowledge ## Ze Project Knowledge
   project-knowledge-not-in-other-rules
   project-facts-that-no-other-rule-carries

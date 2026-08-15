@@ -449,6 +449,23 @@ auto-py-format (ruff format + check).
 
 A Bash `git commit` is blocked outright by destructive-git. Commit via `scripts/dev/commit_helper.py create`, then `bash` on the path its `script=` line prints; the creation-time gates (verify-status, discovery-index, deferral-unassigned, deferral-in-diff, journal-row, spec-audit block; wiring-at-commit, doc-drift warn) run then. See "Commit-time gates" above.
 
+## Gate Population
+
+**A gate's green is only as wide as the population it reads. Before you trust
+one, you MUST know which files it opens. A gate whose NAME promises a
+population wider than it reads produces a green that answers a question nobody
+asked, and it will be over-trusted by whoever is tired.**
+
+**Where a gate is named, you MUST state what it cannot see, not only what it
+checks. A rule that says "also run the other check" is followed on the day
+somebody remembers it. A rule that names the blind spot is followed by whoever
+reads the gate and wonders what its green covers.**
+
+**`make ze-tracked-build-check` is the only gate that compiles what git holds,
+and it compiles no `_test.go`. Its green therefore says nothing about the test
+build. Before you treat work as committable, you MUST also compile the test
+binaries of every package you touched, without running them.**
+
 ## Ze Project Knowledge
 
 ### Project Knowledge (not in other rules)

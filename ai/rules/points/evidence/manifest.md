@@ -62,6 +62,7 @@ fail-closed-guards ## Fail-Closed Guards
   rule
   what-counts-as-a-guard
   put-the-guard-at-the-writer-not-the-producer
+  a-guard-is-real-only-on-the-path-that-carries-the-traffic
   what-fail-closed-requires
   the-zero-value-trap
   never-let-a-zero-value-look-like-a-valid-answer
