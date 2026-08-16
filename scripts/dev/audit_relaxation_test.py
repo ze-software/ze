@@ -58,6 +58,7 @@ HEALTHY = (
 WEAKENED = (
     'package a\nfunc TestA(t *testing.T){ t.Skip("x"); require.Equal(t,1,f()) }\n'
 )
+FURTHER_WEAKENED = 'package a\nfunc TestA(t *testing.T){ t.Skip("x") }\n'
 TWO_HEALTHY = (
     "package a\n"
     "func TestA(t *testing.T){ require.True(t, first()) }\n"
@@ -72,6 +73,10 @@ BOTH_WEAKENED = (
     "package a\n"
     "func TestA(t *testing.T){ t.Skip() }\n"
     "func TestB(t *testing.T){ t.Skip() }\n"
+)
+RENAME_PADDING = (
+    "func TestUnchangedOne(t *testing.T){ require.True(t, unchangedOne()) }\n"
+    "func TestUnchangedTwo(t *testing.T){ require.True(t, unchangedTwo()) }\n"
 )
 
 
@@ -258,7 +263,7 @@ class TestCommittedWeakenedRows(unittest.TestCase):
         self.assertNotIn('"RELAXED"', src)
 
     def test_rows_are_read_from_every_commit_in_the_range(self):
-        # VALIDATES (AC-1): an earlier row remains available after replacement.
+        # VALIDATES (AC-1): each weakening uses its own commit's replacement rows.
         # PREVENTS: reading only the last commit's version of test/weakened.md.
         with tempfile.TemporaryDirectory() as tmp:
             fx = AuditFixture(
@@ -270,6 +275,51 @@ class TestCommittedWeakenedRows(unittest.TestCase):
             Path(tmp, "pkg", "x_test.go").write_text(BOTH_WEAKENED)
             fx.write_rows("TestB")
             fx._commit("weaken TestB")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("WEAKENED", out)
+
+    def test_an_earlier_row_does_not_accept_a_second_weakening_of_the_same_unit(self):
+        # VALIDATES (AC-2): a row accepts only the commit that carries it.
+        # PREVENTS: flattening rows across the range, which lets commit 1's
+        # TestA row suppress commit 2's unaccepted TestA weakening.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp, rows=("TestA",))
+            Path(tmp, "pkg", "x_test.go").write_text(FURTHER_WEAKENED)
+            fx._commit("weaken TestA again without acceptance")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 1, out)
+            self.assertIn("WEAKENED", out)
+            self.assertIn("TestA", out)
+
+    def test_a_head_row_does_not_accept_a_worktree_weakening(self):
+        # VALIDATES (AC-2): worktree changes have no committed acceptance rows.
+        # PREVENTS: matching HEAD's TestA row against a later uncommitted
+        # weakening of TestA.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp, rows=("TestA",))
+            Path(tmp, "pkg", "x_test.go").write_text(FURTHER_WEAKENED)
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 1, out)
+            self.assertIn("WEAKENED", out)
+            self.assertIn("TestA", out)
+
+    def test_rows_accept_a_weakening_in_a_renamed_test_file(self):
+        # VALIDATES (AC-1): per-commit comparison follows both sides of a rename.
+        # PREVENTS: reading the parent or commit content from the wrong path.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(
+                tmp,
+                healthy=TWO_HEALTHY + RENAME_PADDING,
+                weakened=ONLY_A_WEAKENED + RENAME_PADDING,
+                rows=("TestA",),
+            )
+            old_path = Path(tmp, "pkg", "x_test.go")
+            new_path = Path(tmp, "pkg", "renamed_test.go")
+            old_path.rename(new_path)
+            new_path.write_text(BOTH_WEAKENED + RENAME_PADDING)
+            fx.write_rows("TestB")
+            fx._commit("rename file and weaken TestB")
             code, out = fx.audit(fx.base_sha)
             self.assertEqual(code, 0, out)
             self.assertNotIn("WEAKENED", out)
@@ -339,7 +389,7 @@ class TestCommittedWeakenedRows(unittest.TestCase):
             self.assertIn("cannot read accepted rows", out.lower())
 
     def test_rows_in_separate_commits_accept_a_deleted_file(self):
-        # VALIDATES (AC-1): rows can explain every test deleted by the range.
+        # VALIDATES (AC-1): the deletion commit can accept every unit it deletes.
         # PREVENTS: file deletion bypassing the shared test-name matcher.
         with tempfile.TemporaryDirectory() as tmp:
             fx = AuditFixture(
@@ -349,7 +399,7 @@ class TestCommittedWeakenedRows(unittest.TestCase):
                 rows=("TestA",),
             )
             Path(tmp, "pkg", "x_test.go").unlink()
-            fx.write_rows("TestB")
+            fx.write_rows("TestA", "TestB")
             fx._commit("delete tests")
             code, out = fx.audit(fx.base_sha)
             self.assertEqual(code, 0, out)

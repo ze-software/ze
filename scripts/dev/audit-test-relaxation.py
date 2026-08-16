@@ -229,6 +229,17 @@ def changed_test_files(old_revision, cwd, new_revision=None):
 
 def accepted_rows(commit, cwd, weakened):
     """Return accepted rows from one commit's test/weakened.md, or an error."""
+    carried = git(
+        ["diff", "--quiet", f"{commit}^", commit, "--", "test/weakened.md"], cwd
+    )
+    if carried.returncode == 0:
+        return [], None
+    if carried.returncode != 1:
+        return None, (
+            f"git diff {commit[:12]}^..{commit[:12]} for test/weakened.md "
+            f"failed, so accepted rows cannot be scoped to their commit:\n"
+            f"  {carried.stderr.strip()}"
+        )
     source = f"{commit}:test/weakened.md"
     tree = git(["ls-tree", "--name-only", commit, "--", "test/weakened.md"], cwd)
     if tree.returncode != 0:
@@ -278,7 +289,7 @@ def read_revision(revision, path, cwd):
 class Audit(NamedTuple):
     anchor: str  # commit the worktree was diffed against
     findings: list  # (kind, path, details:list[str])
-    examined: int  # test files actually inspected; the verdict's evidence
+    examined: int  # parent-to-child test-file comparisons actually inspected
     err: str  # why no comparison was possible, or "" when one ran
 
 
@@ -297,8 +308,9 @@ def audit_changes(
         return [], 0, err
 
     findings = []
-    # Added files are counted but never inspected: a brand-new test cannot be a
-    # weakening of anything. The verdict reports what it actually looked at.
+    # Added files are neither counted nor inspected: a brand-new test cannot be
+    # a weakening of anything. A path changed in two commits is counted twice
+    # because the audit actually inspects two distinct parent-to-child diffs.
     examined = sum(1 for status, _, _ in rows if status != "A")
     for status, old_p, new_p in rows:
         if status == "A":
