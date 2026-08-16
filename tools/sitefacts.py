@@ -82,7 +82,10 @@ def under_skip_dir(path, root):
         return False
     if parts and parts[0] in SKIP_TOP_LEVEL:
         return True
-    return bool(SKIP_ANY_LEVEL & set(parts))
+    # scripts/vendor contains Ze's first-party vendoring commands and tests.
+    # Keep that package while still excluding dependency vendor trees below it.
+    scanned_parts = parts[2:] if parts[:2] == ("scripts", "vendor") else parts
+    return bool(SKIP_ANY_LEVEL & set(scanned_parts))
 
 
 def count_features():

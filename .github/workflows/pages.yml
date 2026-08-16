@@ -52,7 +52,7 @@ jobs:
         run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/terminal-demos"
 
       - name: Test website sources
-        run: uv run --with pytest python3 -m pytest -q site/tools/test_*.py
+        run: uv run --with pytest --with markdown python3 -m pytest -q site/tools/test_*.py
 
       - name: Build Pages artifact
         env:
