@@ -55,15 +55,15 @@ type Token struct {
 }
 
 // Tokenizer breaks input into tokens.
-// Automatic semicolon insertion: a newline (or EOF) after a value token
-// (word, string, ], )) inserts a synthetic semicolon — same approach as Go's lexer.
+// Automatic semicolon insertion adds a synthetic semicolon at a newline or EOF,
+// or before a closing brace, after a value token (word, string, ], or )).
 type Tokenizer struct {
 	input      string
 	pos        int
 	line       int
 	col        int
 	peeked     *Token
-	insertSemi bool // next newline/EOF should produce a semicolon
+	insertSemi bool // next newline, EOF, or closing brace should produce a semicolon
 }
 
 // NewTokenizer creates a new tokenizer for the given input.
@@ -95,7 +95,7 @@ func (t *Tokenizer) Next() Token {
 	} else {
 		tok = t.scan()
 	}
-	// Auto-semicolon: value tokens cause the next newline/EOF to produce a semicolon.
+	// Automatic semicolon insertion: value tokens cause the next newline, EOF, or closing brace to produce a semicolon.
 	t.insertSemi = tok.Type == TokenWord || tok.Type == TokenString ||
 		tok.Type == TokenRBracket || tok.Type == TokenRParen
 	return tok
@@ -106,7 +106,9 @@ func (t *Tokenizer) scan() Token {
 	semiLine, semiCol := t.line, t.col
 	newlineSeen := t.skipWhitespaceAndComments()
 
-	if t.insertSemi && (newlineSeen || t.pos >= len(t.input)) {
+	if t.insertSemi && (newlineSeen ||
+		t.pos >= len(t.input) ||
+		(t.pos < len(t.input) && t.input[t.pos] == '}')) {
 		return Token{Type: TokenSemicolon, Value: ";", Line: semiLine, Col: semiCol}
 	}
 

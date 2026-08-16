@@ -76,6 +76,43 @@ system {
 	assert.True(t, store.HasProfiles(), "store should have profiles")
 }
 
+// TestExtractAuthzConfig_InlineDefaultActionBeforeClosingBrace verifies that a
+// leaf value directly followed by its container's closing brace is parsed.
+//
+// VALIDATES: Automatic semicolon insertion preserves the inline edit default action.
+// PREVENTS: Treating the closing brace as the leaf value terminator only after a newline.
+func TestExtractAuthzConfig_InlineDefaultActionBeforeClosingBrace(t *testing.T) {
+	input := `
+bgp {
+  peer loopback {
+    connection {
+      remote { ip 127.0.0.1; }
+      local { ip 127.0.0.1; }
+      session { asn { local 65533; remote 65533; } }
+    }
+  }
+}
+system {
+  authentication {
+    user operator { password "$2a$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJK"; }
+    profile [ restricted ];
+  }
+  authorization {
+    profile restricted {
+      edit { default-action allow }
+    }
+  }
+}
+`
+
+	tree, err := config.ParseTreeWithYANG(input, nil)
+	require.NoError(t, err)
+
+	store := infra.ExtractAuthzStore(tree)
+	require.NotNil(t, store)
+	assert.Equal(t, authz.Allow, store.Authorize("operator", "peer set", false))
+}
+
 // TestExtractAuthzConfig_NoSystem verifies nil return when no system block.
 //
 // VALIDATES: ExtractAuthzStore returns nil when no system container.

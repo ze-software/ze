@@ -1,0 +1,35 @@
+# Test: ze config validate accepts an inline authz leaf before a closing brace
+# VALIDATES: A closing brace terminates an inline default-action leaf without an explicit semicolon.
+# PREVENTS: Valid compact authorization config failing parse before schema validation.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer loopback {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authorization {
+		profile restricted {
+			edit { default-action deny }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

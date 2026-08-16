@@ -253,6 +253,12 @@ func TestTokenizerAutoSemicolon(t *testing.T) {
 			values: []string{"local-as", "65000", ";", "peer-as", "65001", ";", ""},
 		},
 		{
+			name:   "auto-semi before closing brace on same line",
+			input:  "edit { default-action deny }",
+			types:  []TokenType{TokenWord, TokenLBrace, TokenWord, TokenWord, TokenSemicolon, TokenRBrace, TokenEOF},
+			values: []string{"edit", "{", "default-action", "deny", ";", "}", ""},
+		},
+		{
 			name:   "EOF without newline",
 			input:  "local-as 65000",
 			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenEOF},

@@ -14,7 +14,8 @@ Ze uses a JUNOS-like hierarchical configuration format.
 | Comments | `#` to end of line | `# this is a comment` |
 | Lists | `[ item1 item2 ]` | `receive [ update state ]` |
 | Strings | Unquoted or `"double quoted"` | `run "/usr/bin/my-plugin"` |
-| Terminators | Optional semicolons (`;`) | Both `router-id 1.2.3.4` and `router-id 1.2.3.4;` work |
+| Terminators | `;` or automatic after a value token at a newline, EOF, or before `}`. Both `edit { default-action deny }` and `edit { default-action deny;}` work. |
+<!-- source: internal/component/config/tokenizer.go -- Tokenizer.scan -->
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
