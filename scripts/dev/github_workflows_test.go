@@ -283,6 +283,29 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	}
 }
 
+// TestVerifyWorkflowProvisionsTheLoopbackAddress
+//
+// VALIDATES: verify.yml adds fd00::2 to lo before it runs `make ze-verify`.
+// PREVENTS: the merge gate reddening on every functional fixture that needs a
+// second IPv6 address. The runner cannot add one (CAP_NET_ADMIN), so the
+// workflow is the only place it can happen on this host, and a step that quietly
+// goes away takes the whole plugin suite with it.
+func TestVerifyWorkflowProvisionsTheLoopbackAddress(t *testing.T) {
+	src := workflowFile(t, "verify.yml")
+	const add = "ip -6 addr add fd00::2/128 dev lo"
+	addAt := strings.Index(src, add)
+	if addAt < 0 {
+		t.Fatalf("verify.yml must add the loopback address the fixtures bind: %q", add)
+	}
+	verifyAt := strings.Index(src, "run: make ze-verify")
+	if verifyAt < 0 {
+		t.Fatal("verify.yml must run `make ze-verify`")
+	}
+	if addAt > verifyAt {
+		t.Error("verify.yml must add fd00::2 BEFORE `make ze-verify`; after it the gate has already run")
+	}
+}
+
 // TestEvidenceNightlyIsScheduled
 //
 // VALIDATES: the heavy-evidence pipeline is triggered by a schedule (cron) and

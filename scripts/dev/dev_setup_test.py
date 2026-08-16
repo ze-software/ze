@@ -801,6 +801,124 @@ class TestPyrightAnswers(unittest.TestCase):
         self.assertIn("pyright-answers", r.stdout.decode())
 
 
+class TestLoopbackAddresses(unittest.TestCase):
+    """The addresses a fixture binds, which the test runner cannot add itself.
+
+    A BGP session needs a different address at each end (RFC 4271 Section 5.1.3
+    forbids a peer its own address as NEXT_HOP), and IPv6 has one loopback
+    address per host. Adding a second one needs root, so it happens here.
+    """
+
+    def test_ipv6_is_unique_local_on_every_platform(self):
+        """fd00::/8 is RFC 4193 unique-local: never globally routable, so a
+        fixture that leaks a packet toward it cannot reach a real destination.
+        """
+        self.assertTrue(dev_setup.LOOPBACK_IPV6.startswith("fd"))
+        for system in ("Darwin", "Linux"):
+            with mock.patch.object(dev_setup.platform, "system", return_value=system):
+                self.assertIn(dev_setup.LOOPBACK_IPV6, dev_setup.loopback_addresses())
+
+    def test_ipv4_aliases_are_darwin_only(self):
+        """Linux routes all of 127.0.0.0/8 to lo, so an alias there is work with
+        no effect. macOS binds only 127.0.0.1 until each alias is added.
+        """
+        with mock.patch.object(dev_setup.platform, "system", return_value="Darwin"):
+            self.assertIn("127.0.0.2", dev_setup.loopback_addresses())
+            self.assertIn("127.0.0.5", dev_setup.loopback_addresses())
+        with mock.patch.object(dev_setup.platform, "system", return_value="Linux"):
+            self.assertEqual(dev_setup.loopback_addresses(), [dev_setup.LOOPBACK_IPV6])
+
+    def test_the_add_command_matches_the_platform(self):
+        with mock.patch.object(dev_setup.platform, "system", return_value="Darwin"):
+            self.assertEqual(
+                dev_setup.loopback_add_argv("fd00::2"),
+                ["ifconfig", "lo0", "inet6", "fd00::2/128", "alias"],
+            )
+            self.assertEqual(
+                dev_setup.loopback_add_argv("127.0.0.2"),
+                ["ifconfig", "lo0", "alias", "127.0.0.2"],
+            )
+        with mock.patch.object(dev_setup.platform, "system", return_value="Linux"):
+            self.assertEqual(
+                dev_setup.loopback_add_argv("fd00::2"),
+                ["ip", "-6", "addr", "add", "fd00::2/128", "dev", "lo"],
+            )
+
+    def test_the_probe_answers_on_a_bind(self):
+        """::1 is on every host; the documentation prefix (RFC 3849) is on none."""
+        self.assertTrue(dev_setup.loopback_bindable("::1"))
+        self.assertFalse(dev_setup.loopback_bindable("2001:db8::1"))
+
+    def test_only_missing_addresses_are_added(self):
+        """Idempotence is structural: a configured host passes an empty list, so
+        the re-run of `make ze-setup` runs no command at all.
+        """
+        with mock.patch.object(dev_setup, "loopback_bindable", return_value=True):
+            self.assertEqual(dev_setup.missing_loopback_addresses(), [])
+
+        with (
+            mock.patch.object(dev_setup, "run_privileged") as privileged,
+            mock.patch.object(dev_setup, "missing_loopback_addresses", return_value=[]),
+            mock.patch("builtins.print"),
+        ):
+            self.assertTrue(dev_setup.apply_loopback_fix([]))
+            privileged.assert_not_called()
+
+    def test_each_missing_address_reaches_run_privileged(self):
+        with (
+            mock.patch.object(dev_setup.platform, "system", return_value="Linux"),
+            mock.patch.object(
+                dev_setup, "run_privileged", return_value=(True, "")
+            ) as privileged,
+            mock.patch.object(dev_setup, "missing_loopback_addresses", return_value=[]),
+            mock.patch("builtins.print"),
+        ):
+            self.assertTrue(dev_setup.apply_loopback_fix(["fd00::2"]))
+        self.assertEqual(
+            privileged.call_args[0][0],
+            ["ip", "-6", "addr", "add", "fd00::2/128", "dev", "lo"],
+        )
+
+    def test_an_address_that_did_not_appear_is_a_failure(self):
+        """The command can exit 0 and leave the address unusable. The bind probe
+        after the fact is what decides, not the exit code.
+        """
+        with (
+            mock.patch.object(dev_setup, "run_privileged", return_value=(True, "")),
+            mock.patch.object(
+                dev_setup, "missing_loopback_addresses", return_value=["fd00::2"]
+            ),
+            mock.patch("builtins.print"),
+        ):
+            self.assertFalse(dev_setup.apply_loopback_fix(["fd00::2"]))
+
+    def test_no_route_to_root_says_what_to_run(self):
+        with (
+            mock.patch.object(dev_setup.platform, "system", return_value="Darwin"),
+            mock.patch.object(
+                dev_setup, "run_privileged", return_value=(False, "no route")
+            ),
+            mock.patch("builtins.print") as printed,
+        ):
+            self.assertFalse(dev_setup.apply_loopback_fix(["fd00::2"]))
+            dev_setup.print_loopback_fix(["fd00::2"])
+        self.assertIn("sudo ifconfig lo0 inet6 fd00::2/128 alias", _said(printed))
+
+    def test_check_mode_reports_and_changes_nothing(self):
+        """`make ze-setup CHECK=1` must never touch the interface."""
+        with (
+            mock.patch.object(dev_setup, "run_privileged") as privileged,
+            mock.patch.object(
+                dev_setup, "missing_loopback_addresses", return_value=["fd00::2"]
+            ),
+            mock.patch.object(dev_setup.sys, "argv", ["dev-setup.py", "--check"]),
+            mock.patch("builtins.print") as printed,
+        ):
+            dev_setup.main()
+        privileged.assert_not_called()
+        self.assertIn("loopback-addresses", _said(printed))
+
+
 class TestApplianceChecksMarker(unittest.TestCase):
     def test_appliance_checks_has_required_keys(self):
         self.assertIn("appliance-grub", dev_setup.APPLIANCE_CHECKS)

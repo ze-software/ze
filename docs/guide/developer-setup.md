@@ -172,9 +172,39 @@ evidence scripts select the Apple hypervisor (`hvf`) by platform.
 
 <!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
 
-These two, and the apt installs above, are every place setup reaches for root.
-All three go through one helper, so the table of states earlier in this section
-governs each of them.
+**Loopback addresses.** The functional fixtures give each end of a BGP session
+its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
+NEXT_HOP, so a session whose two ends share one address has every originated
+route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to `lo` and
+macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
+host exactly `::1` on every platform, so setup adds `fd00::2` on both. That
+address is unique-local (RFC 4193) and never globally routable, so a fixture
+cannot leak a packet toward a real destination. Setup checks this as
+`loopback-addresses` and, in install mode, runs:
+
+```bash
+sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
+sudo ip -6 addr add fd00::2/128 dev lo         # Linux
+```
+
+<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+
+Presence is decided by binding a socket to the address, which is the same
+question a fixture asks and a stronger one than reading the interface list: an
+IPv6 address is listed while duplicate-address detection still refuses it. The
+test runner cannot add either family itself (the ioctl returns EPERM
+unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
+missing address fails at once naming the command above.
+
+<!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
+
+Neither addition survives a reboot. Re-run `make ze-setup` after one;
+`make ze-setup CHECK=1` says when it is needed. The merge gate adds the IPv6
+address the same way, as its own workflow step (`.github/workflows/verify.yml`).
+
+These three, and the apt installs above, are every place setup reaches for root.
+All of them go through one helper, so the table of states earlier in this
+section governs each of them.
 
 ## After Setup
 
