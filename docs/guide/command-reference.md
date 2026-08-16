@@ -12,7 +12,7 @@ is produced from this JSON.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
-[Command Equivalents](https://ze-software.net/command-equivalents/) page.
+[Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
 It joins `ze help command --json` with the curated vendor mapping in the
 website branch, so Ze command additions appear as unmapped rows until a vendor
 equivalent is added. For code-tree readers, the maintained data and generator
