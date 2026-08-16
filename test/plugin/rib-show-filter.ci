@@ -40,7 +40,6 @@ import json
 from ze_api import API, runtime_fail, result_text_data, result_json_data
 # // test-relax: dropped 'import sys'; the bare sys.exit(1) calls it served are now
 # runtime_fail (see check() below), so nothing in this observer uses sys.
-# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until_done poll
 
 
 def dispatch(api, command):
@@ -116,7 +115,6 @@ def main():
     api.ready()
 
     # Wait for the rib plugin to register its commands (RIB may be empty).
-    # // test-relax: blind sleep(2.0) -> dispatch_until_done poll on rib count
     api.dispatch_until_done('show bgp rib count')
 
     # Community filter on empty RIB via pipeline — done (not error)

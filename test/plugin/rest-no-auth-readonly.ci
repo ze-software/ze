@@ -15,7 +15,6 @@ import sys
 import urllib.error
 import urllib.request
 from ze_api import API
-# // test-relax: dropped 'import time'; blind sleep poll -> api.wait_until(HTTP GET ok)
 
 REST_PORT = 18086
 BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'

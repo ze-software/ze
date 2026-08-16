@@ -37,7 +37,6 @@ def main():
     # The route starts in validation-state 4 (pending) and, after the 5s
     # validation-timeout, is promoted to a non-pending state. Deterministic
     # replacement for a blind time.sleep: poll until present AND not state 4.
-    # // test-relax: blind sleep(12.0) -> dispatch_until poll (route present, promoted out of state 4)
     def _promoted(r):
         d = result_text_data(r)
         return '10.0.1.0/24' in d and (

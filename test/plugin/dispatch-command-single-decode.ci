@@ -67,7 +67,7 @@ def main():
     try:
         # AC-1: dispatch a command that returns structured data.
         # Poll session establishment deterministically instead of a blind sleep.
-        result = api.dispatch_until_done('show bgp rib status')  # // test-relax: blind sleep(2.0) + single dispatch -> dispatch_until_done poll
+        result = api.dispatch_until_done('show bgp rib status')
         if result is None:
             runtime_fail('dispatch returned None')
         if result.get('status') != 'done':

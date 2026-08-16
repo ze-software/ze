@@ -55,7 +55,7 @@ def main():
         return p.get('routes-received', 0) >= 1 and p.get('eor-sent', 0) >= 1
 
     try:
-        # // test-relax: dispatch_until poll, not a blind sleep -- the inbound
+        # // dispatch_until poll, not a blind sleep -- the inbound
         # route landing in a plugin and the EOR being sent are async engine
         # states with no outbound-quiesce barrier to wait on.
         api.dispatch_until('show bgp summary', peer_ready)
@@ -100,7 +100,7 @@ def main():
             print(f'FAIL: ipv6 inject status={inj.get("status")} data={inj.get("data")}', file=sys.stderr)
             sys.exit(1)
 
-        # // test-relax: dispatch_until poll on the injected route landing, not a
+        # // dispatch_until poll on the injected route landing, not a
         # blind sleep. Wait for the all-family count to include both families.
         api.dispatch_until(
             'show bgp summary',

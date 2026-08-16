@@ -34,7 +34,6 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    # // test-relax: blind sleep(4.0) + hand-rolled read loop -> wait_for_event (deterministic rpki event wait)
     def _match(evt):
         if not isinstance(evt, dict):
             return False

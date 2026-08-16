@@ -59,7 +59,6 @@ def main():
         runtime_fail(f'inject failed: {r}')
 
     # Verify sysrib received the route.
-    # // test-relax: blind sleep(2.0) + single show rib -> dispatch_until poll for the injected prefix
     def rib_has_target(res):
         try:
             rows = json.loads(result_text_data(res))

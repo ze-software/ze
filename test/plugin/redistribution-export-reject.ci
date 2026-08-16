@@ -41,7 +41,6 @@ tmpfs=filter-export-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 from ze_api import API, runtime_fail
-# // test-relax: dropped 'import time'; blind sleep -> wait_for_ack() barrier
 
 export_rejected = []
 export_passed = []
@@ -118,7 +117,6 @@ def main():
     # End-of-RIB as their own seq=1 expectation, so ze-peer already proves the
     # marker on the wire, and each barrier costs 10s of a 15s budget waiting on
     # an initial-sync drain that this observer is itself holding up.
-    # // test-relax: blind sleep(2.0) -> callback pump + updates-sent barrier
     serve_until(api, lambda: export_rejected and export_passed)
     # attempts=40 (10s) rather than the 60 (15s) default. The break this error
     # text names is "the verdict was given and the frame was never written": the

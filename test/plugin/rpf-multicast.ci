@@ -40,7 +40,6 @@ tmpfs=rpf-multicast-test.run:mode=755:terminator=EOF_RUN
 import sys
 import json
 from ze_api import API, result_json_data, result_text_data, runtime_fail
-# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
     """Dispatch a command and return its result envelope.
@@ -121,7 +120,6 @@ def main():
         runtime_fail(f'inject /16 status={result.get("status")} err={result.get("data")}')
 
     # Wait for best-path computation to propagate to Loc-RIB.
-    # // test-relax: blind sleep(0.5) -> dispatch_until poll until the /16 lands in multicast Loc-RIB
     api.dispatch_until(
         'show bgp rib rpf ipv4/multicast 224.1.2.5',
         lambda r: result_json_data(r, {}).get('matched-prefix') == '224.1.0.0/16',

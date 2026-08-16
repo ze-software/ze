@@ -22,7 +22,6 @@ tmpfs=rib-graph-filtered-test.run:mode=755:terminator=EOF_RUN
 import sys
 
 from ze_api import API, runtime_fail, result_text_data
-# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until_done poll
 
 
 failures = 0

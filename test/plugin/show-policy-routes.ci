@@ -39,7 +39,6 @@ else:
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-# // test-relax: deleted blind sleep(0.5) lead-in; the ze-cli retry loop below (50x) already covers daemon readiness
 last_err = None
 out = None
 for _ in range(50):

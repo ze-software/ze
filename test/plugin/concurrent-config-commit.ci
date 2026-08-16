@@ -76,7 +76,6 @@ def commit_session(session_id, result):
 
 
 def wait_for_verify_start():
-    # // test-relax: hand-rolled file-poll loop -> wait_until(verify.started exists)
     if not wait_until(lambda: os.path.exists('verify.started'), attempts=80, delay=0.1):
         raise RuntimeError('first commit did not enter config verify')
 

@@ -52,7 +52,7 @@ def main() -> None:
     # update-text parser now accepts (attribute/flowspec_action.go); this command
     # was rejected on both counts before, so it never produced anything.
     api.send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32')
-    api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    api.wait_for_ack(expected_count=1)
     api.wait_for_shutdown()
 
 

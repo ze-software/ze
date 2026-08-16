@@ -36,7 +36,7 @@ def main() -> None:
 
     for message in messages:
         if message == 'sleep':
-            wait_for_ack(expected_count=2)  # // test-relax: blind sleep -> quiesce barrier drains the 2 ADD forwards before the withdraws
+            wait_for_ack(expected_count=2)
             continue
         send(message)
 

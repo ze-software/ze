@@ -103,7 +103,6 @@ def main():
         runtime_fail(f'rib inject failed: {result}')
 
     # Query rib best, polling until the wire route + injected route form a 2-path multipath.
-    # // test-relax: blind sleep(0.5) + single show -> dispatch_until poll for 10.1.0.0/24 with 1 sibling
     def has_multipath(res):
         if res.get('status') != 'done':
             return False

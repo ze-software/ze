@@ -51,7 +51,7 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
     # AC-5: list all
-    r = api.dispatch_until_done('show bfd profile')  # // test-relax: lead-in sleep -> deterministic wait_for_post_startup + dispatch_until_done poll
+    r = api.dispatch_until_done('show bfd profile')
     if r.get('status') != 'done':
         runtime_fail(f'list status: {r.get("status")}')
     try:

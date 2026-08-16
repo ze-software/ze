@@ -39,7 +39,6 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    # // test-relax: deleted blind sleep(5.0); the event read loop below polls up to ~15s for the invalid event
     try:
         # Wait for ASPA event confirming Invalid state
         found_event = False
@@ -73,7 +72,6 @@ def main():
         # Query adj-rib-in: route should be rejected. The confirmed rpki invalid event above
         # is the inbound barrier -- validation ran and the reject dropped the route before it
         # reached adj-rib-in, so its absence is stable here.
-        # // test-relax: deleted blind sleep(1.0); the confirmed rpki invalid event is the barrier
         result = dispatch(api, 'show bgp rib received')
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)

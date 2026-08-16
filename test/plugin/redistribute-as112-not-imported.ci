@@ -64,7 +64,7 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: the first revision of this conversion asserted
+    # // the first revision of this conversion asserted
     # per-session updates-sent == baseline as a wire-absence gate. That
     # assertion cannot hold in this topology: the peer completes at the
     # initial EOR and exits, the session tears down, and ClearStats

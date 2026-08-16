@@ -26,7 +26,6 @@ tmpfs=firewall-irr-refresh.run:mode=755:terminator=EOF_RUN
 """Verify auto-refresh loop runs and is fail-closed."""
 import sys
 from ze_api import API, runtime_fail, result_json_data
-# // test-relax: removed unused 'import time'; blind sleep dropped (dispatch_until_done is the barrier)
 
 def main():
     api = API()
@@ -47,7 +46,6 @@ def main():
         runtime_fail(f'expected v4 prefixes, got {initial_v4}')
 
     # Verify data is still cached (fail-closed: refresh preserves last-good).
-    # // test-relax: dropped blind sleep; dispatch_until_done('show firewall irr') is the barrier
     result = api.dispatch_until_done('show firewall irr')
     if result.get('status') != 'done':
         runtime_fail(f'show after wait: status={result.get("status")}')

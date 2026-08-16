@@ -37,7 +37,6 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    # // test-relax: deleted blind sleep(5.0); the event read loop below polls up to ~15s for the invalid event
     try:
         # Wait for ASPA event confirming Invalid state (should still emit event)
         found_event = False
@@ -71,7 +70,6 @@ def main():
         # Query adj-rib-in: route should be ACCEPTED (log-only does not reject).
         # Config loads bgp-adj-rib-in (not bgp-rib), so 'show bgp adj-rib-in' is the
         # served command that lists received routes.
-        # // test-relax: blind sleep(1.0) + single-shot -> dispatch_until poll until the accepted route lands
         result = api.dispatch_until(
             'show bgp adj-rib-in',
             lambda r: '10.0.1.0/24' in result_text_data(r),

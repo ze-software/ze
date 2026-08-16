@@ -14,7 +14,6 @@ EOF_PEER
 tmpfs=peer-selector.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 from ze_api import flush, quiesce, ready, wait_for_shutdown
-# // test-relax: dropped 'import time'; blind sleep between flushes -> quiesce()
 
 def main() -> None:
     ready()
@@ -23,7 +22,6 @@ def main() -> None:
     flush('peer peer1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24\n')
     # Deterministic replacement for blind sleep(0.1): drain the outbound
     # forward pool so the first update is on the wire before the second flush.
-    # // test-relax: blind sleep(0.1) -> quiesce() outbound barrier
     quiesce()
 
     # Select peer by IP "127.0.0.1"

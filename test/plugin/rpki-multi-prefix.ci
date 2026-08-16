@@ -37,7 +37,6 @@ def main():
 
     # Poll adj-rib-in until both accepted routes land (the invalid one is never
     # installed). Deterministic replacement for a blind time.sleep on inbound.
-    # // test-relax: blind sleep(5.0) -> dispatch_until poll on show bgp rib received
     def _both_accepted(r):
         d = result_text_data(r)
         return '10.0.1.0/24' in d and '192.168.1.0/24' in d

@@ -35,7 +35,6 @@ tmpfs=test-prefix-accept.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, result_json_data
-# // test-relax: removed unused 'import time'; the blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -52,7 +51,7 @@ def main():
     # Poll adj-rib-in until the inbound route is processed. Deterministic
     # replacement for a blind time.sleep: the engine quiesce barrier drains
     # only OUTBOUND work, so an inbound route needs a payload-predicate poll.
-    # // test-relax: replaced blind sleep(3.0) + single-shot query with a
+    # // replaced blind sleep(3.0) + single-shot query with a
     # dispatch_until poll on adj-rib-in (sleep-elimination Layer 3 migration).
     result = api.dispatch_until(
         'show bgp adj-rib-in status',

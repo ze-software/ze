@@ -71,7 +71,6 @@ def main():
 
     # Wait for the SSH server to accept a connection and emit its SSH banner
     # (deterministic replacement for a blind settle sleep).
-    # // test-relax: blind sleep(1.5) -> wait_until(SSH banner on port 2223)
     api.wait_until(lambda: _ssh_banner_ok('127.0.0.1', 2223))
 
     # Verify SSH port is reachable (server started with config wiring)

@@ -41,7 +41,6 @@ def main():
     # sleep + hand-rolled read_line loop. The predicate skips early
     # status=unavailable events (cache not synced yet) and returns the first
     # event that reports 10.0.1.0/24 = valid.
-    # // test-relax: blind sleep(4.0) + manual read_line loop -> wait_for_event(rpki valid)
     def _valid(evt):
         if not isinstance(evt, dict):
             return False

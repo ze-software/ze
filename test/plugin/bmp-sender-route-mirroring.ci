@@ -43,7 +43,6 @@ def main():
 
     # Wait for the collector to finish validation and drop its marker file
     # (deterministic replacement for a hand-rolled poll loop + grace pad).
-    # // test-relax: marker-poll loop + 0.3 grace sleep -> wait_until(marker exists)
     api.wait_until(lambda: os.path.exists(MARKER), attempts=60, delay=0.25)
 
     dispatch(api, 'request shutdown')

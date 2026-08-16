@@ -72,7 +72,7 @@ def main():
     if installed != 1:
         runtime_fail(f"route-install: expected installed=1, got {installed!r}")
 
-    # // test-relax: the two hand-rolled 40x/0.25s kernel-poll loops became
+    # // the two hand-rolled 40x/0.25s kernel-poll loops became
     # wait_until(predicate) calls (spec-payload-predicate-waits). Same 40-attempt
     # x 0.25s budget, same present->absent assertions; only the poll scaffolding
     # (which used wait_for_event merely as a backoff) is replaced.

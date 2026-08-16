@@ -218,7 +218,6 @@ tmpfs=two-tier-load-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, runtime_fail, result_json_data, result_text_data
-# // test-relax: removed unused 'import time'; blind sleep -> dispatch_until on adj-rib-in
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -235,7 +234,6 @@ def main():
     # Every prefix the source announced must reach adj-rib-in. The receive path
     # is not throttled by ZE_FWD_CHAN_SIZE, so this fills quickly and only
     # proves nothing was lost on ingest before we drain forwarding to the dest.
-    # // test-relax: blind sleep(8.0) + single show(>= 1) -> wait for the FULL count.
     EXPECTED_ROUTES = 80
     result = api.dispatch_until(
         'show bgp adj-rib-in status',

@@ -26,7 +26,6 @@ EOF_PEER
 tmpfs=test-shortform.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 from ze_api import API, result_json_data
-# // test-relax: dropped 'import time'; blind sleep -> dispatch_until adj-rib-in poll
 
 def main():
     api = API()
@@ -37,7 +36,6 @@ def main():
     api.ready()
     # Deterministic replacement for blind sleep(2.0): poll adj-rib-in until
     # the accepted route lands, proving the short-form filter fired before shutdown.
-    # // test-relax: blind sleep(2.0) -> dispatch_until(adj-rib-in total>=1)
     api.dispatch_until(
         'show bgp adj-rib-in status',
         lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,

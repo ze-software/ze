@@ -110,7 +110,6 @@ def main():
     # check it replaces and it fails loudly.
     wait_eor_sent(api, 'peer1')
 
-    # // test-relax: dropped blind 1.0s sleep; the dispatch_until on rib best reason below is the real barrier
 
     # Inject a second route from synthetic peer with lower LOCAL_PREF
     result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65002 localpref 100')

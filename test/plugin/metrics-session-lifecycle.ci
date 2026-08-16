@@ -29,7 +29,6 @@ import json
 import sys
 
 from ze_api import API, result_text_data
-# // test-relax: removed unused 'import time'; blind sleep -> dispatch_until on metrics values
 
 
 def dispatch(api, command):
@@ -52,7 +51,6 @@ def main():
     api.ready()
 
     # Poll until the session-up + EOR metrics have propagated.
-    # // test-relax: blind sleep(2.0) + single show -> dispatch_until (established=1 + type=eor)
     def metrics_ready(res):
         if res.get('status') != 'done':
             return False

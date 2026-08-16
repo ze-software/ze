@@ -101,7 +101,6 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'inject peer2 failed: {r}')
 
-    # // test-relax: blind sleep -> poll bgp rib best until the 2-path multipath (1 sibling) lands
     api.wait_until(lambda: best_sibling_count(api, prefix) == 1)
 
     entry = get_best_entry(api, prefix)
@@ -113,7 +112,6 @@ def main():
         runtime_fail(f'AC-1: expected 1 multipath sibling (2 total), got {len(mp_peers)}: {mp_peers}')
 
     # Verify sysrib also received the route.
-    # // test-relax: blind sleep -> poll show rib until the prefix is programmed
     api.wait_until(lambda: sysrib_has_prefix(api, prefix))
     if not sysrib_has_prefix(api, prefix):
         runtime_fail(f'AC-1: {prefix} not in sysrib after bgp-rib best-change')
@@ -126,7 +124,6 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'withdraw peer2 failed: {r}')
 
-    # // test-relax: blind sleep -> poll bgp rib best until withdraw drops the sibling (0 siblings)
     api.wait_until(lambda: best_sibling_count(api, prefix) == 0)
 
     entry = get_best_entry(api, prefix)
@@ -153,7 +150,6 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'inject peer3 failed: {r}')
 
-    # // test-relax: blind sleep -> poll bgp rib best until the 3-path multipath (2 siblings) lands
     api.wait_until(lambda: best_sibling_count(api, prefix) == 2)
 
     entry = get_best_entry(api, prefix)

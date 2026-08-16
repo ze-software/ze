@@ -55,7 +55,7 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # // poll loop centralized into api.dispatch_until_done (ci-sleep
     # ratchet); behavior and the status assertion below are unchanged.
     r = api.dispatch_until_done('show class-of-service')
     if r.get('status') != 'done':

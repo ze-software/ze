@@ -19,7 +19,6 @@ tmpfs=ipv6.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
 from ze_api import quiesce, ready, send, wait_for_ack, wait_for_shutdown
-# // test-relax: removed unused 'import time'; per-send sleep -> outbound quiesce barrier
 
 
 def main() -> None:
@@ -36,7 +35,7 @@ def main() -> None:
 
     for message in messages:
         send(message)
-        quiesce()  # // test-relax: blind sleep between sends -> outbound quiesce barrier
+        quiesce()
 
     wait_for_ack(expected_count=2)
     wait_for_shutdown()

@@ -39,16 +39,16 @@ def main() -> None:
     # Message 1: Announce 1.1.0.0/25
     # (ExaBGP batched: announce /24, announce /25, withdraw /24, announce /25 → just /25)
     flush('peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25\n')
-    quiesce()  # // test-relax: blind sleep -> outbound quiesce barrier
+    quiesce()
 
     # Message 2: Withdraw 2.2.0.0/25
     # (ExaBGP batched: announce /25, announce /24, withdraw /25 → withdraw /25 + announce /24)
     flush('peer * update text nlri ipv4/unicast del 2.2.0.0/25\n')
-    quiesce()  # // test-relax: blind sleep -> outbound quiesce barrier
+    quiesce()
 
     # Message 3: Announce 2.2.0.0/24
     flush('peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24\n')
-    quiesce()  # // test-relax: blind sleep -> outbound quiesce barrier
+    quiesce()
 
     # Message 4: Announce 0.0.0.0/0
     flush('peer * update text nhop 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0\n')

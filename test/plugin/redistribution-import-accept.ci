@@ -16,7 +16,6 @@ tmpfs=filter-accept-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, runtime_fail
-# // test-relax: dropped 'import time'; blind sleep -> wait_for_ack() barrier
 
 received_filter_calls = []
 
@@ -69,7 +68,6 @@ def main():
     #    wire, which is the frame the ze-peer block asserts. quiesce alone
     #    returns instantly while the session is still opening.
     # 3. wait_for_ack drains the forward pool before the daemon stops.
-    # // test-relax: blind sleep(2.0) -> callback pump + EOR barrier + quiesce barrier
     serve_until(api, lambda: len(received_filter_calls) > 0)
     if not api.wait_peer_eor_sent():
         runtime_fail('ze sent no end-of-rib to peer1 before shutdown')

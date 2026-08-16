@@ -43,7 +43,7 @@ def main():
     api.ready()
 
     # Verify route accepted: poll until it lands (replaces a blind sleep).
-    result = api.dispatch_until('show bgp adj-rib-in status', lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)  # // test-relax: blind sleep + single query -> dispatch_until poll
+    result = api.dispatch_until('show bgp adj-rib-in status', lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)
     data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 

@@ -37,7 +37,6 @@ tmpfs=mup4.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
 from ze_api import API, runtime_fail
-# // test-relax: removed unused 'import time'; per-send sleep -> outbound quiesce barrier
 
 
 def main() -> None:
@@ -75,7 +74,7 @@ def main() -> None:
 
     for message in messages:
         api.send(message)
-        api.quiesce()  # // test-relax: blind sleep between sends -> outbound quiesce barrier
+        api.quiesce()
 
     api.wait_for_ack(expected_count=2)
     api.wait_for_shutdown()

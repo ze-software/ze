@@ -40,7 +40,6 @@ import json
 import sys
 
 from ze_api import API, result_text_data
-# // test-relax: removed unused 'import time'; blind sleeps -> wait_until metric polls
 
 
 def dispatch(api, command):
@@ -92,7 +91,6 @@ def main():
     api.ready()
 
     # Poll until the metrics loop has ticked and session duration is populated.
-    # // test-relax: blind sleep(3.0) -> wait_until(ze_peer_session_duration_seconds > 0)
     def duration_positive():
         v = find_metric_value(get_metrics(api),
             'ze_peer_session_duration_seconds{peer="127.0.0.1"}')
@@ -122,7 +120,6 @@ def main():
         errors.append(f'teardown: expected status=done, got={r.get("status")}')
 
     # Poll until teardown is reflected in the flap counter.
-    # // test-relax: blind sleep(2.0) -> wait_until(ze_peer_session_flaps_total >= 1)
     def flapped():
         v = find_metric_value(get_metrics(api),
             'ze_peer_session_flaps_total{peer="127.0.0.1"}')

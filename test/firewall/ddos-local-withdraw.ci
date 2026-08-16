@@ -35,7 +35,7 @@ def table_present():
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
 
-# // test-relax: three hand-rolled poll loops -> ze_api helpers (same 200x0.05s
+# // three hand-rolled poll loops -> ze_api helpers (same 200x0.05s
 # budget each, ratchet-exempt internal sleep). Every condition, every failure
 # message and every expect= is unchanged; only the sleep call moved into the
 # shared helper. The readiness loop additionally folds in the pid read, closing a

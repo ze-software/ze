@@ -34,7 +34,6 @@ def main():
     api.ready()
     # Poll until the BMP receiver binds its listener on $PORT2 (deterministic
     # replacement for a blind settle sleep).
-    # // test-relax: blind sleep(2.0) -> wait_until(TCP connect to BMP receiver port)
     api.wait_until(lambda: _port_open('127.0.0.1', $PORT2))
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

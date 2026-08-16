@@ -34,7 +34,6 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # Poll until the RR subsystem reports running instead of a blind settle sleep.
-    # // test-relax: blind sleep(0.5) -> dispatch_until(show rr status, running is True)
     def _rr_running(r):
         if r.get('status') != 'done':
             return False

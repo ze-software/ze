@@ -37,7 +37,6 @@ def main():
 
     # Wait for the rpki "unavailable" event via wait_for_event instead of a
     # blind sleep + hand-rolled read_line loop.
-    # // test-relax: blind sleep(4.0) + manual read_line loop -> wait_for_event(rpki unavailable)
     def _unavailable(evt):
         if not isinstance(evt, dict):
             return False

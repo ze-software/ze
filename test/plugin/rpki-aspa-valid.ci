@@ -36,7 +36,6 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    # // test-relax: blind sleep(5.0) + hand-rolled read loop -> wait_for_event (deterministic rpki aspa event wait)
     def _match(evt):
         if not isinstance(evt, dict):
             return False

@@ -55,7 +55,6 @@ def main():
     # the received route lands: the community filter tags rather than rejects, so
     # the route reaches adj-rib-in. Deterministic replacement for a blind settle
     # sleep; the `total < 0` guard below stays authoritative.
-    # // test-relax: blind sleep(3.0) -> dispatch_until on adj-rib-in total-routes>=1
     result = api.dispatch_until(
         'show bgp adj-rib-in status',
         lambda r: result_json_data(r, {}).get('total-routes', -1) >= 1,

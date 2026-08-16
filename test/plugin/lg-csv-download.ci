@@ -65,7 +65,6 @@ def inject(api, peer, prefix, nhop, aspath):
 
 def fetch(url, timeout=15.0):
     # Bypass any ambient proxy; poll until the LG server has bound its port.
-    # // test-relax: hand-rolled time.sleep retry loop -> wait_until(HTTP GET ok)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     captured = {}
 

@@ -47,7 +47,7 @@ def main():
     api.ready()
 
     # Wait for session establishment and filter dispatch.
-    api.dispatch_until('show bgp adj-rib-in status', lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)  # // test-relax: blind sleep -> poll until the accepted route lands in adj-rib-in
+    api.dispatch_until('show bgp adj-rib-in status', lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

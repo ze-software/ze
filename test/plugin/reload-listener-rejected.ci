@@ -63,7 +63,6 @@ def read_reload_generation(api, label):
 
 
 def read_listener_port(api, label):
-    # // test-relax: blind sleep poll -> dispatch_until_done(show l2tp listeners)
     r = api.dispatch_until_done('show l2tp listeners', attempts=40, delay=0.1)
     if r is None or r.get('status') != 'done':
         runtime_fail(f'{label}: show l2tp listeners: status={r.get("status") if r else "nil"}')
@@ -98,7 +97,6 @@ def main():
     with open('observer.initial-ok', 'w') as f:
         f.write('ok')
 
-    # // test-relax: blind sleep poll -> wait_until(exists reload.done marker)
     if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=100, delay=0.1):
         runtime_fail('trigger.sh never created reload.done marker')
 

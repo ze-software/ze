@@ -33,7 +33,7 @@ import tempfile
 
 from ze_api import wait_for_daemon_ready, wait_until
 
-# // test-relax: two WAITS replaced, no assertion touched. The hand-rolled
+# // two WAITS replaced, no assertion touched. The hand-rolled
 # daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
 # budget, ratchet-exempt internal sleep), and the blind pre-connect hold became
 # a wait on the SSH listener actually accepting. Every expect= below is

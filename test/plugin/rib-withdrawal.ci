@@ -51,11 +51,11 @@ def main() -> None:
 
     # Send one route
     send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
-    wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    wait_for_ack(expected_count=1)
 
     # Withdraw the route
     send('peer * update text nlri ipv4/unicast del 192.168.1.0/24')
-    wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    wait_for_ack(expected_count=1)
 
     # Wait for reconnect cycle to complete
     wait_for_shutdown()

@@ -38,7 +38,7 @@ def peer_field(api, field, default):
     return data.get('peers', {}).get('127.0.0.1', {}).get(field, default)
 
 
-# // test-relax: removes this conversion's own transient DEBUG-instrumented
+# // removes this conversion's own transient DEBUG-instrumented
 # wait_peer helper. What remains is unused because main() below is
 # dispatch-silent pending its sleep/wait conversion, NOT because of any engine
 # defect -- see the note in main().

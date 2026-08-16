@@ -65,7 +65,7 @@ def main() -> None:
     )
     # The quiesce barrier returns only once the announce above is on the wire,
     # so asking for shutdown here cannot race the expect=bgp match.
-    api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    api.wait_for_ack(expected_count=1)
     api.shutdown_fire_and_forget()
     api.wait_for_shutdown()
 

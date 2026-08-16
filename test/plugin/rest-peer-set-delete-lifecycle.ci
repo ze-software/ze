@@ -21,7 +21,6 @@ import sys
 import urllib.error
 import urllib.request
 from ze_api import API
-# // test-relax: dropped 'import time'; blind sleep polls -> api.wait_until
 
 REST_PORT = int('$PORT2')
 PEER_PORT = '$PORT'

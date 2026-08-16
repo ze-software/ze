@@ -16,7 +16,6 @@ tmpfs=rpki-update-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, result_json_data, result_text_data
-# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -35,7 +34,6 @@ def main():
 
     try:
         # Verify VRPs loaded via rpki roa command.
-        # // test-relax: blind sleep(4.0) + single-shot query -> dispatch_until poll (RTR VRP sync landed)
         result = api.dispatch_until(
             'show bgp rpki roa',
             lambda r: result_json_data(r, {}).get('total-vrps', 0) >= 1,

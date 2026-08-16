@@ -35,7 +35,7 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    # // test-relax: removed the redundant blocking lead-in and its now-unused
+    # // removed the redundant blocking lead-in and its now-unused
     # import; the rpki-event read loop below already waits deterministically for
     # the validation event (up to 30 * 0.5s), which is the real synchronization.
     try:

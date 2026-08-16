@@ -37,7 +37,6 @@ import json
 import os
 
 from ze_api import API, runtime_fail, result_json_data
-# // test-relax: dropped 'import time'; blind sleep polls -> dispatch_until/wait_until
 
 
 def dispatch(api, command):
@@ -49,7 +48,6 @@ def dispatch(api, command):
 
 
 def read_retries(api, label):
-    # // test-relax: blind sleep poll -> dispatch_until_done(show l2tp config)
     r = api.dispatch_until_done('show l2tp config', attempts=40, delay=0.1)
     if r is None or r.get('status') != 'done':
         runtime_fail(f'{label}: show l2tp config: status={r.get("status") if r else "nil"}')
@@ -77,11 +75,9 @@ def main():
     with open('observer.initial-ok', 'w') as f:
         f.write('ok')
 
-    # // test-relax: blind sleep poll -> wait_until(exists reload.done marker)
     if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=100, delay=0.1):
         runtime_fail('trigger.sh never created reload.done marker')
 
-    # // test-relax: blind sleep poll -> dispatch_until(hello-retries == 4)
     r = api.dispatch_until(
         'show l2tp config',
         lambda res: res.get('status') == 'done'

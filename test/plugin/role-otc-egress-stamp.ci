@@ -51,7 +51,6 @@ tmpfs=test-stamp.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, runtime_fail, result_json_data, result_text_data
-# // test-relax: removed unused 'import time'; blind sleep is now dispatch_until + quiesce
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -118,7 +117,6 @@ def main():
     # whose wire assertions had already passed into an opaque timeout. One
     # barrier RPC plus a short bounded poll costs a couple of round trips in the
     # normal case and still tolerates the replay rail arriving late.
-    # // test-relax: blind sleep(5.0) -> quiesce + dispatch_until(dest peer sent a real UPDATE)
     api.quiesce()
     dest_result = api.dispatch_until(
         'show bgp peer dest-peer detail', dest_got_route, attempts=24,

@@ -41,7 +41,6 @@ tmpfs=flowspec-wrapper.run:mode=755:terminator=EOF_RUN
 
 import sys
 from ze_api import API
-# // test-relax: removed unused 'import time'; session-wait sleep dropped, post-send sleep -> quiesce
 
 def main() -> None:
     api = API()
@@ -69,7 +68,7 @@ def main() -> None:
     # Send marker UPDATE to prove we're the active plugin
     # This prefix (99.99.99.0/24) is unique to this external plugin
     api.send('peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 99.99.99.0/24')
-    api.quiesce()  # // test-relax: dropped 'wait for session' sleep (ze queues sends) + post-send sleep -> outbound quiesce barrier
+    api.quiesce()
 
     api.wait_for_shutdown()
 

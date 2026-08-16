@@ -40,7 +40,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # show subscriber on idle daemon: total=0, no crash with enrichers registered
-    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # // poll loop centralized into api.dispatch_until_done (ci-sleep
     # ratchet); behavior and the status assertion below are unchanged.
     r = api.dispatch_until_done('show subscriber')
     if r.get('status') != 'done':
@@ -58,7 +58,7 @@ def main():
         runtime_fail(f'show subscriber total={summary.get("total")!r} want 0')
 
     # show class-of-service: profiles loaded
-    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # // poll loop centralized into api.dispatch_until_done (ci-sleep
     # ratchet); behavior and the status assertion below are unchanged.
     r2 = api.dispatch_until_done('show class-of-service')
     if r2.get('status') != 'done':

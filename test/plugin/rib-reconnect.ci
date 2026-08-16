@@ -56,7 +56,7 @@ def main() -> None:
     send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
 
     # Wait for ACK
-    wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    wait_for_ack(expected_count=1)
 
     # Test peer will:
     # 1. Receive route + EOR

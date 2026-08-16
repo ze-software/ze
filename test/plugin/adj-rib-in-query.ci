@@ -35,7 +35,7 @@ def main():
     api.ready()
 
     # Wait for the inbound route to land in adj-rib-in before querying.
-    # // test-relax: blind 2.0s sleep -> dispatch_until poll on adj-rib-in
+    # // blind 2.0s sleep -> dispatch_until poll on adj-rib-in
     # status (outbound quiesce cannot wait on an inbound route).
     api.dispatch_until(
         'show bgp adj-rib-in status',

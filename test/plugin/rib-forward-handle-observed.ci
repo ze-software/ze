@@ -39,7 +39,6 @@ tmpfs=shutdown.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 from ze_api import API, runtime_fail, result_text_data, result_json_data
-# // test-relax: removed unused 'import time'; blind sleeps are now dispatch_until polls
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -107,7 +106,6 @@ def main():
     # locrib.InsertForward call that fires the observer; seeing the
     # prefix here guarantees the observer's log has already been
     # emitted (same goroutine, same code path).
-    # // test-relax: hand-rolled poll+sleep loop -> dispatch_until (deterministic best-path wait)
     best = api.dispatch_until(
         'show bgp rib best',
         lambda r: '192.168.1.0/24' in result_text_data(r),

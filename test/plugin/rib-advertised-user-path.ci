@@ -19,7 +19,6 @@ import json
 import sys
 
 from ze_api import API, result_text_data, runtime_fail
-# // test-relax: dropped unused 'import time'; blind sleep poll -> dispatch_until
 
 
 def dispatch(api, command):
@@ -57,7 +56,6 @@ def main():
         require_done('user update', result)
         api.wait_for_ack(expected_count=1)
 
-        # // test-relax: blind sleep poll -> dispatch_until(advertised count == 1)
         result = api.dispatch_until(
             'show bgp rib advertised prefix 1.1.0.0/24 count',
             lambda r: parse_data(r).get('count') == 1,

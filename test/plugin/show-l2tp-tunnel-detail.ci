@@ -226,7 +226,7 @@ def main():
                 return True
         return False
 
-    # // test-relax: dispatch_until poll, not a blind sleep -- the EOR write is an
+    # // dispatch_until poll, not a blind sleep -- the EOR write is an
     # async engine state with no outbound-quiesce barrier to wait on.
     #
     # Budget: this file allows 20s total (option=timeout, and timeout=20s on the

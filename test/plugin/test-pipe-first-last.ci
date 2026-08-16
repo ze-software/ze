@@ -92,7 +92,6 @@ def main():
 
     # Wait until all 5 injected routes are in the RIB before testing the pipe
     # operators. Deterministic replacement for a blind settle sleep.
-    # // test-relax: blind sleep(3.0) -> dispatch_until(show bgp rib received count, count==5)
     settled = api.dispatch_until(
         'show bgp rib received count',
         lambda r: r.get('status') == 'done' and result_json_data(r, {}).get('count') == 5,
