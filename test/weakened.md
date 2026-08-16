@@ -79,3 +79,4 @@ that row is where you say which of the two happened.
 | Test | Reason |
 |------|--------|
 | TestChildSAReplayWindowMinimum | Renamed to `TestChildSAReplayWindowDefault`, which the detector reads as a deletion. Nothing left the suite: the same test, over the same production path and the same fixtures, still asserts an exact `ReplayWin` on both the inbound and the outbound SA. The number it asserts moved from 32 to 64 because the value ze installs did, and 64 still satisfies the RFC 4303 Section 3.4.3 minimum the old name referred to. |
+| TestReloadHashesPlaintextPassword | The test moved unchanged to `main_reload_ssh_test.go`, which has the `ze_ssh` build tag required by its authentication YANG fixture. Full-feature unit tests still run every assertion. The bare `ze_core` pass no longer tries to parse a schema that is compiled out. |
