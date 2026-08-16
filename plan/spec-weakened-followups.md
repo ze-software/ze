@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -182,6 +182,43 @@ session.
 
 ## Files to Create
 - none
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | agent tooling; nothing reaches the daemon |
+| YANG validation constraints | N-A | no YANG leaf |
+| YANG custom validators | N-A | no YANG leaf |
+| CLI commands/flags | N-A | no `ze` verb; the audit is a dev script |
+| CLI grammar (keyword before value) | N-A | no CLI surface |
+| Editor autocomplete | N-A | no YANG leaf |
+| Functional test for new RPC/API | N-A | no RPC; the audit's harness is `scripts/dev/audit_relaxation_test.py`, named in the TDD plan |
+| Pipe completeness | N-A | no command output |
+| Env var registration | N-A | no `ze.*` env var |
+| Doctor check for runtime dependencies | N-A | no runtime dependency: both items read tracked repo files from dev tooling |
+| Prometheus counters/metrics | N-A | no daemon-observable state |
+| BGP family surface (new SAFI / capability / attribute) | N-A | not protocol work |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | No | agent-facing tooling |
+| 2 | Config syntax changed? | No | none |
+| 3 | CLI command added/changed? | No | none |
+| 4 | API/RPC added/changed? | No | none |
+| 5 | Plugin added/changed? | No | none |
+| 6 | Has a user guide page? | No | the audience is agents |
+| 7 | Wire format changed? | No | not protocol work |
+| 8 | Plugin SDK/protocol changed? | No | none |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | not protocol work |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, if item A changes what a reviewer runs |
+| 11 | Affects daemon comparison? | No | nothing an operator sees |
+| 12 | Internal architecture changed? | No | no runtime architecture |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | no target added or removed |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` for anchors naming `audit-test-relaxation.py` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ai/skills/ze-review.md` and `ze-review-deep.md` carry the disclosure item A removes |
 
 ## Implementation Steps
 
