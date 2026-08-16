@@ -26,6 +26,30 @@ Use the narrowest test that covers your change. Escalate only when needed.
 
 `make ze-verify` is the pre-commit gate. Everything below that is a development tool.
 
+### The cadence targets
+
+The ladder above is keyed to a change you are making. Three targets are keyed to
+the calendar instead, and they exist for one reason: `make ze-verify` runs 27
+checks and the nightly workflows run a dozen more, which leaves a set that is in
+NEITHER and is therefore run by nobody.
+
+| Target | Time | What it is for |
+|--------|------|----------------|
+| `make ze-daily` | seconds | Run it every morning. No Docker, no network, and it never takes the verify lock, so it cannot block |
+| `make ze-weekly` | minutes | Takes the same repo-wide lock as `ze-verify`. Do not start it beside one: it blocks rather than fails, which reads as a hang |
+| `make ze-monthly` | long | Needs Docker, QEMU or root. Its preflight probe runs first and says what this machine can do |
+
+Each member is one of two kinds. A `gate` has a verdict, and a non-zero exit
+fails the run. A `note` is a census or a report that exits 0 whatever it finds,
+so it is printed and never fails the run. Mixing the two under one exit code is
+what makes an aggregate meaningless: the censuses would drag it red every day
+until it was ignored. The summary table is the product; the exit code covers the
+gates.
+
+`make ze-daily` is where `ze-validate` finally runs. `ze-verify` runs
+`ze-validate-tree`, which passes `--changed-file ''`, and two of validate's
+checks return empty before reading anything when that list is empty.
+
 ### Component groups for step 3
 
 | Target | Scope | Time |

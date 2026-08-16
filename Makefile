@@ -182,6 +182,7 @@ include mk/test-mutation.mk
 include mk/appliance.mk
 
 include mk/terminal-demo.mk
+include mk/cadence.mk
 # ─── Build ──────────────────────────────────────────────────────────────────
 
 all: ze-lint ze-unit-test build
@@ -1187,6 +1188,11 @@ help:
 	@echo "    make ze-encode-test       Single functional suite (encode, plugin, decode, parse, reload, ...)"
 	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + unit + functional + exabgp (4-10 min)"
 	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs, then full functional"
+	@echo ""
+	@echo "  Cadence -- the checks ze-verify and the nightly workflows do NOT run:"
+	@echo "    make ze-daily             Seconds. Run this one every morning"
+	@echo "    make ze-weekly            Minutes. Takes the verify lock; not beside a verify"
+	@echo "    make ze-monthly           Docker/QEMU/root. Members report rather than gate"
 	@echo ""
 	@echo "  Build:"
 	@echo "    make build                All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-perf, ze-analyze)"
