@@ -33,7 +33,7 @@ correctly: `retransmitDPD` still delivers the probe and the tunnel really is hea
 Written on 2026-08-03 by a bookkeeping audit. The spec's metadata row named this file and
 the file did not exist, so `/ze-close` had nothing to resolve. The row above is the work the
 spec actually deferred, recovered from its TDD Test Plan. It is homed as item 5 and AC-8 of
-`plan/spec-fixit-ike-test-discrimination.md`.
+`plan/spec-fixit-ike-test-discrimination.md`. <!-- doc-links: ignore (the destination spec is written when the deferral is taken up) -->
 
 The spec's Known Limitations also asks "what Ze does with a bare-header probe from a peer in
 the wild". That is NOT a deferral row: the behaviour is determined and conformant.

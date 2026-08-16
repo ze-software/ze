@@ -42,7 +42,7 @@ The nearest per-entity machinery is a different plugin:
 `internal/plugins/anomaly/detect` keeps per-entity EWMA baselines over
 `trafficfeature.Snapshot`. Two properties bound its reuse. Its entity is a
 SOURCE only, emitted when an address acted as a source in the window
-(`internal/core/trafficfeature`), and its features are behavioural (fan-out,
+(`internal/component/trafficfeature`), and its features are behavioural (fan-out,
 out-in ratio, port entropy, beaconing) rather than packet and bit rates. Its own
 header records that it takes no action. So it is a precedent for the shape, not
 a component to extend directly.

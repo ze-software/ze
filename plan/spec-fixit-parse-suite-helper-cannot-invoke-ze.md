@@ -158,8 +158,8 @@ no wire behavior.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the parse runner's child environment carries the shim dir on PATH | `internal/test/runner/parsing_test.go` | AC-1 | |
-| the shim dir precedes any inherited PATH entry | `internal/test/runner/parsing_test.go` | AC-2 | |
+| the parse runner's child environment carries the shim dir on PATH | `internal/test/runner/parsing_test.go` | AC-1 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| the shim dir precedes any inherited PATH entry | `internal/test/runner/parsing_test.go` | AC-2 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -177,8 +177,8 @@ no wire behavior.
 
 ## Files to Create
 
-- `test/parse/parse-helper-invokes-ze.ci`
-- `internal/test/runner/parsing_test.go`, if no sibling exists
+- `test/parse/parse-helper-invokes-ze.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/test/runner/parsing_test.go`, if no sibling exists <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 
 ## Implementation Steps
 
