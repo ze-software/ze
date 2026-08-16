@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-16 |
@@ -225,6 +225,24 @@ session.
 1. **Phase A1** -- the audit reads history, with its tests.
 2. **Phase A2** -- remove the disclosure from the two review skills.
 3. **Phase B** -- the rule sweep, batched by rule, one render at the end.
+
+### Critical Review Checklist (/implement stage 6)
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has code plus a passing test at file:line. AC-5 has no mechanical test: its evidence is the list of points read and the disposition of each |
+| Correctness, item A | The audit collects rows from EVERY commit in the range, never from the worktree file. A range whose first commit accepts a weakening its last commit still carries must report nothing |
+| No second parser | `run_audit` reaches the table through `check_weakened_tests.parse_weakened_file` and the pairing through `row_matches`. Grep for a second table reader or a second name matcher: either is the defect `rfc_tagged_scope.py`'s docstring records |
+| Shared detector intact | `run_audit` still unpacks `(blocking, advisory)` from the detector `load_detector` imports. The audit and the two gates MUST NOT disagree about what a weakening is |
+| Test count did not fall | `scripts/dev/audit_relaxation_test.py` keeps at least 19 cases. Ten were token-specific and are REWRITTEN against a row. A lower count means proof was deleted rather than moved (R-1) |
+| Discrimination | Revert the history read and watch `test_a_row_in_the_range_explains_the_weakening` go red. A test green against both the old and the new reader proves nothing |
+| Item B kept authority | Spot-check points that lost a date: one carrying an owner decision stays, one narrating a past failure goes. A ban that now reads as advice is the failure (R-2) |
+| Item B changed no directive | Every touched rule keeps its trigger line, its severity, and every RFC 2119 level. `make ze-rules-lint` proves the shape; the levels need a read |
+| Item B is not a regex sweep | The diff shows per-point judgement, not one mechanical substitution. Ambiguous points stay and are listed (A-2) |
+| Render is not raced | Points edited, then ONE `make ze-rules-render`, then the digests committed with the rule (R-3) |
+| CLI grammar | N/A: no `ze` verb changes |
+| Doctor checks | N/A: no runtime dependency; both items read tracked repo files from dev tooling |
+| YANG validation | N/A: no YANG leaf |
+| Prometheus counters | N/A: no daemon-observable state |
 
 ## Design Insights
 
