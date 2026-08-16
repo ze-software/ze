@@ -16,8 +16,8 @@ Two very different programs need the SAME answer to "which text does this tag go
 fingerprint rule that drifted would re-seal verdicts against a hash the gate does not
 compute. The gate must not import from `.claude/`, and the hook must stay import-light and
 runs under `python3 -S`, so a stdlib-only leaf that BOTH import is the only shape that keeps
-exactly one definition. This module therefore imports neither of them, and nothing beyond
-`re`.
+exactly one definition. This module therefore imports neither of them, and only uses the
+standard library.
 
 THE TWO TRAPS THIS MODULE'S CALLERS KEEP FALLING INTO
 ----------------------------------------------------
@@ -30,6 +30,7 @@ THE TWO TRAPS THIS MODULE'S CALLERS KEEP FALLING INTO
    (`ai/rules/evidence.md`).
 """
 
+import functools
 import re
 
 # How a path's unit is resolved. `func` = one top-level Go function span; `file` = the whole
@@ -104,8 +105,9 @@ def doc_comment_start(content, at):
     return line_start
 
 
+@functools.lru_cache(maxsize=128)
 def go_func_scopes(content):
-    """Each top-level func as [doc comment .. closing brace) -- NOT a partition of the file.
+    """Each top-level func as an immutable [doc comment .. closing brace) span.
 
     Two boundaries matter, and both were wrong in turn:
 
@@ -123,6 +125,11 @@ def go_func_scopes(content):
     Column 0 for the closing brace is gofmt's guarantee for a top-level func. A one-line
     func has none, so the cap keeps its span at the old, safe boundary rather than running
     to the next func's brace.
+
+    The same content is commonly queried once per RFC tag. Cache by the exact content
+    string, rather than by path, so repeated queries reuse the parse while edited files
+    cannot inherit stale spans. The bounded cache also avoids retaining a repository's
+    entire source tree in the long-running edit hook.
     """
     starts = [m.start() for m in _GO_FUNC_START.finditer(content)]
     ends = [m.start() for m in _GO_FUNC_END.finditer(content)]
@@ -137,7 +144,7 @@ def go_func_scopes(content):
         brace = next((e for e in ends if e > s), None)
         end = cap if brace is None else min(brace + 2, cap)  # +2: past "}\n"
         spans.append((begin, max(end, s + 1)))
-    return spans
+    return tuple(spans)
 
 
 _GO_FUNC_DECL = re.compile(
