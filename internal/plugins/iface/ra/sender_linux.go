@@ -318,6 +318,14 @@ func (s *Sender) onLinkEvent(ev iface.LinkEvent, state *senderState, rearm func(
 	}
 }
 
+// maxFinalAdvertisements is how many zero-lifetime advertisements a stopping
+// sender may send (MAX_FINAL_RTR_ADVERTISEMENTS, RFC 4861 Section 10). It lives
+// here rather than with its four siblings in ifacera.go because sendFinal is its
+// only reader and Sender is Linux-only: in an untagged file the constant has no
+// reader at all on a non-Linux host, which `unused` reports and a Linux runner
+// never sees.
+const maxFinalAdvertisements = 3
+
 // sendFinal sends the advertisements that retire this router.
 //
 // RFC 4861 Section 6.2.5: an interface that stops advertising sends up to

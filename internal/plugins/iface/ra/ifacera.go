@@ -1,4 +1,5 @@
 // Design: docs/features/interfaces.md -- Router Advertisement sender for a LAN unit
+// Related: register.go -- the factory that binds the counters declared here
 //
 // Package ifacera sends IPv6 Router Advertisements on a configured interface
 // unit, so hosts on the link autoconfigure addresses, learn a default router,
@@ -26,9 +27,6 @@ const (
 	// maxInitialAdvertisements is how many advertisements get that cap
 	// (MAX_INITIAL_RTR_ADVERTISEMENTS).
 	maxInitialAdvertisements = 3
-	// maxFinalAdvertisements is how many zero-lifetime advertisements a
-	// stopping sender may send (MAX_FINAL_RTR_ADVERTISEMENTS).
-	maxFinalAdvertisements = 3
 	// minDelayBetweenRAs is the floor between multicast advertisements
 	// (MIN_DELAY_BETWEEN_RAS).
 	minDelayBetweenRAs = 3 * time.Second
