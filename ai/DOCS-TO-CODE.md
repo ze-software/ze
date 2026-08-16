@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 263 design docs, 3334 files
+Total: 262 design docs, 3333 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3741,10 +3741,6 @@ Total: 263 design docs, 3334 files
 | `internal/component/web/page_workbench_generic.go` | generic system/service workbench dispatch |
 | `internal/component/web/view_l2tp.go` | L2TP web management UI |
 | `internal/component/web/workbench_pages.go` | Workbench page dispatch |
-
-## `docs/architecture/web/README.md`
-
-- `internal/component/web/handler_history_test.go` -- the finder and what it pushes
 
 ## `docs/architecture/wire/attributes.md`
 
