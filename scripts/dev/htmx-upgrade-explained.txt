@@ -1,0 +1,49 @@
+# htmx 4 upgrade issues that do not apply to Ze.
+#
+# Read by scripts/dev/htmx_upgrade_check.py, which runs the vendored scanner
+# third_party/web/htmx-upgrade-check.py over every package that embeds htmx.
+#
+# One row per (file, category):
+#
+#     <path from the repository root> | <scanner category> | <why it does not apply>
+#
+# The categories the scanner emits: removed-attr, renamed-attr, inheritance,
+# renamed-event, removed-event, swap-syntax, ext, old-event, old-api,
+# renamed-config, removed-config, removed-header.
+#
+# A row fails the gate BOTH ways. An issue no row explains is unexplained and
+# red. A row that explains no issue is stale and red: an exemption that has
+# stopped matching is how an allowlist becomes a place to hide.
+#
+# A reason states a property of the markup, never a schedule. "The cutover has
+# not reached this file yet" is not a reason -- it is the work.
+#
+# EVERY ROW BELOW IS AN INHERITANCE CARRIER, and each one says the same thing in
+# its own site's terms: the attribute belongs to the request the CARRIER itself
+# makes, and no descendant reads it. The scanner flags a carrier whenever any
+# descendant issues a request, whether or not that descendant carries its own
+# copy (check_inheritance in the vendored scanner), so a row here is the reading
+# the scanner cannot do. The population is the rendered markup, not this list:
+# 271 golden fixtures were parsed for carrier/descendant pairs, and the six
+# distinct relationships they hold are the ones described below.
+#
+# Where a descendant would have been changed by the loss, it was measured in a
+# real browser against htmx 4.0.0-beta6 rather than reasoned about, and the row
+# says what was measured.
+
+internal/chaos/web/dashboard.go | inheritance | renderPeerRowInsert's hx-target and hx-swap serve the row's own hx-get of /peer/{id}; its one requesting descendant is the pin, which carries hx-swap="none" and answers an out-of-band row, so no target is read. Measured: the pin toggles to "pin pinned", the span stays empty and #peer-detail keeps its content
+internal/chaos/web/render.go | inheritance | two carriers. writePeerRows renders renderPeerRowInsert's twin and holds the same property. #peer-grid's hx-swap and hx-include serve its own 2s poll, which is what keeps the search and status filters across a refresh; its cells GET /peer/{id}, and handlePeerDetail reads the path value alone. Measured: a grid cell fills #peer-detail with the peer it names
+internal/chaos/web/testdata/golden/sse-peer-row-insert.html | inheritance | the captured bytes of renderPeerRowInsert, so the carrier and its pin are the ones dashboard.go describes
+internal/chaos/web/viz.go | inheritance | each viz panel's hx-target, hx-swap and hx-include serve its own 500ms poll of the tab it renders; the filter selects beneath carry their own target, swap and include, and the panel's include holds only the filters the panel itself sends
+internal/chaos/web/viz_matrix.go | inheritance | three panels of the same shape. The route-matrix cells GET /viz/route-matrix/cell, and handleVizRouteMatrixCell reads src and dst alone; the all-peers sort headers carry hx-vals with sort and dir, and no element in chaos is named sort or dir for the panel's include to have reached. Measured: a heatmap cell fills #cell-detail, and a sort header reorders the table
+internal/chaos/web/viz_timeline.go | inheritance | the timeline panel's hx-target and hx-swap serve its own 500ms poll; the Prev and Next badges beneath carry their own target and swap, and the page they ask for is in their own URL
+internal/component/lg/testdata/golden/peers--full.html | inheritance | the tbody's hx-swap is the swap for the SSE message it receives, and swapEmpty:true is load-bearing there; every peer row beneath carries its own hx-target, hx-swap, hx-sync and hx-indicator
+internal/component/lg/testdata/golden/peers_content--full.html | inheritance | the same tbody and the same rows, captured through the content route
+internal/component/web/component_workbench_form.templ | inheritance | the form's hx-swap="none" serves its own hx-post; the Save button beneath carries its own hx-swap="none" and its own hx-include of the enclosing form, which is what htmx 4 requires now that a GET no longer collects a form on its own
+internal/component/web/component_workbench_form_templ.go | inheritance | generated from component_workbench_form.templ by `make generate`, so it holds that file's carrier
+internal/component/web/testdata/golden/component/full_content--monitor.html | inheritance | the monitored detail panel's hx-target, hx-swap and hx-select serve its own 5s poll of /monitor/<path>, which answers a whole page and needs .main-split cut out of it; the field controls beneath carry their own target and swap, and each answers a .ze-field fragment that holds no .main-split. Measured on /monitor/bgp/: the router-id field re-renders with the value it was given, and the panel's own poll still lands one .main-split in #content-area
+internal/component/web/testdata/golden/component/main_split--monitor.html | inheritance | the same monitored panel, captured as the split alone
+internal/component/web/testdata/golden/component/oob_response--monitor.html | inheritance | the same monitored panel, captured with the out-of-band chrome beside it
+internal/component/web/testdata/golden/component/poll_panel.html | inheritance | the poll shell's hx-swap="innerHTML" serves its own 5s poll; the action button beneath carries no swap and needs none, because htmx 4's defaultSwap is "innerHTML" into the element that asked. Measured: an element carrying hx-get alone put its answer inside itself, and inherited neither the ancestor's target nor its select
+internal/component/web/testdata/golden/component/workbench_form--bare.html | inheritance | the captured bytes of workbenchForm, so the carrier and its Save button are the ones component_workbench_form.templ describes
+internal/component/web/testdata/golden/component/workbench_form--fields.html | inheritance | the same form, captured with fields in it

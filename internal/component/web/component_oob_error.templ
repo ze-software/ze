@@ -9,7 +9,7 @@ package web
 // beforebegin, afterbegin, beforeend, afterend, delete and none. The value named
 // nothing and the panel never opened. No htmx swap can set a class, and
 // outerHTML over the panel would discard every error already in the list. The
-// drawer is opened by cli.js instead, on htmx:oobAfterSwap over #error-list.
+// drawer is opened by cli.js instead, on htmx:after:settle over #error-list.
 templ oobError(v ErrorData) {
 	<div id="error-list" hx-swap-oob="beforeend">@errorItem(v)</div>
 }

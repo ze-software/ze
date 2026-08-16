@@ -1,0 +1,57 @@
+# Test: a pushed URL answers a whole page, and both traversals land on one
+# VALIDATES: AC-7 -- an htmx navigation pushes a URL, that URL answers a
+#            complete page on a direct GET, and the browser's own back and
+#            forward buttons render pages rather than fragments
+# PREVENTS: the failure htmx 4 makes reachable. htmx 2 keeps a history cache and
+#           restores the previous DOM on back, so a pushed URL that answers only
+#           a fragment is never noticed. htmx 4 keeps no cache and traverses
+#           through the Navigation API: each traversal is a real navigation and
+#           the server's answer is what the operator sees.
+#
+# The finder is the UI that pushes. The workbench renders no hx-push-url at all,
+# so a test on the default mode would assert over a page with no history to test.
+#
+# Every step names a URL the finder actually pushes. It renders 61 of them and
+# TestPushedURLsAnswerAFullPage (internal/component/web/handler_history_test.go)
+# holds that whole population; this file proves the browser half, which no
+# server-side test can reach.
+
+option=server:kind=web
+option=env:var=ze.web.ui-mode:value=finder
+option=timeout:value=120s
+
+# The pushed URL fetched directly is a whole page: it carries a head that loads
+# the library, not a bare fragment served into a page that already had one.
+action=open:path=/show/bgp/
+expect=head:contains=htmx
+expect=element:text=peer
+
+# Now build the history an operator builds. POSITIVE CONTROL: the click issues
+# an htmx request and pushes its URL. If htmx were not live the address would
+# not change, and both traversals below would be asserting over a page that
+# never navigated.
+action=open:path=/show/
+expect=element:text=bgp
+expect=url:not-contains=/show/bgp
+
+action=click:text=bgp
+action=wait
+expect=url:contains=/show/bgp
+
+# Back is the entry BEHIND: the finder root, whole page, with none of the bgp
+# detail on it. htmx 4 keeps no DOM cache, so what lands here is the server's
+# answer to a fresh GET of /show/.
+action=back
+action=wait
+expect=url:not-contains=/show/bgp
+expect=head:contains=htmx
+expect=element:text=bgp
+
+# Forward is the entry AHEAD, and it is a second traversal rather than the
+# reverse of the first. The Navigation API replaced popstate in 4.0.0-beta6, so
+# this is the direction no jsdom probe could exercise.
+action=forward
+action=wait
+expect=url:contains=/show/bgp
+expect=head:contains=htmx
+expect=element:text=peer

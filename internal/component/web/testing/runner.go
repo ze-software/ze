@@ -111,14 +111,41 @@ const (
 	waitLoadPoll     = 40 * time.Millisecond
 )
 
-// waitMs waits for a duration in milliseconds.
+// browserIdleWindow is how long the agent-browser daemon lives with no command.
+// agentEnv sets it, and waitMs works around it: the two must agree, so the
+// value lives here once.
+const browserIdleWindow = 60 * time.Second
+
+// waitMs sleeps for the requested time WITHOUT letting the browser reap itself.
+//
+// The daemon shuts down after browserIdleWindow with no command, and it takes
+// the page with it. A wait was pure sleep, so `action=wait:ms=70000` returned
+// to a fresh browser holding nothing and every assertion after it read an empty
+// page. Measured with the window at 6s: one command at 4s kept the page, and no
+// command lost it. The slices are half the window, so a slow machine still
+// touches the daemon inside it.
 func (b *Browser) waitMs(ms string) error {
 	var tb textbuf.Buffer
+
 	d, err := time.ParseDuration(tb.Str(ms).Str("ms").Slice())
 	if err != nil {
 		return fmt.Errorf("parse wait duration %q: %w", ms, err)
 	}
-	time.Sleep(d)
+
+	for remaining := d; remaining > 0; {
+		slice := min(remaining, browserIdleWindow/2)
+		time.Sleep(slice)
+
+		remaining -= slice
+		if remaining <= 0 {
+			break
+		}
+
+		if keepErr := b.runAgent("get", "url"); keepErr != nil {
+			return fmt.Errorf("keep the browser alive across a %s wait: %w", d, keepErr)
+		}
+	}
+
 	return nil
 }
 
@@ -354,6 +381,30 @@ func (b *Browser) getHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "body")
 }
 
+// getURL returns the address bar. Every other read goes through the DOM, and
+// the DOM cannot answer a history question: a pushed URL changes the address
+// and leaves the markup alone.
+func (b *Browser) getURL() (string, error) {
+	return b.runAgentOutput("get", "url")
+}
+
+// Back is the browser's own back button, and the only way to prove what a
+// pushed URL does when the operator returns to it. htmx 2 restores from its own
+// history cache; htmx 4 keeps none, so the browser navigates for real and the
+// answer to that navigation has to be a whole page.
+func (b *Browser) Back() error {
+	return b.runAgent("back")
+}
+
+// Forward is the browser's own forward button, and it answers a question back
+// cannot: htmx 4 drives history through the Navigation API, which holds entries
+// on both sides of the current one. A back that renders a whole page proves the
+// entry BEHIND was navigable; the entry AHEAD is a second entry, restored by a
+// second traversal, and only forward reaches it.
+func (b *Browser) Forward() error {
+	return b.runAgent("forward")
+}
+
 // getHeadHTML returns the page HEAD's HTML, which is where a page states what
 // it loads. Each page loads the assets its own markup needs
 // (scripts/codegen/web_assets.go), so what a head does NOT carry is as much a
@@ -506,7 +557,7 @@ func (b *Browser) agentEnv() []string {
 	}
 	var tb textbuf.Buffer
 	if !hasIdle {
-		env = append(env, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000")
+		env = append(env, tb.Str("AGENT_BROWSER_IDLE_TIMEOUT_MS=").Int(browserIdleWindow.Milliseconds()).String())
 	}
 	if !hasInit {
 		if p := ensureInitScript(); p != "" {
@@ -675,6 +726,10 @@ func executeAction(b *Browser, a *WBAction) error {
 		return b.WaitLoad()
 	case "wait-until":
 		return b.WaitUntil(a.Values["path"], a.Values["contains"])
+	case "back":
+		return b.Back()
+	case "forward":
+		return b.Forward()
 	case "press":
 		key := a.Values["key"]
 		if key == "" {

@@ -122,7 +122,7 @@ func TestPanelDropdownOptions(t *testing.T) {
 func TestStripOuterVizAttrs(t *testing.T) {
 	t.Parallel()
 
-	input := `<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+	input := `<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms" data-freeze-poll="true" hx-target="#viz-content" hx-swap="innerHTML">
 <h3>Events</h3></div>`
 
 	result := stripOuterVizAttrs(input)
@@ -136,6 +136,11 @@ func TestStripOuterVizAttrs(t *testing.T) {
 	if strings.Contains(result, `hx-trigger=`) {
 		t.Error("hx-trigger not stripped from outer div")
 	}
+	// The panel no longer polls here, so it is no longer a poll the Freeze
+	// control owns. The slot's own panel-content wrapper carries that marker.
+	if strings.Contains(result, `data-freeze-poll`) {
+		t.Error("data-freeze-poll not stripped from outer div, which no longer polls")
+	}
 	if !strings.Contains(result, `<h3>Events</h3>`) {
 		t.Error("inner content should be preserved")
 	}
@@ -148,7 +153,7 @@ func TestStripOuterVizAttrs(t *testing.T) {
 func TestStripOuterVizAttrsWithID(t *testing.T) {
 	t.Parallel()
 
-	input := `<div class="viz-panel" id="viz-convergence" sse-swap="convergence" hx-swap="outerHTML">
+	input := `<div class="viz-panel" id="viz-convergence" hx-swap-oob="outerHTML" hx-swap="outerHTML">
 <h3>Convergence</h3></div>`
 
 	result := stripOuterVizAttrs(input)
@@ -156,8 +161,8 @@ func TestStripOuterVizAttrsWithID(t *testing.T) {
 	if !strings.Contains(result, `<div class="viz-panel">`) {
 		t.Errorf("expected plain viz-panel div, got: %s", result[:min(80, len(result))])
 	}
-	if strings.Contains(result, `sse-swap=`) {
-		t.Error("sse-swap not stripped from outer div")
+	if strings.Contains(result, `hx-swap-oob=`) {
+		t.Error("hx-swap-oob not stripped from outer div")
 	}
 }
 

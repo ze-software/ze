@@ -197,6 +197,9 @@ Navigating to a non-existent list entry (e.g., `/show/bgp/peer/london/` when `lo
 Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.
 <!-- source: internal/component/web/component_notification_error.templ -->
 
+A refused action raises a toast carrying the status and the message the daemon wrote, and the same message lands in the field or panel the action came from. A request that gets no answer at all raises a toast that says so instead: the daemon is unreachable, and nothing was changed.
+<!-- source: internal/component/web/assets/notification.js -- handleResponseError and handleRequestError -->
+
 ### Input Auto-Save
 
 Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus.

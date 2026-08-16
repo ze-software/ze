@@ -17,7 +17,7 @@ import templruntime "github.com/a-h/templ/runtime"
 // beforebegin, afterbegin, beforeend, afterend, delete and none. The value named
 // nothing and the panel never opened. No htmx swap can set a class, and
 // outerHTML over the panel would discard every error already in the list. The
-// drawer is opened by cli.js instead, on htmx:oobAfterSwap over #error-list.
+// drawer is opened by cli.js instead, on htmx:after:settle over #error-list.
 func oobError(v ErrorData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

@@ -224,11 +224,11 @@ type chaosSSECase struct {
 // chaosSSECases pins every payload the SSE broadcast sends.
 var chaosSSECases = []chaosSSECase{
 	{Name: "sse-stats", Renderer: "renderStats",
-		Render: (*Dashboard).renderStats},
+		Render: func(d *Dashboard) string { return d.renderStats(streamPanel) }},
 	{Name: "sse-convergence", Renderer: "renderConvergence",
 		Render: (*Dashboard).renderConvergence},
 	{Name: "sse-events", Renderer: "renderRecentEvents",
-		Render: (*Dashboard).renderRecentEvents},
+		Render: func(d *Dashboard) string { return d.renderRecentEvents(streamPanel) }},
 	{Name: "sse-peer-row", Renderer: "renderPeerRow",
 		Render: func(d *Dashboard) string { return d.renderPeerRow(1) }},
 	{Name: "sse-peer-row-insert", Renderer: "renderPeerRowInsert",
@@ -701,4 +701,111 @@ func chaosFirstDifference(first, second []byte) string {
 // chaosWindow cuts a window out of one render, with both ends inside it.
 func chaosWindow(b []byte, from, to int) string {
 	return string(b[min(from, len(b)):min(to, len(b))])
+}
+
+// chaosPreCutoverRef is the commit the chaos fixtures held before the htmx 4
+// cutover (spec-web-htmx4-cutover). golden.PrePortRef names the templ port's
+// commit instead, and this package captured no fixture there: these captures
+// are younger than that ref, so the comparison names its own.
+const chaosPreCutoverRef = "ca8df922c"
+
+// chaosPortCutoverReason states every change the cutover makes to a captured
+// dashboard. Nothing else about the page moves: the same state renders the same
+// panels, the same controls and the same numbers.
+const chaosPortCutoverReason = "the head loads hx-sse.min.js where it loaded htmx 2's sse.js, " +
+	"the layout names hx-sse:connect where hx-ext and sse-connect stood, " +
+	"and the inline script listens for htmx:response:error and htmx:after:request " +
+	"and reads the request context htmx 4 gives every event"
+
+// chaosStreamCutoverReason states what an unnamed stream does to the page.
+// Every sse-swap is gone, because htmx 4 reads the attribute nowhere, and with
+// it the three hidden divs that existed only to carry one. The banner reads the
+// connection events the htmx 4 extension dispatches.
+const chaosStreamCutoverReason = ", every sse-swap attribute is gone with the three hidden " +
+	"peer-swap divs that only existed to carry one, and the connection banner " +
+	"listens for htmx:sse:error and htmx:after:sse:connection"
+
+// chaosErrorSurfaceReason states what the page gains for a REFUSED request.
+// htmx 4 swaps a 4xx, and the dashboard had nowhere to put one: the answer
+// replaced the peer table's body, or the control that asked. #action-error is
+// where a refusal lands now, and htmx:error replaces htmx 2's sendError with
+// the discrimination the merged event needs.
+const chaosErrorSurfaceReason = ", a refusal lands in the new #action-error region rather than in the " +
+	"control that asked for it, and htmx:error raises the disconnection banner only when no answer came back"
+
+// chaosOOBReason states what a BROADCAST fragment gains. An unnamed message
+// swaps into the element that opened the stream, which is the whole layout, so
+// each fragment names its own target instead.
+const chaosOOBReason = "the fragment names its own target with hx-swap-oob, " +
+	"where sse-swap on the page used to name it, because the stream now sends unnamed messages"
+
+// chaosNoSSESwapReason states what a POLLED fragment loses: the dead attribute
+// alone. The poll still swaps it in place.
+const chaosNoSSESwapReason = "sse-swap is gone, and htmx 4 reads it nowhere"
+
+// chaosDonutReason states the one content move. renderStats wrote the donut
+// BEFORE the stats div, so every outerHTML swap left the previous donut behind
+// as a sibling and added another. It is now inside the div, where the page has
+// always held it.
+const chaosDonutReason = ", and the donut is inside #stats, where an outerHTML swap replaces it"
+
+// chaosFreezeReason states what the Freeze control needs under htmx 4. htmx 2
+// read a condition inside the trigger; htmx 4 has no trigger filter, so the
+// panels carry a marker instead and the layout cancels a marked poll's request.
+const chaosFreezeReason = "the poll carries data-freeze-poll where its trigger carried " +
+	"[!window._frozen], because htmx 4 parses the interval and ignores the condition"
+
+// chaosFreezeListenerReason states what the layout gains for the same control.
+const chaosFreezeListenerReason = ", and the inline script cancels a marked poll's " +
+	"htmx:before:request while the operator holds the dashboard frozen"
+
+// chaosPortCutover explains every capture the cutover moves. A fixture that
+// differs and is not named here is a finding, and so is a name that matches no
+// difference.
+var chaosPortCutover = map[string]string{
+	"index.txt":                    chaosPortCutoverReason + chaosStreamCutoverReason + chaosErrorSurfaceReason + chaosFreezeListenerReason,
+	"index-no-control.txt":         chaosPortCutoverReason + chaosStreamCutoverReason + chaosErrorSurfaceReason + chaosFreezeListenerReason,
+	"viz-events.txt":               chaosFreezeReason,
+	"viz-events-filtered.txt":      chaosFreezeReason,
+	"viz-chaos-events.txt":         chaosFreezeReason,
+	"viz-chaos-timeline.txt":       chaosFreezeReason,
+	"viz-route-matrix.txt":         chaosFreezeReason,
+	"viz-route-matrix-latency.txt": chaosFreezeReason,
+	"viz-families.txt":             chaosFreezeReason,
+	"viz-all-peers.txt":            chaosFreezeReason,
+	"viz-all-peers-sort-chaos.txt": chaosFreezeReason,
+	"viz-peer-timeline.txt":        chaosFreezeReason,
+	"viz-panels.txt":               chaosFreezeReason,
+	"sidebar-stats.txt":            chaosNoSSESwapReason + chaosDonutReason,
+	"sidebar-events.txt":           chaosNoSSESwapReason,
+	"viz-convergence.txt":          chaosNoSSESwapReason,
+	"viz-convergence-trend.txt":    chaosNoSSESwapReason,
+	"sse-stats.html":               chaosOOBReason + chaosDonutReason,
+	"sse-events.html":              chaosOOBReason,
+	"sse-convergence.html":         chaosOOBReason,
+	"sse-toast.html":               chaosOOBReason + ", inside a wrapper the swap discards, so the toast keeps its own class and handlers",
+}
+
+// TestChaosPortFidelity compares every captured unit against the bytes it held
+// before the htmx 4 cutover.
+//
+// It is the evidence for AC-10. The cutover moves fixtures, and the question a
+// review asks is whether every moved byte was meant to move. A fixture that
+// differs and is not explained here is a finding, and so is an explanation that
+// matches no difference.
+//
+// The captures are read as responses: 47 of the 55 carry a status line and
+// headers. The eight markup fragments carry no blank line, so a response read
+// treats each as a head with an empty body and compares it byte for byte. That
+// is the strictest reading available, and it is the right one for markup Go
+// string literals write: no engine reorders an attribute here.
+//
+// VALIDATES: no unit of the chaos dashboard renders different content after the
+// cutover, beyond the four changes named above.
+// PREVENTS: a re-baselined fixture hiding a change an operator would see. The
+// capture is recaptured by `make ze-chaos-golden-update`, which rewrites every
+// byte this reads.
+func TestChaosPortFidelity(t *testing.T) {
+	golden.AssertPortFidelity(t, chaosPreCutoverRef,
+		filepath.Join("testdata", chaosGoldenFixtures), golden.PortResponse, chaosPortCutover)
 }

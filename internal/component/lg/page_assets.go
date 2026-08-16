@@ -24,14 +24,14 @@ const (
 var pageAssetSets = map[pageID][]string{
 	pgHelpPage:       {"/lg/assets/htmx.min.js"},
 	pgPeerRoutesPage: {"/lg/assets/htmx.min.js"},
-	pgPeersPage:      {"/lg/assets/htmx.min.js", "/lg/assets/sse.js"},
+	pgPeersPage:      {"/lg/assets/htmx.min.js", "/lg/assets/hx-sse.min.js"},
 	pgSearchPage:     {"/lg/assets/htmx.min.js"},
 }
 
 // everyAsset is every asset this package renders. It is what an unknown page
 // gets: a page that loads one file too many costs bytes, and a page that loads
 // nothing renders correctly and does nothing in the browser.
-var everyAsset = []string{"/lg/assets/htmx.min.js", "/lg/assets/sse.js"}
+var everyAsset = []string{"/lg/assets/htmx.min.js", "/lg/assets/hx-sse.min.js"}
 
 // pageAssets returns the assets one page must load.
 func pageAssets(page pageID) []string {

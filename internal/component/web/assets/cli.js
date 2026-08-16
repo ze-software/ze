@@ -312,13 +312,16 @@
   function initErrorPanel() {
     // dismiss-error dispatches this after removing an item.
     document.addEventListener('ze-error-update', syncErrorPanel);
-    // htmx reports every out-of-band swap it applies. The swapped element is
-    // detail.target, not event.target: htmx dispatches this on the settle set
-    // and names the target in the detail. #error-list is the one the error
-    // fragment targets.
-    document.addEventListener('htmx:oobAfterSwap', function(e) {
-      var target = e.detail && e.detail.target;
-      if (target && target.id === 'error-list') syncErrorPanel();
+    // htmx 4 dispatches htmx:after:settle once per SWAP TASK, on the element
+    // that task swapped, and its detail carries the task rather than a target.
+    // The error fragment appends out of band to #error-list, so the settle of
+    // that append reports #error-list as the event's own target.
+    //
+    // htmx:after:swap is the wrong event here: htmx 4 fires it once per REQUEST
+    // on the element that issued it, so a swap into #error-list is reported on
+    // the field the operator was editing.
+    document.addEventListener('htmx:after:settle', function(e) {
+      if (e.target && e.target.id === 'error-list') syncErrorPanel();
     });
   }
 
@@ -466,14 +469,19 @@
       if (control && control.form) control.form.submit();
     });
 
-    document.addEventListener('htmx:afterRequest', function(e) {
+    document.addEventListener('htmx:after:request', function(e) {
       if (e.target && e.target.matches('[data-close-on-after-request="true"]')) {
         var overlay = document.getElementById('add-entry-overlay');
         if (overlay) overlay.remove();
         setTimeout(refreshCommitBar, 300);
       }
       if (e.target && e.target.closest && e.target.closest('.wb-form-post')) {
-        if (e.detail && e.detail.successful) {
+        // htmx 4 carries the request context on every event and no longer
+        // reports a boolean. A response the server answered at all is a
+        // response with a status, and under 400 is what htmx 2 called
+        // successful.
+        var ctx = e.detail && e.detail.ctx;
+        if (ctx && ctx.response && ctx.response.status < 400) {
           setTimeout(function() { window.location.reload(); }, 50);
         }
       }
@@ -656,7 +664,7 @@
         if (overlay) overlay.remove();
       }
     });
-    document.addEventListener('htmx:afterRequest', function(e) {
+    document.addEventListener('htmx:after:request', function(e) {
       if (e.target && e.target.classList &&
           e.target.classList.contains('tool-overlay-confirm-form')) {
         var overlay = e.target.closest('.tool-overlay');

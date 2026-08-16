@@ -672,7 +672,7 @@ func TestRenderStatsIncludesDonut(t *testing.T) {
 	d.state.Peers[0].Status = PeerUp
 	d.state.PeersUp = 1
 
-	html := d.renderStats()
+	html := d.renderStats(streamPanel)
 	if !strings.Contains(html, "<svg") {
 		t.Error("renderStats missing donut SVG")
 	}
@@ -689,9 +689,10 @@ func TestRenderStatsIncludesDonut(t *testing.T) {
 	if !strings.Contains(html, "Chaos") {
 		t.Error("renderStats missing Chaos stat")
 	}
-	// SSE attributes must be preserved.
-	if !strings.Contains(html, `sse-swap="stats"`) {
-		t.Error("renderStats missing sse-swap attribute")
+	// The donut must sit INSIDE #stats. Outside it, an outerHTML swap leaves
+	// the previous donut behind as a sibling and adds another.
+	if !strings.HasPrefix(html, `<div id="stats"`) {
+		t.Errorf("renderStats must open with the stats div, got %.40s", html)
 	}
 }
 
@@ -734,7 +735,7 @@ func TestRenderStatsIncludesChaosRate(t *testing.T) {
 	d.state.updateThroughput(now)
 	d.state.updateThroughput(now.Add(time.Second))
 
-	html := d.renderStats()
+	html := d.renderStats(streamPanel)
 	if !strings.Contains(html, "/s") {
 		t.Error("renderStats missing chaos rate value with /s suffix")
 	}
@@ -756,7 +757,7 @@ func TestRenderStatsIncludesSpeedFactor(t *testing.T) {
 	d.state.Control.SpeedAvailable = true
 	d.state.Control.SpeedFactor = 100
 
-	html := d.renderStats()
+	html := d.renderStats(streamPanel)
 	if !strings.Contains(html, "Speed") {
 		t.Error("renderStats missing 'Speed' label")
 	}
@@ -777,7 +778,7 @@ func TestRenderStatsNoSpeedWhenDisabled(t *testing.T) {
 
 	d.state.Control.SpeedAvailable = false
 
-	html := d.renderStats()
+	html := d.renderStats(streamPanel)
 	if strings.Contains(html, "Speed") {
 		t.Error("renderStats should not contain 'Speed' when disabled")
 	}
@@ -810,7 +811,7 @@ func TestBroadcastStatsWithChaosRate(t *testing.T) {
 	d.state.mu.Unlock()
 
 	d.state.RLock()
-	html := d.renderStats()
+	html := d.renderStats(streamPanel)
 	d.state.RUnlock()
 
 	// Chaos rate should be present (as X.Y/s value next to Chaos count).

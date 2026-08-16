@@ -7,7 +7,7 @@
 .PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record ze-relax-census
 .PHONY: ze-tracked-build-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
-.PHONY: ze-sync-vendor-web ze-check-vendor-web ze-check-vendor-web-updates ze-ai-sync ze-ai-instructions
+.PHONY: ze-sync-vendor-web ze-check-vendor-web ze-check-vendor-web-updates ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-generate-check ze-regen ze-regen-check ze-regen-check-readonly ze-arch-map ze-arch-map-check
 .PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update
 .PHONY: check ze-setup
@@ -943,6 +943,21 @@ ze-check-vendor-web:
 ze-check-vendor-web-updates:
 	@go run scripts/vendor/check_web.go --updates
 
+# htmx 2 -> htmx 4 upgrade gate (plan/spec-web-htmx4-cutover, AC-13). It runs
+# htmx's OWN scanner, vendored at third_party/web/htmx-upgrade-check.py, over
+# every package that embeds htmx, and refuses an issue no row of
+# scripts/dev/htmx-upgrade-explained.txt accounts for.
+#
+# The scanner builds a DOM, so it reads the inheritance carriers a text search
+# cannot: an attribute htmx 2 inherited down the tree needs the :inherited
+# suffix in htmx 4, and only a parser knows whether a DESCENDANT issues a
+# request. --report prints every issue, explained or not, and exits 0.
+ze-htmx-upgrade-check:
+	@python3 scripts/dev/htmx_upgrade_check.py --check
+
+ze-htmx-upgrade-report:
+	@python3 scripts/dev/htmx_upgrade_check.py --report
+
 ze-arch-map:
 	@python3 scripts/dev/arch_map.py
 
@@ -1412,6 +1427,8 @@ help-dev:
 	@echo "    ze-sync-vendor-web       Sync vendored web assets (also part of 'generate')"
 	@echo "    ze-check-vendor-web      Gate: each consumer asset copy matches third_party/web/"
 	@echo "    ze-check-vendor-web-updates  Ask the npm registry for newer web asset versions"
+	@echo "    ze-htmx-upgrade-check    Gate: htmx own scanner reports no unexplained htmx 4 issue"
+	@echo "    ze-htmx-upgrade-report   Print every htmx 4 upgrade issue, explained or not"
 	@echo ""
 	@echo "  Cleanup:"
 	@echo "    clean                    Session-safe: bin/, coverage, this session's scratch only"

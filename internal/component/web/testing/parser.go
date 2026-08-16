@@ -61,6 +61,36 @@ type WBAuthUser struct {
 	Role     string // "", "admin", or "read-only"
 }
 
+// WBServer names the server a test drives. Ze serves three htmx interfaces from
+// three different programs, and a browser proof of one of them has to start
+// that one: the web UI is `ze start --web --web-only`, the looking glass is a
+// listener of the `ze` daemon, and the chaos dashboard is `ze-chaos`.
+type WBServer string
+
+const (
+	// WBServerWeb is the config and monitoring UI, and the default.
+	WBServerWeb WBServer = "web"
+	// WBServerLG is the looking glass. Its pages read `show bgp summary`, so
+	// the harness gives it a daemon with a peer rather than a bare listener.
+	WBServerLG WBServer = "lg"
+	// WBServerChaos is the chaos dashboard, served by ze-chaos.
+	WBServerChaos WBServer = "chaos"
+	// WBServerLGNoEngine is the looking glass with an engine that always
+	// fails, served by `ze-test lg`. A daemon cannot be asked for that state:
+	// the looking glass dispatches in process, so a daemon with no BGP still
+	// answers an empty peer list rather than an error.
+	WBServerLGNoEngine WBServer = "lg-no-engine"
+)
+
+// WBEnvVar is one environment variable the harness sets on the server process,
+// from option=env:var=..:value=.. (repeatable). Ze reads its settings through
+// dotted names (`ze.web.ui`), so a test that needs a non-default mode names it
+// here instead of being skipped for want of a way to ask.
+type WBEnvVar struct {
+	Var   string
+	Value string
+}
+
 // WBTestCase holds a parsed .wb test file.
 type WBTestCase struct {
 	Actions    []WBAction
@@ -71,12 +101,23 @@ type WBTestCase struct {
 	Viewport   WBViewport   // from option=viewport:width=..:height=..
 	Locale     string       // from option=locale:lang=.. (sets Accept-Language)
 	Auth       []WBAuthUser // from option=auth:.. (repeatable); non-empty => server needs auth
+	Server     WBServer     // from option=server:kind=web|lg|lg-no-engine|chaos; empty means web
+	Env        []WBEnvVar   // from option=env:var=..:value=.. (repeatable)
 	Comments   []string
 }
 
 // RequiresAuth reports whether the test declared any auth user, meaning the
 // harness must start the server with authentication enabled and seed the users.
 func (tc *WBTestCase) RequiresAuth() bool { return len(tc.Auth) > 0 }
+
+// ServerKind returns the server this test drives, defaulting to the web UI.
+func (tc *WBTestCase) ServerKind() WBServer {
+	if tc.Server == "" {
+		return WBServerWeb
+	}
+
+	return tc.Server
+}
 
 // ParseWBFile parses a .wb file content into a WBTestCase.
 func ParseWBFile(content string) (*WBTestCase, error) {
@@ -174,6 +215,28 @@ func parseWBOption(tc *WBTestCase, rest string, line int) error {
 			return fmt.Errorf("line %d: auth option requires user=", line)
 		}
 		tc.Auth = append(tc.Auth, u)
+		return nil
+	case "server":
+		// option=server:kind=lg starts the looking glass instead of the web UI.
+		// An unknown kind is a PARSE error: the harness would otherwise start
+		// the default server and the test would assert against the wrong one,
+		// which is a pass that proves nothing.
+		kind := WBServer(kv["kind"])
+		switch kind {
+		case WBServerWeb, WBServerLG, WBServerLGNoEngine, WBServerChaos:
+			tc.Server = kind
+
+			return nil
+		default:
+			return fmt.Errorf("line %d: server kind %q is not one of web, lg, lg-no-engine, chaos", line, kv["kind"])
+		}
+	case "env":
+		// option=env:var=ze.web.ui:value=finder (repeatable) reaches the
+		// server process, never this one.
+		if kv["var"] == "" {
+			return fmt.Errorf("line %d: env option requires var=", line)
+		}
+		tc.Env = append(tc.Env, WBEnvVar{Var: kv["var"], Value: kv["value"]})
 		return nil
 	}
 	return fmt.Errorf("line %d: unknown option %q", line, rest)

@@ -333,12 +333,18 @@ if [[ -z "$FUNC_TEST_SECTION" ]]; then
     ERRORS+=("Missing '### Functional Tests' section. User-facing features MUST have .ci tests (see rules/integration-completeness.md)")
 elif echo "$FUNC_TEST_SECTION" | grep -qiE 'N/A|not applicable|no new .* features|no user-facing|cosmetic|existing test|no regressions|test suite passes'; then
     : # Explicit opt-out for internal/cosmetic specs — allowed
-elif echo "$FUNC_TEST_SECTION" | grep -qE '\.ci'; then
-    : # names a .ci functional test — always acceptable
+elif echo "$FUNC_TEST_SECTION" | grep -qE '\.(ci|et|wb)'; then
+    : # names a functional test — always acceptable.
+    # Three suites exist and each owns a surface no other one reaches: .ci runs
+    # the daemon (ze-plugin-test and its siblings), .et drives the config editor
+    # (ze-editor-test), .wb drives the web interfaces (ze-web-test). Accepting
+    # only .ci made a web or editor spec name a file type its surface does not
+    # have, so the spec named a .ci that was never written. test/web holds 89
+    # .wb and zero .ci.
 elif [[ "$TOUCHES_DAEMON" == false ]] && echo "$FUNC_TEST_SECTION" | grep -qE '`?[A-Za-z0-9_./-]+\.(py|sh)`?'; then
     : # tooling-only spec (no daemon code) naming a concrete .py/.sh driving surface — allowed
 else
-    ERRORS+=("Functional Tests section must reference .ci test files (this spec touches daemon code). A Go unit test is NOT a substitute for a .ci functional test")
+    ERRORS+=("Functional Tests section must reference a functional test file: .ci (daemon), .et (config editor), or .wb (web interfaces). This spec touches daemon code, and a Go unit test is NOT a substitute")
 fi
 
 # === NO CODE IN SPECS CHECK ===
@@ -390,8 +396,12 @@ else
                 placeholder_problem "Wiring Test: every row must have a concrete test name. Found deferred/empty: '$TEST_CELL'"
                 break
             fi
-            # Track if any test references a .ci file
-            if echo "$TEST_CELL" | grep -qE '\.ci'; then
+            # Track if any test references a functional test file. All THREE
+            # suites count, for the reason the Functional Tests check above
+            # states: .ci drives the daemon, .et the config editor, .wb the web
+            # interfaces. Counting .ci alone warned every web spec into naming a
+            # file type test/web/ does not hold.
+            if echo "$TEST_CELL" | grep -qE '\.(ci|et|wb)'; then
                 HAS_CI_TEST=true
             fi
         done <<< "$WIRING_ROWS"
@@ -399,7 +409,7 @@ else
         if [[ "$HAS_CI_TEST" == false ]]; then
             # Check if spec explicitly opts out (cosmetic/internal work)
             if ! echo "$WIRING_SECTION" | grep -qiE 'existing test|no new feature|cosmetic|N/A'; then
-                WARNINGS+=("Wiring Test: user-facing features should reference .ci functional tests, not just Go unit tests")
+                WARNINGS+=("Wiring Test: user-facing features should reference a functional test (.ci daemon, .et editor, .wb web), not just Go unit tests")
             fi
         fi
     fi

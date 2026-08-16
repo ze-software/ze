@@ -1,7 +1,7 @@
 status: 200
 header: Content-Type: text/html; charset=utf-8
 
-<div class="viz-panel" hx-get="/viz/families" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+<div class="viz-panel" hx-get="/viz/families" hx-trigger="every 500ms" data-freeze-poll="true" hx-target="#viz-content" hx-swap="innerHTML">
 <div class="viz-header">
   <h3>Per-Family Routes</h3>
 </div><div class="family-matrix-scroll"><table class="family-matrix">

@@ -96,7 +96,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 
 	latencyMode := opts.mode == "latency"
 
-	h.write(`<div class="viz-panel" hx-get="/viz/route-matrix" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+	h.write(`<div class="viz-panel" hx-get="/viz/route-matrix" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML"
      hx-include="[name='top'],[name='mode'],[name='family'],[name='peers']">
 <div class="viz-header">
   <h3>Route Flow Matrix</h3>
@@ -307,7 +307,7 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 	h := &htmlWriter{w: w}
 	families := s.sortedFamilies()
 
-	h.write(`<div class="viz-panel" hx-get="/viz/families" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+	h.write(`<div class="viz-panel" hx-get="/viz/families" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML">
 <div class="viz-header">
   <h3>Per-Family Routes</h3>
 </div>`)
@@ -567,7 +567,7 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 	}
 	sortPeers(indices, s, sortCol, sortDir)
 
-	h.write(`<div class="viz-panel" hx-get="/viz/all-peers" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+	h.write(`<div class="viz-panel" hx-get="/viz/all-peers" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML"
      hx-include="[name='sort'],[name='dir']">
 <div class="viz-header">
   <h3>All Peers</h3>

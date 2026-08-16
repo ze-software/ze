@@ -246,3 +246,134 @@ func TestRunWBTestCaseAppliesViewportAndLocaleFirst(t *testing.T) {
 		t.Errorf("viewport(%d)/locale(%d) must precede open(%d)", viewportIdx, localeIdx, openIdx)
 	}
 }
+
+// TestParseServerAndEnvDirectives verifies the directives that decide WHICH
+// server the harness starts and what environment it gets.
+//
+// VALIDATES: option=server populates Server, option=env is repeatable and
+// ordered, and ServerKind defaults to the web UI.
+// PREVENTS: an lg or chaos test running against the web UI, which would assert
+// against a server that serves none of the routes it names.
+func TestParseServerAndEnvDirectives(t *testing.T) {
+	content := strings.Join([]string{
+		"option=server:kind=lg",
+		"option=env:var=ze.web.ui-mode:value=finder",
+		"option=env:var=ze.log.level:value=debug",
+		"action=open:path=/lg/peers",
+	}, "\n")
+
+	tc, err := ParseWBFile(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if tc.Server != WBServerLG || tc.ServerKind() != WBServerLG {
+		t.Errorf("server = %q, want lg", tc.Server)
+	}
+	if len(tc.Env) != 2 {
+		t.Fatalf("env = %+v, want 2 entries", tc.Env)
+	}
+	if tc.Env[0] != (WBEnvVar{Var: "ze.web.ui-mode", Value: "finder"}) {
+		t.Errorf("env[0] = %+v", tc.Env[0])
+	}
+	if tc.Env[1].Var != "ze.log.level" {
+		t.Errorf("env[1].Var = %q, want ze.log.level", tc.Env[1].Var)
+	}
+}
+
+// TestServerKindDefaultsToWeb verifies a file that names no server drives the
+// web UI, which is what the other 89 .wb tests rely on.
+func TestServerKindDefaultsToWeb(t *testing.T) {
+	tc, err := ParseWBFile("action=open:path=/\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if tc.ServerKind() != WBServerWeb {
+		t.Errorf("default server = %q, want web", tc.ServerKind())
+	}
+}
+
+// TestParseServerRejectsUnknownKind verifies an unknown kind fails PARSING.
+//
+// Failing closed is the whole point: the alternative is starting the default
+// server and asserting against it, which is a green run that proves nothing
+// about the interface the test names.
+func TestParseServerRejectsUnknownKind(t *testing.T) {
+	if _, err := ParseWBFile("option=server:kind=looking-glass"); err == nil {
+		t.Fatal("expected error for an unknown server kind")
+	}
+}
+
+// TestParseEnvRequiresVar verifies env without a var= is a parse error.
+func TestParseEnvRequiresVar(t *testing.T) {
+	if _, err := ParseWBFile("option=env:value=finder"); err == nil {
+		t.Fatal("expected error for env without var=")
+	}
+}
+
+// TestBackActionDrivesTheBrowserBackButton verifies action=back reaches
+// agent-browser's own navigation command.
+//
+// VALIDATES: the back action is dispatched, not silently ignored.
+// PREVENTS: a history test that navigates nowhere and then asserts it is on the
+// page it never left.
+func TestBackActionDrivesTheBrowserBackButton(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	b := newBrowser("https://127.0.0.1:1234")
+
+	if err := executeAction(b, &WBAction{Kind: "back"}); err != nil {
+		t.Fatalf("back: %v", err)
+	}
+
+	cmds := readAgentLog(t, logPath)
+	if !slices.Contains(cmds, "back") {
+		t.Errorf("commands = %v, want a back command", cmds)
+	}
+}
+
+// TestForwardActionDrivesTheBrowserForwardButton verifies action=forward reaches
+// agent-browser's own navigation command.
+//
+// VALIDATES: the forward action is dispatched, not silently ignored.
+// PREVENTS: a history test that proves back alone. htmx 4 traverses the
+// Navigation API in both directions, and an entry ahead of the current one is
+// restored by a traversal nothing else in the .wb vocabulary can ask for.
+func TestForwardActionDrivesTheBrowserForwardButton(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	b := newBrowser("https://127.0.0.1:1234")
+
+	if err := executeAction(b, &WBAction{Kind: "forward"}); err != nil {
+		t.Fatalf("forward: %v", err)
+	}
+
+	cmds := readAgentLog(t, logPath)
+	if !slices.Contains(cmds, "forward") {
+		t.Errorf("commands = %v, want a forward command", cmds)
+	}
+}
+
+// TestURLExpectationReadsTheAddressBar verifies expect=url asks the browser for
+// its address rather than for its accessibility snapshot.
+//
+// VALIDATES: checkURL issues `get url`.
+// PREVENTS: the defect this replaced. checkURL read the snapshot, which never
+// carries the address, so `expect=url:contains=` could only ever fail -- and no
+// .wb used it, so nothing was red and nothing was proven.
+func TestURLExpectationReadsTheAddressBar(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	b := newBrowser("https://127.0.0.1:1234")
+
+	// The NEGATIVE form is what this drives: it reads one answer and judges it,
+	// where the positive form would poll a fake that never returns an address
+	// for the whole retry deadline. Both go through the same producer.
+	if err := checkExpectation(b, &WBExpectation{
+		Kind:   "url",
+		Values: map[string]string{"not-contains": "/show/bgp"},
+	}); err != nil {
+		t.Fatalf("url expectation: %v", err)
+	}
+
+	cmds := readAgentLog(t, logPath)
+	if !slices.Contains(cmds, "get url") {
+		t.Errorf("commands = %v, want a `get url` command", cmds)
+	}
+}

@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Apply after HTMX swaps (search results, navigation).
-  document.addEventListener('htmx:afterSettle', applyGraphMode);
+  document.addEventListener('htmx:after:settle', applyGraphMode);
   applyGraphMode();
 
   // Help card expand/collapse -- detail shown below cards.

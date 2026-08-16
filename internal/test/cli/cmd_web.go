@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -31,6 +32,11 @@ import (
 const (
 	webConcurrency = 4
 	webPortBase    = 10200 // above .ci runner range (1790-based) to avoid collisions
+
+	// Only the web UI serves TLS. The looking glass and the chaos dashboard
+	// listen in plain HTTP under test, because these tests read CONTENT.
+	schemeHTTP  = "http://"
+	schemeHTTPS = "https://"
 )
 
 const webUsageHeader = `Usage: ze-test web [options] [test-ids...]
@@ -187,7 +193,7 @@ func cmdWebMain(args []string) error {
 	// "fork/exec bin/ze: no such file or directory" (every CI run), while on a
 	// developer host a leftover bin/ze made the suite silently test a stale
 	// binary that was not the one under test.
-	zeBin, err := buildZe(ctx, baseDir)
+	bins, err := zeTestResolveWebBinaries(ctx, baseDir, tests.Selected())
 	if err != nil {
 		return err
 	}
@@ -203,7 +209,7 @@ func cmdWebMain(args []string) error {
 
 	for _, t := range tests.Selected() {
 		pr.AddTestWithNick(t.Name, t.Nick, t, func(runCtx context.Context, test *zeTestWebTest) (bool, error) {
-			return zeTestRunWebTest(runCtx, test, zeBin)
+			return zeTestRunWebTest(runCtx, test, bins)
 		})
 	}
 
@@ -230,8 +236,22 @@ func cmdWebMain(args []string) error {
 	return nil
 }
 
-func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, zeBin string) (bool, error) {
-	reservation, _, err := runner.ReservePorts(webPortBase, 1)
+func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBinaries) (bool, error) {
+	// A test that declares option=auth needs real authentication (not the fast
+	// single-implicit-admin --insecure-web path), and one that declares
+	// option=server drives a different program altogether. Pre-parse the .wb
+	// file for both decisions before anything is started.
+	tc := zeTestWebCase(test.Path)
+	kind := tc.ServerKind()
+
+	// The looking glass needs a second port: its pages read `show bgp summary`,
+	// so the harness gives the daemon a peer to report on.
+	ports := 1
+	if kind == webtesting.WBServerLG {
+		ports = 2
+	}
+
+	reservation, _, err := runner.ReservePorts(webPortBase, ports)
 	if err != nil {
 		test.SetError(fmt.Errorf("reserve port: %w", err))
 		return false, test.GetError()
@@ -242,19 +262,33 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, zeBin string) (b
 	var tb textbuf.Buffer
 	listenAddr := tb.Str("127.0.0.1:").Int(int64(port)).String()
 
-	// A test that declares option=auth needs real authentication (not the fast
-	// single-implicit-admin --insecure-web path); pre-parse the .wb file to
-	// decide the server-start mode and which users to seed.
-	insecure, authUsers := zeTestWebAuth(test.Path)
+	var (
+		srv    *zeTestWebServer
+		scheme string
+	)
 
-	srv, err := zeTestStartWebServer(ctx, zeBin, listenAddr, insecure, authUsers)
+	switch kind {
+	case webtesting.WBServerLG:
+		scheme = schemeHTTP
+		srv, err = zeTestStartLGServer(ctx, bins, listenAddr, reservation.Start+1, tc.Env)
+	case webtesting.WBServerLGNoEngine:
+		scheme = schemeHTTP
+		srv, err = zeTestStartLGNoEngineServer(ctx, bins, listenAddr, tc.Env)
+	case webtesting.WBServerChaos:
+		scheme = schemeHTTP
+		srv, err = zeTestStartChaosServer(ctx, bins, listenAddr, tc.Env)
+	case webtesting.WBServerWeb:
+		scheme = schemeHTTPS
+		srv, err = zeTestStartWebServer(ctx, bins.ze, listenAddr, !tc.RequiresAuth(), tc.Auth, tc.Env)
+	}
+
 	if err != nil {
-		test.SetError(fmt.Errorf("start web server: %w", err))
+		test.SetError(fmt.Errorf("start %s server: %w", kind, err))
 		return false, test.GetError()
 	}
 	defer srv.stop()
 
-	baseURL := tb.Reset().Str("https://").Str(listenAddr).String()
+	baseURL := tb.Reset().Str(scheme).Str(listenAddr).String()
 	result := webtesting.RunWBFileWithSession(test.Path, baseURL, test.Nick)
 	test.Steps = result.Steps
 
@@ -276,28 +310,327 @@ type zeTestWebTest struct {
 
 type zeTestWebServer struct {
 	cmd     *exec.Cmd
+	aux     *exec.Cmd // a second process the server needs, e.g. the BGP peer the looking glass reports on
 	tempDir string
 }
 
-// zeTestWebAuth reads a .wb file and reports whether the web server should run
-// with authentication disabled (--insecure-web) plus the users to seed. A test
-// that declares option=auth needs real authentication; otherwise the harness
-// keeps the fast single-implicit-admin insecure mode. A read/parse error is a
-// safe default of insecure=true (the file's own parse error surfaces later when
-// the runner parses it again).
-func zeTestWebAuth(path string) (insecure bool, users []webtesting.WBAuthUser) {
-	content, err := os.ReadFile(path) //nolint:gosec // controlled test discovery path
-	if err != nil {
-		return true, nil
-	}
-	tc, err := webtesting.ParseWBFile(string(content))
-	if err != nil {
-		return true, nil
-	}
-	return !tc.RequiresAuth(), tc.Auth
+// zeTestWebBinaries are the programs this suite can start. Ze serves its three
+// htmx interfaces from three binaries, so a suite that proves all three in a
+// browser needs all three.
+type zeTestWebBinaries struct {
+	// ze serves the web UI, and the looking glass as one of its listeners.
+	ze string
+	// zeTest is THIS program, which supplies the BGP sink peer the looking
+	// glass reports on. os.Executable is what names it: the suite is already
+	// running from the binary the run was built against, so resolving it any
+	// other way could pick up a different build.
+	zeTest string
+	// chaos serves the chaos dashboard. Empty when no selected test asks for
+	// it, because building it costs a minute that a web-only run should not
+	// pay. zeTestStartChaosServer refuses rather than starting nothing.
+	chaos string
 }
 
-func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser) (*zeTestWebServer, error) {
+// zeTestResolveWebBinaries resolves the programs the selected tests need.
+//
+// The chaos build is CONDITIONAL and the looking glass one is not: `ze` is
+// needed by every test, while `ze-chaos` is a second full compile of cmd/ze
+// under different tags. It is built only when a selected test names the chaos
+// server, so the common run is unchanged.
+func zeTestResolveWebBinaries(ctx context.Context, baseDir string, tests []*zeTestWebTest) (zeTestWebBinaries, error) {
+	var bins zeTestWebBinaries
+
+	ze, err := buildZe(ctx, baseDir)
+	if err != nil {
+		return bins, err
+	}
+
+	bins.ze = ze
+
+	self, err := os.Executable()
+	if err != nil {
+		return bins, fmt.Errorf("resolve this test binary: %w", err)
+	}
+
+	bins.zeTest = self
+
+	if !zeTestWantsChaos(tests) {
+		return bins, nil
+	}
+
+	chaos, err := zeTestBuildChaos(ctx, baseDir, ze)
+	if err != nil {
+		return bins, err
+	}
+
+	bins.chaos = chaos
+
+	return bins, nil
+}
+
+// zeTestWantsChaos reports whether any selected test drives the chaos dashboard.
+func zeTestWantsChaos(tests []*zeTestWebTest) bool {
+	for _, t := range tests {
+		if zeTestWebCase(t.Path).ServerKind() == webtesting.WBServerChaos {
+			return true
+		}
+	}
+
+	return false
+}
+
+// zeTestBuildChaos resolves ze-chaos BESIDE the ze binary this run uses.
+//
+// Beside, rather than in a directory of its own: the functional flow builds an
+// isolated binary set into a throwaway directory and points ZE_BIN at it, while
+// a plain run uses this session's bin/. One rule reaches both, and it cannot
+// pick up a stale chaos binary from the other tree.
+//
+// The build is skipped under ZE_TEST_NO_BUILD, which is the flow's promise that
+// the caller built the set already (mk/test-functional.mk, ZE_ALT_CHAOS_BUILD).
+// A miss there is an error rather than a build: building would defeat the
+// isolation the flag exists to give.
+func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error) {
+	chaosPath := filepath.Join(filepath.Dir(zeBin), "ze-chaos")
+
+	if _, err := os.Stat(chaosPath); err == nil {
+		return chaosPath, nil
+	}
+
+	if env.IsEnabled("ze.test.no.build") {
+		if dir := sessionpath.FindPrebuiltDir(baseDir, "ze-chaos"); dir != "" {
+			return filepath.Join(dir, "ze-chaos"), nil
+		}
+
+		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (build it with `make chaos`)", chaosPath)
+	}
+
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd.Dir = baseDir
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("build ze-chaos: %w: %s", err, output)
+	}
+
+	return chaosPath, nil
+}
+
+// zeTestWebCase reads a .wb file for the decisions the harness makes BEFORE the
+// browser runs: which server to start (option=server), which users to seed
+// (option=auth), and what environment the server process gets (option=env).
+//
+// A read or parse error yields the zero case, which is the default web server
+// with no auth and no environment: the file's own error surfaces a moment later
+// when the runner parses it again to execute it, and reporting it here as well
+// would hide that message behind a start failure.
+func zeTestWebCase(path string) *webtesting.WBTestCase {
+	content, err := os.ReadFile(path) //nolint:gosec // controlled test discovery path
+	if err != nil {
+		return &webtesting.WBTestCase{}
+	}
+
+	tc, err := webtesting.ParseWBFile(string(content))
+	if err != nil {
+		return &webtesting.WBTestCase{}
+	}
+
+	return tc
+}
+
+// zeTestEnv returns the server process environment: this process's, plus the
+// pairs the test declared with option=env.
+func zeTestEnv(vars []webtesting.WBEnvVar, extra ...string) []string {
+	out := append(os.Environ(), extra...)
+
+	var tb textbuf.Buffer
+	for _, v := range vars {
+		out = append(out, tb.Reset().Str(v.Var).Byte('=').Str(v.Value).String())
+	}
+
+	return out
+}
+
+// lgConfigTemplate is the daemon configuration the looking-glass suite runs.
+//
+// It states three things the pages need and nothing else. The looking glass
+// listens on its own port with TLS off, because these tests read CONTENT over
+// a plain URL. One peer dials the sink on the second reserved port, so the
+// session reaches Established and `show bgp summary` reports a real row rather
+// than an empty table. `accept false` keeps the daemon off port 179, which a
+// test host does not grant an unprivileged process.
+//
+// The two ends carry DIFFERENT addresses. 127.0.0.0/8 is one loopback, so both
+// ends can sit on it, and a session whose local and remote address are the same
+// string is a state no operator has: a next-hop rule that compares a route's
+// next hop against the peer's address cannot be tested by a config where the
+// two are one. The sink listens on 127.0.0.1, so the daemon takes 127.0.0.2.
+const lgConfigTemplate = `environment {
+	looking-glass {
+		enabled true
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $LG_PORT
+		}
+	}
+}
+
+bgp {
+	peer sink {
+		connection {
+			remote {
+				ip 127.0.0.1
+				port $BGP_PORT
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 1000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+	}
+}
+`
+
+// zeTestStartLGServer starts the looking glass: a BGP sink peer, then a daemon
+// that dials it and serves /lg/ on listenAddr.
+//
+// The sink comes FIRST on purpose. The daemon's connect-retry timer is measured
+// in tens of seconds, so a peer that is not listening when the daemon starts
+// costs the test that whole timer before the table shows anything.
+func zeTestStartLGServer(ctx context.Context, bins zeTestWebBinaries, listenAddr string, bgpPort int, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
+	_, lgPort, _ := net.SplitHostPort(listenAddr)
+	bgpPortText := textbuf.StringInt(int64(bgpPort))
+
+	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-lg-test-*")
+	if tempErr != nil {
+		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
+	}
+
+	peer := exec.CommandContext(ctx, bins.zeTest, "peer", "--mode", "sink", "--port", bgpPortText) //nolint:gosec // test binary path
+	peer.Env = zeTestEnv(envVars)
+
+	if err := peer.Start(); err != nil {
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
+
+		return nil, fmt.Errorf("start bgp sink peer: %w", err)
+	}
+
+	config := strings.NewReplacer("$LG_PORT", lgPort, "$BGP_PORT", bgpPortText).Replace(lgConfigTemplate)
+
+	var tb textbuf.Buffer
+
+	cmd := exec.CommandContext(ctx, bins.ze, "-") //nolint:gosec // test binary path
+	cmd.Stdin = strings.NewReader(config)
+	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
+
+	if err := cmd.Start(); err != nil {
+		zeTestKillCmd(peer)
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
+
+		return nil, err
+	}
+
+	srv := &zeTestWebServer{cmd: cmd, aux: peer, tempDir: tempDir}
+
+	// Probe the peers PAGE, not the root: /lg/ redirects, and a redirect proves
+	// the mux is mounted without proving the page renders.
+	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/lg/peers", zeTestReadyTimeout()); err != nil {
+		srv.stop()
+
+		return nil, fmt.Errorf("looking glass not ready: %w", err)
+	}
+
+	return srv, nil
+}
+
+// zeTestStartLGNoEngineServer starts the looking glass with an engine that
+// always fails, so its pages and its stream take the engine-unavailable path.
+//
+// It runs `ze-test lg`, not the daemon: the looking glass dispatches in
+// process, so a daemon with no BGP configured still answers an empty peer list,
+// and the engine-error path cannot be reached through configuration.
+func zeTestStartLGNoEngineServer(ctx context.Context, bins zeTestWebBinaries, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
+	cmd := exec.CommandContext(ctx, bins.zeTest, "lg", "--listen", listenAddr) //nolint:gosec // test binary path
+	cmd.Env = zeTestEnv(envVars)
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	srv := &zeTestWebServer{cmd: cmd}
+
+	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/lg/peers", zeTestReadyTimeout()); err != nil {
+		srv.stop()
+
+		return nil, fmt.Errorf("looking glass not ready: %w", err)
+	}
+
+	return srv, nil
+}
+
+// zeTestStartChaosServer starts the chaos dashboard.
+//
+// The run duration outlives any .wb budget on purpose: ze-chaos stops itself
+// when its run ends, and a dashboard that exited mid-test would fail the
+// assertions with an empty page instead of a verdict. srv.stop() ends this one.
+func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
+	if bins.chaos == "" {
+		return nil, errors.New("no ze-chaos binary was built for this run")
+	}
+
+	_, portStr, _ := net.SplitHostPort(listenAddr)
+
+	var tb textbuf.Buffer
+
+	cmd := exec.CommandContext(ctx, bins.chaos, //nolint:gosec // test binary path
+		"--in-process", "--web", tb.Byte(':').Str(portStr).String(),
+		"--duration", "10m", "--peers", "6", "--seed", "42", "--routes", "20", "--quiet")
+	cmd.Env = zeTestEnv(envVars)
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	srv := &zeTestWebServer{cmd: cmd}
+
+	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/", zeTestReadyTimeout()); err != nil {
+		srv.stop()
+
+		return nil, fmt.Errorf("chaos dashboard not ready: %w", err)
+	}
+
+	return srv, nil
+}
+
+// zeTestReadyTimeout bounds a server start. Under `make ze-verify` the web
+// suite overlaps the -race unit stage, and a forked daemon can take well over
+// 30s just to bind under that CPU starvation, so the budget scales by the same
+// contention headroom the runner applies to per-test budgets. A standalone run
+// keeps the tight 30s so a genuine "server never starts" still surfaces fast.
+func zeTestReadyTimeout() time.Duration {
+	ready := 30 * time.Second
+	if runner.VerifyModeEnabled() {
+		ready *= runner.ParallelTimeoutHeadroom
+	}
+
+	return ready
+}
+
+func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
 	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-test-*")
 	if tempErr != nil {
@@ -322,28 +655,14 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 	}
 	cmd := exec.CommandContext(ctx, zeBin, args...) //nolint:gosec // test binary path
 	var tb textbuf.Buffer
-	cmd.Env = append(os.Environ(),
-		tb.Str("ze.config.dir=").Str(tempDir).String(),
-	)
+	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
 
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
 		return nil, err
 	}
 
-	// Under `make ze-verify` the functional web suite overlaps the -race unit
-	// stage: every .wb test forks a full --web-only daemon, and under that CPU
-	// starvation a daemon can take well over 30s just to bind its listener
-	// (symptom: connection-refused for the entire fixed window). Scale the
-	// readiness budget by the same contention headroom the runner applies to
-	// per-test budgets (runner.ParallelTimeoutHeadroom) when in verify mode;
-	// standalone runs keep the tight 30s so a genuine "web never starts" still
-	// surfaces fast.
-	readyTimeout := 30 * time.Second
-	if runner.VerifyModeEnabled() {
-		readyTimeout *= runner.ParallelTimeoutHeadroom
-	}
-	if err := zeTestProbeReady(ctx, listenAddr, readyTimeout); err != nil {
+	if err := zeTestProbeReady(ctx, schemeHTTPS, listenAddr, "/", zeTestReadyTimeout()); err != nil {
 		zeTestKillCmd(cmd)
 		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
 		return nil, fmt.Errorf("daemon not ready: %w", err)
@@ -404,7 +723,7 @@ func zeTestPickAdmin(users []webtesting.WBAuthUser) webtesting.WBAuthUser {
 	return users[0]
 }
 
-func zeTestProbeReady(ctx context.Context, addr string, timeout time.Duration) error {
+func zeTestProbeReady(ctx context.Context, scheme, addr, path string, timeout time.Duration) error {
 	// A bare TCP connect succeeds the instant the listener binds, which can be
 	// before the HTTP routes are mounted: a browser hitting the server in that
 	// window gets an empty page. Require a real HTTP response (any status proves
@@ -418,7 +737,7 @@ func zeTestProbeReady(ctx context.Context, addr string, timeout time.Duration) e
 		},
 	}
 	var tb textbuf.Buffer
-	url := tb.Str("https://").Str(addr).Byte('/').String()
+	url := tb.Str(scheme).Str(addr).Str(path).String()
 	var lastErr error
 	for time.Now().Before(deadline) {
 		if ctx.Err() != nil {
@@ -451,6 +770,7 @@ func zeTestKillCmd(cmd *exec.Cmd) {
 
 func (s *zeTestWebServer) stop() {
 	zeTestKillCmd(s.cmd)
+	zeTestKillCmd(s.aux)
 	if s.tempDir != "" {
 		os.RemoveAll(s.tempDir) //nolint:errcheck // best-effort temp dir cleanup
 	}

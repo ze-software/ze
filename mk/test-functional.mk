@@ -144,6 +144,11 @@ ifeq ($(ZE_TEST_CANONICAL),)
   ZE_TEST_DEPS_ZE :=
   ZE_TEST_DEPS_ALL :=
   ZE_TEST_RUN = env ZE_TEST_NO_BUILD=1 ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test $(ZE_ALT_BIN)/ze-test
+  # The chaos dashboard is a second compile of cmd/ze under different tags, and
+  # only the .wb suite starts it (option=server:kind=chaos). It is built BESIDE
+  # the ze binary the run uses, which is where cmd_web.go looks for it.
+  ZE_ALT_CHAOS_BUILD = { $(GO) build -tags 'ze_chaos ze_bgp' -o $(ZE_ALT_BIN)/ze-chaos ./cmd/ze ; } || exit 1;
+  ZE_WEB_CHAOS_DEP :=
 else
   ZE_ALT_TRAP := true
   ZE_ALT_BUILD :=
@@ -152,6 +157,8 @@ else
   ZE_TEST_DEPS_ZE := $(ZEBIN_ZE) $(ZEBIN_TEST)
   ZE_TEST_DEPS_ALL := $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
   ZE_TEST_RUN := $(ZEBIN_TEST)
+  ZE_ALT_CHAOS_BUILD :=
+  ZE_WEB_CHAOS_DEP := $(ZEBIN_CHAOS)
 endif
 
 # Packages that `.ci` tests shell out to with `exec=go test ...`. Derived from
@@ -271,8 +278,8 @@ ze-ui-test: $(ZE_TEST_DEPS_STRIPPED)
 ze-editor-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) editor --all
 
-ze-web-test: $(ZE_TEST_DEPS_ZE)
-	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) web --all
+ze-web-test: $(ZE_TEST_DEPS_ZE) $(ZE_WEB_CHAOS_DEP)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(ZE_ALT_CHAOS_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) web --all
 
 ze-managed-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) managed --all -p 1

@@ -23,8 +23,8 @@ func TestZeTestWebAuth(t *testing.T) {
 	if err := os.WriteFile(plain, []byte("action=open:path=/\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if insecure, users := zeTestWebAuth(plain); !insecure || len(users) != 0 {
-		t.Errorf("plain: insecure=%v users=%v, want insecure with no users", insecure, users)
+	if tc := zeTestWebCase(plain); tc.RequiresAuth() || len(tc.Auth) != 0 {
+		t.Errorf("plain: requiresAuth=%v users=%v, want insecure with no users", tc.RequiresAuth(), tc.Auth)
 	}
 
 	authed := filepath.Join(dir, "auth.wb")
@@ -34,15 +34,15 @@ func TestZeTestWebAuth(t *testing.T) {
 	if err := os.WriteFile(authed, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	insecure, users := zeTestWebAuth(authed)
-	if insecure {
+	tc := zeTestWebCase(authed)
+	if !tc.RequiresAuth() {
 		t.Error("auth test must not run with --insecure-web")
 	}
-	if len(users) != 2 {
-		t.Fatalf("want 2 seeded users, got %d", len(users))
+	if len(tc.Auth) != 2 {
+		t.Fatalf("want 2 seeded users, got %d", len(tc.Auth))
 	}
 
-	if insecure, _ := zeTestWebAuth(filepath.Join(dir, "missing.wb")); !insecure {
+	if missing := zeTestWebCase(filepath.Join(dir, "missing.wb")); missing.RequiresAuth() {
 		t.Error("missing file must default to insecure")
 	}
 }

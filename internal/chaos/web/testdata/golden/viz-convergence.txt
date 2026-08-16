@@ -1,7 +1,7 @@
 status: 200
 header: Content-Type: text/html; charset=utf-8
 
-<div class="viz-panel" id="viz-convergence" sse-swap="convergence" hx-swap="outerHTML">
+<div class="viz-panel" id="viz-convergence" hx-swap="outerHTML">
 <h3>Convergence Histogram</h3>
 <div class="histogram" style="position:relative"><div class="histogram-bar-wrapper">
   <div class="histogram-bar" style="height:0%;background:#3fb950" title="0-5ms: 0 routes"></div>

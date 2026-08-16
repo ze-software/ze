@@ -35,8 +35,8 @@
     btn.textContent = paused ? 'Resume' : 'Pause';
   });
 
-  document.addEventListener('htmx:beforeSwap', function cleanup() {
-    document.removeEventListener('htmx:beforeSwap', cleanup);
+  document.addEventListener('htmx:before:swap', function cleanup() {
+    document.removeEventListener('htmx:before:swap', cleanup);
     window.zeSSE.off('log-entry');
   });
 })();

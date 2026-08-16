@@ -118,9 +118,37 @@ Unknown directives or kinds fail parsing immediately.
 | `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
 | `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
 | `option=auth:user=<u>:password=<p>:role=<r>` | Repeatable. Seeds the user and starts the server with authentication instead of `--insecure-web` |
+| `option=server:kind=web\|lg\|lg-no-engine\|chaos` | Which server the harness starts. Default `web`. An unknown kind fails parsing, because starting the default one and asserting against it is a pass that proves nothing |
+| `option=env:var=<name>:value=<v>` | Repeatable. Sets one environment variable on the SERVER process |
 
-<!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth -->
+<!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth, server, env -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest runs RunWBFileWithSession with no per-test deadline -->
+
+Ze serves three htmx interfaces from three programs, and a browser proof of one
+of them has to start that one.
+
+| `kind` | What the harness starts | Scheme | Ports |
+|--------|-------------------------|--------|-------|
+| `web` | `ze start --web <port> --web-only` | `https` | 1 |
+| `lg` | `ze-test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
+| `lg-no-engine` | `ze-test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
+| `chaos` | `ze-chaos --in-process --web :<port>` | `http` | 1 |
+
+The looking glass gets a peer because its pages read `show bgp summary`: without
+one, every assertion would run against an empty table. `ze-chaos` is a second
+compile of `cmd/ze` under different tags, so it is built only when a selected
+test asks for it, beside the `ze` binary the run is using.
+
+`lg-no-engine` exists because no configuration reaches the engine-unavailable
+state: the looking glass dispatches in process, so a daemon with no BGP still
+answers an empty peer list. `ze-test lg` builds the REAL server through
+`lg.NewLGServer` and injects one failing dispatcher, which is the only part that
+is not production code. The two ends of the `lg` daemon peer carry different
+loopback addresses (127.0.0.1 and 127.0.0.2), so a rule comparing a route
+against the peer address has two values to compare.
+<!-- source: internal/test/cli/cmd_web.go -- zeTestStartLGServer, zeTestStartLGNoEngineServer, zeTestStartChaosServer, zeTestResolveWebBinaries -->
+<!-- source: internal/test/cli/cmd_lg.go -- cmdLG -->
+<!-- source: mk/test-functional.mk -- ZE_ALT_CHAOS_BUILD, ZE_WEB_CHAOS_DEP -->
 
 ### Actions
 
@@ -131,12 +159,14 @@ Unknown directives or kinds fail parsing immediately.
 | `fill` | (`id` or `text`) + `value` | Clear and type `value` |
 | `hover` | `id` or `text` | Hover element |
 | `press` | `key` (+ optional `id`/`text`) | Press a key, optionally focused on an element |
-| `wait` | `ms` (or none) | Wait `ms` milliseconds, or for in-flight network to settle |
+| `wait` | `ms` (or none) | Wait `ms` milliseconds, or for in-flight network to settle. A wait longer than 30s touches the browser between sleeps: the `agent-browser` daemon reaps itself after 60s with no command and takes the page with it, so a pure sleep of a minute returned to a browser holding nothing |
 | `wait-until` | `path` + `contains` | Re-open `path` until the page it serves contains the text. Stops polling at `expectDeadline`. **Leaves the browser on `path`** |
 | `login` | `user` + `password` | Drive the login form and submit |
+| `back` | none | The browser's own back button. The only way to prove what a pushed URL does when the operator returns to it: htmx 2 restores its own history cache, htmx 4 keeps none and the browser navigates for real |
+| `forward` | none | The browser's own forward button. htmx 4 traverses the Navigation API, which holds entries on both sides of the current one, and the entry AHEAD is reached by a second traversal that `back` cannot make |
 | `screenshot` | `file` | Save a screenshot |
 
-<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/login/screenshot -->
+<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/login/back/forward/screenshot -->
 
 `wait:ms=` is a blind wait and asserts on elapsed time, which is what
 `ai/rules/completion.md` bans: it passes on a quiet host and fails on a busy one.
@@ -177,7 +207,7 @@ a `.wb` test above that: `option=timeout` is inert (see Options).
 | `html` | `contains` / `not-contains` | the page BODY contains / does not contain the substring |
 | `head` | `contains` / `not-contains` | the page HEAD contains / does not contain the substring. `html` cannot answer for it: `get html <selector>` returns one element's inner HTML, and it reads the body. The head is where a page states which assets it loads, and each page loads what its own markup needs (`scripts/codegen/web_assets.go`), so what a head does NOT carry is a property of the page |
 | `breadcrumb` | `contains` / `not-contains` (CSV) | each segment is present / absent |
-| `url` | `contains` | the page snapshot contains the substring |
+| `url` | `contains` / `not-contains` | the ADDRESS BAR contains / does not contain the substring. It read the accessibility snapshot until 2026-08-15, which never carries the address, so the assertion could only ever fail |
 | `title` | `contains` | the page text contains the substring (case-insensitive) |
 
 A POSITIVE expectation polls until it holds or `expectDeadline` expires, so it is a

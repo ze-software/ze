@@ -22,12 +22,12 @@ func TestSSEBroadcast(t *testing.T) {
 	c1 := broker.Subscribe()
 	c2 := broker.Subscribe()
 
-	broker.Broadcast(SSEEvent{Event: "test", Data: "hello"})
+	broker.Broadcast(SSEEvent{Data: "hello"})
 
 	select {
 	case ev := <-c1.ch:
-		if ev.Event != "test" || ev.Data != "hello" {
-			t.Fatalf("c1 got (%q, %q), want (\"test\", \"hello\")", ev.Event, ev.Data)
+		if ev.Data != "hello" {
+			t.Fatalf("c1 got %q, want \"hello\"", ev.Data)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("c1 did not receive event")
@@ -35,8 +35,8 @@ func TestSSEBroadcast(t *testing.T) {
 
 	select {
 	case ev := <-c2.ch:
-		if ev.Event != "test" || ev.Data != "hello" {
-			t.Fatalf("c2 got (%q, %q), want (\"test\", \"hello\")", ev.Event, ev.Data)
+		if ev.Data != "hello" {
+			t.Fatalf("c2 got %q, want \"hello\"", ev.Data)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("c2 did not receive event")
@@ -183,7 +183,7 @@ func TestSSEServeHTTP(t *testing.T) {
 	defer ts.Close()
 
 	// Send an event before connecting (should not matter).
-	broker.Broadcast(SSEEvent{Event: "early", Data: "skip"})
+	broker.Broadcast(SSEEvent{Data: "skip"})
 
 	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, http.NoBody)
 	if reqErr != nil {
@@ -208,15 +208,18 @@ func TestSSEServeHTTP(t *testing.T) {
 	waitForClient(t, broker)
 
 	// Send an event while connected.
-	broker.Broadcast(SSEEvent{Event: "peer-update", Data: "<div>test</div>"})
+	broker.Broadcast(SSEEvent{Data: "<div>test</div>"})
 
 	// Read the response — we need a small buffer read since the connection stays open.
 	buf := make([]byte, 4096)
 	n, _ := resp.Body.Read(buf)
 	body := string(buf[:n])
 
-	if !strings.Contains(body, "event: peer-update") {
-		t.Errorf("response missing 'event: peer-update', got: %q", body)
+	// The message is UNNAMED. htmx 4 swaps an unnamed message and dispatches a
+	// named one as a DOM event that swaps nothing, so a name here would freeze
+	// every panel on the dashboard.
+	if strings.Contains(body, "event:") {
+		t.Errorf("response carries an event name, got: %q", body)
 	}
 	if !strings.Contains(body, "data: <div>test</div>") {
 		t.Errorf("response missing 'data: <div>test</div>', got: %q", body)
@@ -257,7 +260,7 @@ func TestSSEMultiLineData(t *testing.T) {
 
 	// Send a multi-line HTML fragment (like convergence histogram output).
 	multiLine := "<div class=\"bar\">\n  <span>hello</span>\n</div>"
-	broker.Broadcast(SSEEvent{Event: "convergence", Data: multiLine})
+	broker.Broadcast(SSEEvent{Data: multiLine})
 
 	buf := make([]byte, 4096)
 	n, _ := resp.Body.Read(buf)
@@ -277,8 +280,9 @@ func TestSSEMultiLineData(t *testing.T) {
 	// Must NOT have a bare newline breaking the data field.
 	lines := strings.Split(body, "\n")
 	for i, line := range lines {
-		// Every non-empty line should start with "event:" or "data:" (SSE fields).
-		if line != "" && !strings.HasPrefix(line, "event:") && !strings.HasPrefix(line, "data:") {
+		// Every non-empty line should start with "data:" (the only SSE field
+		// an unnamed message carries).
+		if line != "" && !strings.HasPrefix(line, "data:") {
 			t.Errorf("line %d is not a valid SSE field: %q", i, line)
 		}
 	}

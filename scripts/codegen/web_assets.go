@@ -58,11 +58,12 @@ import (
 const generatedFile = "page_assets.go"
 
 // The two vendored files a rendered attribute can need. htmx.min.js is the
-// core; sse.js is the extension that reads a server-sent event stream. The web
-// UI needs no extension: it opens its streams with its own sse-client.js.
+// core; hx-sse.min.js is the extension that reads a server-sent event stream.
+// The web UI needs no extension: it opens its streams with its own
+// sse-client.js.
 const (
 	htmxAsset = "htmx.min.js"
-	sseAsset  = "sse.js"
+	sseAsset  = "hx-sse.min.js"
 )
 
 // surface is one package whose pages this generator derives.
@@ -90,9 +91,9 @@ var surfaces = []surface{
 
 // attributePattern finds one htmx attribute: a whitespace byte, the attribute
 // name, then the equals sign a value follows. Requiring both ends keeps a file
-// name such as sse-client.js out of the match. The value is captured when it is
-// a quoted literal, because hx-ext names its extension there.
-var attributePattern = regexp.MustCompile(`\s(hx-[a-z-]+|sse-[a-z-]+)=(?:"([^"]*)")?`)
+// name such as sse-client.js out of the match. htmx 4 names an extension's
+// attributes with a colon, as hx-sse:connect does, so the name carries one.
+var attributePattern = regexp.MustCompile(`\s(hx-[a-z:-]+)=`)
 
 // templDeclaration opens one templ component.
 var templDeclaration = regexp.MustCompile(`^templ\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
@@ -155,13 +156,13 @@ type page struct {
 }
 
 // assetsFor names the assets one attribute needs.
-func assetsFor(name, value string) []string {
+//
+// An extension attribute needs the core as well: htmx 4 loads an extension as a
+// plain script that calls htmx.registerExtension, so the extension does nothing
+// without the core beside it.
+func assetsFor(name string) []string {
 	switch {
-	case strings.HasPrefix(name, "sse-"):
-		return []string{sseAsset}
-	case name == "hx-ext" && strings.Contains(value, "sse"):
-		// The extension is named in the value, so an element carrying only
-		// hx-ext="sse" still needs the extension file.
+	case strings.HasPrefix(name, "hx-sse:"):
 		return []string{htmxAsset, sseAsset}
 	case strings.HasPrefix(name, "hx-"):
 		return []string{htmxAsset}
@@ -175,14 +176,22 @@ func markupAssets(text string) []string {
 	var found []string
 
 	for _, match := range attributePattern.FindAllStringSubmatch(text, -1) {
-		found = append(found, assetsFor(match[1], match[2])...)
+		found = append(found, assetsFor(match[1])...)
 	}
 
-	return sorted(found)
+	return loadOrder(found)
 }
 
-// sorted returns the input sorted, without repeats, and never nil.
-func sorted(in []string) []string {
+// loadOrder returns the assets without repeats and never nil, in the order a
+// page must load them: the core first, then the rest by name.
+//
+// The order is load-bearing. An extension is a script that calls
+// htmx.registerExtension when it runs, so it throws when the core has not run
+// first, and the page then does nothing in the browser. The alphabet puts
+// htmx.min.js before hx-sse.min.js today, which is a property of two names
+// rather than a rule: a renamed extension would break every page that streams,
+// and nothing would say so. TestPagesServeHtmx4 reads the order back.
+func loadOrder(in []string) []string {
 	out := slices.Clone(in)
 	if out == nil {
 		out = []string{}
@@ -190,7 +199,13 @@ func sorted(in []string) []string {
 
 	slices.Sort(out)
 
-	return slices.Compact(out)
+	out = slices.Compact(out)
+
+	if at := slices.Index(out, htmxAsset); at > 0 {
+		out = append([]string{htmxAsset}, slices.Delete(out, at, at+1)...)
+	}
+
+	return out
 }
 
 // parseTempl reads one .templ file into its components.
@@ -344,7 +359,7 @@ func surfaceUnion(root string, s surface) ([]string, error) {
 		found = append(found, markupAssets(string(body))...)
 	}
 
-	return sorted(found), nil
+	return loadOrder(found), nil
 }
 
 // readableMarkup says whether a file can hold markup ze serves. A generated
@@ -398,7 +413,7 @@ func closure(components map[string]*component, start string, union []string, ski
 		queue = append(queue, c.Invokes...)
 	}
 
-	return sorted(found)
+	return loadOrder(found)
 }
 
 // constantFor names the generated Go identifier of one page.
@@ -472,7 +487,7 @@ func templPages(root string, s surface) ([]page, error) {
 				ID:       body,
 				Constant: constantFor(body),
 				Origin:   shell.File,
-				Assets:   sorted(append(own, closure(components, body, union, false)...)),
+				Assets:   loadOrder(append(own, closure(components, body, union, false)...)),
 			})
 		}
 	}

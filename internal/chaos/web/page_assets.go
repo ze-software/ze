@@ -16,13 +16,13 @@ const (
 
 // pageAssetSets maps each page onto the assets its head block loads.
 var pageAssetSets = map[pageID][]string{
-	pgWriteLayout: {"/assets/htmx.min.js", "/assets/sse.js"},
+	pgWriteLayout: {"/assets/htmx.min.js", "/assets/hx-sse.min.js"},
 }
 
 // everyAsset is every asset this package renders. It is what an unknown page
 // gets: a page that loads one file too many costs bytes, and a page that loads
 // nothing renders correctly and does nothing in the browser.
-var everyAsset = []string{"/assets/htmx.min.js", "/assets/sse.js"}
+var everyAsset = []string{"/assets/htmx.min.js", "/assets/hx-sse.min.js"}
 
 // pageAssets returns the assets one page must load.
 func pageAssets(page pageID) []string {

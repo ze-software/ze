@@ -1,5 +1,5 @@
 status: 200
 header: Content-Type: text/html; charset=utf-8
 
-<div class="viz-panel" id="viz-convergence-trend" sse-swap="convergence-trend" hx-swap="outerHTML">
+<div class="viz-panel" id="viz-convergence-trend" hx-swap="outerHTML">
 <h3>Convergence Trend</h3><div class="trend-bars"><div class="trend-row"><span class="trend-label">p50</span><div class="trend-track"><div class="trend-p50" style="width:68%"></div></div><span class="trend-value">48ms</span></div><div class="trend-row"><span class="trend-label">p90</span><div class="trend-track"><div class="trend-p90" style="width:100%"></div></div><span class="trend-value">70ms</span></div><div class="trend-row"><span class="trend-label">p99</span><div class="trend-track"><div class="trend-p99" style="width:100%"></div></div><span class="trend-value">70ms</span></div></div><div class="trend-count">30 samples</div></div>

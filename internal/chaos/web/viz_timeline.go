@@ -128,7 +128,7 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int, _ string) {
 	endIdx := min(startIdx+peersPerPage, totalPeers)
 	pagePeers := peerIndices[startIdx:endIdx]
 
-	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d" hx-trigger="every 500ms"`+freezePoll+` hx-target="#viz-content" hx-swap="innerHTML">
 <div class="viz-header">
   <h3>Peer State Timeline</h3>
   <div class="filters">`, page)

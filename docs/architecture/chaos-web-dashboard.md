@@ -366,18 +366,70 @@ other client still reads the status line. The wrap is per route because a run
 started with `--metrics-addr` mounts the dashboard on a shared ServeMux
 (`internal/chaos/orchestrator/run.go`) and owns no chain of its own.
 
-### SSE Event Types
+The dashboard puts that answer in `#action-error`, a fixed region at the foot of
+the page, rather than in the element the control named. htmx 4 swaps a refusal
+like any other answer, and the controls here name panels: measured in a browser,
+a refused `POST /peers/promote` replaced the peer table's body with the message
+and left the table with its header alone. `writeLayout` retargets every 4xx on
+`htmx:response:error`, and the region empties itself 10 seconds later.
 
-The SSE stream sends targeted HTML fragments. Each SSE event includes `hx-swap-oob="true"` attributes so HTMX replaces specific DOM elements without full page re-render.
+`#conn-error` is the other error region and it says something else: the
+dashboard has lost the server. It is raised by `htmx:error` when the request got
+no answer at all, and by a dropped stream (`htmx:sse:error`); the next answer of
+either kind clears it. htmx 4 has one error event for a failed fetch, a timeout
+and a swap that threw, so the ctx carrying no response is what separates "the
+server is gone" from "the server said no".
 
-| SSE Event Name | Frequency | Content | DOM Targets |
-|----------------|-----------|---------|-------------|
-| tick | Every 1s | Header bar (elapsed, gauges) | #header |
-| stats | Per event batch (debounced 200ms) | Summary cards, property badges | #sidebar-stats |
-| peer-update | Per peer state change | Single updated table row | #peer-row-{id} |
-| event | Per event (throttled to 10/s max) | New event row for feed | #event-feed (prepend) |
-| convergence | Every 2s | Histogram bucket data | #convergence-chart |
-| property | On property status change | Updated property badge | #prop-{name} |
+### SSE Messages
+
+The stream sends UNNAMED messages, one HTML fragment each. htmx 4 swaps an
+unnamed message and dispatches a named one as a DOM event that swaps nothing, so
+a name here would freeze every panel. The page opens the stream once, on the
+layout div (`hx-sse:connect="/events"`, `writeLayout` in `render.go`), and an
+unnamed message swaps into the element that opened it. Every fragment therefore
+names its own target with `hx-swap-oob`, and the layout keeps its content: htmx
+skips the main swap when a response carries an out-of-band element.
+
+| Fragment | Producer | Frequency | Lands |
+|----------|----------|-----------|-------|
+| toast | `renderToast` | per queued toast | appended to `#toast-container`, inside a wrapper the swap discards |
+| stats card | `renderStats(streamPanel)` | per dirty batch (debounced 200ms) | replaces `#stats` |
+| recent events | `renderRecentEvents(streamPanel)` | per dirty batch | replaces `#events` |
+| convergence histogram | `renderConvergence` | every 2s | replaces `#viz-convergence` |
+| convergence trend | `renderConvergenceTrend` | every 2s | replaces `#viz-convergence-trend` |
+| peer row | `renderPeerRow` | per dirty peer in the active set | replaces `#peer-{idx}` |
+| peer row insert | `renderPeerRowInsert` | per promoted peer | appended to `#peer-tbody` |
+| peer removal | `renderPeerRemoval` | per decayed peer | deletes `#peer-{idx}` |
+
+A row fragment is one `<tr>` and nothing else. The HTML parser drops a `tr` that
+follows a non-table element, so a payload that gains a prefix stops removing or
+updating its row, and it reports nothing.
+
+`#stats` and `#events` also carry `hx-get` with `hx-trigger="every 500ms"`, so
+each keeps updating with the stream dead. A test that asserts on either proves
+nothing about streaming; `#toast-container` is the target no request fills.
+<!-- source: internal/chaos/web/dashboard.go -- broadcastDirty, renderStats, renderRecentEvents -->
+
+### The Freeze Control
+
+The Freeze checkbox holds a panel still so an operator can read or copy it. It
+owns the viz panels alone: the sidebar counters, the sidebar event feed, the
+active-set summary, the peer grid and the stream keep running while it is on.
+
+htmx 2 expressed that with a condition inside the trigger, `every 500ms
+[!window._frozen]`. htmx 4 has no trigger filter: it parses the interval and
+ignores the rest, so that spelling polls forever and the box changes nothing.
+Each owned panel therefore carries `data-freeze-poll` (`freezePoll`,
+`render.go`), and the layout's last listener cancels `htmx:before:request` for a
+marked element when the request came from the poll, which htmx 4 reports as
+`ctx.sourceEvent.type === "every"`. The event is cancelable and returns before
+the fetch.
+
+`TestFreezeStopsThePollsItOwns` (`render_test.go`) reads every captured response
+and fails on a poll that carries neither the marker nor a row in
+`chaosFreezeLeavesAlone`, so a new panel is a decision somebody makes rather
+than a default it inherits.
+<!-- source: internal/chaos/web/render.go -- freezePoll, writeLayout -->
 
 ### Debouncing Strategy
 
@@ -396,16 +448,16 @@ This gives ~5 SSE updates/second -- smooth visual updates without overload.
 
 | Asset | Source | Embedded Path | Approximate Size |
 |-------|--------|---------------|------------------|
-| htmx.min.js | htmx.org release (pinned version) | web/assets/htmx.min.js | ~14KB gzip |
-| htmx SSE extension | htmx-ext-sse | web/assets/sse.js | ~3KB |
+| htmx.min.js | htmx.org release (pinned version) | web/assets/htmx.min.js | ~11KB brotli |
+| htmx SSE extension | htmx.org, `dist/ext/` | web/assets/hx-sse.min.js | ~2KB brotli |
 | style.css | Custom (this project) | web/assets/style.css | ~5KB |
 | HTML templates | Go templates (this project) | web/templates/*.html | ~10KB total |
 
 All files are vendored into `internal/chaos/web/` and embedded via `go:embed` directives. The binary is self-contained — no CDN, no internet, works in air-gapped lab environments.
 
-Served at `/assets/htmx.min.js`, `/assets/sse.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
+Served at `/assets/htmx.min.js`, `/assets/hx-sse.min.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
 
-The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `scripts/codegen/web_assets.go` derives from the attributes this package renders and writes into `page_assets.go`. `make ze-web-assets-check` refuses a set that disagrees with the markup. `internal/chaos/web/assets/` also holds `htmx4.min.js` and `hx-sse.min.js`, which the vendor sync copies and no page loads.
+The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `scripts/codegen/web_assets.go` derives from the attributes this package renders and writes into `page_assets.go`. `make ze-web-assets-check` refuses a set that disagrees with the markup. The dashboard streams, so its set names both files.
 <!-- source: internal/chaos/web/render.go -- writeLayout, the head block -->
 <!-- source: internal/chaos/web/page_assets.go -- pageAssets, generated -->
 

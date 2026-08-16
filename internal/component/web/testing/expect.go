@@ -276,15 +276,36 @@ func checkBreadcrumb(b *Browser, e *WBExpectation) error {
 	return nil
 }
 
+// checkURL judges the ADDRESS BAR. It read the accessibility snapshot until
+// 2026-08-15, which never carries the address, so `expect=url:contains=` could
+// only ever fail. No .wb used it, so nothing was red and nothing was proven:
+// a history assertion needs the one page property that a swap does not change.
+//
+// The positive form polls, because a push lands with the swap it belongs to.
 func checkURL(b *Browser, e *WBExpectation) error {
-	snap, err := b.Snapshot()
-	if err != nil {
-		return fmt.Errorf("snapshot: %w", err)
+	if sub, ok := e.Values["contains"]; ok {
+		if err := retryPositive(func() error {
+			current, urlErr := b.getURL()
+			if urlErr != nil {
+				return fmt.Errorf("url: %w", urlErr)
+			}
+			if !strings.Contains(current, sub) {
+				return fmt.Errorf("the address %q does not contain %q", current, sub)
+			}
+
+			return nil
+		}); err != nil {
+			return err
+		}
 	}
 
-	if sub, ok := e.Values["contains"]; ok {
-		if !strings.Contains(snap, sub) {
-			return fmt.Errorf("URL does not contain %q", sub)
+	if sub, ok := e.Values["not-contains"]; ok {
+		current, urlErr := retryFetch(b.getURL)
+		if urlErr != nil {
+			return fmt.Errorf("url: %w", urlErr)
+		}
+		if strings.Contains(current, sub) {
+			return fmt.Errorf("the address %q unexpectedly contains %q", current, sub)
 		}
 	}
 

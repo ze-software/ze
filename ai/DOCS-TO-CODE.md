@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3315 files
+Total: 263 design docs, 3334 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -260,9 +260,12 @@ Total: 262 design docs, 3315 files
 | `internal/component/bgp/filterapi/filterapi.go` | BGP route filter pipeline |
 | `internal/component/bgp/filterapi/filterapi_test.go` | BGP route filter pipeline |
 | `internal/component/bgp/filterapi/metrics.go` | BGP route filter pipeline |
+| `internal/component/bgp/reactor/delivery_graph.go` | peer-to-process delivery edges |
 | `internal/component/bgp/reactor/egress_inject_filter.go` | egress filter for originated routes |
 | `internal/component/bgp/reactor/filter_ordered.go` | unified BGP route filter pipeline |
 | `internal/component/bgp/reactor/peer_stats.go` | peer statistics for operational commands |
+| `internal/component/bgp/reactor/send_permission.go` | the send half of an attach block |
+| `internal/component/bgp/reactor/send_permission_rails_test.go` | the send half of an attach block |
 | `internal/component/gnmi/capabilities.go` | gNMI Capabilities RPC |
 | `internal/component/gnmi/errors.go` | gNMI error definitions |
 | `internal/component/gnmi/get.go` | gNMI Get RPC |
@@ -275,6 +278,9 @@ Total: 262 design docs, 3315 files
 | `internal/component/gnmi/subscribe.go` | gNMI Subscribe RPC |
 | `internal/component/plugin/all/gen.go` | plugin auto-registration |
 | `internal/component/plugin/registry/registry.go` | plugin registry |
+| `internal/component/plugin/sender.go` | who issued a command |
+| `internal/component/plugin/server/delivery_graph.go` | peer-to-process delivery edges |
+| `internal/component/plugin/server/delivery_reconcile.go` | the two halves of one edge |
 
 ## `docs/architecture/api/commands.md`
 
@@ -491,6 +497,7 @@ Total: 262 design docs, 3315 files
 | `internal/core/bgp/ribevents/ribevents.go` | BGP-RIB event types |
 | `internal/core/events/events.go` | event bus namespace and type registry |
 | `internal/core/events/ids.go` | typed event IDs for hot-path matching |
+| `internal/core/events/token.go` | event types and direction in config |
 | `internal/core/events/typed.go` | typed event handles |
 | `internal/core/iface/events/events.go` | interface event types |
 | `internal/core/rib/routetype/routetype.go` | the FIB forwarding action |
@@ -811,6 +818,8 @@ Total: 262 design docs, 3315 files
 | `internal/chaos/web/dashboard.go` | web dashboard UI |
 | `internal/chaos/web/handlers.go` | web dashboard UI |
 | `internal/chaos/web/render.go` | web dashboard UI |
+| `internal/chaos/web/render_test.go` | the Freeze control |
+| `internal/chaos/web/route_mux.go` | web dashboard UI |
 | `internal/chaos/web/sse.go` | web dashboard UI |
 | `internal/chaos/web/state.go` | web dashboard UI |
 | `internal/chaos/web/state_activeset.go` | active set peer visibility |
@@ -980,6 +989,7 @@ Total: 262 design docs, 3315 files
 | `internal/component/config/diff.go` | config parsing and loading |
 | `internal/component/config/environment.go` | config parsing and loading |
 | `internal/component/config/environment_extract.go` | environment extraction from config tree |
+| `internal/component/config/flatten.go` | config parsing and loading |
 | `internal/component/config/graph.go` | config dependency graph for agent impact analysis |
 | `internal/component/config/infra/authz.go` | daemon-startup authorization extraction |
 | `internal/component/config/infra/ssh.go` | daemon-startup SSH config extraction |
@@ -1004,6 +1014,7 @@ Total: 262 design docs, 3315 files
 | `internal/component/config/prune.go` | inactive node pruning |
 | `internal/component/config/reader.go` | config parsing and loading |
 | `internal/component/config/required.go` | ze:required enforcement |
+| `internal/component/config/retired.go` | config parsing and loading |
 | `internal/component/config/schema.go` | config parsing and loading |
 | `internal/component/config/schema_defaults.go` | YANG schema default application |
 | `internal/component/config/secret/secret.go` | sensitive value encoding |
@@ -2113,6 +2124,7 @@ Total: 262 design docs, 3315 files
 |------|-------|
 | `internal/component/ike/eap/eap.go` | EAP framework and method dispatch |
 | `internal/component/ike/eap/eap_mschapv2.go` | EAP-MSCHAPv2 method handler |
+| `internal/component/ike/eap/eap_mschapv2_empty_response_test.go` | EAP-MSCHAPv2 handler tests |
 | `internal/component/ike/eap/eap_mschapv2_test.go` | EAP-MSCHAPv2 handler tests |
 | `internal/component/ike/eap/eap_test.go` | EAP framework tests |
 | `internal/component/ike/eap/eap_tls.go` | EAP-TLS method handler |
@@ -3398,6 +3410,7 @@ Total: 262 design docs, 3315 files
 | `internal/test/peer/message_eor_test.go` | BGP message types and wire helpers |
 | `internal/test/peer/peer.go` | test BGP peer |
 | `internal/test/peer/peer_connmap.go` | connection mapping |
+| `internal/test/peer/reject.go` | the reject=bgp: directive |
 | `internal/test/runner/accept_only.go` | accept-only (weak) .ci predicate and annotation marker |
 | `internal/test/runner/await_stderr.go` | await=stderr deterministic fence |
 | `internal/test/runner/base.go` | test runner framework |
@@ -3413,6 +3426,7 @@ Total: 262 design docs, 3315 files
 | `internal/test/runner/engine_steps.go` | engine-step directives |
 | `internal/test/runner/json.go` | test runner framework |
 | `internal/test/runner/limits.go` | test runner framework |
+| `internal/test/runner/loopback.go` | loopback addresses a test needs |
 | `internal/test/runner/loopback_darwin.go` | multi-peer loopback alias setup |
 | `internal/test/runner/loopback_linux.go` | multi-peer loopback alias setup |
 | `internal/test/runner/loopback_test.go` | multi-peer loopback alias tests |
@@ -3449,6 +3463,7 @@ Total: 262 design docs, 3315 files
 | `internal/core/hostload/hostload_darwin.go` | host load detection for contended-run classification |
 | `internal/core/hostload/hostload_linux.go` | host load detection for contended-run classification |
 | `internal/core/hostload/hostload_other.go` | host load detection for contended-run classification |
+| `internal/test/cli/cmd_lg.go` | .wb server kinds |
 | `internal/test/runner/hostload.go` | host load detection for contended-run classification |
 
 ## `docs/architecture/testing/test-health.md`
@@ -3641,6 +3656,7 @@ Total: 262 design docs, 3315 files
 | `internal/component/web/workbench_sections.go` | Workbench left navigation |
 | `internal/component/web/workbench_table.go` | Workbench table component |
 | `internal/test/markupcheck/assets.go` | markup lives in .templ, never in Go |
+| `internal/test/markupcheck/head.go` | markup lives in .templ, never in Go |
 | `internal/test/markupcheck/inline.go` | markup lives in .templ, never in Go |
 | `internal/test/markupcheck/markupcheck.go` | markup lives in .templ, never in Go |
 
@@ -3669,6 +3685,7 @@ Total: 262 design docs, 3315 files
 | `internal/component/web/decorator_community.go` | well-known BGP community name resolution |
 | `internal/component/web/decorator_reverse_dns.go` | reverse DNS (PTR) name resolution |
 | `internal/component/web/editor.go` | Per-user editor management |
+| `internal/component/web/error_fragment.go` | the error answer a refused htmx |
 | `internal/component/web/field_input.go` | Template rendering |
 | `internal/component/web/handler.go` | URL routing and content negotiation |
 | `internal/component/web/handler_admin.go` | Admin command handlers |
@@ -3693,6 +3710,7 @@ Total: 262 design docs, 3315 files
 | `internal/component/web/view.go` | Template rendering |
 | `internal/component/web/view_config.go` | Template rendering |
 | `internal/component/web/workbench_enrich.go` | workbench data enrichment |
+| `internal/core/errorfragment/errorfragment.go` | the error answer a refused htmx |
 | `internal/core/selfcert/selfcert.go` | self-signed TLS certificate helpers |
 | `internal/graph/graph.go` | shared AS path topology graph data model |
 | `internal/graph/layout.go` | parameterized layered graph layout |
@@ -3723,6 +3741,10 @@ Total: 262 design docs, 3315 files
 | `internal/component/web/page_workbench_generic.go` | generic system/service workbench dispatch |
 | `internal/component/web/view_l2tp.go` | L2TP web management UI |
 | `internal/component/web/workbench_pages.go` | Workbench page dispatch |
+
+## `docs/architecture/web/README.md`
+
+- `internal/component/web/handler_history_test.go` -- the finder and what it pushes
 
 ## `docs/architecture/wire/attributes.md`
 

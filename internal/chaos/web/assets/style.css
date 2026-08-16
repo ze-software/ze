@@ -1291,6 +1291,12 @@ span.fm-complete {
 .error-fragment { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); background: #552426; border-left: 3px solid var(--red); color: var(--text-primary); }
 .error-fragment-reason { color: var(--red); font-weight: 700; white-space: nowrap; }
 
+/* Where a refusal lands. The dashboard retargets every 4xx here (writeLayout,
+   render.go), so no control or panel is replaced by the answer to a refused
+   action. It takes no room until it holds one. */
+.action-error { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 60%; }
+.action-error:empty { display: none; }
+
 /* Toast Notifications */
 .toast-container { position: fixed; top: 8px; right: 8px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
 .toast { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); pointer-events: auto; cursor: pointer; animation: toast-in 0.3s ease-out, toast-out 0.5s ease-in 4.5s forwards; }

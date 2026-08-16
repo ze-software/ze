@@ -1,7 +1,13 @@
 package lg
 
 import (
+	"context"
+	"errors"
+	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // testServer returns a minimal LGServer for unit tests (no decorator).
@@ -12,6 +18,86 @@ func testServer() *LGServer {
 // testServerWithDecorator returns an LGServer with an ASN decorator for testing.
 func testServerWithDecorator(fn ASNDecorator) *LGServer {
 	return &LGServer{decorateASN: fn}
+}
+
+// errTestEngineDown is what the stubbed dispatcher below fails with.
+var errTestEngineDown = errors.New("engine is not answering")
+
+// testServerWithDispatch returns an LGServer whose engine answers as fn says.
+func testServerWithDispatch(fn CommandDispatcher) *LGServer {
+	return &LGServer{dispatch: fn, logger: slogutil.DiscardLogger()}
+}
+
+// TestEngineUnavailableReachesTheBrowser drives the producer of one stream
+// message for both of its answers.
+//
+// VALIDATES: AC-12 -- an engine that cannot answer is reported to a watching
+// operator, in the ONE unnamed message the stream carries. The browser end of
+// the same path is test/web/lg-stream-error.wb, which reads the row out of a
+// real DOM; this pins what the server puts on the wire.
+// PREVENTS: the silent half of the htmx 4 cutover. The reason used to travel as
+// a second NAMED event (`peer-error`) that nothing consumed, and a dispatch
+// error took neither branch: it parses as JSON, so the stream pushed an empty
+// table and said nothing at all.
+func TestEngineUnavailableReachesTheBrowser(t *testing.T) {
+	t.Parallel()
+
+	t.Run("dispatch fails", func(t *testing.T) {
+		t.Parallel()
+
+		srv := testServerWithDispatch(func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+			return nil, errTestEngineDown
+		})
+
+		body, err := srv.peerStreamBody()
+		if err != nil {
+			t.Fatalf("peerStreamBody: %v", err)
+		}
+
+		if !strings.Contains(body, `class="stream-error"`) {
+			t.Errorf("body carries no error row: %s", body)
+		}
+
+		if !strings.Contains(body, errTestEngineDown.Error()) {
+			t.Errorf("body does not name the reason %q: %s", errTestEngineDown, body)
+		}
+
+		var out strings.Builder
+		if writeErr := writeStreamMessage(&out, body); writeErr != nil {
+			t.Fatalf("writeStreamMessage: %v", writeErr)
+		}
+
+		// An event NAME is the failure this test exists for: htmx 4 dispatches
+		// a named message as a DOM event and swaps nothing.
+		if strings.Contains(out.String(), "event:") {
+			t.Errorf("the message carries an event name: %q", out.String())
+		}
+
+		if !strings.HasPrefix(out.String(), "data: ") || !strings.HasSuffix(out.String(), "\n\n") {
+			t.Errorf("the message is not one framed SSE message: %q", out.String())
+		}
+	})
+
+	t.Run("engine answers", func(t *testing.T) {
+		t.Parallel()
+
+		srv := testServerWithDispatch(func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"summary":{"peers":[{"address":"192.0.2.1","state":"established"}]}}`)), nil
+		})
+
+		body, err := srv.peerStreamBody()
+		if err != nil {
+			t.Fatalf("peerStreamBody: %v", err)
+		}
+
+		if strings.Contains(body, `class="stream-error"`) {
+			t.Errorf("a healthy engine produced an error row: %s", body)
+		}
+
+		if !strings.Contains(body, "192.0.2.1") {
+			t.Errorf("body carries no peer row: %s", body)
+		}
+	})
 }
 
 func TestExtractPeers(t *testing.T) {

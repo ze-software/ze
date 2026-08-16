@@ -47,9 +47,9 @@ func TestHandleIndex(t *testing.T) {
 	for _, want := range []string{
 		"<!DOCTYPE html>",
 		"htmx.min.js",
-		"sse.js",
+		"hx-sse.min.js",
 		"style.css",
-		"sse-connect=\"/events\"",
+		"hx-sse:connect=\"/events\"",
 		"Ze Chaos",
 		"peer-tbody",
 	} {
@@ -932,25 +932,35 @@ func TestProcessEventIntegration(t *testing.T) {
 	if row == "" {
 		t.Error("renderPeerRow returned empty for active peer")
 	}
-	stats := d.renderStats()
+	stats := d.renderStats(streamPanel)
 	if stats == "" {
 		t.Error("renderStats returned empty")
 	}
-	// Stats must preserve SSE attributes for future updates.
-	if !strings.Contains(stats, `sse-swap="stats"`) {
-		t.Error("renderStats must preserve sse-swap attribute")
+	// A broadcast panel names its own target: the stream swaps into the layout
+	// element that opened it, so a panel without this lands nowhere.
+	if !strings.Contains(stats, `hx-swap-oob="outerHTML"`) {
+		t.Error("renderStats(streamPanel) must name itself out of band")
+	}
+	if strings.Contains(stats, "sse-swap") {
+		t.Error("renderStats must not carry sse-swap: htmx 4 reads it nowhere")
+	}
+	if strings.Contains(d.renderStats(pagePanel), "hx-swap-oob") {
+		t.Error("renderStats(pagePanel) answers the poll and must swap in place")
 	}
 	if !strings.Contains(stats, `hx-swap="outerHTML"`) {
 		t.Error("renderStats must preserve hx-swap attribute")
 	}
 
-	// Recent events rendering must include SSE attributes.
-	eventsHTML := d.renderRecentEvents()
+	// Recent events rendering must carry the same marker.
+	eventsHTML := d.renderRecentEvents(streamPanel)
 	if eventsHTML == "" {
 		t.Error("renderRecentEvents returned empty")
 	}
-	if !strings.Contains(eventsHTML, `sse-swap="events"`) {
-		t.Error("renderRecentEvents must preserve sse-swap attribute")
+	if !strings.Contains(eventsHTML, `hx-swap-oob="outerHTML"`) {
+		t.Error("renderRecentEvents(streamPanel) must name itself out of band")
+	}
+	if strings.Contains(d.renderRecentEvents(pagePanel), "hx-swap-oob") {
+		t.Error("renderRecentEvents(pagePanel) answers the poll and must swap in place")
 	}
 }
 
@@ -997,19 +1007,34 @@ func TestWebDashboardClose(t *testing.T) {
 	}
 }
 
-// TestEmbeddedAssets verifies that the go:embed directive includes all
-// required static assets and that they are non-empty.
+// TestEmbeddedAssets requires every asset the dashboard's generated set names
+// to be embedded and non-empty.
 //
-// VALIDATES: htmx.min.js, sse.js, and style.css are embedded and non-empty.
-// PREVENTS: Missing or empty assets causing a broken dashboard UI.
+// The set is read, not repeated. page_assets.go is derived from the markup
+// (scripts/codegen/web_assets.go), so a vendored file that is renamed moves the
+// set, and a consumer copy the sync never wrote fails here.
+//
+// VALIDATES: every asset path the dashboard's head renders resolves in the
+// embedded filesystem, and the stylesheet the layout links does too.
+// PREVENTS: a script tag that 404s. The server reports success and the page
+// renders, so only the browser sees that nothing works.
 func TestEmbeddedAssets(t *testing.T) {
 	t.Parallel()
 
-	assets := []string{
-		"assets/htmx.min.js",
-		"assets/sse.js",
-		"assets/style.css",
+	// The stylesheet is named here rather than derived: the generator reads
+	// htmx attributes, and no attribute names a stylesheet.
+	assets := []string{"assets/style.css"}
+	for _, url := range everyAsset {
+		assets = append(assets, strings.TrimPrefix(url, "/"))
 	}
+
+	// Two vendored files and the stylesheet on 2026-08-15. A shorter list is
+	// the generated set having emptied, and every assertion below it would pass
+	// over nothing.
+	if len(assets) < 3 {
+		t.Fatalf("the generated set names %d assets, so this check reads almost nothing", len(everyAsset))
+	}
+
 	for _, path := range assets {
 		data, err := assetsFS.ReadFile(path)
 		if err != nil {
@@ -1423,7 +1448,10 @@ func TestSidebarStatsIncludesDonut(t *testing.T) {
 
 // TestLayoutIncludesToastContainer verifies the layout has a toast container.
 //
-// VALIDATES: AC-8 — full page load includes toast container with sse-swap.
+// VALIDATES: AC-8 — full page load includes the toast container, and the toast
+//
+//	fragment the stream sends names that container.
+//
 // PREVENTS: Toasts having nowhere to appear.
 func TestLayoutIncludesToastContainer(t *testing.T) {
 	t.Parallel()
@@ -1438,8 +1466,13 @@ func TestLayoutIncludesToastContainer(t *testing.T) {
 	if !strings.Contains(html, `id="toast-container"`) {
 		t.Error("layout missing toast container")
 	}
-	if !strings.Contains(html, `sse-swap="toast"`) {
-		t.Error("toast container missing sse-swap attribute")
+	if strings.Contains(html, "sse-swap") {
+		t.Error("layout must not carry sse-swap: htmx 4 reads it nowhere")
+	}
+
+	toast := chaosGoldenToast(d)
+	if !strings.Contains(toast, `hx-swap-oob="beforeend:#toast-container"`) {
+		t.Errorf("toast fragment must append itself to the container, got %s", toast)
 	}
 }
 

@@ -18,21 +18,23 @@ func (d *Dashboard) handleVizConvergenceTrend(w http.ResponseWriter, _ *http.Req
 	defer d.state.RUnlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeConvergenceTrend(w, d.state.ConvergenceTrend)
+	writeConvergenceTrend(w, d.state.ConvergenceTrend, pagePanel)
 }
 
 // renderConvergenceTrend returns the convergence trend HTML fragment for SSE.
 func (d *Dashboard) renderConvergenceTrend() string {
 	var b strings.Builder
-	writeConvergenceTrend(&b, d.state.ConvergenceTrend)
+	writeConvergenceTrend(&b, d.state.ConvergenceTrend, streamPanel)
 	return b.String()
 }
 
-// writeConvergenceTrend renders the rolling percentile chart as CSS-only horizontal bars.
-func writeConvergenceTrend(w io.Writer, rb *RingBuffer[time.Duration]) {
+// writeConvergenceTrend renders the rolling percentile chart as CSS-only
+// horizontal bars. Pass streamPanel when the fragment is broadcast, so it names
+// itself out of band, and pagePanel when it is rendered in place.
+func writeConvergenceTrend(w io.Writer, rb *RingBuffer[time.Duration], oob string) {
 	h := &htmlWriter{w: w}
 
-	h.write(`<div class="viz-panel" id="viz-convergence-trend" sse-swap="convergence-trend" hx-swap="outerHTML">
+	h.write(`<div class="viz-panel" id="viz-convergence-trend"` + oob + ` hx-swap="outerHTML">
 <h3>Convergence Trend</h3>`)
 
 	p := ComputeConvergencePercentiles(rb)

@@ -46,9 +46,28 @@ const (
 // the markup each page reaches (scripts/codegen/web_assets.go, page_assets.go).
 const lgPortPageAssets = "the head loads what this page needs, and this page opens no SSE stream"
 
+// The seven below are the htmx 4 cutover (spec-web-htmx4-cutover). htmx 2 is
+// deleted from the tree, so the peers page subscribes to its stream the way
+// htmx 4 spells it and loads the extension htmx 4 publishes.
+const (
+	// lgPortSSEAttribute covers the peers table body itself. htmx 4 removed
+	// hx-ext -- an extension is global once its script loads -- and its SSE
+	// extension reads hx-sse:connect.
+	lgPortSSEAttribute = "the peers tbody names hx-sse:connect, and hx-ext went with htmx 2"
+	// lgPortSSEAsset covers every page whose head loads the extension. htmx 4
+	// ships it inside the core npm package as hx-sse.min.js, where htmx 2
+	// published htmx-ext-sse separately as sse.js.
+	lgPortSSEAsset = "the head loads hx-sse.min.js, which is htmx 4's SSE extension"
+)
+
 var lgPortTemplates = map[string]string{
-	"layout--peers.html":  lgPortGraphScript,
+	"layout--peers.html":  lgPortGraphScript + ", " + lgPortSSEAsset,
 	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
+
+	"peers--empty.html":         lgPortSSEAttribute,
+	"peers--full.html":          lgPortSSEAttribute,
+	"peers_content--empty.html": lgPortSSEAttribute,
+	"peers_content--full.html":  lgPortSSEAttribute,
 
 	"route_results--routes.html": lgPortGraphHandler,
 	"search--filled.html":        lgPortGraphHandler,
@@ -59,10 +78,10 @@ var lgPortHandlers = map[string]string{
 	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 
-	"gated-peers-authorized.txt": lgPortGraphScript,
+	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
 	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets,
 	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
-	"ui-peers.txt":               lgPortGraphScript,
+	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
 	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
 }
 

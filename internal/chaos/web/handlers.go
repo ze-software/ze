@@ -382,7 +382,7 @@ func (d *Dashboard) handleSidebarStats(w http.ResponseWriter, _ *http.Request) {
 	defer d.state.RUnlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := io.WriteString(w, d.renderStats()); err != nil {
+	if _, err := io.WriteString(w, d.renderStats(pagePanel)); err != nil {
 		d.logger.Debug("write sidebar stats", "error", err)
 	}
 }
@@ -435,7 +435,7 @@ func (d *Dashboard) handleSidebarEvents(w http.ResponseWriter, _ *http.Request) 
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h := &htmlWriter{w: w}
-	h.write(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+	h.write(`<div id="events" class="event-list" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 	writeRecentEvents(w, d.state)
 	h.write(`</div>`)
 }

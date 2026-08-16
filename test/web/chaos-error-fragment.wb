@@ -1,0 +1,46 @@
+# Test: the chaos dashboard shows what a refused action said
+# VALIDATES: AC-5 -- a 4xx carrying an error fragment reaches the operator on
+#            the chaos dashboard, and replaces neither the control that was
+#            clicked nor the panel beside it
+# PREVENTS: the cutover breaking this interface where nobody was looking. htmx 2
+#           swapped no 4xx, so the dashboard's error fragments have never run in
+#           a browser. htmx 4 swaps every answer into the target the control
+#           named, and both outcomes were measured on 2026-08-15: with the peer
+#           table on screen the answer replaces #peer-tbody and the table is left
+#           with its header alone; with the table off screen that target resolves
+#           to nothing and the swap falls back to the source element, which
+#           replaces the Add control with the message. writeLayout retargets a
+#           refusal to #action-error, which is what this reads.
+
+option=server:kind=chaos
+option=timeout:value=90s
+
+action=open:path=/
+expect=element:id=toast-container
+expect=element:id=action-error
+
+# PRE-CONDITION. Nothing has been refused, so the assertion below reads a state
+# that changed rather than one that was always true.
+expect=html:not-contains=error-fragment
+
+# POSITIVE CONTROL. The table view is on screen, so both elements a refusal used
+# to destroy are present: #peer-tbody is the target the Add control names, and
+# #promote-id sits beside the control the fallback target replaces.
+action=click:text=Table
+action=wait:ms=1500
+expect=element:id=peer-tbody
+expect=element:id=promote-id
+
+# The Track field is empty, so /peers/promote reads no peer id and answers 400.
+action=click:text=Add
+action=wait:ms=2000
+
+# The message reached the operator. The NESTING is the assertion: a fragment
+# htmx swapped anywhere else still carries these words, and where it lands is
+# what decides whether the operator reads it.
+expect=html:contains=<div id="action-error" class="action-error"><div class="error-fragment"
+expect=html:contains=invalid peer id
+
+# And nothing the operator was using was replaced by the answer.
+expect=element:id=peer-tbody
+expect=element:id=promote-id

@@ -3,8 +3,9 @@
 // Related: auth.go -- serverHandler, the chain under test. It wraps the mux with
 // errorfragment.Middleware (internal/core/errorfragment), which is the producer
 // these cases drive from this package's entry point
-// Related: assets/notification.js -- handleResponseError, the browser side that
-// surfaces a failed action today
+// Related: assets/notification.js -- handleResponseError and handleRequestError,
+// the browser side that surfaces a failed action: one for an answer the daemon
+// refused, one for htmx 4's merged error event
 
 package web
 
@@ -318,6 +319,38 @@ func TestErrorFragmentAndNotificationAgree(t *testing.T) {
 		assert.True(t, markupHasClass(markup, match[1]),
 			"notification.js reads .%s and the error fragment does not carry it", match[1])
 	}
+}
+
+// VALIDATES: AC-5 -- notification.js answers htmx 4's ONE error event and tells
+// its causes apart, so a refusal raises one toast and a request that reached
+// nobody raises one too.
+// PREVENTS: two toasts for one refusal, and silence when the daemon is
+// unreachable. htmx 4 folds htmx 2's sendError into htmx:error, which also fires
+// when a swap throws and when a timeout aborts a request: the handler that
+// meant "the request never left" now answers three causes it never saw, and the
+// ctx is what separates them. A ctx with a response of 400 or more has already
+// been reported by handleResponseError.
+//
+// No browser runs in this package (TestErrorDrawerWiringHoldsTogether says
+// why). The same discrimination is proven in one on the chaos dashboard, whose
+// listeners read the same two fields: test/web/chaos-error-fragment.wb.
+func TestMergedErrorEventIsToldApart(t *testing.T) {
+	script, err := os.ReadFile(filepath.Join("assets", "notification.js"))
+	require.NoError(t, err)
+
+	source := string(script)
+
+	assert.Contains(t, source, `addEventListener('htmx:error', handleRequestError)`,
+		"the merged error event must have a listener, or a request that reached nobody says nothing")
+	assert.Contains(t, source, `addEventListener('htmx:response:error', handleResponseError)`,
+		"a refused request must still raise the toast carrying what the handler wrote")
+
+	handler := jsBlock(source, "function handleRequestError(")
+	require.NotEmpty(t, handler, "notification.js must define handleRequestError")
+	assert.Contains(t, handler, "ctx.response",
+		"the merged event must be told apart by what the ctx holds, or a refusal is reported twice")
+	assert.NotContains(t, handler, "xhr",
+		"htmx 4 requests with fetch, so no event it dispatches carries an xhr")
 }
 
 // VALIDATES: a rejected value for a leaf the schema marks secret never reaches

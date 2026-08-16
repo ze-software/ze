@@ -84,6 +84,9 @@ var lgGoldenSpec = golden.Spec{
 			{Name: "full", Data: peersTableBody(lgPeerRows())},
 			{Name: "empty", Data: peersTableBody(nil)},
 		}},
+		{Name: "peersStreamError", Fixture: "peers_stream_error", Variants: []golden.Variant{
+			{Data: peersStreamError("BGP engine unavailable")},
+		}},
 		{Name: "bmpPeersContent", Fixture: "bmp_peers_content", Variants: []golden.Variant{
 			{Data: bmpPeersContent(lgBMPPeerRows())},
 		}},

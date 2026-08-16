@@ -64,11 +64,11 @@ func vendorFixture(t *testing.T, drifted map[string]string) string {
 
 	vendorFixtureFile(t, root, "go.mod", "module example.test/vendorweb\n\ngo 1.26\n")
 	vendorFixtureFile(t, root, "third_party/web/MANIFEST.md",
-		"| File | Package |\n|------|---------|\n| htmx.min.js | htmx.org |\n| sse.js | htmx-ext-sse |\n")
+		"| File | Package |\n|------|---------|\n| htmx.min.js | htmx.org |\n| hx-sse.min.js | htmx.org |\n")
 
 	sources := map[string]string{
-		"htmx.min.js": "// htmx source copy\n",
-		"sse.js":      "// sse source copy\n",
+		"htmx.min.js":   "// htmx source copy\n",
+		"hx-sse.min.js": "// hx-sse source copy\n",
 	}
 
 	consumers := []string{
@@ -169,8 +169,8 @@ var unreachableNetwork = []string{
 // the code did.
 const vendorFixtureVersions = "| Asset | Version | Source |\n" +
 	"|-------|---------|--------|\n" +
-	"| htmx.min.js | 2.0.4 | https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js |\n" +
-	"| sse.js | 2.0.4 (htmx ext) | https://unpkg.com/htmx-ext-sse@2.0.4/sse.js |\n"
+	"| htmx.min.js | 4.0.0-beta6 | https://unpkg.com/htmx.org@4.0.0-beta6/dist/htmx.min.js |\n" +
+	"| hx-sse.min.js | 4.0.0-beta6 (htmx ext) | https://unpkg.com/htmx.org@4.0.0-beta6/dist/ext/hx-sse.min.js |\n"
 
 // vendorVersionedFixture is vendorFixture with a MANIFEST.md that carries a
 // version for every file.
@@ -286,4 +286,113 @@ func TestZeVerifyRunsDriftGate(t *testing.T) {
 	}
 
 	t.Fatalf("`make ze-verify` runs no %s stage; its stages are:\n%s", gate, stages)
+}
+
+// htmx2CoreVersion is the version literal htmx 2 writes into its minified core.
+// htmx 4 writes a bare "4.0.0-beta6" and no version key at all, so this finds
+// htmx 2 whatever file name it wears. A name check would pass over htmx 2
+// wearing htmx 4's name, which is the one file name the cutover keeps.
+const htmx2CoreVersion = `version:"2.`
+
+// htmx2SSEExtension is the file name htmx published its htmx 2 SSE extension
+// under. htmx 4 ships its extensions inside the core npm package and names this
+// one hx-sse.min.js.
+const htmx2SSEExtension = "sse.js"
+
+// htmx4CoreVersion is the version literal the served core carries. It is the
+// control: a tree that held no library at all would satisfy every other
+// assertion here in silence.
+const htmx4CoreVersion = `"4.0.0-beta`
+
+// htmxCoreName is the file name every consumer serves the core under. It did
+// not change at the cutover, so a page's script tag did not either.
+const htmxCoreName = "htmx.min.js"
+
+// htmxCoreFloor is the least number of core copies the tree holds: the
+// third_party/web source and one per consumer that embeds it. Four on
+// 2026-08-15.
+const htmxCoreFloor = 4
+
+// htmxAssetDirs returns every directory that can hold a vendored web asset: the
+// source of truth and every consumer's assets directory. The consumers are
+// walked rather than listed, so a fourth one is read the day it appears.
+func htmxAssetDirs(t *testing.T, root string) []string {
+	t.Helper()
+
+	dirs := []string{filepath.Join(root, "third_party", "web", "htmx")}
+
+	err := filepath.WalkDir(filepath.Join(root, "internal"), func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if d.IsDir() && d.Name() == "assets" {
+			dirs = append(dirs, path)
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk internal/ for consumer asset directories: %v", err)
+	}
+
+	return dirs
+}
+
+// VALIDATES: AC-2 -- htmx 2's core and its SSE extension are absent from
+// third_party/web/ and from every consumer, and htmx 4 stands in their place.
+// PREVENTS: the two versions coexisting (ai/rules/no-layering.md). That is the
+// state where a page silently loads the wrong one: both files answer, both
+// pages render, and only the browser knows which library ran.
+func TestHtmx2IsGone(t *testing.T) {
+	root := vendorRepoRoot(t)
+
+	cores := 0
+
+	for _, dir := range htmxAssetDirs(t, root) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("read %s: %v", dir, err)
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+
+			path := filepath.Join(dir, entry.Name())
+
+			if entry.Name() == htmx2SSEExtension {
+				t.Errorf("%s is htmx 2's SSE extension, and htmx 4 publishes hx-sse.min.js", path)
+			}
+
+			if !strings.HasSuffix(entry.Name(), ".js") {
+				continue
+			}
+
+			body, err := os.ReadFile(path) //nolint:gosec // the path comes from a walk of this repository
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+
+			if strings.Contains(string(body), htmx2CoreVersion) {
+				t.Errorf("%s carries htmx 2's version literal, whatever its file name says", path)
+			}
+
+			if entry.Name() != htmxCoreName {
+				continue
+			}
+
+			cores++
+
+			if !strings.Contains(string(body), htmx4CoreVersion) {
+				t.Errorf("%s is the served core and carries no htmx 4 version literal", path)
+			}
+		}
+	}
+
+	if cores < htmxCoreFloor {
+		t.Errorf("the walk read %d copies of %s, want at least %d; it has stopped reading the tree",
+			cores, htmxCoreName, htmxCoreFloor)
+	}
 }

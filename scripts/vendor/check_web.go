@@ -124,9 +124,11 @@ func checkUpdates(root string) error {
 	fmt.Fprintln(os.Stdout, "checking vendored web assets against npm registry...")
 	fmt.Fprintln(os.Stdout)
 
+	// One row covers both htmx files. htmx 4 publishes its extensions inside
+	// the core npm package, where htmx 2 published htmx-ext-sse beside it, so
+	// hx-sse.min.js carries the version htmx.min.js does.
 	pkgs := []pkgVersion{
 		{pkg: "htmx.org", current: extractVersionFromManifest(manifest, "htmx.min.js")},
-		{pkg: "htmx-ext-sse", current: extractVersionFromManifest(manifest, "sse.js")},
 	}
 	for _, p := range pkgs {
 		checkVersion(p)

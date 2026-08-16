@@ -7,6 +7,7 @@ package lg
 import (
 	"compress/gzip"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sort"
@@ -532,7 +533,13 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 	s.renderFragment(w, routeDetail(v))
 }
 
-// handleUIEvents serves SSE events for live peer state updates.
+// handleUIEvents serves the peer table body as a stream of UNNAMED SSE
+// messages for live peer state updates.
+//
+// htmx 4 swaps an unnamed message into the element carrying hx-sse:connect and
+// dispatches a NAMED one as a DOM event that swaps nothing, so this stream
+// sends one kind of message: the rows the table body must hold. An engine that
+// cannot answer is reported inside that same body by peerStreamBody.
 func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -571,40 +578,56 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			result := s.query("show bgp summary")
-			zeData := parseJSON(result)
-
-			if zeData == nil {
-				// Engine unavailable; send error event.
-				if _, err := fmt.Fprint(w, "event: peer-error\ndata: engine unavailable\n\n"); err != nil {
-					return
-				}
-				flusher.Flush()
-				continue
-			}
-
 			// A render error skips the tick. An EMPTY body does not: zero
 			// peers is a state the browser must be told about, and the
-			// template returned "" for both until 2026-08-14.
-			html, err := renderToString(peersTableBody(s.extractPeers(zeData)))
+			// template returned "" for both until 2026-08-14. The tbody
+			// carries swapEmpty:true so htmx 4 swaps that empty body.
+			html, err := s.peerStreamBody()
 			if err != nil {
 				s.logger.Warn("SSE: peer table render error", "error", err)
 
 				continue
 			}
 
-			// SSE requires each line prefixed with "data: ".
-			sseData := strings.ReplaceAll(html, "\r\n", "\n")
-			sseData = strings.ReplaceAll(sseData, "\r", "\n")
-			sseData = strings.TrimRight(sseData, "\n")
-			sseData = strings.ReplaceAll(sseData, "\n", "\ndata: ")
-
-			if _, err := fmt.Fprintf(w, "event: peer-update\ndata: %s\n\n", sseData); err != nil { //nolint:errcheck // output
+			if err := writeStreamMessage(w, html); err != nil {
 				return
 			}
 			flusher.Flush()
 		}
 	}
+}
+
+// peerStreamBody renders the table body that one stream message carries: the
+// peer rows, or a single row naming the reason the engine could not answer.
+//
+// engineError is the producer the peers page reads for its banner, so a
+// dispatch failure now reaches a watching operator as well as a reloading one.
+// Until this, only a nil response was reported, it was reported as a named
+// event nothing consumed, and a dispatch error pushed an empty table instead.
+func (s *LGServer) peerStreamBody() (string, error) {
+	zeData := parseJSON(s.query("show bgp summary"))
+
+	if message := engineError(zeData); message != "" {
+		return renderToString(peersStreamError(message))
+	}
+
+	return renderToString(peersTableBody(s.extractPeers(zeData)))
+}
+
+// writeStreamMessage writes one UNNAMED server-sent message. Each line of the
+// payload needs its own "data: " prefix, or the first newline in the fragment
+// ends the message early.
+func writeStreamMessage(w io.Writer, html string) error {
+	data := strings.ReplaceAll(html, "\r\n", "\n")
+	data = strings.ReplaceAll(data, "\r", "\n")
+	data = strings.TrimRight(data, "\n")
+	data = strings.ReplaceAll(data, "\n", "\ndata: ")
+
+	var tb textbuf.Buffer
+
+	_, err := io.WriteString(w, tb.Str("data: ").Str(data).Str("\n\n").String())
+
+	return err
 }
 
 // extractPeers converts Ze peer summary data into template-friendly format

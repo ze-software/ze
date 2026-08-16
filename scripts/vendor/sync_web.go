@@ -29,11 +29,11 @@ type asset struct {
 }
 
 var assets = []asset{
-	{"third_party/web/htmx", "htmx.min.js"},
-	{"third_party/web/htmx", "sse.js"},
-	// htmx 4 and its SSE extension. Vendored and synced, loaded by no page:
+	// htmx 4 and its SSE extension. The core keeps the name every page has
+	// always loaded; the extension is named as htmx 4 publishes it. htmx 2's
+	// core and its separately published sse.js are gone from the tree:
 	// see third_party/web/MANIFEST.md.
-	{"third_party/web/htmx", "htmx4.min.js"},
+	{"third_party/web/htmx", "htmx.min.js"},
 	{"third_party/web/htmx", "hx-sse.min.js"},
 	{"third_party/web/ze", "ze.svg"},
 	{"third_party/web/uplot", "uPlot.min.js"},

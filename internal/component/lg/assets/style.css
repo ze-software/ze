@@ -215,6 +215,9 @@ tbody tr.best-route { background: var(--best-bg); }
 
 /* Error and empty states */
 .error-banner { padding: 0.8rem 1rem; background: var(--error-bg); border: 1px solid var(--error-border); border-radius: 6px; color: var(--error-text); margin-bottom: 1rem; font-weight: 500; }
+/* Engine failure reported by the peer stream. One unnamed message carries the
+   whole table body, so the reason arrives as the body's only row. */
+.stream-error td { background: var(--error-bg); color: var(--error-text); font-weight: 500; text-align: center; }
 /* Refused request. The server answers this fragment (internal/core/errorfragment)
    when a handler refuses an htmx request, and htmx swaps it into the target. */
 .error-fragment { padding: 0.8rem 1rem; background: var(--error-bg); border: 1px solid var(--error-border); border-radius: 6px; color: var(--error-text); margin-bottom: 1rem; display: flex; align-items: baseline; gap: 0.5rem; }

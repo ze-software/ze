@@ -50,7 +50,7 @@ func (d *Dashboard) handleVizConvergence(w http.ResponseWriter, _ *http.Request)
 	defer d.state.RUnlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeConvergenceHistogram(w, d.state.Convergence, d.state.ConvergenceDeadline)
+	writeConvergenceHistogram(w, d.state.Convergence, d.state.ConvergenceDeadline, pagePanel)
 }
 
 // handleVizChaosEvents serves the chaos events table tab content.
@@ -74,7 +74,7 @@ func (d *Dashboard) handleVizChaosTimeline(w http.ResponseWriter, _ *http.Reques
 // writeEventStream renders the event stream feed with optional filtering.
 func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter string) {
 	h := &htmlWriter{w: w}
-	h.write(`<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+	h.write(`<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML"
      hx-include="[name='peer'],[name='type']">
 <div class="viz-header">
   <h3>Event Stream</h3>
@@ -140,10 +140,11 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 }
 
 // writeConvergenceHistogram renders the CSS bar chart for convergence latency.
-// The outer div carries sse-swap so SSE broadcasts can update it live.
-func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline time.Duration) {
+// Pass streamPanel when the fragment is broadcast, so it names itself out of
+// band, and pagePanel when it is rendered in place.
+func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline time.Duration, oob string) {
 	hw := &htmlWriter{w: w}
-	hw.write(`<div class="viz-panel" id="viz-convergence" sse-swap="convergence" hx-swap="outerHTML">
+	hw.write(`<div class="viz-panel" id="viz-convergence"` + oob + ` hx-swap="outerHTML">
 <h3>Convergence Histogram</h3>
 <div class="histogram" style="position:relative">`)
 
@@ -216,7 +217,7 @@ func writeChaosEvents(w io.Writer, s *DashboardState) {
 	h := &htmlWriter{w: w}
 	const maxRows = 200
 
-	h.write(`<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+	h.write(`<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML">
 <h3>Chaos Events</h3>`)
 
 	if len(s.ChaosHistory) == 0 {
@@ -355,7 +356,7 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 		elapsed = time.Second
 	}
 
-	h.write(`<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+	h.write(`<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML">
 <h3>Chaos Timeline</h3>`)
 
 	if len(s.ChaosHistory) == 0 {

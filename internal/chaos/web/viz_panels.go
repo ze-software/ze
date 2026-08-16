@@ -143,7 +143,7 @@ func writePanelSlot(w io.Writer, d *Dashboard, slot int, selections [maxPanels]s
 	h.write(`</select></div>`)
 
 	// Content area with independent HTMX polling.
-	h.writef(`<div class="panel-content" id="viz-panel-content-%s" hx-get="/viz/panel-content?panel=%s&viz=%s" hx-trigger="every %s [!window._frozen]" hx-swap="innerHTML">`,
+	h.writef(`<div class="panel-content" id="viz-panel-content-%s" hx-get="/viz/panel-content?panel=%s&viz=%s" hx-trigger="every %s"`+freezePoll+` hx-swap="innerHTML">`,
 		slotStr, slotStr, selected, interval)
 
 	// Render initial content inline.
@@ -160,7 +160,7 @@ func renderVizToBuffer(w io.Writer, d *Dashboard, vizName string) {
 	case "families":
 		writeFamilyMatrix(w, d.state)
 	case "convergence":
-		writeConvergenceHistogram(w, d.state.Convergence, d.state.ConvergenceDeadline)
+		writeConvergenceHistogram(w, d.state.Convergence, d.state.ConvergenceDeadline, pagePanel)
 	case "peer-timeline":
 		writePeerTimeline(w, d.state, 1, "all")
 	case "events":
@@ -174,7 +174,7 @@ func renderVizToBuffer(w io.Writer, d *Dashboard, vizName string) {
 	case "chaos-events":
 		writeChaosEvents(w, d.state)
 	case "convergence-trend":
-		writeConvergenceTrend(w, d.state.ConvergenceTrend)
+		writeConvergenceTrend(w, d.state.ConvergenceTrend, pagePanel)
 	}
 }
 

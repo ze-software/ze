@@ -10,10 +10,14 @@ import (
 	"time"
 )
 
-// SSEEvent is a server-sent event with a named event type and data payload.
+// SSEEvent is one server-sent message: an HTML fragment and nothing else.
+//
+// The stream carries UNNAMED messages. htmx 4 swaps an unnamed message and
+// dispatches a named one as a DOM event that swaps nothing, so a name here
+// would stop every panel updating. Each fragment says where it goes by carrying
+// hx-swap-oob.
 type SSEEvent struct {
-	Event string // SSE event field (e.g., "peer-update", "tick", "stats")
-	Data  string // SSE data field (HTML fragment or JSON)
+	Data string // SSE data field (HTML fragment)
 }
 
 // sseClient represents a connected SSE client.
@@ -133,24 +137,22 @@ func (b *sSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-client.done:
 			return
 		case ev := <-client.ch:
+			// SSE requires each line of multi-line data to be prefixed with
+			// "data: ". Newlines in HTML fragments would otherwise terminate
+			// the data field prematurely. A blank line ends the message.
 			var err error
-			if ev.Event != "" {
-				_, err = fmt.Fprintf(w, "event: %s\n", ev.Event) //nolint:errcheck // output
+
+			for line := range strings.SplitSeq(ev.Data, "\n") {
+				if err != nil {
+					break
+				}
+				_, err = fmt.Fprintf(w, "data: %s\n", line) //nolint:errcheck // output
 			}
+
 			if err == nil {
-				// SSE requires each line of multi-line data to be
-				// prefixed with "data: ". Newlines in HTML fragments
-				// would otherwise terminate the data field prematurely.
-				for line := range strings.SplitSeq(ev.Data, "\n") {
-					if err != nil {
-						break
-					}
-					_, err = fmt.Fprintf(w, "data: %s\n", line) //nolint:errcheck // output
-				}
-				if err == nil {
-					_, err = fmt.Fprintf(w, "\n") // Blank line terminates the event. //nolint:errcheck // output
-				}
+				_, err = fmt.Fprint(w, "\n") //nolint:errcheck // output
 			}
+
 			if err != nil {
 				return
 			}

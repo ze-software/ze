@@ -276,7 +276,7 @@ and name, plus periodic progress while tests are still running.
 | L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
 | Firewall | `ze-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
 | Policy | `ze-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
-| Web | `ze-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with per-test Ze daemon and isolated `agent-browser --session`. |
+| Web | `ze-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `ze-test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `ze-test lg`), or the chaos dashboard (`ze-chaos`). |
 | Install | `ze-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
 | Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `ze-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |

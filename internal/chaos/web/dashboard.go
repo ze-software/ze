@@ -542,17 +542,17 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 
 	// Broadcast toast notifications.
 	for _, t := range pendingToasts {
-		d.broker.Broadcast(SSEEvent{Event: "toast", Data: renderToast(t)})
+		d.broker.Broadcast(SSEEvent{Data: renderToast(t)})
 	}
 
 	// Broadcast stats and events updates.
 	if dirtyGlobal {
 		d.state.mu.RLock()
-		stats := d.renderStats()
-		events := d.renderRecentEvents()
+		stats := d.renderStats(streamPanel)
+		events := d.renderRecentEvents(streamPanel)
 		d.state.mu.RUnlock()
-		d.broker.Broadcast(SSEEvent{Event: "stats", Data: stats})
-		d.broker.Broadcast(SSEEvent{Event: "events", Data: events})
+		d.broker.Broadcast(SSEEvent{Data: stats})
+		d.broker.Broadcast(SSEEvent{Data: events})
 	}
 
 	// Broadcast convergence histogram and trend (~every 2s).
@@ -561,17 +561,17 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 		convergence := d.renderConvergence()
 		trend := d.renderConvergenceTrend()
 		d.state.mu.RUnlock()
-		d.broker.Broadcast(SSEEvent{Event: "convergence", Data: convergence})
-		d.broker.Broadcast(SSEEvent{Event: "convergence-trend", Data: trend})
+		d.broker.Broadcast(SSEEvent{Data: convergence})
+		d.broker.Broadcast(SSEEvent{Data: trend})
 	}
 
 	// Broadcast new rows for newly promoted peers.
 	// Remove-then-add pattern: delete any stale row, then insert fresh.
 	d.state.mu.RLock()
 	for idx := range promotedPeers {
-		d.broker.Broadcast(SSEEvent{Event: "peer-remove", Data: renderPeerRemoval(idx)})
+		d.broker.Broadcast(SSEEvent{Data: renderPeerRemoval(idx)})
 		row := d.renderPeerRowInsert(idx)
-		d.broker.Broadcast(SSEEvent{Event: "peer-add", Data: row})
+		d.broker.Broadcast(SSEEvent{Data: row})
 	}
 
 	// Broadcast updates for dirty peers already in the active set.
@@ -583,7 +583,7 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 			continue
 		}
 		row := d.renderPeerRow(idx)
-		d.broker.Broadcast(SSEEvent{Event: "peer-update", Data: row})
+		d.broker.Broadcast(SSEEvent{Data: row})
 	}
 	d.state.mu.RUnlock()
 
@@ -598,23 +598,25 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 
 	// Broadcast removals for decayed peers.
 	for _, idx := range removed {
-		d.broker.Broadcast(SSEEvent{
-			Event: "peer-remove",
-			Data:  renderPeerRemoval(idx),
-		})
+		d.broker.Broadcast(SSEEvent{Data: renderPeerRemoval(idx)})
 	}
 }
 
-// renderStats returns a minimal stats HTML fragment for SSE.
-// Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
-func (d *Dashboard) renderStats() string {
+// renderStats returns the stats card content. Pass streamPanel to broadcast it
+// and pagePanel to answer the poll: the two differ only by the out-of-band
+// marker a stream payload needs.
+//
+// The donut is written INSIDE #stats, where the page also holds it. It used to
+// precede the div, so every outerHTML swap left the old donut behind as a
+// sibling and added a new one.
+func (d *Dashboard) renderStats(oob string) string {
 	var b textbuf.Buffer
 	counts := d.state.statusCounts()
+
+	b.Str(`<div id="stats"`).Str(oob).Str(` hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
 	writeDonut(&b, counts, d.state.PeerCount)
 	writeDonutLegend(&b, counts)
 	writeDonutEnd(&b)
-
-	b.Str(`<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
 	b.Str(`<div class="stat-grid">`)
 	b.Str(`<span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>`)
 	b.Str(`<span class="stat-label">Msgs</span><span class="stat-value">`).Str(itoa(d.state.TotalAnnounced)).Str(`</span><span class="stat-value">`).Str(itoa(d.state.TotalReceived)).Str(`</span>`)
@@ -633,20 +635,20 @@ func (d *Dashboard) renderStats() string {
 	return b.String()
 }
 
-// renderConvergence returns the convergence histogram HTML fragment for SSE.
-// writeConvergenceHistogram already includes sse-swap="convergence" on its outer div,
-// so no extra wrapper is needed — SSE outerHTML swap replaces the div in place.
+// renderConvergence returns the convergence histogram fragment the stream
+// broadcasts. Its outer div names itself out of band, so it replaces the panel
+// wherever the panel sits.
 func (d *Dashboard) renderConvergence() string {
 	var b textbuf.Buffer
-	writeConvergenceHistogram(&b, d.state.Convergence, d.state.ConvergenceDeadline)
+	writeConvergenceHistogram(&b, d.state.Convergence, d.state.ConvergenceDeadline, streamPanel)
 	return b.String()
 }
 
-// renderRecentEvents returns the recent events HTML fragment for SSE.
-// Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
-func (d *Dashboard) renderRecentEvents() string {
+// renderRecentEvents returns the recent events card content. Pass streamPanel
+// to broadcast it and pagePanel to answer the poll.
+func (d *Dashboard) renderRecentEvents(oob string) string {
 	var b textbuf.Buffer
-	b.Str(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+	b.Str(`<div id="events" class="event-list"`).Str(oob).Str(` hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 	writeRecentEvents(&b, d.state)
 	b.Str(`</div>`)
 	return b.String()

@@ -182,8 +182,12 @@ unmarshal it back into a `map[string]any` for template rendering.
     (`internal/component/lg/handler_ui.go`) is its own poll-and-render SSE
     loop (not `sseSnapshotStream`): every 5s it re-dispatches `show bgp
     summary`, renders `peersTableBody` to a string (`renderToString`,
-    `internal/component/lg/render.go`), and pushes it as a `peer-update`
-    event with each embedded newline continued as its own `data:` line.
+    `internal/component/lg/render.go`), and pushes it as an UNNAMED message
+    with each embedded newline continued as its own `data:` line. htmx 4 swaps
+    an unnamed message into the `<tbody>` that opened the stream. When the
+    engine cannot answer, `peerStreamBody` sends the reason `engineError`
+    gives, as the body's only row (`peersStreamError`), because one stream
+    carries one kind of message.
 
 ## Key files
 | File | Role |

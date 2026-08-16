@@ -197,3 +197,65 @@ func assertAgentCommands(t *testing.T, logPath string, want []string) {
 		t.Fatalf("agent-browser commands mismatch\nwant:\n%s\ngot:\n%s", wantText, gotText)
 	}
 }
+
+// VALIDATES: every entry agentEnv adds is one NAME=VALUE pair.
+// PREVENTS: two settings in one entry. agentEnv builds three entries from ONE
+// textbuf.Buffer and resets it before the third alone, so the first two rely on
+// String() detaching the buffer it returns. It does (measured here, 2026-08-16:
+// each entry carries one setting), and nothing at the call site says so. A
+// Buffer that kept its bytes would hand the browser
+// AGENT_BROWSER_IDLE_TIMEOUT_MS=<ms>AGENT_BROWSER_INIT_SCRIPTS=<path>, one
+// entry setting neither: the init script would never load, WaitLoad would fall
+// back to networkidle, and waitMs would work around an idle window the browser
+// never received. Nothing else reads these entries back.
+func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
+	for _, name := range []string{
+		"AGENT_BROWSER_IDLE_TIMEOUT_MS",
+		"AGENT_BROWSER_INIT_SCRIPTS",
+		"AGENT_BROWSER_SESSION",
+	} {
+		if _, set := os.LookupEnv(name); set {
+			t.Setenv(name, "")
+			if err := os.Unsetenv(name); err != nil {
+				t.Fatalf("unset %s: %v", name, err)
+			}
+		}
+	}
+
+	browser := NewBrowserWithSession("https://127.0.0.1:1234", "probe-session")
+
+	var added []string
+	for _, entry := range browser.agentEnv() {
+		if strings.HasPrefix(entry, "AGENT_BROWSER_") {
+			added = append(added, entry)
+		}
+	}
+
+	// The init-script entry is the one a concatenation corrupts, so its absence
+	// would make the loop below vacuous.
+	for _, name := range []string{
+		"AGENT_BROWSER_IDLE_TIMEOUT_MS=",
+		"AGENT_BROWSER_INIT_SCRIPTS=",
+		"AGENT_BROWSER_SESSION=",
+	} {
+		if !slices.ContainsFunc(added, func(e string) bool { return strings.HasPrefix(e, name) }) {
+			t.Fatalf("agentEnv set no %s entry; it added %q", name, added)
+		}
+	}
+
+	for _, entry := range added {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok {
+			t.Errorf("entry %q carries no value", entry)
+
+			continue
+		}
+		if strings.Contains(value, "AGENT_BROWSER_") {
+			t.Errorf("entry %q carries a second setting inside the value of %s", entry, name)
+		}
+	}
+
+	if !slices.Contains(added, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000") {
+		t.Errorf("agentEnv must state the idle window waitMs works around; it added %q", added)
+	}
+}

@@ -11,7 +11,7 @@ import (
 // lgComponentCount is the number of templ components the looking glass
 // declares. The check below would pass over an empty set, so it counts what it
 // inspected and fails when the walk finds nothing.
-const lgComponentCount = 15
+const lgComponentCount = 16
 
 // TestLGViewDataIsTyped reads the generated components and requires every
 // parameter to be a type the compiler checks a field name against.

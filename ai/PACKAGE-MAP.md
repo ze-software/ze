@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 628 packages, 625 described, 3 TODO
+Total: 629 packages, 626 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -437,6 +437,7 @@ Total: 628 packages, 625 described, 3 TODO
 | `internal/core/duration` | parses CLI duration strings with explicit unit suffixes into minutes |  |
 | `internal/core/env` | provides centralized environment variable lookup for Ze |  |
 | `internal/core/envcatalog` | assembles the catalog of visible environment configuration keys, expanding per-subsystem log-level entries |  |
+| `internal/core/errorfragment` | answers a refused htmx request with markup the browser can swap into the target the request named |  |
 | `internal/core/events` | defines the event namespace and type constants used by ze's event bus, plus the runtime registry for namespace/event validation |  |
 | `internal/core/family` | defines the BGP address family types (AFI, SAFI, Family) and their registry |  |
 | `internal/core/gokrazyutil` | provides helpers for authenticating to gokrazy's HTTP management interface |  |

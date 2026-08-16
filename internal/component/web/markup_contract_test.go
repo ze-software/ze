@@ -677,7 +677,7 @@ func TestErrorDrawerWiringHoldsTogether(t *testing.T) {
 	require.NotEmpty(t, initPanel, "cli.js must define initErrorPanel")
 	assert.Contains(t, initPanel, `addEventListener('ze-error-update'`,
 		"the event dismiss-error dispatches must have a listener")
-	assert.Contains(t, initPanel, `addEventListener('htmx:oobAfterSwap'`,
+	assert.Contains(t, initPanel, `addEventListener('htmx:after:settle'`,
 		"an incoming error must open the drawer")
 
 	actions := jsBlock(source, "function initActions()")
@@ -732,7 +732,8 @@ const webPackagePrefix = "internal/component/web/"
 // htmxAttributePattern finds one htmx attribute in rendered markup: a
 // whitespace byte, the attribute name, then the equals sign a value follows.
 // Requiring both ends keeps a file name such as sse-client.js out of the match.
-var htmxAttributePattern = regexp.MustCompile(`\s(hx-[a-z-]+|sse-[a-z-]+)=`)
+// htmx 4 names an extension's attributes with a colon, as hx-sse:connect does.
+var htmxAttributePattern = regexp.MustCompile(`\s(hx-[a-z:-]+)=`)
 
 // scriptSrcPattern finds one served asset in a page's head.
 var scriptSrcPattern = regexp.MustCompile(`<script src="/assets/([^"]+)"`)
@@ -744,8 +745,8 @@ var scriptSrcPattern = regexp.MustCompile(`<script src="/assets/([^"]+)"`)
 // one list for the whole UI.
 func htmxAssetFor(attribute string) string {
 	switch {
-	case strings.HasPrefix(attribute, "sse-"):
-		return "sse.js"
+	case strings.HasPrefix(attribute, "hx-sse:"):
+		return "hx-sse.min.js"
 	case strings.HasPrefix(attribute, "hx-"):
 		return "htmx.min.js"
 	default:
@@ -794,6 +795,90 @@ func derivedPageAssets(t *testing.T) map[string][]string {
 		"read the derived per-page asset sets: %s", out.String())
 
 	return derived
+}
+
+// vendorHTMXDir holds the served library, from this package's directory. It is
+// the source of truth every consumer copy is synced from
+// (third_party/web/MANIFEST.md).
+const vendorHTMXDir = "../../../third_party/web/htmx"
+
+// htmx2CorePattern finds htmx 2's version literal in the minified core. htmx 2
+// writes `version:"2.0.4"`; htmx 4 writes the bare string `"4.0.0-beta6"`.
+var htmx2CorePattern = regexp.MustCompile(`version:"2\.`)
+
+// htmx4CorePattern finds htmx 4's version literal in the minified core.
+var htmx4CorePattern = regexp.MustCompile(`"4\.\d+\.\d+`)
+
+// htmxCoreAsset is the file every page loads the library from. The name did
+// not change at the cutover; the bytes behind it did.
+const htmxCoreAsset = "htmx.min.js"
+
+// htmx2SSEExtension is the file name htmx 2 published its SSE extension under.
+// htmx 4 holds its extensions in the core package and names this one
+// hx-sse.min.js, so the name alone settles which library a page would load.
+const htmx2SSEExtension = "sse.js"
+
+// VALIDATES: AC-1 -- every page of web, lg and chaos loads the htmx 4 core, and
+// no page can reach htmx 2's core or its separately published SSE extension.
+// PREVENTS: a page that serves the old library while the rest of the cutover
+// assumes the new one. The served name survives the version change
+// (`htmx.min.js` before the cutover and after it), so this reads the BYTES:
+// a name test would pass over htmx 2 wearing htmx 4's file name.
+func TestPagesServeHtmx4(t *testing.T) {
+	derived := derivedPageAssets(t)
+	require.NotEmpty(t, derived,
+		"the generator derived no page at all, so this check would prove nothing")
+
+	var streaming, plain int
+
+	for page, assets := range derived {
+		if len(assets) == 0 {
+			continue
+		}
+
+		carriesSSE := false
+
+		t.Run(page, func(t *testing.T) {
+			// An extension calls htmx.registerExtension when it runs, so it
+			// throws when the core has not run first. The order the generator
+			// emits is the order the head block renders.
+			assert.Equalf(t, htmxCoreAsset, assets[0],
+				"%s loads %s before the core, and an extension needs the core loaded", page, assets[0])
+
+			for _, asset := range assets {
+				assert.NotEqualf(t, htmx2SSEExtension, asset,
+					"%s loads %s, which is htmx 2's SSE extension; htmx 4 publishes hx-sse",
+					page, asset)
+
+				body, err := os.ReadFile(filepath.Join(vendorHTMXDir, asset))
+				require.NoErrorf(t, err,
+					"%s loads %s and third_party/web/htmx holds no such file", page, asset)
+
+				if strings.Contains(asset, "sse") {
+					carriesSSE = true
+
+					continue // the extension carries no version literal
+				}
+
+				assert.Falsef(t, htmx2CorePattern.Match(body),
+					"%s loads %s, whose bytes are htmx 2", page, asset)
+				assert.Truef(t, htmx4CorePattern.Match(body),
+					"%s loads %s, whose bytes carry no htmx 4 version", page, asset)
+			}
+		})
+
+		if carriesSSE {
+			streaming++
+		} else {
+			plain++
+		}
+	}
+
+	// AC-1's second half: the SSE extension is per page, not global. A run where
+	// every page streamed, or none did, would pass every assertion above while
+	// proving nothing about which pages load the extension.
+	assert.Positive(t, streaming, "no page loads an SSE extension, so no page streams")
+	assert.Positive(t, plain, "every page loads an SSE extension, so the set is not per page")
 }
 
 // webPageFixture is one captured page and the template that rendered it.
@@ -849,6 +934,208 @@ func webPageFixtures(t *testing.T) []webPageFixture {
 	require.NotEmptyf(t, pages, "no captured fixture renders a head, so this check would pass over nothing")
 
 	return pages
+}
+
+// zeSurfaceDirs are the three packages that serve a page of their own, from the
+// repository root. scripts/codegen/web_assets.go names the same three. The
+// repetition is deliberate: a checker that read its population from the
+// generator could not report a surface the generator forgot.
+var zeSurfaceDirs = []string{
+	"internal/component/web",
+	"internal/component/lg",
+	"internal/chaos/web",
+}
+
+// htmxEventLiteral finds one event name in the vendored library. A name that
+// ends in a colon is a PREFIX the library completes at run time, as
+// "htmx:process:" plus an extension's name is, and the trailing colon says so.
+var htmxEventLiteral = regexp.MustCompile(`htmx:[a-z][a-zA-Z:]*`)
+
+// zeHtmxEventReference finds one event name Ze's own source names in a string
+// literal. A comment naming an event is prose; a quoted name is what
+// addEventListener is given.
+var zeHtmxEventReference = regexp.MustCompile(`['"](htmx:[a-zA-Z:]+)['"]`)
+
+// htmxListenerFloor is the least number of quoted event names Ze's sources
+// hold. They hold 14 on 2026-08-15, over the web assets, the looking-glass
+// theme script and the chaos dashboard's inline script. A walk that finds
+// fewer has stopped reading them, and every assertion over it would pass.
+const htmxListenerFloor = 10
+
+// dispatchedHtmxEvents reads every event the vendored library dispatches: the
+// literal names, and the prefixes it completes at run time.
+func dispatchedHtmxEvents(t *testing.T) (map[string]bool, []string) {
+	t.Helper()
+
+	entries, err := os.ReadDir(vendorHTMXDir)
+	require.NoError(t, err, "read the vendored htmx directory")
+
+	var prefixes []string
+
+	names := map[string]bool{}
+
+	for _, entry := range entries {
+		body, readErr := os.ReadFile(filepath.Join(vendorHTMXDir, entry.Name()))
+		require.NoErrorf(t, readErr, "read the vendored %s", entry.Name())
+
+		for _, name := range htmxEventLiteral.FindAllString(string(body), -1) {
+			if strings.HasSuffix(name, ":") {
+				prefixes = append(prefixes, name)
+
+				continue
+			}
+
+			names[name] = true
+		}
+	}
+
+	require.NotEmpty(t, names,
+		"the vendored library names no event at all, so every listener would read as valid")
+
+	return names, prefixes
+}
+
+// zeSurfaceSources returns every source of the three surfaces that can hold a
+// listener, keyed by its path from the repository root. The vendored library is
+// skipped: it dispatches the events rather than listening for them. So is
+// testdata, which holds captured output rather than source.
+func zeSurfaceSources(t *testing.T) map[string]string {
+	t.Helper()
+
+	root, err := filepath.Abs("../../..")
+	require.NoError(t, err, "resolve the repository root")
+
+	vendored := map[string]bool{}
+
+	err = filepath.WalkDir(filepath.Join(root, "third_party", "web"), func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if !d.IsDir() {
+			vendored[d.Name()] = true
+		}
+
+		return nil
+	})
+	require.NoError(t, err, "walk third_party/web for the vendored file names")
+
+	sources := map[string]string{}
+
+	for _, dir := range zeSurfaceDirs {
+		err = filepath.WalkDir(filepath.Join(root, dir), func(path string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+
+			name := d.Name()
+
+			switch {
+			case d.IsDir():
+				if name == "testdata" {
+					return filepath.SkipDir
+				}
+
+				return nil
+			case vendored[name], strings.HasSuffix(name, "_test.go"), strings.HasSuffix(name, "_templ.go"):
+				return nil
+			case filepath.Ext(name) != ".js" && filepath.Ext(name) != ".go":
+				return nil
+			}
+
+			body, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+
+			relative, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+
+			sources[filepath.ToSlash(relative)] = string(body)
+
+			return nil
+		})
+		require.NoErrorf(t, err, "walk %s for the sources that can hold a listener", dir)
+	}
+
+	return sources
+}
+
+// VALIDATES: AC-9 -- every htmx event Ze's own sources name is one the served
+// library dispatches, so no listener waits for an htmx 2 name.
+// PREVENTS: the silent half of the cutover. A listener on a name htmx 4 no
+// longer fires is never called: no console error, no failing fixture, and the
+// feature it drives simply stops. The library is read rather than a list of
+// htmx 2 names kept here, so a typo in an htmx 4 name fails too.
+func TestNoListenerUsesAHtmx2EventName(t *testing.T) {
+	dispatched, prefixes := dispatchedHtmxEvents(t)
+
+	referenced := 0
+
+	for path, body := range zeSurfaceSources(t) {
+		for _, match := range zeHtmxEventReference.FindAllStringSubmatch(body, -1) {
+			name := match[1]
+			referenced++
+
+			if dispatched[name] {
+				continue
+			}
+
+			if slices.ContainsFunc(prefixes, func(prefix string) bool { return strings.HasPrefix(name, prefix) }) {
+				continue
+			}
+
+			assert.Failf(t, "a listener names an event htmx 4 never fires",
+				"%s names %s, and the vendored library dispatches no such event", path, name)
+		}
+	}
+
+	assert.GreaterOrEqualf(t, referenced, htmxListenerFloor,
+		"the walk found %d quoted event names, want at least %d; it has stopped reading the sources",
+		referenced, htmxListenerFloor)
+}
+
+// zeSurfaceFloor is the least number of surfaces the derived sets cover. Three
+// serve a page on 2026-08-15: web, the looking glass and chaos.
+const zeSurfaceFloor = 3
+
+// VALIDATES: AC-11 -- every asset a derived page set names is a file the
+// package serving that page holds, over every surface the generator derives.
+// PREVENTS: a page whose script tag 404s. The page renders, the server reports
+// 200, and only the browser sees that nothing works. The per-package checks
+// resolve against the SERVED filesystem and are stronger for the package they
+// cover (markupcheck.AssertAssetsResolve for web and lg, TestEmbeddedAssets for
+// chaos). None of them covers a surface that has no such check, which is what
+// this one reads the whole derived population for.
+func TestEveryPageAssetResolves(t *testing.T) {
+	derived := derivedPageAssets(t)
+	require.NotEmpty(t, derived, "the generator derived no page at all, so this check would prove nothing")
+
+	root, err := filepath.Abs("../../..")
+	require.NoError(t, err, "resolve the repository root")
+
+	surfaces := map[string]bool{}
+	resolved := 0
+
+	for page, assets := range derived {
+		source, _, _ := strings.Cut(page, "#")
+		dir := filepath.Dir(source)
+		surfaces[dir] = true
+
+		for _, asset := range assets {
+			resolved++
+
+			_, statErr := os.Stat(filepath.Join(root, dir, "assets", asset))
+			assert.NoErrorf(t, statErr,
+				"%s loads %s and %s/assets holds no such file", page, asset, dir)
+		}
+	}
+
+	assert.GreaterOrEqualf(t, len(surfaces), zeSurfaceFloor,
+		"the derived sets cover %d surfaces, want at least %d", len(surfaces), zeSurfaceFloor)
+	assert.Positive(t, resolved, "no page names an asset, so no path was resolved")
 }
 
 // VALIDATES: every htmx attribute a page renders has its asset in the set the

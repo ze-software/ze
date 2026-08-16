@@ -18,6 +18,27 @@ const (
 	cssPinPinned  = "pin pinned"
 )
 
+// Out-of-band marker for a panel fragment. The dashboard opens ONE stream, on
+// the layout div, and htmx 4 swaps an unnamed message into the element that
+// opened it. A panel arriving over that stream must therefore name its own
+// target, which it does by carrying its id and this attribute; htmx removes the
+// attribute before the element lands, so the DOM never holds it. A panel
+// rendered in place is the page's own element and carries nothing.
+const (
+	streamPanel = ` hx-swap-oob="outerHTML"`
+	pagePanel   = ""
+)
+
+// Marker for a poll the Freeze control stops. htmx 2 read a condition inside
+// the trigger (`every 500ms [!window._frozen]`); htmx 4 has no trigger filter,
+// parses the interval and ignores the rest, so that spelling polls forever and
+// Freeze changes nothing. Measured against 4.0.0-beta6 in a browser: 15 polls
+// in 3 seconds with the box ticked. A marked element is stopped instead by the
+// listener in writeLayout, which cancels `htmx:before:request` when the request
+// comes from the poll. Only the panels that carried the htmx 2 condition carry
+// this: the sidebar, the peer grid and the stream were never frozen.
+const freezePoll = ` data-freeze-poll="true"`
+
 // escapeHTML escapes HTML special characters for safe interpolation into templates.
 var escapeHTML = html.EscapeString
 
@@ -43,6 +64,34 @@ func (h *htmlWriter) writef(format string, args ...any) {
 }
 
 // writeLayout renders the full HTML page for the dashboard.
+//
+// The page ends with two error regions and the listeners that fill them, and
+// the two say different things. #conn-error means the dashboard has lost the
+// server: it is raised by a request that got NO answer and by a dropped stream,
+// and it is cleared by the next answer of either kind. #action-error carries
+// what a request the server REFUSED said, which errorfragment (internal/core/
+// errorfragment) has already turned into markup.
+//
+// The refusal is retargeted here, and it must be. htmx 4 swaps a 4xx like any
+// other answer, into the target the control named, and both outcomes were
+// measured in a browser on 2026-08-15. The Add control targets #peer-tbody with
+// outerHTML, so a refusal REPLACES the peer table's body and leaves the table
+// with its header alone. With the table off screen that target resolves to
+// nothing, htmx falls back to the element that issued the request, and the
+// refusal replaces the Add control itself. Retargeting leaves both alone.
+//
+// htmx:error is htmx 4's one error event, and htmx 2's sendError is gone. It fires
+// for a failed fetch, a timeout and a swap that threw, so "the dashboard lost
+// the server" is the case where the ctx carries no response at all.
+//
+// The refusal clears itself after 10 seconds, twice the dwell of a toast: it
+// answers an action the operator took, and a live dashboard that keeps a stale
+// refusal on screen is telling them about a request they have forgotten.
+//
+// The last listener is the Freeze control. htmx 4 has no trigger filter, so a
+// poll is stopped by canceling its request: htmx:before:request is cancelable
+// and returns before the fetch. A poll reports itself as ctx.sourceEvent.type
+// "every", and freezePoll marks the panels Freeze owns.
 func writeLayout(w io.Writer, d *Dashboard) {
 	h := &htmlWriter{w: w}
 	s := d.state
@@ -142,7 +191,7 @@ function tpSync(){
 </script>
 </head>
 <body>
-<div class="layout" hx-ext="sse" sse-connect="/events">
+<div class="layout" hx-sse:connect="/events">
 
 <div class="header">
   <h1><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"> Ze Chaos</h1>
@@ -158,7 +207,7 @@ function tpSync(){
 <div class="sidebar">
   <div class="card">
     <h3>Stats</h3>
-    <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
+    <div id="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
 
 	// Donut chart showing peer status distribution.
 	counts := s.statusCounts()
@@ -206,7 +255,7 @@ function tpSync(){
 	h.write(`
   <div class="card">
     <h3>Recent Events</h3>
-    <div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+    <div id="events" class="event-list" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 
 	writeRecentEvents(w, s)
 
@@ -216,7 +265,7 @@ function tpSync(){
 </div>
 
 <div class="main">
-  <div id="toast-container" class="toast-container" sse-swap="toast" hx-swap="beforeend"></div>
+  <div id="toast-container" class="toast-container"></div>
   <div class="filters">`)
 	writeTrackPeerControl(h, s)
 	h.write(`<span class="strip-sep"></span>
@@ -253,10 +302,6 @@ function tpSync(){
   </div>
 
   <div id="peer-detail"></div>
-
-  <div id="peer-swap" sse-swap="peer-update" hx-swap="innerHTML" style="display:none"></div>
-  <div id="peer-remove-swap" sse-swap="peer-remove" hx-swap="innerHTML" style="display:none"></div>
-  <div id="peer-add-swap" sse-swap="peer-add" hx-swap="innerHTML" style="display:none"></div>
 
   <div class="tab-bar">
     <span class="tab-group-label">Peer</span>
@@ -302,12 +347,15 @@ function tpSync(){
 <div id="conn-error" style="display:none;position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:#b91c1c;color:#fff;text-align:center;font-size:14px;z-index:999">
   Server disconnected
 </div>
+<div id="action-error" class="action-error"></div>
 <script>
-document.body.addEventListener('htmx:sendError',function(){document.getElementById('conn-error').style.display='block'});
-document.body.addEventListener('htmx:responseError',function(){document.getElementById('conn-error').style.display='block'});
-document.body.addEventListener('htmx:sseError',function(){document.getElementById('conn-error').style.display='block'});
-document.body.addEventListener('htmx:afterRequest',function(e){if(!e.detail.failed)document.getElementById('conn-error').style.display='none'});
-document.body.addEventListener('htmx:sseOpen',function(){document.getElementById('conn-error').style.display='none'});
+(function(){var conn=function(){return document.getElementById('conn-error').style},action=function(){return document.getElementById('action-error')},clear=null;
+document.body.addEventListener('htmx:error',function(e){var c=e.detail&&e.detail.ctx;if(!c||!c.response)conn().display='block'});
+document.body.addEventListener('htmx:response:error',function(e){var c=e.detail&&e.detail.ctx;if(!c)return;c.target='#action-error';c.swap='innerHTML';clearTimeout(clear);clear=setTimeout(function(){action().innerHTML=''},10000)});
+document.body.addEventListener('htmx:sse:error',function(){conn().display='block'});
+document.body.addEventListener('htmx:after:request',function(e){var c=e.detail&&e.detail.ctx;if(c&&c.response&&c.response.status<400)conn().display='none'});
+document.body.addEventListener('htmx:after:sse:connection',function(){conn().display='none'});})();
+document.body.addEventListener('htmx:before:request',function(e){var c=e.detail&&e.detail.ctx;if(!window._frozen||!c)return;if(c.sourceEvent&&c.sourceEvent.type==='every'&&c.sourceElement&&c.sourceElement.hasAttribute('data-freeze-poll'))e.preventDefault()});
 (function(){var el=document.getElementById('uptime');if(!el)return;var s=parseInt(el.dataset.start,10)||0;function fmt(t){var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),sec=t%60;if(h>0)return h+'h'+m+'m'+sec+'s';if(m>0)return m+'m'+sec+'s';return sec+'s';}setInterval(function(){s++;el.textContent=fmt(s)},1000)})();
 </script>
 </body>
@@ -485,19 +533,22 @@ func toastForEvent(ev peer.Event) (toastEntry, bool) {
 	}
 }
 
-// renderToast returns an HTML fragment for a single toast notification.
-// Delivered via SSE event "toast" — the container's sse-swap="toast" + hx-swap="beforeend"
-// handles insertion. No hx-swap-oob here: OOB treats the root element as a wrapper and
-// discards it, losing the toast div's class/style/onclick.
+// renderToast returns the stream fragment for a single toast notification.
+//
+// The toast travels inside a wrapper because an out-of-band swap that is not
+// outerHTML DISCARDS the element it is written on and keeps its children. The
+// wrapper is therefore what carries hx-swap-oob, and the toast div itself
+// reaches #toast-container with its class, its handlers and its animation.
 func renderToast(t toastEntry) string {
 	detail := ""
 	if t.Detail != "" {
 		detail = ` — ` + escapeHTML(t.Detail)
 	}
-	return `<div class="toast ` + t.CSSClass + `" onclick="this.remove()" onanimationend="if(event.animationName==='toast-out')this.remove()">` +
+	return `<div hx-swap-oob="beforeend:#toast-container">` +
+		`<div class="toast ` + t.CSSClass + `" onclick="this.remove()" onanimationend="if(event.animationName==='toast-out')this.remove()">` +
 		`<span class="toast-label">p` + itoa(t.PeerIndex) + ` ` + t.Label + detail + `</span>` +
 		`<span class="toast-close">&times;</span>` +
-		`</div>`
+		`</div></div>`
 }
 
 // donutStatusOrder defines the rendering order and colors for donut segments.

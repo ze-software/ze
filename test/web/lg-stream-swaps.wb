@@ -1,0 +1,37 @@
+# Test: the looking glass peer table updates from its live stream
+# VALIDATES: AC-3 -- an SSE message swaps the peer table body in a real browser,
+#            asserted as a POSITIVE change the stream alone can produce
+# PREVENTS: the failure that leaves correct markup behind. htmx 4 does not swap
+#           a NAMED SSE event, so a peers page left on `sse-swap="peer-update"`
+#           renders a perfect table that never updates again. No fixture can see
+#           it, because the markup at load is the markup that is right.
+
+option=server:kind=lg
+option=timeout:value=180s
+
+action=open:path=/lg/peers
+
+# POSITIVE CONTROL. The daemon, the session and the template are all live: the
+# sink peer establishes in about a second, so the page load itself renders a
+# real row. Without this, every assertion below could pass over an empty table.
+expect=element:text=established
+expect=element:text=127.0.0.1
+
+# The page loads htmx 4. htmx 2's SSE extension is a separate file and its
+# attributes are `hx-ext` plus `sse-swap`; htmx 4 publishes hx-sse and reads
+# neither attribute. These three are red before the cutover.
+expect=head:not-contains=sse.js
+expect=html:not-contains=sse-swap=
+expect=html:not-contains=hx-ext=
+
+# PRE-CONDITION for the assertion below. The session is seconds old, so no
+# minute can be on this page yet. If the page opened late, this fails loudly
+# rather than letting the wait pass over an uptime that was already there.
+expect=element:not-text=1m
+
+# handleUIEvents pushes the rendered table body every 5 seconds, and nothing
+# else rewrites that body: no polling attribute, no second request. A minute on
+# this page can only have arrived through a swapped stream message.
+action=wait:ms=70000
+expect=element:text=1m
+expect=element:text=established

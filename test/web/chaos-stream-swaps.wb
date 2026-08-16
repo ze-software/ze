@@ -1,0 +1,37 @@
+# Test: the chaos dashboard updates from its live stream
+# VALIDATES: AC-4 -- an SSE message swaps a panel in a real browser, asserted on
+#            the one target no request can fill
+# PREVENTS: a dashboard that freezes with no error under htmx 4, which swaps no
+#           NAMED SSE event.
+#
+# The toast container is the target on purpose. #stats and #events carry
+# hx-get with hx-trigger="every 500ms" beside their sse-swap, so each keeps
+# updating with the stream dead: an assertion on either would pass over a
+# corpse. #toast-container has no polling attribute, starts empty, and is
+# appended to by nothing but a swapped SSE message.
+
+option=server:kind=chaos
+option=timeout:value=90s
+
+action=open:path=/
+
+# POSITIVE CONTROL. The dashboard rendered and the run is live.
+expect=element:id=toast-container
+expect=html:contains=stat-label
+
+# The dashboard loads htmx 4, whose SSE extension is hx-sse and which reads
+# neither `hx-ext` nor `sse-swap`. Red before the cutover: render.go writes six
+# sse-swap attributes and one hx-ext.
+expect=head:not-contains=sse.js
+expect=html:not-contains=sse-swap=
+expect=html:not-contains=hx-ext=
+
+# PRE-CONDITION. The container is empty at load, so the assertion below reads a
+# state that changed. The needle carries the space of `class="toast toast-warn"`
+# so it cannot match the container's own class="toast-container".
+expect=html:not-contains=class="toast toast
+
+# ze-chaos broadcasts a toast about once a second under this seed. One in the
+# container is a swapped message and can be nothing else.
+action=wait:ms=4000
+expect=html:contains=class="toast toast

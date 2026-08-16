@@ -126,7 +126,7 @@ func TestWriteConvergenceTrend(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	writeConvergenceTrend(&buf, rb)
+	writeConvergenceTrend(&buf, rb, streamPanel)
 	html := buf.String()
 
 	for _, needle := range []string{"p50", "p90", "p99", "trend-p50", "trend-p90", "trend-p99", "samples"} {
@@ -146,7 +146,7 @@ func TestWriteConvergenceTrendEmpty(t *testing.T) {
 	rb := NewRingBuffer[time.Duration](100)
 
 	var buf strings.Builder
-	writeConvergenceTrend(&buf, rb)
+	writeConvergenceTrend(&buf, rb, streamPanel)
 	html := buf.String()
 
 	if !strings.Contains(html, "Awaiting") {
@@ -159,7 +159,7 @@ func TestWriteConvergenceTrendEmpty(t *testing.T) {
 
 // TestWriteConvergenceTrendSSEAttributes verifies SSE swap attributes.
 //
-// VALIDATES: AC-5 — outer div has sse-swap="convergence-trend".
+// VALIDATES: AC-5 — the broadcast fragment names itself out of band.
 // PREVENTS: SSE updates not reaching the trend panel.
 func TestWriteConvergenceTrendSSEAttributes(t *testing.T) {
 	t.Parallel()
@@ -168,11 +168,14 @@ func TestWriteConvergenceTrendSSEAttributes(t *testing.T) {
 	rb.Push(10 * time.Millisecond)
 
 	var buf strings.Builder
-	writeConvergenceTrend(&buf, rb)
+	writeConvergenceTrend(&buf, rb, streamPanel)
 	html := buf.String()
 
-	if !strings.Contains(html, `sse-swap="convergence-trend"`) {
-		t.Error("missing sse-swap attribute")
+	if !strings.Contains(html, `hx-swap-oob="outerHTML"`) {
+		t.Error("missing hx-swap-oob attribute")
+	}
+	if strings.Contains(html, "sse-swap") {
+		t.Error("sse-swap is removed in htmx 4 and must not be written")
 	}
 	if !strings.Contains(html, `id="viz-convergence-trend"`) {
 		t.Error("missing id attribute")
@@ -195,7 +198,7 @@ func TestWriteConvergenceTrendColors(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	writeConvergenceTrend(&buf, rb)
+	writeConvergenceTrend(&buf, rb, streamPanel)
 	html := buf.String()
 
 	if !strings.Contains(html, `class="trend-p50"`) {

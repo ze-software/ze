@@ -1,7 +1,7 @@
 status: 200
 header: Content-Type: text/html; charset=utf-8
 
-<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms" data-freeze-poll="true" hx-target="#viz-content" hx-swap="innerHTML">
 <h3>Chaos Events</h3><div class="chaos-events-table">
 <table class="peer-table">
   <thead><tr>

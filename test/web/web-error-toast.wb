@@ -1,0 +1,36 @@
+# Test: a refused config edit reports its message to the operator
+# VALIDATES: AC-5 -- a 4xx answer reaches the browser as a toast AND as the error
+#            fragment htmx 4 swaps into the element that was refused
+# PREVENTS: the silent half of the htmx 4 move. notification.js reads
+#           evt.detail.xhr, which htmx 4 does not provide (it uses fetch), so a
+#           handler left unconverted returns early and every failed action loses
+#           its feedback with no console error and no markup difference.
+
+option=timeout:value=90s
+
+action=open:path=/show/bgp/session/asn/
+expect=element:id=field-local
+
+# POSITIVE CONTROL. A valid value proves the whole rail is live before any
+# refusal is asserted: the field posts, the 200 swaps the main content, and the
+# out-of-band commit bar lands. Without it, "no toast appeared" would be
+# indistinguishable from "nothing was ever sent".
+action=fill:id=input-bgp-ssession-sasn-slocal:value=65001
+action=wait:ms=2000
+expect=html:contains=ze-field-tag-set
+expect=element:text=1 pending change
+
+# 99999999999 is above uint32, so config.ValidateValue refuses it and
+# handler_config_form.go answers 400 through WriteOOBError.
+action=fill:id=input-bgp-ssession-sasn-slocal:value=99999999999
+action=wait:ms=3000
+
+# The operator is told. notification.js reads the refusal body and raises a
+# retained toast carrying the status and the validator's own sentence.
+expect=element:text=Error 400
+expect=element:text=invalid uint32
+
+# htmx 4 swaps every response but 204 and 304, so the error fragment lands in
+# the field that was refused. htmx 2 swaps no 4xx at all, which is why this step
+# is red before the cutover and is the one that proves the new library is live.
+expect=html:contains=error-fragment-message

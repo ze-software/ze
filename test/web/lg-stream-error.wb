@@ -1,0 +1,31 @@
+# Test: the looking glass tells the operator when the engine cannot answer
+# VALIDATES: AC-12 -- the engine-unavailable signal reaches a watching browser
+#            over the same unnamed stream that carries the peer rows
+# PREVENTS: the silent half of the htmx 4 cutover. The stream used to send this
+#           as a SECOND named event, `peer-error`, which nothing swapped even
+#           under htmx 2 and which htmx 4 would only dispatch as a DOM event.
+#           An operator watching a frozen table would be told nothing at all.
+
+option=server:kind=lg-no-engine
+option=timeout:value=90s
+
+action=open:path=/lg/peers
+
+# POSITIVE CONTROL. The page rendered, and the engine really is unreachable:
+# the banner is the page's own render of the same producer the stream reads
+# (engineError, internal/component/lg/handler_ui.go).
+expect=element:text=BGP Peers
+expect=html:contains=error-banner
+expect=html:contains=bgp engine unavailable
+
+# PRE-CONDITION. The table body is empty at load, so the assertion below reads
+# a state that CHANGED. `stream-error` is written by peersStreamError alone,
+# and no page render calls it.
+expect=html:not-contains=stream-error
+
+# The stream ticks every 5 seconds. The row can only have arrived through a
+# swapped unnamed message: nothing polls this table, and the page that produced
+# the DOM had no such row in it.
+action=wait:ms=8000
+expect=html:contains=<tr class="stream-error">
+expect=html:contains=>bgp engine unavailable</td>

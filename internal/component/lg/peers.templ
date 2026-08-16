@@ -14,6 +14,13 @@ templ peersPage(v peersView) {
 }
 
 // peersContent is the peer table. Its body is swapped by server-sent events.
+//
+// The stream sends UNNAMED messages: htmx 4 swaps one of those into the
+// element carrying hx-sse:connect and only dispatches a named event, which
+// nothing here listens for. `swapEmpty:true` keeps the empty message
+// meaningful, because the extension makes an unnamed message swapEmpty:false
+// unless the element says otherwise, and zero peers is a state the browser
+// must be told about.
 templ peersContent(v peersView) {
 	<table class="peers-table">
 		<thead>
@@ -22,7 +29,7 @@ templ peersContent(v peersView) {
 				<th>Received</th><th>Accepted</th><th>Sent</th><th>Updates In</th><th>Updates Out</th><th>Description</th>
 			</tr>
 		</thead>
-		<tbody hx-ext="sse" sse-connect="/lg/events" sse-swap="peer-update">@peersTableBody(v.Peers)</tbody>
+		<tbody hx-sse:connect="/lg/events" hx-swap="innerHTML swapEmpty:true">@peersTableBody(v.Peers)</tbody>
 	</table>
 }
 
@@ -48,6 +55,16 @@ templ peersTableBody(rows []peerRow) {
 			<td>{ p.Description }</td>
 		</tr>
 	}
+}
+
+// peersStreamError is the body the event stream sends when the engine cannot
+// answer. The stream carries one kind of message, so the reason travels inside
+// the table body rather than in a second event: the operator reads it where the
+// rows would be, and the next good tick replaces it with rows again.
+templ peersStreamError(message string) {
+	<tr class="stream-error">
+		<td colspan="10">{ message }</td>
+	</tr>
 }
 
 // bmpPeersContent is the BMP monitored-peer table.

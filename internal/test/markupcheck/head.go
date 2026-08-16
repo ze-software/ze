@@ -19,7 +19,7 @@ import (
 // output, so neither may take its answer from the other.
 const (
 	htmxAsset = "htmx.min.js"
-	sseAsset  = "sse.js"
+	sseAsset  = "hx-sse.min.js"
 )
 
 // headMarker is what makes a capture a whole page rather than a fragment. A
@@ -29,13 +29,18 @@ const headMarker = "<head>"
 
 // htmxAttribute finds one htmx attribute in rendered markup: a whitespace byte,
 // the attribute name, then the equals sign a value follows. Requiring both ends
-// keeps a file name such as sse-client.js out of the match.
-var htmxAttribute = regexp.MustCompile(`\s(hx-[a-z-]+|sse-[a-z-]+)=`)
+// keeps a file name such as sse-client.js out of the match. htmx 4 names an
+// extension's attributes with a colon, as hx-sse:connect does.
+var htmxAttribute = regexp.MustCompile(`\s(hx-[a-z:-]+)=`)
 
 // assetImplementing names the vendored file one rendered attribute needs, or "".
+//
+// An extension attribute names the extension: the core is what every other
+// htmx attribute on the page already needs, and a page carrying an extension
+// attribute alone still fails here when its head loads no extension.
 func assetImplementing(attribute string) string {
 	switch {
-	case strings.HasPrefix(attribute, "sse-"):
+	case strings.HasPrefix(attribute, "hx-sse:"):
 		return sseAsset
 	case strings.HasPrefix(attribute, "hx-"):
 		return htmxAsset

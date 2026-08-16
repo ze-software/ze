@@ -1,0 +1,45 @@
+# Test: a response carrying main and out-of-band content lands both, and the
+#       error drawer opens itself
+# VALIDATES: AC-6 -- main content swaps, the out-of-band error appends to
+#            #error-list, and cli.js syncs the panel open from the swap event
+# PREVENTS: two failures that leave correct markup behind. htmx 4 reverses the
+#           order (main first, out-of-band after) and folds htmx:oobAfterSwap
+#           into its new event set; initErrorPanel guards on e.detail.target,
+#           which htmx 4's merged event does not carry, so it never throws and
+#           never syncs. The list fills and the drawer stays shut.
+
+option=timeout:value=90s
+
+action=open:path=/show/bgp/session/asn/
+expect=element:id=field-local
+
+# POSITIVE CONTROL 1. The drawer starts collapsed, so the assertion at the end
+# reads a state that changed rather than one that was always true.
+expect=html:contains=error-panel collapsed
+
+# POSITIVE CONTROL 2. A 200 carrying main content AND an out-of-band element
+# lands both: the re-rendered field, then the commit bar. This is the ordering
+# row's subject with nothing failing, so a red below is about the error path
+# rather than about swapping in general.
+action=fill:id=input-bgp-ssession-sasn-slocal:value=65001
+action=wait:ms=2000
+expect=html:contains=ze-field-tag-set
+expect=element:text=1 pending change
+
+# A refused set answers 400 with the error fragment FIRST and the out-of-band
+# error after it. The fragment leads deliberately: htmx removes every
+# hx-swap-oob element before swapping what remains, so a body carrying only the
+# out-of-band error would empty the field the operator was looking at.
+action=fill:id=input-bgp-ssession-sasn-slocal:value=99999999999
+action=wait:ms=3000
+
+# The out-of-band error reached its list.
+expect=html:contains=class="error-item"
+expect=element:text=invalid uint32
+
+# The main content reached the refused field, so the target was not blanked.
+expect=html:contains=error-fragment-message
+
+# And the drawer opened. This is the assertion the merged swap event breaks
+# silently: the item above is in the DOM either way.
+expect=html:not-contains=error-panel collapsed

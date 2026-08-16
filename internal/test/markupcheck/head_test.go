@@ -43,7 +43,7 @@ func TestHeadCoverageNamesAnAttributeTheHeadDoesNotLoad(t *testing.T) {
 	dir := writeFixtures(t, map[string]string{
 		"peers.txt": page(
 			`<script src="/assets/htmx.min.js"></script>`,
-			`<div hx-ext="sse" sse-connect="/events"></div>`),
+			`<div hx-sse:connect="/events"></div>`),
 	})
 
 	findings, pages, err := markupcheck.HeadCoverageFindings(dir, "/assets/")
@@ -51,8 +51,8 @@ func TestHeadCoverageNamesAnAttributeTheHeadDoesNotLoad(t *testing.T) {
 	assert.Equal(t, 1, pages)
 	require.Len(t, findings, 1)
 	assert.Contains(t, findings[0], "peers.txt")
-	assert.Contains(t, findings[0], "sse-connect")
-	assert.Contains(t, findings[0], "sse.js")
+	assert.Contains(t, findings[0], "hx-sse:connect")
+	assert.Contains(t, findings[0], "hx-sse.min.js")
 }
 
 // TestHeadCoveragePassesAPageThatLoadsWhatItRenders proves a head carrying the
@@ -65,10 +65,10 @@ func TestHeadCoverageNamesAnAttributeTheHeadDoesNotLoad(t *testing.T) {
 func TestHeadCoveragePassesAPageThatLoadsWhatItRenders(t *testing.T) {
 	dir := writeFixtures(t, map[string]string{
 		"peers.txt": page(
-			`<script src="/assets/htmx.min.js"></script><script src="/assets/sse.js"></script>`,
-			`<div hx-get="/peers" sse-swap="peer-update"></div>`),
+			`<script src="/assets/htmx.min.js"></script><script src="/assets/hx-sse.min.js"></script>`,
+			`<div hx-get="/peers" hx-sse:connect="/events"></div>`),
 		"search.txt": page(
-			`<script src="/assets/htmx.min.js"></script><script src="/assets/sse.js"></script>`,
+			`<script src="/assets/htmx.min.js"></script><script src="/assets/hx-sse.min.js"></script>`,
 			`<form hx-post="/search"></form>`),
 	})
 

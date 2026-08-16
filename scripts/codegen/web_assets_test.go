@@ -93,8 +93,9 @@ func TestGeneratedImportsAreCurrent(t *testing.T) {
 // below it would pass over nothing.
 const headBlockFloor = 8
 
-// htmxAttributeInSource finds one htmx attribute in a source file.
-var htmxAttributeInSource = regexp.MustCompile(`\s(hx-[a-z-]+|sse-[a-z-]+)=`)
+// htmxAttributeInSource finds one htmx attribute in a source file. htmx 4 names
+// an extension's attributes with a colon, as hx-sse:connect does.
+var htmxAttributeInSource = regexp.MustCompile(`\s(hx-[a-z:-]+)=`)
 
 // derivedPages returns the per-page asset sets the generator prints.
 func derivedPages(t *testing.T) map[string][]string {
