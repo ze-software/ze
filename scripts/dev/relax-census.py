@@ -29,6 +29,8 @@ Usage:
     python3 scripts/dev/relax-census.py --worktree  # count the working tree instead
     python3 scripts/dev/relax-census.py --list      # every token with its reason
     python3 scripts/dev/relax-census.py --by-area   # counts per top-level area
+    python3 scripts/dev/relax-census.py --classify  # counts per sweep bucket
+    python3 scripts/dev/relax-census.py --list --bucket A   # one bucket's tokens
     python3 scripts/dev/relax-census.py --lower     # rewrite the ceiling DOWN to
                                                     # the current HEAD count
     python3 scripts/dev/relax-census.py --selftest  # internal tests
@@ -47,6 +49,7 @@ import argparse
 import collections
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -261,14 +264,118 @@ def area_of(path):
     return "/".join(parts[:3]) if len(parts) >= 3 else path
 
 
+# Buckets, and what a sweep does with each. The letters and the actions are
+# TEST-RELAX-AUDIT.md's triage table; this is that table made re-derivable.
+#
+# The audit classified the 2026-08-10 corpus with a keyword classifier it did not
+# commit, and says so: "those figures are a one-off measurement, not something a
+# later reader can regenerate. Treat them as the shape of the corpus, never as a
+# count to verify against." Six days later nobody had started the sweep, because
+# nobody could reproduce which token was in which bucket. So this classifier is
+# NOT tuned to reproduce 368/48.7%. It reports what it finds.
+BUCKETS = {
+    "A": "mechanical no-op (sleep -> barrier, poll -> helper, unused import)",
+    "B": "same-session draft churn",
+    "C": "lines moved, test restructured or retargeted",
+    "D": "coverage genuinely removed with the symbol or feature",
+    "E": "environment or capability skip",
+    "F": "coverage replaced elsewhere",
+    "G": "relaxed around a live defect",
+    "H": "unclassified, needs a human read",
+}
+
+DELETE_BUCKETS = ("A", "B", "C")
+
+# A KEEP signal FORBIDS a delete bucket, even when a mechanical signal also
+# matches. 156 of 780 reasons carry both, because an edit that swapped a sleep for
+# a barrier often also moved an assertion. Reading such a token as bucket A
+# deletes a record of real coverage movement, which is unrecoverable; reading it
+# as a keep bucket only leaves a deletable token in place, which costs one line of
+# ceiling. The classifier therefore fails towards KEEP (ai/rules/evidence.md).
+_KEEP_SIGNALS = (
+    ("G", r"REFUTED|relaxed around a (live )?defect"),
+    (
+        "E",
+        r"-short\b|CAP_[A-Z_]+|\bas root\b|requires root|unprivileged"
+        r"|ENVIRONMENT guard|not a relaxation of existing coverage",
+    ),
+    (
+        "D",
+        r"removed with the|deleted, not weakened|no longer exists|was DELETED"
+        r"|\bis gone\b|went with (it|the)|no non-test caller|both went",
+    ),
+    (
+        "F",
+        r"covered by|replaced by|proven by|Replaced coverage"
+        r"|coverage (moved|is replaced)|the real .{0,40}proof is",
+    ),
+)
+
+_DELETE_SIGNALS = (
+    (
+        "A",
+        r"blind sleep|sleep\([^)]*\)\s*->|sleep\b[^.]{0,60}"
+        r"(barrier|wait_|wait \w|pump|quiesce|deterministic)|poll loop|unused import",
+    ),
+    (
+        "B",
+        r"never-executed|brand-new file|earlier draft|same session as authored"
+        r"|never a passing baseline|never a meaningful baseline|first draft",
+    ),
+    ("C", r"renamed to|restructured|folded into|split into|moved to|retargeted"),
+)
+
+
+def _compiled(signals):
+    return [(bucket, re.compile(pattern, re.I)) for bucket, pattern in signals]
+
+
+def classify(reason):
+    """The bucket one reason belongs to, keeping when the evidence is mixed.
+
+    Keyword classification over prose is approximate by construction, so the
+    direction of its error is the whole design. Every ambiguous reason lands in H,
+    and H is read by a human rather than swept.
+    """
+    for bucket, pattern in _compiled(_KEEP_SIGNALS):
+        if pattern.search(reason):
+            return bucket
+    for bucket, pattern in _compiled(_DELETE_SIGNALS):
+        if pattern.search(reason):
+            return bucket
+    return "H"
+
+
+def classify_rows(rows):
+    """{bucket: [(path, reason), ...]} for census rows, every bucket present."""
+    out = {b: [] for b in BUCKETS}
+    for path, reason in rows:
+        out[classify(reason)].append((path, reason))
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--worktree", action="store_true", help="count the working tree")
     ap.add_argument("--list", action="store_true", help="print every token + reason")
     ap.add_argument("--by-area", action="store_true", help="counts per area")
+    ap.add_argument("--classify", action="store_true", help="counts per sweep bucket")
+    ap.add_argument(
+        "--bucket",
+        metavar="LETTER",
+        help="restrict --list and --classify to one bucket (A..H)",
+    )
     ap.add_argument("--lower", action="store_true", help="lower the ceiling to now")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args(argv[1:])
+
+    if args.bucket and args.bucket.upper() not in BUCKETS:
+        print(
+            f"{RED}relax-census: unknown bucket {args.bucket!r}; "
+            f"expected one of {', '.join(sorted(BUCKETS))}.{RESET}",
+            file=sys.stderr,
+        )
+        return 2
 
     if args.selftest:
         return selftest()
@@ -327,9 +434,31 @@ def main(argv):
         )
         return 2
 
+    buckets = classify_rows(rows)
+    wanted = args.bucket.upper() if args.bucket else None
+    listed = buckets[wanted] if wanted else rows
+
     if args.list:
-        for p, reason in rows:
+        for p, reason in listed:
             print(f"{p}: {reason}")
+    if args.classify:
+        for letter in sorted(BUCKETS):
+            if wanted and letter != wanted:
+                continue
+            n = len(buckets[letter])
+            action = "DELETE" if letter in DELETE_BUCKETS else "keep "
+            pct = (100.0 * n / total) if total else 0.0
+            print(f"  {letter}  {action}  {n:5d}  {pct:5.1f}%  {BUCKETS[letter]}")
+        if not wanted:
+            sweepable = sum(len(buckets[b]) for b in DELETE_BUCKETS)
+            print(
+                f"\n  {sweepable} of {total} classify as deletable, which would "
+                f"leave {total - sweepable}."
+            )
+            print(
+                "  Every mixed reason is counted as a keep, so this is a FLOOR on "
+                "what a sweep can remove."
+            )
     if args.by_area:
         for area, n in collections.Counter(area_of(p) for p, _ in rows).most_common():
             print(f"{n:6d}  {area}")

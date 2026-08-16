@@ -368,6 +368,28 @@ hatch is now `_writes_new_relax_reason`), plus `relax_reasons` from
 defects". Every result quoted above is that function's own output.
 
 The triage buckets in "Triage of the 755" came from a keyword classifier run over
-the reason texts, which is NOT in the tree: those figures (368, 48.7%, ~430, ~120)
-are a one-off measurement, not something a later reader can regenerate. Treat them
-as the shape of the corpus, never as a count to verify against.
+the reason texts, which was NOT in the tree: those figures (368, 48.7%, ~430, ~120)
+are a one-off measurement of the 2026-08-10 corpus. Treat them as the shape of the
+corpus, never as a count to verify against.
+
+**A committed classifier replaced it on 2026-08-16**, because six days passed with
+the sweep unstarted and the reason was always the same: nobody could tell which
+token sat in which bucket. It is `classify` in `scripts/dev/relax-census.py`,
+reached by `--classify`, and it works from the census rows so it can never
+disagree with the count about what a token is.
+
+It does NOT reproduce the figures above, by design. A reason that carries a
+mechanical signal AND a coverage signal is counted as a KEEP, because deleting
+such a token loses a record nothing can recover while keeping one costs a line of
+ceiling. 156 of the 780 reasons carry both. So its delete buckets are a FLOOR on
+what a sweep can remove, not an estimate of it:
+
+| Bucket | n | Bucket | n |
+|--------|---|--------|---|
+| A delete | 179 | D keep | 47 |
+| B delete | 7 | E keep | 20 |
+| C delete | 14 | F keep | 111 |
+| | | H needs a read | 402 |
+
+200 of 780 classify as deletable, which would leave 580 against a ceiling of 761.
+Read one bucket with `--list --bucket A`.

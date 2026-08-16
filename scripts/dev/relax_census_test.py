@@ -20,6 +20,7 @@ the count is under the ceiling", never "I counted nothing".
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -93,6 +94,104 @@ class Fixture:
             capture_output=True,
             text=True,
         )
+
+
+def load_census_module():
+    """Import relax-census.py by path; the dash in its name blocks a plain import."""
+    spec = importlib.util.spec_from_file_location("ze_relax_census", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestSweepClassifier(unittest.TestCase):
+    """The buckets a sweep works from, and the direction their errors must run.
+
+    TEST-RELAX-AUDIT.md classified the corpus with a keyword classifier it never
+    committed, so no later reader could tell which token was in which bucket and
+    the sweep it recommended went unstarted. These pin the committed replacement.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mod = load_census_module()
+
+    def test_a_mechanical_no_op_is_deletable(self):
+        self.assertEqual(
+            self.mod.classify("blind sleep(2.0) -> callback pump + EOR barrier"), "A"
+        )
+
+    def test_draft_churn_is_deletable(self):
+        self.assertEqual(
+            self.mod.classify(
+                "removed in the same session as authored, never a passing baseline"
+            ),
+            "B",
+        )
+
+    def test_coverage_removed_with_its_symbol_is_kept(self):
+        self.assertEqual(
+            self.mod.classify("TestFoo removed with the helper it covered"), "D"
+        )
+
+    def test_coverage_replaced_elsewhere_is_kept(self):
+        self.assertEqual(
+            self.mod.classify("the same case is covered by TestBar below"), "F"
+        )
+
+    def test_an_environment_skip_is_kept(self):
+        self.assertEqual(
+            self.mod.classify("-short guard only; the full run still executes it"), "E"
+        )
+
+    def test_a_mixed_reason_is_kept_never_deleted(self):
+        """The property the whole classifier exists to hold.
+
+        156 of 780 live reasons carry a mechanical signal AND a coverage signal,
+        because an edit that swapped a sleep for a barrier often moved an
+        assertion too. Deleting one of those loses a record nothing can recover.
+        """
+        mixed = (
+            "blind sleep(2.0) -> wait_for_ack barrier, and the port assertion "
+            "was removed with the helper it covered"
+        )
+        self.assertEqual(self.mod.classify(mixed), "D")
+        self.assertNotIn(self.mod.classify(mixed), self.mod.DELETE_BUCKETS)
+
+    def test_an_unrecognised_reason_needs_a_human(self):
+        self.assertEqual(self.mod.classify("we changed how this works"), "H")
+
+    def test_h_is_not_a_delete_bucket(self):
+        """An unreadable reason must cost a read, never a deletion."""
+        self.assertNotIn("H", self.mod.DELETE_BUCKETS)
+
+    def test_every_bucket_letter_is_described(self):
+        for letter in self.mod.DELETE_BUCKETS:
+            self.assertIn(letter, self.mod.BUCKETS)
+
+    def test_classify_rows_partitions_without_loss(self):
+        rows = [("a_test.go", "blind sleep -> barrier"), ("b_test.go", "who knows")]
+        out = self.mod.classify_rows(rows)
+        self.assertEqual(sum(len(v) for v in out.values()), len(rows))
+        self.assertEqual(set(out), set(self.mod.BUCKETS))
+
+    def test_classify_reports_through_the_entry_point(self):
+        fx = Fixture(
+            ceiling=9,
+            extra={
+                "pkg/a_test.go": TOKEN_GO.format("blind sleep(2.0) -> EOR barrier"),
+                "pkg/b_test.go": TOKEN_GO.format("TestX removed with the feature"),
+            },
+        )
+        r = fx.run("--classify")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("A  DELETE", r.stdout)
+        self.assertIn("1 of 2 classify as deletable", r.stdout)
+
+    def test_an_unknown_bucket_is_refused(self):
+        r = Fixture(tokens_go=1, ceiling=9).run("--classify", "--bucket", "Z")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("unknown bucket", r.stderr)
 
 
 class TestCeilingIsEnforced(unittest.TestCase):
